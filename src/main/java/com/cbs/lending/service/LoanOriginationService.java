@@ -5,6 +5,7 @@ import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -57,6 +58,7 @@ public class LoanOriginationService {
     private final RepaymentScheduleGenerator scheduleGenerator;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
+    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // APPLICATION WORKFLOW
@@ -199,7 +201,7 @@ public class LoanOriginationService {
     }
 
     @Transactional
-    public LoanApplicationResponse approveApplication(Long applicationId, LoanApprovalRequest approval, String approvedBy) {
+    public LoanApplicationResponse approveApplication(Long applicationId, LoanApprovalRequest approval) {
         LoanApplication app = applicationRepository.findByIdWithDetails(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", "id", applicationId));
 
@@ -209,6 +211,7 @@ public class LoanOriginationService {
                     "INVALID_APPLICATION_STATE");
         }
 
+        String approvedBy = currentActorProvider.getCurrentActor();
         app.setApprovedAmount(approval.getApprovedAmount());
         app.setApprovedTenureMonths(approval.getApprovedTenureMonths());
         app.setApprovedRate(approval.getApprovedRate());
@@ -226,10 +229,11 @@ public class LoanOriginationService {
     }
 
     @Transactional
-    public LoanApplicationResponse declineApplication(Long applicationId, String reason, String declinedBy) {
+    public LoanApplicationResponse declineApplication(Long applicationId, String reason) {
         LoanApplication app = applicationRepository.findByIdWithDetails(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", "id", applicationId));
 
+        String declinedBy = currentActorProvider.getCurrentActor();
         app.setStatus(LoanApplicationStatus.DECLINED);
         app.setDeclineReason(reason);
         app.setReviewedBy(declinedBy);

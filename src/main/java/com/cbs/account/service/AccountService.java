@@ -222,7 +222,7 @@ public class AccountService {
                 transferNarration,
                 String.format("Transfer from %s", fromAccountNumber),
                 channel,
-                "TRANSFER:" + fromAccountNumber + ":" + toAccountNumber + ":" + LocalDate.now());
+                null);
 
         return accountMapper.toTransactionResponse(transferPosting.debitTransaction());
     }

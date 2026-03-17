@@ -30,17 +30,16 @@ public class AlmController {
             @RequestParam BigDecimal totalRsa, @RequestParam BigDecimal totalRsl,
             @RequestBody List<Map<String, Object>> buckets,
             @RequestParam(required = false) BigDecimal avgAssetDuration,
-            @RequestParam(required = false) BigDecimal avgLiabDuration,
-            @RequestParam String generatedBy) {
+            @RequestParam(required = false) BigDecimal avgLiabDuration) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
                 almService.generateGapReport(reportDate, currencyCode, totalRsa, totalRsl, buckets,
-                        avgAssetDuration, avgLiabDuration, generatedBy)));
+                        avgAssetDuration, avgLiabDuration)));
     }
 
     @PostMapping("/gap-report/{id}/approve")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<AlmGapReport>> approve(@PathVariable Long id, @RequestParam String approvedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(almService.approveReport(id, approvedBy)));
+    public ResponseEntity<ApiResponse<AlmGapReport>> approve(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.approveReport(id)));
     }
 
     @GetMapping("/gap-report/{date}")

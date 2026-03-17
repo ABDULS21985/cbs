@@ -5,6 +5,7 @@ import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.*;
@@ -34,6 +35,7 @@ public class PaymentService {
     private final FxRateRepository fxRateRepository;
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
+    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // INTERNAL TRANSFER (Cap 27)
@@ -272,10 +274,11 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentBatch processBatch(String batchRef, String approvedBy) {
+    public PaymentBatch processBatch(String batchRef) {
         PaymentBatch batch = batchRepository.findByBatchRef(batchRef)
                 .orElseThrow(() -> new ResourceNotFoundException("PaymentBatch", "batchRef", batchRef));
 
+        String approvedBy = currentActorProvider.getCurrentActor();
         batch.setApprovedBy(approvedBy);
         batch.setApprovedAt(Instant.now());
         batch.setStatus("PROCESSING");

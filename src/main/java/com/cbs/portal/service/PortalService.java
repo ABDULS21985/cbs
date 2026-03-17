@@ -8,6 +8,7 @@ import com.cbs.account.mapper.AccountMapper;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.AccountSignatoryRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.dto.CustomerResponse;
@@ -49,6 +50,7 @@ public class PortalService {
     private final ProfileUpdateRequestRepository profileUpdateRepository;
     private final CustomerMapper customerMapper;
     private final AccountMapper accountMapper;
+    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // DASHBOARD — single pane for the logged-in customer
@@ -171,7 +173,7 @@ public class PortalService {
     }
 
     @Transactional
-    public ProfileUpdateRequestDto approveProfileUpdate(Long requestId, String reviewedBy) {
+    public ProfileUpdateRequestDto approveProfileUpdate(Long requestId) {
         ProfileUpdateRequest request = profileUpdateRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("ProfileUpdateRequest", "id", requestId));
 
@@ -179,6 +181,7 @@ public class PortalService {
             throw new BusinessException("Request is not in PENDING status", "INVALID_REQUEST_STATUS");
         }
 
+        String reviewedBy = currentActorProvider.getCurrentActor();
         request.setStatus("APPROVED");
         request.setReviewedAt(Instant.now());
         request.setReviewedBy(reviewedBy);
@@ -193,7 +196,7 @@ public class PortalService {
     }
 
     @Transactional
-    public ProfileUpdateRequestDto rejectProfileUpdate(Long requestId, String reviewedBy, String reason) {
+    public ProfileUpdateRequestDto rejectProfileUpdate(Long requestId, String reason) {
         ProfileUpdateRequest request = profileUpdateRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("ProfileUpdateRequest", "id", requestId));
 
@@ -201,6 +204,7 @@ public class PortalService {
             throw new BusinessException("Request is not in PENDING status", "INVALID_REQUEST_STATUS");
         }
 
+        String reviewedBy = currentActorProvider.getCurrentActor();
         request.setStatus("REJECTED");
         request.setReviewedAt(Instant.now());
         request.setReviewedBy(reviewedBy);

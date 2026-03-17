@@ -2,6 +2,7 @@ package com.cbs.alm.service;
 
 import com.cbs.alm.entity.*;
 import com.cbs.alm.repository.*;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.fixedincome.entity.SecurityHolding;
 import com.cbs.fixedincome.repository.SecurityHoldingRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class AlmService {
     private final AlmGapReportRepository gapReportRepository;
     private final AlmScenarioRepository scenarioRepository;
     private final SecurityHoldingRepository holdingRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     /**
      * Generates ALM gap report with:
@@ -33,8 +35,7 @@ public class AlmService {
     public AlmGapReport generateGapReport(LocalDate reportDate, String currencyCode,
                                              BigDecimal totalRsa, BigDecimal totalRsl,
                                              List<Map<String, Object>> buckets,
-                                             BigDecimal avgAssetDuration, BigDecimal avgLiabDuration,
-                                             String generatedBy) {
+                                             BigDecimal avgAssetDuration, BigDecimal avgLiabDuration) {
 
         BigDecimal cumulativeGap = totalRsa.subtract(totalRsl);
         BigDecimal gapRatio = totalRsl.compareTo(BigDecimal.ZERO) != 0 ?
@@ -56,6 +57,7 @@ public class AlmService {
         BigDecimal eveDown200 = equity.add(durationGap.multiply(equity).multiply(new BigDecimal("0.02")));
         BigDecimal eveSensitivity = eveUp200.subtract(eveBase);
 
+        String generatedBy = currentActorProvider.getCurrentActor();
         AlmGapReport report = AlmGapReport.builder()
                 .reportDate(reportDate).currencyCode(currencyCode)
                 .buckets(buckets).totalRsa(totalRsa).totalRsl(totalRsl)
@@ -84,11 +86,11 @@ public class AlmService {
     }
 
     @Transactional
-    public AlmGapReport approveReport(Long reportId, String approvedBy) {
+    public AlmGapReport approveReport(Long reportId) {
         AlmGapReport report = gapReportRepository.findById(reportId)
                 .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("AlmGapReport", "id", reportId));
         report.setStatus("FINAL");
-        report.setApprovedBy(approvedBy);
+        report.setApprovedBy(currentActorProvider.getCurrentActor());
         return gapReportRepository.save(report);
     }
 
