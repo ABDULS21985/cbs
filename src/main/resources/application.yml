@@ -7,8 +7,8 @@ spring:
     username: ${CBS_DB_USERNAME:cbs_admin}
     password: ${CBS_DB_PASSWORD:}
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: ${CBS_DB_POOL_MAX:20}
+      minimum-idle: ${CBS_DB_POOL_MIN:5}
       idle-timeout: 300000
       connection-timeout: 20000
       max-lifetime: 1200000
@@ -60,7 +60,7 @@ spring:
           issuer-uri: ${CBS_OAUTH2_ISSUER_URI:http://localhost:8180/realms/cbs}
 
   cache:
-    type: redis
+    type: ${CBS_CACHE_TYPE:redis}
     redis:
       time-to-live: 600000
 
@@ -98,7 +98,52 @@ logging:
   pattern:
     console: "%d{ISO8601} [%thread] %-5level [%X{traceId:-}] %logger{36} - %msg%n"
 
+# ============================================================
+# CBS GLOBAL CONFIGURATION — No country-specific defaults
+# Override per deployment via profiles or environment variables
+# ============================================================
 cbs:
+  deployment:
+    country-code: ${CBS_COUNTRY_CODE:GLOBAL}
+    default-currency: ${CBS_DEFAULT_CURRENCY:USD}
+    timezone: ${CBS_TIMEZONE:UTC}
+    locale: ${CBS_LOCALE:en}
+    institution-name: ${CBS_INSTITUTION_NAME:Core Banking System}
+    institution-code: ${CBS_INSTITUTION_CODE:}
+    regulatory-body: ${CBS_REGULATORY_BODY:}
+    multi-tenant: ${CBS_MULTI_TENANT:false}
+
+  account:
+    numbering-scheme: ${CBS_ACCOUNT_NUMBERING:SEQUENTIAL}
+    number-prefix: ${CBS_ACCOUNT_PREFIX:}
+    number-length: ${CBS_ACCOUNT_LENGTH:10}
+    iban-country-code: ${CBS_IBAN_COUNTRY:}
+    iban-bank-code: ${CBS_IBAN_BANK:}
+    cif-prefix: ${CBS_CIF_PREFIX:CIF}
+    cif-length: ${CBS_CIF_LENGTH:10}
+    txn-ref-prefix: ${CBS_TXN_PREFIX:TXN}
+
+  interest:
+    day-count-convention: ${CBS_DAY_COUNT:ACT_365}
+    calculation-scale: 4
+    posting-scale: 2
+    accrue-on-weekends: true
+    accrue-on-holidays: true
+
+  kyc:
+    provider: ${CBS_KYC_PROVIDER:INTERNAL}
+    provider-base-url: ${CBS_KYC_URL:}
+    provider-timeout-seconds: 30
+    require-verified-id: false
+    id-types: []
+
+  lifecycle:
+    default-dormancy-days: ${CBS_DORMANCY_DAYS:365}
+    escheatment-years: ${CBS_ESCHEATMENT_YEARS:6}
+    interest-accrual-cron: ${CBS_INTEREST_CRON:0 30 23 * * *}
+    dormancy-detection-cron: ${CBS_DORMANCY_CRON:0 0 0 * * *}
+    escheatment-detection-cron: ${CBS_ESCHEATMENT_CRON:0 0 1 1 * *}
+
   security:
     cors:
       allowed-origins: ${CBS_CORS_ORIGINS:http://localhost:3000}
@@ -107,6 +152,7 @@ cbs:
       - /swagger-ui/**
       - /swagger-ui.html
       - /actuator/health
+
   pagination:
     default-page-size: 20
     max-page-size: 100

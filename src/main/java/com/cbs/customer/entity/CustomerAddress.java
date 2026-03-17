@@ -41,14 +41,13 @@ public class CustomerAddress extends AuditableEntity {
     private String state;
 
     @Column(name = "country", nullable = false, length = 3)
-    @Builder.Default
-    private String country = "NGA";
+    private String country;
 
     @Column(name = "postal_code", length = 20)
     private String postalCode;
 
-    @Column(name = "lga", length = 100)
-    private String lga;
+    @Column(name = "district", length = 100)
+    private String district;
 
     @Column(name = "landmark", length = 200)
     private String landmark;

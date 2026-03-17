@@ -42,7 +42,7 @@ public class AddressDto {
     private String postalCode;
 
     @Size(max = 100)
-    private String lga;
+    private String district;
 
     @Size(max = 200)
     private String landmark;

@@ -1,0 +1,20 @@
+package com.cbs.lifecycle.entity;
+
+public enum LifecycleEventType {
+    OPENED,
+    ACTIVATED,
+    STATUS_CHANGED,
+    DORMANCY_DETECTED,
+    REACTIVATED,
+    FROZEN,
+    UNFROZEN,
+    PND_PLACED,
+    PND_REMOVED,
+    CLOSED,
+    ESCHEAT,
+    FEE_CHARGED,
+    INTEREST_POSTED,
+    MANDATE_CHANGED,
+    SIGNATORY_ADDED,
+    SIGNATORY_REMOVED
+}

@@ -65,8 +65,7 @@ public class Customer extends AuditableEntity {
     private String maritalStatus;
 
     @Column(name = "nationality", length = 3)
-    @Builder.Default
-    private String nationality = "NGA";
+    private String nationality;
 
     @Column(name = "state_of_origin", length = 50)
     private String stateOfOrigin;
@@ -128,6 +127,9 @@ public class Customer extends AuditableEntity {
 
     @Column(name = "profile_photo_url", length = 500)
     private String profilePhotoUrl;
+
+    @Column(name = "country_of_residence", length = 3)
+    private String countryOfResidence;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb")

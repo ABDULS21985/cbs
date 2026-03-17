@@ -43,8 +43,7 @@ public class CustomerIdentification extends AuditableEntity {
     private String issuingAuthority;
 
     @Column(name = "issuing_country", length = 3)
-    @Builder.Default
-    private String issuingCountry = "NGA";
+    private String issuingCountry;
 
     @Column(name = "is_primary", nullable = false)
     @Builder.Default
@@ -56,6 +55,12 @@ public class CustomerIdentification extends AuditableEntity {
 
     @Column(name = "verified_at")
     private Instant verifiedAt;
+
+    @Column(name = "verification_provider", length = 50)
+    private String verificationProvider;
+
+    @Column(name = "verification_ref", length = 100)
+    private String verificationRef;
 
     @Column(name = "document_url", length = 500)
     private String documentUrl;

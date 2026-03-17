@@ -1,5 +1,6 @@
 package com.cbs.customer;
 
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.DuplicateResourceException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -9,6 +10,8 @@ import com.cbs.customer.mapper.CustomerMapper;
 import com.cbs.customer.repository.*;
 import com.cbs.customer.service.CustomerService;
 import com.cbs.customer.validation.CustomerValidator;
+import com.cbs.provider.kyc.KycProvider;
+import com.cbs.provider.numbering.AccountNumberGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -42,6 +45,9 @@ class CustomerServiceTest {
     @Mock private CustomerNoteRepository noteRepository;
     @Mock private CustomerMapper customerMapper;
     @Mock private CustomerValidator customerValidator;
+    @Mock private KycProvider kycProvider;
+    @Mock private AccountNumberGenerator numberGenerator;
+    @Mock private CbsProperties cbsProperties;
 
     @InjectMocks
     private CustomerService customerService;
@@ -168,8 +174,11 @@ class CustomerServiceTest {
             when(customerRepository.existsByPhonePrimary("+2348012345678")).thenReturn(false);
             when(customerMapper.toEntity(request)).thenReturn(testCustomer);
             when(customerRepository.getNextCifSequence()).thenReturn(100000L);
+            when(numberGenerator.generateCif(100000L)).thenReturn("CIF0000100000");
             when(customerRepository.save(any(Customer.class))).thenReturn(testCustomer);
             when(customerMapper.toResponse(testCustomer)).thenReturn(testResponse);
+            CbsProperties.Deployment deployment = new CbsProperties.Deployment();
+            when(cbsProperties.getDeployment()).thenReturn(deployment);
 
             CustomerResponse result = customerService.createCustomer(request);
 
@@ -218,8 +227,11 @@ class CustomerServiceTest {
             when(customerRepository.existsByPhonePrimary("+2349087654321")).thenReturn(false);
             when(customerMapper.toEntity(request)).thenReturn(corpCustomer);
             when(customerRepository.getNextCifSequence()).thenReturn(100001L);
+            when(numberGenerator.generateCif(100001L)).thenReturn("CIF0000100001");
             when(customerRepository.save(any(Customer.class))).thenReturn(corpCustomer);
             when(customerMapper.toResponse(corpCustomer)).thenReturn(corpResponse);
+            CbsProperties.Deployment deployment = new CbsProperties.Deployment();
+            when(cbsProperties.getDeployment()).thenReturn(deployment);
 
             CustomerResponse result = customerService.createCustomer(request);
             assertThat(result.getCustomerType()).isEqualTo(CustomerType.CORPORATE);
@@ -250,27 +262,35 @@ class CustomerServiceTest {
     class KycTests {
 
         @Test
-        @DisplayName("Should verify a valid BVN")
-        void verifyBvn_Success() {
+        @DisplayName("Should verify a valid ID via KycProvider")
+        void verifyId_Success() {
             KycVerificationRequest request = KycVerificationRequest.builder()
                     .customerId(1L)
-                    .idType("BVN")
-                    .idNumber("22234567890")
+                    .idType("NATIONAL_ID")
+                    .idNumber("12345678901")
                     .build();
 
-            CustomerIdentification bvnId = CustomerIdentification.builder()
-                    .id(10L).idType("BVN").idNumber("22234567890")
+            CustomerIdentification idDoc = CustomerIdentification.builder()
+                    .id(10L).idType("NATIONAL_ID").idNumber("12345678901")
                     .isVerified(false).build();
 
             when(customerRepository.findById(1L)).thenReturn(Optional.of(testCustomer));
-            when(identificationRepository.findByCustomerIdAndIdTypeAndIdNumber(1L, "BVN", "22234567890"))
-                    .thenReturn(Optional.of(bvnId));
-            when(identificationRepository.save(any())).thenReturn(bvnId);
+            when(identificationRepository.findByCustomerIdAndIdTypeAndIdNumber(1L, "NATIONAL_ID", "12345678901"))
+                    .thenReturn(Optional.of(idDoc));
+            when(identificationRepository.save(any())).thenReturn(idDoc);
+
+            CbsProperties.Deployment deployment = new CbsProperties.Deployment();
+            when(cbsProperties.getDeployment()).thenReturn(deployment);
+
+            when(kycProvider.verify(any())).thenReturn(KycProvider.KycResult.builder()
+                    .verified(true).status("VERIFIED").providerName("INTERNAL")
+                    .providerReference("INT-123").verifiedAt(java.time.Instant.now())
+                    .build());
 
             KycVerificationResponse result = customerService.verifyIdentification(request);
 
             assertThat(result.getStatus()).isEqualTo(KycVerificationResponse.VerificationStatus.VERIFIED);
-            assertThat(result.getVerificationProvider()).isEqualTo("NIBSS_BVN_SERVICE");
+            assertThat(result.getVerificationProvider()).isEqualTo("INTERNAL");
         }
 
         @Test

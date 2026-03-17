@@ -1,0 +1,42 @@
+# application-uk.yml — Activate with: --spring.profiles.active=uk
+cbs:
+  deployment:
+    country-code: GBR
+    default-currency: GBP
+    timezone: Europe/London
+    locale: en-GB
+    regulatory-body: Financial Conduct Authority (FCA) / PRA
+
+  account:
+    numbering-scheme: IBAN
+    number-length: 14
+    iban-country-code: GB
+    iban-bank-code: "XXXX"
+
+  interest:
+    day-count-convention: ACT_365
+
+  kyc:
+    provider: ONFIDO
+    provider-base-url: https://api.onfido.com/v3.6
+    require-verified-id: true
+    id-types:
+      - code: UK_PASSPORT
+        name: UK Passport
+        country: GBR
+        validation-regex: "^[0-9]{9}$"
+        verifiable: true
+      - code: UK_DRIVING_LICENCE
+        name: UK Driving Licence
+        country: GBR
+        validation-regex: "^[A-Z]{5}[0-9]{6}[A-Z]{2}[0-9]{3}$"
+        verifiable: true
+      - code: NI_NUMBER
+        name: National Insurance Number
+        country: GBR
+        validation-regex: "^[A-Z]{2}[0-9]{6}[A-D]$"
+        verifiable: true
+
+  lifecycle:
+    default-dormancy-days: 365
+    escheatment-years: 15

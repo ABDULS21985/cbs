@@ -1,6 +1,6 @@
 package com.cbs.customer.service;
 
-import com.cbs.common.dto.PageMeta;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.DuplicateResourceException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -9,6 +9,8 @@ import com.cbs.customer.entity.*;
 import com.cbs.customer.mapper.CustomerMapper;
 import com.cbs.customer.repository.*;
 import com.cbs.customer.validation.CustomerValidator;
+import com.cbs.provider.kyc.KycProvider;
+import com.cbs.provider.numbering.AccountNumberGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -20,6 +22,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +37,9 @@ public class CustomerService {
     private final CustomerNoteRepository noteRepository;
     private final CustomerMapper customerMapper;
     private final CustomerValidator customerValidator;
+    private final KycProvider kycProvider;
+    private final AccountNumberGenerator numberGenerator;
+    private final CbsProperties cbsProperties;
 
     // ========================================================================
     // CAPABILITY 1: 360° Customer View
@@ -63,14 +69,13 @@ public class CustomerService {
     }
 
     public Page<CustomerSummaryResponse> searchCustomers(CustomerSearchCriteria criteria, Pageable pageable) {
-        Page<Customer> page = customerRepository.findAll(
-                CustomerSpecifications.fromCriteria(criteria), pageable);
-        return page.map(customerMapper::toSummaryResponse);
+        return customerRepository.findAll(CustomerSpecifications.fromCriteria(criteria), pageable)
+                .map(customerMapper::toSummaryResponse);
     }
 
     public Page<CustomerSummaryResponse> quickSearch(String searchTerm, Pageable pageable) {
-        Page<Customer> page = customerRepository.searchCustomers(searchTerm, pageable);
-        return page.map(customerMapper::toSummaryResponse);
+        return customerRepository.searchCustomers(searchTerm, pageable)
+                .map(customerMapper::toSummaryResponse);
     }
 
     // ========================================================================
@@ -79,33 +84,36 @@ public class CustomerService {
 
     @Transactional
     public CustomerResponse createCustomer(CreateCustomerRequest request) {
-        log.info("Creating new customer: type={}, channel={}", request.getCustomerType(), request.getOnboardedChannel());
+        log.info("Creating customer: type={}, channel={}", request.getCustomerType(), request.getOnboardedChannel());
 
         customerValidator.validateCreateRequest(request);
         checkForDuplicates(request);
 
         Customer customer = customerMapper.toEntity(request);
-        customer.setCifNumber(generateCifNumber());
+        customer.setCifNumber(numberGenerator.generateCif(customerRepository.getNextCifSequence()));
         customer.setStatus(CustomerStatus.ACTIVE);
         customer.setRiskRating(RiskRating.MEDIUM);
 
-        // Process nested addresses
+        // Default country of residence from deployment config if not provided
+        if (!StringUtils.hasText(customer.getCountryOfResidence())) {
+            String deployCountry = cbsProperties.getDeployment().getCountryCode();
+            if (!"GLOBAL".equals(deployCountry)) {
+                customer.setCountryOfResidence(deployCountry);
+            }
+        }
+
         if (!CollectionUtils.isEmpty(request.getAddresses())) {
             for (AddressDto addrDto : request.getAddresses()) {
                 CustomerAddress address = customerMapper.toAddressEntity(addrDto);
                 customer.addAddress(address);
             }
         }
-
-        // Process nested identifications
         if (!CollectionUtils.isEmpty(request.getIdentifications())) {
             for (IdentificationDto idDto : request.getIdentifications()) {
                 CustomerIdentification identification = customerMapper.toIdentificationEntity(idDto);
                 customer.addIdentification(identification);
             }
         }
-
-        // Process nested contacts
         if (!CollectionUtils.isEmpty(request.getContacts())) {
             for (ContactDto contactDto : request.getContacts()) {
                 CustomerContact contact = customerMapper.toContactEntity(contactDto);
@@ -114,8 +122,7 @@ public class CustomerService {
         }
 
         Customer saved = customerRepository.save(customer);
-        log.info("Customer created successfully: cifNumber={}, id={}", saved.getCifNumber(), saved.getId());
-
+        log.info("Customer created: cifNumber={}, id={}", saved.getCifNumber(), saved.getId());
         return customerMapper.toResponse(saved);
     }
 
@@ -123,38 +130,30 @@ public class CustomerService {
     public CustomerResponse updateCustomer(Long customerId, UpdateCustomerRequest request) {
         Customer customer = findCustomerOrThrow(customerId);
 
-        // Uniqueness checks for email/phone updates
         if (StringUtils.hasText(request.getEmail())) {
             customerRepository.findByEmailExcludingId(request.getEmail(), customerId)
-                    .ifPresent(c -> {
-                        throw new DuplicateResourceException("Customer", "email", request.getEmail());
-                    });
+                    .ifPresent(c -> { throw new DuplicateResourceException("Customer", "email", request.getEmail()); });
         }
         if (StringUtils.hasText(request.getPhonePrimary())) {
             customerRepository.findByPhonePrimaryExcludingId(request.getPhonePrimary(), customerId)
-                    .ifPresent(c -> {
-                        throw new DuplicateResourceException("Customer", "phonePrimary", request.getPhonePrimary());
-                    });
+                    .ifPresent(c -> { throw new DuplicateResourceException("Customer", "phonePrimary", request.getPhonePrimary()); });
         }
 
         customerMapper.updateEntity(request, customer);
         Customer saved = customerRepository.save(customer);
         log.info("Customer updated: cifNumber={}", saved.getCifNumber());
-
         return customerMapper.toResponse(saved);
     }
 
     @Transactional
     public CustomerResponse changeStatus(Long customerId, CustomerStatusChangeRequest request) {
         Customer customer = findCustomerOrThrow(customerId);
-
         customerValidator.validateStatusTransition(customer.getStatus(), request.getNewStatus());
 
         CustomerStatus oldStatus = customer.getStatus();
         customer.setStatus(request.getNewStatus());
-        Customer saved = customerRepository.save(customer);
+        customerRepository.save(customer);
 
-        // Log the status change as an internal note
         CustomerNote statusNote = CustomerNote.builder()
                 .noteType(NoteType.INTERNAL)
                 .subject("Status Changed")
@@ -164,19 +163,18 @@ public class CustomerService {
         customer.addNote(statusNote);
         noteRepository.save(statusNote);
 
-        log.info("Customer status changed: cifNumber={}, {} -> {}", saved.getCifNumber(), oldStatus, request.getNewStatus());
-        return customerMapper.toResponse(saved);
+        log.info("Customer status: cifNumber={}, {} -> {}", customer.getCifNumber(), oldStatus, request.getNewStatus());
+        return customerMapper.toResponse(customer);
     }
 
     // ========================================================================
-    // CAPABILITY 3: eKYC & Digital Identity Verification
+    // CAPABILITY 3: eKYC — Delegated to pluggable KycProvider
     // ========================================================================
 
     @Transactional
     public KycVerificationResponse verifyIdentification(KycVerificationRequest request) {
         Customer customer = findCustomerOrThrow(request.getCustomerId());
 
-        // Find or create the identification record
         CustomerIdentification identification = identificationRepository
                 .findByCustomerIdAndIdTypeAndIdNumber(customer.getId(), request.getIdType(), request.getIdNumber())
                 .orElseGet(() -> {
@@ -188,69 +186,71 @@ public class CustomerService {
                     return identificationRepository.save(newId);
                 });
 
-        // Check for expiry
         if (identification.isExpired()) {
             return KycVerificationResponse.builder()
-                    .customerId(customer.getId())
-                    .cifNumber(customer.getCifNumber())
-                    .idType(request.getIdType())
-                    .idNumber(request.getIdNumber())
+                    .customerId(customer.getId()).cifNumber(customer.getCifNumber())
+                    .idType(request.getIdType()).idNumber(request.getIdNumber())
                     .status(KycVerificationResponse.VerificationStatus.EXPIRED_DOCUMENT)
                     .failureReason("Identification document has expired")
                     .build();
         }
 
-        // In production, this calls external KYC providers (NIBSS BVN, NIMC NIN, etc.)
-        // The integration layer is pluggable via KycProviderService interface
-        boolean verified = performKycVerification(request);
+        // Delegate to configured KycProvider (INTERNAL, Onfido, Jumio, SumSub, etc.)
+        KycProvider.KycResult result = kycProvider.verify(KycProvider.KycVerifyCommand.builder()
+                .idType(request.getIdType())
+                .idNumber(request.getIdNumber())
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .dateOfBirth(request.getDateOfBirth())
+                .country(cbsProperties.getDeployment().getCountryCode())
+                .build());
 
-        if (verified) {
+        if (result.isVerified()) {
             identification.setIsVerified(true);
             identification.setVerifiedAt(Instant.now());
+            identification.setVerificationProvider(result.getProviderName());
+            identification.setVerificationRef(result.getProviderReference());
             identificationRepository.save(identification);
 
-            log.info("KYC verification successful: customer={}, idType={}", customer.getCifNumber(), request.getIdType());
+            log.info("KYC verified: customer={}, idType={}, provider={}",
+                    customer.getCifNumber(), request.getIdType(), result.getProviderName());
+
             return KycVerificationResponse.builder()
-                    .customerId(customer.getId())
-                    .cifNumber(customer.getCifNumber())
-                    .idType(request.getIdType())
-                    .idNumber(request.getIdNumber())
+                    .customerId(customer.getId()).cifNumber(customer.getCifNumber())
+                    .idType(request.getIdType()).idNumber(request.getIdNumber())
                     .status(KycVerificationResponse.VerificationStatus.VERIFIED)
-                    .verifiedAt(Instant.now())
-                    .verificationProvider(resolveProvider(request.getIdType()))
+                    .verifiedAt(result.getVerifiedAt())
+                    .verificationProvider(result.getProviderName())
+                    .verificationReference(result.getProviderReference())
                     .build();
         }
 
-        log.warn("KYC verification failed: customer={}, idType={}", customer.getCifNumber(), request.getIdType());
+        log.warn("KYC failed: customer={}, idType={}, reason={}",
+                customer.getCifNumber(), request.getIdType(), result.getFailureReason());
+
         return KycVerificationResponse.builder()
-                .customerId(customer.getId())
-                .cifNumber(customer.getCifNumber())
-                .idType(request.getIdType())
-                .idNumber(request.getIdNumber())
+                .customerId(customer.getId()).cifNumber(customer.getCifNumber())
+                .idType(request.getIdType()).idNumber(request.getIdNumber())
                 .status(KycVerificationResponse.VerificationStatus.FAILED)
-                .failureReason("Verification could not be completed. Data mismatch or provider unavailable.")
+                .failureReason(result.getFailureReason())
+                .verificationProvider(result.getProviderName())
                 .build();
     }
 
     @Transactional
     public IdentificationDto addIdentification(Long customerId, IdentificationDto dto) {
         Customer customer = findCustomerOrThrow(customerId);
-
         identificationRepository.findByCustomerIdAndIdTypeAndIdNumber(customerId, dto.getIdType(), dto.getIdNumber())
                 .ifPresent(existing -> {
                     throw new DuplicateResourceException("Identification", "idType+idNumber",
                             dto.getIdType() + ":" + dto.getIdNumber());
                 });
-
         CustomerIdentification identification = customerMapper.toIdentificationEntity(dto);
         customer.addIdentification(identification);
-
         if (Boolean.TRUE.equals(dto.getIsPrimary())) {
             identificationRepository.clearPrimaryFlag(customerId, 0L);
         }
-
         CustomerIdentification saved = identificationRepository.save(identification);
-        log.info("Identification added: customer={}, type={}", customer.getCifNumber(), dto.getIdType());
         return customerMapper.toIdentificationDto(saved);
     }
 
@@ -260,23 +260,18 @@ public class CustomerService {
     }
 
     // ========================================================================
-    // CAPABILITY 4: Flexible Account Structures (Address/Contact CRUD as sub-resources)
+    // CAPABILITY 4: Sub-resource CRUD (Addresses, Contacts, Notes, Relationships)
     // ========================================================================
 
     @Transactional
     public AddressDto addAddress(Long customerId, AddressDto dto) {
         Customer customer = findCustomerOrThrow(customerId);
-
         CustomerAddress address = customerMapper.toAddressEntity(dto);
         customer.addAddress(address);
-
         if (Boolean.TRUE.equals(dto.getIsPrimary())) {
             addressRepository.clearPrimaryFlag(customerId, 0L);
         }
-
-        CustomerAddress saved = addressRepository.save(address);
-        log.info("Address added: customer={}, type={}", customer.getCifNumber(), dto.getAddressType());
-        return customerMapper.toAddressDto(saved);
+        return customerMapper.toAddressDto(addressRepository.save(address));
     }
 
     @Transactional
@@ -284,7 +279,6 @@ public class CustomerService {
         findCustomerOrThrow(customerId);
         CustomerAddress address = addressRepository.findByIdAndCustomerId(addressId, customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Address", "id", addressId));
-
         address.setAddressType(dto.getAddressType());
         address.setAddressLine1(dto.getAddressLine1());
         address.setAddressLine2(dto.getAddressLine2());
@@ -292,18 +286,15 @@ public class CustomerService {
         address.setState(dto.getState());
         address.setCountry(dto.getCountry() != null ? dto.getCountry() : address.getCountry());
         address.setPostalCode(dto.getPostalCode());
-        address.setLga(dto.getLga());
+        address.setDistrict(dto.getDistrict());
         address.setLandmark(dto.getLandmark());
         address.setLatitude(dto.getLatitude());
         address.setLongitude(dto.getLongitude());
-
         if (Boolean.TRUE.equals(dto.getIsPrimary())) {
             addressRepository.clearPrimaryFlag(customerId, addressId);
             address.setIsPrimary(true);
         }
-
-        CustomerAddress saved = addressRepository.save(address);
-        return customerMapper.toAddressDto(saved);
+        return customerMapper.toAddressDto(addressRepository.save(address));
     }
 
     public List<AddressDto> getAddresses(Long customerId) {
@@ -317,17 +308,14 @@ public class CustomerService {
         CustomerAddress address = addressRepository.findByIdAndCustomerId(addressId, customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Address", "id", addressId));
         addressRepository.delete(address);
-        log.info("Address deleted: customer={}, addressId={}", customerId, addressId);
     }
 
-    // Notes
     @Transactional
     public NoteDto addNote(Long customerId, NoteDto dto) {
         Customer customer = findCustomerOrThrow(customerId);
         CustomerNote note = customerMapper.toNoteEntity(dto);
         customer.addNote(note);
-        CustomerNote saved = noteRepository.save(note);
-        return customerMapper.toNoteDto(saved);
+        return customerMapper.toNoteDto(noteRepository.save(note));
     }
 
     public Page<NoteDto> getNotes(Long customerId, Pageable pageable) {
@@ -335,7 +323,6 @@ public class CustomerService {
         return noteRepository.findByCustomerId(customerId, pageable).map(customerMapper::toNoteDto);
     }
 
-    // Relationships
     @Transactional
     public RelationshipDto addRelationship(Long customerId, RelationshipDto dto) {
         Customer customer = findCustomerOrThrow(customerId);
@@ -344,7 +331,6 @@ public class CustomerService {
         if (customerId.equals(dto.getRelatedCustomerId())) {
             throw new BusinessException("A customer cannot have a relationship with themselves", "SELF_RELATIONSHIP");
         }
-
         if (relationshipRepository.existsByCustomerIdAndRelatedCustomerIdAndRelationshipType(
                 customerId, dto.getRelatedCustomerId(), dto.getRelationshipType())) {
             throw new DuplicateResourceException("Relationship", "type",
@@ -352,8 +338,7 @@ public class CustomerService {
         }
 
         CustomerRelationship relationship = CustomerRelationship.builder()
-                .customer(customer)
-                .relatedCustomer(relatedCustomer)
+                .customer(customer).relatedCustomer(relatedCustomer)
                 .relationshipType(dto.getRelationshipType())
                 .ownershipPercentage(dto.getOwnershipPercentage())
                 .notes(dto.getNotes())
@@ -361,12 +346,7 @@ public class CustomerService {
                 .effectiveTo(dto.getEffectiveTo())
                 .build();
 
-        CustomerRelationship saved = relationshipRepository.save(relationship);
-        log.info("Relationship created: {} ({}) -> {} ({}), type={}",
-                customer.getCifNumber(), customerId,
-                relatedCustomer.getCifNumber(), dto.getRelatedCustomerId(),
-                dto.getRelationshipType());
-        return customerMapper.toRelationshipDto(saved);
+        return customerMapper.toRelationshipDto(relationshipRepository.save(relationship));
     }
 
     public List<RelationshipDto> getRelationships(Long customerId) {
@@ -374,18 +354,15 @@ public class CustomerService {
         return customerMapper.toRelationshipDtoList(relationshipRepository.findAllRelationships(customerId));
     }
 
-    // Contacts
     @Transactional
     public ContactDto addContact(Long customerId, ContactDto dto) {
         Customer customer = findCustomerOrThrow(customerId);
         CustomerContact contact = customerMapper.toContactEntity(dto);
         customer.addContact(contact);
         CustomerContact saved = customerRepository.save(customer)
-                .getContacts()
-                .stream()
+                .getContacts().stream()
                 .filter(c -> c.getContactValue().equals(dto.getContactValue()) && c.getContactType() == dto.getContactType())
-                .findFirst()
-                .orElse(contact);
+                .findFirst().orElse(contact);
         return customerMapper.toContactDto(saved);
     }
 
@@ -395,7 +372,6 @@ public class CustomerService {
         return customerMapper.toContactDtoList(customer.getContacts());
     }
 
-    // Dashboard stats
     public CustomerDashboardStats getDashboardStats() {
         return CustomerDashboardStats.builder()
                 .totalActive(customerRepository.countByStatus(CustomerStatus.ACTIVE))
@@ -417,11 +393,6 @@ public class CustomerService {
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", customerId));
     }
 
-    private String generateCifNumber() {
-        Long seq = customerRepository.getNextCifSequence();
-        return String.format("CIF%010d", seq);
-    }
-
     private void checkForDuplicates(CreateCustomerRequest request) {
         if (StringUtils.hasText(request.getEmail()) && customerRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateResourceException("Customer", "email", request.getEmail());
@@ -429,25 +400,5 @@ public class CustomerService {
         if (StringUtils.hasText(request.getPhonePrimary()) && customerRepository.existsByPhonePrimary(request.getPhonePrimary())) {
             throw new DuplicateResourceException("Customer", "phonePrimary", request.getPhonePrimary());
         }
-    }
-
-    /**
-     * Pluggable KYC verification — in production this delegates to external providers.
-     * This is the integration seam for NIBSS BVN validation, NIMC NIN, etc.
-     */
-    private boolean performKycVerification(KycVerificationRequest request) {
-        // Integration point: inject KycProviderService implementations per ID type
-        // For now, this validates format and returns verified for well-formed inputs
-        return StringUtils.hasText(request.getIdNumber()) && request.getIdNumber().length() >= 5;
-    }
-
-    private String resolveProvider(String idType) {
-        return switch (idType) {
-            case "BVN" -> "NIBSS_BVN_SERVICE";
-            case "NIN" -> "NIMC_NIN_SERVICE";
-            case "TIN" -> "FIRS_TIN_SERVICE";
-            case "CAC_REG", "RC_NUMBER" -> "CAC_VERIFICATION";
-            default -> "INTERNAL_VERIFICATION";
-        };
     }
 }

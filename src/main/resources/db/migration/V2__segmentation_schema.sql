@@ -1,11 +1,7 @@
--- V2__customer_segmentation_schema.sql
--- Capability 5: Customer Segmentation Engine
+-- V2__segmentation_schema.sql
+-- Customer Segmentation Engine — Global
 
 SET search_path TO cbs;
-
--- ============================================================
--- SEGMENTATION RULES ENGINE
--- ============================================================
 
 CREATE TABLE segment (
     id              BIGSERIAL PRIMARY KEY,
@@ -46,10 +42,6 @@ CREATE TABLE segment_rule (
 
 CREATE INDEX idx_segment_rule_segment ON segment_rule(segment_id);
 
--- ============================================================
--- CUSTOMER-SEGMENT ASSIGNMENT
--- ============================================================
-
 CREATE TABLE customer_segment (
     id              BIGSERIAL PRIMARY KEY,
     customer_id     BIGINT NOT NULL REFERENCES customer(id) ON DELETE CASCADE,
@@ -72,10 +64,7 @@ CREATE TABLE customer_segment (
 CREATE INDEX idx_customer_segment_customer ON customer_segment(customer_id);
 CREATE INDEX idx_customer_segment_segment ON customer_segment(segment_id);
 
--- ============================================================
--- DEFAULT SEGMENTS (Nigerian banking context)
--- ============================================================
-
+-- Global default segments (applicable across all deployments)
 INSERT INTO segment (code, name, description, segment_type, priority) VALUES
     ('HNW', 'High Net Worth', 'Customers with significant asset balances', 'RULE_BASED', 10),
     ('MASS_RETAIL', 'Mass Retail', 'Standard retail banking customers', 'RULE_BASED', 90),
@@ -84,8 +73,8 @@ INSERT INTO segment (code, name, description, segment_type, priority) VALUES
     ('SME_STARTUP', 'SME Startup', 'Newly registered SME customers', 'RULE_BASED', 60),
     ('CORPORATE_TIER1', 'Corporate Tier 1', 'Large corporate clients', 'RULE_BASED', 5),
     ('CORPORATE_TIER2', 'Corporate Tier 2', 'Mid-sized corporate clients', 'RULE_BASED', 20),
-    ('GOV_ENTITY', 'Government Entity', 'Government agencies and parastatals', 'RULE_BASED', 15),
-    ('DIASPORA', 'Diaspora', 'Nigerian diaspora customers', 'RULE_BASED', 30),
+    ('GOV_ENTITY', 'Government Entity', 'Government agencies and institutions', 'RULE_BASED', 15),
+    ('DIASPORA', 'Diaspora', 'Non-resident / diaspora customers', 'RULE_BASED', 30),
     ('YOUTH', 'Youth Banking', 'Customers under 30', 'RULE_BASED', 70),
     ('DORMANT_RISK', 'Dormant Risk', 'Customers at risk of dormancy', 'ML_DRIVEN', 80),
     ('CHURN_RISK', 'Churn Risk', 'Customers showing churn indicators', 'ML_DRIVEN', 75);
