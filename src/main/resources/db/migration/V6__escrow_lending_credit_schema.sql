@@ -271,6 +271,8 @@ CREATE TABLE loan_repayment_schedule (
                                 CHECK (status IN ('PENDING','PARTIALLY_PAID','PAID','OVERDUE','WAIVED','RESTRUCTURED')),
     created_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    created_by              VARCHAR(100),
+    updated_by              VARCHAR(100),
     version                 BIGINT NOT NULL DEFAULT 0
 );
 
