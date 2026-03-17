@@ -27,12 +27,12 @@ public class LoyaltyController {
     public ResponseEntity<ApiResponse<LoyaltyAccount>> earn(@PathVariable String membershipNumber,
             @RequestParam Long points, @RequestParam(required = false) String description,
             @RequestParam(required = false) Long sourceTransactionId) {
-        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.earnPoints(membershipNumber, points, description, sourceTransactionId)));
+        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.earnPoints(membershipNumber, points.intValue(), description, sourceTransactionId)));
     }
     @PostMapping("/{membershipNumber}/redeem") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<LoyaltyAccount>> redeem(@PathVariable String membershipNumber,
             @RequestParam Long points, @RequestParam String redemptionType) {
-        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.redeemPoints(membershipNumber, points, redemptionType)));
+        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.redeemPoints(membershipNumber, points.intValue(), redemptionType)));
     }
     @GetMapping("/customer/{customerId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<LoyaltyAccount>>> getCustomerAccounts(@PathVariable Long customerId) {

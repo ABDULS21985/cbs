@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 
@@ -30,67 +29,63 @@ public class LoyaltyService {
     public LoyaltyAccount enroll(Long customerId, String programCode) {
         LoyaltyProgram program = programRepository.findByProgramCode(programCode)
                 .orElseThrow(() -> new ResourceNotFoundException("LoyaltyProgram", "programCode", programCode));
-        String membershipNumber = "LYL-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase();
+        String loyaltyNumber = "LYL-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase();
         LoyaltyAccount account = LoyaltyAccount.builder()
-                .customerId(customerId).programId(program.getId()).membershipNumber(membershipNumber).build();
+                .customerId(customerId).programId(program.getId()).loyaltyNumber(loyaltyNumber).build();
         LoyaltyAccount saved = accountRepository.save(account);
-        log.info("Loyalty enrollment: customer={}, program={}, number={}", customerId, programCode, membershipNumber);
+        log.info("Loyalty enrollment: customer={}, program={}, number={}", customerId, programCode, loyaltyNumber);
         return saved;
     }
 
     @Transactional
-    public LoyaltyAccount earnPoints(String membershipNumber, Long points, String description, Long sourceTransactionId) {
-        LoyaltyAccount account = getAccount(membershipNumber);
+    public LoyaltyAccount earnPoints(String loyaltyNumber, int points, String description, Long sourceTransactionId) {
+        LoyaltyAccount account = getAccount(loyaltyNumber);
         if (!"ACTIVE".equals(account.getStatus())) throw new BusinessException("Loyalty account not active");
 
-        account.setPointsBalance(account.getPointsBalance() + points);
-        account.setPointsEarnedYtd(account.getPointsEarnedYtd() + points);
-        account.setLifetimePoints(account.getLifetimePoints() + points);
+        account.setCurrentBalance(account.getCurrentBalance() + points);
+        account.setLifetimeEarned(account.getLifetimeEarned() + points);
 
         transactionRepository.save(LoyaltyTransaction.builder()
-                .accountId(account.getId()).transactionType("EARN").points(points)
+                .loyaltyAccountId(account.getId()).transactionType("EARN").points(points)
                 .description(description).sourceTransactionId(sourceTransactionId).build());
 
-        log.debug("Points earned: account={}, points={}", membershipNumber, points);
+        log.debug("Points earned: account={}, points={}", loyaltyNumber, points);
         return accountRepository.save(account);
     }
 
     @Transactional
-    public LoyaltyAccount redeemPoints(String membershipNumber, Long points, String redemptionType) {
-        LoyaltyAccount account = getAccount(membershipNumber);
+    public LoyaltyAccount redeemPoints(String loyaltyNumber, int points, String description) {
+        LoyaltyAccount account = getAccount(loyaltyNumber);
         LoyaltyProgram program = programRepository.findById(account.getProgramId())
                 .orElseThrow(() -> new ResourceNotFoundException("LoyaltyProgram", "id", account.getProgramId()));
 
-        if (account.getPointsBalance() < points)
-            throw new BusinessException("Insufficient points: have=" + account.getPointsBalance() + ", need=" + points);
+        if (account.getCurrentBalance() < points)
+            throw new BusinessException("Insufficient points: have=" + account.getCurrentBalance() + ", need=" + points);
         if (points < program.getMinRedemptionPoints())
             throw new BusinessException("Minimum redemption: " + program.getMinRedemptionPoints() + " points");
 
-        BigDecimal monetaryValue = program.getPointsValueCurrency().multiply(BigDecimal.valueOf(points));
-
-        account.setPointsBalance(account.getPointsBalance() - points);
-        account.setPointsRedeemedYtd(account.getPointsRedeemedYtd() + points);
+        account.setCurrentBalance(account.getCurrentBalance() - points);
+        account.setLifetimeRedeemed(account.getLifetimeRedeemed() + points);
 
         transactionRepository.save(LoyaltyTransaction.builder()
-                .accountId(account.getId()).transactionType("REDEEM").points(-points)
-                .description("Redemption: " + redemptionType).redemptionType(redemptionType)
-                .redemptionValue(monetaryValue).build());
+                .loyaltyAccountId(account.getId()).transactionType("REDEEM").points(-points)
+                .description(description).build());
 
-        log.info("Points redeemed: account={}, points={}, value={}", membershipNumber, points, monetaryValue);
+        log.info("Points redeemed: account={}, points={}", loyaltyNumber, points);
         return accountRepository.save(account);
     }
 
     public List<LoyaltyAccount> getCustomerAccounts(Long customerId) {
-        return accountRepository.findByCustomerIdAndStatusOrderByEnrolledAtDesc(customerId, "ACTIVE");
+        return accountRepository.findByCustomerIdAndStatus(customerId, "ACTIVE");
     }
 
-    public List<LoyaltyTransaction> getTransactions(String membershipNumber) {
-        LoyaltyAccount account = getAccount(membershipNumber);
-        return transactionRepository.findByAccountIdOrderByCreatedAtDesc(account.getId());
+    public List<LoyaltyTransaction> getTransactions(String loyaltyNumber) {
+        LoyaltyAccount account = getAccount(loyaltyNumber);
+        return transactionRepository.findByLoyaltyAccountIdOrderByCreatedAtDesc(account.getId());
     }
 
-    private LoyaltyAccount getAccount(String membershipNumber) {
-        return accountRepository.findByMembershipNumber(membershipNumber)
-                .orElseThrow(() -> new ResourceNotFoundException("LoyaltyAccount", "membershipNumber", membershipNumber));
+    private LoyaltyAccount getAccount(String loyaltyNumber) {
+        return accountRepository.findByLoyaltyNumber(loyaltyNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("LoyaltyAccount", "loyaltyNumber", loyaltyNumber));
     }
 }

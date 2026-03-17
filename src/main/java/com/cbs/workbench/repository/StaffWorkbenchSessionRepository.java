@@ -4,5 +4,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List; import java.util.Optional;
 public interface StaffWorkbenchSessionRepository extends JpaRepository<StaffWorkbenchSession, Long> {
     Optional<StaffWorkbenchSession> findBySessionId(String sessionId);
-    List<StaffWorkbenchSession> findByStaffUserIdAndSessionStatusOrderByLoginAtDesc(Long staffUserId, String status);
+    List<StaffWorkbenchSession> findByStaffUserIdAndSessionStatus(String staffUserId, String sessionStatus);
 }

@@ -14,10 +14,12 @@ public class LoyaltyProgram {
     @Column(nullable = false, unique = true, length = 30) private String programCode;
     @Column(nullable = false, length = 200) private String programName;
     @Column(nullable = false, length = 20) private String programType;
-    @Builder.Default private BigDecimal pointsPerCurrency = BigDecimal.ONE;
-    @Builder.Default private BigDecimal pointsValueCurrency = new BigDecimal("0.01");
-    @Builder.Default private Integer minRedemptionPoints = 100;
-    private Integer pointsExpiryMonths;
+    @Builder.Default private String pointsCurrencyName = "Points";
+    @Builder.Default private BigDecimal earnRatePerUnit = BigDecimal.ONE;
+    @Builder.Default private BigDecimal earnRateUnit = new BigDecimal("100");
+    @Builder.Default private BigDecimal pointValue = new BigDecimal("0.01");
+    @Builder.Default private Integer minRedemptionPoints = 1000;
+    private Integer expiryMonths;
     @JdbcTypeCode(SqlTypes.JSON) private List<Map<String, Object>> tierLevels;
     @Builder.Default private Boolean isActive = true;
     @Builder.Default private Instant createdAt = Instant.now();

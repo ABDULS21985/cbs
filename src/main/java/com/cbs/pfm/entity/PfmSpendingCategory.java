@@ -1,8 +1,7 @@
 package com.cbs.pfm.entity;
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.Instant;
-@Entity @Table(name = "pfm_spending_category")
+@Entity @Table(name = "pfm_category")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class PfmSpendingCategory {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
@@ -12,5 +11,5 @@ public class PfmSpendingCategory {
     private String icon;
     private String colorHex;
     @Builder.Default private Boolean isSystem = true;
-    @Builder.Default private Instant createdAt = Instant.now();
+    @Builder.Default private Boolean isActive = true;
 }

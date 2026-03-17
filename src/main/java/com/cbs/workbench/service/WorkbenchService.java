@@ -17,11 +17,10 @@ public class WorkbenchService {
     private final StaffWorkbenchSessionRepository sessionRepository;
 
     @Transactional
-    public StaffWorkbenchSession createSession(Long staffUserId, String staffName, String workbenchType) {
+    public StaffWorkbenchSession createSession(String staffUserId, String staffName, String workbenchType) {
         StaffWorkbenchSession session = StaffWorkbenchSession.builder()
                 .sessionId("WB-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase())
-                .staffUserId(staffUserId).staffName(staffName).workbenchType(workbenchType)
-                .openTabs(new ArrayList<>()).activeCases(new ArrayList<>()).build();
+                .staffUserId(staffUserId).staffName(staffName).workbenchType(workbenchType).build();
         StaffWorkbenchSession saved = sessionRepository.save(session);
         log.info("Workbench session started: id={}, staff={}, type={}", saved.getSessionId(), staffName, workbenchType);
         return saved;
@@ -30,18 +29,9 @@ public class WorkbenchService {
     @Transactional
     public StaffWorkbenchSession loadCustomerContext(String sessionId, Long customerId) {
         StaffWorkbenchSession s = getSession(sessionId);
-        s.setCustomerContextId(customerId);
+        s.setCustomerId(customerId);
         s.setLastActivityAt(Instant.now());
         log.info("Customer context loaded: session={}, customer={}", sessionId, customerId);
-        return sessionRepository.save(s);
-    }
-
-    @Transactional
-    public StaffWorkbenchSession openTab(String sessionId, String tabName) {
-        StaffWorkbenchSession s = getSession(sessionId);
-        if (s.getOpenTabs() == null) s.setOpenTabs(new ArrayList<>());
-        if (!s.getOpenTabs().contains(tabName)) s.getOpenTabs().add(tabName);
-        s.setLastActivityAt(Instant.now());
         return sessionRepository.save(s);
     }
 
@@ -49,13 +39,13 @@ public class WorkbenchService {
     public StaffWorkbenchSession endSession(String sessionId) {
         StaffWorkbenchSession s = getSession(sessionId);
         s.setSessionStatus("TERMINATED");
-        s.setLogoutAt(Instant.now());
+        s.setEndedAt(Instant.now());
         log.info("Workbench session ended: id={}", sessionId);
         return sessionRepository.save(s);
     }
 
-    public List<StaffWorkbenchSession> getActiveSessions(Long staffUserId) {
-        return sessionRepository.findByStaffUserIdAndSessionStatusOrderByLoginAtDesc(staffUserId, "ACTIVE");
+    public List<StaffWorkbenchSession> getActiveSessions(String staffUserId) {
+        return sessionRepository.findByStaffUserIdAndSessionStatus(staffUserId, "ACTIVE");
     }
 
     private StaffWorkbenchSession getSession(String sessionId) {

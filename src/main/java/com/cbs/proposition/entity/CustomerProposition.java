@@ -17,10 +17,11 @@ public class CustomerProposition {
     @Column(nullable = false, columnDefinition = "TEXT") private String valueStatement;
     @JdbcTypeCode(SqlTypes.JSON) @Column(nullable = false) private List<String> includedProducts;
     @JdbcTypeCode(SqlTypes.JSON) private Map<String, Object> pricingSummary;
+    @JdbcTypeCode(SqlTypes.JSON) private Map<String, Object> channelAvailability;
     @JdbcTypeCode(SqlTypes.JSON) private Map<String, Object> eligibilityRules;
-    @JdbcTypeCode(SqlTypes.JSON) private List<String> onboardingSteps;
     @Column(nullable = false, length = 15) @Builder.Default private String status = "DRAFT";
     private LocalDate effectiveFrom;
     private LocalDate effectiveTo;
     @Builder.Default private Instant createdAt = Instant.now();
+    @Builder.Default private Instant updatedAt = Instant.now();
 }

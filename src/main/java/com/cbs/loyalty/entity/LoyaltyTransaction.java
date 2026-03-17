@@ -1,19 +1,19 @@
 package com.cbs.loyalty.entity;
 import jakarta.persistence.*;
 import lombok.*;
-import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 @Entity @Table(name = "loyalty_transaction")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class LoyaltyTransaction {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
-    @Column(nullable = false) private Long accountId;
-    @Column(nullable = false, length = 20) private String transactionType;
-    @Column(nullable = false) private Long points;
+    @Column(nullable = false) private Long loyaltyAccountId;
+    @Column(nullable = false, length = 15) private String transactionType;
+    @Column(nullable = false) private Integer points;
     private String description;
     private Long sourceTransactionId;
-    private String redemptionType;
-    private BigDecimal redemptionValue;
-    private String partnerCode;
+    private String sourceType;
+    private String partnerName;
+    private LocalDate expiryDate;
     @Builder.Default private Instant createdAt = Instant.now();
 }
