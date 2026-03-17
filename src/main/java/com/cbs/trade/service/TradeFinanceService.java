@@ -1,11 +1,7 @@
 package com.cbs.trade.service;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
@@ -40,8 +36,6 @@ public class TradeFinanceService {
     private final TradeDocumentRepository tradeDocRepository;
     private final CustomerRepository customerRepository;
     private final AccountRepository accountRepository;
-    private final AccountPostingService accountPostingService;
-    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // CAPABILITY 47: LETTERS OF CREDIT
@@ -85,15 +79,7 @@ public class TradeFinanceService {
                 throw new BusinessException("Insufficient balance for LC margin + commission", "INSUFFICIENT_BALANCE");
             }
             marginAccount.placeLien(marginAmt);
-            if (commissionAmt.compareTo(BigDecimal.ZERO) > 0) {
-                accountPostingService.postDebit(
-                        marginAccount,
-                        TransactionType.DEBIT,
-                        commissionAmt,
-                        "LC commission " + lcNumber,
-                        TransactionChannel.SYSTEM,
-                        lcNumber + ":COMM");
-            }
+            marginAccount.debit(commissionAmt);
             accountRepository.save(marginAccount);
             lc.setMarginAccount(marginAccount);
         }
@@ -120,13 +106,7 @@ public class TradeFinanceService {
             BigDecimal marginRelease = claimedAmount.multiply(lc.getMarginPercentage())
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             lc.getMarginAccount().releaseLien(marginRelease);
-            accountPostingService.postDebit(
-                    lc.getMarginAccount(),
-                    TransactionType.DEBIT,
-                    claimedAmount,
-                    "LC settlement " + lc.getLcNumber(),
-                    TransactionChannel.SYSTEM,
-                    lc.getLcNumber() + ":SETTLE");
+            lc.getMarginAccount().debit(claimedAmount);
             accountRepository.save(lc.getMarginAccount());
         }
 
@@ -198,13 +178,7 @@ public class TradeFinanceService {
                     .orElseThrow(() -> new ResourceNotFoundException("Account", "id", marginAccountId));
             marginAccount.placeLien(marginAmt);
             if (bg.getCommissionAmount().compareTo(BigDecimal.ZERO) > 0) {
-                accountPostingService.postDebit(
-                        marginAccount,
-                        TransactionType.DEBIT,
-                        bg.getCommissionAmount(),
-                        "Guarantee commission " + bgNumber,
-                        TransactionChannel.SYSTEM,
-                        bgNumber + ":COMM");
+                marginAccount.debit(bg.getCommissionAmount());
             }
             accountRepository.save(marginAccount);
             bg.setMarginAccount(marginAccount);
@@ -228,13 +202,7 @@ public class TradeFinanceService {
 
         if (bg.getMarginAccount() != null) {
             bg.getMarginAccount().releaseLien(claimAmount.min(bg.getMarginAmount()));
-            accountPostingService.postDebit(
-                    bg.getMarginAccount(),
-                    TransactionType.DEBIT,
-                    claimAmount,
-                    "Guarantee claim " + bg.getGuaranteeNumber(),
-                    TransactionChannel.SYSTEM,
-                    bg.getGuaranteeNumber() + ":CLAIM");
+            bg.getMarginAccount().debit(claimAmount);
             accountRepository.save(bg.getMarginAccount());
         }
 
@@ -412,11 +380,11 @@ public class TradeFinanceService {
     }
 
     @Transactional
-    public TradeDocument verifyTradeDocument(Long docId, boolean isCompliant, String notes) {
+    public TradeDocument verifyTradeDocument(Long docId, String verifiedBy, boolean isCompliant, String notes) {
         TradeDocument doc = tradeDocRepository.findById(docId)
                 .orElseThrow(() -> new ResourceNotFoundException("TradeDocument", "id", docId));
         doc.setVerificationStatus(isCompliant ? "VERIFIED" : "DISCREPANT");
-        doc.setVerifiedBy(currentActorProvider.getCurrentActor());
+        doc.setVerifiedBy(verifiedBy);
         doc.setDiscrepancyNotes(notes);
         return tradeDocRepository.save(doc);
     }

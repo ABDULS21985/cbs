@@ -2,12 +2,12 @@ package com.cbs.ftp.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
-import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.ftp.entity.*;
 import com.cbs.ftp.service.FtpService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,7 +21,6 @@ import java.util.List;
 public class FtpController {
 
     private final FtpService ftpService;
-    private final CbsPageRequestFactory pageRequestFactory;
 
     @PostMapping("/curves")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -47,7 +46,7 @@ public class FtpController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<FtpAllocation>>> getProfitability(@PathVariable String entityType,
             @RequestParam LocalDate date, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "50") int size) {
-        Page<FtpAllocation> result = ftpService.getProfitabilityByEntity(entityType, date, pageRequestFactory.create(page, size));
+        Page<FtpAllocation> result = ftpService.getProfitabilityByEntity(entityType, date, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -55,7 +54,7 @@ public class FtpController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<FtpAllocation>>> getHistory(@PathVariable String entityType,
             @PathVariable Long entityId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<FtpAllocation> result = ftpService.getEntityHistory(entityType, entityId, pageRequestFactory.create(page, size));
+        Page<FtpAllocation> result = ftpService.getEntityHistory(entityType, entityId, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

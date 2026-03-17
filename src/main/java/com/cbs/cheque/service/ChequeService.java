@@ -108,13 +108,8 @@ public class ChequeService {
         }
 
         Account account = leaf.getAccount();
-        accountPostingService.postDebit(
-                account,
-                TransactionType.DEBIT,
-                leaf.getAmount(),
-                "Cheque clearing " + leaf.getChequeNumber(),
-                TransactionChannel.CHEQUE,
-                "CHQ:" + leaf.getChequeNumber());
+        account.debit(leaf.getAmount());
+        accountRepository.save(account);
 
         leaf.setStatus(ChequeStatus.CLEARED);
         leaf.setClearingDate(LocalDate.now());

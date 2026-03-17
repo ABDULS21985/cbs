@@ -4,7 +4,6 @@ import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.entity.TransactionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,7 +19,6 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
 
     Optional<TransactionJournal> findByTransactionRef(String transactionRef);
 
-    @EntityGraph(attributePaths = "account")
     Page<TransactionJournal> findByAccountIdOrderByCreatedAtDesc(Long accountId, Pageable pageable);
 
     @Query("""
@@ -40,15 +38,11 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
             AND t.postingDate BETWEEN :fromDate AND :toDate
             ORDER BY t.createdAt DESC
             """)
-    @EntityGraph(attributePaths = "account")
     Page<TransactionJournal> findByAccountIdAndDateRange(
             @Param("accountId") Long accountId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
             Pageable pageable);
-
-    @EntityGraph(attributePaths = "account")
-    Page<TransactionJournal> findByAccountIdInOrderByCreatedAtDesc(List<Long> accountIds, Pageable pageable);
 
     @Query(value = "SELECT nextval('cbs.transaction_ref_seq')", nativeQuery = true)
     Long getNextTransactionRefSequence();

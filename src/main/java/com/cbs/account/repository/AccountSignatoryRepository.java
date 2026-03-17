@@ -16,9 +16,6 @@ public interface AccountSignatoryRepository extends JpaRepository<AccountSignato
     @Query("SELECT s FROM AccountSignatory s JOIN FETCH s.customer WHERE s.account.id = :accountId AND s.isActive = true")
     List<AccountSignatory> findByAccountIdWithCustomer(@Param("accountId") Long accountId);
 
-    @Query("SELECT s FROM AccountSignatory s JOIN FETCH s.customer WHERE s.account.id IN :accountIds AND s.isActive = true")
-    List<AccountSignatory> findByAccountIdInWithCustomer(@Param("accountIds") List<Long> accountIds);
-
     boolean existsByAccountIdAndCustomerId(Long accountId, Long customerId);
 
     @Query("SELECT s FROM AccountSignatory s JOIN FETCH s.account WHERE s.customer.id = :customerId AND s.isActive = true")

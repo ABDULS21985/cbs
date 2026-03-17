@@ -2,8 +2,6 @@ package com.cbs.trade;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
@@ -40,8 +38,6 @@ class TradeFinanceServiceTest {
     @Mock private TradeDocumentRepository tradeDocRepository;
     @Mock private CustomerRepository customerRepository;
     @Mock private AccountRepository accountRepository;
-    @Mock private AccountPostingService accountPostingService;
-    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks private TradeFinanceService tradeService;
 
@@ -57,14 +53,6 @@ class TradeFinanceServiceTest {
                 .bookBalance(new BigDecimal("1000000")).availableBalance(new BigDecimal("1000000"))
                 .lienAmount(BigDecimal.ZERO).overdraftLimit(BigDecimal.ZERO)
                 .product(Product.builder().id(1L).code("CA-CORP").build()).build();
-        when(accountPostingService.postDebit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
-                anyString(), any(TransactionChannel.class), anyString()))
-                .thenAnswer(invocation -> {
-                    Account source = invocation.getArgument(0);
-                    BigDecimal amount = invocation.getArgument(2);
-                    source.debit(amount);
-                    return TransactionJournal.builder().account(source).runningBalance(source.getBookBalance()).build();
-                });
     }
 
     @Test

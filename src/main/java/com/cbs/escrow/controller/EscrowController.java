@@ -2,7 +2,6 @@ package com.cbs.escrow.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
-import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.escrow.dto.*;
 import com.cbs.escrow.service.EscrowService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +26,6 @@ import java.util.List;
 public class EscrowController {
 
     private final EscrowService escrowService;
-    private final CbsPageRequestFactory pageRequestFactory;
 
     @PostMapping
     @Operation(summary = "Create an escrow mandate")
@@ -50,7 +49,7 @@ public class EscrowController {
             @PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         Page<EscrowResponse> result = escrowService.getCustomerMandates(customerId,
-                pageRequestFactory.create(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -69,7 +68,8 @@ public class EscrowController {
     @PostMapping("/releases/{releaseId}/approve")
     @Operation(summary = "Approve and execute an escrow release")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<EscrowReleaseDto>> approveRelease(@PathVariable Long releaseId) {
+    public ResponseEntity<ApiResponse<EscrowReleaseDto>> approveRelease(
+            @PathVariable Long releaseId, @RequestParam String approvedBy) {
         return ResponseEntity.ok(ApiResponse.ok(escrowService.approveAndExecuteRelease(releaseId)));
     }
 }

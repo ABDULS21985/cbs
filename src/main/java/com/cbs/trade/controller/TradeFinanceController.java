@@ -2,13 +2,13 @@ package com.cbs.trade.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
-import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.trade.entity.*;
 import com.cbs.trade.service.TradeFinanceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,7 +26,6 @@ import java.util.Map;
 public class TradeFinanceController {
 
     private final TradeFinanceService tradeService;
-    private final CbsPageRequestFactory pageRequestFactory;
 
     // ========== LETTERS OF CREDIT ==========
 
@@ -60,7 +59,7 @@ public class TradeFinanceController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<List<LetterOfCredit>>> getCustomerLCs(@PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<LetterOfCredit> result = tradeService.getCustomerLCs(customerId, pageRequestFactory.create(page, size));
+        Page<LetterOfCredit> result = tradeService.getCustomerLCs(customerId, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -106,7 +105,7 @@ public class TradeFinanceController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<List<BankGuarantee>>> getCustomerGuarantees(@PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<BankGuarantee> result = tradeService.getCustomerGuarantees(customerId, pageRequestFactory.create(page, size));
+        Page<BankGuarantee> result = tradeService.getCustomerGuarantees(customerId, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -185,8 +184,8 @@ public class TradeFinanceController {
     @PostMapping("/documents/{id}/verify")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<TradeDocument>> verifyDocument(@PathVariable Long id,
-            @RequestParam boolean compliant, @RequestParam(required = false) String notes) {
-        return ResponseEntity.ok(ApiResponse.ok(tradeService.verifyTradeDocument(id, compliant, notes)));
+            @RequestParam String verifiedBy, @RequestParam boolean compliant, @RequestParam(required = false) String notes) {
+        return ResponseEntity.ok(ApiResponse.ok(tradeService.verifyTradeDocument(id, verifiedBy, compliant, notes)));
     }
 
     @GetMapping("/documents/lc/{lcId}")

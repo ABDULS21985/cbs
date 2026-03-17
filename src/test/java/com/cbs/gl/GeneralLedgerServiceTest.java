@@ -1,9 +1,6 @@
 package com.cbs.gl;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
-import com.cbs.gl.dto.JournalLineRequest;
-import com.cbs.gl.dto.PostJournalRequest;
 import com.cbs.gl.entity.*;
 import com.cbs.gl.repository.*;
 import com.cbs.gl.service.GeneralLedgerService;
@@ -32,7 +29,6 @@ class GeneralLedgerServiceTest {
     @Mock private JournalEntryRepository journalRepository;
     @Mock private GlBalanceRepository balanceRepository;
     @Mock private SubledgerReconRunRepository reconRepository;
-    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks private GeneralLedgerService glService;
 
@@ -55,26 +51,20 @@ class GeneralLedgerServiceTest {
         when(journalRepository.getNextJournalSequence()).thenReturn(1L);
         when(coaRepository.findByGlCode("1001")).thenReturn(Optional.of(cashGl));
         when(coaRepository.findByGlCode("2001")).thenReturn(Optional.of(depositGl));
-        when(currentActorProvider.getCurrentActor()).thenReturn("teller1");
         when(balanceRepository.findByGlCodeAndBranchCodeAndCurrencyCodeAndBalanceDate(anyString(), anyString(), anyString(), any()))
                 .thenReturn(Optional.empty());
         when(balanceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(journalRepository.save(any())).thenAnswer(inv -> { JournalEntry j = inv.getArgument(0); j.setId(1L); return j; });
 
-        PostJournalRequest request = new PostJournalRequest(
-                "SYSTEM",
-                "Customer cash deposit",
-                "DEPOSITS",
-                "DEP-001",
-                LocalDate.now(),
-                List.of(
-                new JournalLineRequest("1001", new BigDecimal("50000"), BigDecimal.ZERO,
+        List<GeneralLedgerService.JournalLineRequest> lines = List.of(
+                new GeneralLedgerService.JournalLineRequest("1001", new BigDecimal("50000"), BigDecimal.ZERO,
                         "USD", null, "Cash deposit", null, "HEAD", 1L, 1L),
-                new JournalLineRequest("2001", BigDecimal.ZERO, new BigDecimal("50000"),
+                new GeneralLedgerService.JournalLineRequest("2001", BigDecimal.ZERO, new BigDecimal("50000"),
                         "USD", null, "Customer deposit liability", null, "HEAD", 1L, 1L)
-        ));
+        );
 
-        JournalEntry result = glService.postJournal(request);
+        JournalEntry result = glService.postJournal("SYSTEM", "Customer cash deposit",
+                "DEPOSITS", "DEP-001", LocalDate.now(), "teller1", lines);
 
         assertThat(result.getStatus()).isEqualTo("POSTED");
         assertThat(result.getTotalDebit()).isEqualByComparingTo(new BigDecimal("50000"));
@@ -89,22 +79,15 @@ class GeneralLedgerServiceTest {
         when(journalRepository.getNextJournalSequence()).thenReturn(2L);
         when(coaRepository.findByGlCode("1001")).thenReturn(Optional.of(cashGl));
         when(coaRepository.findByGlCode("2001")).thenReturn(Optional.of(depositGl));
-        when(currentActorProvider.getCurrentActor()).thenReturn("user1");
 
-        PostJournalRequest request = new PostJournalRequest(
-                "MANUAL",
-                "Unbalanced",
-                null,
-                null,
-                null,
-                List.of(
-                new JournalLineRequest("1001", new BigDecimal("50000"), BigDecimal.ZERO,
+        List<GeneralLedgerService.JournalLineRequest> lines = List.of(
+                new GeneralLedgerService.JournalLineRequest("1001", new BigDecimal("50000"), BigDecimal.ZERO,
                         "USD", null, "Debit", null, null, null, null),
-                new JournalLineRequest("2001", BigDecimal.ZERO, new BigDecimal("40000"),
+                new GeneralLedgerService.JournalLineRequest("2001", BigDecimal.ZERO, new BigDecimal("40000"),
                         "USD", null, "Credit", null, null, null, null)
-        ));
+        );
 
-        assertThatThrownBy(() -> glService.postJournal(request))
+        assertThatThrownBy(() -> glService.postJournal("MANUAL", "Unbalanced", null, null, null, "user1", lines))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("not balanced");
     }
 
@@ -116,20 +99,13 @@ class GeneralLedgerServiceTest {
 
         when(journalRepository.getNextJournalSequence()).thenReturn(3L);
         when(coaRepository.findByGlCode("1000")).thenReturn(Optional.of(headerGl));
-        when(currentActorProvider.getCurrentActor()).thenReturn("user1");
 
-        PostJournalRequest request = new PostJournalRequest(
-                "MANUAL",
-                "Header test",
-                null,
-                null,
-                null,
-                List.of(
-                new JournalLineRequest("1000", new BigDecimal("1000"), BigDecimal.ZERO,
+        List<GeneralLedgerService.JournalLineRequest> lines = List.of(
+                new GeneralLedgerService.JournalLineRequest("1000", new BigDecimal("1000"), BigDecimal.ZERO,
                         "USD", null, "Test", null, null, null, null)
-        ));
+        );
 
-        assertThatThrownBy(() -> glService.postJournal(request))
+        assertThatThrownBy(() -> glService.postJournal("MANUAL", "Header test", null, null, null, "user1", lines))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("not postable");
     }
 
@@ -156,17 +132,16 @@ class GeneralLedgerServiceTest {
 
         original.setLines(new java.util.ArrayList<>(List.of(line1, line2)));
 
-        when(journalRepository.findByIdWithLines(10L)).thenReturn(Optional.of(original));
+        when(journalRepository.findById(10L)).thenReturn(Optional.of(original));
         when(journalRepository.getNextJournalSequence()).thenReturn(11L);
         when(coaRepository.findByGlCode("1001")).thenReturn(Optional.of(cashGl));
         when(coaRepository.findByGlCode("2001")).thenReturn(Optional.of(depositGl));
-        when(currentActorProvider.getCurrentActor()).thenReturn("supervisor1");
         when(balanceRepository.findByGlCodeAndBranchCodeAndCurrencyCodeAndBalanceDate(anyString(), anyString(), anyString(), any()))
                 .thenReturn(Optional.empty());
         when(balanceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(journalRepository.save(any())).thenAnswer(inv -> { JournalEntry j = inv.getArgument(0); if(j.getId() == null) j.setId(11L); return j; });
 
-        JournalEntry reversal = glService.reverseJournal(10L);
+        JournalEntry reversal = glService.reverseJournal(10L, "supervisor1");
 
         assertThat(reversal.getJournalType()).isEqualTo("REVERSAL");
         assertThat(reversal.getStatus()).isEqualTo("POSTED");

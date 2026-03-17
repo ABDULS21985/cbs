@@ -1,10 +1,7 @@
 package com.cbs.fees.service;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.fees.engine.FeeEngine;
@@ -30,7 +27,6 @@ public class FeeService {
     private final FeeDefinitionRepository feeDefinitionRepository;
     private final FeeChargeLogRepository feeChargeLogRepository;
     private final AccountRepository accountRepository;
-    private final AccountPostingService accountPostingService;
     private final FeeEngine feeEngine;
 
     /**
@@ -52,13 +48,7 @@ public class FeeService {
                     FeeEngine.FeeResult result = feeEngine.calculate(fee, transactionAmount);
 
                     if (result.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
-                        accountPostingService.postDebit(
-                                account,
-                                TransactionType.FEE_DEBIT,
-                                result.getTotalAmount(),
-                                "Fee charge: " + fee.getFeeCode(),
-                                TransactionChannel.SYSTEM,
-                                triggerRef != null ? triggerRef + ":" + fee.getFeeCode() : "FEE:" + fee.getFeeCode());
+                        account.debit(result.getTotalAmount());
 
                         FeeChargeLog chargeLog = FeeChargeLog.builder()
                                 .feeCode(fee.getFeeCode())
@@ -96,13 +86,8 @@ public class FeeService {
         FeeEngine.FeeResult result = feeEngine.calculate(fee, transactionAmount);
 
         if (result.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
-            accountPostingService.postDebit(
-                    account,
-                    TransactionType.FEE_DEBIT,
-                    result.getTotalAmount(),
-                    "Fee charge: " + feeCode,
-                    TransactionChannel.SYSTEM,
-                    triggerRef != null ? triggerRef + ":" + feeCode : "FEE:" + feeCode);
+            account.debit(result.getTotalAmount());
+            accountRepository.save(account);
 
             FeeChargeLog chargeLog = FeeChargeLog.builder()
                     .feeCode(feeCode).accountId(accountId).customerId(account.getCustomer().getId())
@@ -141,13 +126,8 @@ public class FeeService {
         // Refund the fee
         Account account = accountRepository.findById(chargeLog.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", chargeLog.getAccountId()));
-        accountPostingService.postCredit(
-                account,
-                TransactionType.ADJUSTMENT,
-                chargeLog.getTotalAmount(),
-                "Fee waiver refund: " + chargeLog.getFeeCode(),
-                TransactionChannel.SYSTEM,
-                "FEE:" + chargeLog.getId() + ":WAIVE");
+        account.credit(chargeLog.getTotalAmount());
+        accountRepository.save(account);
 
         chargeLog.setWasWaived(true);
         chargeLog.setWaivedBy(waivedBy);

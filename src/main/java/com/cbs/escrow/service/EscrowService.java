@@ -10,8 +10,12 @@ import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.repository.CustomerRepository;
-import com.cbs.escrow.dto.*;
-import com.cbs.escrow.entity.*;
+import com.cbs.escrow.dto.CreateEscrowRequest;
+import com.cbs.escrow.dto.EscrowReleaseDto;
+import com.cbs.escrow.dto.EscrowResponse;
+import com.cbs.escrow.entity.EscrowMandate;
+import com.cbs.escrow.entity.EscrowRelease;
+import com.cbs.escrow.entity.EscrowStatus;
 import com.cbs.escrow.repository.EscrowMandateRepository;
 import com.cbs.escrow.repository.EscrowReleaseRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -78,7 +81,6 @@ public class EscrowService {
                     .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", request.getBeneficiaryCustomerId())));
         }
 
-        // Place lien on the account
         account.placeLien(request.getMandatedAmount());
         accountRepository.save(account);
 
@@ -100,7 +102,7 @@ public class EscrowService {
 
     @Transactional
     public EscrowReleaseDto requestRelease(Long mandateId, BigDecimal amount, String reason,
-                                             Long releaseToAccountId) {
+                                           Long releaseToAccountId) {
         EscrowMandate mandate = mandateRepository.findByIdWithDetails(mandateId)
                 .orElseThrow(() -> new ResourceNotFoundException("EscrowMandate", "id", mandateId));
 
@@ -141,11 +143,9 @@ public class EscrowService {
 
         EscrowMandate mandate = release.getMandate();
 
-        // Release lien on source account
         mandate.getAccount().releaseLien(release.getReleaseAmount());
         accountRepository.save(mandate.getAccount());
 
-        // Credit release-to account if specified
         if (release.getReleaseToAccount() != null) {
             accountPostingService.postCredit(
                     release.getReleaseToAccount(),
@@ -156,11 +156,9 @@ public class EscrowService {
                     mandate.getMandateNumber() + ":RELEASE:" + release.getId());
         }
 
-        // Update mandate
         mandate.release(release.getReleaseAmount());
         mandateRepository.save(mandate);
 
-        // Update release
         String approvedBy = currentActorProvider.getCurrentActor();
         release.setStatus("EXECUTED");
         release.setApprovedBy(approvedBy);
@@ -172,38 +170,50 @@ public class EscrowService {
         return toReleaseDto(release);
     }
 
-    // ========================================================================
-    // MAPPERS
-    // ========================================================================
-
-    private EscrowResponse toResponse(EscrowMandate m) {
-        List<EscrowReleaseDto> releases = releaseRepository.findByMandateIdOrderByCreatedAtDesc(m.getId())
-                .stream().map(this::toReleaseDto).toList();
+    private EscrowResponse toResponse(EscrowMandate mandate) {
+        List<EscrowReleaseDto> releases = releaseRepository.findByMandateIdOrderByCreatedAtDesc(mandate.getId())
+                .stream()
+                .map(this::toReleaseDto)
+                .toList();
 
         return EscrowResponse.builder()
-                .id(m.getId()).mandateNumber(m.getMandateNumber())
-                .accountId(m.getAccount().getId()).accountNumber(m.getAccount().getAccountNumber())
-                .customerId(m.getCustomer().getId()).customerDisplayName(m.getCustomer().getDisplayName())
-                .escrowType(m.getEscrowType()).purpose(m.getPurpose())
-                .depositorName(m.getDepositor() != null ? m.getDepositor().getDisplayName() : null)
-                .beneficiaryName(m.getBeneficiary() != null ? m.getBeneficiary().getDisplayName() : null)
-                .releaseConditions(m.getReleaseConditions())
-                .requiresMultiSign(m.getRequiresMultiSign()).requiredSignatories(m.getRequiredSignatories())
-                .mandatedAmount(m.getMandatedAmount()).releasedAmount(m.getReleasedAmount())
-                .remainingAmount(m.getRemainingAmount()).currencyCode(m.getCurrencyCode())
-                .effectiveDate(m.getEffectiveDate()).expiryDate(m.getExpiryDate())
-                .status(m.getStatus()).releases(releases).createdAt(m.getCreatedAt())
+                .id(mandate.getId())
+                .mandateNumber(mandate.getMandateNumber())
+                .accountId(mandate.getAccount().getId())
+                .accountNumber(mandate.getAccount().getAccountNumber())
+                .customerId(mandate.getCustomer().getId())
+                .customerDisplayName(mandate.getCustomer().getDisplayName())
+                .escrowType(mandate.getEscrowType())
+                .purpose(mandate.getPurpose())
+                .depositorName(mandate.getDepositor() != null ? mandate.getDepositor().getDisplayName() : null)
+                .beneficiaryName(mandate.getBeneficiary() != null ? mandate.getBeneficiary().getDisplayName() : null)
+                .releaseConditions(mandate.getReleaseConditions())
+                .requiresMultiSign(mandate.getRequiresMultiSign())
+                .requiredSignatories(mandate.getRequiredSignatories())
+                .mandatedAmount(mandate.getMandatedAmount())
+                .releasedAmount(mandate.getReleasedAmount())
+                .remainingAmount(mandate.getRemainingAmount())
+                .currencyCode(mandate.getCurrencyCode())
+                .effectiveDate(mandate.getEffectiveDate())
+                .expiryDate(mandate.getExpiryDate())
+                .status(mandate.getStatus())
+                .releases(releases)
+                .createdAt(mandate.getCreatedAt())
                 .build();
     }
 
-    private EscrowReleaseDto toReleaseDto(EscrowRelease r) {
+    private EscrowReleaseDto toReleaseDto(EscrowRelease release) {
         return EscrowReleaseDto.builder()
-                .id(r.getId()).releaseAmount(r.getReleaseAmount())
-                .releaseToAccountId(r.getReleaseToAccount() != null ? r.getReleaseToAccount().getId() : null)
-                .releaseToAccountNumber(r.getReleaseToAccount() != null ? r.getReleaseToAccount().getAccountNumber() : null)
-                .releaseReason(r.getReleaseReason())
-                .approvedBy(r.getApprovedBy()).approvalDate(r.getApprovalDate())
-                .transactionRef(r.getTransactionRef()).status(r.getStatus())
-                .createdAt(r.getCreatedAt()).build();
+                .id(release.getId())
+                .releaseAmount(release.getReleaseAmount())
+                .releaseToAccountId(release.getReleaseToAccount() != null ? release.getReleaseToAccount().getId() : null)
+                .releaseToAccountNumber(release.getReleaseToAccount() != null ? release.getReleaseToAccount().getAccountNumber() : null)
+                .releaseReason(release.getReleaseReason())
+                .approvedBy(release.getApprovedBy())
+                .approvalDate(release.getApprovalDate())
+                .transactionRef(release.getTransactionRef())
+                .status(release.getStatus())
+                .createdAt(release.getCreatedAt())
+                .build();
     }
 }

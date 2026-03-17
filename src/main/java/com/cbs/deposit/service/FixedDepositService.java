@@ -6,7 +6,7 @@ import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.ProductRepository;
-import com.cbs.account.service.AccountPostingService;
+import com.cbs.account.service.AccountService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -36,7 +36,7 @@ public class FixedDepositService {
     private final FixedDepositRepository fdRepository;
     private final AccountRepository accountRepository;
     private final ProductRepository productRepository;
-    private final AccountPostingService accountPostingService;
+    private final AccountService accountService;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
 
@@ -103,13 +103,8 @@ public class FixedDepositService {
         }
 
         // Debit funding account
-        accountPostingService.postDebit(
-                account,
-                TransactionType.DEBIT,
-                request.getPrincipalAmount(),
-                "Fixed deposit booking " + depositNumber,
-                TransactionChannel.SYSTEM,
-                depositNumber + ":BOOK");
+        account.debit(request.getPrincipalAmount());
+        accountRepository.save(account);
 
         FixedDeposit saved = fdRepository.save(fd);
         log.info("Fixed deposit booked: number={}, principal={}, rate={}%, tenure={}d, maturity={}",
@@ -195,13 +190,8 @@ public class FixedDepositService {
         switch (fd.getMaturityAction()) {
             case CREDIT_ACCOUNT -> {
                 Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-                accountPostingService.postCredit(
-                        payoutAccount,
-                        TransactionType.CREDIT,
-                        totalPayout,
-                        "Fixed deposit maturity " + fd.getDepositNumber(),
-                        TransactionChannel.SYSTEM,
-                        fd.getDepositNumber() + ":MATURITY");
+                payoutAccount.credit(totalPayout);
+                accountRepository.save(payoutAccount);
                 fd.setStatus(FixedDepositStatus.MATURED);
                 fd.setClosedDate(LocalDate.now());
                 log.info("FD {} matured: {} credited to account {}", fd.getDepositNumber(), totalPayout, payoutAccount.getAccountNumber());
@@ -209,23 +199,13 @@ public class FixedDepositService {
             case ROLLOVER_PRINCIPAL -> {
                 if (fd.getMaxRollovers() != null && fd.getRolloverCount() >= fd.getMaxRollovers()) {
                     Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-                    accountPostingService.postCredit(
-                            payoutAccount,
-                            TransactionType.CREDIT,
-                            totalPayout,
-                            "Fixed deposit maturity " + fd.getDepositNumber(),
-                            TransactionChannel.SYSTEM,
-                            fd.getDepositNumber() + ":ROLLOVER_MAX");
+                    payoutAccount.credit(totalPayout);
+                    accountRepository.save(payoutAccount);
                     fd.setStatus(FixedDepositStatus.MATURED);
                 } else {
                     Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-                    accountPostingService.postCredit(
-                            payoutAccount,
-                            TransactionType.CREDIT,
-                            interestEarned,
-                            "Fixed deposit interest payout " + fd.getDepositNumber(),
-                            TransactionChannel.SYSTEM,
-                            fd.getDepositNumber() + ":ROLLOVER_INT");
+                    payoutAccount.credit(interestEarned);
+                    accountRepository.save(payoutAccount);
                     fd.setStartDate(LocalDate.now());
                     fd.setMaturityDate(LocalDate.now().plusDays(fd.getTenureDays()));
                     fd.setCurrentValue(fd.getPrincipalAmount());
@@ -237,13 +217,8 @@ public class FixedDepositService {
             case ROLLOVER_PRINCIPAL_INTEREST -> {
                 if (fd.getMaxRollovers() != null && fd.getRolloverCount() >= fd.getMaxRollovers()) {
                     Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-                    accountPostingService.postCredit(
-                            payoutAccount,
-                            TransactionType.CREDIT,
-                            totalPayout,
-                            "Fixed deposit maturity " + fd.getDepositNumber(),
-                            TransactionChannel.SYSTEM,
-                            fd.getDepositNumber() + ":ROLLOVER_PI_MAX");
+                    payoutAccount.credit(totalPayout);
+                    accountRepository.save(payoutAccount);
                     fd.setStatus(FixedDepositStatus.MATURED);
                 } else {
                     fd.setPrincipalAmount(totalPayout);
@@ -283,13 +258,8 @@ public class FixedDepositService {
         if (payout.compareTo(BigDecimal.ZERO) < 0) payout = BigDecimal.ZERO;
 
         Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-        accountPostingService.postCredit(
-                payoutAccount,
-                TransactionType.CREDIT,
-                payout,
-                "Fixed deposit early termination " + fd.getDepositNumber(),
-                TransactionChannel.SYSTEM,
-                fd.getDepositNumber() + ":EARLY_TERM");
+        payoutAccount.credit(payout);
+        accountRepository.save(payoutAccount);
 
         fd.setStatus(FixedDepositStatus.BROKEN);
         fd.setBrokenDate(LocalDate.now());
@@ -319,13 +289,8 @@ public class FixedDepositService {
             throw new BusinessException("Remaining balance would fall below minimum", "BELOW_MIN_REMAINING");
 
         Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-        accountPostingService.postCredit(
-                payoutAccount,
-                TransactionType.CREDIT,
-                amount,
-                "Fixed deposit partial liquidation " + fd.getDepositNumber(),
-                TransactionChannel.SYSTEM,
-                fd.getDepositNumber() + ":PARTIAL");
+        payoutAccount.credit(amount);
+        accountRepository.save(payoutAccount);
 
         fd.setPrincipalAmount(remaining);
         fd.setCurrentValue(remaining.add(fd.getAccruedInterest().setScale(2, RoundingMode.HALF_UP)));

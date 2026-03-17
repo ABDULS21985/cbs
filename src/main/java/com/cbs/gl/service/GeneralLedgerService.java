@@ -6,8 +6,16 @@ import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.gl.dto.CreateGlAccountRequest;
 import com.cbs.gl.dto.JournalLineRequest;
 import com.cbs.gl.dto.PostJournalRequest;
-import com.cbs.gl.entity.*;
-import com.cbs.gl.repository.*;
+import com.cbs.gl.entity.ChartOfAccounts;
+import com.cbs.gl.entity.GlBalance;
+import com.cbs.gl.entity.GlCategory;
+import com.cbs.gl.entity.JournalEntry;
+import com.cbs.gl.entity.JournalLine;
+import com.cbs.gl.entity.SubledgerReconRun;
+import com.cbs.gl.repository.ChartOfAccountsRepository;
+import com.cbs.gl.repository.GlBalanceRepository;
+import com.cbs.gl.repository.JournalEntryRepository;
+import com.cbs.gl.repository.SubledgerReconRunRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -32,15 +40,6 @@ public class GeneralLedgerService {
     private final SubledgerReconRunRepository reconRepository;
     private final CurrentActorProvider currentActorProvider;
 
-    // ========================================================================
-    // JOURNAL POSTING (Core of Cap 68)
-    // ========================================================================
-
-    /**
-     * Creates and posts a journal entry atomically.
-     * Validates: all GL codes exist and are postable, double-entry balances,
-     * then updates GL balances for each line.
-     */
     @Transactional
     public JournalEntry postJournal(PostJournalRequest request) {
         return postJournal(request, currentActorProvider.getCurrentActor());
@@ -51,46 +50,57 @@ public class GeneralLedgerService {
         String journalNumber = String.format("JN%013d", seq);
 
         JournalEntry journal = JournalEntry.builder()
-                .journalNumber(journalNumber).journalType(request.journalType())
-                .description(request.description()).sourceModule(request.sourceModule()).sourceRef(request.sourceRef())
+                .journalNumber(journalNumber)
+                .journalType(request.journalType())
+                .description(request.description())
+                .sourceModule(request.sourceModule())
+                .sourceRef(request.sourceRef())
                 .valueDate(request.valueDate() != null ? request.valueDate() : LocalDate.now())
-                .postingDate(LocalDate.now()).createdBy(createdBy)
-                .status("PENDING").build();
+                .postingDate(LocalDate.now())
+                .createdBy(createdBy)
+                .status("PENDING")
+                .build();
 
-        int lineNum = 1;
-        for (JournalLineRequest req : request.lines()) {
-            ChartOfAccounts coa = coaRepository.findByGlCode(req.glCode())
-                    .orElseThrow(() -> new BusinessException("GL code not found: " + req.glCode(), "INVALID_GL_CODE"));
+        int lineNumber = 1;
+        for (JournalLineRequest lineRequest : request.lines()) {
+            ChartOfAccounts coa = coaRepository.findByGlCode(lineRequest.glCode())
+                    .orElseThrow(() -> new BusinessException("GL code not found: " + lineRequest.glCode(), "INVALID_GL_CODE"));
             if (!Boolean.TRUE.equals(coa.getIsPostable())) {
-                throw new BusinessException("GL code is not postable (header account): " + req.glCode(), "GL_NOT_POSTABLE");
+                throw new BusinessException("GL code is not postable (header account): " + lineRequest.glCode(), "GL_NOT_POSTABLE");
             }
 
-            BigDecimal localDebit = req.debitAmount().multiply(req.fxRate() != null ? req.fxRate() : BigDecimal.ONE);
-            BigDecimal localCredit = req.creditAmount().multiply(req.fxRate() != null ? req.fxRate() : BigDecimal.ONE);
-
+            BigDecimal fxRate = lineRequest.fxRate() != null ? lineRequest.fxRate() : BigDecimal.ONE;
             JournalLine line = JournalLine.builder()
-                    .lineNumber(lineNum++).glCode(req.glCode())
-                    .debitAmount(req.debitAmount()).creditAmount(req.creditAmount())
-                    .currencyCode(req.currencyCode() != null ? req.currencyCode() : "USD")
-                    .localDebit(localDebit).localCredit(localCredit)
-                    .fxRate(req.fxRate() != null ? req.fxRate() : BigDecimal.ONE)
-                    .narration(req.narration()).costCentre(req.costCentre())
-                    .branchCode(req.branchCode() != null ? req.branchCode() : "HEAD")
-                    .accountId(req.accountId()).customerId(req.customerId()).build();
-
+                    .lineNumber(lineNumber++)
+                    .glCode(lineRequest.glCode())
+                    .debitAmount(lineRequest.debitAmount())
+                    .creditAmount(lineRequest.creditAmount())
+                    .currencyCode(lineRequest.currencyCode() != null ? lineRequest.currencyCode() : "USD")
+                    .localDebit(lineRequest.debitAmount().multiply(fxRate))
+                    .localCredit(lineRequest.creditAmount().multiply(fxRate))
+                    .fxRate(fxRate)
+                    .narration(lineRequest.narration())
+                    .costCentre(lineRequest.costCentre())
+                    .branchCode(lineRequest.branchCode() != null ? lineRequest.branchCode() : "HEAD")
+                    .accountId(lineRequest.accountId())
+                    .customerId(lineRequest.customerId())
+                    .build();
             journal.addLine(line);
         }
 
-        // Double-entry validation
         if (!journal.isBalanced()) {
             throw new BusinessException(String.format("Journal is not balanced: debit=%s, credit=%s",
                     journal.getTotalDebit(), journal.getTotalCredit()), "JOURNAL_NOT_BALANCED");
         }
 
-        // Post to GL balances
         for (JournalLine line : journal.getLines()) {
-            updateGlBalance(line.getGlCode(), line.getBranchCode() != null ? line.getBranchCode() : "HEAD",
-                    line.getCurrencyCode(), journal.getPostingDate(), line.getLocalDebit(), line.getLocalCredit());
+            updateGlBalance(
+                    line.getGlCode(),
+                    line.getBranchCode() != null ? line.getBranchCode() : "HEAD",
+                    line.getCurrencyCode(),
+                    journal.getPostingDate(),
+                    line.getLocalDebit(),
+                    line.getLocalCredit());
         }
 
         journal.setStatus("POSTED");
@@ -103,9 +113,6 @@ public class GeneralLedgerService {
         return saved;
     }
 
-    /**
-     * Reverses a posted journal by creating a mirror journal with debits/credits swapped.
-     */
     @Transactional
     public JournalEntry reverseJournal(Long journalId) {
         JournalEntry original = journalRepository.findByIdWithLines(journalId)
@@ -148,33 +155,35 @@ public class GeneralLedgerService {
         return reversal;
     }
 
-    // ========================================================================
-    // GL BALANCE MANAGEMENT
-    // ========================================================================
-
     private void updateGlBalance(String glCode, String branchCode, String currencyCode,
-                                   LocalDate date, BigDecimal debit, BigDecimal credit) {
+                                 LocalDate date, BigDecimal debit, BigDecimal credit) {
         GlBalance balance = balanceRepository
                 .findByGlCodeAndBranchCodeAndCurrencyCodeAndBalanceDate(glCode, branchCode, currencyCode, date)
                 .orElseGet(() -> {
-                    // Carry forward previous day's closing as today's opening
                     BigDecimal opening = balanceRepository
                             .findByGlCodeAndBranchCodeAndCurrencyCodeAndBalanceDate(glCode, branchCode, currencyCode, date.minusDays(1))
-                            .map(GlBalance::getClosingBalance).orElse(BigDecimal.ZERO);
+                            .map(GlBalance::getClosingBalance)
+                            .orElse(BigDecimal.ZERO);
 
                     return GlBalance.builder()
-                            .glCode(glCode).branchCode(branchCode).currencyCode(currencyCode)
-                            .balanceDate(date).openingBalance(opening).closingBalance(opening).build();
+                            .glCode(glCode)
+                            .branchCode(branchCode)
+                            .currencyCode(currencyCode)
+                            .balanceDate(date)
+                            .openingBalance(opening)
+                            .closingBalance(opening)
+                            .build();
                 });
 
-        if (debit.compareTo(BigDecimal.ZERO) > 0) balance.applyDebit(debit);
-        if (credit.compareTo(BigDecimal.ZERO) > 0) balance.applyCredit(credit);
+        if (debit.compareTo(BigDecimal.ZERO) > 0) {
+            balance.applyDebit(debit);
+        }
+        if (credit.compareTo(BigDecimal.ZERO) > 0) {
+            balance.applyCredit(credit);
+        }
         balanceRepository.save(balance);
     }
 
-    /**
-     * Trial balance: returns all GL balances for a given date.
-     */
     public List<GlBalance> getTrialBalance(LocalDate date) {
         return balanceRepository.findByBalanceDateOrderByGlCodeAsc(date);
     }
@@ -183,30 +192,31 @@ public class GeneralLedgerService {
         return balanceRepository.findByGlCodeAndBalanceDateBetweenOrderByBalanceDateAsc(glCode, from, to);
     }
 
-    // ========================================================================
-    // CAPABILITY 69: SUB-LEDGER RECONCILIATION
-    // ========================================================================
-
     @Transactional
     public SubledgerReconRun runReconciliation(String subledgerType, String glCode,
-                                                 BigDecimal subledgerBalance, LocalDate reconDate) {
-        GlBalance glBal = balanceRepository
+                                               BigDecimal subledgerBalance, LocalDate reconDate) {
+        GlBalance glBalance = balanceRepository
                 .findByGlCodeAndBranchCodeAndCurrencyCodeAndBalanceDate(glCode, "HEAD", "USD", reconDate)
                 .orElse(GlBalance.builder().closingBalance(BigDecimal.ZERO).build());
 
-        BigDecimal difference = glBal.getClosingBalance().subtract(subledgerBalance).abs();
-        boolean isBalanced = difference.compareTo(new BigDecimal("0.01")) < 0;
+        BigDecimal difference = glBalance.getClosingBalance().subtract(subledgerBalance).abs();
+        boolean balanced = difference.compareTo(new BigDecimal("0.01")) < 0;
 
         SubledgerReconRun recon = SubledgerReconRun.builder()
-                .reconDate(reconDate).subledgerType(subledgerType).glCode(glCode)
-                .glBalance(glBal.getClosingBalance()).subledgerBalance(subledgerBalance)
-                .difference(difference).isBalanced(isBalanced)
-                .status(isBalanced ? "COMPLETED" : "EXCEPTIONS").build();
+                .reconDate(reconDate)
+                .subledgerType(subledgerType)
+                .glCode(glCode)
+                .glBalance(glBalance.getClosingBalance())
+                .subledgerBalance(subledgerBalance)
+                .difference(difference)
+                .isBalanced(balanced)
+                .status(balanced ? "COMPLETED" : "EXCEPTIONS")
+                .build();
 
         SubledgerReconRun saved = reconRepository.save(recon);
-        if (!isBalanced) {
+        if (!balanced) {
             log.warn("Sub-ledger mismatch: type={}, gl={}, glBal={}, subBal={}, diff={}",
-                    subledgerType, glCode, glBal.getClosingBalance(), subledgerBalance, difference);
+                    subledgerType, glCode, glBalance.getClosingBalance(), subledgerBalance, difference);
         }
         return saved;
     }
@@ -215,15 +225,12 @@ public class GeneralLedgerService {
         return reconRepository.findByReconDateOrderBySubledgerTypeAsc(date);
     }
 
-    // ========================================================================
-    // CHART OF ACCOUNTS
-    // ========================================================================
-
     @Transactional
     public ChartOfAccounts createGlAccount(CreateGlAccountRequest request) {
         coaRepository.findByGlCode(request.glCode()).ifPresent(existing -> {
             throw new BusinessException("GL code already exists: " + request.glCode(), "DUPLICATE_GL");
         });
+
         ChartOfAccounts coa = ChartOfAccounts.builder()
                 .glCode(request.glCode())
                 .glName(request.glName())
@@ -243,6 +250,7 @@ public class GeneralLedgerService {
                 .isActive(request.isActive() == null || request.isActive())
                 .createdBy(currentActorProvider.getCurrentActor())
                 .build();
+
         return coaRepository.save(coa);
     }
 
@@ -253,10 +261,6 @@ public class GeneralLedgerService {
     public List<ChartOfAccounts> getByCategory(GlCategory category) {
         return coaRepository.findByGlCategoryAndIsActiveTrue(category);
     }
-
-    // ========================================================================
-    // QUERY
-    // ========================================================================
 
     public JournalEntry getJournal(Long id) {
         return journalRepository.findByIdWithLines(id)

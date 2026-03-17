@@ -1,11 +1,7 @@
 package com.cbs.payments.service;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.*;
@@ -34,8 +30,6 @@ public class PaymentService {
     private final PaymentBatchRepository batchRepository;
     private final FxRateRepository fxRateRepository;
     private final AccountRepository accountRepository;
-    private final AccountPostingService accountPostingService;
-    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // INTERNAL TRANSFER (Cap 27)
@@ -77,26 +71,16 @@ public class PaymentService {
             payment.setFxSourceCurrency(debitAccount.getCurrencyCode());
             payment.setFxTargetCurrency(creditAccount.getCurrencyCode());
             payment.setFxConvertedAmount(converted);
-            accountPostingService.postTransfer(
-                    debitAccount,
-                    creditAccount,
-                    amount,
-                    converted,
-                    narration != null ? narration : "Internal transfer to " + creditAccount.getAccountNumber(),
-                    "Internal transfer from " + debitAccount.getAccountNumber(),
-                    TransactionChannel.SYSTEM,
-                    ref);
+
+            debitAccount.debit(amount);
+            creditAccount.credit(converted);
         } else {
-            accountPostingService.postTransfer(
-                    debitAccount,
-                    creditAccount,
-                    amount,
-                    amount,
-                    narration != null ? narration : "Internal transfer to " + creditAccount.getAccountNumber(),
-                    "Internal transfer from " + debitAccount.getAccountNumber(),
-                    TransactionChannel.SYSTEM,
-                    ref);
+            debitAccount.debit(amount);
+            creditAccount.credit(amount);
         }
+
+        accountRepository.save(debitAccount);
+        accountRepository.save(creditAccount);
 
         payment.setStatus(PaymentStatus.COMPLETED);
         payment.setExecutionDate(LocalDate.now());
@@ -139,24 +123,14 @@ public class PaymentService {
                 .status(PaymentStatus.VALIDATED).build();
 
         // Debit immediately
-        accountPostingService.postDebit(
-                debitAccount,
-                TransactionType.TRANSFER_OUT,
-                amount,
-                narration != null ? narration : "Domestic payment to " + creditAccountNumber,
-                TransactionChannel.SYSTEM,
-                ref + ":DR");
+        debitAccount.debit(amount);
+        accountRepository.save(debitAccount);
 
         // For internal bank transfers, check if credit account exists locally
         Account localCreditAccount = accountRepository.findByAccountNumber(creditAccountNumber).orElse(null);
         if (localCreditAccount != null) {
-            accountPostingService.postCredit(
-                    localCreditAccount,
-                    TransactionType.TRANSFER_IN,
-                    amount,
-                    narration != null ? narration : "Domestic payment from " + debitAccount.getAccountNumber(),
-                    TransactionChannel.SYSTEM,
-                    ref + ":CR");
+            localCreditAccount.credit(amount);
+            accountRepository.save(localCreditAccount);
             payment.setCreditAccount(localCreditAccount);
             payment.setStatus(PaymentStatus.COMPLETED);
             payment.setExecutionDate(LocalDate.now());
@@ -222,13 +196,8 @@ public class PaymentService {
         if (debitAccount.getAvailableBalance().compareTo(totalDebit) < 0) {
             throw new BusinessException("Insufficient balance including charges", "INSUFFICIENT_BALANCE");
         }
-        accountPostingService.postDebit(
-                debitAccount,
-                TransactionType.DEBIT,
-                totalDebit,
-                remittanceInfo != null ? remittanceInfo : "SWIFT transfer " + ref,
-                TransactionChannel.SYSTEM,
-                ref + ":DR");
+        debitAccount.debit(totalDebit);
+        accountRepository.save(debitAccount);
 
         // In production: submit to sanctions screening, then to SWIFT gateway
         payment.setScreeningStatus("CLEAR");
@@ -292,11 +261,10 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentBatch processBatch(String batchRef) {
+    public PaymentBatch processBatch(String batchRef, String approvedBy) {
         PaymentBatch batch = batchRepository.findByBatchRef(batchRef)
                 .orElseThrow(() -> new ResourceNotFoundException("PaymentBatch", "batchRef", batchRef));
 
-        String approvedBy = currentActorProvider.getCurrentActor();
         batch.setApprovedBy(approvedBy);
         batch.setApprovedAt(Instant.now());
         batch.setStatus("PROCESSING");
@@ -315,27 +283,15 @@ public class PaymentService {
                     failed++;
                     failedAmt = failedAmt.add(pi.getAmount());
                 } else {
+                    debitAccount.debit(pi.getAmount());
+
                     Account localCredit = accountRepository.findByAccountNumber(pi.getCreditAccountNumber()).orElse(null);
                     if (localCredit != null) {
-                        accountPostingService.postTransfer(
-                                debitAccount,
-                                localCredit,
-                                pi.getAmount(),
-                                pi.getAmount(),
-                                pi.getRemittanceInfo() != null ? pi.getRemittanceInfo() : "Batch payment to " + pi.getCreditAccountNumber(),
-                                "Batch payment from " + debitAccount.getAccountNumber(),
-                                TransactionChannel.SYSTEM,
-                                pi.getInstructionRef());
+                        localCredit.credit(pi.getAmount());
+                        accountRepository.save(localCredit);
                         pi.setCreditAccount(localCredit);
                         pi.setStatus(PaymentStatus.COMPLETED);
                     } else {
-                        accountPostingService.postDebit(
-                                debitAccount,
-                                TransactionType.TRANSFER_OUT,
-                                pi.getAmount(),
-                                pi.getRemittanceInfo() != null ? pi.getRemittanceInfo() : "Batch payment to " + pi.getCreditAccountNumber(),
-                                TransactionChannel.SYSTEM,
-                                pi.getInstructionRef() + ":DR");
                         pi.setStatus(PaymentStatus.SUBMITTED);
                     }
                     pi.setExecutionDate(LocalDate.now());
@@ -351,6 +307,8 @@ public class PaymentService {
                 failedAmt = failedAmt.add(pi.getAmount());
             }
         }
+
+        accountRepository.save(debitAccount);
         batch.setSuccessfulCount(success);
         batch.setFailedCount(failed);
         batch.setSuccessfulAmount(successAmt);

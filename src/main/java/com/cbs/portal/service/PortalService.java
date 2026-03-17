@@ -31,10 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -58,8 +55,6 @@ public class PortalService {
         Customer customer = findCustomerOrThrow(customerId);
 
         List<Account> accounts = accountRepository.findByCustomerIdAndStatus(customerId, AccountStatus.ACTIVE);
-        List<Long> accountIds = accounts.stream().map(Account::getId).toList();
-        Map<Long, List<com.cbs.account.entity.AccountSignatory>> signatoriesByAccountId = loadSignatories(accountIds);
 
         BigDecimal totalBalance = accounts.stream()
                 .map(Account::getBookBalance)
@@ -70,17 +65,26 @@ public class PortalService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         List<AccountResponse> accountSummaries = accounts.stream()
-                .map(account -> toAccountResponse(account,
-                        signatoriesByAccountId.getOrDefault(account.getId(), List.of())))
+                .map(a -> {
+                    AccountResponse r = accountMapper.toResponse(a);
+                    r.setSignatories(accountMapper.toSignatoryDtoList(
+                            signatoryRepository.findByAccountIdWithCustomer(a.getId())));
+                    return r;
+                })
                 .toList();
 
-        List<TransactionResponse> recentTransactions = accountIds.isEmpty()
-                ? List.of()
-                : transactionRepository.findByAccountIdInOrderByCreatedAtDesc(accountIds, PageRequest.of(0, 5))
-                        .map(accountMapper::toTransactionResponse)
-                        .getContent();
+        // Last 5 transactions across all accounts
+        List<TransactionResponse> recentTransactions = accounts.stream()
+                .flatMap(a -> transactionRepository
+                        .findByAccountIdOrderByCreatedAtDesc(a.getId(), PageRequest.of(0, 5))
+                        .getContent().stream())
+                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+                .limit(5)
+                .map(accountMapper::toTransactionResponse)
+                .toList();
 
-        long pendingUpdates = profileUpdateRepository.countByCustomerIdAndStatus(customerId, "PENDING");
+        long pendingUpdates = profileUpdateRepository
+                .findByCustomerIdAndStatus(customerId, "PENDING").size();
 
         return PortalDashboardResponse.builder()
                 .customerId(customerId)
@@ -111,7 +115,10 @@ public class PortalService {
 
     public AccountResponse getAccountBalance(Long customerId, String accountNumber) {
         Account account = findCustomerAccountOrThrow(customerId, accountNumber);
-        return toAccountResponse(account, signatoryRepository.findByAccountIdWithCustomer(account.getId()));
+        AccountResponse response = accountMapper.toResponse(account);
+        response.setSignatories(accountMapper.toSignatoryDtoList(
+                signatoryRepository.findByAccountIdWithCustomer(account.getId())));
+        return response;
     }
 
     public Page<TransactionResponse> getMiniStatement(Long customerId, String accountNumber, Pageable pageable) {
@@ -209,20 +216,6 @@ public class PortalService {
 
         log.info("Profile update rejected: id={}, reason={}", requestId, reason);
         return toDto(request);
-    }
-
-    private Map<Long, List<com.cbs.account.entity.AccountSignatory>> loadSignatories(List<Long> accountIds) {
-        if (accountIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        return signatoryRepository.findByAccountIdInWithCustomer(accountIds).stream()
-                .collect(Collectors.groupingBy(signatory -> signatory.getAccount().getId()));
-    }
-
-    private AccountResponse toAccountResponse(Account account, List<com.cbs.account.entity.AccountSignatory> signatories) {
-        AccountResponse response = accountMapper.toResponse(account);
-        response.setSignatories(accountMapper.toSignatoryDtoList(signatories));
-        return response;
     }
 
     // ========================================================================

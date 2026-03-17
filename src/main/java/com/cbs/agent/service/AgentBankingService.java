@@ -1,10 +1,7 @@
 package com.cbs.agent.service;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.agent.entity.*;
 import com.cbs.agent.repository.*;
 import com.cbs.common.exception.BusinessException;
@@ -29,7 +26,6 @@ public class AgentBankingService {
     private final BankingAgentRepository agentRepository;
     private final AgentTransactionRepository txnRepository;
     private final AccountRepository accountRepository;
-    private final AccountPostingService accountPostingService;
 
     @Transactional
     public BankingAgent onboardAgent(BankingAgent agent) {
@@ -81,25 +77,14 @@ public class AgentBankingService {
             Account account = accountRepository.findById(accountId)
                     .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
             if ("CASH_IN".equals(transactionType)) {
-                accountPostingService.postCredit(
-                        account,
-                        TransactionType.CREDIT,
-                        amount,
-                        "Agent cash-in " + agentCode,
-                        TransactionChannel.AGENT,
-                        agentCode + ":CASH_IN");
+                account.credit(amount);
             } else if ("CASH_OUT".equals(transactionType)) {
                 if (account.getAvailableBalance().compareTo(amount) < 0) {
                     throw new BusinessException("Insufficient customer balance", "INSUFFICIENT_BALANCE");
                 }
-                accountPostingService.postDebit(
-                        account,
-                        TransactionType.DEBIT,
-                        amount,
-                        "Agent cash-out " + agentCode,
-                        TransactionChannel.AGENT,
-                        agentCode + ":CASH_OUT");
+                account.debit(amount);
             }
+            accountRepository.save(account);
         }
 
         // Calculate commission
@@ -108,13 +93,8 @@ public class AgentBankingService {
         // Credit commission to agent's commission account
         if (commission.compareTo(BigDecimal.ZERO) > 0 && agent.getCommissionAccountId() != null) {
             accountRepository.findById(agent.getCommissionAccountId()).ifPresent(commAcct -> {
-                accountPostingService.postCredit(
-                        commAcct,
-                        TransactionType.CREDIT,
-                        commission,
-                        "Agent commission " + agentCode,
-                        TransactionChannel.AGENT,
-                        agentCode + ":COMMISSION");
+                commAcct.credit(commission);
+                accountRepository.save(commAcct);
             });
         }
 

@@ -21,6 +21,7 @@ public interface CardDisputeRepository extends JpaRepository<CardDispute, Long> 
     List<CardDispute> findSlaBreached(@Param("date") LocalDate date);
 
     long countByStatus(DisputeStatus status);
+    long countByIsSlaBreachedTrue();
 
     @Query(value = "SELECT nextval('cbs.dispute_seq')", nativeQuery = true)
     Long getNextDisputeSequence();

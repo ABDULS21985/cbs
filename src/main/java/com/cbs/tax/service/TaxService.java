@@ -53,11 +53,8 @@ public class TaxService {
             if (rule.getTaxPayableGl() != null && accountId != null) {
                 try {
                     var journal = glService.postJournal(new PostJournalRequest(
-                            "SYSTEM",
-                            "Tax deduction: " + rule.getTaxCode(),
-                            sourceModule,
-                            sourceRef,
-                            LocalDate.now(),
+                            "SYSTEM", "Tax deduction: " + rule.getTaxCode(),
+                            sourceModule, sourceRef, LocalDate.now(),
                             List.of(
                                     new JournalLineRequest(
                                             rule.getTaxReceivableGl() != null ? rule.getTaxReceivableGl() : "3100",

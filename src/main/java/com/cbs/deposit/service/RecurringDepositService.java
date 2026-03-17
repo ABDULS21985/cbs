@@ -2,11 +2,8 @@ package com.cbs.deposit.service;
 
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.Product;
-import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.ProductRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -37,7 +34,6 @@ public class RecurringDepositService {
     private final RecurringDepositInstallmentRepository installmentRepository;
     private final AccountRepository accountRepository;
     private final ProductRepository productRepository;
-    private final AccountPostingService accountPostingService;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
 
@@ -159,13 +155,8 @@ public class RecurringDepositService {
             throw new BusinessException("Insufficient balance for installment", "INSUFFICIENT_BALANCE");
         }
 
-        accountPostingService.postDebit(
-                debitAccount,
-                TransactionType.DEBIT,
-                installment.getAmountDue(),
-                "Recurring deposit installment " + rd.getDepositNumber() + " #" + installmentNumber,
-                TransactionChannel.SYSTEM,
-                rd.getDepositNumber() + ":INST:" + installmentNumber);
+        debitAccount.debit(installment.getAmountDue());
+        accountRepository.save(debitAccount);
 
         installment.setAmountPaid(installment.getAmountDue());
         installment.setPaidDate(LocalDate.now());
@@ -218,13 +209,8 @@ public class RecurringDepositService {
             return;
         }
 
-        accountPostingService.postDebit(
-                debitAccount,
-                TransactionType.DEBIT,
-                installment.getAmountDue(),
-                "Recurring deposit installment " + rd.getDepositNumber() + " #" + installment.getInstallmentNumber(),
-                TransactionChannel.SYSTEM,
-                rd.getDepositNumber() + ":AUTO:" + installment.getInstallmentNumber());
+        debitAccount.debit(installment.getAmountDue());
+        accountRepository.save(debitAccount);
 
         installment.setAmountPaid(installment.getAmountDue());
         installment.setPaidDate(LocalDate.now());
