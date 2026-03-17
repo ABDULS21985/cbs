@@ -54,7 +54,7 @@ dependencies {
 
     // Jackson extras
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    implementation("com.fasterxml.jackson.datatype:jackson-hibernate6:2.18.1")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate6:2.18.1")
 
     // Hypersistence utils for PostgreSQL JSON types
     implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.8.3")
