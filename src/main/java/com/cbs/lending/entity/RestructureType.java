@@ -1,0 +1,5 @@
+package com.cbs.lending.entity;
+
+public enum RestructureType {
+    RESCHEDULE, TENURE_EXTENSION, RATE_CHANGE, MORATORIUM, PARTIAL_WRITE_OFF, CONSOLIDATION, NPL_MIGRATION
+}

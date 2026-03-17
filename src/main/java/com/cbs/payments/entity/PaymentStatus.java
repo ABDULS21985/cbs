@@ -1,0 +1,6 @@
+package com.cbs.payments.entity;
+
+public enum PaymentStatus {
+    PENDING, VALIDATED, SCREENING, APPROVED, SUBMITTED,
+    PROCESSING, COMPLETED, FAILED, REJECTED, RETURNED, CANCELLED
+}
