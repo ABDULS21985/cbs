@@ -2,6 +2,8 @@ package com.cbs.escrow;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
@@ -35,6 +37,8 @@ class EscrowServiceTest {
     @Mock private EscrowReleaseRepository releaseRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private CustomerRepository customerRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks private EscrowService escrowService;
 
@@ -43,6 +47,15 @@ class EscrowServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(currentActorProvider.getCurrentActor()).thenReturn("admin1");
+        lenient().when(accountPostingService.postCredit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
+                        nullable(String.class), any(TransactionChannel.class), nullable(String.class)))
+                .thenAnswer(inv -> {
+                    Account acct = inv.getArgument(0);
+                    BigDecimal amount = inv.getArgument(2);
+                    acct.credit(amount);
+                    return TransactionJournal.builder().account(acct).amount(amount).build();
+                });
         customer = Customer.builder().id(1L).firstName("Test").lastName("User")
                 .customerType(CustomerType.INDIVIDUAL).build();
         account = Account.builder().id(1L).accountNumber("1000000001").customer(customer)
@@ -115,7 +128,7 @@ class EscrowServiceTest {
         when(mandateRepository.save(any())).thenReturn(mandate);
         when(releaseRepository.save(any())).thenReturn(release);
 
-        EscrowReleaseDto result = escrowService.approveAndExecuteRelease(1L, "admin1");
+        EscrowReleaseDto result = escrowService.approveAndExecuteRelease(1L);
 
         assertThat(result.getStatus()).isEqualTo("EXECUTED");
         assertThat(mandate.getStatus()).isEqualTo(EscrowStatus.PARTIALLY_RELEASED);

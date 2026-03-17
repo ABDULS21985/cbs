@@ -94,7 +94,7 @@ public class CardDisputeService {
                 TransactionType.ADJUSTMENT,
                 dispute.getDisputeAmount(),
                 "Provisional credit for dispute " + dispute.getDisputeRef(),
-                TransactionChannel.CARD,
+                TransactionChannel.SYSTEM,
                 dispute.getDisputeRef() + ":PROV_CR");
 
         dispute.setProvisionalCreditAmount(dispute.getDisputeAmount());
@@ -199,7 +199,7 @@ public class CardDisputeService {
                     TransactionType.ADJUSTMENT,
                     dispute.getProvisionalCreditAmount(),
                     "Provisional credit reversal for dispute " + dispute.getDisputeRef(),
-                    TransactionChannel.CARD,
+                    TransactionChannel.SYSTEM,
                     dispute.getDisputeRef() + ":PROV_DR");
             dispute.setProvisionalCreditReversed(true);
             log.info("Provisional credit reversed: dispute={}, amount={}", dispute.getDisputeRef(), dispute.getProvisionalCreditAmount());

@@ -2,6 +2,7 @@ package com.cbs.cheque;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.cheque.entity.*;
 import com.cbs.cheque.repository.*;
 import com.cbs.cheque.service.ChequeService;
@@ -31,6 +32,7 @@ class ChequeServiceTest {
     @Mock private ChequeBookRepository bookRepository;
     @Mock private ChequeLeafRepository leafRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
 
     @InjectMocks private ChequeService chequeService;
 
@@ -40,6 +42,14 @@ class ChequeServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(accountPostingService.postDebit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
+                        nullable(String.class), any(TransactionChannel.class), nullable(String.class)))
+                .thenAnswer(inv -> {
+                    Account acct = inv.getArgument(0);
+                    BigDecimal amount = inv.getArgument(2);
+                    acct.debit(amount);
+                    return TransactionJournal.builder().account(acct).amount(amount).build();
+                });
         Customer c = Customer.builder().id(1L).firstName("Test").lastName("User").customerType(CustomerType.INDIVIDUAL).build();
         account = Account.builder().id(1L).accountNumber("1000000001").customer(c).currencyCode("USD")
                 .bookBalance(new BigDecimal("50000")).availableBalance(new BigDecimal("50000"))
@@ -94,7 +104,6 @@ class ChequeServiceTest {
         leaf.setStatus(ChequeStatus.CLEARING);
         leaf.setAmount(new BigDecimal("5000"));
         when(leafRepository.findById(1L)).thenReturn(Optional.of(leaf));
-        when(accountRepository.save(any())).thenReturn(account);
         when(leafRepository.save(any())).thenReturn(leaf);
         when(bookRepository.save(any())).thenReturn(book);
 

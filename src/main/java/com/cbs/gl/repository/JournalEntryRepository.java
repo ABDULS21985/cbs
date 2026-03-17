@@ -3,8 +3,10 @@ package com.cbs.gl.repository;
 import com.cbs.gl.entity.JournalEntry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
@@ -14,6 +16,9 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long
     Page<JournalEntry> findBySourceModuleAndSourceRef(String module, String ref, Pageable pageable);
     Page<JournalEntry> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
     Page<JournalEntry> findByPostingDateBetweenOrderByPostingDateDesc(java.time.LocalDate from, java.time.LocalDate to, Pageable pageable);
+    @EntityGraph(attributePaths = "lines")
+    @Query("select j from JournalEntry j left join fetch j.lines where j.id = :id")
+    Optional<JournalEntry> findByIdWithLines(@Param("id") Long id);
     @Query(value = "SELECT nextval('cbs.journal_seq')", nativeQuery = true)
     Long getNextJournalSequence();
 }

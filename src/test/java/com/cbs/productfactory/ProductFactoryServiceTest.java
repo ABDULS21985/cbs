@@ -1,5 +1,6 @@
 package com.cbs.productfactory;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.productfactory.entity.ProductTemplate;
 import com.cbs.productfactory.repository.ProductTemplateRepository;
@@ -23,6 +24,7 @@ import static org.mockito.Mockito.*;
 class ProductFactoryServiceTest {
 
     @Mock private ProductTemplateRepository templateRepository;
+    @Mock private CurrentActorProvider currentActorProvider;
     @InjectMocks private ProductFactoryService productFactoryService;
 
     @Test
@@ -36,13 +38,14 @@ class ProductFactoryServiceTest {
 
         when(templateRepository.findById(1L)).thenReturn(Optional.of(template));
         when(templateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(currentActorProvider.getCurrentActor()).thenReturn("product_mgr");
 
         // Submit
         ProductTemplate submitted = productFactoryService.submitForApproval(1L);
         assertThat(submitted.getStatus()).isEqualTo("PENDING_APPROVAL");
 
         // Approve
-        ProductTemplate approved = productFactoryService.approveTemplate(1L, "product_mgr");
+        ProductTemplate approved = productFactoryService.approveTemplate(1L);
         assertThat(approved.getStatus()).isEqualTo("APPROVED");
         assertThat(approved.getApprovedBy()).isEqualTo("product_mgr");
 
