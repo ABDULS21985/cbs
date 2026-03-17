@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-03-17T21:07:11+0100",
+    date = "2026-03-17T23:39:29+0100",
     comments = "version: 1.6.2, compiler: Eclipse JDT (IDE) 3.45.0.v20260224-0835, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
@@ -25,17 +25,17 @@ public class SegmentMapperImpl implements SegmentMapper {
 
         SegmentDto.SegmentDtoBuilder segmentDto = SegmentDto.builder();
 
-        segmentDto.code( entity.getCode() );
-        segmentDto.colorCode( entity.getColorCode() );
-        segmentDto.createdAt( entity.getCreatedAt() );
-        segmentDto.description( entity.getDescription() );
-        segmentDto.icon( entity.getIcon() );
         segmentDto.id( entity.getId() );
-        segmentDto.isActive( entity.getIsActive() );
+        segmentDto.code( entity.getCode() );
         segmentDto.name( entity.getName() );
-        segmentDto.priority( entity.getPriority() );
-        segmentDto.rules( toRuleDtoList( entity.getRules() ) );
+        segmentDto.description( entity.getDescription() );
         segmentDto.segmentType( entity.getSegmentType() );
+        segmentDto.priority( entity.getPriority() );
+        segmentDto.isActive( entity.getIsActive() );
+        segmentDto.colorCode( entity.getColorCode() );
+        segmentDto.icon( entity.getIcon() );
+        segmentDto.rules( toRuleDtoList( entity.getRules() ) );
+        segmentDto.createdAt( entity.getCreatedAt() );
         segmentDto.updatedAt( entity.getUpdatedAt() );
 
         return segmentDto.build();
@@ -63,13 +63,13 @@ public class SegmentMapperImpl implements SegmentMapper {
 
         SegmentRuleDto.SegmentRuleDtoBuilder segmentRuleDto = SegmentRuleDto.builder();
 
+        segmentRuleDto.id( entity.getId() );
         segmentRuleDto.fieldName( entity.getFieldName() );
+        segmentRuleDto.operator( entity.getOperator() );
         segmentRuleDto.fieldValue( entity.getFieldValue() );
         segmentRuleDto.fieldValueTo( entity.getFieldValueTo() );
-        segmentRuleDto.id( entity.getId() );
-        segmentRuleDto.isActive( entity.getIsActive() );
         segmentRuleDto.logicalGroup( entity.getLogicalGroup() );
-        segmentRuleDto.operator( entity.getOperator() );
+        segmentRuleDto.isActive( entity.getIsActive() );
 
         return segmentRuleDto.build();
     }
@@ -97,13 +97,13 @@ public class SegmentMapperImpl implements SegmentMapper {
         Segment.SegmentBuilder<?, ?> segment = Segment.builder();
 
         segment.code( dto.getCode() );
-        segment.colorCode( dto.getColorCode() );
-        segment.description( dto.getDescription() );
-        segment.icon( dto.getIcon() );
-        segment.isActive( dto.getIsActive() );
         segment.name( dto.getName() );
-        segment.priority( dto.getPriority() );
+        segment.description( dto.getDescription() );
         segment.segmentType( dto.getSegmentType() );
+        segment.priority( dto.getPriority() );
+        segment.isActive( dto.getIsActive() );
+        segment.colorCode( dto.getColorCode() );
+        segment.icon( dto.getIcon() );
 
         return segment.build();
     }
@@ -117,11 +117,11 @@ public class SegmentMapperImpl implements SegmentMapper {
         SegmentRule.SegmentRuleBuilder<?, ?> segmentRule = SegmentRule.builder();
 
         segmentRule.fieldName( dto.getFieldName() );
+        segmentRule.operator( dto.getOperator() );
         segmentRule.fieldValue( dto.getFieldValue() );
         segmentRule.fieldValueTo( dto.getFieldValueTo() );
-        segmentRule.isActive( dto.getIsActive() );
         segmentRule.logicalGroup( dto.getLogicalGroup() );
-        segmentRule.operator( dto.getOperator() );
+        segmentRule.isActive( dto.getIsActive() );
 
         return segmentRule.build();
     }
@@ -132,26 +132,26 @@ public class SegmentMapperImpl implements SegmentMapper {
             return;
         }
 
-        if ( dto.getColorCode() != null ) {
-            entity.setColorCode( dto.getColorCode() );
+        if ( dto.getName() != null ) {
+            entity.setName( dto.getName() );
         }
         if ( dto.getDescription() != null ) {
             entity.setDescription( dto.getDescription() );
         }
-        if ( dto.getIcon() != null ) {
-            entity.setIcon( dto.getIcon() );
-        }
-        if ( dto.getIsActive() != null ) {
-            entity.setIsActive( dto.getIsActive() );
-        }
-        if ( dto.getName() != null ) {
-            entity.setName( dto.getName() );
+        if ( dto.getSegmentType() != null ) {
+            entity.setSegmentType( dto.getSegmentType() );
         }
         if ( dto.getPriority() != null ) {
             entity.setPriority( dto.getPriority() );
         }
-        if ( dto.getSegmentType() != null ) {
-            entity.setSegmentType( dto.getSegmentType() );
+        if ( dto.getIsActive() != null ) {
+            entity.setIsActive( dto.getIsActive() );
+        }
+        if ( dto.getColorCode() != null ) {
+            entity.setColorCode( dto.getColorCode() );
+        }
+        if ( dto.getIcon() != null ) {
+            entity.setIcon( dto.getIcon() );
         }
     }
 }

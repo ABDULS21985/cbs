@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-03-17T21:07:10+0100",
+    date = "2026-03-17T23:39:29+0100",
     comments = "version: 1.6.2, compiler: Eclipse JDT (IDE) 3.45.0.v20260224-0835, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
@@ -38,37 +38,37 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         Customer.CustomerBuilder<?, ?> customer = Customer.builder();
 
-        customer.branchCode( request.getBranchCode() );
         customer.customerType( request.getCustomerType() );
-        customer.dateOfBirth( request.getDateOfBirth() );
-        customer.email( request.getEmail() );
+        customer.title( request.getTitle() );
         customer.firstName( request.getFirstName() );
-        customer.gender( request.getGender() );
-        customer.industryCode( request.getIndustryCode() );
+        customer.middleName( request.getMiddleName() );
         customer.lastName( request.getLastName() );
-        customer.lgaOfOrigin( request.getLgaOfOrigin() );
+        customer.dateOfBirth( request.getDateOfBirth() );
+        customer.gender( request.getGender() );
         customer.maritalStatus( request.getMaritalStatus() );
+        customer.nationality( request.getNationality() );
+        customer.stateOfOrigin( request.getStateOfOrigin() );
+        customer.lgaOfOrigin( request.getLgaOfOrigin() );
+        customer.motherMaidenName( request.getMotherMaidenName() );
+        customer.registeredName( request.getRegisteredName() );
+        customer.tradingName( request.getTradingName() );
+        customer.registrationNumber( request.getRegistrationNumber() );
+        customer.registrationDate( request.getRegistrationDate() );
+        customer.industryCode( request.getIndustryCode() );
+        customer.sectorCode( request.getSectorCode() );
+        customer.taxId( request.getTaxId() );
+        customer.email( request.getEmail() );
+        customer.phonePrimary( request.getPhonePrimary() );
+        customer.phoneSecondary( request.getPhoneSecondary() );
+        customer.preferredLanguage( request.getPreferredLanguage() );
+        customer.preferredChannel( request.getPreferredChannel() );
+        customer.relationshipManager( request.getRelationshipManager() );
+        customer.branchCode( request.getBranchCode() );
+        customer.onboardedChannel( request.getOnboardedChannel() );
         Map<String, Object> map = request.getMetadata();
         if ( map != null ) {
             customer.metadata( new LinkedHashMap<String, Object>( map ) );
         }
-        customer.middleName( request.getMiddleName() );
-        customer.motherMaidenName( request.getMotherMaidenName() );
-        customer.nationality( request.getNationality() );
-        customer.onboardedChannel( request.getOnboardedChannel() );
-        customer.phonePrimary( request.getPhonePrimary() );
-        customer.phoneSecondary( request.getPhoneSecondary() );
-        customer.preferredChannel( request.getPreferredChannel() );
-        customer.preferredLanguage( request.getPreferredLanguage() );
-        customer.registeredName( request.getRegisteredName() );
-        customer.registrationDate( request.getRegistrationDate() );
-        customer.registrationNumber( request.getRegistrationNumber() );
-        customer.relationshipManager( request.getRelationshipManager() );
-        customer.sectorCode( request.getSectorCode() );
-        customer.stateOfOrigin( request.getStateOfOrigin() );
-        customer.taxId( request.getTaxId() );
-        customer.title( request.getTitle() );
-        customer.tradingName( request.getTradingName() );
 
         return customer.build();
     }
@@ -81,49 +81,49 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         CustomerResponse.CustomerResponseBuilder customerResponse = CustomerResponse.builder();
 
-        customerResponse.addresses( toAddressDtoList( customer.getAddresses() ) );
-        customerResponse.branchCode( customer.getBranchCode() );
-        customerResponse.cifNumber( customer.getCifNumber() );
-        customerResponse.contacts( toContactDtoList( customer.getContacts() ) );
-        customerResponse.createdAt( customer.getCreatedAt() );
-        customerResponse.createdBy( customer.getCreatedBy() );
-        customerResponse.customerType( customer.getCustomerType() );
-        customerResponse.dateOfBirth( customer.getDateOfBirth() );
-        customerResponse.email( customer.getEmail() );
-        customerResponse.firstName( customer.getFirstName() );
-        customerResponse.gender( customer.getGender() );
         customerResponse.id( customer.getId() );
-        customerResponse.identifications( toIdentificationDtoList( customer.getIdentifications() ) );
-        customerResponse.industryCode( customer.getIndustryCode() );
+        customerResponse.cifNumber( customer.getCifNumber() );
+        customerResponse.customerType( customer.getCustomerType() );
+        customerResponse.status( customer.getStatus() );
+        customerResponse.riskRating( customer.getRiskRating() );
+        customerResponse.title( customer.getTitle() );
+        customerResponse.firstName( customer.getFirstName() );
+        customerResponse.middleName( customer.getMiddleName() );
         customerResponse.lastName( customer.getLastName() );
-        customerResponse.lgaOfOrigin( customer.getLgaOfOrigin() );
+        customerResponse.dateOfBirth( customer.getDateOfBirth() );
+        customerResponse.gender( customer.getGender() );
         customerResponse.maritalStatus( customer.getMaritalStatus() );
+        customerResponse.nationality( customer.getNationality() );
+        customerResponse.stateOfOrigin( customer.getStateOfOrigin() );
+        customerResponse.lgaOfOrigin( customer.getLgaOfOrigin() );
+        customerResponse.registeredName( customer.getRegisteredName() );
+        customerResponse.tradingName( customer.getTradingName() );
+        customerResponse.registrationNumber( customer.getRegistrationNumber() );
+        customerResponse.registrationDate( customer.getRegistrationDate() );
+        customerResponse.industryCode( customer.getIndustryCode() );
+        customerResponse.sectorCode( customer.getSectorCode() );
+        customerResponse.taxId( customer.getTaxId() );
+        customerResponse.email( customer.getEmail() );
+        customerResponse.phonePrimary( customer.getPhonePrimary() );
+        customerResponse.phoneSecondary( customer.getPhoneSecondary() );
+        customerResponse.preferredLanguage( customer.getPreferredLanguage() );
+        customerResponse.preferredChannel( customer.getPreferredChannel() );
+        customerResponse.relationshipManager( customer.getRelationshipManager() );
+        customerResponse.branchCode( customer.getBranchCode() );
+        customerResponse.onboardedChannel( customer.getOnboardedChannel() );
+        customerResponse.profilePhotoUrl( customer.getProfilePhotoUrl() );
         Map<String, Object> map = customer.getMetadata();
         if ( map != null ) {
             customerResponse.metadata( new LinkedHashMap<String, Object>( map ) );
         }
-        customerResponse.middleName( customer.getMiddleName() );
-        customerResponse.nationality( customer.getNationality() );
-        customerResponse.notes( toNoteDtoList( customer.getNotes() ) );
-        customerResponse.onboardedChannel( customer.getOnboardedChannel() );
-        customerResponse.phonePrimary( customer.getPhonePrimary() );
-        customerResponse.phoneSecondary( customer.getPhoneSecondary() );
-        customerResponse.preferredChannel( customer.getPreferredChannel() );
-        customerResponse.preferredLanguage( customer.getPreferredLanguage() );
-        customerResponse.profilePhotoUrl( customer.getProfilePhotoUrl() );
-        customerResponse.registeredName( customer.getRegisteredName() );
-        customerResponse.registrationDate( customer.getRegistrationDate() );
-        customerResponse.registrationNumber( customer.getRegistrationNumber() );
-        customerResponse.relationshipManager( customer.getRelationshipManager() );
+        customerResponse.addresses( toAddressDtoList( customer.getAddresses() ) );
+        customerResponse.identifications( toIdentificationDtoList( customer.getIdentifications() ) );
+        customerResponse.contacts( toContactDtoList( customer.getContacts() ) );
         customerResponse.relationships( toRelationshipDtoList( customer.getRelationships() ) );
-        customerResponse.riskRating( customer.getRiskRating() );
-        customerResponse.sectorCode( customer.getSectorCode() );
-        customerResponse.stateOfOrigin( customer.getStateOfOrigin() );
-        customerResponse.status( customer.getStatus() );
-        customerResponse.taxId( customer.getTaxId() );
-        customerResponse.title( customer.getTitle() );
-        customerResponse.tradingName( customer.getTradingName() );
+        customerResponse.notes( toNoteDtoList( customer.getNotes() ) );
+        customerResponse.createdAt( customer.getCreatedAt() );
         customerResponse.updatedAt( customer.getUpdatedAt() );
+        customerResponse.createdBy( customer.getCreatedBy() );
 
         customerResponse.displayName( customer.getDisplayName() );
 
@@ -138,15 +138,15 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         CustomerSummaryResponse.CustomerSummaryResponseBuilder customerSummaryResponse = CustomerSummaryResponse.builder();
 
-        customerSummaryResponse.branchCode( customer.getBranchCode() );
-        customerSummaryResponse.cifNumber( customer.getCifNumber() );
-        customerSummaryResponse.createdAt( customer.getCreatedAt() );
-        customerSummaryResponse.customerType( customer.getCustomerType() );
-        customerSummaryResponse.email( customer.getEmail() );
         customerSummaryResponse.id( customer.getId() );
-        customerSummaryResponse.phonePrimary( customer.getPhonePrimary() );
-        customerSummaryResponse.riskRating( customer.getRiskRating() );
+        customerSummaryResponse.cifNumber( customer.getCifNumber() );
+        customerSummaryResponse.customerType( customer.getCustomerType() );
         customerSummaryResponse.status( customer.getStatus() );
+        customerSummaryResponse.riskRating( customer.getRiskRating() );
+        customerSummaryResponse.email( customer.getEmail() );
+        customerSummaryResponse.phonePrimary( customer.getPhonePrimary() );
+        customerSummaryResponse.branchCode( customer.getBranchCode() );
+        customerSummaryResponse.createdAt( customer.getCreatedAt() );
 
         customerSummaryResponse.displayName( customer.getDisplayName() );
 
@@ -173,32 +173,83 @@ public class CustomerMapperImpl implements CustomerMapper {
             return;
         }
 
-        if ( request.getBranchCode() != null ) {
-            customer.setBranchCode( request.getBranchCode() );
-        }
-        if ( request.getDateOfBirth() != null ) {
-            customer.setDateOfBirth( request.getDateOfBirth() );
-        }
-        if ( request.getEmail() != null ) {
-            customer.setEmail( request.getEmail() );
+        if ( request.getTitle() != null ) {
+            customer.setTitle( request.getTitle() );
         }
         if ( request.getFirstName() != null ) {
             customer.setFirstName( request.getFirstName() );
         }
-        if ( request.getGender() != null ) {
-            customer.setGender( request.getGender() );
-        }
-        if ( request.getIndustryCode() != null ) {
-            customer.setIndustryCode( request.getIndustryCode() );
+        if ( request.getMiddleName() != null ) {
+            customer.setMiddleName( request.getMiddleName() );
         }
         if ( request.getLastName() != null ) {
             customer.setLastName( request.getLastName() );
         }
-        if ( request.getLgaOfOrigin() != null ) {
-            customer.setLgaOfOrigin( request.getLgaOfOrigin() );
+        if ( request.getDateOfBirth() != null ) {
+            customer.setDateOfBirth( request.getDateOfBirth() );
+        }
+        if ( request.getGender() != null ) {
+            customer.setGender( request.getGender() );
         }
         if ( request.getMaritalStatus() != null ) {
             customer.setMaritalStatus( request.getMaritalStatus() );
+        }
+        if ( request.getNationality() != null ) {
+            customer.setNationality( request.getNationality() );
+        }
+        if ( request.getStateOfOrigin() != null ) {
+            customer.setStateOfOrigin( request.getStateOfOrigin() );
+        }
+        if ( request.getLgaOfOrigin() != null ) {
+            customer.setLgaOfOrigin( request.getLgaOfOrigin() );
+        }
+        if ( request.getMotherMaidenName() != null ) {
+            customer.setMotherMaidenName( request.getMotherMaidenName() );
+        }
+        if ( request.getRegisteredName() != null ) {
+            customer.setRegisteredName( request.getRegisteredName() );
+        }
+        if ( request.getTradingName() != null ) {
+            customer.setTradingName( request.getTradingName() );
+        }
+        if ( request.getRegistrationNumber() != null ) {
+            customer.setRegistrationNumber( request.getRegistrationNumber() );
+        }
+        if ( request.getRegistrationDate() != null ) {
+            customer.setRegistrationDate( request.getRegistrationDate() );
+        }
+        if ( request.getIndustryCode() != null ) {
+            customer.setIndustryCode( request.getIndustryCode() );
+        }
+        if ( request.getSectorCode() != null ) {
+            customer.setSectorCode( request.getSectorCode() );
+        }
+        if ( request.getTaxId() != null ) {
+            customer.setTaxId( request.getTaxId() );
+        }
+        if ( request.getEmail() != null ) {
+            customer.setEmail( request.getEmail() );
+        }
+        if ( request.getPhonePrimary() != null ) {
+            customer.setPhonePrimary( request.getPhonePrimary() );
+        }
+        if ( request.getPhoneSecondary() != null ) {
+            customer.setPhoneSecondary( request.getPhoneSecondary() );
+        }
+        if ( request.getPreferredLanguage() != null ) {
+            customer.setPreferredLanguage( request.getPreferredLanguage() );
+        }
+        if ( request.getPreferredChannel() != null ) {
+            customer.setPreferredChannel( request.getPreferredChannel() );
+        }
+        if ( request.getRelationshipManager() != null ) {
+            customer.setRelationshipManager( request.getRelationshipManager() );
+        }
+        if ( request.getBranchCode() != null ) {
+            customer.setBranchCode( request.getBranchCode() );
+        }
+        if ( request.getProfilePhotoUrl() != null ) {
+            customer.setProfilePhotoUrl( request.getProfilePhotoUrl() );
         }
         if ( customer.getMetadata() != null ) {
             Map<String, Object> map = request.getMetadata();
@@ -213,57 +264,6 @@ public class CustomerMapperImpl implements CustomerMapper {
                 customer.setMetadata( new LinkedHashMap<String, Object>( map ) );
             }
         }
-        if ( request.getMiddleName() != null ) {
-            customer.setMiddleName( request.getMiddleName() );
-        }
-        if ( request.getMotherMaidenName() != null ) {
-            customer.setMotherMaidenName( request.getMotherMaidenName() );
-        }
-        if ( request.getNationality() != null ) {
-            customer.setNationality( request.getNationality() );
-        }
-        if ( request.getPhonePrimary() != null ) {
-            customer.setPhonePrimary( request.getPhonePrimary() );
-        }
-        if ( request.getPhoneSecondary() != null ) {
-            customer.setPhoneSecondary( request.getPhoneSecondary() );
-        }
-        if ( request.getPreferredChannel() != null ) {
-            customer.setPreferredChannel( request.getPreferredChannel() );
-        }
-        if ( request.getPreferredLanguage() != null ) {
-            customer.setPreferredLanguage( request.getPreferredLanguage() );
-        }
-        if ( request.getProfilePhotoUrl() != null ) {
-            customer.setProfilePhotoUrl( request.getProfilePhotoUrl() );
-        }
-        if ( request.getRegisteredName() != null ) {
-            customer.setRegisteredName( request.getRegisteredName() );
-        }
-        if ( request.getRegistrationDate() != null ) {
-            customer.setRegistrationDate( request.getRegistrationDate() );
-        }
-        if ( request.getRegistrationNumber() != null ) {
-            customer.setRegistrationNumber( request.getRegistrationNumber() );
-        }
-        if ( request.getRelationshipManager() != null ) {
-            customer.setRelationshipManager( request.getRelationshipManager() );
-        }
-        if ( request.getSectorCode() != null ) {
-            customer.setSectorCode( request.getSectorCode() );
-        }
-        if ( request.getStateOfOrigin() != null ) {
-            customer.setStateOfOrigin( request.getStateOfOrigin() );
-        }
-        if ( request.getTaxId() != null ) {
-            customer.setTaxId( request.getTaxId() );
-        }
-        if ( request.getTitle() != null ) {
-            customer.setTitle( request.getTitle() );
-        }
-        if ( request.getTradingName() != null ) {
-            customer.setTradingName( request.getTradingName() );
-        }
     }
 
     @Override
@@ -274,21 +274,21 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         CustomerAddress.CustomerAddressBuilder<?, ?> customerAddress = CustomerAddress.builder();
 
+        customerAddress.id( dto.getId() );
+        customerAddress.addressType( dto.getAddressType() );
         customerAddress.addressLine1( dto.getAddressLine1() );
         customerAddress.addressLine2( dto.getAddressLine2() );
-        customerAddress.addressType( dto.getAddressType() );
         customerAddress.city( dto.getCity() );
+        customerAddress.state( dto.getState() );
         customerAddress.country( dto.getCountry() );
+        customerAddress.postalCode( dto.getPostalCode() );
         customerAddress.district( dto.getDistrict() );
-        customerAddress.id( dto.getId() );
+        customerAddress.landmark( dto.getLandmark() );
         customerAddress.isPrimary( dto.getIsPrimary() );
         customerAddress.isVerified( dto.getIsVerified() );
-        customerAddress.landmark( dto.getLandmark() );
+        customerAddress.verifiedAt( dto.getVerifiedAt() );
         customerAddress.latitude( dto.getLatitude() );
         customerAddress.longitude( dto.getLongitude() );
-        customerAddress.postalCode( dto.getPostalCode() );
-        customerAddress.state( dto.getState() );
-        customerAddress.verifiedAt( dto.getVerifiedAt() );
 
         return customerAddress.build();
     }
@@ -301,21 +301,21 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         AddressDto.AddressDtoBuilder addressDto = AddressDto.builder();
 
+        addressDto.id( entity.getId() );
+        addressDto.addressType( entity.getAddressType() );
         addressDto.addressLine1( entity.getAddressLine1() );
         addressDto.addressLine2( entity.getAddressLine2() );
-        addressDto.addressType( entity.getAddressType() );
         addressDto.city( entity.getCity() );
+        addressDto.state( entity.getState() );
         addressDto.country( entity.getCountry() );
+        addressDto.postalCode( entity.getPostalCode() );
         addressDto.district( entity.getDistrict() );
-        addressDto.id( entity.getId() );
+        addressDto.landmark( entity.getLandmark() );
         addressDto.isPrimary( entity.getIsPrimary() );
         addressDto.isVerified( entity.getIsVerified() );
-        addressDto.landmark( entity.getLandmark() );
+        addressDto.verifiedAt( entity.getVerifiedAt() );
         addressDto.latitude( entity.getLatitude() );
         addressDto.longitude( entity.getLongitude() );
-        addressDto.postalCode( entity.getPostalCode() );
-        addressDto.state( entity.getState() );
-        addressDto.verifiedAt( entity.getVerifiedAt() );
 
         return addressDto.build();
     }
@@ -342,17 +342,17 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         CustomerIdentification.CustomerIdentificationBuilder<?, ?> customerIdentification = CustomerIdentification.builder();
 
-        customerIdentification.documentUrl( dto.getDocumentUrl() );
-        customerIdentification.expiryDate( dto.getExpiryDate() );
         customerIdentification.id( dto.getId() );
-        customerIdentification.idNumber( dto.getIdNumber() );
         customerIdentification.idType( dto.getIdType() );
-        customerIdentification.isPrimary( dto.getIsPrimary() );
-        customerIdentification.isVerified( dto.getIsVerified() );
+        customerIdentification.idNumber( dto.getIdNumber() );
         customerIdentification.issueDate( dto.getIssueDate() );
+        customerIdentification.expiryDate( dto.getExpiryDate() );
         customerIdentification.issuingAuthority( dto.getIssuingAuthority() );
         customerIdentification.issuingCountry( dto.getIssuingCountry() );
+        customerIdentification.isPrimary( dto.getIsPrimary() );
+        customerIdentification.isVerified( dto.getIsVerified() );
         customerIdentification.verifiedAt( dto.getVerifiedAt() );
+        customerIdentification.documentUrl( dto.getDocumentUrl() );
 
         return customerIdentification.build();
     }
@@ -365,17 +365,17 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         IdentificationDto.IdentificationDtoBuilder identificationDto = IdentificationDto.builder();
 
-        identificationDto.documentUrl( entity.getDocumentUrl() );
-        identificationDto.expiryDate( entity.getExpiryDate() );
         identificationDto.id( entity.getId() );
-        identificationDto.idNumber( entity.getIdNumber() );
         identificationDto.idType( entity.getIdType() );
-        identificationDto.isPrimary( entity.getIsPrimary() );
-        identificationDto.isVerified( entity.getIsVerified() );
+        identificationDto.idNumber( entity.getIdNumber() );
         identificationDto.issueDate( entity.getIssueDate() );
+        identificationDto.expiryDate( entity.getExpiryDate() );
         identificationDto.issuingAuthority( entity.getIssuingAuthority() );
         identificationDto.issuingCountry( entity.getIssuingCountry() );
+        identificationDto.isPrimary( entity.getIsPrimary() );
+        identificationDto.isVerified( entity.getIsVerified() );
         identificationDto.verifiedAt( entity.getVerifiedAt() );
+        identificationDto.documentUrl( entity.getDocumentUrl() );
 
         identificationDto.expired( entity.isExpired() );
 
@@ -404,12 +404,12 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         CustomerContact.CustomerContactBuilder<?, ?> customerContact = CustomerContact.builder();
 
+        customerContact.id( dto.getId() );
         customerContact.contactType( dto.getContactType() );
         customerContact.contactValue( dto.getContactValue() );
-        customerContact.id( dto.getId() );
+        customerContact.label( dto.getLabel() );
         customerContact.isPrimary( dto.getIsPrimary() );
         customerContact.isVerified( dto.getIsVerified() );
-        customerContact.label( dto.getLabel() );
 
         return customerContact.build();
     }
@@ -422,12 +422,12 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         ContactDto.ContactDtoBuilder contactDto = ContactDto.builder();
 
+        contactDto.id( entity.getId() );
         contactDto.contactType( entity.getContactType() );
         contactDto.contactValue( entity.getContactValue() );
-        contactDto.id( entity.getId() );
+        contactDto.label( entity.getLabel() );
         contactDto.isPrimary( entity.getIsPrimary() );
         contactDto.isVerified( entity.getIsVerified() );
-        contactDto.label( entity.getLabel() );
 
         return contactDto.build();
     }
@@ -458,13 +458,13 @@ public class CustomerMapperImpl implements CustomerMapper {
         relationshipDto.customerCifNumber( entityCustomerCifNumber( entity ) );
         relationshipDto.relatedCustomerId( entityRelatedCustomerId( entity ) );
         relationshipDto.relatedCustomerCifNumber( entityRelatedCustomerCifNumber( entity ) );
-        relationshipDto.effectiveFrom( entity.getEffectiveFrom() );
-        relationshipDto.effectiveTo( entity.getEffectiveTo() );
         relationshipDto.id( entity.getId() );
+        relationshipDto.relationshipType( entity.getRelationshipType() );
+        relationshipDto.ownershipPercentage( entity.getOwnershipPercentage() );
         relationshipDto.isActive( entity.getIsActive() );
         relationshipDto.notes( entity.getNotes() );
-        relationshipDto.ownershipPercentage( entity.getOwnershipPercentage() );
-        relationshipDto.relationshipType( entity.getRelationshipType() );
+        relationshipDto.effectiveFrom( entity.getEffectiveFrom() );
+        relationshipDto.effectiveTo( entity.getEffectiveTo() );
 
         relationshipDto.customerDisplayName( entity.getCustomer().getDisplayName() );
         relationshipDto.relatedCustomerDisplayName( entity.getRelatedCustomer().getDisplayName() );
@@ -494,11 +494,11 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         CustomerNote.CustomerNoteBuilder<?, ?> customerNote = CustomerNote.builder();
 
-        customerNote.content( dto.getContent() );
         customerNote.id( dto.getId() );
-        customerNote.isPinned( dto.getIsPinned() );
         customerNote.noteType( dto.getNoteType() );
         customerNote.subject( dto.getSubject() );
+        customerNote.content( dto.getContent() );
+        customerNote.isPinned( dto.getIsPinned() );
 
         return customerNote.build();
     }
@@ -513,11 +513,11 @@ public class CustomerMapperImpl implements CustomerMapper {
 
         noteDto.createdAt( entity.getCreatedAt() );
         noteDto.createdBy( entity.getCreatedBy() );
-        noteDto.content( entity.getContent() );
         noteDto.id( entity.getId() );
-        noteDto.isPinned( entity.getIsPinned() );
         noteDto.noteType( entity.getNoteType() );
         noteDto.subject( entity.getSubject() );
+        noteDto.content( entity.getContent() );
+        noteDto.isPinned( entity.getIsPinned() );
 
         return noteDto.build();
     }

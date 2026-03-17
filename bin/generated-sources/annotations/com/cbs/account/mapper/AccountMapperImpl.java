@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-03-17T21:07:11+0100",
+    date = "2026-03-17T23:39:29+0100",
     comments = "version: 1.6.2, compiler: Eclipse JDT (IDE) 3.45.0.v20260224-0835, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
@@ -40,37 +40,37 @@ public class AccountMapperImpl implements AccountMapper {
         accountResponse.productCode( accountProductCode( account ) );
         accountResponse.productName( accountProductName( account ) );
         accountResponse.productCategory( accountProductProductCategory( account ) );
-        accountResponse.accountName( account.getAccountName() );
-        accountResponse.accountNumber( account.getAccountNumber() );
-        accountResponse.accountType( account.getAccountType() );
-        accountResponse.accruedInterest( account.getAccruedInterest() );
-        accountResponse.activatedDate( account.getActivatedDate() );
-        accountResponse.allowCredit( account.getAllowCredit() );
-        accountResponse.allowDebit( account.getAllowDebit() );
-        accountResponse.applicableInterestRate( account.getApplicableInterestRate() );
-        accountResponse.availableBalance( account.getAvailableBalance() );
-        accountResponse.bookBalance( account.getBookBalance() );
-        accountResponse.branchCode( account.getBranchCode() );
-        accountResponse.closedDate( account.getClosedDate() );
-        accountResponse.createdAt( account.getCreatedAt() );
-        accountResponse.currencyCode( account.getCurrencyCode() );
-        accountResponse.dormancyDate( account.getDormancyDate() );
         accountResponse.id( account.getId() );
+        accountResponse.accountNumber( account.getAccountNumber() );
+        accountResponse.accountName( account.getAccountName() );
+        accountResponse.currencyCode( account.getCurrencyCode() );
+        accountResponse.accountType( account.getAccountType() );
+        accountResponse.status( account.getStatus() );
+        accountResponse.bookBalance( account.getBookBalance() );
+        accountResponse.availableBalance( account.getAvailableBalance() );
+        accountResponse.lienAmount( account.getLienAmount() );
+        accountResponse.overdraftLimit( account.getOverdraftLimit() );
+        accountResponse.accruedInterest( account.getAccruedInterest() );
+        accountResponse.applicableInterestRate( account.getApplicableInterestRate() );
         accountResponse.lastInterestCalcDate( account.getLastInterestCalcDate() );
         accountResponse.lastInterestPostDate( account.getLastInterestPostDate() );
+        accountResponse.openedDate( account.getOpenedDate() );
+        accountResponse.activatedDate( account.getActivatedDate() );
         accountResponse.lastTransactionDate( account.getLastTransactionDate() );
-        accountResponse.lienAmount( account.getLienAmount() );
+        accountResponse.dormancyDate( account.getDormancyDate() );
+        accountResponse.closedDate( account.getClosedDate() );
         accountResponse.maturityDate( account.getMaturityDate() );
+        accountResponse.branchCode( account.getBranchCode() );
+        accountResponse.relationshipManager( account.getRelationshipManager() );
+        accountResponse.statementFrequency( account.getStatementFrequency() );
+        accountResponse.allowDebit( account.getAllowDebit() );
+        accountResponse.allowCredit( account.getAllowCredit() );
+        accountResponse.signatories( toSignatoryDtoList( account.getSignatories() ) );
         Map<String, Object> map = account.getMetadata();
         if ( map != null ) {
             accountResponse.metadata( new LinkedHashMap<String, Object>( map ) );
         }
-        accountResponse.openedDate( account.getOpenedDate() );
-        accountResponse.overdraftLimit( account.getOverdraftLimit() );
-        accountResponse.relationshipManager( account.getRelationshipManager() );
-        accountResponse.signatories( toSignatoryDtoList( account.getSignatories() ) );
-        accountResponse.statementFrequency( account.getStatementFrequency() );
-        accountResponse.status( account.getStatus() );
+        accountResponse.createdAt( account.getCreatedAt() );
 
         accountResponse.customerDisplayName( account.getCustomer().getDisplayName() );
 
@@ -101,12 +101,12 @@ public class AccountMapperImpl implements AccountMapper {
 
         signatoryDto.customerId( signatoryCustomerId( signatory ) );
         signatoryDto.customerCifNumber( signatoryCustomerCifNumber( signatory ) );
-        signatoryDto.effectiveFrom( signatory.getEffectiveFrom() );
-        signatoryDto.effectiveTo( signatory.getEffectiveTo() );
         signatoryDto.id( signatory.getId() );
-        signatoryDto.isActive( signatory.getIsActive() );
         signatoryDto.signatoryType( signatory.getSignatoryType() );
         signatoryDto.signingRule( signatory.getSigningRule() );
+        signatoryDto.isActive( signatory.getIsActive() );
+        signatoryDto.effectiveFrom( signatory.getEffectiveFrom() );
+        signatoryDto.effectiveTo( signatory.getEffectiveTo() );
 
         signatoryDto.customerDisplayName( signatory.getCustomer().getDisplayName() );
 
@@ -136,22 +136,22 @@ public class AccountMapperImpl implements AccountMapper {
         TransactionResponse.TransactionResponseBuilder transactionResponse = TransactionResponse.builder();
 
         transactionResponse.accountNumber( journalAccountAccountNumber( journal ) );
-        transactionResponse.amount( journal.getAmount() );
-        transactionResponse.channel( journal.getChannel() );
-        transactionResponse.contraAccountNumber( journal.getContraAccountNumber() );
-        transactionResponse.createdAt( journal.getCreatedAt() );
-        transactionResponse.createdBy( journal.getCreatedBy() );
-        transactionResponse.currencyCode( journal.getCurrencyCode() );
-        transactionResponse.externalRef( journal.getExternalRef() );
         transactionResponse.id( journal.getId() );
-        transactionResponse.isReversed( journal.getIsReversed() );
-        transactionResponse.narration( journal.getNarration() );
-        transactionResponse.postingDate( journal.getPostingDate() );
-        transactionResponse.runningBalance( journal.getRunningBalance() );
-        transactionResponse.status( journal.getStatus() );
         transactionResponse.transactionRef( journal.getTransactionRef() );
         transactionResponse.transactionType( journal.getTransactionType() );
+        transactionResponse.amount( journal.getAmount() );
+        transactionResponse.currencyCode( journal.getCurrencyCode() );
+        transactionResponse.runningBalance( journal.getRunningBalance() );
+        transactionResponse.narration( journal.getNarration() );
         transactionResponse.valueDate( journal.getValueDate() );
+        transactionResponse.postingDate( journal.getPostingDate() );
+        transactionResponse.contraAccountNumber( journal.getContraAccountNumber() );
+        transactionResponse.channel( journal.getChannel() );
+        transactionResponse.externalRef( journal.getExternalRef() );
+        transactionResponse.status( journal.getStatus() );
+        transactionResponse.isReversed( journal.getIsReversed() );
+        transactionResponse.createdAt( journal.getCreatedAt() );
+        transactionResponse.createdBy( journal.getCreatedBy() );
 
         return transactionResponse.build();
     }
@@ -178,37 +178,37 @@ public class AccountMapperImpl implements AccountMapper {
 
         ProductDto.ProductDtoBuilder productDto = ProductDto.builder();
 
-        productDto.allowsChequeBook( product.getAllowsChequeBook() );
-        productDto.allowsDebitCard( product.getAllowsDebitCard() );
-        productDto.allowsInternet( product.getAllowsInternet() );
-        productDto.allowsMobile( product.getAllowsMobile() );
-        productDto.allowsOverdraft( product.getAllowsOverdraft() );
-        productDto.allowsSweep( product.getAllowsSweep() );
-        productDto.baseInterestRate( product.getBaseInterestRate() );
-        productDto.code( product.getCode() );
-        productDto.createdAt( product.getCreatedAt() );
-        productDto.currencyCode( product.getCurrencyCode() );
-        productDto.description( product.getDescription() );
-        productDto.dormancyDays( product.getDormancyDays() );
-        productDto.glAccountCode( product.getGlAccountCode() );
-        productDto.glFeeIncomeCode( product.getGlFeeIncomeCode() );
-        productDto.glInterestExpenseCode( product.getGlInterestExpenseCode() );
-        productDto.glInterestPayableCode( product.getGlInterestPayableCode() );
         productDto.id( product.getId() );
-        productDto.interestAccrualMethod( product.getInterestAccrualMethod() );
-        productDto.interestBearing( product.getInterestBearing() );
-        productDto.interestCalcMethod( product.getInterestCalcMethod() );
-        productDto.interestPostingFrequency( product.getInterestPostingFrequency() );
-        productDto.interestTiers( toInterestTierDtoList( product.getInterestTiers() ) );
-        productDto.isActive( product.getIsActive() );
-        productDto.maxBalance( product.getMaxBalance() );
-        productDto.maxOverdraftLimit( product.getMaxOverdraftLimit() );
+        productDto.code( product.getCode() );
+        productDto.name( product.getName() );
+        productDto.description( product.getDescription() );
+        productDto.productCategory( product.getProductCategory() );
+        productDto.currencyCode( product.getCurrencyCode() );
         productDto.minOpeningBalance( product.getMinOpeningBalance() );
         productDto.minOperatingBalance( product.getMinOperatingBalance() );
+        productDto.maxBalance( product.getMaxBalance() );
+        productDto.allowsOverdraft( product.getAllowsOverdraft() );
+        productDto.maxOverdraftLimit( product.getMaxOverdraftLimit() );
+        productDto.allowsChequeBook( product.getAllowsChequeBook() );
+        productDto.allowsDebitCard( product.getAllowsDebitCard() );
+        productDto.allowsMobile( product.getAllowsMobile() );
+        productDto.allowsInternet( product.getAllowsInternet() );
+        productDto.allowsSweep( product.getAllowsSweep() );
+        productDto.dormancyDays( product.getDormancyDays() );
+        productDto.interestBearing( product.getInterestBearing() );
+        productDto.baseInterestRate( product.getBaseInterestRate() );
+        productDto.interestCalcMethod( product.getInterestCalcMethod() );
+        productDto.interestPostingFrequency( product.getInterestPostingFrequency() );
+        productDto.interestAccrualMethod( product.getInterestAccrualMethod() );
         productDto.monthlyMaintenanceFee( product.getMonthlyMaintenanceFee() );
-        productDto.name( product.getName() );
-        productDto.productCategory( product.getProductCategory() );
         productDto.smsAlertFee( product.getSmsAlertFee() );
+        productDto.glAccountCode( product.getGlAccountCode() );
+        productDto.glInterestExpenseCode( product.getGlInterestExpenseCode() );
+        productDto.glInterestPayableCode( product.getGlInterestPayableCode() );
+        productDto.glFeeIncomeCode( product.getGlFeeIncomeCode() );
+        productDto.isActive( product.getIsActive() );
+        productDto.interestTiers( toInterestTierDtoList( product.getInterestTiers() ) );
+        productDto.createdAt( product.getCreatedAt() );
 
         return productDto.build();
     }
@@ -235,14 +235,14 @@ public class AccountMapperImpl implements AccountMapper {
 
         InterestTierDto.InterestTierDtoBuilder interestTierDto = InterestTierDto.builder();
 
+        interestTierDto.id( tier.getId() );
+        interestTierDto.tierName( tier.getTierName() );
+        interestTierDto.minBalance( tier.getMinBalance() );
+        interestTierDto.maxBalance( tier.getMaxBalance() );
+        interestTierDto.interestRate( tier.getInterestRate() );
         interestTierDto.effectiveFrom( tier.getEffectiveFrom() );
         interestTierDto.effectiveTo( tier.getEffectiveTo() );
-        interestTierDto.id( tier.getId() );
-        interestTierDto.interestRate( tier.getInterestRate() );
         interestTierDto.isActive( tier.getIsActive() );
-        interestTierDto.maxBalance( tier.getMaxBalance() );
-        interestTierDto.minBalance( tier.getMinBalance() );
-        interestTierDto.tierName( tier.getTierName() );
 
         return interestTierDto.build();
     }
@@ -269,34 +269,34 @@ public class AccountMapperImpl implements AccountMapper {
 
         Product.ProductBuilder<?, ?> product = Product.builder();
 
-        product.allowsChequeBook( dto.getAllowsChequeBook() );
-        product.allowsDebitCard( dto.getAllowsDebitCard() );
-        product.allowsInternet( dto.getAllowsInternet() );
-        product.allowsMobile( dto.getAllowsMobile() );
-        product.allowsOverdraft( dto.getAllowsOverdraft() );
-        product.allowsSweep( dto.getAllowsSweep() );
-        product.baseInterestRate( dto.getBaseInterestRate() );
         product.code( dto.getCode() );
-        product.currencyCode( dto.getCurrencyCode() );
+        product.name( dto.getName() );
         product.description( dto.getDescription() );
-        product.dormancyDays( dto.getDormancyDays() );
-        product.glAccountCode( dto.getGlAccountCode() );
-        product.glFeeIncomeCode( dto.getGlFeeIncomeCode() );
-        product.glInterestExpenseCode( dto.getGlInterestExpenseCode() );
-        product.glInterestPayableCode( dto.getGlInterestPayableCode() );
-        product.interestAccrualMethod( dto.getInterestAccrualMethod() );
-        product.interestBearing( dto.getInterestBearing() );
-        product.interestCalcMethod( dto.getInterestCalcMethod() );
-        product.interestPostingFrequency( dto.getInterestPostingFrequency() );
-        product.isActive( dto.getIsActive() );
-        product.maxBalance( dto.getMaxBalance() );
-        product.maxOverdraftLimit( dto.getMaxOverdraftLimit() );
+        product.productCategory( dto.getProductCategory() );
+        product.currencyCode( dto.getCurrencyCode() );
         product.minOpeningBalance( dto.getMinOpeningBalance() );
         product.minOperatingBalance( dto.getMinOperatingBalance() );
+        product.maxBalance( dto.getMaxBalance() );
+        product.allowsOverdraft( dto.getAllowsOverdraft() );
+        product.maxOverdraftLimit( dto.getMaxOverdraftLimit() );
+        product.allowsChequeBook( dto.getAllowsChequeBook() );
+        product.allowsDebitCard( dto.getAllowsDebitCard() );
+        product.allowsMobile( dto.getAllowsMobile() );
+        product.allowsInternet( dto.getAllowsInternet() );
+        product.allowsSweep( dto.getAllowsSweep() );
+        product.dormancyDays( dto.getDormancyDays() );
+        product.interestBearing( dto.getInterestBearing() );
+        product.baseInterestRate( dto.getBaseInterestRate() );
+        product.interestCalcMethod( dto.getInterestCalcMethod() );
+        product.interestPostingFrequency( dto.getInterestPostingFrequency() );
+        product.interestAccrualMethod( dto.getInterestAccrualMethod() );
         product.monthlyMaintenanceFee( dto.getMonthlyMaintenanceFee() );
-        product.name( dto.getName() );
-        product.productCategory( dto.getProductCategory() );
         product.smsAlertFee( dto.getSmsAlertFee() );
+        product.glAccountCode( dto.getGlAccountCode() );
+        product.glInterestExpenseCode( dto.getGlInterestExpenseCode() );
+        product.glInterestPayableCode( dto.getGlInterestPayableCode() );
+        product.glFeeIncomeCode( dto.getGlFeeIncomeCode() );
+        product.isActive( dto.getIsActive() );
 
         return product.build();
     }
@@ -309,13 +309,13 @@ public class AccountMapperImpl implements AccountMapper {
 
         InterestTier.InterestTierBuilder<?, ?> interestTier = InterestTier.builder();
 
+        interestTier.tierName( dto.getTierName() );
+        interestTier.minBalance( dto.getMinBalance() );
+        interestTier.maxBalance( dto.getMaxBalance() );
+        interestTier.interestRate( dto.getInterestRate() );
         interestTier.effectiveFrom( dto.getEffectiveFrom() );
         interestTier.effectiveTo( dto.getEffectiveTo() );
-        interestTier.interestRate( dto.getInterestRate() );
         interestTier.isActive( dto.getIsActive() );
-        interestTier.maxBalance( dto.getMaxBalance() );
-        interestTier.minBalance( dto.getMinBalance() );
-        interestTier.tierName( dto.getTierName() );
 
         return interestTier.build();
     }
