@@ -2,7 +2,6 @@ package com.cbs.lending.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
-import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.lending.dto.*;
 import com.cbs.lending.entity.LoanRestructureLog;
 import com.cbs.lending.service.CollateralService;
@@ -12,6 +11,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,7 +29,6 @@ public class CollateralController {
 
     private final CollateralService collateralService;
     private final LoanRestructuringService restructuringService;
-    private final CbsPageRequestFactory pageRequestFactory;
 
     @PostMapping
     @Operation(summary = "Register a new collateral")
@@ -50,7 +50,7 @@ public class CollateralController {
     public ResponseEntity<ApiResponse<List<CollateralDto>>> getCustomerCollaterals(
             @PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<CollateralDto> result = collateralService.getCustomerCollaterals(customerId, pageRequestFactory.create(page, size));
+        Page<CollateralDto> result = collateralService.getCustomerCollaterals(customerId, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -91,8 +91,10 @@ public class CollateralController {
     @PostMapping("/loans/{loanId}/restructure")
     @Operation(summary = "Restructure a loan")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> restructureLoan(@PathVariable Long loanId, @Valid @RequestBody LoanRestructureRequest request) {
-        restructuringService.restructureLoan(loanId, request);
+    public ResponseEntity<ApiResponse<Void>> restructureLoan(
+            @PathVariable Long loanId, @Valid @RequestBody LoanRestructureRequest request,
+            @RequestParam String approvedBy) {
+        restructuringService.restructureLoan(loanId, request, approvedBy);
         return ResponseEntity.ok(ApiResponse.ok(null, "Loan restructured"));
     }
 

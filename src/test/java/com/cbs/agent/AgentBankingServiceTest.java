@@ -2,7 +2,6 @@ package com.cbs.agent;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.agent.entity.*;
 import com.cbs.agent.repository.*;
 import com.cbs.agent.service.AgentBankingService;
@@ -29,7 +28,6 @@ class AgentBankingServiceTest {
     @Mock private BankingAgentRepository agentRepository;
     @Mock private AgentTransactionRepository txnRepository;
     @Mock private AccountRepository accountRepository;
-    @Mock private AccountPostingService accountPostingService;
 
     @InjectMocks private AgentBankingService agentService;
 
@@ -38,22 +36,6 @@ class AgentBankingServiceTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(accountPostingService.postCredit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
-                        nullable(String.class), any(TransactionChannel.class), nullable(String.class)))
-                .thenAnswer(inv -> {
-                    Account acct = inv.getArgument(0);
-                    BigDecimal amount = inv.getArgument(2);
-                    acct.credit(amount);
-                    return TransactionJournal.builder().account(acct).amount(amount).build();
-                });
-        lenient().when(accountPostingService.postDebit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
-                        nullable(String.class), any(TransactionChannel.class), nullable(String.class)))
-                .thenAnswer(inv -> {
-                    Account acct = inv.getArgument(0);
-                    BigDecimal amount = inv.getArgument(2);
-                    acct.debit(amount);
-                    return TransactionJournal.builder().account(acct).amount(amount).build();
-                });
         agent = BankingAgent.builder().id(1L).agentCode("AGT001").agentName("Test Agent")
                 .agentType("INDIVIDUAL").status("ACTIVE")
                 .floatBalance(new BigDecimal("500000")).minFloatBalance(new BigDecimal("10000"))
@@ -76,6 +58,7 @@ class AgentBankingServiceTest {
                 .lienAmount(BigDecimal.ZERO).overdraftLimit(BigDecimal.ZERO).build()));
         when(txnRepository.sumDailyVolume(eq(1L), any())).thenReturn(BigDecimal.ZERO);
         when(agentRepository.save(any())).thenReturn(agent);
+        when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(txnRepository.save(any())).thenAnswer(inv -> { AgentTransaction t = inv.getArgument(0); t.setId(1L); return t; });
 
         AgentTransaction result = agentService.processTransaction("AGT001", "CASH_IN", 1L, 10L,

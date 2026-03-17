@@ -147,7 +147,7 @@ public class FeeService {
                 chargeLog.getTotalAmount(),
                 "Fee waiver refund: " + chargeLog.getFeeCode(),
                 TransactionChannel.SYSTEM,
-                "FEE_WAIVER:" + chargeLog.getId());
+                "FEE:" + chargeLog.getId() + ":WAIVE");
 
         chargeLog.setWasWaived(true);
         chargeLog.setWaivedBy(waivedBy);

@@ -2,11 +2,11 @@ package com.cbs.card.dispute;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
-import com.cbs.common.web.CbsPageRequestFactory;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,7 +21,6 @@ import java.util.Map;
 public class CardDisputeController {
 
     private final CardDisputeService disputeService;
-    private final CbsPageRequestFactory pageRequestFactory;
 
     @PostMapping
     @Operation(summary = "Initiate a card dispute")
@@ -33,11 +32,11 @@ public class CardDisputeController {
             @RequestParam String transactionCurrency, @RequestParam(required = false) String merchantName,
             @RequestParam(required = false) String merchantId, @RequestParam DisputeType disputeType,
             @RequestParam String disputeReason, @RequestParam BigDecimal disputeAmount,
-            @RequestParam String cardScheme) {
+            @RequestParam String cardScheme, @RequestParam String createdBy) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(disputeService.initiateDispute(
                 cardId, customerId, accountId, transactionId, transactionRef, transactionDate,
                 transactionAmount, transactionCurrency, merchantName, merchantId,
-                disputeType, disputeReason, disputeAmount, cardScheme)));
+                disputeType, disputeReason, disputeAmount, cardScheme, createdBy)));
     }
 
     @GetMapping("/{id}")
@@ -50,7 +49,7 @@ public class CardDisputeController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<List<CardDispute>>> getCustomerDisputes(@PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<CardDispute> result = disputeService.getCustomerDisputes(customerId, pageRequestFactory.create(page, size));
+        Page<CardDispute> result = disputeService.getCustomerDisputes(customerId, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -58,7 +57,7 @@ public class CardDisputeController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CardDispute>>> getByStatus(@PathVariable DisputeStatus status,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<CardDispute> result = disputeService.getByStatus(status, pageRequestFactory.create(page, size));
+        Page<CardDispute> result = disputeService.getByStatus(status, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -80,7 +79,8 @@ public class CardDisputeController {
     @PostMapping("/{id}/representment")
     @Operation(summary = "Record merchant representment")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<CardDispute>> representment(@PathVariable Long id, @RequestParam String merchantResponse) {
+    public ResponseEntity<ApiResponse<CardDispute>> representment(@PathVariable Long id,
+            @RequestParam String merchantResponse) {
         return ResponseEntity.ok(ApiResponse.ok(disputeService.recordRepresentment(id, merchantResponse)));
     }
 

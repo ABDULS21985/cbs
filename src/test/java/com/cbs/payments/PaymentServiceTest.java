@@ -2,8 +2,6 @@ package com.cbs.payments;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
@@ -34,8 +32,6 @@ class PaymentServiceTest {
     @Mock private PaymentBatchRepository batchRepository;
     @Mock private FxRateRepository fxRateRepository;
     @Mock private AccountRepository accountRepository;
-    @Mock private AccountPostingService accountPostingService;
-    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks private PaymentService paymentService;
 
@@ -44,36 +40,6 @@ class PaymentServiceTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(currentActorProvider.getCurrentActor()).thenReturn("approver1");
-        lenient().when(accountPostingService.postTransfer(any(Account.class), any(Account.class), any(BigDecimal.class), any(BigDecimal.class),
-                        nullable(String.class), nullable(String.class), any(TransactionChannel.class), nullable(String.class)))
-                .thenAnswer(inv -> {
-                    Account debit = inv.getArgument(0);
-                    Account credit = inv.getArgument(1);
-                    BigDecimal debitAmount = inv.getArgument(2);
-                    BigDecimal creditAmount = inv.getArgument(3);
-                    debit.debit(debitAmount);
-                    credit.credit(creditAmount);
-                    return new AccountPostingService.TransferPosting(
-                            TransactionJournal.builder().account(debit).amount(debitAmount).build(),
-                            TransactionJournal.builder().account(credit).amount(creditAmount).build());
-                });
-        lenient().when(accountPostingService.postDebit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
-                        nullable(String.class), any(TransactionChannel.class), nullable(String.class)))
-                .thenAnswer(inv -> {
-                    Account acct = inv.getArgument(0);
-                    BigDecimal amount = inv.getArgument(2);
-                    acct.debit(amount);
-                    return TransactionJournal.builder().account(acct).amount(amount).build();
-                });
-        lenient().when(accountPostingService.postCredit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
-                        nullable(String.class), any(TransactionChannel.class), nullable(String.class)))
-                .thenAnswer(inv -> {
-                    Account acct = inv.getArgument(0);
-                    BigDecimal amount = inv.getArgument(2);
-                    acct.credit(amount);
-                    return TransactionJournal.builder().account(acct).amount(amount).build();
-                });
         Customer c1 = Customer.builder().id(1L).firstName("Sender").lastName("User").customerType(CustomerType.INDIVIDUAL).build();
         Customer c2 = Customer.builder().id(2L).firstName("Receiver").lastName("User").customerType(CustomerType.INDIVIDUAL).build();
         debitAccount = Account.builder().id(1L).accountNumber("1000000001").customer(c1)
@@ -93,6 +59,8 @@ class PaymentServiceTest {
         when(accountRepository.findById(2L)).thenReturn(Optional.of(creditAccount));
         when(paymentRepository.getNextInstructionSequence()).thenReturn(1L);
         when(paymentRepository.save(any())).thenAnswer(inv -> { PaymentInstruction p = inv.getArgument(0); p.setId(1L); return p; });
+        when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
         PaymentInstruction result = paymentService.executeInternalTransfer(1L, 2L, new BigDecimal("10000"), "Test transfer");
 
         assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
@@ -135,6 +103,8 @@ class PaymentServiceTest {
         when(fxRateRepository.findLatestRate("USD", "EUR")).thenReturn(List.of(rate));
         when(paymentRepository.getNextInstructionSequence()).thenReturn(2L);
         when(paymentRepository.save(any())).thenAnswer(inv -> { PaymentInstruction p = inv.getArgument(0); p.setId(2L); return p; });
+        when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
         PaymentInstruction result = paymentService.executeInternalTransfer(1L, 2L, new BigDecimal("10000"), "FX test");
 
         assertThat(result.getFxRate()).isEqualByComparingTo(new BigDecimal("0.92"));

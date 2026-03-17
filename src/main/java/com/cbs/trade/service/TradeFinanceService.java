@@ -5,6 +5,7 @@ import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
@@ -40,6 +41,7 @@ public class TradeFinanceService {
     private final CustomerRepository customerRepository;
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
+    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // CAPABILITY 47: LETTERS OF CREDIT
@@ -410,11 +412,11 @@ public class TradeFinanceService {
     }
 
     @Transactional
-    public TradeDocument verifyTradeDocument(Long docId, String verifiedBy, boolean isCompliant, String notes) {
+    public TradeDocument verifyTradeDocument(Long docId, boolean isCompliant, String notes) {
         TradeDocument doc = tradeDocRepository.findById(docId)
                 .orElseThrow(() -> new ResourceNotFoundException("TradeDocument", "id", docId));
         doc.setVerificationStatus(isCompliant ? "VERIFIED" : "DISCREPANT");
-        doc.setVerifiedBy(verifiedBy);
+        doc.setVerifiedBy(currentActorProvider.getCurrentActor());
         doc.setDiscrepancyNotes(notes);
         return tradeDocRepository.save(doc);
     }

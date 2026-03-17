@@ -32,8 +32,8 @@ public class ProductFactoryController {
 
     @PostMapping("/templates/{id}/approve")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<ProductTemplate>> approve(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(productFactoryService.approveTemplate(id)));
+    public ResponseEntity<ApiResponse<ProductTemplate>> approve(@PathVariable Long id, @RequestParam String approvedBy) {
+        return ResponseEntity.ok(ApiResponse.ok(productFactoryService.approveTemplate(id, approvedBy)));
     }
 
     @PostMapping("/templates/{id}/activate")

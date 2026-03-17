@@ -2,7 +2,6 @@ package com.cbs.card;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.*;
 import com.cbs.card.service.CardService;
@@ -31,7 +30,6 @@ class CardServiceTest {
     @Mock private CardRepository cardRepository;
     @Mock private CardTransactionRepository txnRepository;
     @Mock private AccountRepository accountRepository;
-    @Mock private AccountPostingService accountPostingService;
 
     @InjectMocks private CardService cardService;
 
@@ -41,14 +39,6 @@ class CardServiceTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(accountPostingService.postDebit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
-                        nullable(String.class), any(TransactionChannel.class), nullable(String.class)))
-                .thenAnswer(inv -> {
-                    Account acct = inv.getArgument(0);
-                    BigDecimal amount = inv.getArgument(2);
-                    acct.debit(amount);
-                    return TransactionJournal.builder().account(acct).amount(amount).build();
-                });
         Customer customer = Customer.builder().id(1L).firstName("Test").lastName("User")
                 .customerType(CustomerType.INDIVIDUAL).build();
         account = Account.builder().id(1L).accountNumber("1000000001").customer(customer)
@@ -86,6 +76,7 @@ class CardServiceTest {
         when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
         when(txnRepository.sumDailyUsageByChannel(eq(1L), eq("POS"), any(Instant.class)))
                 .thenReturn(BigDecimal.ZERO);
+        when(accountRepository.save(any())).thenReturn(account);
         when(cardRepository.save(any())).thenReturn(debitCard);
         when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 

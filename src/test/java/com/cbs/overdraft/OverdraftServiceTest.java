@@ -2,7 +2,6 @@ package com.cbs.overdraft;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
@@ -36,7 +35,6 @@ class OverdraftServiceTest {
     @Mock private CreditFacilityRepository facilityRepository;
     @Mock private FacilityUtilizationLogRepository utilizationLogRepository;
     @Mock private AccountRepository accountRepository;
-    @Mock private AccountPostingService accountPostingService;
     @Mock private DayCountEngine dayCountEngine;
     @Mock private CbsProperties cbsProperties;
 
@@ -47,22 +45,6 @@ class OverdraftServiceTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(accountPostingService.postCredit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
-                        nullable(String.class), any(TransactionChannel.class), nullable(String.class)))
-                .thenAnswer(inv -> {
-                    Account acct = inv.getArgument(0);
-                    BigDecimal amount = inv.getArgument(2);
-                    acct.credit(amount);
-                    return TransactionJournal.builder().account(acct).amount(amount).build();
-                });
-        lenient().when(accountPostingService.postDebit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
-                        nullable(String.class), any(TransactionChannel.class), nullable(String.class)))
-                .thenAnswer(inv -> {
-                    Account acct = inv.getArgument(0);
-                    BigDecimal amount = inv.getArgument(2);
-                    acct.debit(amount);
-                    return TransactionJournal.builder().account(acct).amount(amount).build();
-                });
         Customer customer = Customer.builder().id(1L).firstName("Test").lastName("User")
                 .customerType(CustomerType.INDIVIDUAL).build();
         account = Account.builder().id(1L).accountNumber("1000000001").customer(customer)
@@ -116,6 +98,7 @@ class OverdraftServiceTest {
     @DisplayName("Should drawdown from facility and credit account")
     void drawdown_Success() {
         when(facilityRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(facility));
+        when(accountRepository.save(any())).thenReturn(account);
         when(facilityRepository.save(any())).thenReturn(facility);
         when(utilizationLogRepository.save(any())).thenReturn(new FacilityUtilizationLog());
 
@@ -142,6 +125,7 @@ class OverdraftServiceTest {
         facility.setAvailableLimit(new BigDecimal("20000"));
 
         when(facilityRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(facility));
+        when(accountRepository.save(any())).thenReturn(account);
         when(facilityRepository.save(any())).thenReturn(facility);
         when(utilizationLogRepository.save(any())).thenReturn(new FacilityUtilizationLog());
 

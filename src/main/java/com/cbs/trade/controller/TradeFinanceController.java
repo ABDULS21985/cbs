@@ -184,8 +184,8 @@ public class TradeFinanceController {
     @PostMapping("/documents/{id}/verify")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<TradeDocument>> verifyDocument(@PathVariable Long id,
-            @RequestParam String verifiedBy, @RequestParam boolean compliant, @RequestParam(required = false) String notes) {
-        return ResponseEntity.ok(ApiResponse.ok(tradeService.verifyTradeDocument(id, verifiedBy, compliant, notes)));
+            @RequestParam boolean compliant, @RequestParam(required = false) String notes) {
+        return ResponseEntity.ok(ApiResponse.ok(tradeService.verifyTradeDocument(id, compliant, notes)));
     }
 
     @GetMapping("/documents/lc/{lcId}")

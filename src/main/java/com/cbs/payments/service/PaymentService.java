@@ -351,7 +351,6 @@ public class PaymentService {
                 failedAmt = failedAmt.add(pi.getAmount());
             }
         }
-
         batch.setSuccessfulCount(success);
         batch.setFailedCount(failed);
         batch.setSuccessfulAmount(successAmt);

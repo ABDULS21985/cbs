@@ -3,14 +3,12 @@ package com.cbs.portal;
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.AccountStatus;
 import com.cbs.account.entity.AccountType;
-import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.entity.Product;
 import com.cbs.account.mapper.AccountMapper;
 import com.cbs.account.dto.AccountResponse;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.AccountSignatoryRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
@@ -53,7 +51,6 @@ class PortalServiceTest {
     @Mock private ProfileUpdateRequestRepository profileUpdateRepository;
     @Mock private CustomerMapper customerMapper;
     @Mock private AccountMapper accountMapper;
-    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks
     private PortalService portalService;
@@ -86,19 +83,17 @@ class PortalServiceTest {
         when(customerRepository.findById(1L)).thenReturn(Optional.of(testCustomer));
         when(accountRepository.findByCustomerIdAndStatus(1L, AccountStatus.ACTIVE))
                 .thenReturn(List.of(testAccount));
-        when(signatoryRepository.findByAccountIdInWithCustomer(List.of(1L))).thenReturn(List.of());
-        when(transactionRepository.findRecentTransactionsByAccountIds(eq(List.of(1L)), any()))
-                .thenReturn(List.of(new TransactionJournal()));
-        when(profileUpdateRepository.countByCustomerIdAndStatus(1L, "PENDING"))
-                .thenReturn(0L);
+        when(signatoryRepository.findByAccountIdWithCustomer(1L)).thenReturn(List.of());
+        when(transactionRepository.findByAccountIdOrderByCreatedAtDesc(eq(1L), any()))
+                .thenReturn(new PageImpl<>(List.of()));
+        when(profileUpdateRepository.findByCustomerIdAndStatus(1L, "PENDING"))
+                .thenReturn(List.of());
 
         AccountResponse mockResp = AccountResponse.builder()
                 .id(1L).accountNumber("1000000001")
                 .bookBalance(new BigDecimal("150000")).build();
         when(accountMapper.toResponse(testAccount)).thenReturn(mockResp);
-        when(accountMapper.toResponseList(List.of(testAccount))).thenReturn(List.of(mockResp));
         when(accountMapper.toSignatoryDtoList(any())).thenReturn(List.of());
-        when(accountMapper.toTransactionResponse(any())).thenReturn(null);
 
         PortalDashboardResponse dashboard = portalService.getDashboard(1L);
 
@@ -145,9 +140,7 @@ class PortalServiceTest {
         when(customerRepository.findById(1L)).thenReturn(Optional.of(testCustomer));
         when(customerRepository.save(any())).thenReturn(testCustomer);
 
-        when(currentActorProvider.getCurrentActor()).thenReturn("admin1");
-
-        ProfileUpdateRequestDto result = portalService.approveProfileUpdate(1L);
+        ProfileUpdateRequestDto result = portalService.approveProfileUpdate(1L, "admin1");
 
         assertThat(result.getStatus()).isEqualTo("APPROVED");
         assertThat(testCustomer.getEmail()).isEqualTo("new@example.com");
@@ -163,9 +156,7 @@ class PortalServiceTest {
         when(profileUpdateRepository.findById(2L)).thenReturn(Optional.of(pending));
         when(profileUpdateRepository.save(any())).thenReturn(pending);
 
-        when(currentActorProvider.getCurrentActor()).thenReturn("admin1");
-
-        ProfileUpdateRequestDto result = portalService.rejectProfileUpdate(2L, "Invalid phone format");
+        ProfileUpdateRequestDto result = portalService.rejectProfileUpdate(2L, "admin1", "Invalid phone format");
 
         assertThat(result.getStatus()).isEqualTo("REJECTED");
         assertThat(result.getRejectionReason()).isEqualTo("Invalid phone format");

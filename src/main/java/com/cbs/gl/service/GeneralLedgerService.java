@@ -1,11 +1,7 @@
 package com.cbs.gl.service;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
-import com.cbs.gl.dto.CreateGlAccountRequest;
-import com.cbs.gl.dto.JournalLineRequest;
-import com.cbs.gl.dto.PostJournalRequest;
 import com.cbs.gl.entity.*;
 import com.cbs.gl.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +29,6 @@ public class GeneralLedgerService {
     private final JournalEntryRepository journalRepository;
     private final GlBalanceRepository balanceRepository;
     private final SubledgerReconRunRepository reconRepository;
-    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // JOURNAL POSTING (Core of Cap 68)
@@ -42,23 +40,21 @@ public class GeneralLedgerService {
      * then updates GL balances for each line.
      */
     @Transactional
-    public JournalEntry postJournal(PostJournalRequest request) {
-        return postJournal(request, currentActorProvider.getCurrentActor());
-    }
-
-    private JournalEntry postJournal(PostJournalRequest request, String createdBy) {
+    public JournalEntry postJournal(String journalType, String description, String sourceModule,
+                                      String sourceRef, LocalDate valueDate, String createdBy,
+                                      List<JournalLineRequest> lineRequests) {
         Long seq = journalRepository.getNextJournalSequence();
         String journalNumber = String.format("JN%013d", seq);
 
         JournalEntry journal = JournalEntry.builder()
-                .journalNumber(journalNumber).journalType(request.journalType())
-                .description(request.description()).sourceModule(request.sourceModule()).sourceRef(request.sourceRef())
-                .valueDate(request.valueDate() != null ? request.valueDate() : LocalDate.now())
+                .journalNumber(journalNumber).journalType(journalType)
+                .description(description).sourceModule(sourceModule).sourceRef(sourceRef)
+                .valueDate(valueDate != null ? valueDate : LocalDate.now())
                 .postingDate(LocalDate.now()).createdBy(createdBy)
                 .status("PENDING").build();
 
         int lineNum = 1;
-        for (JournalLineRequest req : request.lines()) {
+        for (JournalLineRequest req : lineRequests) {
             ChartOfAccounts coa = coaRepository.findByGlCode(req.glCode())
                     .orElseThrow(() -> new BusinessException("GL code not found: " + req.glCode(), "INVALID_GL_CODE"));
             if (!Boolean.TRUE.equals(coa.getIsPostable())) {
@@ -98,8 +94,8 @@ public class GeneralLedgerService {
         JournalEntry saved = journalRepository.save(journal);
 
         log.info("Journal posted: number={}, type={}, debit={}, credit={}, lines={}, source={}/{}",
-                journalNumber, request.journalType(), journal.getTotalDebit(), journal.getTotalCredit(),
-                journal.getLines().size(), request.sourceModule(), request.sourceRef());
+                journalNumber, journalType, journal.getTotalDebit(), journal.getTotalCredit(),
+                journal.getLines().size(), sourceModule, sourceRef);
         return saved;
     }
 
@@ -107,28 +103,23 @@ public class GeneralLedgerService {
      * Reverses a posted journal by creating a mirror journal with debits/credits swapped.
      */
     @Transactional
-    public JournalEntry reverseJournal(Long journalId) {
-        JournalEntry original = journalRepository.findByIdWithLines(journalId)
+    public JournalEntry reverseJournal(Long journalId, String reversedBy) {
+        JournalEntry original = journalRepository.findById(journalId)
                 .orElseThrow(() -> new ResourceNotFoundException("JournalEntry", "id", journalId));
 
         if (!"POSTED".equals(original.getStatus())) {
             throw new BusinessException("Only POSTED journals can be reversed", "JOURNAL_NOT_POSTED");
         }
 
-        PostJournalRequest reversalRequest = new PostJournalRequest(
-                "REVERSAL",
-                "Reversal of " + original.getJournalNumber(),
-                original.getSourceModule(),
-                original.getSourceRef(),
-                LocalDate.now(),
-                original.getLines().stream()
-                        .map(line -> new JournalLineRequest(line.getGlCode(),
-                                line.getCreditAmount(), line.getDebitAmount(), // swapped
-                                line.getCurrencyCode(), line.getFxRate(), "Reversal: " + line.getNarration(),
-                                line.getCostCentre(), line.getBranchCode(), line.getAccountId(), line.getCustomerId()))
-                        .toList());
+        List<JournalLineRequest> reversalLines = original.getLines().stream()
+                .map(line -> new JournalLineRequest(line.getGlCode(),
+                        line.getCreditAmount(), line.getDebitAmount(), // swapped
+                        line.getCurrencyCode(), line.getFxRate(), "Reversal: " + line.getNarration(),
+                        line.getCostCentre(), line.getBranchCode(), line.getAccountId(), line.getCustomerId()))
+                .toList();
 
-        JournalEntry reversal = postJournal(reversalRequest, currentActorProvider.getCurrentActor());
+        JournalEntry reversal = postJournal("REVERSAL", "Reversal of " + original.getJournalNumber(),
+                original.getSourceModule(), original.getSourceRef(), LocalDate.now(), reversedBy, reversalLines);
 
         original.setStatus("REVERSED");
         original.setReversedAt(Instant.now());
@@ -211,33 +202,10 @@ public class GeneralLedgerService {
     // ========================================================================
 
     @Transactional
-    public ChartOfAccounts createGlAccount(CreateGlAccountRequest request) {
-        coaRepository.findByGlCode(request.glCode()).ifPresent(existing -> {
-            throw new BusinessException("GL code already exists: " + request.glCode(), "DUPLICATE_GL");
+    public ChartOfAccounts createGlAccount(ChartOfAccounts coa) {
+        coaRepository.findByGlCode(coa.getGlCode()).ifPresent(existing -> {
+            throw new BusinessException("GL code already exists: " + coa.getGlCode(), "DUPLICATE_GL");
         });
-
-        boolean isHeader = Boolean.TRUE.equals(request.isHeader());
-        Boolean isPostable = request.isPostable() != null ? request.isPostable() : !isHeader;
-
-        ChartOfAccounts coa = ChartOfAccounts.builder()
-                .glCode(request.glCode())
-                .glName(request.glName())
-                .glCategory(request.glCategory())
-                .glSubCategory(request.glSubCategory())
-                .parentGlCode(request.parentGlCode())
-                .levelNumber(request.levelNumber() != null ? request.levelNumber() : 1)
-                .isHeader(isHeader)
-                .isPostable(isPostable)
-                .currencyCode(request.currencyCode())
-                .isMultiCurrency(Boolean.TRUE.equals(request.isMultiCurrency()))
-                .branchCode(request.branchCode())
-                .isInterBranch(Boolean.TRUE.equals(request.isInterBranch()))
-                .normalBalance(request.normalBalance())
-                .allowManualPosting(request.allowManualPosting() == null || request.allowManualPosting())
-                .requiresCostCentre(Boolean.TRUE.equals(request.requiresCostCentre()))
-                .isActive(request.isActive() == null || request.isActive())
-                .createdBy(currentActorProvider.getCurrentActor())
-                .build();
         return coaRepository.save(coa);
     }
 
@@ -254,11 +222,15 @@ public class GeneralLedgerService {
     // ========================================================================
 
     public JournalEntry getJournal(Long id) {
-        return journalRepository.findByIdWithLines(id)
-                .orElseThrow(() -> new ResourceNotFoundException("JournalEntry", "id", id));
+        return journalRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("JournalEntry", "id", id));
     }
 
     public Page<JournalEntry> getJournalsByDate(LocalDate from, LocalDate to, Pageable pageable) {
         return journalRepository.findByPostingDateBetweenOrderByPostingDateDesc(from, to, pageable);
     }
+
+    /** DTO for journal line creation */
+    public record JournalLineRequest(String glCode, BigDecimal debitAmount, BigDecimal creditAmount,
+                                       String currencyCode, BigDecimal fxRate, String narration,
+                                       String costCentre, String branchCode, Long accountId, Long customerId) {}
 }

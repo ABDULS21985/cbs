@@ -1,6 +1,5 @@
 package com.cbs.regulatory.service;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.regulatory.entity.*;
@@ -24,7 +23,6 @@ public class RegulatoryReportingService {
 
     private final RegulatoryReportDefinitionRepository definitionRepository;
     private final RegulatoryReportRunRepository runRepository;
-    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public RegulatoryReportDefinition createDefinition(RegulatoryReportDefinition def) {
@@ -42,12 +40,11 @@ public class RegulatoryReportingService {
     }
 
     @Transactional
-    public RegulatoryReportRun generateReport(String reportCode, LocalDate periodStart, LocalDate periodEnd) {
+    public RegulatoryReportRun generateReport(String reportCode, LocalDate periodStart, LocalDate periodEnd, String generatedBy) {
         RegulatoryReportDefinition def = definitionRepository.findByReportCode(reportCode)
                 .orElseThrow(() -> new ResourceNotFoundException("ReportDefinition", "reportCode", reportCode));
 
         long startTime = System.currentTimeMillis();
-        String generatedBy = currentActorProvider.getCurrentActor();
 
         RegulatoryReportRun run = RegulatoryReportRun.builder()
                 .reportCode(reportCode)
@@ -81,7 +78,7 @@ public class RegulatoryReportingService {
     }
 
     @Transactional
-    public RegulatoryReportRun submitReport(Long runId) {
+    public RegulatoryReportRun submitReport(Long runId, String submittedBy) {
         RegulatoryReportRun run = runRepository.findById(runId)
                 .orElseThrow(() -> new ResourceNotFoundException("ReportRun", "id", runId));
 
@@ -89,7 +86,6 @@ public class RegulatoryReportingService {
             throw new BusinessException("Report must be in COMPLETED status to submit", "REPORT_NOT_COMPLETED");
         }
 
-        String submittedBy = currentActorProvider.getCurrentActor();
         run.setStatus("SUBMITTED");
         run.setSubmittedBy(submittedBy);
         run.setSubmittedAt(Instant.now());

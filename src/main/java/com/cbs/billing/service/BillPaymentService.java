@@ -111,7 +111,7 @@ public class BillPaymentService {
                 debitAccount,
                 TransactionType.DEBIT,
                 totalAmount,
-                "Bill payment " + billerCode,
+                "Bill payment " + paymentRef,
                 TransactionChannel.SYSTEM,
                 paymentRef + ":DR");
 
@@ -122,7 +122,7 @@ public class BillPaymentService {
                     settlement,
                     TransactionType.CREDIT,
                     amount,
-                    "Bill payment settlement " + billerCode,
+                    "Bill settlement " + paymentRef,
                     TransactionChannel.SYSTEM,
                     paymentRef + ":CR");
             payment.setStatus("COMPLETED");

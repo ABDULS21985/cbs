@@ -224,7 +224,7 @@ public class RecurringDepositService {
                 installment.getAmountDue(),
                 "Recurring deposit installment " + rd.getDepositNumber() + " #" + installment.getInstallmentNumber(),
                 TransactionChannel.SYSTEM,
-                rd.getDepositNumber() + ":INST:" + installment.getInstallmentNumber());
+                rd.getDepositNumber() + ":AUTO:" + installment.getInstallmentNumber());
 
         installment.setAmountPaid(installment.getAmountDue());
         installment.setPaidDate(LocalDate.now());

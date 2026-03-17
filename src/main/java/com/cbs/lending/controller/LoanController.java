@@ -2,7 +2,6 @@ package com.cbs.lending.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
-import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.credit.dto.CreditDecisionResponse;
 import com.cbs.lending.dto.*;
 import com.cbs.lending.service.LoanOriginationService;
@@ -11,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +28,6 @@ import java.util.Map;
 public class LoanController {
 
     private final LoanOriginationService loanService;
-    private final CbsPageRequestFactory pageRequestFactory;
 
     // Applications
     @PostMapping("/applications")
@@ -54,7 +53,7 @@ public class LoanController {
             @PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         Page<LoanApplicationResponse> result = loanService.getCustomerApplications(customerId,
-                pageRequestFactory.create(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -77,7 +76,8 @@ public class LoanController {
     @PostMapping("/applications/{id}/decline")
     @Operation(summary = "Decline a loan application")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<LoanApplicationResponse>> declineApplication(@PathVariable Long id, @RequestParam String reason) {
+    public ResponseEntity<ApiResponse<LoanApplicationResponse>> declineApplication(
+            @PathVariable Long id, @RequestParam String reason) {
         return ResponseEntity.ok(ApiResponse.ok(loanService.declineApplication(id, reason)));
     }
 
@@ -111,7 +111,7 @@ public class LoanController {
             @PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         Page<LoanAccountResponse> result = loanService.getCustomerLoans(customerId,
-                pageRequestFactory.create(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 

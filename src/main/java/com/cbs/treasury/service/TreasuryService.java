@@ -34,8 +34,8 @@ public class TreasuryService {
 
     private final TreasuryDealRepository dealRepository;
     private final AccountRepository accountRepository;
-    private final AccountPostingService accountPostingService;
     private final CorrespondentBankRepository bankRepository;
+    private final AccountPostingService accountPostingService;
     private final CurrentActorProvider currentActorProvider;
 
     @Transactional
@@ -96,17 +96,17 @@ public class TreasuryService {
                         deal.getLeg1Account(),
                         TransactionType.DEBIT,
                         deal.getLeg1Amount(),
-                        "Treasury settlement " + deal.getDealNumber() + " leg 1",
+                        "Treasury deal " + deal.getDealNumber() + " settlement leg 1",
                         TransactionChannel.SYSTEM,
-                        "TREASURY:" + deal.getDealNumber() + ":LEG1");
+                        deal.getDealNumber() + ":LEG1");
             } else {
                 accountPostingService.postCredit(
                         deal.getLeg1Account(),
                         TransactionType.CREDIT,
                         deal.getLeg1Amount(),
-                        "Treasury settlement " + deal.getDealNumber() + " leg 1",
+                        "Treasury deal " + deal.getDealNumber() + " settlement leg 1",
                         TransactionChannel.SYSTEM,
-                        "TREASURY:" + deal.getDealNumber() + ":LEG1");
+                        deal.getDealNumber() + ":LEG1");
             }
         }
 
@@ -117,17 +117,17 @@ public class TreasuryService {
                         deal.getLeg2Account(),
                         TransactionType.CREDIT,
                         deal.getLeg2Amount(),
-                        "Treasury settlement " + deal.getDealNumber() + " leg 2",
+                        "Treasury deal " + deal.getDealNumber() + " settlement leg 2",
                         TransactionChannel.SYSTEM,
-                        "TREASURY:" + deal.getDealNumber() + ":LEG2");
+                        deal.getDealNumber() + ":LEG2");
             } else {
                 accountPostingService.postDebit(
                         deal.getLeg2Account(),
                         TransactionType.DEBIT,
                         deal.getLeg2Amount(),
-                        "Treasury settlement " + deal.getDealNumber() + " leg 2",
+                        "Treasury deal " + deal.getDealNumber() + " settlement leg 2",
                         TransactionChannel.SYSTEM,
-                        "TREASURY:" + deal.getDealNumber() + ":LEG2");
+                        deal.getDealNumber() + ":LEG2");
             }
         }
 

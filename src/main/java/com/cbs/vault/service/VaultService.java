@@ -1,6 +1,5 @@
 package com.cbs.vault.service;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.vault.entity.*;
@@ -23,7 +22,6 @@ public class VaultService {
 
     private final VaultRepository vaultRepository;
     private final VaultTransactionRepository txnRepository;
-    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public Vault createVault(String vaultCode, String vaultName, String branchCode, VaultType vaultType,
@@ -40,32 +38,31 @@ public class VaultService {
     }
 
     @Transactional
-    public VaultTransaction cashIn(Long vaultId, BigDecimal amount, String reference, String narration) {
+    public VaultTransaction cashIn(Long vaultId, BigDecimal amount, String reference, String narration, String performedBy) {
         Vault vault = findVaultOrThrow(vaultId);
         vault.cashIn(amount);
         if (vault.getMaximumBalance() != null && vault.getCurrentBalance().compareTo(vault.getMaximumBalance()) > 0) {
             log.warn("Vault {} exceeds maximum balance: current={}, max={}", vault.getVaultCode(), vault.getCurrentBalance(), vault.getMaximumBalance());
         }
         vaultRepository.save(vault);
-        return logTransaction(vault, "CASH_IN", amount, null, reference, narration, currentActorProvider.getCurrentActor());
+        return logTransaction(vault, "CASH_IN", amount, null, reference, narration, performedBy);
     }
 
     @Transactional
-    public VaultTransaction cashOut(Long vaultId, BigDecimal amount, String reference, String narration) {
+    public VaultTransaction cashOut(Long vaultId, BigDecimal amount, String reference, String narration, String performedBy) {
         Vault vault = findVaultOrThrow(vaultId);
         if (vault.getCurrentBalance().compareTo(amount) < 0) {
             throw new BusinessException("Insufficient vault balance", "INSUFFICIENT_VAULT_BALANCE");
         }
         vault.cashOut(amount);
         vaultRepository.save(vault);
-        return logTransaction(vault, "CASH_OUT", amount, null, reference, narration, currentActorProvider.getCurrentActor());
+        return logTransaction(vault, "CASH_OUT", amount, null, reference, narration, performedBy);
     }
 
     @Transactional
-    public void vaultTransfer(Long fromVaultId, Long toVaultId, BigDecimal amount) {
+    public void vaultTransfer(Long fromVaultId, Long toVaultId, BigDecimal amount, String performedBy) {
         Vault from = findVaultOrThrow(fromVaultId);
         Vault to = findVaultOrThrow(toVaultId);
-        String performedBy = currentActorProvider.getCurrentActor();
 
         if (from.getCurrentBalance().compareTo(amount) < 0) {
             throw new BusinessException("Insufficient source vault balance", "INSUFFICIENT_VAULT_BALANCE");
