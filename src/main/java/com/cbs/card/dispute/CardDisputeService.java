@@ -1,7 +1,10 @@
 package com.cbs.card.dispute;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,7 @@ public class CardDisputeService {
 
     private final CardDisputeRepository disputeRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
 
     /**
      * Initiates a dispute with scheme-compliant deadlines.
@@ -82,8 +86,13 @@ public class CardDisputeService {
         Account account = accountRepository.findById(dispute.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", dispute.getAccountId()));
 
-        account.credit(dispute.getDisputeAmount());
-        accountRepository.save(account);
+        accountPostingService.postCredit(
+                account,
+                TransactionType.CREDIT,
+                dispute.getDisputeAmount(),
+                "Provisional credit " + dispute.getDisputeRef(),
+                TransactionChannel.SYSTEM,
+                "DISPUTE:" + dispute.getDisputeRef() + ":PROV");
 
         dispute.setProvisionalCreditAmount(dispute.getDisputeAmount());
         dispute.setProvisionalCreditDate(LocalDate.now());
@@ -178,8 +187,13 @@ public class CardDisputeService {
                 && !Boolean.TRUE.equals(dispute.getProvisionalCreditReversed())) {
             Account account = accountRepository.findById(dispute.getAccountId())
                     .orElseThrow(() -> new ResourceNotFoundException("Account", "id", dispute.getAccountId()));
-            account.debit(dispute.getProvisionalCreditAmount());
-            accountRepository.save(account);
+            accountPostingService.postDebit(
+                    account,
+                    TransactionType.DEBIT,
+                    dispute.getProvisionalCreditAmount(),
+                    "Provisional credit reversal " + dispute.getDisputeRef(),
+                    TransactionChannel.SYSTEM,
+                    "DISPUTE:" + dispute.getDisputeRef() + ":REVERSAL");
             dispute.setProvisionalCreditReversed(true);
             log.info("Provisional credit reversed: dispute={}, amount={}", dispute.getDisputeRef(), dispute.getProvisionalCreditAmount());
         }

@@ -32,6 +32,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -64,27 +67,17 @@ public class PortalService {
                 .map(Account::getAvailableBalance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<AccountResponse> accountSummaries = accounts.stream()
-                .map(a -> {
-                    AccountResponse r = accountMapper.toResponse(a);
-                    r.setSignatories(accountMapper.toSignatoryDtoList(
-                            signatoryRepository.findByAccountIdWithCustomer(a.getId())));
-                    return r;
-                })
-                .toList();
+        List<AccountResponse> accountSummaries = toAccountResponses(accounts);
 
         // Last 5 transactions across all accounts
-        List<TransactionResponse> recentTransactions = accounts.stream()
-                .flatMap(a -> transactionRepository
-                        .findByAccountIdOrderByCreatedAtDesc(a.getId(), PageRequest.of(0, 5))
-                        .getContent().stream())
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .limit(5)
-                .map(accountMapper::toTransactionResponse)
-                .toList();
+        List<Long> accountIds = accounts.stream().map(Account::getId).toList();
+        List<TransactionResponse> recentTransactions = accountIds.isEmpty() ? List.of() :
+                transactionRepository.findRecentTransactionsByAccountIds(accountIds, PageRequest.of(0, 5))
+                        .stream()
+                        .map(accountMapper::toTransactionResponse)
+                        .toList();
 
-        long pendingUpdates = profileUpdateRepository
-                .findByCustomerIdAndStatus(customerId, "PENDING").size();
+        long pendingUpdates = profileUpdateRepository.countByCustomerIdAndStatus(customerId, "PENDING");
 
         return PortalDashboardResponse.builder()
                 .customerId(customerId)
@@ -269,5 +262,23 @@ public class PortalService {
                 .reviewedBy(entity.getReviewedBy())
                 .rejectionReason(entity.getRejectionReason())
                 .build();
+    }
+
+    private List<AccountResponse> toAccountResponses(List<Account> accounts) {
+        if (accounts.isEmpty()) {
+            return List.of();
+        }
+
+        List<AccountResponse> responses = accountMapper.toResponseList(accounts);
+        Map<Long, AccountResponse> responseById = responses.stream()
+                .collect(Collectors.toMap(AccountResponse::getId, Function.identity()));
+        Map<Long, List<com.cbs.account.entity.AccountSignatory>> signatoriesByAccountId = signatoryRepository
+                .findByAccountIdInWithCustomer(accounts.stream().map(Account::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(signatory -> signatory.getAccount().getId()));
+
+        responseById.forEach((accountId, response) -> response.setSignatories(
+                accountMapper.toSignatoryDtoList(signatoriesByAccountId.getOrDefault(accountId, List.of()))));
+        return responses;
     }
 }

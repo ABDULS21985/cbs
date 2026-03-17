@@ -1,7 +1,11 @@
 package com.cbs.treasury.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.nostro.entity.CorrespondentBank;
@@ -19,7 +23,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -31,6 +34,8 @@ public class TreasuryService {
     private final TreasuryDealRepository dealRepository;
     private final AccountRepository accountRepository;
     private final CorrespondentBankRepository bankRepository;
+    private final AccountPostingService accountPostingService;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public TreasuryDeal bookDeal(DealType dealType, Long counterpartyId, String leg1Currency,
@@ -66,9 +71,10 @@ public class TreasuryService {
     }
 
     @Transactional
-    public TreasuryDeal confirmDeal(Long dealId, String confirmedBy) {
+    public TreasuryDeal confirmDeal(Long dealId) {
         TreasuryDeal deal = findDealOrThrow(dealId);
         if (deal.getStatus() != DealStatus.PENDING) throw new BusinessException("Deal is not pending", "DEAL_NOT_PENDING");
+        String confirmedBy = currentActorProvider.getCurrentActor();
         deal.setStatus(DealStatus.CONFIRMED);
         deal.setConfirmedBy(confirmedBy);
         deal.setConfirmedAt(Instant.now());
@@ -77,28 +83,51 @@ public class TreasuryService {
     }
 
     @Transactional
-    public TreasuryDeal settleDeal(Long dealId, String settledBy) {
+    public TreasuryDeal settleDeal(Long dealId) {
         TreasuryDeal deal = findDealOrThrow(dealId);
         if (deal.getStatus() != DealStatus.CONFIRMED) throw new BusinessException("Deal must be confirmed first", "DEAL_NOT_CONFIRMED");
+        String settledBy = currentActorProvider.getCurrentActor();
 
         // Settle leg 1
         if (deal.getLeg1Account() != null) {
             if (deal.getDealType().name().contains("PLACEMENT") || deal.getDealType().name().contains("PURCHASE")) {
-                deal.getLeg1Account().debit(deal.getLeg1Amount());
+                accountPostingService.postDebit(
+                        deal.getLeg1Account(),
+                        TransactionType.DEBIT,
+                        deal.getLeg1Amount(),
+                        "Treasury deal settlement " + deal.getDealNumber() + " leg 1",
+                        TransactionChannel.SYSTEM,
+                        "TREASURY:" + deal.getDealNumber() + ":LEG1");
             } else {
-                deal.getLeg1Account().credit(deal.getLeg1Amount());
+                accountPostingService.postCredit(
+                        deal.getLeg1Account(),
+                        TransactionType.CREDIT,
+                        deal.getLeg1Amount(),
+                        "Treasury deal settlement " + deal.getDealNumber() + " leg 1",
+                        TransactionChannel.SYSTEM,
+                        "TREASURY:" + deal.getDealNumber() + ":LEG1");
             }
-            accountRepository.save(deal.getLeg1Account());
         }
 
         // Settle leg 2 if present
         if (deal.getLeg2Account() != null && deal.getLeg2Amount() != null) {
             if (deal.getDealType().name().contains("PLACEMENT") || deal.getDealType().name().contains("PURCHASE")) {
-                deal.getLeg2Account().credit(deal.getLeg2Amount());
+                accountPostingService.postCredit(
+                        deal.getLeg2Account(),
+                        TransactionType.CREDIT,
+                        deal.getLeg2Amount(),
+                        "Treasury deal settlement " + deal.getDealNumber() + " leg 2",
+                        TransactionChannel.SYSTEM,
+                        "TREASURY:" + deal.getDealNumber() + ":LEG2");
             } else {
-                deal.getLeg2Account().debit(deal.getLeg2Amount());
+                accountPostingService.postDebit(
+                        deal.getLeg2Account(),
+                        TransactionType.DEBIT,
+                        deal.getLeg2Amount(),
+                        "Treasury deal settlement " + deal.getDealNumber() + " leg 2",
+                        TransactionChannel.SYSTEM,
+                        "TREASURY:" + deal.getDealNumber() + ":LEG2");
             }
-            accountRepository.save(deal.getLeg2Account());
         }
 
         // Calculate P&L for FX deals

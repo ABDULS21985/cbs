@@ -1,7 +1,10 @@
 package com.cbs.payments.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.*;
@@ -30,6 +33,7 @@ public class PaymentService {
     private final PaymentBatchRepository batchRepository;
     private final FxRateRepository fxRateRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
 
     // ========================================================================
     // INTERNAL TRANSFER (Cap 27)
@@ -43,9 +47,6 @@ public class PaymentService {
         Account creditAccount = accountRepository.findById(creditAccountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", creditAccountId));
 
-        if (debitAccount.getAvailableBalance().compareTo(amount) < 0) {
-            throw new BusinessException("Insufficient balance", "INSUFFICIENT_BALANCE");
-        }
         if (debitAccountId.equals(creditAccountId)) {
             throw new BusinessException("Cannot transfer to the same account", "SAME_ACCOUNT");
         }
@@ -64,23 +65,25 @@ public class PaymentService {
                 .status(PaymentStatus.PROCESSING).build();
 
         // Cross-currency check
+        BigDecimal creditAmount = amount;
         if (!debitAccount.getCurrencyCode().equals(creditAccount.getCurrencyCode())) {
             FxRate rate = getLatestRate(debitAccount.getCurrencyCode(), creditAccount.getCurrencyCode());
-            BigDecimal converted = amount.multiply(rate.getSellRate()).setScale(2, RoundingMode.HALF_UP);
+            creditAmount = amount.multiply(rate.getSellRate()).setScale(2, RoundingMode.HALF_UP);
             payment.setFxRate(rate.getSellRate());
             payment.setFxSourceCurrency(debitAccount.getCurrencyCode());
             payment.setFxTargetCurrency(creditAccount.getCurrencyCode());
-            payment.setFxConvertedAmount(converted);
-
-            debitAccount.debit(amount);
-            creditAccount.credit(converted);
-        } else {
-            debitAccount.debit(amount);
-            creditAccount.credit(amount);
+            payment.setFxConvertedAmount(creditAmount);
         }
 
-        accountRepository.save(debitAccount);
-        accountRepository.save(creditAccount);
+        accountPostingService.postTransfer(
+                debitAccount,
+                creditAccount,
+                amount,
+                creditAmount,
+                narration != null ? narration : String.format("Transfer to %s", creditAccount.getAccountNumber()),
+                String.format("Transfer from %s", debitAccount.getAccountNumber()),
+                TransactionChannel.SYSTEM,
+                "PAYMENT:" + ref);
 
         payment.setStatus(PaymentStatus.COMPLETED);
         payment.setExecutionDate(LocalDate.now());
@@ -103,10 +106,6 @@ public class PaymentService {
         Account debitAccount = accountRepository.findById(debitAccountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", debitAccountId));
 
-        if (debitAccount.getAvailableBalance().compareTo(amount) < 0) {
-            throw new BusinessException("Insufficient balance", "INSUFFICIENT_BALANCE");
-        }
-
         Long seq = paymentRepository.getNextInstructionSequence();
         String ref = String.format("PAY%015d", seq);
 
@@ -123,14 +122,24 @@ public class PaymentService {
                 .status(PaymentStatus.VALIDATED).build();
 
         // Debit immediately
-        debitAccount.debit(amount);
-        accountRepository.save(debitAccount);
+        accountPostingService.postDebit(
+                debitAccount,
+                TransactionType.DEBIT,
+                amount,
+                narration != null ? narration : "Domestic payment " + ref,
+                TransactionChannel.SYSTEM,
+                "PAYMENT:" + ref + ":DR");
 
         // For internal bank transfers, check if credit account exists locally
         Account localCreditAccount = accountRepository.findByAccountNumber(creditAccountNumber).orElse(null);
         if (localCreditAccount != null) {
-            localCreditAccount.credit(amount);
-            accountRepository.save(localCreditAccount);
+            accountPostingService.postCredit(
+                    localCreditAccount,
+                    TransactionType.CREDIT,
+                    amount,
+                    narration != null ? narration : "Domestic payment " + ref,
+                    TransactionChannel.SYSTEM,
+                    "PAYMENT:" + ref + ":CR");
             payment.setCreditAccount(localCreditAccount);
             payment.setStatus(PaymentStatus.COMPLETED);
             payment.setExecutionDate(LocalDate.now());
@@ -193,11 +202,13 @@ public class PaymentService {
 
         // Debit total (amount + charges if OUR)
         BigDecimal totalDebit = "OUR".equals(chargeType) ? amount.add(charges) : amount;
-        if (debitAccount.getAvailableBalance().compareTo(totalDebit) < 0) {
-            throw new BusinessException("Insufficient balance including charges", "INSUFFICIENT_BALANCE");
-        }
-        debitAccount.debit(totalDebit);
-        accountRepository.save(debitAccount);
+        accountPostingService.postDebit(
+                debitAccount,
+                TransactionType.DEBIT,
+                totalDebit,
+                remittanceInfo != null ? remittanceInfo : "SWIFT transfer " + ref,
+                TransactionChannel.SYSTEM,
+                "SWIFT:" + ref + ":DR");
 
         // In production: submit to sanctions screening, then to SWIFT gateway
         payment.setScreeningStatus("CLEAR");
@@ -283,12 +294,23 @@ public class PaymentService {
                     failed++;
                     failedAmt = failedAmt.add(pi.getAmount());
                 } else {
-                    debitAccount.debit(pi.getAmount());
+                    accountPostingService.postDebit(
+                            debitAccount,
+                            TransactionType.DEBIT,
+                            pi.getAmount(),
+                            pi.getRemittanceInfo() != null ? pi.getRemittanceInfo() : "Batch payment " + pi.getInstructionRef(),
+                            TransactionChannel.SYSTEM,
+                            "PAYMENT:" + pi.getInstructionRef() + ":DR");
 
                     Account localCredit = accountRepository.findByAccountNumber(pi.getCreditAccountNumber()).orElse(null);
                     if (localCredit != null) {
-                        localCredit.credit(pi.getAmount());
-                        accountRepository.save(localCredit);
+                        accountPostingService.postCredit(
+                                localCredit,
+                                TransactionType.CREDIT,
+                                pi.getAmount(),
+                                pi.getRemittanceInfo() != null ? pi.getRemittanceInfo() : "Batch payment " + pi.getInstructionRef(),
+                                TransactionChannel.SYSTEM,
+                                "PAYMENT:" + pi.getInstructionRef() + ":CR");
                         pi.setCreditAccount(localCredit);
                         pi.setStatus(PaymentStatus.COMPLETED);
                     } else {
@@ -308,7 +330,6 @@ public class PaymentService {
             }
         }
 
-        accountRepository.save(debitAccount);
         batch.setSuccessfulCount(success);
         batch.setFailedCount(failed);
         batch.setSuccessfulAmount(successAmt);

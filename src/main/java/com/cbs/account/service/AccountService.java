@@ -17,6 +17,7 @@ import com.cbs.provider.numbering.AccountNumberGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +27,10 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -44,10 +47,9 @@ public class AccountService {
     private final AccountMapper accountMapper;
     private final AccountValidator accountValidator;
     private final AccountNumberGenerator numberGenerator;
+    private final AccountPostingService accountPostingService;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
-
-    private static final DateTimeFormatter TXN_DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     // ========================================================================
     // ACCOUNT OPENING
@@ -121,8 +123,13 @@ public class AccountService {
         Account saved = accountRepository.save(account);
 
         if (request.getInitialDeposit() != null && request.getInitialDeposit().compareTo(BigDecimal.ZERO) > 0) {
-            postTransaction(saved, TransactionType.OPENING_BALANCE, request.getInitialDeposit(),
-                    "Opening balance deposit", TransactionChannel.BRANCH, null);
+            accountPostingService.postCredit(
+                    saved,
+                    TransactionType.OPENING_BALANCE,
+                    request.getInitialDeposit(),
+                    "Opening balance deposit",
+                    TransactionChannel.BRANCH,
+                    "ACCOUNT_OPEN:" + saved.getAccountNumber());
         }
 
         log.info("Account opened: number={}, product={}, customer={}, scheme={}",
@@ -151,7 +158,7 @@ public class AccountService {
     public List<AccountResponse> getCustomerAccounts(Long customerId) {
         customerRepository.findById(customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", customerId));
-        return accountMapper.toResponseList(accountRepository.findByCustomerId(customerId));
+        return mapAccounts(accountRepository.findByCustomerId(customerId));
     }
 
     public Page<AccountResponse> searchAccounts(AccountStatus status, String branchCode, Pageable pageable) {
@@ -163,7 +170,7 @@ public class AccountService {
         } else {
             page = accountRepository.findAll(pageable);
         }
-        return page.map(this::buildAccountResponse);
+        return mapAccountPage(page);
     }
 
     // ========================================================================
@@ -173,15 +180,13 @@ public class AccountService {
     @Transactional
     public TransactionResponse postDebit(PostTransactionRequest request) {
         Account account = findAccountOrThrow(request.getAccountNumber());
-        accountValidator.validateDebit(account, request.getAmount());
-
-        TransactionJournal txn = postTransaction(account, request.getTransactionType(),
-                request.getAmount(), request.getNarration(),
+        TransactionJournal txn = accountPostingService.postDebit(
+                account,
+                request.getTransactionType(),
+                request.getAmount(),
+                request.getNarration(),
                 request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
                 request.getExternalRef());
-
-        account.debit(request.getAmount());
-        accountRepository.save(account);
 
         return accountMapper.toTransactionResponse(txn);
     }
@@ -189,13 +194,11 @@ public class AccountService {
     @Transactional
     public TransactionResponse postCredit(PostTransactionRequest request) {
         Account account = findAccountOrThrow(request.getAccountNumber());
-        accountValidator.validateCredit(account, request.getAmount());
-
-        account.credit(request.getAmount());
-        accountRepository.save(account);
-
-        TransactionJournal txn = postTransaction(account, request.getTransactionType(),
-                request.getAmount(), request.getNarration(),
+        TransactionJournal txn = accountPostingService.postCredit(
+                account,
+                request.getTransactionType(),
+                request.getAmount(),
+                request.getNarration(),
                 request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
                 request.getExternalRef());
 
@@ -208,31 +211,20 @@ public class AccountService {
         Account fromAccount = findAccountOrThrow(fromAccountNumber);
         Account toAccount = findAccountOrThrow(toAccountNumber);
 
-        accountValidator.validateDebit(fromAccount, amount);
-        accountValidator.validateCredit(toAccount, amount);
-
-        fromAccount.debit(amount);
-        toAccount.credit(amount);
-
         String transferNarration = narration != null ? narration :
                 String.format("Transfer to %s", toAccountNumber);
 
-        TransactionJournal debitTxn = postTransaction(fromAccount, TransactionType.TRANSFER_OUT,
-                amount, transferNarration, channel, null);
-        debitTxn.setContraAccount(toAccount);
-        debitTxn.setContraAccountNumber(toAccountNumber);
+        AccountPostingService.TransferPosting transferPosting = accountPostingService.postTransfer(
+                fromAccount,
+                toAccount,
+                amount,
+                amount,
+                transferNarration,
+                String.format("Transfer from %s", fromAccountNumber),
+                channel,
+                "TRANSFER:" + fromAccountNumber + ":" + toAccountNumber + ":" + LocalDate.now());
 
-        TransactionJournal creditTxn = postTransaction(toAccount, TransactionType.TRANSFER_IN,
-                amount, String.format("Transfer from %s", fromAccountNumber), channel, null);
-        creditTxn.setContraAccount(fromAccount);
-        creditTxn.setContraAccountNumber(fromAccountNumber);
-
-        accountRepository.save(fromAccount);
-        accountRepository.save(toAccount);
-        transactionRepository.save(debitTxn);
-        transactionRepository.save(creditTxn);
-
-        return accountMapper.toTransactionResponse(debitTxn);
+        return accountMapper.toTransactionResponse(transferPosting.debitTransaction());
     }
 
     public Page<TransactionResponse> getTransactionHistory(String accountNumber, LocalDate from,
@@ -316,7 +308,6 @@ public class AccountService {
         int postingScale = cbsProperties.getInterest().getPostingScale();
         BigDecimal roundedInterest = interest.setScale(postingScale, RoundingMode.HALF_UP);
 
-        account.credit(roundedInterest);
         account.setAccruedInterest(BigDecimal.ZERO);
         account.setLastInterestPostDate(LocalDate.now());
 
@@ -326,8 +317,6 @@ public class AccountService {
                         account.getApplicableInterestRate(),
                         cbsProperties.getInterest().getDayCountConvention()),
                 TransactionChannel.SYSTEM, null);
-
-        accountRepository.save(account);
         return accountMapper.toTransactionResponse(txn);
     }
 
@@ -404,31 +393,12 @@ public class AccountService {
     }
 
     private TransactionJournal postTransaction(Account account, TransactionType type,
-                                                BigDecimal amount, String narration,
-                                                TransactionChannel channel, String externalRef) {
-        if (StringUtils.hasText(externalRef) && transactionRepository.existsByExternalRef(externalRef)) {
-            throw new DuplicateResourceException("Transaction", "externalRef", externalRef);
+                                               BigDecimal amount, String narration,
+                                               TransactionChannel channel, String externalRef) {
+        if (type == TransactionType.INTEREST_POSTING) {
+            return accountPostingService.postCredit(account, type, amount, narration, channel, externalRef);
         }
-
-        Long seq = transactionRepository.getNextTransactionRefSequence();
-        String txnRef = numberGenerator.generateTxnRef(seq, LocalDate.now().format(TXN_DATE_FMT));
-
-        TransactionJournal txn = TransactionJournal.builder()
-                .transactionRef(txnRef)
-                .account(account)
-                .transactionType(type)
-                .amount(amount)
-                .currencyCode(account.getCurrencyCode())
-                .runningBalance(account.getBookBalance())
-                .narration(narration)
-                .valueDate(LocalDate.now())
-                .postingDate(LocalDate.now())
-                .channel(channel)
-                .externalRef(externalRef)
-                .status("POSTED")
-                .build();
-
-        return transactionRepository.save(txn);
+        return accountPostingService.postDebit(account, type, amount, narration, channel, externalRef);
     }
 
     private BigDecimal resolveBalanceForInterest(Account account, Product product) {
@@ -449,5 +419,30 @@ public class AccountService {
         List<AccountSignatory> signatories = signatoryRepository.findByAccountIdWithCustomer(account.getId());
         response.setSignatories(accountMapper.toSignatoryDtoList(signatories));
         return response;
+    }
+
+    private Page<AccountResponse> mapAccountPage(Page<Account> accounts) {
+        List<AccountResponse> responses = mapAccounts(accounts.getContent());
+        return new PageImpl<>(responses, accounts.getPageable(), accounts.getTotalElements());
+    }
+
+    private List<AccountResponse> mapAccounts(List<Account> accounts) {
+        if (accounts.isEmpty()) {
+            return List.of();
+        }
+
+        List<AccountResponse> responses = accountMapper.toResponseList(accounts);
+        Map<Long, AccountResponse> responseById = responses.stream()
+                .collect(Collectors.toMap(AccountResponse::getId, Function.identity()));
+
+        Map<Long, List<AccountSignatory>> signatoriesByAccountId = signatoryRepository
+                .findByAccountIdInWithCustomer(accounts.stream().map(Account::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(signatory -> signatory.getAccount().getId()));
+
+        responseById.forEach((accountId, response) -> response.setSignatories(
+                accountMapper.toSignatoryDtoList(signatoriesByAccountId.getOrDefault(accountId, List.of()))));
+
+        return responses;
     }
 }

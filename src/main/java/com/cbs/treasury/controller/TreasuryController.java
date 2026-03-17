@@ -2,12 +2,12 @@ package com.cbs.treasury.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
+import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.treasury.entity.*;
 import com.cbs.treasury.service.TreasuryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,6 +24,7 @@ import java.util.Map;
 public class TreasuryController {
 
     private final TreasuryService treasuryService;
+    private final CbsPageRequestFactory pageRequestFactory;
 
     @PostMapping("/deals")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -48,21 +49,21 @@ public class TreasuryController {
 
     @PostMapping("/deals/{id}/confirm")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<TreasuryDeal>> confirm(@PathVariable Long id, @RequestParam String confirmedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(treasuryService.confirmDeal(id, confirmedBy)));
+    public ResponseEntity<ApiResponse<TreasuryDeal>> confirm(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(treasuryService.confirmDeal(id)));
     }
 
     @PostMapping("/deals/{id}/settle")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<TreasuryDeal>> settle(@PathVariable Long id, @RequestParam String settledBy) {
-        return ResponseEntity.ok(ApiResponse.ok(treasuryService.settleDeal(id, settledBy)));
+    public ResponseEntity<ApiResponse<TreasuryDeal>> settle(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(treasuryService.settleDeal(id)));
     }
 
     @GetMapping("/deals")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<TreasuryDeal>>> getByStatus(@RequestParam DealStatus status,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<TreasuryDeal> result = treasuryService.getDealsByStatus(status, PageRequest.of(page, size));
+        Page<TreasuryDeal> result = treasuryService.getDealsByStatus(status, pageRequestFactory.create(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
