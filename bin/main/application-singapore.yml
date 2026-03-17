@@ -1,0 +1,36 @@
+# application-singapore.yml — Activate with: --spring.profiles.active=singapore
+cbs:
+  deployment:
+    country-code: SGP
+    default-currency: SGD
+    timezone: Asia/Singapore
+    locale: en-SG
+    regulatory-body: Monetary Authority of Singapore (MAS)
+
+  account:
+    numbering-scheme: SEQUENTIAL
+    number-prefix: ""
+    number-length: 12
+
+  interest:
+    day-count-convention: ACT_365
+
+  kyc:
+    provider: JUMIO
+    provider-base-url: https://api.jumio.com
+    require-verified-id: true
+    id-types:
+      - code: NRIC
+        name: National Registration Identity Card
+        country: SGP
+        validation-regex: "^[STFG][0-9]{7}[A-Z]$"
+        verifiable: true
+      - code: FIN
+        name: Foreign Identification Number
+        country: SGP
+        validation-regex: "^[FGMN][0-9]{7}[A-Z]$"
+        verifiable: true
+
+  lifecycle:
+    default-dormancy-days: 365
+    escheatment-years: 7

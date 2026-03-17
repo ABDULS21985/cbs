@@ -1,8 +1,6 @@
 package com.cbs.tax.service;
 
 import com.cbs.common.exception.ResourceNotFoundException;
-import com.cbs.gl.dto.JournalLineRequest;
-import com.cbs.gl.dto.PostJournalRequest;
 import com.cbs.gl.service.GeneralLedgerService;
 import com.cbs.tax.entity.*;
 import com.cbs.tax.repository.*;
@@ -52,18 +50,17 @@ public class TaxService {
             Long journalId = null;
             if (rule.getTaxPayableGl() != null && accountId != null) {
                 try {
-                    var journal = glService.postJournal(new PostJournalRequest(
-                            "SYSTEM", "Tax deduction: " + rule.getTaxCode(),
-                            sourceModule, sourceRef, LocalDate.now(),
+                    var journal = glService.postJournal("SYSTEM", "Tax deduction: " + rule.getTaxCode(),
+                            sourceModule, sourceRef, LocalDate.now(), "SYSTEM",
                             List.of(
-                                    new JournalLineRequest(
+                                    new GeneralLedgerService.JournalLineRequest(
                                             rule.getTaxReceivableGl() != null ? rule.getTaxReceivableGl() : "3100",
                                             taxAmount, BigDecimal.ZERO, currencyCode, null,
                                             rule.getTaxName() + " on " + appliesTo, null, null, accountId, customerId),
-                                    new JournalLineRequest(
+                                    new GeneralLedgerService.JournalLineRequest(
                                             rule.getTaxPayableGl(), BigDecimal.ZERO, taxAmount, currencyCode, null,
                                             rule.getTaxName() + " payable", null, null, null, null)
-                            )));
+                            ));
                     journalId = journal.getId();
                 } catch (Exception e) {
                     log.warn("Tax GL posting failed for {}: {}", rule.getTaxCode(), e.getMessage());

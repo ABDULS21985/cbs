@@ -1,0 +1,35 @@
+# application-uae.yml — Activate with: --spring.profiles.active=uae
+cbs:
+  deployment:
+    country-code: ARE
+    default-currency: AED
+    timezone: Asia/Dubai
+    locale: ar-AE
+    regulatory-body: Central Bank of the UAE (CBUAE)
+
+  account:
+    numbering-scheme: IBAN
+    number-length: 19
+    iban-country-code: AE
+    iban-bank-code: "000"
+
+  interest:
+    day-count-convention: ACT_360
+
+  kyc:
+    provider: INTERNAL
+    require-verified-id: true
+    id-types:
+      - code: EMIRATES_ID
+        name: Emirates ID
+        country: ARE
+        validation-regex: "^784-[0-9]{4}-[0-9]{7}-[0-9]$"
+        verifiable: true
+      - code: UAE_PASSPORT
+        name: UAE Passport
+        country: ARE
+        verifiable: false
+
+  lifecycle:
+    default-dormancy-days: 365
+    escheatment-years: 5

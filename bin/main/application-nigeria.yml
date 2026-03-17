@@ -1,0 +1,62 @@
+# application-nigeria.yml — Activate with: --spring.profiles.active=nigeria
+cbs:
+  deployment:
+    country-code: NGA
+    default-currency: NGN
+    timezone: Africa/Lagos
+    locale: en-NG
+    institution-name: ${CBS_INSTITUTION_NAME:BellBank Microfinance}
+    institution-code: ${CBS_INSTITUTION_CODE:000XXX}
+    regulatory-body: Central Bank of Nigeria (CBN)
+
+  account:
+    numbering-scheme: NUBAN
+    number-prefix: "000"
+    number-length: 10
+
+  interest:
+    day-count-convention: ACT_365
+
+  kyc:
+    provider: INTERNAL
+    require-verified-id: true
+    id-types:
+      - code: BVN
+        name: Bank Verification Number
+        country: NGA
+        validation-regex: "^[0-9]{11}$"
+        verifiable: true
+      - code: NIN
+        name: National Identification Number
+        country: NGA
+        validation-regex: "^[0-9]{11}$"
+        verifiable: true
+      - code: VOTERS_CARD
+        name: Voter's Card
+        country: NGA
+        validation-regex: "^[A-Z0-9]{19}$"
+        verifiable: false
+      - code: DRIVERS_LICENSE
+        name: Driver's License
+        country: NGA
+        validation-regex: "^[A-Z]{3}[0-9]{8}[A-Z]{2}$"
+        verifiable: false
+      - code: INTL_PASSPORT
+        name: International Passport
+        country: NGA
+        validation-regex: "^[AB][0-9]{8}$"
+        verifiable: false
+      - code: TIN
+        name: Tax Identification Number
+        country: NGA
+        validation-regex: "^[0-9]{8}-[0-9]{4}$"
+        verifiable: true
+      - code: CAC_REG
+        name: CAC Registration Number
+        country: NGA
+        validation-regex: "^RC[0-9]+$"
+        verifiable: true
+
+  lifecycle:
+    default-dormancy-days: 365
+    escheatment-years: 6

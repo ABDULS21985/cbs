@@ -70,6 +70,6 @@ public class EscrowController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<EscrowReleaseDto>> approveRelease(
             @PathVariable Long releaseId, @RequestParam String approvedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(escrowService.approveAndExecuteRelease(releaseId)));
+        return ResponseEntity.ok(ApiResponse.ok(escrowService.approveAndExecuteRelease(releaseId, approvedBy)));
     }
 }
