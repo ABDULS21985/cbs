@@ -69,25 +69,34 @@ public class PaymentService {
                 .remittanceInfo(narration)
                 .status(PaymentStatus.PROCESSING).build();
 
-        BigDecimal creditAmount = amount;
+        // Cross-currency check
         if (!debitAccount.getCurrencyCode().equals(creditAccount.getCurrencyCode())) {
             FxRate rate = getLatestRate(debitAccount.getCurrencyCode(), creditAccount.getCurrencyCode());
-            creditAmount = amount.multiply(rate.getSellRate()).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal converted = amount.multiply(rate.getSellRate()).setScale(2, RoundingMode.HALF_UP);
             payment.setFxRate(rate.getSellRate());
             payment.setFxSourceCurrency(debitAccount.getCurrencyCode());
             payment.setFxTargetCurrency(creditAccount.getCurrencyCode());
-            payment.setFxConvertedAmount(creditAmount);
+            payment.setFxConvertedAmount(converted);
+            accountPostingService.postTransfer(
+                    debitAccount,
+                    creditAccount,
+                    amount,
+                    converted,
+                    narration != null ? narration : "Internal transfer to " + creditAccount.getAccountNumber(),
+                    "Internal transfer from " + debitAccount.getAccountNumber(),
+                    TransactionChannel.SYSTEM,
+                    ref);
+        } else {
+            accountPostingService.postTransfer(
+                    debitAccount,
+                    creditAccount,
+                    amount,
+                    amount,
+                    narration != null ? narration : "Internal transfer to " + creditAccount.getAccountNumber(),
+                    "Internal transfer from " + debitAccount.getAccountNumber(),
+                    TransactionChannel.SYSTEM,
+                    ref);
         }
-
-        accountPostingService.postTransfer(
-                debitAccount,
-                creditAccount,
-                amount,
-                creditAmount,
-                narration != null ? narration : String.format("Transfer to %s", creditAccount.getAccountNumber()),
-                String.format("Transfer from %s", debitAccount.getAccountNumber()),
-                TransactionChannel.SYSTEM,
-                "PAYMENT:" + ref);
 
         payment.setStatus(PaymentStatus.COMPLETED);
         payment.setExecutionDate(LocalDate.now());
@@ -129,24 +138,25 @@ public class PaymentService {
                 .screeningStatus("CLEAR") // Simplified — production would invoke sanctions screening
                 .status(PaymentStatus.VALIDATED).build();
 
+        // Debit immediately
         accountPostingService.postDebit(
                 debitAccount,
-                TransactionType.DEBIT,
+                TransactionType.TRANSFER_OUT,
                 amount,
-                narration != null ? narration : "Domestic payment " + ref,
+                narration != null ? narration : "Domestic payment to " + creditAccountNumber,
                 TransactionChannel.SYSTEM,
-                "PAYMENT:" + ref + ":DR");
+                ref + ":DR");
 
         // For internal bank transfers, check if credit account exists locally
         Account localCreditAccount = accountRepository.findByAccountNumber(creditAccountNumber).orElse(null);
         if (localCreditAccount != null) {
             accountPostingService.postCredit(
                     localCreditAccount,
-                    TransactionType.CREDIT,
+                    TransactionType.TRANSFER_IN,
                     amount,
-                    narration != null ? narration : "Domestic payment " + ref,
+                    narration != null ? narration : "Domestic payment from " + debitAccount.getAccountNumber(),
                     TransactionChannel.SYSTEM,
-                    "PAYMENT:" + ref + ":CR");
+                    ref + ":CR");
             payment.setCreditAccount(localCreditAccount);
             payment.setStatus(PaymentStatus.COMPLETED);
             payment.setExecutionDate(LocalDate.now());
@@ -218,7 +228,7 @@ public class PaymentService {
                 totalDebit,
                 remittanceInfo != null ? remittanceInfo : "SWIFT transfer " + ref,
                 TransactionChannel.SYSTEM,
-                "SWIFT:" + ref);
+                ref + ":DR");
 
         // In production: submit to sanctions screening, then to SWIFT gateway
         payment.setScreeningStatus("CLEAR");
@@ -305,26 +315,27 @@ public class PaymentService {
                     failed++;
                     failedAmt = failedAmt.add(pi.getAmount());
                 } else {
-                    accountPostingService.postDebit(
-                            debitAccount,
-                            TransactionType.DEBIT,
-                            pi.getAmount(),
-                            pi.getRemittanceInfo() != null ? pi.getRemittanceInfo() : "Batch payment " + pi.getInstructionRef(),
-                            TransactionChannel.SYSTEM,
-                            "PAYMENT:" + pi.getInstructionRef() + ":DR");
-
                     Account localCredit = accountRepository.findByAccountNumber(pi.getCreditAccountNumber()).orElse(null);
                     if (localCredit != null) {
-                        accountPostingService.postCredit(
+                        accountPostingService.postTransfer(
+                                debitAccount,
                                 localCredit,
-                                TransactionType.CREDIT,
                                 pi.getAmount(),
-                                pi.getRemittanceInfo() != null ? pi.getRemittanceInfo() : "Batch payment " + pi.getInstructionRef(),
+                                pi.getAmount(),
+                                pi.getRemittanceInfo() != null ? pi.getRemittanceInfo() : "Batch payment to " + pi.getCreditAccountNumber(),
+                                "Batch payment from " + debitAccount.getAccountNumber(),
                                 TransactionChannel.SYSTEM,
-                                "PAYMENT:" + pi.getInstructionRef() + ":CR");
+                                pi.getInstructionRef());
                         pi.setCreditAccount(localCredit);
                         pi.setStatus(PaymentStatus.COMPLETED);
                     } else {
+                        accountPostingService.postDebit(
+                                debitAccount,
+                                TransactionType.TRANSFER_OUT,
+                                pi.getAmount(),
+                                pi.getRemittanceInfo() != null ? pi.getRemittanceInfo() : "Batch payment to " + pi.getCreditAccountNumber(),
+                                TransactionChannel.SYSTEM,
+                                pi.getInstructionRef() + ":DR");
                         pi.setStatus(PaymentStatus.SUBMITTED);
                     }
                     pi.setExecutionDate(LocalDate.now());

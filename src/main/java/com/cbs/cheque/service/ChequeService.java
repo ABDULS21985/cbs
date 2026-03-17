@@ -118,7 +118,7 @@ public class ChequeService {
                 leaf.getAmount(),
                 "Cheque clearing " + leaf.getChequeNumber(),
                 TransactionChannel.CHEQUE,
-                "CHEQUE:" + leaf.getChequeNumber() + ":CLEAR");
+                "CHQ:" + leaf.getChequeNumber());
 
         leaf.setStatus(ChequeStatus.CLEARED);
         leaf.setClearingDate(LocalDate.now());

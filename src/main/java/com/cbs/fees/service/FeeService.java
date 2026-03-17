@@ -56,9 +56,9 @@ public class FeeService {
                                 account,
                                 TransactionType.FEE_DEBIT,
                                 result.getTotalAmount(),
-                                "Fee charge " + fee.getFeeCode(),
+                                "Fee charge: " + fee.getFeeCode(),
                                 TransactionChannel.SYSTEM,
-                                triggerRef != null ? "FEE:" + fee.getFeeCode() + ":" + triggerRef : null);
+                                triggerRef != null ? triggerRef + ":" + fee.getFeeCode() : "FEE:" + fee.getFeeCode());
 
                         FeeChargeLog chargeLog = FeeChargeLog.builder()
                                 .feeCode(fee.getFeeCode())
@@ -100,9 +100,9 @@ public class FeeService {
                     account,
                     TransactionType.FEE_DEBIT,
                     result.getTotalAmount(),
-                    "Fee charge " + feeCode,
+                    "Fee charge: " + feeCode,
                     TransactionChannel.SYSTEM,
-                    triggerRef != null ? "FEE:" + feeCode + ":" + triggerRef : null);
+                    triggerRef != null ? triggerRef + ":" + feeCode : "FEE:" + feeCode);
 
             FeeChargeLog chargeLog = FeeChargeLog.builder()
                     .feeCode(feeCode).accountId(accountId).customerId(account.getCustomer().getId())
@@ -143,11 +143,11 @@ public class FeeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", chargeLog.getAccountId()));
         accountPostingService.postCredit(
                 account,
-                TransactionType.CREDIT,
+                TransactionType.ADJUSTMENT,
                 chargeLog.getTotalAmount(),
-                "Fee waiver " + chargeLog.getFeeCode(),
+                "Fee waiver refund: " + chargeLog.getFeeCode(),
                 TransactionChannel.SYSTEM,
-                "FEE:" + chargeLog.getId() + ":WAIVE");
+                "FEE_WAIVER:" + chargeLog.getId());
 
         chargeLog.setWasWaived(true);
         chargeLog.setWaivedBy(waivedBy);

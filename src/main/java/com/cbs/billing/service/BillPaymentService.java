@@ -106,13 +106,14 @@ public class BillPaymentService {
                 .currencyCode(biller.getCurrencyCode())
                 .status("PROCESSING").build();
 
+        // Debit account
         accountPostingService.postDebit(
                 debitAccount,
                 TransactionType.DEBIT,
                 totalAmount,
-                "Bill payment " + paymentRef,
+                "Bill payment " + billerCode,
                 TransactionChannel.SYSTEM,
-                "BILL:" + paymentRef + ":DR");
+                paymentRef + ":DR");
 
         // Credit biller settlement account if local
         if (biller.getSettlementAccount() != null) {
@@ -121,9 +122,9 @@ public class BillPaymentService {
                     settlement,
                     TransactionType.CREDIT,
                     amount,
-                    "Bill payment settlement " + paymentRef,
+                    "Bill payment settlement " + billerCode,
                     TransactionChannel.SYSTEM,
-                    "BILL:" + paymentRef + ":CR");
+                    paymentRef + ":CR");
             payment.setStatus("COMPLETED");
             payment.setBillerConfirmationRef("CONF-" + paymentRef);
         } else {

@@ -2,13 +2,13 @@ package com.cbs.regulatory.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
-import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.regulatory.entity.*;
 import com.cbs.regulatory.service.RegulatoryReportingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,7 +24,6 @@ import java.util.List;
 public class RegulatoryReportController {
 
     private final RegulatoryReportingService reportingService;
-    private final CbsPageRequestFactory pageRequestFactory;
 
     @PostMapping("/definitions")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -49,22 +48,22 @@ public class RegulatoryReportController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<RegulatoryReportRun>> generate(
             @RequestParam String reportCode, @RequestParam LocalDate periodStart,
-            @RequestParam LocalDate periodEnd) {
-        return ResponseEntity.ok(ApiResponse.ok(reportingService.generateReport(reportCode, periodStart, periodEnd)));
+            @RequestParam LocalDate periodEnd, @RequestParam String generatedBy) {
+        return ResponseEntity.ok(ApiResponse.ok(reportingService.generateReport(reportCode, periodStart, periodEnd, generatedBy)));
     }
 
     @PostMapping("/runs/{runId}/submit")
     @Operation(summary = "Submit a generated report to the regulator")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<RegulatoryReportRun>> submit(@PathVariable Long runId) {
-        return ResponseEntity.ok(ApiResponse.ok(reportingService.submitReport(runId)));
+    public ResponseEntity<ApiResponse<RegulatoryReportRun>> submit(@PathVariable Long runId, @RequestParam String submittedBy) {
+        return ResponseEntity.ok(ApiResponse.ok(reportingService.submitReport(runId, submittedBy)));
     }
 
     @GetMapping("/runs/{reportCode}")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<RegulatoryReportRun>>> getRuns(@PathVariable String reportCode,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<RegulatoryReportRun> result = reportingService.getReportRuns(reportCode, pageRequestFactory.create(page, size));
+        Page<RegulatoryReportRun> result = reportingService.getReportRuns(reportCode, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

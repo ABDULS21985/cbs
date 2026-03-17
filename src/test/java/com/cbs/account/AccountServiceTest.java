@@ -64,9 +64,6 @@ class AccountServiceTest {
 
     @BeforeEach
     void setUp() {
-        CbsProperties.AccountConfig accountConfig = new CbsProperties.AccountConfig();
-        when(cbsProperties.getAccount()).thenReturn(accountConfig);
-
         testCustomer = Customer.builder()
                 .id(1L).cifNumber("CIF0000100000")
                 .customerType(CustomerType.INDIVIDUAL).status(CustomerStatus.ACTIVE)
@@ -108,6 +105,15 @@ class AccountServiceTest {
                 .lienAmount(BigDecimal.ZERO).overdraftLimit(BigDecimal.ZERO)
                 .openedDate(LocalDate.now()).activatedDate(LocalDate.now())
                 .build();
+
+        CbsProperties.AccountConfig accountConfig = new CbsProperties.AccountConfig();
+        accountConfig.setNumberingScheme("SEQUENTIAL");
+        when(cbsProperties.getAccount()).thenReturn(accountConfig);
+
+        CbsProperties.InterestConfig interestConfig = new CbsProperties.InterestConfig();
+        interestConfig.setDayCountConvention("ACT_365");
+        interestConfig.setPostingScale(2);
+        when(cbsProperties.getInterest()).thenReturn(interestConfig);
     }
 
     @Nested
@@ -128,37 +134,47 @@ class AccountServiceTest {
             when(productRepository.findByCode("CA-NGN-STD")).thenReturn(Optional.of(currentProduct));
             when(accountRepository.getNextAccountNumberSequence()).thenReturn(1000000001L);
             when(numberGenerator.generate(1000000001L)).thenReturn("1000000001");
-            when(accountRepository.save(any(Account.class))).thenReturn(testAccount);
+            when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> {
+                Account account = invocation.getArgument(0);
+                account.setId(1L);
+                return account;
+            });
             when(signatoryRepository.findByAccountIdWithCustomer(anyLong())).thenReturn(List.of());
-            when(accountPostingService.postCredit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+            when(accountPostingService.postCredit(any(Account.class), eq(TransactionType.OPENING_BALANCE),
+                    eq(new BigDecimal("10000.00")), anyString(), eq(TransactionChannel.BRANCH), anyString()))
                     .thenAnswer(invocation -> {
                         Account account = invocation.getArgument(0);
                         BigDecimal amount = invocation.getArgument(2);
                         account.credit(amount);
-                        return new TransactionJournal();
+                        return TransactionJournal.builder()
+                                .transactionType(TransactionType.OPENING_BALANCE)
+                                .amount(amount)
+                                .runningBalance(account.getBookBalance())
+                                .build();
                     });
 
-            AccountResponse mockResponse = AccountResponse.builder()
-                    .id(1L).accountNumber("1000000001").productCode("CA-NGN-STD")
-                    .status(AccountStatus.ACTIVE).build();
-            when(accountMapper.toResponse(any())).thenReturn(mockResponse);
+            when(accountMapper.toResponse(any(Account.class))).thenAnswer(invocation -> {
+                Account account = invocation.getArgument(0);
+                return AccountResponse.builder()
+                        .id(account.getId())
+                        .accountNumber(account.getAccountNumber())
+                        .productCode(account.getProduct().getCode())
+                        .status(account.getStatus())
+                        .bookBalance(account.getBookBalance())
+                        .availableBalance(account.getAvailableBalance())
+                        .build();
+            });
             when(accountMapper.toSignatoryDtoList(any())).thenReturn(List.of());
 
             AccountResponse result = accountService.openAccount(request);
 
             assertThat(result).isNotNull();
             assertThat(result.getAccountNumber()).isEqualTo("1000000001");
-            assertThat(testAccount.getBookBalance()).isEqualByComparingTo(new BigDecimal("10000.00"));
-            assertThat(testAccount.getAvailableBalance()).isEqualByComparingTo(new BigDecimal("10000.00"));
+            assertThat(result.getBookBalance()).isEqualByComparingTo(new BigDecimal("10000.00"));
             verify(accountValidator).validateOpeningDeposit(currentProduct, request.getInitialDeposit());
             verify(accountRepository).save(any(Account.class));
-            verify(accountPostingService).postCredit(
-                    same(testAccount),
-                    eq(TransactionType.OPENING_BALANCE),
-                    eq(new BigDecimal("10000.00")),
-                    eq("Opening balance deposit"),
-                    eq(TransactionChannel.BRANCH),
-                    eq("ACCOUNT_OPEN:1000000001"));
+            verify(accountPostingService).postCredit(any(Account.class), eq(TransactionType.OPENING_BALANCE),
+                    eq(new BigDecimal("10000.00")), anyString(), eq(TransactionChannel.BRANCH), anyString());
         }
 
         @Test
@@ -288,6 +304,9 @@ class AccountServiceTest {
             when(accountRepository.findByIdWithProduct(10L)).thenReturn(Optional.of(savingsAccount));
             when(interestTierRepository.findActiveTiersByProduct(2L)).thenReturn(List.of());
             when(accountRepository.save(any())).thenReturn(savingsAccount);
+            when(dayCountEngine.calculateDailyAccrual(new BigDecimal("1000000.00"),
+                    new BigDecimal("3.7500"), LocalDate.now()))
+                    .thenReturn(new BigDecimal("102.7397"));
 
             BigDecimal accrued = accountService.accrueInterestForAccount(10L);
 

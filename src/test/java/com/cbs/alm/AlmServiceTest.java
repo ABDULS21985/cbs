@@ -3,7 +3,6 @@ package com.cbs.alm;
 import com.cbs.alm.entity.*;
 import com.cbs.alm.repository.*;
 import com.cbs.alm.service.AlmService;
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.fixedincome.repository.SecurityHoldingRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +26,6 @@ class AlmServiceTest {
     @Mock private AlmGapReportRepository gapReportRepository;
     @Mock private AlmScenarioRepository scenarioRepository;
     @Mock private SecurityHoldingRepository holdingRepository;
-    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks private AlmService almService;
 
@@ -35,7 +33,6 @@ class AlmServiceTest {
     @DisplayName("Gap report: RSA > RSL = positive gap, NII sensitivity positive")
     void positiveGap_NiiSensitivity() {
         when(gapReportRepository.save(any())).thenAnswer(inv -> { AlmGapReport r = inv.getArgument(0); r.setId(1L); return r; });
-        when(currentActorProvider.getCurrentActor()).thenReturn("treasury_mgr");
 
         List<Map<String, Object>> buckets = List.of(
                 Map.of("bucket", "0-30 days", "rsa", 500000000, "rsl", 300000000),
@@ -43,7 +40,7 @@ class AlmServiceTest {
 
         AlmGapReport result = almService.generateGapReport(LocalDate.now(), "USD",
                 new BigDecimal("800000000"), new BigDecimal("500000000"), buckets,
-                new BigDecimal("3.50"), new BigDecimal("2.00"));
+                new BigDecimal("3.50"), new BigDecimal("2.00"), "treasury_mgr");
 
         assertThat(result.getCumulativeGap()).isEqualByComparingTo(new BigDecimal("300000000")); // RSA - RSL
         assertThat(result.getGapRatio()).isPositive(); // RSA/RSL > 1
@@ -56,11 +53,10 @@ class AlmServiceTest {
     @DisplayName("Gap report: RSA < RSL = negative gap, NII falls when rates rise")
     void negativeGap() {
         when(gapReportRepository.save(any())).thenAnswer(inv -> { AlmGapReport r = inv.getArgument(0); r.setId(2L); return r; });
-        when(currentActorProvider.getCurrentActor()).thenReturn("treasury_mgr");
 
         AlmGapReport result = almService.generateGapReport(LocalDate.now(), "USD",
                 new BigDecimal("400000000"), new BigDecimal("600000000"), List.of(),
-                new BigDecimal("2.00"), new BigDecimal("3.00"));
+                new BigDecimal("2.00"), new BigDecimal("3.00"), "treasury_mgr");
 
         assertThat(result.getCumulativeGap()).isNegative();
         assertThat(result.getGapRatio()).isLessThan(BigDecimal.ONE);
@@ -70,11 +66,10 @@ class AlmServiceTest {
     @DisplayName("EVE sensitivity: duration gap × equity × rate shock")
     void eveSensitivity() {
         when(gapReportRepository.save(any())).thenAnswer(inv -> { AlmGapReport r = inv.getArgument(0); r.setId(3L); return r; });
-        when(currentActorProvider.getCurrentActor()).thenReturn("treasury_mgr");
 
         AlmGapReport result = almService.generateGapReport(LocalDate.now(), "USD",
                 new BigDecimal("1000000000"), new BigDecimal("900000000"), List.of(),
-                new BigDecimal("4.00"), new BigDecimal("2.50"));
+                new BigDecimal("4.00"), new BigDecimal("2.50"), "treasury_mgr");
 
         assertThat(result.getEveBase()).isNotNull();
         assertThat(result.getEveUp200bp()).isNotNull();

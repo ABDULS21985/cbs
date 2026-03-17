@@ -77,7 +77,7 @@ public class PortalController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Page<TransactionResponse> result = portalService.getMiniStatement(customerId, accountNumber,
-                pageRequestFactory.create(page, Math.min(size, 50), Sort.by(Sort.Direction.DESC, "createdAt")));
+                pageRequestFactory.create(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -92,7 +92,7 @@ public class PortalController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         Page<TransactionResponse> result = portalService.getFullStatement(customerId, accountNumber, from, to,
-                pageRequestFactory.create(page, Math.min(size, 100), Sort.by(Sort.Direction.DESC, "createdAt")));
+                pageRequestFactory.create(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -138,7 +138,8 @@ public class PortalController {
     @PostMapping("/admin/profile-updates/{requestId}/approve")
     @Operation(summary = "Approve a profile update request")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<ProfileUpdateRequestDto>> approveUpdate(@PathVariable Long requestId) {
+    public ResponseEntity<ApiResponse<ProfileUpdateRequestDto>> approveUpdate(
+            @PathVariable Long requestId) {
         return ResponseEntity.ok(ApiResponse.ok(portalService.approveProfileUpdate(requestId)));
     }
 

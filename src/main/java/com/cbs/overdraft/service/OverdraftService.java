@@ -109,9 +109,9 @@ public class OverdraftService {
                 account,
                 TransactionType.CREDIT,
                 amount,
-                narration != null ? narration : "Facility drawdown " + facility.getFacilityNumber(),
+                narration != null ? narration : "Overdraft drawdown " + facility.getFacilityNumber(),
                 TransactionChannel.SYSTEM,
-                "OVERDRAFT:" + facility.getFacilityNumber() + ":DRAWDOWN");
+                "OD:" + facility.getFacilityNumber() + ":DRAWDOWN");
 
         logUtilization(facility, UtilizationType.DRAWDOWN, amount, narration);
         facilityRepository.save(facility);
@@ -138,9 +138,9 @@ public class OverdraftService {
                 account,
                 TransactionType.DEBIT,
                 amount,
-                narration != null ? narration : "Facility repayment " + facility.getFacilityNumber(),
+                narration != null ? narration : "Overdraft repayment " + facility.getFacilityNumber(),
                 TransactionChannel.SYSTEM,
-                "OVERDRAFT:" + facility.getFacilityNumber() + ":REPAY");
+                "OD:" + facility.getFacilityNumber() + ":REPAY");
 
         logUtilization(facility, UtilizationType.REPAYMENT, amount, narration);
         facilityRepository.save(facility);

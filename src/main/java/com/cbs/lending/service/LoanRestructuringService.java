@@ -1,6 +1,5 @@
 package com.cbs.lending.service;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.lending.dto.LoanAccountResponse;
@@ -28,10 +27,9 @@ public class LoanRestructuringService {
     private final LoanRepaymentScheduleRepository scheduleRepository;
     private final LoanRestructureLogRepository restructureLogRepository;
     private final RepaymentScheduleGenerator scheduleGenerator;
-    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
-    public LoanRestructureLog restructureLoan(Long loanId, LoanRestructureRequest request) {
+    public LoanRestructureLog restructureLoan(Long loanId, LoanRestructureRequest request, String approvedBy) {
         LoanAccount loan = loanAccountRepository.findByIdWithDetails(loanId)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanAccount", "id", loanId));
 
@@ -39,7 +37,6 @@ public class LoanRestructuringService {
             throw new BusinessException("Only active or delinquent loans can be restructured", "LOAN_NOT_RESTRUCTURABLE");
         }
 
-        String approvedBy = currentActorProvider.getCurrentActor();
         // Capture before-state
         LoanRestructureLog logEntry = LoanRestructureLog.builder()
                 .loanAccountId(loanId)

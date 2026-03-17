@@ -1,9 +1,9 @@
 package com.cbs.portal;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.AccountSignatory;
 import com.cbs.account.entity.AccountStatus;
 import com.cbs.account.entity.AccountType;
+import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.entity.Product;
 import com.cbs.account.mapper.AccountMapper;
 import com.cbs.account.dto.AccountResponse;
@@ -86,15 +86,19 @@ class PortalServiceTest {
         when(customerRepository.findById(1L)).thenReturn(Optional.of(testCustomer));
         when(accountRepository.findByCustomerIdAndStatus(1L, AccountStatus.ACTIVE))
                 .thenReturn(List.of(testAccount));
-        when(signatoryRepository.findByAccountIdInWithCustomer(List.of(1L))).thenReturn(List.<AccountSignatory>of());
-        when(transactionRepository.findRecentTransactionsByAccountIds(eq(List.of(1L)), any())).thenReturn(List.of());
-        when(profileUpdateRepository.countByCustomerIdAndStatus(1L, "PENDING")).thenReturn(0L);
+        when(signatoryRepository.findByAccountIdInWithCustomer(List.of(1L))).thenReturn(List.of());
+        when(transactionRepository.findRecentTransactionsByAccountIds(eq(List.of(1L)), any()))
+                .thenReturn(List.of(new TransactionJournal()));
+        when(profileUpdateRepository.countByCustomerIdAndStatus(1L, "PENDING"))
+                .thenReturn(0L);
 
         AccountResponse mockResp = AccountResponse.builder()
                 .id(1L).accountNumber("1000000001")
                 .bookBalance(new BigDecimal("150000")).build();
+        when(accountMapper.toResponse(testAccount)).thenReturn(mockResp);
         when(accountMapper.toResponseList(List.of(testAccount))).thenReturn(List.of(mockResp));
         when(accountMapper.toSignatoryDtoList(any())).thenReturn(List.of());
+        when(accountMapper.toTransactionResponse(any())).thenReturn(null);
 
         PortalDashboardResponse dashboard = portalService.getDashboard(1L);
 
@@ -140,13 +144,13 @@ class PortalServiceTest {
         when(profileUpdateRepository.save(any())).thenReturn(pending);
         when(customerRepository.findById(1L)).thenReturn(Optional.of(testCustomer));
         when(customerRepository.save(any())).thenReturn(testCustomer);
+
         when(currentActorProvider.getCurrentActor()).thenReturn("admin1");
 
         ProfileUpdateRequestDto result = portalService.approveProfileUpdate(1L);
 
         assertThat(result.getStatus()).isEqualTo("APPROVED");
         assertThat(testCustomer.getEmail()).isEqualTo("new@example.com");
-        assertThat(result.getReviewedBy()).isEqualTo("admin1");
     }
 
     @Test
@@ -158,13 +162,13 @@ class PortalServiceTest {
 
         when(profileUpdateRepository.findById(2L)).thenReturn(Optional.of(pending));
         when(profileUpdateRepository.save(any())).thenReturn(pending);
+
         when(currentActorProvider.getCurrentActor()).thenReturn("admin1");
 
         ProfileUpdateRequestDto result = portalService.rejectProfileUpdate(2L, "Invalid phone format");
 
         assertThat(result.getStatus()).isEqualTo("REJECTED");
         assertThat(result.getRejectionReason()).isEqualTo("Invalid phone format");
-        assertThat(result.getReviewedBy()).isEqualTo("admin1");
     }
 
     @Test

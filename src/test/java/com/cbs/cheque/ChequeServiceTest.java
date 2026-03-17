@@ -2,7 +2,6 @@ package com.cbs.cheque;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.cheque.entity.*;
 import com.cbs.cheque.repository.*;
 import com.cbs.cheque.service.ChequeService;
@@ -32,7 +31,6 @@ class ChequeServiceTest {
     @Mock private ChequeBookRepository bookRepository;
     @Mock private ChequeLeafRepository leafRepository;
     @Mock private AccountRepository accountRepository;
-    @Mock private AccountPostingService accountPostingService;
 
     @InjectMocks private ChequeService chequeService;
 
@@ -51,13 +49,6 @@ class ChequeServiceTest {
                 .startNumber(1).endNumber(25).totalLeaves(25).usedLeaves(0).spoiledLeaves(0).status("ACTIVE").build();
         leaf = ChequeLeaf.builder().id(1L).chequeBook(book).chequeNumber("CHQ000001").account(account)
                 .currencyCode("USD").status(ChequeStatus.UNUSED).build();
-
-        lenient().when(accountPostingService.postDebit(any(Account.class), any(), any(), anyString(), any(), anyString()))
-                .thenAnswer(invocation -> {
-                    Account fundingAccount = invocation.getArgument(0);
-                    fundingAccount.debit(invocation.getArgument(2));
-                    return new TransactionJournal();
-                });
     }
 
     @Test
@@ -103,6 +94,7 @@ class ChequeServiceTest {
         leaf.setStatus(ChequeStatus.CLEARING);
         leaf.setAmount(new BigDecimal("5000"));
         when(leafRepository.findById(1L)).thenReturn(Optional.of(leaf));
+        when(accountRepository.save(any())).thenReturn(account);
         when(leafRepository.save(any())).thenReturn(leaf);
         when(bookRepository.save(any())).thenReturn(book);
 

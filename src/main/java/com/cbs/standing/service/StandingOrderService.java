@@ -2,6 +2,7 @@ package com.cbs.standing.service;
 
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
@@ -150,20 +151,20 @@ public class StandingOrderService {
                         localCredit,
                         si.getAmount(),
                         si.getAmount(),
-                        si.getNarration() != null ? si.getNarration() : "Standing order " + si.getInstructionRef(),
+                        si.getNarration() != null ? si.getNarration() : "Standing order to " + si.getCreditAccountNumber(),
                         "Standing order from " + debitAccount.getAccountNumber(),
                         TransactionChannel.SYSTEM,
-                        "STANDING:" + si.getInstructionRef());
+                        ref);
                 payment.setCreditAccount(localCredit);
                 payment.setStatus(PaymentStatus.COMPLETED);
             } else {
                 accountPostingService.postDebit(
                         debitAccount,
-                        com.cbs.account.entity.TransactionType.DEBIT,
+                        TransactionType.TRANSFER_OUT,
                         si.getAmount(),
-                        si.getNarration() != null ? si.getNarration() : "Standing order " + si.getInstructionRef(),
+                        si.getNarration() != null ? si.getNarration() : "Standing order to " + si.getCreditAccountNumber(),
                         TransactionChannel.SYSTEM,
-                        "STANDING:" + si.getInstructionRef() + ":DR");
+                        ref + ":DR");
                 payment.setStatus(PaymentStatus.SUBMITTED);
             }
             payment.setExecutionDate(LocalDate.now());

@@ -326,7 +326,7 @@ public class LoanOriginationService {
                 app.getApprovedAmount(),
                 "Loan disbursement " + loanNumber,
                 TransactionChannel.SYSTEM,
-                "LOAN:" + loanNumber + ":DISBURSE");
+                loanNumber + ":DISBURSE");
 
         // Update application status
         app.setStatus(LoanApplicationStatus.DISBURSED);
@@ -464,7 +464,7 @@ public class LoanOriginationService {
                     amount.subtract(remaining),
                     "Loan repayment " + loan.getLoanNumber(),
                     TransactionChannel.SYSTEM,
-                    "LOAN:" + loan.getLoanNumber() + ":REPAY");
+                    loan.getLoanNumber() + ":REPAY:" + installment.getInstallmentNumber());
         }
 
         log.info("Loan repayment processed: loan={}, installment={}, principal={}, interest={}, remaining={}",

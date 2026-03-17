@@ -2,13 +2,13 @@ package com.cbs.lifecycle.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
-import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.lifecycle.dto.LifecycleEventDto;
 import com.cbs.lifecycle.service.AccountLifecycleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +23,6 @@ import java.util.Map;
 public class AccountLifecycleController {
 
     private final AccountLifecycleService lifecycleService;
-    private final CbsPageRequestFactory pageRequestFactory;
 
     @PostMapping("/dormancy/detect")
     @Operation(summary = "Run dormancy detection on all active accounts")
@@ -37,8 +36,9 @@ public class AccountLifecycleController {
     @Operation(summary = "Reactivate a dormant account")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Void>> reactivateAccount(
-            @PathVariable Long accountId) {
-        lifecycleService.reactivateAccount(accountId);
+            @PathVariable Long accountId,
+            @RequestParam(defaultValue = "SYSTEM") String performedBy) {
+        lifecycleService.reactivateAccount(accountId, performedBy);
         return ResponseEntity.ok(ApiResponse.ok(null, "Account reactivated"));
     }
 
@@ -58,7 +58,7 @@ public class AccountLifecycleController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Page<LifecycleEventDto> result = lifecycleService.getAccountLifecycleHistoryByNumber(
-                accountNumber, pageRequestFactory.create(page, size));
+                accountNumber, PageRequest.of(page, Math.min(size, 100)));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

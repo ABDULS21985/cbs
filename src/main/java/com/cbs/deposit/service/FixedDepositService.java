@@ -102,13 +102,14 @@ public class FixedDepositService {
             fd.setPayoutAccount(payoutAccount);
         }
 
+        // Debit funding account
         accountPostingService.postDebit(
                 account,
                 TransactionType.DEBIT,
                 request.getPrincipalAmount(),
                 "Fixed deposit booking " + depositNumber,
                 TransactionChannel.SYSTEM,
-                "FD:" + depositNumber + ":BOOK");
+                depositNumber + ":BOOK");
 
         FixedDeposit saved = fdRepository.save(fd);
         log.info("Fixed deposit booked: number={}, principal={}, rate={}%, tenure={}d, maturity={}",
@@ -200,7 +201,7 @@ public class FixedDepositService {
                         totalPayout,
                         "Fixed deposit maturity " + fd.getDepositNumber(),
                         TransactionChannel.SYSTEM,
-                        "FD:" + fd.getDepositNumber() + ":MATURITY");
+                        fd.getDepositNumber() + ":MATURITY");
                 fd.setStatus(FixedDepositStatus.MATURED);
                 fd.setClosedDate(LocalDate.now());
                 log.info("FD {} matured: {} credited to account {}", fd.getDepositNumber(), totalPayout, payoutAccount.getAccountNumber());
@@ -214,7 +215,7 @@ public class FixedDepositService {
                             totalPayout,
                             "Fixed deposit maturity " + fd.getDepositNumber(),
                             TransactionChannel.SYSTEM,
-                            "FD:" + fd.getDepositNumber() + ":MATURITY");
+                            fd.getDepositNumber() + ":ROLLOVER_MAX");
                     fd.setStatus(FixedDepositStatus.MATURED);
                 } else {
                     Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
@@ -224,7 +225,7 @@ public class FixedDepositService {
                             interestEarned,
                             "Fixed deposit interest payout " + fd.getDepositNumber(),
                             TransactionChannel.SYSTEM,
-                            "FD:" + fd.getDepositNumber() + ":INTEREST");
+                            fd.getDepositNumber() + ":ROLLOVER_INT");
                     fd.setStartDate(LocalDate.now());
                     fd.setMaturityDate(LocalDate.now().plusDays(fd.getTenureDays()));
                     fd.setCurrentValue(fd.getPrincipalAmount());
@@ -242,7 +243,7 @@ public class FixedDepositService {
                             totalPayout,
                             "Fixed deposit maturity " + fd.getDepositNumber(),
                             TransactionChannel.SYSTEM,
-                            "FD:" + fd.getDepositNumber() + ":MATURITY");
+                            fd.getDepositNumber() + ":ROLLOVER_PI_MAX");
                     fd.setStatus(FixedDepositStatus.MATURED);
                 } else {
                     fd.setPrincipalAmount(totalPayout);
@@ -288,7 +289,7 @@ public class FixedDepositService {
                 payout,
                 "Fixed deposit early termination " + fd.getDepositNumber(),
                 TransactionChannel.SYSTEM,
-                "FD:" + fd.getDepositNumber() + ":BREAK");
+                fd.getDepositNumber() + ":EARLY_TERM");
 
         fd.setStatus(FixedDepositStatus.BROKEN);
         fd.setBrokenDate(LocalDate.now());
@@ -324,7 +325,7 @@ public class FixedDepositService {
                 amount,
                 "Fixed deposit partial liquidation " + fd.getDepositNumber(),
                 TransactionChannel.SYSTEM,
-                "FD:" + fd.getDepositNumber() + ":PARTIAL");
+                fd.getDepositNumber() + ":PARTIAL");
 
         fd.setPrincipalAmount(remaining);
         fd.setCurrentValue(remaining.add(fd.getAccruedInterest().setScale(2, RoundingMode.HALF_UP)));

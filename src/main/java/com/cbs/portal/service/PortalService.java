@@ -252,6 +252,30 @@ public class PortalService {
         customerRepository.save(customer);
     }
 
+    private List<AccountResponse> toAccountResponses(List<Account> accounts) {
+        List<AccountResponse> responses = accountMapper.toResponseList(accounts);
+        if (accounts.isEmpty()) {
+            return responses;
+        }
+
+        Map<Long, List<com.cbs.account.entity.AccountSignatory>> signatoriesByAccountId = signatoryRepository
+                .findByAccountIdInWithCustomer(accounts.stream().map(Account::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(signatory -> signatory.getAccount().getId()));
+
+        Map<Long, AccountResponse> responseById = responses.stream()
+                .collect(Collectors.toMap(AccountResponse::getId, Function.identity()));
+
+        for (Account account : accounts) {
+            AccountResponse response = responseById.get(account.getId());
+            if (response != null) {
+                response.setSignatories(accountMapper.toSignatoryDtoList(
+                        signatoriesByAccountId.getOrDefault(account.getId(), List.of())));
+            }
+        }
+        return responses;
+    }
+
     private ProfileUpdateRequestDto toDto(ProfileUpdateRequest entity) {
         return ProfileUpdateRequestDto.builder()
                 .id(entity.getId())
@@ -265,23 +289,5 @@ public class PortalService {
                 .reviewedBy(entity.getReviewedBy())
                 .rejectionReason(entity.getRejectionReason())
                 .build();
-    }
-
-    private List<AccountResponse> toAccountResponses(List<Account> accounts) {
-        if (accounts.isEmpty()) {
-            return List.of();
-        }
-
-        List<AccountResponse> responses = accountMapper.toResponseList(accounts);
-        Map<Long, AccountResponse> responseById = responses.stream()
-                .collect(Collectors.toMap(AccountResponse::getId, Function.identity()));
-        Map<Long, List<com.cbs.account.entity.AccountSignatory>> signatoriesByAccountId = signatoryRepository
-                .findByAccountIdInWithCustomer(accounts.stream().map(Account::getId).toList())
-                .stream()
-                .collect(Collectors.groupingBy(signatory -> signatory.getAccount().getId()));
-
-        responseById.forEach((accountId, response) -> response.setSignatories(
-                accountMapper.toSignatoryDtoList(signatoriesByAccountId.getOrDefault(accountId, List.of()))));
-        return responses;
     }
 }

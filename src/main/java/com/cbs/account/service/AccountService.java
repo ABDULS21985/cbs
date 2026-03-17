@@ -7,7 +7,6 @@ import com.cbs.account.repository.*;
 import com.cbs.account.validation.AccountValidator;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
-import com.cbs.common.exception.DuplicateResourceException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerStatus;
@@ -27,7 +26,6 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -51,8 +49,6 @@ public class AccountService {
     private final AccountPostingService accountPostingService;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
-
-    private static final DateTimeFormatter TXN_DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     // ========================================================================
     // ACCOUNT OPENING
@@ -186,8 +182,7 @@ public class AccountService {
         TransactionJournal txn = accountPostingService.postDebit(
                 account,
                 request.getTransactionType(),
-                request.getAmount(),
-                request.getNarration(),
+                request.getAmount(), request.getNarration(),
                 request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
                 request.getExternalRef());
 
@@ -200,8 +195,7 @@ public class AccountService {
         TransactionJournal txn = accountPostingService.postCredit(
                 account,
                 request.getTransactionType(),
-                request.getAmount(),
-                request.getNarration(),
+                request.getAmount(), request.getNarration(),
                 request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
                 request.getExternalRef());
 
@@ -321,10 +315,8 @@ public class AccountService {
                 String.format("Interest posting @ %s%% p.a. (%s)",
                         account.getApplicableInterestRate(),
                         cbsProperties.getInterest().getDayCountConvention()),
-                TransactionChannel.SYSTEM,
-                null);
+                TransactionChannel.SYSTEM, null);
 
-        accountRepository.save(account);
         return accountMapper.toTransactionResponse(txn);
     }
 
@@ -400,34 +392,6 @@ public class AccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
     }
 
-    private TransactionJournal postTransaction(Account account, TransactionType type,
-                                                BigDecimal amount, String narration,
-                                                TransactionChannel channel, String externalRef) {
-        if (StringUtils.hasText(externalRef) && transactionRepository.existsByExternalRef(externalRef)) {
-            throw new DuplicateResourceException("Transaction", "externalRef", externalRef);
-        }
-
-        Long seq = transactionRepository.getNextTransactionRefSequence();
-        String txnRef = numberGenerator.generateTxnRef(seq, LocalDate.now().format(TXN_DATE_FMT));
-
-        TransactionJournal txn = TransactionJournal.builder()
-                .transactionRef(txnRef)
-                .account(account)
-                .transactionType(type)
-                .amount(amount)
-                .currencyCode(account.getCurrencyCode())
-                .runningBalance(account.getBookBalance())
-                .narration(narration)
-                .valueDate(LocalDate.now())
-                .postingDate(LocalDate.now())
-                .channel(channel)
-                .externalRef(externalRef)
-                .status("POSTED")
-                .build();
-
-        return transactionRepository.save(txn);
-    }
-
     private BigDecimal resolveBalanceForInterest(Account account, Product product) {
         String method = product.getInterestCalcMethod();
         if ("MINIMUM_BALANCE".equals(method)) {
@@ -441,33 +405,38 @@ public class AccountService {
         return account.getBookBalance();
     }
 
-    private AccountResponse buildAccountResponse(Account account) {
-        AccountResponse response = accountMapper.toResponse(account);
-        List<AccountSignatory> signatories = signatoryRepository.findByAccountIdWithCustomer(account.getId());
-        response.setSignatories(accountMapper.toSignatoryDtoList(signatories));
-        return response;
-    }
-
     private Page<AccountResponse> mapAccountPage(Page<Account> page) {
-        List<AccountResponse> content = mapAccounts(page.getContent());
-        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
+        return new PageImpl<>(mapAccounts(page.getContent()), page.getPageable(), page.getTotalElements());
     }
 
     private List<AccountResponse> mapAccounts(List<Account> accounts) {
+        List<AccountResponse> responses = accountMapper.toResponseList(accounts);
         if (accounts.isEmpty()) {
-            return List.of();
+            return responses;
         }
 
-        List<AccountResponse> responses = accountMapper.toResponseList(accounts);
-        Map<Long, AccountResponse> responseById = responses.stream()
-                .collect(Collectors.toMap(AccountResponse::getId, Function.identity()));
         Map<Long, List<AccountSignatory>> signatoriesByAccountId = signatoryRepository
                 .findByAccountIdInWithCustomer(accounts.stream().map(Account::getId).toList())
                 .stream()
                 .collect(Collectors.groupingBy(signatory -> signatory.getAccount().getId()));
 
-        responseById.forEach((accountId, response) -> response.setSignatories(
-                accountMapper.toSignatoryDtoList(signatoriesByAccountId.getOrDefault(accountId, List.of()))));
+        Map<Long, AccountResponse> responseById = responses.stream()
+                .collect(Collectors.toMap(AccountResponse::getId, Function.identity()));
+
+        for (Account account : accounts) {
+            AccountResponse response = responseById.get(account.getId());
+            if (response != null) {
+                response.setSignatories(accountMapper.toSignatoryDtoList(
+                        signatoriesByAccountId.getOrDefault(account.getId(), List.of())));
+            }
+        }
         return responses;
+    }
+
+    private AccountResponse buildAccountResponse(Account account) {
+        AccountResponse response = accountMapper.toResponse(account);
+        List<AccountSignatory> signatories = signatoryRepository.findByAccountIdWithCustomer(account.getId());
+        response.setSignatories(accountMapper.toSignatoryDtoList(signatories));
+        return response;
     }
 }

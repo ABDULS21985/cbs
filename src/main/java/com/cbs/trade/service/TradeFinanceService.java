@@ -83,13 +83,15 @@ public class TradeFinanceService {
                 throw new BusinessException("Insufficient balance for LC margin + commission", "INSUFFICIENT_BALANCE");
             }
             marginAccount.placeLien(marginAmt);
-            accountPostingService.postDebit(
-                    marginAccount,
-                    TransactionType.DEBIT,
-                    commissionAmt,
-                    "LC commission " + lcNumber,
-                    TransactionChannel.SYSTEM,
-                    "LC:" + lcNumber + ":COMMISSION");
+            if (commissionAmt.compareTo(BigDecimal.ZERO) > 0) {
+                accountPostingService.postDebit(
+                        marginAccount,
+                        TransactionType.DEBIT,
+                        commissionAmt,
+                        "LC commission " + lcNumber,
+                        TransactionChannel.SYSTEM,
+                        lcNumber + ":COMM");
+            }
             accountRepository.save(marginAccount);
             lc.setMarginAccount(marginAccount);
         }
@@ -122,7 +124,7 @@ public class TradeFinanceService {
                     claimedAmount,
                     "LC settlement " + lc.getLcNumber(),
                     TransactionChannel.SYSTEM,
-                    "LC:" + lc.getLcNumber() + ":SETTLE");
+                    lc.getLcNumber() + ":SETTLE");
             accountRepository.save(lc.getMarginAccount());
         }
 
@@ -200,7 +202,7 @@ public class TradeFinanceService {
                         bg.getCommissionAmount(),
                         "Guarantee commission " + bgNumber,
                         TransactionChannel.SYSTEM,
-                        "BG:" + bgNumber + ":COMMISSION");
+                        bgNumber + ":COMM");
             }
             accountRepository.save(marginAccount);
             bg.setMarginAccount(marginAccount);
@@ -230,7 +232,7 @@ public class TradeFinanceService {
                     claimAmount,
                     "Guarantee claim " + bg.getGuaranteeNumber(),
                     TransactionChannel.SYSTEM,
-                    "BG:" + bg.getGuaranteeNumber() + ":CLAIM");
+                    bg.getGuaranteeNumber() + ":CLAIM");
             accountRepository.save(bg.getMarginAccount());
         }
 

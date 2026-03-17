@@ -18,7 +18,6 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
     Optional<CardTransaction> findByTransactionRef(String transactionRef);
     @EntityGraph(attributePaths = {"card", "account"})
     Page<CardTransaction> findByCardIdOrderByTransactionDateDesc(Long cardId, Pageable pageable);
-
     @EntityGraph(attributePaths = {"card", "account"})
     Page<CardTransaction> findByAccountIdOrderByTransactionDateDesc(Long accountId, Pageable pageable);
 

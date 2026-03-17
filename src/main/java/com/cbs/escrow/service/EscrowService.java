@@ -35,8 +35,8 @@ public class EscrowService {
     private final EscrowMandateRepository mandateRepository;
     private final EscrowReleaseRepository releaseRepository;
     private final AccountRepository accountRepository;
-    private final CustomerRepository customerRepository;
     private final AccountPostingService accountPostingService;
+    private final CustomerRepository customerRepository;
     private final CurrentActorProvider currentActorProvider;
 
     @Transactional
@@ -153,7 +153,7 @@ public class EscrowService {
                     release.getReleaseAmount(),
                     "Escrow release " + mandate.getMandateNumber(),
                     TransactionChannel.SYSTEM,
-                    "ESCROW:" + mandate.getMandateNumber() + ":RELEASE");
+                    mandate.getMandateNumber() + ":RELEASE:" + release.getId());
         }
 
         // Update mandate

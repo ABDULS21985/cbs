@@ -50,8 +50,8 @@ public class CardDisputeService {
 
         Long seq = disputeRepository.getNextDisputeSequence();
         String ref = String.format("DSP%012d", seq);
-        String createdBy = currentActorProvider.getCurrentActor();
 
+        String createdBy = currentActorProvider.getCurrentActor();
         CardDispute dispute = CardDispute.builder()
                 .disputeRef(ref).cardId(cardId).customerId(customerId).accountId(accountId)
                 .transactionId(transactionId).transactionRef(transactionRef)
@@ -80,7 +80,6 @@ public class CardDisputeService {
     @Transactional
     public CardDispute issueProvisionalCredit(Long disputeId) {
         CardDispute dispute = findDisputeOrThrow(disputeId);
-        String performedBy = currentActorProvider.getCurrentActor();
 
         if (dispute.getProvisionalCreditAmount() != null) {
             throw new BusinessException("Provisional credit already issued", "PROV_CREDIT_EXISTS");
@@ -89,13 +88,14 @@ public class CardDisputeService {
         Account account = accountRepository.findById(dispute.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", dispute.getAccountId()));
 
+        String performedBy = currentActorProvider.getCurrentActor();
         accountPostingService.postCredit(
                 account,
-                TransactionType.CREDIT,
+                TransactionType.ADJUSTMENT,
                 dispute.getDisputeAmount(),
-                "Provisional credit " + dispute.getDisputeRef(),
-                TransactionChannel.SYSTEM,
-                "DISPUTE:" + dispute.getDisputeRef() + ":PROV");
+                "Provisional credit for dispute " + dispute.getDisputeRef(),
+                TransactionChannel.CARD,
+                dispute.getDisputeRef() + ":PROV_CR");
 
         dispute.setProvisionalCreditAmount(dispute.getDisputeAmount());
         dispute.setProvisionalCreditDate(LocalDate.now());
@@ -196,11 +196,11 @@ public class CardDisputeService {
                     .orElseThrow(() -> new ResourceNotFoundException("Account", "id", dispute.getAccountId()));
             accountPostingService.postDebit(
                     account,
-                    TransactionType.DEBIT,
+                    TransactionType.ADJUSTMENT,
                     dispute.getProvisionalCreditAmount(),
-                    "Provisional credit reversal " + dispute.getDisputeRef(),
-                    TransactionChannel.SYSTEM,
-                    "DISPUTE:" + dispute.getDisputeRef() + ":REV");
+                    "Provisional credit reversal for dispute " + dispute.getDisputeRef(),
+                    TransactionChannel.CARD,
+                    dispute.getDisputeRef() + ":PROV_DR");
             dispute.setProvisionalCreditReversed(true);
             log.info("Provisional credit reversed: dispute={}, amount={}", dispute.getDisputeRef(), dispute.getProvisionalCreditAmount());
         }

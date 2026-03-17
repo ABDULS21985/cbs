@@ -112,9 +112,9 @@ public class SavingsGoalService {
             }
             accountPostingService.postDebit(
                     sourceAccount,
-                    TransactionType.DEBIT,
+                    TransactionType.TRANSFER_OUT,
                     request.getAmount(),
-                    request.getNarration() != null ? request.getNarration() : "Goal funding " + goal.getGoalNumber(),
+                    request.getNarration() != null ? request.getNarration() : "Goal funding: " + goal.getGoalName(),
                     TransactionChannel.SYSTEM,
                     "GOAL:" + goal.getGoalNumber() + ":FUND");
         }
@@ -163,9 +163,9 @@ public class SavingsGoalService {
 
         accountPostingService.postCredit(
                 destinationAccount,
-                TransactionType.CREDIT,
+                TransactionType.TRANSFER_IN,
                 request.getAmount(),
-                request.getNarration() != null ? request.getNarration() : "Goal withdrawal " + goal.getGoalNumber(),
+                request.getNarration() != null ? request.getNarration() : "Goal withdrawal: " + goal.getGoalName(),
                 TransactionChannel.SYSTEM,
                 "GOAL:" + goal.getGoalNumber() + ":WITHDRAW");
 
@@ -193,9 +193,9 @@ public class SavingsGoalService {
             Account account = goal.getAccount();
             accountPostingService.postCredit(
                     account,
-                    TransactionType.CREDIT,
+                    TransactionType.TRANSFER_IN,
                     goal.getCurrentAmount(),
-                    "Goal cancellation " + goal.getGoalNumber(),
+                    "Goal cancellation refund: " + goal.getGoalName(),
                     TransactionChannel.SYSTEM,
                     "GOAL:" + goal.getGoalNumber() + ":CANCEL");
             goal.setCurrentAmount(BigDecimal.ZERO);
@@ -218,11 +218,11 @@ public class SavingsGoalService {
                 if (debitAccount.getAvailableBalance().compareTo(amount) >= 0) {
                     accountPostingService.postDebit(
                             debitAccount,
-                            TransactionType.DEBIT,
+                            TransactionType.TRANSFER_OUT,
                             amount,
                             "Auto-debit for goal: " + goal.getGoalName(),
                             TransactionChannel.SYSTEM,
-                            "GOAL:" + goal.getGoalNumber() + ":AUTO");
+                            "GOAL:" + goal.getGoalNumber() + ":AUTO:" + goal.getNextAutoDebitDate());
                     goal.deposit(amount);
 
                     SavingsGoalTransaction txn = SavingsGoalTransaction.builder()

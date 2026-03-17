@@ -200,9 +200,9 @@ public class CardService {
                     account,
                     TransactionType.DEBIT,
                     amount,
-                    "Card authorization " + txnRef + " (" + channel + ")",
+                    "Card authorization " + txnRef,
                     mapPostingChannel(channel),
-                    "CARD:" + txnRef + ":DR");
+                    txnRef);
         } else if (card.getCardType() == CardType.CREDIT) {
             if (card.getAvailableCredit() == null || card.getAvailableCredit().compareTo(amount) < 0) {
                 txn.setStatus("DECLINED");
@@ -282,9 +282,8 @@ public class CardService {
         return switch (channel.toUpperCase()) {
             case "ATM" -> TransactionChannel.ATM;
             case "POS" -> TransactionChannel.POS;
-            case "MOBILE" -> TransactionChannel.MOBILE;
-            case "INTERNET", "ONLINE", "WEB" -> TransactionChannel.INTERNET;
-            case "API" -> TransactionChannel.API;
+            case "ONLINE", "WEB", "MOBILE" -> TransactionChannel.MOBILE;
+            case "BRANCH" -> TransactionChannel.BRANCH;
             default -> TransactionChannel.SYSTEM;
         };
     }

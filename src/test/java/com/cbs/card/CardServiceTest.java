@@ -2,7 +2,6 @@ package com.cbs.card;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.*;
 import com.cbs.card.service.CardService;
@@ -31,7 +30,6 @@ class CardServiceTest {
     @Mock private CardRepository cardRepository;
     @Mock private CardTransactionRepository txnRepository;
     @Mock private AccountRepository accountRepository;
-    @Mock private AccountPostingService accountPostingService;
 
     @InjectMocks private CardService cardService;
 
@@ -70,13 +68,6 @@ class CardServiceTest {
                 .isContactlessEnabled(true).isOnlineEnabled(true).isInternationalEnabled(true)
                 .isAtmEnabled(true).isPosEnabled(true).pinRetriesRemaining(3)
                 .cardNumberHash("def456").cardNumberMasked("522222******5678").build();
-
-        lenient().when(accountPostingService.postDebit(any(Account.class), any(), any(), anyString(), any(), anyString()))
-                .thenAnswer(invocation -> {
-                    Account fundingAccount = invocation.getArgument(0);
-                    fundingAccount.debit(invocation.getArgument(2));
-                    return new TransactionJournal();
-                });
     }
 
     @Test
@@ -85,6 +76,7 @@ class CardServiceTest {
         when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
         when(txnRepository.sumDailyUsageByChannel(eq(1L), eq("POS"), any(Instant.class)))
                 .thenReturn(BigDecimal.ZERO);
+        when(accountRepository.save(any())).thenReturn(account);
         when(cardRepository.save(any())).thenReturn(debitCard);
         when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 

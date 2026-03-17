@@ -80,8 +80,7 @@ public class CardDisputeController {
     @PostMapping("/{id}/representment")
     @Operation(summary = "Record merchant representment")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<CardDispute>> representment(@PathVariable Long id,
-            @RequestParam String merchantResponse) {
+    public ResponseEntity<ApiResponse<CardDispute>> representment(@PathVariable Long id, @RequestParam String merchantResponse) {
         return ResponseEntity.ok(ApiResponse.ok(disputeService.recordRepresentment(id, merchantResponse)));
     }
 

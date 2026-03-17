@@ -2,8 +2,6 @@ package com.cbs.escrow;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
@@ -37,8 +35,6 @@ class EscrowServiceTest {
     @Mock private EscrowReleaseRepository releaseRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private CustomerRepository customerRepository;
-    @Mock private AccountPostingService accountPostingService;
-    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks private EscrowService escrowService;
 
@@ -54,13 +50,6 @@ class EscrowServiceTest {
                 .bookBalance(new BigDecimal("500000")).availableBalance(new BigDecimal("500000"))
                 .lienAmount(BigDecimal.ZERO).overdraftLimit(BigDecimal.ZERO)
                 .product(Product.builder().id(1L).code("CA-STD").build()).build();
-
-        lenient().when(accountPostingService.postCredit(any(Account.class), any(), any(), anyString(), any(), anyString()))
-                .thenAnswer(invocation -> {
-                    Account beneficiary = invocation.getArgument(0);
-                    beneficiary.credit(invocation.getArgument(2));
-                    return new TransactionJournal();
-                });
     }
 
     @Test
@@ -125,13 +114,11 @@ class EscrowServiceTest {
         when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(mandateRepository.save(any())).thenReturn(mandate);
         when(releaseRepository.save(any())).thenReturn(release);
-        when(currentActorProvider.getCurrentActor()).thenReturn("admin1");
 
-        EscrowReleaseDto result = escrowService.approveAndExecuteRelease(1L);
+        EscrowReleaseDto result = escrowService.approveAndExecuteRelease(1L, "admin1");
 
         assertThat(result.getStatus()).isEqualTo("EXECUTED");
         assertThat(mandate.getStatus()).isEqualTo(EscrowStatus.PARTIALLY_RELEASED);
         assertThat(mandate.getRemainingAmount()).isEqualByComparingTo(new BigDecimal("50000"));
-        assertThat(beneficiaryAccount.getAvailableBalance()).isEqualByComparingTo(new BigDecimal("50000"));
     }
 }

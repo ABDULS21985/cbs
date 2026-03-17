@@ -140,17 +140,17 @@ public class RemittanceService {
         if (senderAccount.getAvailableBalance().compareTo(quote.totalDebit()) < 0) {
             throw new BusinessException("Insufficient balance for remittance", "INSUFFICIENT_BALANCE");
         }
-        accountPostingService.postDebit(
-                senderAccount,
-                TransactionType.DEBIT,
-                quote.totalDebit(),
-                "Remittance " + sourceCountry + " to " + destinationCountry,
-                TransactionChannel.SYSTEM,
-                "RMT:" + senderAccountId + ":" + System.currentTimeMillis());
 
         // Route through orchestration
         Long seq = txnRepository.getNextRemittanceSequence();
         String ref = String.format("RMT%012d", seq);
+        accountPostingService.postDebit(
+                senderAccount,
+                TransactionType.DEBIT,
+                quote.totalDebit(),
+                "Remittance " + ref,
+                TransactionChannel.SYSTEM,
+                ref + ":DR");
 
         var routingDecision = orchestrationService.routePayment(ref, sourceCountry, destinationCountry,
                 corridor.getSourceCurrency(), sourceAmount, "REMITTANCE");

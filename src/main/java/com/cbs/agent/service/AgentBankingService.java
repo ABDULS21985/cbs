@@ -87,7 +87,7 @@ public class AgentBankingService {
                         amount,
                         "Agent cash-in " + agentCode,
                         TransactionChannel.AGENT,
-                        "AGENT:" + agentCode + ":" + System.currentTimeMillis());
+                        agentCode + ":CASH_IN");
             } else if ("CASH_OUT".equals(transactionType)) {
                 if (account.getAvailableBalance().compareTo(amount) < 0) {
                     throw new BusinessException("Insufficient customer balance", "INSUFFICIENT_BALANCE");
@@ -98,7 +98,7 @@ public class AgentBankingService {
                         amount,
                         "Agent cash-out " + agentCode,
                         TransactionChannel.AGENT,
-                        "AGENT:" + agentCode + ":" + System.currentTimeMillis());
+                        agentCode + ":CASH_OUT");
             }
         }
 
@@ -114,7 +114,7 @@ public class AgentBankingService {
                         commission,
                         "Agent commission " + agentCode,
                         TransactionChannel.AGENT,
-                        "AGENT:" + agentCode + ":COMMISSION");
+                        agentCode + ":COMMISSION");
             });
         }
 
