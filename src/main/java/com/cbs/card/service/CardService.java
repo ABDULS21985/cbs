@@ -231,7 +231,7 @@ public class CardService {
 
     @Transactional
     public CardTransaction disputeTransaction(Long txnId, String reason) {
-        CardTransaction txn = txnRepository.findById(txnId)
+        CardTransaction txn = txnRepository.findByIdWithDetails(txnId)
                 .orElseThrow(() -> new ResourceNotFoundException("CardTransaction", "id", txnId));
         txn.setIsDisputed(true);
         txn.setDisputeReason(reason);

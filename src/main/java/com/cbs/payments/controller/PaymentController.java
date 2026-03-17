@@ -2,13 +2,13 @@ package com.cbs.payments.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
+import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.payments.entity.*;
 import com.cbs.payments.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +25,7 @@ import java.util.List;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final CbsPageRequestFactory pageRequestFactory;
 
     @PostMapping("/transfer")
     @Operation(summary = "Internal book transfer between accounts")
@@ -99,7 +100,7 @@ public class PaymentController {
             @PathVariable Long accountId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         Page<PaymentInstruction> result = paymentService.getAccountPayments(accountId,
-                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+                pageRequestFactory.create(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 

@@ -2,10 +2,12 @@ package com.cbs.card;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.card.dispute.*;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.CardRepository;
 import com.cbs.card.tokenisation.*;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +39,8 @@ class CardTokenAndDisputeTest {
     // ========== DISPUTES ==========
     @Mock private CardDisputeRepository disputeRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CurrentActorProvider currentActorProvider;
     @InjectMocks private CardDisputeService disputeService;
 
     private Card activeCard;
@@ -114,12 +118,13 @@ class CardTokenAndDisputeTest {
     @DisplayName("Should initiate dispute with scheme-compliant deadlines")
     void initiateDispute_Success() {
         when(disputeRepository.getNextDisputeSequence()).thenReturn(1L);
+        when(currentActorProvider.getCurrentActor()).thenReturn("customer1");
         when(disputeRepository.save(any())).thenAnswer(inv -> { CardDispute d = inv.getArgument(0); d.setId(1L); return d; });
 
         CardDispute result = disputeService.initiateDispute(1L, 1L, 10L, null, "CTX-001",
                 LocalDate.now().minusDays(5), new BigDecimal("500"), "USD",
                 "Amazon", "AMZN001", DisputeType.MERCHANDISE_NOT_RECEIVED,
-                "Item never delivered", new BigDecimal("500"), "VISA", "customer1");
+                "Item never delivered", new BigDecimal("500"), "VISA");
 
         assertThat(result.getStatus()).isEqualTo(DisputeStatus.INITIATED);
         assertThat(result.getFilingDeadline()).isEqualTo(LocalDate.now().minusDays(5).plusDays(120));
@@ -130,12 +135,13 @@ class CardTokenAndDisputeTest {
     @DisplayName("Fraud dispute gets 540-day filing deadline")
     void fraudDispute_ExtendedDeadline() {
         when(disputeRepository.getNextDisputeSequence()).thenReturn(2L);
+        when(currentActorProvider.getCurrentActor()).thenReturn("customer1");
         when(disputeRepository.save(any())).thenAnswer(inv -> { CardDispute d = inv.getArgument(0); d.setId(2L); return d; });
 
         LocalDate txnDate = LocalDate.now().minusDays(10);
         CardDispute result = disputeService.initiateDispute(1L, 1L, 10L, null, null,
                 txnDate, new BigDecimal("2000"), "USD", "Unknown", null,
-                DisputeType.FRAUD, "Unauthorized transaction", new BigDecimal("2000"), "MASTERCARD", "customer1");
+                DisputeType.FRAUD, "Unauthorized transaction", new BigDecimal("2000"), "MASTERCARD");
 
         assertThat(result.getFilingDeadline()).isEqualTo(txnDate.plusDays(540));
     }
@@ -150,10 +156,18 @@ class CardTokenAndDisputeTest {
 
         when(disputeRepository.findById(1L)).thenReturn(Optional.of(dispute));
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
+        when(currentActorProvider.getCurrentActor()).thenReturn("officer1");
+        when(accountPostingService.postCredit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
+                anyString(), any(TransactionChannel.class), anyString()))
+                .thenAnswer(invocation -> {
+                    Account target = invocation.getArgument(0);
+                    BigDecimal amount = invocation.getArgument(2);
+                    target.credit(amount);
+                    return TransactionJournal.builder().account(target).runningBalance(target.getBookBalance()).build();
+                });
         when(disputeRepository.save(any())).thenReturn(dispute);
-        when(accountRepository.save(any())).thenReturn(account);
 
-        CardDispute result = disputeService.issueProvisionalCredit(1L, "officer1");
+        CardDispute result = disputeService.issueProvisionalCredit(1L);
 
         assertThat(result.getProvisionalCreditAmount()).isEqualByComparingTo(new BigDecimal("500"));
         assertThat(result.getStatus()).isEqualTo(DisputeStatus.INVESTIGATION);
@@ -171,10 +185,18 @@ class CardTokenAndDisputeTest {
 
         when(disputeRepository.findById(2L)).thenReturn(Optional.of(dispute));
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
+        when(currentActorProvider.getCurrentActor()).thenReturn("officer1");
+        when(accountPostingService.postDebit(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
+                anyString(), any(TransactionChannel.class), anyString()))
+                .thenAnswer(invocation -> {
+                    Account source = invocation.getArgument(0);
+                    BigDecimal amount = invocation.getArgument(2);
+                    source.debit(amount);
+                    return TransactionJournal.builder().account(source).runningBalance(source.getBookBalance()).build();
+                });
         when(disputeRepository.save(any())).thenReturn(dispute);
-        when(accountRepository.save(any())).thenReturn(account);
 
-        CardDispute result = disputeService.resolveDispute(2L, "MERCHANT_FAVOUR", new BigDecimal("300"), "Merchant evidence compelling", "officer1");
+        CardDispute result = disputeService.resolveDispute(2L, "MERCHANT_FAVOUR", new BigDecimal("300"), "Merchant evidence compelling");
 
         assertThat(result.getStatus()).isEqualTo(DisputeStatus.RESOLVED_MERCHANT);
         assertThat(result.getProvisionalCreditReversed()).isTrue();
