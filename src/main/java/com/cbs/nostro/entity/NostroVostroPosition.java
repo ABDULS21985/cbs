@@ -4,7 +4,6 @@ import com.cbs.account.entity.Account;
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -19,7 +18,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@SuperBuilder
+@Builder
 public class NostroVostroPosition extends AuditableEntity {
 
     @Id

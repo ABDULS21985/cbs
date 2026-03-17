@@ -4,14 +4,13 @@ import com.cbs.account.entity.Account;
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "payment_instruction", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class PaymentInstruction extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

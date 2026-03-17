@@ -3,13 +3,12 @@ package com.cbs.lending.entity;
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "loan_product", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class LoanProduct extends AuditableEntity {
 
     @Id

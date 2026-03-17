@@ -5,7 +5,6 @@ import com.cbs.common.audit.AuditableEntity;
 import com.cbs.customer.entity.Customer;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,7 +13,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "credit_facility", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class CreditFacility extends AuditableEntity {
 
     @Id

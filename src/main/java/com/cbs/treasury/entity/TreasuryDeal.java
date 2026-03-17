@@ -5,7 +5,6 @@ import com.cbs.common.audit.AuditableEntity;
 import com.cbs.nostro.entity.CorrespondentBank;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -17,7 +16,7 @@ import java.util.Map;
 
 @Entity
 @Table(name = "treasury_deal", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class TreasuryDeal extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

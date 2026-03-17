@@ -5,7 +5,6 @@ import com.cbs.customer.entity.Customer;
 import com.cbs.lending.entity.LoanAccount;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -18,7 +17,7 @@ import java.util.Map;
 
 @Entity
 @Table(name = "collection_case", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class CollectionCase extends AuditableEntity {
 
     @Id

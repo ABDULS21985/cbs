@@ -3,7 +3,6 @@ package com.cbs.segmentation.entity;
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 @Entity
 @Table(name = "segment_rule", schema = "cbs")
@@ -11,7 +10,7 @@ import lombok.experimental.SuperBuilder;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@SuperBuilder
+@Builder
 public class SegmentRule extends AuditableEntity {
 
     @Id

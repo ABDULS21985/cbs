@@ -1,0 +1,3 @@
+package com.cbs.trade.entity;
+
+public enum ScfProgrammeType { APPROVED_PAYABLES, RECEIVABLES_DISCOUNT, DYNAMIC_DISCOUNT, DISTRIBUTOR_FINANCE, DEALER_FINANCE }

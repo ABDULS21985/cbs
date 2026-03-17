@@ -3,13 +3,12 @@ package com.cbs.vault.entity;
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "vault", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Vault extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

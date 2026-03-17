@@ -1,0 +1,3 @@
+package com.cbs.trade.entity;
+
+public enum LcType { IMPORT_LC, EXPORT_LC, STANDBY_LC, TRANSFERABLE_LC, REVOLVING_LC, RED_CLAUSE, GREEN_CLAUSE, BACK_TO_BACK }

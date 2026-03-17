@@ -1,0 +1,3 @@
+package com.cbs.trade.entity;
+
+public enum GuaranteeType { PERFORMANCE, BID_BOND, ADVANCE_PAYMENT, CUSTOMS, FINANCIAL, PAYMENT, RETENTION, WARRANTY, SHIPPING, OTHER }

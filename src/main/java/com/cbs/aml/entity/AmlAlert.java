@@ -5,7 +5,6 @@ import com.cbs.common.audit.AuditableEntity;
 import com.cbs.customer.entity.Customer;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -17,7 +16,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "aml_alert", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class AmlAlert extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

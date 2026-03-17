@@ -3,7 +3,6 @@ package com.cbs.branch.entity;
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -16,7 +15,7 @@ import java.util.Map;
 
 @Entity
 @Table(name = "branch", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Branch extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;

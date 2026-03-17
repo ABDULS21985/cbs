@@ -5,7 +5,6 @@ import com.cbs.common.audit.AuditableEntity;
 import com.cbs.customer.entity.Customer;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -17,7 +16,7 @@ import java.util.Map;
 
 @Entity
 @Table(name = "loan_application", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class LoanApplication extends AuditableEntity {
 
     @Id

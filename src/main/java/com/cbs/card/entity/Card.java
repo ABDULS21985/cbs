@@ -5,14 +5,13 @@ import com.cbs.common.audit.AuditableEntity;
 import com.cbs.customer.entity.Customer;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "card", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Card extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

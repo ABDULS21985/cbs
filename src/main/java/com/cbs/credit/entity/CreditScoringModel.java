@@ -3,7 +3,6 @@ package com.cbs.credit.entity;
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
-import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -11,7 +10,7 @@ import java.util.Map;
 
 @Entity
 @Table(name = "credit_scoring_model", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class CreditScoringModel extends AuditableEntity {
 
     @Id
