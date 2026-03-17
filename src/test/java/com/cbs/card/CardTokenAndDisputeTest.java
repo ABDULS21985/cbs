@@ -2,10 +2,12 @@ package com.cbs.card;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.card.dispute.*;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.CardRepository;
 import com.cbs.card.tokenisation.*;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +39,8 @@ class CardTokenAndDisputeTest {
     // ========== DISPUTES ==========
     @Mock private CardDisputeRepository disputeRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CurrentActorProvider currentActorProvider;
     @InjectMocks private CardDisputeService disputeService;
 
     private Card activeCard;
@@ -53,6 +57,20 @@ class CardTokenAndDisputeTest {
                 .cardType(CardType.DEBIT).cardScheme(CardScheme.VISA).cardholderName("JANE DOE")
                 .expiryDate(LocalDate.now().plusYears(3)).currencyCode("USD").status(CardStatus.ACTIVE)
                 .cardNumberHash("abc123").cardNumberMasked("411111******1234").build();
+
+        lenient().when(currentActorProvider.getCurrentActor()).thenReturn("case.officer");
+        lenient().when(accountPostingService.postCredit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+                .thenAnswer(invocation -> {
+                    Account fundingAccount = invocation.getArgument(0);
+                    fundingAccount.credit(invocation.getArgument(2));
+                    return new TransactionJournal();
+                });
+        lenient().when(accountPostingService.postDebit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+                .thenAnswer(invocation -> {
+                    Account fundingAccount = invocation.getArgument(0);
+                    fundingAccount.debit(invocation.getArgument(2));
+                    return new TransactionJournal();
+                });
     }
 
     // ========== TOKENISATION TESTS ==========
@@ -119,7 +137,7 @@ class CardTokenAndDisputeTest {
         CardDispute result = disputeService.initiateDispute(1L, 1L, 10L, null, "CTX-001",
                 LocalDate.now().minusDays(5), new BigDecimal("500"), "USD",
                 "Amazon", "AMZN001", DisputeType.MERCHANDISE_NOT_RECEIVED,
-                "Item never delivered", new BigDecimal("500"), "VISA", "customer1");
+                "Item never delivered", new BigDecimal("500"), "VISA");
 
         assertThat(result.getStatus()).isEqualTo(DisputeStatus.INITIATED);
         assertThat(result.getFilingDeadline()).isEqualTo(LocalDate.now().minusDays(5).plusDays(120));
@@ -135,7 +153,7 @@ class CardTokenAndDisputeTest {
         LocalDate txnDate = LocalDate.now().minusDays(10);
         CardDispute result = disputeService.initiateDispute(1L, 1L, 10L, null, null,
                 txnDate, new BigDecimal("2000"), "USD", "Unknown", null,
-                DisputeType.FRAUD, "Unauthorized transaction", new BigDecimal("2000"), "MASTERCARD", "customer1");
+                DisputeType.FRAUD, "Unauthorized transaction", new BigDecimal("2000"), "MASTERCARD");
 
         assertThat(result.getFilingDeadline()).isEqualTo(txnDate.plusDays(540));
     }
@@ -151,9 +169,8 @@ class CardTokenAndDisputeTest {
         when(disputeRepository.findById(1L)).thenReturn(Optional.of(dispute));
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
         when(disputeRepository.save(any())).thenReturn(dispute);
-        when(accountRepository.save(any())).thenReturn(account);
 
-        CardDispute result = disputeService.issueProvisionalCredit(1L, "officer1");
+        CardDispute result = disputeService.issueProvisionalCredit(1L);
 
         assertThat(result.getProvisionalCreditAmount()).isEqualByComparingTo(new BigDecimal("500"));
         assertThat(result.getStatus()).isEqualTo(DisputeStatus.INVESTIGATION);
@@ -172,9 +189,8 @@ class CardTokenAndDisputeTest {
         when(disputeRepository.findById(2L)).thenReturn(Optional.of(dispute));
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
         when(disputeRepository.save(any())).thenReturn(dispute);
-        when(accountRepository.save(any())).thenReturn(account);
 
-        CardDispute result = disputeService.resolveDispute(2L, "MERCHANT_FAVOUR", new BigDecimal("300"), "Merchant evidence compelling", "officer1");
+        CardDispute result = disputeService.resolveDispute(2L, "MERCHANT_FAVOUR", new BigDecimal("300"), "Merchant evidence compelling");
 
         assertThat(result.getStatus()).isEqualTo(DisputeStatus.RESOLVED_MERCHANT);
         assertThat(result.getProvisionalCreditReversed()).isTrue();

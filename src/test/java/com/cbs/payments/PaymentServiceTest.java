@@ -2,6 +2,8 @@ package com.cbs.payments;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
@@ -32,6 +34,8 @@ class PaymentServiceTest {
     @Mock private PaymentBatchRepository batchRepository;
     @Mock private FxRateRepository fxRateRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks private PaymentService paymentService;
 
@@ -50,6 +54,20 @@ class PaymentServiceTest {
                 .currencyCode("USD").bookBalance(new BigDecimal("5000")).availableBalance(new BigDecimal("5000"))
                 .lienAmount(BigDecimal.ZERO).overdraftLimit(BigDecimal.ZERO)
                 .product(Product.builder().id(1L).code("CA-STD").build()).build();
+
+        lenient().when(accountPostingService.postTransfer(any(Account.class), any(Account.class), any(), any(), anyString(), anyString(), any(), anyString()))
+                .thenAnswer(invocation -> {
+                    Account debitAccount = invocation.getArgument(0);
+                    Account creditAccount = invocation.getArgument(1);
+                    BigDecimal debitAmount = invocation.getArgument(2);
+                    BigDecimal creditAmount = invocation.getArgument(3);
+                    if (debitAccount.getAvailableBalance().compareTo(debitAmount) < 0) {
+                        throw new BusinessException("Insufficient funds", "INSUFFICIENT_BALANCE");
+                    }
+                    debitAccount.debit(debitAmount);
+                    creditAccount.credit(creditAmount);
+                    return new AccountPostingService.TransferPosting(new TransactionJournal(), new TransactionJournal());
+                });
     }
 
     @Test
@@ -59,8 +77,6 @@ class PaymentServiceTest {
         when(accountRepository.findById(2L)).thenReturn(Optional.of(creditAccount));
         when(paymentRepository.getNextInstructionSequence()).thenReturn(1L);
         when(paymentRepository.save(any())).thenAnswer(inv -> { PaymentInstruction p = inv.getArgument(0); p.setId(1L); return p; });
-        when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
         PaymentInstruction result = paymentService.executeInternalTransfer(1L, 2L, new BigDecimal("10000"), "Test transfer");
 
         assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
@@ -103,8 +119,6 @@ class PaymentServiceTest {
         when(fxRateRepository.findLatestRate("USD", "EUR")).thenReturn(List.of(rate));
         when(paymentRepository.getNextInstructionSequence()).thenReturn(2L);
         when(paymentRepository.save(any())).thenAnswer(inv -> { PaymentInstruction p = inv.getArgument(0); p.setId(2L); return p; });
-        when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
         PaymentInstruction result = paymentService.executeInternalTransfer(1L, 2L, new BigDecimal("10000"), "FX test");
 
         assertThat(result.getFxRate()).isEqualByComparingTo(new BigDecimal("0.92"));

@@ -11,7 +11,6 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,16 +42,6 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
             @Param("accountId") Long accountId,
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate,
-            Pageable pageable);
-
-    @Query("""
-            SELECT t FROM TransactionJournal t
-            JOIN FETCH t.account
-            WHERE t.account.id IN :accountIds
-            ORDER BY t.createdAt DESC
-            """)
-    List<TransactionJournal> findRecentTransactionsByAccountIds(
-            @Param("accountIds") Collection<Long> accountIds,
             Pageable pageable);
 
     @Query(value = "SELECT nextval('cbs.transaction_ref_seq')", nativeQuery = true)

@@ -3,7 +3,7 @@ package com.cbs.deposit;
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.ProductRepository;
-import com.cbs.account.service.AccountService;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -41,7 +41,7 @@ class FixedDepositServiceTest {
     @Mock private FixedDepositRepository fdRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private ProductRepository productRepository;
-    @Mock private AccountService accountService;
+    @Mock private AccountPostingService accountPostingService;
     @Mock private DayCountEngine dayCountEngine;
     @Mock private CbsProperties cbsProperties;
 
@@ -61,6 +61,19 @@ class FixedDepositServiceTest {
                 .currencyCode("USD").status(AccountStatus.ACTIVE)
                 .bookBalance(new BigDecimal("100000")).availableBalance(new BigDecimal("100000"))
                 .lienAmount(BigDecimal.ZERO).overdraftLimit(BigDecimal.ZERO).build();
+
+        lenient().when(accountPostingService.postDebit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+                .thenAnswer(invocation -> {
+                    Account fundingAccount = invocation.getArgument(0);
+                    fundingAccount.debit(invocation.getArgument(2));
+                    return new TransactionJournal();
+                });
+        lenient().when(accountPostingService.postCredit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+                .thenAnswer(invocation -> {
+                    Account payoutAccount = invocation.getArgument(0);
+                    payoutAccount.credit(invocation.getArgument(2));
+                    return new TransactionJournal();
+                });
     }
 
     @Nested
@@ -85,15 +98,15 @@ class FixedDepositServiceTest {
                 fd.setId(1L);
                 return fd;
             });
-            when(accountRepository.save(any())).thenReturn(account);
-
             FixedDepositResponse result = fixedDepositService.bookDeposit(request);
 
             assertThat(result).isNotNull();
             assertThat(result.getDepositNumber()).startsWith("FD");
             assertThat(result.getPrincipalAmount()).isEqualByComparingTo(new BigDecimal("50000"));
             assertThat(result.getStatus()).isEqualTo(FixedDepositStatus.ACTIVE);
-            verify(accountRepository).save(any()); // Funding account debited
+            assertThat(account.getAvailableBalance()).isEqualByComparingTo(new BigDecimal("50000"));
+            verify(accountPostingService).postDebit(eq(account), eq(TransactionType.DEBIT), eq(new BigDecimal("50000")),
+                    anyString(), eq(TransactionChannel.SYSTEM), contains("FD:"));
         }
 
         @Test
@@ -153,7 +166,6 @@ class FixedDepositServiceTest {
                     .rolloverCount(0).build();
 
             when(fdRepository.findMaturedDeposits(any())).thenReturn(List.of(fd));
-            when(accountRepository.save(any())).thenReturn(account);
             when(fdRepository.save(any())).thenReturn(fd);
 
             int processed = fixedDepositService.processMaturedDeposits();
@@ -176,7 +188,6 @@ class FixedDepositServiceTest {
                     .rolloverCount(0).maxRollovers(3).build();
 
             when(fdRepository.findMaturedDeposits(any())).thenReturn(List.of(fd));
-            when(accountRepository.save(any())).thenReturn(account);
             when(fdRepository.save(any())).thenReturn(fd);
 
             fixedDepositService.processMaturedDeposits();
@@ -207,7 +218,6 @@ class FixedDepositServiceTest {
                     .build();
 
             when(fdRepository.findByIdWithDetails(3L)).thenReturn(Optional.of(fd));
-            when(accountRepository.save(any())).thenReturn(account);
             when(fdRepository.save(any())).thenReturn(fd);
 
             FixedDepositResponse result = fixedDepositService.earlyTerminate(3L, "Need funds urgently");

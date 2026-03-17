@@ -5,14 +5,18 @@ import com.cbs.account.dto.AccountResponse;
 import com.cbs.account.entity.*;
 import com.cbs.account.mapper.AccountMapper;
 import com.cbs.account.repository.*;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.account.service.AccountService;
 import com.cbs.account.validation.AccountValidator;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerStatus;
 import com.cbs.customer.entity.CustomerType;
 import com.cbs.customer.repository.CustomerRepository;
+import com.cbs.provider.interest.DayCountEngine;
+import com.cbs.provider.numbering.AccountNumberGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,6 +48,10 @@ class AccountServiceTest {
     @Mock private CustomerRepository customerRepository;
     @Mock private AccountMapper accountMapper;
     @Mock private AccountValidator accountValidator;
+    @Mock private AccountNumberGenerator numberGenerator;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private DayCountEngine dayCountEngine;
+    @Mock private CbsProperties cbsProperties;
 
     @InjectMocks
     private AccountService accountService;
@@ -56,6 +64,9 @@ class AccountServiceTest {
 
     @BeforeEach
     void setUp() {
+        CbsProperties.AccountConfig accountConfig = new CbsProperties.AccountConfig();
+        when(cbsProperties.getAccount()).thenReturn(accountConfig);
+
         testCustomer = Customer.builder()
                 .id(1L).cifNumber("CIF0000100000")
                 .customerType(CustomerType.INDIVIDUAL).status(CustomerStatus.ACTIVE)
@@ -116,11 +127,16 @@ class AccountServiceTest {
             when(customerRepository.findById(1L)).thenReturn(Optional.of(testCustomer));
             when(productRepository.findByCode("CA-NGN-STD")).thenReturn(Optional.of(currentProduct));
             when(accountRepository.getNextAccountNumberSequence()).thenReturn(1000000001L);
+            when(numberGenerator.generate(1000000001L)).thenReturn("1000000001");
             when(accountRepository.save(any(Account.class))).thenReturn(testAccount);
-            when(transactionRepository.existsByExternalRef(any())).thenReturn(false);
-            when(transactionRepository.getNextTransactionRefSequence()).thenReturn(1L);
-            when(transactionRepository.save(any(TransactionJournal.class))).thenReturn(new TransactionJournal());
             when(signatoryRepository.findByAccountIdWithCustomer(anyLong())).thenReturn(List.of());
+            when(accountPostingService.postCredit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+                    .thenAnswer(invocation -> {
+                        Account account = invocation.getArgument(0);
+                        BigDecimal amount = invocation.getArgument(2);
+                        account.credit(amount);
+                        return new TransactionJournal();
+                    });
 
             AccountResponse mockResponse = AccountResponse.builder()
                     .id(1L).accountNumber("1000000001").productCode("CA-NGN-STD")
@@ -132,8 +148,17 @@ class AccountServiceTest {
 
             assertThat(result).isNotNull();
             assertThat(result.getAccountNumber()).isEqualTo("1000000001");
+            assertThat(testAccount.getBookBalance()).isEqualByComparingTo(new BigDecimal("10000.00"));
+            assertThat(testAccount.getAvailableBalance()).isEqualByComparingTo(new BigDecimal("10000.00"));
             verify(accountValidator).validateOpeningDeposit(currentProduct, request.getInitialDeposit());
             verify(accountRepository).save(any(Account.class));
+            verify(accountPostingService).postCredit(
+                    same(testAccount),
+                    eq(TransactionType.OPENING_BALANCE),
+                    eq(new BigDecimal("10000.00")),
+                    eq("Opening balance deposit"),
+                    eq(TransactionChannel.BRANCH),
+                    eq("ACCOUNT_OPEN:1000000001"));
         }
 
         @Test

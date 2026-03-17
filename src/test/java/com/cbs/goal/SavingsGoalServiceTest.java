@@ -2,6 +2,7 @@ package com.cbs.goal;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
@@ -34,6 +35,7 @@ class SavingsGoalServiceTest {
     @Mock private SavingsGoalTransactionRepository goalTxnRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private CbsProperties cbsProperties;
+    @Mock private AccountPostingService accountPostingService;
 
     @InjectMocks private SavingsGoalService goalService;
 
@@ -56,6 +58,19 @@ class SavingsGoalServiceTest {
                 .currentAmount(new BigDecimal("3000")).progressPercentage(new BigDecimal("30.00"))
                 .currencyCode("USD").status(GoalStatus.ACTIVE)
                 .isLocked(false).allowWithdrawalBeforeTarget(true).build();
+
+        lenient().when(accountPostingService.postDebit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+                .thenAnswer(invocation -> {
+                    Account sourceAccount = invocation.getArgument(0);
+                    sourceAccount.debit(invocation.getArgument(2));
+                    return new TransactionJournal();
+                });
+        lenient().when(accountPostingService.postCredit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+                .thenAnswer(invocation -> {
+                    Account destinationAccount = invocation.getArgument(0);
+                    destinationAccount.credit(invocation.getArgument(2));
+                    return new TransactionJournal();
+                });
     }
 
     @Test
@@ -84,7 +99,6 @@ class SavingsGoalServiceTest {
 
         when(goalRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(goal));
         when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-        when(accountRepository.save(any())).thenReturn(account);
         when(goalTxnRepository.save(any())).thenReturn(new SavingsGoalTransaction());
         when(goalRepository.save(any())).thenReturn(goal);
 
@@ -102,7 +116,6 @@ class SavingsGoalServiceTest {
 
         when(goalRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(goal));
         when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-        when(accountRepository.save(any())).thenReturn(account);
         when(goalTxnRepository.save(any())).thenReturn(new SavingsGoalTransaction());
         when(goalRepository.save(any())).thenReturn(goal);
 
@@ -141,7 +154,6 @@ class SavingsGoalServiceTest {
     @DisplayName("Should cancel goal and return funds to account")
     void cancelGoal_ReturnsFunds() {
         when(goalRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(goal));
-        when(accountRepository.save(any())).thenReturn(account);
         when(goalRepository.save(any())).thenReturn(goal);
 
         goalService.cancelGoal(1L);

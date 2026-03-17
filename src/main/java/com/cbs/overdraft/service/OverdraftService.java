@@ -1,10 +1,7 @@
 package com.cbs.overdraft.service;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -33,7 +30,6 @@ public class OverdraftService {
     private final CreditFacilityRepository facilityRepository;
     private final FacilityUtilizationLogRepository utilizationLogRepository;
     private final AccountRepository accountRepository;
-    private final AccountPostingService accountPostingService;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
 
@@ -105,13 +101,8 @@ public class OverdraftService {
 
         // Credit the linked account
         Account account = facility.getAccount();
-        accountPostingService.postCredit(
-                account,
-                TransactionType.CREDIT,
-                amount,
-                narration != null ? narration : "Facility drawdown " + facility.getFacilityNumber(),
-                TransactionChannel.SYSTEM,
-                "OVERDRAFT:" + facility.getFacilityNumber() + ":DRAWDOWN");
+        account.credit(amount);
+        accountRepository.save(account);
 
         logUtilization(facility, UtilizationType.DRAWDOWN, amount, narration);
         facilityRepository.save(facility);
@@ -134,13 +125,8 @@ public class OverdraftService {
 
         // Debit the linked account
         Account account = facility.getAccount();
-        accountPostingService.postDebit(
-                account,
-                TransactionType.DEBIT,
-                amount,
-                narration != null ? narration : "Facility repayment " + facility.getFacilityNumber(),
-                TransactionChannel.SYSTEM,
-                "OVERDRAFT:" + facility.getFacilityNumber() + ":REPAY");
+        account.debit(amount);
+        accountRepository.save(account);
 
         logUtilization(facility, UtilizationType.REPAYMENT, amount, narration);
         facilityRepository.save(facility);

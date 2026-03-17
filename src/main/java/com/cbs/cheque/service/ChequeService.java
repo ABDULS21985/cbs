@@ -1,10 +1,7 @@
 package com.cbs.cheque.service;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.cheque.entity.*;
 import com.cbs.cheque.repository.*;
 import com.cbs.common.exception.BusinessException;
@@ -30,7 +27,6 @@ public class ChequeService {
     private final ChequeBookRepository bookRepository;
     private final ChequeLeafRepository leafRepository;
     private final AccountRepository accountRepository;
-    private final AccountPostingService accountPostingService;
 
     @Transactional
     public ChequeBook issueBook(Long accountId, String seriesPrefix, int startNumber, int totalLeaves) {
@@ -112,13 +108,8 @@ public class ChequeService {
         }
 
         Account account = leaf.getAccount();
-        accountPostingService.postDebit(
-                account,
-                TransactionType.DEBIT,
-                leaf.getAmount(),
-                "Cheque clearing " + leaf.getChequeNumber(),
-                TransactionChannel.CHEQUE,
-                "CHEQUE:" + leaf.getChequeNumber() + ":CLEAR");
+        account.debit(leaf.getAmount());
+        accountRepository.save(account);
 
         leaf.setStatus(ChequeStatus.CLEARED);
         leaf.setClearingDate(LocalDate.now());

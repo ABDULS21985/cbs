@@ -1,10 +1,7 @@
 package com.cbs.billing.service;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.billing.entity.*;
 import com.cbs.billing.repository.*;
 import com.cbs.common.exception.BusinessException;
@@ -29,7 +26,6 @@ public class BillPaymentService {
     private final BillerRepository billerRepository;
     private final BillPaymentRepository billPaymentRepository;
     private final AccountRepository accountRepository;
-    private final AccountPostingService accountPostingService;
 
     // ========================================================================
     // BILLER MANAGEMENT
@@ -107,24 +103,14 @@ public class BillPaymentService {
                 .status("PROCESSING").build();
 
         // Debit account
-        accountPostingService.postDebit(
-                debitAccount,
-                TransactionType.DEBIT,
-                totalAmount,
-                "Bill payment " + paymentRef + " to " + billerCode,
-                TransactionChannel.SYSTEM,
-                "BILL:" + paymentRef + ":DR");
+        debitAccount.debit(totalAmount);
+        accountRepository.save(debitAccount);
 
         // Credit biller settlement account if local
         if (biller.getSettlementAccount() != null) {
             Account settlement = biller.getSettlementAccount();
-            accountPostingService.postCredit(
-                    settlement,
-                    TransactionType.CREDIT,
-                    amount,
-                    "Bill settlement " + paymentRef + " from " + debitAccount.getAccountNumber(),
-                    TransactionChannel.SYSTEM,
-                    "BILL:" + paymentRef + ":CR");
+            settlement.credit(amount);
+            accountRepository.save(settlement);
             payment.setStatus("COMPLETED");
             payment.setBillerConfirmationRef("CONF-" + paymentRef);
         } else {

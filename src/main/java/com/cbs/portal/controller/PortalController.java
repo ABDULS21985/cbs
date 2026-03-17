@@ -4,7 +4,6 @@ import com.cbs.account.dto.AccountResponse;
 import com.cbs.account.dto.TransactionResponse;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
-import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.customer.dto.CustomerResponse;
 import com.cbs.portal.dto.PortalDashboardResponse;
 import com.cbs.portal.dto.ProfileUpdateRequestDto;
@@ -14,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +30,6 @@ import java.util.List;
 public class PortalController {
 
     private final PortalService portalService;
-    private final CbsPageRequestFactory pageRequestFactory;
 
     // ========================================================================
     // DASHBOARD
@@ -77,7 +76,7 @@ public class PortalController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Page<TransactionResponse> result = portalService.getMiniStatement(customerId, accountNumber,
-                pageRequestFactory.create(page, Math.min(size, 50), Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(page, Math.min(size, 50), Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -92,7 +91,7 @@ public class PortalController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         Page<TransactionResponse> result = portalService.getFullStatement(customerId, accountNumber, from, to,
-                pageRequestFactory.create(page, Math.min(size, 100), Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(page, Math.min(size, 100), Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -119,7 +118,7 @@ public class PortalController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Page<ProfileUpdateRequestDto> result = portalService.getMyProfileUpdateRequests(customerId,
-                pageRequestFactory.create(page, size));
+                PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -131,15 +130,17 @@ public class PortalController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Page<ProfileUpdateRequestDto> result = portalService.getPendingProfileUpdates(
-                pageRequestFactory.create(page, size));
+                PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
     @PostMapping("/admin/profile-updates/{requestId}/approve")
     @Operation(summary = "Approve a profile update request")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<ProfileUpdateRequestDto>> approveUpdate(@PathVariable Long requestId) {
-        return ResponseEntity.ok(ApiResponse.ok(portalService.approveProfileUpdate(requestId)));
+    public ResponseEntity<ApiResponse<ProfileUpdateRequestDto>> approveUpdate(
+            @PathVariable Long requestId,
+            @RequestParam String reviewedBy) {
+        return ResponseEntity.ok(ApiResponse.ok(portalService.approveProfileUpdate(requestId, reviewedBy)));
     }
 
     @PostMapping("/admin/profile-updates/{requestId}/reject")
@@ -147,7 +148,8 @@ public class PortalController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<ProfileUpdateRequestDto>> rejectUpdate(
             @PathVariable Long requestId,
+            @RequestParam String reviewedBy,
             @RequestParam String reason) {
-        return ResponseEntity.ok(ApiResponse.ok(portalService.rejectProfileUpdate(requestId, reason)));
+        return ResponseEntity.ok(ApiResponse.ok(portalService.rejectProfileUpdate(requestId, reviewedBy, reason)));
     }
 }

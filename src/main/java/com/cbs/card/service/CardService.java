@@ -1,10 +1,7 @@
 package com.cbs.card.service;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.*;
 import com.cbs.common.exception.BusinessException;
@@ -33,7 +30,6 @@ public class CardService {
     private final CardRepository cardRepository;
     private final CardTransactionRepository txnRepository;
     private final AccountRepository accountRepository;
-    private final AccountPostingService accountPostingService;
 
     @Transactional
     public Card issueCard(Long accountId, CardType cardType, CardScheme cardScheme,
@@ -196,13 +192,8 @@ public class CardService {
                 txnRepository.save(txn);
                 return txn;
             }
-            accountPostingService.postDebit(
-                    account,
-                    TransactionType.DEBIT,
-                    amount,
-                    "Card authorization " + txnRef + " (" + channel + ")",
-                    mapPostingChannel(channel),
-                    "CARD:" + txnRef + ":DR");
+            account.debit(amount);
+            accountRepository.save(account);
         } else if (card.getCardType() == CardType.CREDIT) {
             if (card.getAvailableCredit() == null || card.getAvailableCredit().compareTo(amount) < 0) {
                 txn.setStatus("DECLINED");
@@ -273,14 +264,5 @@ public class CardService {
         } catch (Exception e) {
             throw new RuntimeException("PAN hashing failed", e);
         }
-    }
-
-    private TransactionChannel mapPostingChannel(String channel) {
-        return switch (channel) {
-            case "ATM" -> TransactionChannel.ATM;
-            case "POS", "CONTACTLESS" -> TransactionChannel.POS;
-            case "ONLINE" -> TransactionChannel.INTERNET;
-            default -> TransactionChannel.SYSTEM;
-        };
     }
 }

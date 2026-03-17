@@ -1,10 +1,7 @@
 package com.cbs.payments.remittance;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.FxRate;
@@ -34,7 +31,6 @@ public class RemittanceService {
     private final AccountRepository accountRepository;
     private final FxRateRepository fxRateRepository;
     private final PaymentOrchestrationService orchestrationService;
-    private final AccountPostingService accountPostingService;
 
     // ========================================================================
     // CORRIDOR MANAGEMENT
@@ -137,17 +133,15 @@ public class RemittanceService {
         // Debit sender
         Account senderAccount = accountRepository.findById(senderAccountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", senderAccountId));
+        if (senderAccount.getAvailableBalance().compareTo(quote.totalDebit()) < 0) {
+            throw new BusinessException("Insufficient balance for remittance", "INSUFFICIENT_BALANCE");
+        }
+        senderAccount.debit(quote.totalDebit());
+        accountRepository.save(senderAccount);
+
         // Route through orchestration
         Long seq = txnRepository.getNextRemittanceSequence();
         String ref = String.format("RMT%012d", seq);
-
-        accountPostingService.postDebit(
-                senderAccount,
-                TransactionType.DEBIT,
-                quote.totalDebit(),
-                "Remittance " + ref + " to " + beneficiaryName,
-                TransactionChannel.SYSTEM,
-                "REMIT:" + ref + ":DR");
 
         var routingDecision = orchestrationService.routePayment(ref, sourceCountry, destinationCountry,
                 corridor.getSourceCurrency(), sourceAmount, "REMITTANCE");

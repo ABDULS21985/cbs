@@ -2,6 +2,7 @@ package com.cbs.trade;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
@@ -38,6 +39,7 @@ class TradeFinanceServiceTest {
     @Mock private TradeDocumentRepository tradeDocRepository;
     @Mock private CustomerRepository customerRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
 
     @InjectMocks private TradeFinanceService tradeService;
 
@@ -53,6 +55,13 @@ class TradeFinanceServiceTest {
                 .bookBalance(new BigDecimal("1000000")).availableBalance(new BigDecimal("1000000"))
                 .lienAmount(BigDecimal.ZERO).overdraftLimit(BigDecimal.ZERO)
                 .product(Product.builder().id(1L).code("CA-CORP").build()).build();
+
+        lenient().when(accountPostingService.postDebit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+                .thenAnswer(invocation -> {
+                    Account account = invocation.getArgument(0);
+                    account.debit(invocation.getArgument(2));
+                    return new TransactionJournal();
+                });
     }
 
     @Test

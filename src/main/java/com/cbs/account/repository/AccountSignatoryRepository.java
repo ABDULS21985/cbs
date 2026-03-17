@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -16,9 +15,6 @@ public interface AccountSignatoryRepository extends JpaRepository<AccountSignato
 
     @Query("SELECT s FROM AccountSignatory s JOIN FETCH s.customer WHERE s.account.id = :accountId AND s.isActive = true")
     List<AccountSignatory> findByAccountIdWithCustomer(@Param("accountId") Long accountId);
-
-    @Query("SELECT s FROM AccountSignatory s JOIN FETCH s.customer JOIN FETCH s.account WHERE s.account.id IN :accountIds AND s.isActive = true")
-    List<AccountSignatory> findByAccountIdInWithCustomer(@Param("accountIds") Collection<Long> accountIds);
 
     boolean existsByAccountIdAndCustomerId(Long accountId, Long customerId);
 

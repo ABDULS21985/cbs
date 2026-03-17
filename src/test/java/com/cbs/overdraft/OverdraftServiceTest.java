@@ -2,6 +2,7 @@ package com.cbs.overdraft;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
@@ -35,6 +36,7 @@ class OverdraftServiceTest {
     @Mock private CreditFacilityRepository facilityRepository;
     @Mock private FacilityUtilizationLogRepository utilizationLogRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
     @Mock private DayCountEngine dayCountEngine;
     @Mock private CbsProperties cbsProperties;
 
@@ -69,6 +71,19 @@ class OverdraftServiceTest {
                 .totalInterestPaid(BigDecimal.ZERO)
                 .autoRenewal(false).renewalCount(0)
                 .status(FacilityStatus.ACTIVE).build();
+
+        lenient().when(accountPostingService.postCredit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+                .thenAnswer(invocation -> {
+                    Account linkedAccount = invocation.getArgument(0);
+                    linkedAccount.credit(invocation.getArgument(2));
+                    return new TransactionJournal();
+                });
+        lenient().when(accountPostingService.postDebit(any(Account.class), any(), any(), anyString(), any(), anyString()))
+                .thenAnswer(invocation -> {
+                    Account linkedAccount = invocation.getArgument(0);
+                    linkedAccount.debit(invocation.getArgument(2));
+                    return new TransactionJournal();
+                });
     }
 
     @Test
@@ -98,7 +113,6 @@ class OverdraftServiceTest {
     @DisplayName("Should drawdown from facility and credit account")
     void drawdown_Success() {
         when(facilityRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(facility));
-        when(accountRepository.save(any())).thenReturn(account);
         when(facilityRepository.save(any())).thenReturn(facility);
         when(utilizationLogRepository.save(any())).thenReturn(new FacilityUtilizationLog());
 
@@ -125,7 +139,6 @@ class OverdraftServiceTest {
         facility.setAvailableLimit(new BigDecimal("20000"));
 
         when(facilityRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(facility));
-        when(accountRepository.save(any())).thenReturn(account);
         when(facilityRepository.save(any())).thenReturn(facility);
         when(utilizationLogRepository.save(any())).thenReturn(new FacilityUtilizationLog());
 
