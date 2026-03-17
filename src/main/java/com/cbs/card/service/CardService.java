@@ -1,7 +1,10 @@
 package com.cbs.card.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.*;
 import com.cbs.common.exception.BusinessException;
@@ -30,6 +33,7 @@ public class CardService {
     private final CardRepository cardRepository;
     private final CardTransactionRepository txnRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
 
     @Transactional
     public Card issueCard(Long accountId, CardType cardType, CardScheme cardScheme,
@@ -192,8 +196,13 @@ public class CardService {
                 txnRepository.save(txn);
                 return txn;
             }
-            account.debit(amount);
-            accountRepository.save(account);
+            accountPostingService.postDebit(
+                    account,
+                    TransactionType.DEBIT,
+                    amount,
+                    "Card authorization " + txnRef + " (" + channel + ")",
+                    mapPostingChannel(channel),
+                    "CARD:" + txnRef + ":DR");
         } else if (card.getCardType() == CardType.CREDIT) {
             if (card.getAvailableCredit() == null || card.getAvailableCredit().compareTo(amount) < 0) {
                 txn.setStatus("DECLINED");

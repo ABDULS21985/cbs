@@ -1,7 +1,10 @@
 package com.cbs.billing.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.billing.entity.*;
 import com.cbs.billing.repository.*;
 import com.cbs.common.exception.BusinessException;
@@ -26,6 +29,7 @@ public class BillPaymentService {
     private final BillerRepository billerRepository;
     private final BillPaymentRepository billPaymentRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
 
     // ========================================================================
     // BILLER MANAGEMENT
@@ -102,15 +106,24 @@ public class BillPaymentService {
                 .currencyCode(biller.getCurrencyCode())
                 .status("PROCESSING").build();
 
-        // Debit account
-        debitAccount.debit(totalAmount);
-        accountRepository.save(debitAccount);
+        accountPostingService.postDebit(
+                debitAccount,
+                TransactionType.DEBIT,
+                totalAmount,
+                "Bill payment " + paymentRef,
+                TransactionChannel.SYSTEM,
+                "BILL:" + paymentRef + ":DR");
 
         // Credit biller settlement account if local
         if (biller.getSettlementAccount() != null) {
             Account settlement = biller.getSettlementAccount();
-            settlement.credit(amount);
-            accountRepository.save(settlement);
+            accountPostingService.postCredit(
+                    settlement,
+                    TransactionType.CREDIT,
+                    amount,
+                    "Bill payment settlement " + paymentRef,
+                    TransactionChannel.SYSTEM,
+                    "BILL:" + paymentRef + ":CR");
             payment.setStatus("COMPLETED");
             payment.setBillerConfirmationRef("CONF-" + paymentRef);
         } else {

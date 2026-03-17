@@ -44,6 +44,7 @@ public class AccountService {
     private final AccountMapper accountMapper;
     private final AccountValidator accountValidator;
     private final AccountNumberGenerator numberGenerator;
+    private final AccountPostingService accountPostingService;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
 
@@ -121,8 +122,13 @@ public class AccountService {
         Account saved = accountRepository.save(account);
 
         if (request.getInitialDeposit() != null && request.getInitialDeposit().compareTo(BigDecimal.ZERO) > 0) {
-            postTransaction(saved, TransactionType.OPENING_BALANCE, request.getInitialDeposit(),
-                    "Opening balance deposit", TransactionChannel.BRANCH, null);
+            accountPostingService.postCredit(
+                    saved,
+                    TransactionType.OPENING_BALANCE,
+                    request.getInitialDeposit(),
+                    "Opening balance deposit",
+                    TransactionChannel.BRANCH,
+                    "ACCOUNT_OPEN:" + saved.getAccountNumber());
         }
 
         log.info("Account opened: number={}, product={}, customer={}, scheme={}",
@@ -173,15 +179,13 @@ public class AccountService {
     @Transactional
     public TransactionResponse postDebit(PostTransactionRequest request) {
         Account account = findAccountOrThrow(request.getAccountNumber());
-        accountValidator.validateDebit(account, request.getAmount());
-
-        TransactionJournal txn = postTransaction(account, request.getTransactionType(),
-                request.getAmount(), request.getNarration(),
+        TransactionJournal txn = accountPostingService.postDebit(
+                account,
+                request.getTransactionType(),
+                request.getAmount(),
+                request.getNarration(),
                 request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
                 request.getExternalRef());
-
-        account.debit(request.getAmount());
-        accountRepository.save(account);
 
         return accountMapper.toTransactionResponse(txn);
     }
@@ -189,13 +193,11 @@ public class AccountService {
     @Transactional
     public TransactionResponse postCredit(PostTransactionRequest request) {
         Account account = findAccountOrThrow(request.getAccountNumber());
-        accountValidator.validateCredit(account, request.getAmount());
-
-        account.credit(request.getAmount());
-        accountRepository.save(account);
-
-        TransactionJournal txn = postTransaction(account, request.getTransactionType(),
-                request.getAmount(), request.getNarration(),
+        TransactionJournal txn = accountPostingService.postCredit(
+                account,
+                request.getTransactionType(),
+                request.getAmount(),
+                request.getNarration(),
                 request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
                 request.getExternalRef());
 
@@ -208,31 +210,20 @@ public class AccountService {
         Account fromAccount = findAccountOrThrow(fromAccountNumber);
         Account toAccount = findAccountOrThrow(toAccountNumber);
 
-        accountValidator.validateDebit(fromAccount, amount);
-        accountValidator.validateCredit(toAccount, amount);
-
-        fromAccount.debit(amount);
-        toAccount.credit(amount);
-
         String transferNarration = narration != null ? narration :
                 String.format("Transfer to %s", toAccountNumber);
 
-        TransactionJournal debitTxn = postTransaction(fromAccount, TransactionType.TRANSFER_OUT,
-                amount, transferNarration, channel, null);
-        debitTxn.setContraAccount(toAccount);
-        debitTxn.setContraAccountNumber(toAccountNumber);
+        AccountPostingService.TransferPosting transferPosting = accountPostingService.postTransfer(
+                fromAccount,
+                toAccount,
+                amount,
+                amount,
+                transferNarration,
+                String.format("Transfer from %s", fromAccountNumber),
+                channel != null ? channel : TransactionChannel.SYSTEM,
+                null);
 
-        TransactionJournal creditTxn = postTransaction(toAccount, TransactionType.TRANSFER_IN,
-                amount, String.format("Transfer from %s", fromAccountNumber), channel, null);
-        creditTxn.setContraAccount(fromAccount);
-        creditTxn.setContraAccountNumber(fromAccountNumber);
-
-        accountRepository.save(fromAccount);
-        accountRepository.save(toAccount);
-        transactionRepository.save(debitTxn);
-        transactionRepository.save(creditTxn);
-
-        return accountMapper.toTransactionResponse(debitTxn);
+        return accountMapper.toTransactionResponse(transferPosting.debitTransaction());
     }
 
     public Page<TransactionResponse> getTransactionHistory(String accountNumber, LocalDate from,
@@ -316,16 +307,18 @@ public class AccountService {
         int postingScale = cbsProperties.getInterest().getPostingScale();
         BigDecimal roundedInterest = interest.setScale(postingScale, RoundingMode.HALF_UP);
 
-        account.credit(roundedInterest);
         account.setAccruedInterest(BigDecimal.ZERO);
         account.setLastInterestPostDate(LocalDate.now());
 
-        TransactionJournal txn = postTransaction(account, TransactionType.INTEREST_POSTING,
+        TransactionJournal txn = accountPostingService.postCredit(
+                account,
+                TransactionType.INTEREST_POSTING,
                 roundedInterest,
                 String.format("Interest posting @ %s%% p.a. (%s)",
                         account.getApplicableInterestRate(),
                         cbsProperties.getInterest().getDayCountConvention()),
-                TransactionChannel.SYSTEM, null);
+                TransactionChannel.SYSTEM,
+                null);
 
         accountRepository.save(account);
         return accountMapper.toTransactionResponse(txn);
