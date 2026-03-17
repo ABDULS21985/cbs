@@ -17,6 +17,7 @@ import com.cbs.provider.numbering.AccountNumberGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,9 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -157,7 +161,7 @@ public class AccountService {
     public List<AccountResponse> getCustomerAccounts(Long customerId) {
         customerRepository.findById(customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", customerId));
-        return accountMapper.toResponseList(accountRepository.findByCustomerId(customerId));
+        return mapAccounts(accountRepository.findByCustomerId(customerId));
     }
 
     public Page<AccountResponse> searchAccounts(AccountStatus status, String branchCode, Pageable pageable) {
@@ -169,7 +173,7 @@ public class AccountService {
         } else {
             page = accountRepository.findAll(pageable);
         }
-        return page.map(this::buildAccountResponse);
+        return mapAccountPage(page);
     }
 
     // ========================================================================
@@ -442,5 +446,28 @@ public class AccountService {
         List<AccountSignatory> signatories = signatoryRepository.findByAccountIdWithCustomer(account.getId());
         response.setSignatories(accountMapper.toSignatoryDtoList(signatories));
         return response;
+    }
+
+    private Page<AccountResponse> mapAccountPage(Page<Account> page) {
+        List<AccountResponse> content = mapAccounts(page.getContent());
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
+    }
+
+    private List<AccountResponse> mapAccounts(List<Account> accounts) {
+        if (accounts.isEmpty()) {
+            return List.of();
+        }
+
+        List<AccountResponse> responses = accountMapper.toResponseList(accounts);
+        Map<Long, AccountResponse> responseById = responses.stream()
+                .collect(Collectors.toMap(AccountResponse::getId, Function.identity()));
+        Map<Long, List<AccountSignatory>> signatoriesByAccountId = signatoryRepository
+                .findByAccountIdInWithCustomer(accounts.stream().map(Account::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(signatory -> signatory.getAccount().getId()));
+
+        responseById.forEach((accountId, response) -> response.setSignatories(
+                accountMapper.toSignatoryDtoList(signatoriesByAccountId.getOrDefault(accountId, List.of()))));
+        return responses;
     }
 }

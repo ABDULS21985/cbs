@@ -1,7 +1,10 @@
 package com.cbs.payments.remittance;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.FxRate;
@@ -29,6 +32,7 @@ public class RemittanceService {
     private final RemittanceBeneficiaryRepository beneficiaryRepository;
     private final RemittanceTransactionRepository txnRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
     private final FxRateRepository fxRateRepository;
     private final PaymentOrchestrationService orchestrationService;
 
@@ -136,8 +140,13 @@ public class RemittanceService {
         if (senderAccount.getAvailableBalance().compareTo(quote.totalDebit()) < 0) {
             throw new BusinessException("Insufficient balance for remittance", "INSUFFICIENT_BALANCE");
         }
-        senderAccount.debit(quote.totalDebit());
-        accountRepository.save(senderAccount);
+        accountPostingService.postDebit(
+                senderAccount,
+                TransactionType.DEBIT,
+                quote.totalDebit(),
+                "Remittance " + sourceCountry + " to " + destinationCountry,
+                TransactionChannel.SYSTEM,
+                "RMT:" + senderAccountId + ":" + System.currentTimeMillis());
 
         // Route through orchestration
         Long seq = txnRepository.getNextRemittanceSequence();

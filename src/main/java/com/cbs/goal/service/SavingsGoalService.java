@@ -1,7 +1,10 @@
 package com.cbs.goal.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -29,6 +32,7 @@ public class SavingsGoalService {
     private final SavingsGoalRepository goalRepository;
     private final SavingsGoalTransactionRepository goalTxnRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
     private final CbsProperties cbsProperties;
 
     @Transactional
@@ -106,8 +110,13 @@ public class SavingsGoalService {
             if (sourceAccount.getAvailableBalance().compareTo(request.getAmount()) < 0) {
                 throw new BusinessException("Insufficient balance in source account", "INSUFFICIENT_BALANCE");
             }
-            sourceAccount.debit(request.getAmount());
-            accountRepository.save(sourceAccount);
+            accountPostingService.postDebit(
+                    sourceAccount,
+                    TransactionType.DEBIT,
+                    request.getAmount(),
+                    request.getNarration() != null ? request.getNarration() : "Goal funding " + goal.getGoalNumber(),
+                    TransactionChannel.SYSTEM,
+                    "GOAL:" + goal.getGoalNumber() + ":FUND");
         }
 
         goal.deposit(request.getAmount());
@@ -152,8 +161,13 @@ public class SavingsGoalService {
                         .orElseThrow(() -> new ResourceNotFoundException("Account", "id", request.getSourceAccountId()))
                 : goal.getAccount();
 
-        destinationAccount.credit(request.getAmount());
-        accountRepository.save(destinationAccount);
+        accountPostingService.postCredit(
+                destinationAccount,
+                TransactionType.CREDIT,
+                request.getAmount(),
+                request.getNarration() != null ? request.getNarration() : "Goal withdrawal " + goal.getGoalNumber(),
+                TransactionChannel.SYSTEM,
+                "GOAL:" + goal.getGoalNumber() + ":WITHDRAW");
 
         SavingsGoalTransaction txn = SavingsGoalTransaction.builder()
                 .savingsGoal(goal)
@@ -177,8 +191,13 @@ public class SavingsGoalService {
 
         if (goal.getCurrentAmount().compareTo(BigDecimal.ZERO) > 0) {
             Account account = goal.getAccount();
-            account.credit(goal.getCurrentAmount());
-            accountRepository.save(account);
+            accountPostingService.postCredit(
+                    account,
+                    TransactionType.CREDIT,
+                    goal.getCurrentAmount(),
+                    "Goal cancellation " + goal.getGoalNumber(),
+                    TransactionChannel.SYSTEM,
+                    "GOAL:" + goal.getGoalNumber() + ":CANCEL");
             goal.setCurrentAmount(BigDecimal.ZERO);
         }
 
@@ -197,8 +216,13 @@ public class SavingsGoalService {
                 Account debitAccount = goal.getAutoDebitAccount() != null ? goal.getAutoDebitAccount() : goal.getAccount();
                 BigDecimal amount = goal.getAutoDebitAmount();
                 if (debitAccount.getAvailableBalance().compareTo(amount) >= 0) {
-                    debitAccount.debit(amount);
-                    accountRepository.save(debitAccount);
+                    accountPostingService.postDebit(
+                            debitAccount,
+                            TransactionType.DEBIT,
+                            amount,
+                            "Auto-debit for goal: " + goal.getGoalName(),
+                            TransactionChannel.SYSTEM,
+                            "GOAL:" + goal.getGoalNumber() + ":AUTO");
                     goal.deposit(amount);
 
                     SavingsGoalTransaction txn = SavingsGoalTransaction.builder()

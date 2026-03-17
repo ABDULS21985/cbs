@@ -8,6 +8,7 @@ import com.cbs.account.mapper.AccountMapper;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.AccountSignatoryRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.dto.CustomerResponse;
@@ -21,9 +22,7 @@ import com.cbs.portal.repository.ProfileUpdateRequestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +31,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -46,6 +48,7 @@ public class PortalService {
     private final ProfileUpdateRequestRepository profileUpdateRepository;
     private final CustomerMapper customerMapper;
     private final AccountMapper accountMapper;
+    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // DASHBOARD — single pane for the logged-in customer
@@ -64,27 +67,18 @@ public class PortalService {
                 .map(Account::getAvailableBalance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<AccountResponse> accountSummaries = accounts.stream()
-                .map(a -> {
-                    AccountResponse r = accountMapper.toResponse(a);
-                    r.setSignatories(accountMapper.toSignatoryDtoList(
-                            signatoryRepository.findByAccountIdWithCustomer(a.getId())));
-                    return r;
-                })
-                .toList();
+        List<AccountResponse> accountSummaries = toAccountResponses(accounts);
 
         // Last 5 transactions across all accounts
-        List<TransactionResponse> recentTransactions = accounts.stream()
-                .flatMap(a -> transactionRepository
-                        .findByAccountIdOrderByCreatedAtDesc(a.getId(), PageRequest.of(0, 5))
-                        .getContent().stream())
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .limit(5)
-                .map(accountMapper::toTransactionResponse)
-                .toList();
+        List<Long> accountIds = accounts.stream().map(Account::getId).toList();
+        List<TransactionResponse> recentTransactions = accountIds.isEmpty() ? List.of() :
+                transactionRepository.findRecentTransactionsByAccountIds(accountIds, Pageable.ofSize(5))
+                        .stream()
+                        .limit(5)
+                        .map(accountMapper::toTransactionResponse)
+                        .toList();
 
-        long pendingUpdates = profileUpdateRepository
-                .findByCustomerIdAndStatus(customerId, "PENDING").size();
+        long pendingUpdates = profileUpdateRepository.countByCustomerIdAndStatus(customerId, "PENDING");
 
         return PortalDashboardResponse.builder()
                 .customerId(customerId)
@@ -178,7 +172,7 @@ public class PortalService {
     }
 
     @Transactional
-    public ProfileUpdateRequestDto approveProfileUpdate(Long requestId, String reviewedBy) {
+    public ProfileUpdateRequestDto approveProfileUpdate(Long requestId) {
         ProfileUpdateRequest request = profileUpdateRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("ProfileUpdateRequest", "id", requestId));
 
@@ -186,6 +180,7 @@ public class PortalService {
             throw new BusinessException("Request is not in PENDING status", "INVALID_REQUEST_STATUS");
         }
 
+        String reviewedBy = currentActorProvider.getCurrentActor();
         request.setStatus("APPROVED");
         request.setReviewedAt(Instant.now());
         request.setReviewedBy(reviewedBy);
@@ -200,7 +195,7 @@ public class PortalService {
     }
 
     @Transactional
-    public ProfileUpdateRequestDto rejectProfileUpdate(Long requestId, String reviewedBy, String reason) {
+    public ProfileUpdateRequestDto rejectProfileUpdate(Long requestId, String reason) {
         ProfileUpdateRequest request = profileUpdateRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("ProfileUpdateRequest", "id", requestId));
 
@@ -208,6 +203,7 @@ public class PortalService {
             throw new BusinessException("Request is not in PENDING status", "INVALID_REQUEST_STATUS");
         }
 
+        String reviewedBy = currentActorProvider.getCurrentActor();
         request.setStatus("REJECTED");
         request.setReviewedAt(Instant.now());
         request.setReviewedBy(reviewedBy);
@@ -269,5 +265,23 @@ public class PortalService {
                 .reviewedBy(entity.getReviewedBy())
                 .rejectionReason(entity.getRejectionReason())
                 .build();
+    }
+
+    private List<AccountResponse> toAccountResponses(List<Account> accounts) {
+        if (accounts.isEmpty()) {
+            return List.of();
+        }
+
+        List<AccountResponse> responses = accountMapper.toResponseList(accounts);
+        Map<Long, AccountResponse> responseById = responses.stream()
+                .collect(Collectors.toMap(AccountResponse::getId, Function.identity()));
+        Map<Long, List<com.cbs.account.entity.AccountSignatory>> signatoriesByAccountId = signatoryRepository
+                .findByAccountIdInWithCustomer(accounts.stream().map(Account::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(signatory -> signatory.getAccount().getId()));
+
+        responseById.forEach((accountId, response) -> response.setSignatories(
+                accountMapper.toSignatoryDtoList(signatoriesByAccountId.getOrDefault(accountId, List.of()))));
+        return responses;
     }
 }

@@ -44,6 +44,16 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
             @Param("toDate") LocalDate toDate,
             Pageable pageable);
 
+    @Query("""
+            SELECT t FROM TransactionJournal t
+            JOIN FETCH t.account
+            WHERE t.account.id IN :accountIds
+            ORDER BY t.createdAt DESC
+            """)
+    List<TransactionJournal> findRecentTransactionsByAccountIds(
+            @Param("accountIds") List<Long> accountIds,
+            Pageable pageable);
+
     @Query(value = "SELECT nextval('cbs.transaction_ref_seq')", nativeQuery = true)
     Long getNextTransactionRefSequence();
 

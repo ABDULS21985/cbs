@@ -2,7 +2,8 @@ package com.cbs.lifecycle;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.validation.AccountValidator;
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.lifecycle.entity.LifecycleEventType;
 import com.cbs.lifecycle.repository.AccountLifecycleEventRepository;
 import com.cbs.lifecycle.service.AccountLifecycleService;
@@ -28,6 +29,8 @@ class AccountLifecycleServiceTest {
 
     @Mock private AccountRepository accountRepository;
     @Mock private AccountLifecycleEventRepository lifecycleEventRepository;
+    @Mock private CbsProperties cbsProperties;
+    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks
     private AccountLifecycleService lifecycleService;
@@ -38,6 +41,10 @@ class AccountLifecycleServiceTest {
     void setUp() {
         product = Product.builder()
                 .id(1L).code("SA-NGN-STD").dormancyDays(365).build();
+        CbsProperties.Lifecycle lifecycle = new CbsProperties.Lifecycle();
+        lifecycle.setEscheatmentYears(6);
+        when(cbsProperties.getLifecycle()).thenReturn(lifecycle);
+        when(currentActorProvider.getCurrentActor()).thenReturn("officer1");
     }
 
     @Test
@@ -81,7 +88,7 @@ class AccountLifecycleServiceTest {
         when(accountRepository.save(any())).thenReturn(dormantAccount);
         when(lifecycleEventRepository.save(any())).thenReturn(null);
 
-        lifecycleService.reactivateAccount(5L, "officer1");
+        lifecycleService.reactivateAccount(5L);
 
         assertThat(dormantAccount.getStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(dormantAccount.getDormancyDate()).isNull();
@@ -116,7 +123,7 @@ class AccountLifecycleServiceTest {
 
         when(accountRepository.findById(3L)).thenReturn(Optional.of(activeAccount));
 
-        lifecycleService.reactivateAccount(3L, "officer1");
+        lifecycleService.reactivateAccount(3L);
 
         verify(accountRepository, never()).save(any());
     }

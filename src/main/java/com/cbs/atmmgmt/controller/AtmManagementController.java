@@ -4,11 +4,11 @@ import com.cbs.atmmgmt.entity.*;
 import com.cbs.atmmgmt.service.AtmManagementService;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
+import com.cbs.common.web.CbsPageRequestFactory;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,6 +21,7 @@ import java.util.List;
 public class AtmManagementController {
 
     private final AtmManagementService atmService;
+    private final CbsPageRequestFactory pageRequestFactory;
 
     @PostMapping("/terminals")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -57,8 +58,8 @@ public class AtmManagementController {
     @Operation(summary = "Replenish ATM cash and update forecast")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<AtmTerminal>> replenish(@PathVariable String terminalId,
-            @RequestParam BigDecimal amount, @RequestParam String performedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(atmService.replenishCash(terminalId, amount, performedBy)));
+            @RequestParam BigDecimal amount) {
+        return ResponseEntity.ok(ApiResponse.ok(atmService.replenishCash(terminalId, amount)));
     }
 
     @PatchMapping("/terminals/{terminalId}/status")
@@ -71,7 +72,7 @@ public class AtmManagementController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<AtmJournalEntry>>> getJournal(@PathVariable String terminalId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "50") int size) {
-        Page<AtmJournalEntry> result = atmService.getTerminalJournal(terminalId, PageRequest.of(page, size));
+        Page<AtmJournalEntry> result = atmService.getTerminalJournal(terminalId, pageRequestFactory.create(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 

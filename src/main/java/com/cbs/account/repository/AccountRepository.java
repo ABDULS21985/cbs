@@ -5,6 +5,7 @@ import com.cbs.account.entity.AccountStatus;
 import com.cbs.account.entity.AccountType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -22,15 +23,24 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
 
     boolean existsByAccountNumber(String accountNumber);
 
+    @EntityGraph(attributePaths = {"customer", "product"})
     List<Account> findByCustomerId(Long customerId);
 
+    @EntityGraph(attributePaths = {"customer", "product"})
     Page<Account> findByCustomerId(Long customerId, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"customer", "product"})
     List<Account> findByCustomerIdAndStatus(Long customerId, AccountStatus status);
 
+    @EntityGraph(attributePaths = {"customer", "product"})
     Page<Account> findByStatus(AccountStatus status, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"customer", "product"})
     Page<Account> findByBranchCode(String branchCode, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"customer", "product"})
+    Page<Account> findAll(Pageable pageable);
 
     @Query("SELECT a FROM Account a JOIN FETCH a.product JOIN FETCH a.customer WHERE a.accountNumber = :accountNumber")
     Optional<Account> findByAccountNumberWithDetails(@Param("accountNumber") String accountNumber);

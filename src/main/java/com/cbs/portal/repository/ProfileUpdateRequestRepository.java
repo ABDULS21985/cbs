@@ -15,5 +15,7 @@ public interface ProfileUpdateRequestRepository extends JpaRepository<ProfileUpd
 
     List<ProfileUpdateRequest> findByCustomerIdAndStatus(Long customerId, String status);
 
+    long countByCustomerIdAndStatus(Long customerId, String status);
+
     Page<ProfileUpdateRequest> findByStatusOrderBySubmittedAtAsc(String status, Pageable pageable);
 }

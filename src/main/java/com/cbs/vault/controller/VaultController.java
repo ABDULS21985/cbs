@@ -2,12 +2,12 @@ package com.cbs.vault.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
+import com.cbs.common.web.CbsPageRequestFactory;
 import com.cbs.vault.entity.*;
 import com.cbs.vault.service.VaultService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,6 +22,7 @@ import java.util.List;
 public class VaultController {
 
     private final VaultService vaultService;
+    private final CbsPageRequestFactory pageRequestFactory;
 
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -48,22 +49,22 @@ public class VaultController {
     @PostMapping("/{id}/cash-in")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<VaultTransaction>> cashIn(@PathVariable Long id, @RequestParam BigDecimal amount,
-            @RequestParam(required = false) String reference, @RequestParam(required = false) String narration, @RequestParam String performedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(vaultService.cashIn(id, amount, reference, narration, performedBy)));
+            @RequestParam(required = false) String reference, @RequestParam(required = false) String narration) {
+        return ResponseEntity.ok(ApiResponse.ok(vaultService.cashIn(id, amount, reference, narration)));
     }
 
     @PostMapping("/{id}/cash-out")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<VaultTransaction>> cashOut(@PathVariable Long id, @RequestParam BigDecimal amount,
-            @RequestParam(required = false) String reference, @RequestParam(required = false) String narration, @RequestParam String performedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(vaultService.cashOut(id, amount, reference, narration, performedBy)));
+            @RequestParam(required = false) String reference, @RequestParam(required = false) String narration) {
+        return ResponseEntity.ok(ApiResponse.ok(vaultService.cashOut(id, amount, reference, narration)));
     }
 
     @PostMapping("/transfer")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> transfer(@RequestParam Long fromVaultId, @RequestParam Long toVaultId,
-            @RequestParam BigDecimal amount, @RequestParam String performedBy) {
-        vaultService.vaultTransfer(fromVaultId, toVaultId, amount, performedBy);
+            @RequestParam BigDecimal amount) {
+        vaultService.vaultTransfer(fromVaultId, toVaultId, amount);
         return ResponseEntity.ok(ApiResponse.ok(null, "Transfer completed"));
     }
 
@@ -71,7 +72,7 @@ public class VaultController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<VaultTransaction>>> getTransactions(@PathVariable Long id,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<VaultTransaction> result = vaultService.getTransactions(id, PageRequest.of(page, size));
+        Page<VaultTransaction> result = vaultService.getTransactions(id, pageRequestFactory.create(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

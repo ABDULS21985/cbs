@@ -2,6 +2,7 @@ package com.cbs.atmmgmt.service;
 
 import com.cbs.atmmgmt.entity.*;
 import com.cbs.atmmgmt.repository.*;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class AtmManagementService {
 
     private final AtmTerminalRepository terminalRepository;
     private final AtmJournalEntryRepository journalRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public AtmTerminal registerTerminal(AtmTerminal terminal) {
@@ -34,9 +36,10 @@ public class AtmManagementService {
     }
 
     @Transactional
-    public AtmTerminal replenishCash(String terminalId, BigDecimal amount, String performedBy) {
+    public AtmTerminal replenishCash(String terminalId, BigDecimal amount) {
         AtmTerminal terminal = findTerminalOrThrow(terminalId);
         terminal.replenish(amount);
+        String performedBy = currentActorProvider.getCurrentActor();
 
         // Forecast when cash will run out (simplified: avg daily withdrawal)
         // In production: ML-based forecasting from historical patterns
@@ -56,7 +59,8 @@ public class AtmManagementService {
                 .amount(amount).responseCode("00").status("SUCCESS").build();
         journalRepository.save(journal);
 
-        log.info("ATM replenished: terminal={}, amount={}, balance={}", terminalId, amount, terminal.getCurrentCashBalance());
+        log.info("ATM replenished: terminal={}, amount={}, balance={}, performedBy={}",
+                terminalId, amount, terminal.getCurrentCashBalance(), performedBy);
         return terminal;
     }
 

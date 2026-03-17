@@ -274,4 +274,18 @@ public class CardService {
             throw new RuntimeException("PAN hashing failed", e);
         }
     }
+
+    private TransactionChannel mapPostingChannel(String channel) {
+        if (channel == null) {
+            return TransactionChannel.SYSTEM;
+        }
+        return switch (channel.toUpperCase()) {
+            case "ATM" -> TransactionChannel.ATM;
+            case "POS" -> TransactionChannel.POS;
+            case "MOBILE" -> TransactionChannel.MOBILE;
+            case "INTERNET", "ONLINE", "WEB" -> TransactionChannel.INTERNET;
+            case "API" -> TransactionChannel.API;
+            default -> TransactionChannel.SYSTEM;
+        };
+    }
 }

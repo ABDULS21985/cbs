@@ -1,7 +1,9 @@
 package com.cbs.standing.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.PaymentInstruction;
@@ -31,6 +33,7 @@ public class StandingOrderService {
     private final StandingExecutionLogRepository executionLogRepository;
     private final PaymentInstructionRepository paymentRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
 
     @Transactional
     public StandingInstruction create(Long debitAccountId, InstructionType type,
@@ -139,20 +142,31 @@ public class StandingOrderService {
                     .paymentRail("STANDING").remittanceInfo(si.getNarration())
                     .status(PaymentStatus.PROCESSING).build();
 
-            debitAccount.debit(si.getAmount());
-
             // Check local credit
             Account localCredit = accountRepository.findByAccountNumber(si.getCreditAccountNumber()).orElse(null);
             if (localCredit != null) {
-                localCredit.credit(si.getAmount());
-                accountRepository.save(localCredit);
+                accountPostingService.postTransfer(
+                        debitAccount,
+                        localCredit,
+                        si.getAmount(),
+                        si.getAmount(),
+                        si.getNarration() != null ? si.getNarration() : "Standing order " + si.getInstructionRef(),
+                        "Standing order from " + debitAccount.getAccountNumber(),
+                        TransactionChannel.SYSTEM,
+                        "STANDING:" + si.getInstructionRef());
                 payment.setCreditAccount(localCredit);
                 payment.setStatus(PaymentStatus.COMPLETED);
             } else {
+                accountPostingService.postDebit(
+                        debitAccount,
+                        com.cbs.account.entity.TransactionType.DEBIT,
+                        si.getAmount(),
+                        si.getNarration() != null ? si.getNarration() : "Standing order " + si.getInstructionRef(),
+                        TransactionChannel.SYSTEM,
+                        "STANDING:" + si.getInstructionRef() + ":DR");
                 payment.setStatus(PaymentStatus.SUBMITTED);
             }
             payment.setExecutionDate(LocalDate.now());
-            accountRepository.save(debitAccount);
             paymentRepository.save(payment);
 
             // Log execution

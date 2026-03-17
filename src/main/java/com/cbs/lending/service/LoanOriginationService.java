@@ -1,7 +1,11 @@
 package com.cbs.lending.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -47,12 +51,14 @@ public class LoanOriginationService {
     private final CollateralRepository collateralRepository;
     private final CustomerRepository customerRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
     private final CreditScoringModelRepository scoringModelRepository;
     private final CreditDecisionLogRepository decisionLogRepository;
     private final CreditDecisionEngine creditEngine;
     private final RepaymentScheduleGenerator scheduleGenerator;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
+    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // APPLICATION WORKFLOW
@@ -195,7 +201,7 @@ public class LoanOriginationService {
     }
 
     @Transactional
-    public LoanApplicationResponse approveApplication(Long applicationId, LoanApprovalRequest approval, String approvedBy) {
+    public LoanApplicationResponse approveApplication(Long applicationId, LoanApprovalRequest approval) {
         LoanApplication app = applicationRepository.findByIdWithDetails(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", "id", applicationId));
 
@@ -205,6 +211,7 @@ public class LoanOriginationService {
                     "INVALID_APPLICATION_STATE");
         }
 
+        String approvedBy = currentActorProvider.getCurrentActor();
         app.setApprovedAmount(approval.getApprovedAmount());
         app.setApprovedTenureMonths(approval.getApprovedTenureMonths());
         app.setApprovedRate(approval.getApprovedRate());
@@ -222,10 +229,11 @@ public class LoanOriginationService {
     }
 
     @Transactional
-    public LoanApplicationResponse declineApplication(Long applicationId, String reason, String declinedBy) {
+    public LoanApplicationResponse declineApplication(Long applicationId, String reason) {
         LoanApplication app = applicationRepository.findByIdWithDetails(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", "id", applicationId));
 
+        String declinedBy = currentActorProvider.getCurrentActor();
         app.setStatus(LoanApplicationStatus.DECLINED);
         app.setDeclineReason(reason);
         app.setReviewedBy(declinedBy);
@@ -312,8 +320,13 @@ public class LoanOriginationService {
 
         // Credit disbursement account
         Account disbAccount = app.getDisbursementAccount();
-        disbAccount.credit(app.getApprovedAmount());
-        accountRepository.save(disbAccount);
+        accountPostingService.postCredit(
+                disbAccount,
+                TransactionType.CREDIT,
+                app.getApprovedAmount(),
+                "Loan disbursement " + loanNumber,
+                TransactionChannel.SYSTEM,
+                "LOAN:" + loanNumber + ":DISBURSE");
 
         // Update application status
         app.setStatus(LoanApplicationStatus.DISBURSED);
@@ -445,8 +458,13 @@ public class LoanOriginationService {
         // Debit repayment account
         if (loan.getRepaymentAccount() != null) {
             Account repaymentAccount = loan.getRepaymentAccount();
-            repaymentAccount.debit(amount.subtract(remaining));
-            accountRepository.save(repaymentAccount);
+            accountPostingService.postDebit(
+                    repaymentAccount,
+                    TransactionType.DEBIT,
+                    amount.subtract(remaining),
+                    "Loan repayment " + loan.getLoanNumber(),
+                    TransactionChannel.SYSTEM,
+                    "LOAN:" + loan.getLoanNumber() + ":REPAY");
         }
 
         log.info("Loan repayment processed: loan={}, installment={}, principal={}, interest={}, remaining={}",

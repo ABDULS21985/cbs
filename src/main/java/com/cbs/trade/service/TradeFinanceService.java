@@ -1,7 +1,10 @@
 package com.cbs.trade.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
@@ -36,6 +39,7 @@ public class TradeFinanceService {
     private final TradeDocumentRepository tradeDocRepository;
     private final CustomerRepository customerRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
 
     // ========================================================================
     // CAPABILITY 47: LETTERS OF CREDIT
@@ -79,7 +83,13 @@ public class TradeFinanceService {
                 throw new BusinessException("Insufficient balance for LC margin + commission", "INSUFFICIENT_BALANCE");
             }
             marginAccount.placeLien(marginAmt);
-            marginAccount.debit(commissionAmt);
+            accountPostingService.postDebit(
+                    marginAccount,
+                    TransactionType.DEBIT,
+                    commissionAmt,
+                    "LC commission " + lcNumber,
+                    TransactionChannel.SYSTEM,
+                    "LC:" + lcNumber + ":COMMISSION");
             accountRepository.save(marginAccount);
             lc.setMarginAccount(marginAccount);
         }
@@ -106,7 +116,13 @@ public class TradeFinanceService {
             BigDecimal marginRelease = claimedAmount.multiply(lc.getMarginPercentage())
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             lc.getMarginAccount().releaseLien(marginRelease);
-            lc.getMarginAccount().debit(claimedAmount);
+            accountPostingService.postDebit(
+                    lc.getMarginAccount(),
+                    TransactionType.DEBIT,
+                    claimedAmount,
+                    "LC settlement " + lc.getLcNumber(),
+                    TransactionChannel.SYSTEM,
+                    "LC:" + lc.getLcNumber() + ":SETTLE");
             accountRepository.save(lc.getMarginAccount());
         }
 
@@ -178,7 +194,13 @@ public class TradeFinanceService {
                     .orElseThrow(() -> new ResourceNotFoundException("Account", "id", marginAccountId));
             marginAccount.placeLien(marginAmt);
             if (bg.getCommissionAmount().compareTo(BigDecimal.ZERO) > 0) {
-                marginAccount.debit(bg.getCommissionAmount());
+                accountPostingService.postDebit(
+                        marginAccount,
+                        TransactionType.DEBIT,
+                        bg.getCommissionAmount(),
+                        "Guarantee commission " + bgNumber,
+                        TransactionChannel.SYSTEM,
+                        "BG:" + bgNumber + ":COMMISSION");
             }
             accountRepository.save(marginAccount);
             bg.setMarginAccount(marginAccount);
@@ -202,7 +224,13 @@ public class TradeFinanceService {
 
         if (bg.getMarginAccount() != null) {
             bg.getMarginAccount().releaseLien(claimAmount.min(bg.getMarginAmount()));
-            bg.getMarginAccount().debit(claimAmount);
+            accountPostingService.postDebit(
+                    bg.getMarginAccount(),
+                    TransactionType.DEBIT,
+                    claimAmount,
+                    "Guarantee claim " + bg.getGuaranteeNumber(),
+                    TransactionChannel.SYSTEM,
+                    "BG:" + bg.getGuaranteeNumber() + ":CLAIM");
             accountRepository.save(bg.getMarginAccount());
         }
 
