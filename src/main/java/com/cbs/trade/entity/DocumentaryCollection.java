@@ -3,6 +3,8 @@ package com.cbs.trade.entity;
 import com.cbs.common.audit.AuditableEntity;
 import com.cbs.customer.entity.Customer;
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -11,7 +13,7 @@ import java.time.LocalDate;
 import java.util.*;
 
 @Entity @Table(name = "documentary_collection", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 public class DocumentaryCollection extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;

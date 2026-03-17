@@ -3,6 +3,8 @@ package com.cbs.nostro.entity;
 import com.cbs.account.entity.Account;
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -18,7 +20,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class NostroVostroPosition extends AuditableEntity {
 
     @Id

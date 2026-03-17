@@ -2,6 +2,8 @@ package com.cbs.segmentation.entity;
 
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import lombok.*;
 
 import java.util.ArrayList;
@@ -13,7 +15,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class Segment extends AuditableEntity {
 
     @Id

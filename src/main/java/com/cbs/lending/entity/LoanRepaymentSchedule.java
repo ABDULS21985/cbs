@@ -2,6 +2,8 @@ package com.cbs.lending.entity;
 
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -9,7 +11,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "loan_repayment_schedule", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 public class LoanRepaymentSchedule extends AuditableEntity {
 
     @Id

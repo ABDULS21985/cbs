@@ -2,6 +2,8 @@ package com.cbs.workflow.entity;
 
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -13,7 +15,7 @@ import java.util.Map;
 
 @Entity
 @Table(name = "workflow_definition", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 public class WorkflowDefinition extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;

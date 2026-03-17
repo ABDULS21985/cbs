@@ -3,6 +3,8 @@ package com.cbs.segmentation.entity;
 import com.cbs.common.audit.AuditableEntity;
 import com.cbs.customer.entity.Customer;
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -17,7 +19,7 @@ import java.time.Instant;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class CustomerSegment extends AuditableEntity {
 
     @Id

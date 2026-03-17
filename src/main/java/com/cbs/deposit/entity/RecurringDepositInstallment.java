@@ -2,6 +2,8 @@ package com.cbs.deposit.entity;
 
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -13,7 +15,7 @@ import java.time.LocalDate;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+@SuperBuilder
 public class RecurringDepositInstallment extends AuditableEntity {
 
     @Id

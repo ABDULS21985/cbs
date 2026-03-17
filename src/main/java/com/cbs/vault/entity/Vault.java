@@ -2,13 +2,15 @@ package com.cbs.vault.entity;
 
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import lombok.*;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "vault", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 public class Vault extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

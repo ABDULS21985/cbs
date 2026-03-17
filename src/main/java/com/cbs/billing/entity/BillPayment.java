@@ -5,13 +5,15 @@ import com.cbs.common.audit.AuditableEntity;
 import com.cbs.customer.entity.Customer;
 import com.cbs.payments.entity.PaymentInstruction;
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import lombok.*;
 
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "bill_payment", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 public class BillPayment extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

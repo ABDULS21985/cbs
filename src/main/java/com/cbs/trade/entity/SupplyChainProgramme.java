@@ -3,12 +3,14 @@ package com.cbs.trade.entity;
 import com.cbs.common.audit.AuditableEntity;
 import com.cbs.customer.entity.Customer;
 import jakarta.persistence.*;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity @Table(name = "supply_chain_programme", schema = "cbs")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 public class SupplyChainProgramme extends AuditableEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
