@@ -65,6 +65,9 @@ logging:
   level:
     com.cbs: INFO
     org.springframework: WARN
+    org.springframework.web: WARN
+    org.springframework.web.servlet: WARN
+    org.springframework.web.servlet.mvc.method.annotation: WARN
     org.hibernate.SQL: WARN
 
 cbs:

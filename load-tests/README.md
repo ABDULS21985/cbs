@@ -7,6 +7,7 @@ This directory contains a lightweight local load harness for the CBS application
 - Starts the app with the `loadtest` profile
 - Seeds one customer and one account
 - Runs concurrent HTTP scenarios against representative endpoints
+- Warms each scenario before measuring to avoid first-hit initialization skew
 - Prints latency and throughput summary
 - Writes a JSON report into `load-tests/results/`
 
@@ -36,6 +37,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 ./load-tests/run-local.sh \
   --duration 20 \
   --connections 20 \
+  --warmup-requests 1 \
   --scenarios health,customer-get,account-get,customer-search
 ```
 
@@ -54,3 +56,4 @@ To include write load:
 - The harness uses the `loadtest` Spring profile to bypass external OAuth dependencies safely for local benchmarking.
 - It assumes local PostgreSQL and Redis are available, matching the repo's existing local test setup.
 - Write scenarios intentionally create data. Use them selectively.
+- Reports include sample error messages when requests fail or time out.

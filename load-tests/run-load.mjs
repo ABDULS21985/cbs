@@ -7,6 +7,7 @@ const DEFAULTS = {
   durationSeconds: Number(process.env.DURATION || 15),
   connections: Number(process.env.CONNECTIONS || 12),
   timeoutMs: Number(process.env.TIMEOUT_MS || 10000),
+  warmupRequests: Number(process.env.WARMUP_REQUESTS || 1),
   scenarios: (process.env.SCENARIOS || "health,customer-get,account-get").split(",").map((value) => value.trim()).filter(Boolean),
   enableWrites: ["1", "true", "yes"].includes(String(process.env.ENABLE_WRITES || "").toLowerCase()),
 };
@@ -31,6 +32,10 @@ function parseArgs(argv) {
         break;
       case "--timeout-ms":
         config.timeoutMs = Number(next);
+        index += 1;
+        break;
+      case "--warmup-requests":
+        config.warmupRequests = Number(next);
         index += 1;
         break;
       case "--scenarios":
@@ -173,10 +178,17 @@ async function hitEndpoint(baseUrl, scenario, context, timeoutMs) {
 }
 
 async function runScenario(baseUrl, scenario, context, options) {
+  if (options.warmupRequests > 0) {
+    for (let index = 0; index < options.warmupRequests; index += 1) {
+      await hitEndpoint(baseUrl, scenario, context, options.timeoutMs);
+    }
+  }
+
   const startedAt = performance.now();
   const deadline = startedAt + options.durationSeconds * 1000;
   const latenciesMs = [];
   const statuses = new Map();
+  const errorSamples = [];
   let requests = 0;
   let errors = 0;
   let non2xx = 0;
@@ -195,6 +207,9 @@ async function runScenario(baseUrl, scenario, context, options) {
         }
       } catch (error) {
         errors += 1;
+        if (errorSamples.length < 5) {
+          errorSamples.push(error instanceof Error ? `${error.name}: ${error.message}` : String(error));
+        }
       } finally {
         latenciesMs.push(performance.now() - requestStarted);
       }
@@ -216,6 +231,7 @@ async function runScenario(baseUrl, scenario, context, options) {
     bytes,
     latencies: summarizeLatencies(latenciesMs),
     statuses: Object.fromEntries([...statuses.entries()].sort((a, b) => Number(a[0]) - Number(b[0]))),
+    errorSamples,
   };
 }
 
@@ -273,7 +289,7 @@ function scenarioCatalog(enableWrites) {
 function printSummary(results, options) {
   console.log("");
   console.log(`Base URL: ${options.baseUrl}`);
-  console.log(`Duration: ${options.durationSeconds}s per scenario | Connections: ${options.connections}`);
+  console.log(`Duration: ${options.durationSeconds}s per scenario | Connections: ${options.connections} | Warmup: ${options.warmupRequests}`);
   console.log("");
   console.log("Scenario           Req     RPS    Err  Non2xx   Avg ms   P95 ms   P99 ms   Max ms");
   console.log("-----------------------------------------------------------------------------------");
@@ -281,6 +297,9 @@ function printSummary(results, options) {
     console.log(
       `${result.name.padEnd(16)} ${String(result.requests).padStart(6)} ${result.requestsPerSecond.toFixed(1).padStart(7)} ${String(result.errors).padStart(6)} ${String(result.non2xx).padStart(8)} ${result.latencies.avgMs.toFixed(1).padStart(8)} ${result.latencies.p95Ms.toFixed(1).padStart(8)} ${result.latencies.p99Ms.toFixed(1).padStart(8)} ${result.latencies.maxMs.toFixed(1).padStart(8)}`
     );
+    if (result.errorSamples.length > 0) {
+      console.log(`  error samples: ${result.errorSamples.join(" | ")}`);
+    }
   }
   console.log("");
 }
