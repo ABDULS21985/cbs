@@ -4,11 +4,9 @@ import com.cbs.AbstractIntegrationTest;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.TestPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@TestPropertySource(properties = "spring.flyway.enabled=true")
 class FlywayMigrationTest extends AbstractIntegrationTest {
 
     @Autowired

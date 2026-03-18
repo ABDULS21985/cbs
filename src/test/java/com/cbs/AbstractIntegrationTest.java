@@ -16,7 +16,7 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.username", () -> "cbs_admin");
         registry.add("spring.datasource.password", () -> "cbs_password");
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-        registry.add("spring.flyway.enabled", () -> "false"); // migrations already applied
+        registry.add("spring.flyway.baseline-on-migrate", () -> "false");
         registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri",
                 () -> "http://localhost:8180/realms/cbs");
     }
