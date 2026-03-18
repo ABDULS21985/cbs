@@ -6,7 +6,7 @@ import org.springframework.http.*; import org.springframework.security.access.pr
 import org.springframework.web.bind.annotation.*; import java.util.List;
 @RestController @RequestMapping("/v1/cash-vaults") @RequiredArgsConstructor
 @Tag(name = "Central Cash Handling", description = "Vault management, CIT, cash movements")
-public class CentralCashController {
+public class CashVaultController {
     private final CentralCashHandlingService service;
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<CashVault>> register(@RequestBody CashVault vault) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.registerVault(vault))); }
     @PostMapping("/movements") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<CashMovement>> recordMovement(@RequestBody CashMovement movement) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.recordMovement(movement))); }
