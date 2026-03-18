@@ -3,8 +3,10 @@ spring:
     name: cbs-core-banking-test
 
   datasource:
-    url: jdbc:tc:postgresql:16-alpine:///cbs_test
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    url: ${CBS_TEST_DB_URL:jdbc:postgresql://localhost:5432/cbs}
+    username: ${CBS_TEST_DB_USERNAME:cbs_admin}
+    password: ${CBS_TEST_DB_PASSWORD:cbs_password}
+    driver-class-name: ${CBS_TEST_DB_DRIVER:org.postgresql.Driver}
 
   jpa:
     hibernate:
