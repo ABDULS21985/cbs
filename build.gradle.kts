@@ -74,6 +74,8 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.testcontainers:junit-jupiter:1.20.3")
     testImplementation("org.testcontainers:postgresql:1.20.3")
+    testImplementation("io.rest-assured:rest-assured:5.4.0")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.2.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testCompileOnly("org.projectlombok:lombok")
     testAnnotationProcessor("org.projectlombok:lombok")
