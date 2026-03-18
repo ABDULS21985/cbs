@@ -107,9 +107,6 @@ class CollectionsServiceTest {
 
         when(caseRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(cc));
         when(caseRepository.save(any())).thenReturn(cc);
-        when(actionRepository.save(any())).thenReturn(new CollectionAction());
-        when(actionRepository.findByCollectionCaseIdOrderByActionDateDesc(any(), any()))
-                .thenReturn(new PageImpl<>(List.of()));
 
         collectionsService.logAction(1L, actionDto);
 

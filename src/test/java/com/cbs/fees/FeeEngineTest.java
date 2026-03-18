@@ -9,6 +9,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -72,7 +73,7 @@ class FeeEngineTest {
         fee.setTierConfig(List.of(
                 Map.of("min", 0, "max", 10000, "rate", 1.0),
                 Map.of("min", 10000, "max", 50000, "rate", 0.5),
-                Map.of("min", 50000, "rate", 0.25)
+                Map.of("min", 50000, "max", 999999999, "rate", 0.25)
         ));
 
         // 75000: (10000 × 1%) + (40000 × 0.5%) + (25000 × 0.25%) = 100 + 200 + 62.50 = 362.50
@@ -87,7 +88,7 @@ class FeeEngineTest {
         fee.setTierConfig(List.of(
                 Map.of("min", 0, "max", 10000, "rate", 1.0),
                 Map.of("min", 10000, "max", 50000, "rate", 0.5),
-                Map.of("min", 50000, "rate", 0.25)
+                Map.of("min", 50000, "max", 999999999, "rate", 0.25)
         ));
 
         // 75000 in 50000+ tier: 75000 × 0.25% = 187.50
@@ -101,7 +102,7 @@ class FeeEngineTest {
         List<Map<String, Object>> tiers = List.of(
                 Map.of("min", 0, "max", 10000, "rate", 1.0),
                 Map.of("min", 10000, "max", 50000, "rate", 0.5),
-                Map.of("min", 50000, "rate", 0.25)
+                Map.of("min", 50000, "max", 999999999, "rate", 0.25)
         );
 
         FeeDefinition tieredFee = buildFee(FeeCalculationType.TIERED);

@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigInteger;
+import java.util.Locale;
 
 /**
  * Pluggable account numbering engine.
@@ -66,12 +67,17 @@ public class AccountNumberGenerator {
      * ISO 13616 compliant. Check digits calculated per MOD-97-10 (ISO 7064).
      */
     private String generateIban(Long seq, CbsProperties.AccountConfig config) {
-        String country = config.getIbanCountryCode().toUpperCase();
-        String bankCode = config.getIbanBankCode();
-        String bban = bankCode + String.format("%0" + (config.getNumberLength() - bankCode.length()) + "d", seq);
+        String country = config.getIbanCountryCode().toUpperCase(Locale.ROOT);
+        String bankCode = config.getIbanBankCode().toUpperCase(Locale.ROOT);
+        int accountDigits = config.getNumberLength() - bankCode.length();
+        if (accountDigits <= 0) {
+            throw new IllegalArgumentException("IBAN numberLength must exceed bank code length");
+        }
+
+        String bban = bankCode + String.format("%0" + accountDigits + "d", seq);
 
         // Calculate check digits: rearrange (BBAN + CountryLetterValues + "00"), mod 97
-        String rearranged = bban + countryToDigits(country) + "00";
+        String rearranged = ibanToNumericString(bban + country + "00");
         BigInteger numeric = new BigInteger(rearranged);
         int checkDigits = 98 - numeric.mod(BigInteger.valueOf(97)).intValue();
 
@@ -128,6 +134,20 @@ public class AccountNumberGenerator {
         StringBuilder sb = new StringBuilder();
         for (char c : country.toCharArray()) {
             sb.append(Character.getNumericValue(c));
+        }
+        return sb.toString();
+    }
+
+    private String ibanToNumericString(String value) {
+        StringBuilder sb = new StringBuilder();
+        for (char c : value.toCharArray()) {
+            if (Character.isDigit(c)) {
+                sb.append(c);
+            } else if (Character.isLetter(c)) {
+                sb.append(Character.getNumericValue(Character.toUpperCase(c)));
+            } else {
+                throw new IllegalArgumentException("Unsupported IBAN character: " + c);
+            }
         }
         return sb.toString();
     }

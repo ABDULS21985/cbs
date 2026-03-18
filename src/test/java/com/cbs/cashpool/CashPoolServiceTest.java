@@ -46,7 +46,6 @@ class CashPoolServiceTest {
         CashPoolParticipant participant = CashPoolParticipant.builder().id(2L).poolId(1L)
                 .accountId(200L).participantRole("PARTICIPANT").targetBalance(BigDecimal.ZERO).isActive(true).build();
         when(participantRepository.findByPoolIdAndIsActiveTrueOrderByPriorityAsc(1L)).thenReturn(List.of(header, participant));
-        when(sweepLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         List<CashPoolSweepLog> logs = cashPoolService.executeSweep("CPL-TEST");
         // Header skipped, only participant swept

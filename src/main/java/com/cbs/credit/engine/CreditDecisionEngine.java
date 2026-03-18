@@ -125,6 +125,11 @@ public class CreditDecisionEngine {
             reasons.add("Score below minimum threshold");
         }
 
+        if (isElevatedRisk(customer) && decision == CreditDecision.APPROVE) {
+            decision = CreditDecision.REFER;
+            reasons.add("High-risk customers require manual credit review before approval");
+        }
+
         // Hard decline rules
         if (customer.getRiskRating() == RiskRating.SANCTIONED) {
             decision = CreditDecision.DECLINE;
@@ -162,7 +167,7 @@ public class CreditDecisionEngine {
 
     private int scoreAge(Customer customer) {
         if (customer.getDateOfBirth() == null) return 50;
-        int age = Period.between(customer.getDateOfBirth(), LocalDate.now()).getYears();
+        int age = getAge(customer);
         if (age < 21) return 20;
         if (age <= 30) return 60;
         if (age <= 50) return 100;
@@ -172,7 +177,7 @@ public class CreditDecisionEngine {
 
     private int scoreRelationshipTenure(Customer customer) {
         if (customer.getCreatedAt() == null) return 50;
-        long daysSinceOnboarding = java.time.Duration.between(customer.getCreatedAt(), java.time.Instant.now()).toDays();
+        long daysSinceOnboarding = getRelationshipDays(customer);
         if (daysSinceOnboarding < 90) return 20;
         if (daysSinceOnboarding < 365) return 50;
         if (daysSinceOnboarding < 730) return 70;
@@ -244,6 +249,18 @@ public class CreditDecisionEngine {
         if (assumedAnnualIncome.compareTo(BigDecimal.ZERO) == 0) return BigDecimal.valueOf(100);
         return totalDebt.multiply(BigDecimal.valueOf(100))
                 .divide(assumedAnnualIncome, 2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isElevatedRisk(Customer customer) {
+        return customer.getRiskRating() == RiskRating.HIGH || customer.getRiskRating() == RiskRating.VERY_HIGH;
+    }
+
+    private int getAge(Customer customer) {
+        return Period.between(customer.getDateOfBirth(), LocalDate.now()).getYears();
+    }
+
+    private long getRelationshipDays(Customer customer) {
+        return java.time.Duration.between(customer.getCreatedAt(), java.time.Instant.now()).toDays();
     }
 
     private String determineRiskGrade(int score, int maxScore) {

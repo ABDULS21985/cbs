@@ -2,7 +2,7 @@ package com.cbs.lifecycle;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.validation.AccountValidator;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.lifecycle.entity.LifecycleEventType;
 import com.cbs.lifecycle.repository.AccountLifecycleEventRepository;
 import com.cbs.lifecycle.service.AccountLifecycleService;
@@ -10,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -28,14 +27,15 @@ class AccountLifecycleServiceTest {
 
     @Mock private AccountRepository accountRepository;
     @Mock private AccountLifecycleEventRepository lifecycleEventRepository;
-
-    @InjectMocks
     private AccountLifecycleService lifecycleService;
+    private CbsProperties cbsProperties;
 
     private Product product;
 
     @BeforeEach
     void setUp() {
+        cbsProperties = new CbsProperties();
+        lifecycleService = new AccountLifecycleService(accountRepository, lifecycleEventRepository, cbsProperties);
         product = Product.builder()
                 .id(1L).code("SA-NGN-STD").dormancyDays(365).build();
     }
@@ -95,6 +95,8 @@ class AccountLifecycleServiceTest {
                 .id(10L).accountNumber("1000000010").status(AccountStatus.DORMANT)
                 .dormancyDate(LocalDate.now().minusYears(7))
                 .build();
+
+        cbsProperties.getLifecycle().setEscheatmentYears(6);
 
         LocalDate cutoff = LocalDate.now().minusYears(6);
         when(accountRepository.findAccountsEligibleForEscheatment(cutoff))

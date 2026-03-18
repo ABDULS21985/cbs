@@ -8,7 +8,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -84,18 +83,19 @@ public class FeeEngine {
         }
 
         BigDecimal totalFee = BigDecimal.ZERO;
-        BigDecimal remaining = amount;
 
         for (Map<String, Object> tier : fee.getTierConfig()) {
-            BigDecimal tierMin = toBigDecimal(tier.get("min"));
-            BigDecimal tierMax = toBigDecimal(tier.get("max"));
-            BigDecimal tierRate = toBigDecimal(tier.get("rate"));
-            BigDecimal tierFlat = toBigDecimal(tier.get("flat"));
+            BigDecimal tierMin = toNullableBigDecimal(tier.get("min"));
+            BigDecimal tierMax = toNullableBigDecimal(tier.get("max"));
+            BigDecimal tierRate = toNullableBigDecimal(tier.get("rate"));
+            BigDecimal tierFlat = toNullableBigDecimal(tier.get("flat"));
+            BigDecimal lowerBound = tierMin != null ? tierMin : BigDecimal.ZERO;
+            BigDecimal upperBound = tierMax != null ? amount.min(tierMax) : amount;
+            BigDecimal applicable = upperBound.subtract(lowerBound);
 
-            if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
-
-            BigDecimal tierWidth = (tierMax != null) ? tierMax.subtract(tierMin) : remaining;
-            BigDecimal applicable = remaining.min(tierWidth);
+            if (applicable.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
 
             if (tierRate != null && tierRate.compareTo(BigDecimal.ZERO) > 0) {
                 totalFee = totalFee.add(applicable.multiply(tierRate)
@@ -104,8 +104,6 @@ public class FeeEngine {
             if (tierFlat != null && tierFlat.compareTo(BigDecimal.ZERO) > 0) {
                 totalFee = totalFee.add(tierFlat);
             }
-
-            remaining = remaining.subtract(applicable);
         }
 
         return totalFee;
@@ -122,15 +120,16 @@ public class FeeEngine {
         }
 
         for (Map<String, Object> tier : fee.getTierConfig()) {
-            BigDecimal tierMin = toBigDecimal(tier.get("min"));
-            BigDecimal tierMax = toBigDecimal(tier.get("max"));
+            BigDecimal tierMin = toNullableBigDecimal(tier.get("min"));
+            BigDecimal tierMax = toNullableBigDecimal(tier.get("max"));
+            BigDecimal lowerBound = tierMin != null ? tierMin : BigDecimal.ZERO;
 
-            boolean inRange = amount.compareTo(tierMin) >= 0 &&
+            boolean inRange = amount.compareTo(lowerBound) >= 0 &&
                     (tierMax == null || amount.compareTo(tierMax) <= 0);
 
             if (inRange) {
-                BigDecimal tierRate = toBigDecimal(tier.get("rate"));
-                BigDecimal tierFlat = toBigDecimal(tier.get("flat"));
+                BigDecimal tierRate = toNullableBigDecimal(tier.get("rate"));
+                BigDecimal tierFlat = toNullableBigDecimal(tier.get("flat"));
                 BigDecimal result = BigDecimal.ZERO;
 
                 if (tierRate != null && tierRate.compareTo(BigDecimal.ZERO) > 0) {
@@ -169,6 +168,10 @@ public class FeeEngine {
         if (value instanceof BigDecimal) return (BigDecimal) value;
         if (value instanceof Number) return BigDecimal.valueOf(((Number) value).doubleValue());
         return new BigDecimal(value.toString());
+    }
+
+    private BigDecimal toNullableBigDecimal(Object value) {
+        return value == null ? null : toBigDecimal(value);
     }
 
     @Getter @Builder

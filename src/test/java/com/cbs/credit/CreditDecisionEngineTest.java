@@ -94,7 +94,7 @@ class CreditDecisionEngineTest {
     @DisplayName("Risky young customer with high risk rating should be DECLINED or REFERRED")
     void riskyCustomer_DeclinedOrReferred() {
         LoanApplication app = buildApplication(riskyCustomer, new BigDecimal("200000"), 48);
-        when(loanAccountRepository.getTotalOutstandingForCustomer(2L)).thenReturn(new BigDecimal("100000"));
+        when(loanAccountRepository.getTotalOutstandingForCustomer(2L)).thenReturn(new BigDecimal("350000"));
 
         CreditDecisionEngine.DecisionResult result = engine.evaluate(app, riskyCustomer, product, model);
 

@@ -49,13 +49,14 @@ class UssdServiceTest {
     @Test
     @DisplayName("Selecting terminal action ends session")
     void selectTerminalAction_EndsSession() {
-        UssdSession session = UssdSession.builder().id(1L).sessionId("SES001").msisdn("+234801").status("ACTIVE").build();
-        List<UssdMenu> rootMenus = List.of(
+        UssdSession session = UssdSession.builder().id(1L).sessionId("SES001").msisdn("+234801").status("ACTIVE")
+                .currentMenuCode("ROOT").build();
+        List<UssdMenu> menus = List.of(
                 UssdMenu.builder().menuCode("BAL").title("Check Balance").actionType("BALANCE").displayOrder(1).build()
         );
 
         when(sessionRepository.findBySessionIdAndStatus("SES001", "ACTIVE")).thenReturn(Optional.of(session));
-        when(menuRepository.findByParentMenuCodeIsNullAndIsActiveTrueOrderByDisplayOrderAsc()).thenReturn(rootMenus);
+        when(menuRepository.findByParentMenuCodeAndIsActiveTrueOrderByDisplayOrderAsc("ROOT")).thenReturn(menus);
         when(sessionRepository.save(any())).thenReturn(session);
 
         UssdService.UssdResponse response = ussdService.processRequest("+234801", "SES001", "1");

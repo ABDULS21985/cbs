@@ -1,6 +1,5 @@
 package com.cbs.ussd.service;
 
-import com.cbs.common.exception.BusinessException;
 import com.cbs.ussd.entity.*;
 import com.cbs.ussd.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -40,12 +39,7 @@ public class UssdService {
         String currentMenuCode = session.getCurrentMenuCode();
         List<UssdMenu> options;
 
-        if (currentMenuCode == null || "0".equals(input)) {
-            // Show root menu
-            options = menuRepository.findByParentMenuCodeIsNullAndIsActiveTrueOrderByDisplayOrderAsc();
-            session.setCurrentMenuCode(null);
-        } else if ("00".equals(input)) {
-            // Go back to root
+        if (input == null || input.isBlank() || "00".equals(input) || "0".equals(input)) {
             options = menuRepository.findByParentMenuCodeIsNullAndIsActiveTrueOrderByDisplayOrderAsc();
             session.setCurrentMenuCode(null);
         } else {

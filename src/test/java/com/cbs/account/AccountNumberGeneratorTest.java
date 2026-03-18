@@ -58,15 +58,15 @@ class AccountNumberGeneratorTest {
     void iban() {
         cbsProperties.getAccount().setNumberingScheme("IBAN");
         cbsProperties.getAccount().setIbanCountryCode("GB");
-        cbsProperties.getAccount().setIbanBankCode("NWBK");
+        cbsProperties.getAccount().setIbanBankCode("1234");
         cbsProperties.getAccount().setNumberLength(14);
         AccountNumberGenerator gen = new AccountNumberGenerator(cbsProperties);
 
-        String result = gen.generate(60161331926L);
+        String result = gen.generate(6016133192L);
         assertThat(result).startsWith("GB");
         assertThat(result.substring(0, 2)).isEqualTo("GB"); // Country
         assertThat(result.substring(2, 4)).matches("[0-9]{2}"); // Check digits
-        assertThat(result.substring(4, 8)).isEqualTo("NWBK"); // Bank code
+        assertThat(result.substring(4, 8)).isEqualTo("1234"); // Bank code
     }
 
     @Test

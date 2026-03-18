@@ -122,9 +122,6 @@ class CardServiceTest {
     @DisplayName("Credit card: reduces available credit, increases outstanding")
     void creditCard_Authorization() {
         when(cardRepository.findByIdWithDetails(2L)).thenReturn(Optional.of(creditCard));
-        when(txnRepository.sumDailyUsageByChannel(eq(2L), eq("ONLINE"), any(Instant.class)))
-                .thenReturn(BigDecimal.ZERO);
-        when(cardRepository.save(any())).thenReturn(creditCard);
         when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CardTransaction txn = cardService.authorizeTransaction(2L, "PURCHASE", "ONLINE",

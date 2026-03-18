@@ -7,18 +7,20 @@ import com.cbs.account.mapper.AccountMapper;
 import com.cbs.account.repository.*;
 import com.cbs.account.service.AccountService;
 import com.cbs.account.validation.AccountValidator;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerStatus;
 import com.cbs.customer.entity.CustomerType;
 import com.cbs.customer.repository.CustomerRepository;
+import com.cbs.provider.interest.DayCountEngine;
+import com.cbs.provider.numbering.AccountNumberGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -44,8 +46,6 @@ class AccountServiceTest {
     @Mock private CustomerRepository customerRepository;
     @Mock private AccountMapper accountMapper;
     @Mock private AccountValidator accountValidator;
-
-    @InjectMocks
     private AccountService accountService;
 
     private Customer testCustomer;
@@ -56,6 +56,23 @@ class AccountServiceTest {
 
     @BeforeEach
     void setUp() {
+        CbsProperties cbsProperties = new CbsProperties();
+        AccountNumberGenerator numberGenerator = new AccountNumberGenerator(cbsProperties);
+        DayCountEngine dayCountEngine = new DayCountEngine(cbsProperties);
+        accountService = new AccountService(
+                accountRepository,
+                productRepository,
+                interestTierRepository,
+                signatoryRepository,
+                transactionRepository,
+                customerRepository,
+                accountMapper,
+                accountValidator,
+                numberGenerator,
+                dayCountEngine,
+                cbsProperties
+        );
+
         testCustomer = Customer.builder()
                 .id(1L).cifNumber("CIF0000100000")
                 .customerType(CustomerType.INDIVIDUAL).status(CustomerStatus.ACTIVE)
@@ -117,7 +134,6 @@ class AccountServiceTest {
             when(productRepository.findByCode("CA-NGN-STD")).thenReturn(Optional.of(currentProduct));
             when(accountRepository.getNextAccountNumberSequence()).thenReturn(1000000001L);
             when(accountRepository.save(any(Account.class))).thenReturn(testAccount);
-            when(transactionRepository.existsByExternalRef(any())).thenReturn(false);
             when(transactionRepository.getNextTransactionRefSequence()).thenReturn(1L);
             when(transactionRepository.save(any(TransactionJournal.class))).thenReturn(new TransactionJournal());
             when(signatoryRepository.findByAccountIdWithCustomer(anyLong())).thenReturn(List.of());
@@ -260,15 +276,16 @@ class AccountServiceTest {
                     .applicableInterestRate(new BigDecimal("3.7500"))
                     .build();
 
+            // Expected: 1,000,000 * 3.75 / 36500 = 102.7397
+            BigDecimal expected = new BigDecimal("1000000").multiply(new BigDecimal("3.7500"))
+                    .divide(BigDecimal.valueOf(36500), 4, RoundingMode.HALF_UP);
+
             when(accountRepository.findByIdWithProduct(10L)).thenReturn(Optional.of(savingsAccount));
             when(interestTierRepository.findActiveTiersByProduct(2L)).thenReturn(List.of());
             when(accountRepository.save(any())).thenReturn(savingsAccount);
 
             BigDecimal accrued = accountService.accrueInterestForAccount(10L);
 
-            // Expected: 1,000,000 * 3.75 / 36500 = 102.7397
-            BigDecimal expected = new BigDecimal("1000000").multiply(new BigDecimal("3.7500"))
-                    .divide(BigDecimal.valueOf(36500), 4, RoundingMode.HALF_UP);
             assertThat(accrued).isEqualByComparingTo(expected);
             verify(accountRepository).save(savingsAccount);
         }
