@@ -1,0 +1,43 @@
+package com.cbs.capitalmarkets.entity;
+import com.cbs.common.audit.AuditableEntity;
+import jakarta.persistence.*; import lombok.*; import lombok.experimental.SuperBuilder;
+import java.math.BigDecimal; import java.time.LocalDate;
+@Entity @Table(name = "capital_market_deal") @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+public class CapitalMarketDeal extends AuditableEntity {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @Column(nullable = false, unique = true, length = 30) private String dealCode;
+    @Column(nullable = false, length = 20) private String dealType;
+    @Column(nullable = false, length = 5) private String marketType;
+    @Column(nullable = false, length = 200) private String issuerName;
+    private Long issuerCustomerId;
+    @Column(length = 40) private String issuerSector;
+    @Column(nullable = false, length = 3) @Builder.Default private String currency = "NGN";
+    @Column(nullable = false) private BigDecimal targetAmount;
+    @Builder.Default private BigDecimal actualAmount = BigDecimal.ZERO;
+    private BigDecimal issuePrice;
+    private BigDecimal couponRate;
+    private Integer tenorMonths;
+    private LocalDate maturityDate;
+    @Column(nullable = false, length = 20) private String ourRole;
+    private BigDecimal ourCommitmentAmount;
+    private BigDecimal ourFeePct;
+    private BigDecimal ourFeeAmount;
+    private LocalDate mandateDate;
+    private LocalDate prospectusDate;
+    private LocalDate bookBuildStartDate;
+    private LocalDate bookBuildEndDate;
+    private LocalDate pricingDate;
+    private LocalDate allotmentDate;
+    private LocalDate listingDate;
+    private LocalDate settlementDate;
+    @Column(length = 80) private String regulatoryApprovalRef;
+    @Column(length = 60) private String exchange;
+    @Column(length = 30) private String listingRef;
+    @Column(length = 200) private String prospectusRef;
+    @Column(length = 10) private String creditRating;
+    @Column(length = 60) private String ratingAgency;
+    private BigDecimal subscriptionLevel;
+    @Column(length = 15) private String allocationMethod;
+    private Long syndicateId;
+    @Column(nullable = false, length = 15) @Builder.Default private String status = "MANDATE";
+}
