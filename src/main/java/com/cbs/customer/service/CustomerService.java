@@ -21,7 +21,9 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -259,6 +261,47 @@ public class CustomerService {
         return customerMapper.toIdentificationDtoList(identificationRepository.findByCustomerId(customerId));
     }
 
+    public boolean isValidBvn(String bvn) {
+        return StringUtils.hasText(bvn) && bvn.matches("\\d{11}");
+    }
+
+    public BvnVerificationRequestPayload buildBvnVerificationRequest(String bvn) {
+        if (!isValidBvn(bvn)) {
+            throw new BusinessException("Invalid BVN format", "INVALID_BVN");
+        }
+
+        String institutionCode = StringUtils.hasText(cbsProperties.getDeployment().getInstitutionCode())
+                ? cbsProperties.getDeployment().getInstitutionCode()
+                : "999999";
+
+        return new BvnVerificationRequestPayload(bvn, institutionCode, "CBS");
+    }
+
+    public BvnVerificationResult verifyBvn(Long customerId, BvnProviderResponse providerResponse) {
+        Customer customer = findCustomerOrThrow(customerId);
+        List<String> mismatchFields = new ArrayList<>();
+
+        if (!isValidBvn(providerResponse.bvn())) {
+            mismatchFields.add("bvn");
+        }
+        if (!equalsNormalized(customer.getFirstName(), providerResponse.firstName())) {
+            mismatchFields.add("firstName");
+        }
+        if (!equalsNormalized(customer.getLastName(), providerResponse.lastName())) {
+            mismatchFields.add("lastName");
+        }
+        if (StringUtils.hasText(customer.getMiddleName())
+                && StringUtils.hasText(providerResponse.middleName())
+                && !equalsNormalized(customer.getMiddleName(), providerResponse.middleName())) {
+            mismatchFields.add("middleName");
+        }
+
+        return new BvnVerificationResult(
+                mismatchFields.isEmpty() ? "VERIFIED" : "FAILED",
+                mismatchFields
+        );
+    }
+
     // ========================================================================
     // CAPABILITY 4: Sub-resource CRUD (Addresses, Contacts, Notes, Relationships)
     // ========================================================================
@@ -401,4 +444,18 @@ public class CustomerService {
             throw new DuplicateResourceException("Customer", "phonePrimary", request.getPhonePrimary());
         }
     }
+
+    private boolean equalsNormalized(String left, String right) {
+        return normalize(left).equals(normalize(right));
+    }
+
+    private String normalize(String value) {
+        return StringUtils.hasText(value) ? value.trim().toUpperCase(Locale.ROOT) : "";
+    }
+
+    public record BvnVerificationRequestPayload(String bvn, String institutionCode, String channelCode) { }
+
+    public record BvnProviderResponse(String bvn, String firstName, String middleName, String lastName) { }
+
+    public record BvnVerificationResult(String status, List<String> mismatchFields) { }
 }

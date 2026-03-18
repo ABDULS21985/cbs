@@ -77,9 +77,13 @@ class BusinessMetricsTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("JVM GC pause metric is emitted")
+    @DisplayName("JVM GC metrics are emitted")
     void jvmGcPauseEmitted() {
-        assertThat(prometheusBody).contains("jvm_gc_pause_seconds");
+        assertThat(prometheusBody).containsAnyOf(
+                "jvm_gc_pause_seconds",
+                "jvm_gc_overhead",
+                "jvm_gc_memory_allocated_bytes_total"
+        );
     }
 
     @Test

@@ -150,6 +150,10 @@ public class AccountService {
         return buildAccountResponse(account);
     }
 
+    public boolean isValidNuban(String nuban) {
+        return numberGenerator.isValidNuban(nuban);
+    }
+
     public List<AccountResponse> getCustomerAccounts(Long customerId) {
         customerRepository.findById(customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", customerId));

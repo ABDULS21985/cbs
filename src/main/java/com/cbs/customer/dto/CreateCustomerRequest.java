@@ -1,6 +1,7 @@
 package com.cbs.customer.dto;
 
 import com.cbs.customer.entity.CustomerType;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -68,6 +69,7 @@ public class CreateCustomerRequest {
     @Size(max = 150, message = "Email must not exceed 150 characters")
     private String email;
 
+    @JsonAlias("phoneNumber")
     @Pattern(regexp = "^\\+?[0-9]{7,15}$", message = "Invalid phone number format")
     private String phonePrimary;
 

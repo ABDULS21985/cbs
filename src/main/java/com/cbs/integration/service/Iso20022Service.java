@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.*;
 
@@ -34,6 +36,47 @@ public class Iso20022Service {
             Map.entry("sese.023", new String[]{"SECURITIES", "NOTIFICATION"}),
             Map.entry("semt.017", new String[]{"SECURITIES", "STATEMENT"})
     );
+
+    public String buildPacs008(CreditTransferDetails details) {
+        String amount = details.amount().setScale(2, RoundingMode.HALF_UP).toPlainString();
+        return """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pacs.008.001.10">
+                  <FIToFICstmrCdtTrf>
+                    <GrpHdr>
+                      <MsgId>%s</MsgId>
+                      <CreDtTm>%s</CreDtTm>
+                      <NbOfTxs>1</NbOfTxs>
+                      <TtlIntrBkSttlmAmt Ccy="%s">%s</TtlIntrBkSttlmAmt>
+                    </GrpHdr>
+                    <CdtTrfTxInf>
+                      <PmtId>
+                        <InstrId>%s</InstrId>
+                        <EndToEndId>%s</EndToEndId>
+                      </PmtId>
+                      <IntrBkSttlmAmt Ccy="%s">%s</IntrBkSttlmAmt>
+                      <Dbtr>
+                        <Nm>%s</Nm>
+                      </Dbtr>
+                      <Cdtr>
+                        <Nm>%s</Nm>
+                      </Cdtr>
+                    </CdtTrfTxInf>
+                  </FIToFICstmrCdtTrf>
+                </Document>
+                """.formatted(
+                details.messageId(),
+                details.creationDateTime().toString(),
+                details.currency(),
+                amount,
+                details.instructionId(),
+                details.endToEndId(),
+                details.currency(),
+                amount,
+                details.debtorName(),
+                details.creditorName()
+        );
+    }
 
     @Transactional
     public Iso20022Message ingestMessage(Iso20022Message message) {
@@ -142,4 +185,15 @@ public class Iso20022Service {
         String[] parts = definition.split("\\.");
         return parts.length >= 2 ? parts[0] + "." + parts[1] : definition;
     }
+
+    public record CreditTransferDetails(
+            String messageId,
+            String instructionId,
+            String endToEndId,
+            Instant creationDateTime,
+            String debtorName,
+            String creditorName,
+            BigDecimal amount,
+            String currency
+    ) {}
 }

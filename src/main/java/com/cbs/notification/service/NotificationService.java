@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -90,6 +91,42 @@ public class NotificationService {
         return logRepository.save(notifLog);
     }
 
+    public Map<String, Object> buildWebhookPayload(WebhookEvent event) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("eventType", event.eventType());
+        payload.put("paymentRef", event.paymentRef());
+        payload.put("amount", event.amount());
+        payload.put("currency", event.currency());
+        payload.put("status", event.status());
+        payload.put("timestamp", event.timestamp());
+        return payload;
+    }
+
+    public List<Instant> getWebhookRetrySchedule(Instant startTime) {
+        return List.of(
+                startTime,
+                startTime.plusSeconds(30),
+                startTime.plusSeconds(120)
+        );
+    }
+
+    public NotificationLog registerDeliveryFailure(NotificationLog notification, String reason, Instant occurredAt) {
+        int nextRetryCount = notification.getRetryCount() + 1;
+        notification.setRetryCount(nextRetryCount);
+        notification.setFailureReason(reason);
+
+        if (nextRetryCount >= notification.getMaxRetries()) {
+            notification.setStatus("FAILED");
+            notification.setScheduledAt(null);
+        } else {
+            notification.setStatus("PENDING");
+            notification.setScheduledAt(nextRetryCount == 1
+                    ? occurredAt.plusSeconds(30)
+                    : occurredAt.plusSeconds(120));
+        }
+        return notification;
+    }
+
     @Transactional
     public int retryFailedNotifications() {
         List<NotificationLog> pending = logRepository.findPendingForRetry();
@@ -100,13 +137,11 @@ public class NotificationService {
                 // In production: re-dispatch to provider
                 notif.setStatus("SENT");
                 notif.setSentAt(Instant.now());
+                notif.setScheduledAt(null);
                 logRepository.save(notif);
                 retried++;
             } catch (Exception e) {
-                if (notif.getRetryCount() >= notif.getMaxRetries()) {
-                    notif.setStatus("FAILED");
-                    notif.setFailureReason("Max retries exceeded: " + e.getMessage());
-                }
+                registerDeliveryFailure(notif, e.getMessage(), Instant.now());
                 logRepository.save(notif);
             }
         }
@@ -155,4 +190,13 @@ public class NotificationService {
             case WEBHOOK -> "HTTP_CLIENT";
         };
     }
+
+    public record WebhookEvent(
+            String eventType,
+            String paymentRef,
+            Object amount,
+            String currency,
+            String status,
+            Instant timestamp
+    ) {}
 }

@@ -82,6 +82,14 @@ springdoc:
     operations-sorter: method
 
 management:
+  defaults:
+    metrics:
+      export:
+        enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
   endpoints:
     web:
       exposure:

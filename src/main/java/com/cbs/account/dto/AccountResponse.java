@@ -3,6 +3,7 @@ package com.cbs.account.dto;
 import com.cbs.account.entity.AccountStatus;
 import com.cbs.account.entity.AccountType;
 import com.cbs.account.entity.ProductCategory;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -63,4 +64,14 @@ public class AccountResponse {
 
     private Map<String, Object> metadata;
     private Instant createdAt;
+
+    @JsonProperty("currency")
+    public String getCurrency() {
+        return currencyCode;
+    }
+
+    @JsonProperty("ledgerBalance")
+    public BigDecimal getLedgerBalance() {
+        return bookBalance;
+    }
 }

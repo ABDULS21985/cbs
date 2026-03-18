@@ -9,6 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.time.Instant;
 import java.util.*;
 
@@ -20,6 +24,19 @@ public class FinancialGatewayService {
 
     @Transactional
     public FinancialGateway registerGateway(FinancialGateway gw) { return gatewayRepository.save(gw); }
+
+    public String buildMt103(SwiftTransferDetails details) {
+        return String.join("\n",
+                ":20:" + details.transactionReference(),
+                ":32A:" + details.valueDate().format(DateTimeFormatter.ofPattern("yyMMdd"))
+                        + details.currency()
+                        + formatSwiftAmount(details.amount()),
+                ":50K:/" + details.orderingCustomerAccount() + "\n" + details.orderingCustomerName(),
+                ":59:/" + details.beneficiaryAccountNumber() + "\n" + details.beneficiaryName(),
+                ":70:" + (details.remittanceInfo() != null ? details.remittanceInfo() : ""),
+                ":71A:" + details.chargeType()
+        );
+    }
 
     @Transactional
     public GatewayMessage sendMessage(GatewayMessage msg) {
@@ -80,4 +97,21 @@ public class FinancialGatewayService {
         return messageRepository.findByMessageRef(ref)
                 .orElseThrow(() -> new ResourceNotFoundException("GatewayMessage", "messageRef", ref));
     }
+
+    private String formatSwiftAmount(BigDecimal amount) {
+        return amount.setScale(2, RoundingMode.HALF_UP).toPlainString().replace('.', ',');
+    }
+
+    public record SwiftTransferDetails(
+            String transactionReference,
+            LocalDate valueDate,
+            String currency,
+            BigDecimal amount,
+            String orderingCustomerAccount,
+            String orderingCustomerName,
+            String beneficiaryAccountNumber,
+            String beneficiaryName,
+            String remittanceInfo,
+            String chargeType
+    ) {}
 }

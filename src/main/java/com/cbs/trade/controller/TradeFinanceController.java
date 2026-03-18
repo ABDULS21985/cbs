@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/v1/trade")
+@RequestMapping({"/v1/trade", "/v1/trade-finance"})
 @RequiredArgsConstructor
 @Tag(name = "Trade Finance", description = "Letters of Credit, Guarantees, Collections, Supply Chain Finance, Document Digitisation")
 public class TradeFinanceController {

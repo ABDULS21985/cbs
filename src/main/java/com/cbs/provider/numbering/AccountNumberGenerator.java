@@ -94,7 +94,7 @@ public class AccountNumberGenerator {
         String serial = String.format("%0" + serialLength + "d", seq);
         String base = prefix + serial;
 
-        int checkDigit = calculateMod10CheckDigit(base);
+        int checkDigit = calculateNubanCheckDigit(base);
         return base + checkDigit;
     }
 
@@ -124,6 +124,40 @@ public class AccountNumberGenerator {
             sum += digit;
             doubleNext = !doubleNext;
         }
+        return (10 - (sum % 10)) % 10;
+    }
+
+    /**
+     * Validates the compact 10-digit NUBAN used by this codebase:
+     * {3-digit bank code}{6-digit serial}{check digit}.
+     *
+     * The check digit uses the official NUBAN weighting over a normalized
+     * 15-digit base: {000 + bankCode + 000 + serial}.
+     */
+    public boolean isValidNuban(String nuban) {
+        if (nuban == null || !nuban.matches("\\d{10}")) {
+            return false;
+        }
+        String base = nuban.substring(0, 9);
+        int actualCheckDigit = Character.getNumericValue(nuban.charAt(9));
+        return calculateNubanCheckDigit(base) == actualCheckDigit;
+    }
+
+    private int calculateNubanCheckDigit(String base) {
+        if (base == null || !base.matches("\\d{9}")) {
+            throw new IllegalArgumentException("NUBAN base must be exactly 9 digits");
+        }
+
+        String bankCode = base.substring(0, 3);
+        String serial = base.substring(3);
+        String normalized = "000" + bankCode + String.format("%9s", serial).replace(' ', '0');
+        int[] weights = {3, 7, 3, 3, 7, 3, 3, 7, 3, 3, 7, 3, 3, 7, 3};
+        int sum = 0;
+
+        for (int i = 0; i < normalized.length(); i++) {
+            sum += Character.getNumericValue(normalized.charAt(i)) * weights[i];
+        }
+
         return (10 - (sum % 10)) % 10;
     }
 

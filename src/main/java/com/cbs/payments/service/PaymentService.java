@@ -18,6 +18,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.UUID;
 
 @Service
@@ -34,6 +35,24 @@ public class PaymentService {
     // ========================================================================
     // INTERNAL TRANSFER (Cap 27)
     // ========================================================================
+
+    public NibssNipRequest buildNibssNipRequest(NibssTransferDetails details) {
+        long amountInKobo = details.amountNaira().movePointRight(2)
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValueExact();
+
+        return new NibssNipRequest(
+                String.format("%012d", ThreadLocalRandom.current().nextLong(0, 1_000_000_000_000L)),
+                normalizeDigits(details.destinationInstitutionCode(), 6),
+                normalizeDigits(details.channelCode(), 2),
+                normalizeDigits(details.beneficiaryAccountNumber(), 10),
+                amountInKobo,
+                normalizeDigits(details.originatorAccountNumber(), 10),
+                details.originatorName(),
+                details.beneficiaryName(),
+                details.narration()
+        );
+    }
 
     @Transactional
     public PaymentInstruction executeInternalTransfer(Long debitAccountId, Long creditAccountId,
@@ -338,6 +357,40 @@ public class PaymentService {
                 .orElseThrow(() -> new BusinessException("No FX rate found for " + source + "/" + target, "NO_FX_RATE"));
     }
 
+    private String normalizeDigits(String value, int maxLength) {
+        String digits = value == null ? "" : value.replaceAll("\\D", "");
+        if (digits.isEmpty()) {
+            throw new BusinessException("Numeric field is required", "INVALID_NUMERIC_FORMAT");
+        }
+        if (digits.length() > maxLength) {
+            throw new BusinessException("Numeric field exceeds expected length " + maxLength, "INVALID_NUMERIC_LENGTH");
+        }
+        return String.format("%0" + maxLength + "d", Long.parseLong(digits));
+    }
+
     public record BatchPaymentItem(String creditAccountNumber, String beneficiaryName,
                                      String beneficiaryBankCode, BigDecimal amount, String narration) {}
+
+    public record NibssTransferDetails(
+            String destinationInstitutionCode,
+            String channelCode,
+            String beneficiaryAccountNumber,
+            BigDecimal amountNaira,
+            String originatorAccountNumber,
+            String originatorName,
+            String beneficiaryName,
+            String narration
+    ) {}
+
+    public record NibssNipRequest(
+            String sessionId,
+            String destinationInstitutionCode,
+            String channelCode,
+            String beneficiaryAccountNumber,
+            long amount,
+            String originatorAccountNumber,
+            String originatorName,
+            String beneficiaryName,
+            String narration
+    ) {}
 }
