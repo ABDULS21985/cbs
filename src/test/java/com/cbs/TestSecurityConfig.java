@@ -3,6 +3,7 @@ package com.cbs;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -11,8 +12,10 @@ public class TestSecurityConfig {
 
     @Bean
     @Primary
+    @Order(0)
     public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
-        http.csrf(c -> c.disable())
+        http.securityMatcher("/**")
+            .csrf(c -> c.disable())
             .authorizeHttpRequests(a -> a.anyRequest().permitAll());
         return http.build();
     }

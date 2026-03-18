@@ -138,11 +138,12 @@ class PaymentApiTest extends AbstractIntegrationTest {
             .body(String.format("""
                 {
                     "customerId": %d,
-                    "productCode": "SAV001",
+                    "productCode": "SA-STD",
                     "accountType": "INDIVIDUAL",
                     "accountName": "%s",
                     "currencyCode": "NGN",
-                    "branchCode": "BR001"
+                    "branchCode": "BR001",
+                    "initialDeposit": 1000.00
                 }
                 """, customerId, accountName))
         .when()

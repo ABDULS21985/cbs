@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -20,7 +21,9 @@ public class OpenItemService {
 
     @Transactional
     public OpenItem create(OpenItem item) {
-        item.setItemCode("OI-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        if (!StringUtils.hasText(item.getItemCode())) {
+            item.setItemCode("OI-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        }
         item.setAgingDays(0);
         item.setStatus("OPEN");
         return repository.save(item);

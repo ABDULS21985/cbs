@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -26,7 +27,9 @@ public class InvestmentPortfolioService {
 
     @Transactional
     public InvestPortfolio create(InvestPortfolio portfolio) {
-        portfolio.setPortfolioCode("IPF-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        if (!StringUtils.hasText(portfolio.getPortfolioCode())) {
+            portfolio.setPortfolioCode("IPF-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        }
         portfolio.setCurrentValue(portfolio.getInitialInvestment());
         portfolio.setTotalContributions(portfolio.getInitialInvestment());
         portfolio.setOpenedAt(Instant.now());

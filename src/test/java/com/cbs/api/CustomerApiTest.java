@@ -18,6 +18,7 @@ class CustomerApiTest extends AbstractIntegrationTest {
 
     @LocalServerPort
     private int port;
+    private static int counter = 0;
 
     @BeforeEach
     void setup() {
@@ -25,12 +26,20 @@ class CustomerApiTest extends AbstractIntegrationTest {
         RestAssured.basePath = "/api";
     }
 
+    private String uniqueEmail(String localPart) {
+        return localPart + "+" + (++counter) + "@example.com";
+    }
+
+    private String uniquePhone() {
+        return "+23480123" + String.format("%05d", ++counter);
+    }
+
     @Test
     @DisplayName("POST /v1/customers - should create customer and return 201 with success=true and non-null id")
     void createCustomer_returns201() {
         given()
             .contentType(ContentType.JSON)
-            .body("""
+            .body(String.format("""
                 {
                     "customerType": "INDIVIDUAL",
                     "firstName": "John",
@@ -38,11 +47,11 @@ class CustomerApiTest extends AbstractIntegrationTest {
                     "dateOfBirth": "1990-05-15",
                     "gender": "MALE",
                     "nationality": "NGA",
-                    "email": "john.doe@example.com",
-                    "phonePrimary": "+2348012345678",
+                    "email": "%s",
+                    "phonePrimary": "%s",
                     "branchCode": "BR001"
                 }
-                """)
+                """, uniqueEmail("john.doe"), uniquePhone()))
         .when()
             .post("/v1/customers")
         .then()
@@ -70,18 +79,18 @@ class CustomerApiTest extends AbstractIntegrationTest {
         Long customerId =
             given()
                 .contentType(ContentType.JSON)
-                .body("""
+                .body(String.format("""
                     {
                         "customerType": "INDIVIDUAL",
                         "firstName": "Alice",
                         "lastName": "Smith",
                         "dateOfBirth": "1985-03-20",
                         "nationality": "NGA",
-                        "email": "alice.smith@example.com",
-                        "phonePrimary": "+2348012345679",
+                        "email": "%s",
+                        "phonePrimary": "%s",
                         "branchCode": "BR001"
                     }
-                    """)
+                    """, uniqueEmail("alice.smith"), uniquePhone()))
             .when()
                 .post("/v1/customers")
             .then()
@@ -95,7 +104,7 @@ class CustomerApiTest extends AbstractIntegrationTest {
             .body(String.format("""
                 {
                     "customerId": %d,
-                    "productCode": "SAV001",
+                    "productCode": "SA-STD",
                     "accountType": "INDIVIDUAL",
                     "accountName": "Alice Savings",
                     "currencyCode": "NGN",
@@ -117,18 +126,18 @@ class CustomerApiTest extends AbstractIntegrationTest {
         Long customerId =
             given()
                 .contentType(ContentType.JSON)
-                .body("""
+                .body(String.format("""
                     {
                         "customerType": "INDIVIDUAL",
                         "firstName": "Bob",
                         "lastName": "Jones",
                         "dateOfBirth": "1980-01-10",
                         "nationality": "NGA",
-                        "email": "bob.jones@example.com",
-                        "phonePrimary": "+2348012345680",
+                        "email": "%s",
+                        "phonePrimary": "%s",
                         "branchCode": "BR001"
                     }
-                    """)
+                    """, uniqueEmail("bob.jones"), uniquePhone()))
             .when()
                 .post("/v1/customers")
             .then()
