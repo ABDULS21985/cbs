@@ -27,11 +27,11 @@ class CustomerApiTest extends AbstractIntegrationTest {
     }
 
     private String uniqueEmail(String localPart) {
-        return localPart + "+" + (++counter) + "@example.com";
+        return localPart + "+" + System.currentTimeMillis() + "-" + (++counter) + "@example.com";
     }
 
     private String uniquePhone() {
-        return "+23480123" + String.format("%05d", ++counter);
+        return "+234" + Long.toString(System.currentTimeMillis() % 1_000_000_0000L) + String.format("%02d", ++counter % 100);
     }
 
     @Test

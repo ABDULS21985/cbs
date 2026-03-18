@@ -149,7 +149,51 @@ class AccountServiceTest {
             assertThat(result).isNotNull();
             assertThat(result.getAccountNumber()).isEqualTo("1000000001");
             verify(accountValidator).validateOpeningDeposit(currentProduct, request.getInitialDeposit());
-            verify(accountRepository).save(any(Account.class));
+            verify(accountRepository, times(2)).save(any(Account.class));
+        }
+
+        @Test
+        @DisplayName("Should apply the opening deposit to account balances before journaling")
+        void openAccount_OpeningDepositUpdatesBalancesAndJournal() {
+            OpenAccountRequest request = OpenAccountRequest.builder()
+                    .customerId(1L).productCode("CA-NGN-STD")
+                    .accountType(AccountType.INDIVIDUAL)
+                    .initialDeposit(new BigDecimal("10000.00"))
+                    .branchCode("ABJ001")
+                    .build();
+
+            when(customerRepository.findById(1L)).thenReturn(Optional.of(testCustomer));
+            when(productRepository.findByCode("CA-NGN-STD")).thenReturn(Optional.of(currentProduct));
+            when(accountRepository.getNextAccountNumberSequence()).thenReturn(1000000002L);
+            when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> {
+                Account account = invocation.getArgument(0);
+                if (account.getId() == null) {
+                    account.setId(2L);
+                }
+                return account;
+            });
+            when(transactionRepository.getNextTransactionRefSequence()).thenReturn(2L);
+            when(transactionRepository.save(any(TransactionJournal.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            when(signatoryRepository.findByAccountIdWithCustomer(anyLong())).thenReturn(List.of());
+            when(accountMapper.toSignatoryDtoList(any())).thenReturn(List.of());
+            when(accountMapper.toResponse(any(Account.class))).thenAnswer(invocation -> {
+                Account account = invocation.getArgument(0);
+                return AccountResponse.builder()
+                        .id(account.getId())
+                        .accountNumber(account.getAccountNumber())
+                        .bookBalance(account.getBookBalance())
+                        .availableBalance(account.getAvailableBalance())
+                        .build();
+            });
+
+            AccountResponse result = accountService.openAccount(request);
+
+            assertThat(result.getBookBalance()).isEqualByComparingTo(new BigDecimal("10000.00"));
+            assertThat(result.getAvailableBalance()).isEqualByComparingTo(new BigDecimal("10000.00"));
+            verify(transactionRepository).save(argThat(journal ->
+                    journal.getTransactionType() == TransactionType.OPENING_BALANCE
+                            && journal.getRunningBalance().compareTo(new BigDecimal("10000.00")) == 0));
+            verify(accountRepository, times(2)).save(any(Account.class));
         }
 
         @Test

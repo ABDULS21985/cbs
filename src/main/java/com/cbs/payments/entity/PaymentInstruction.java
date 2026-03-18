@@ -2,6 +2,7 @@ package com.cbs.payments.entity;
 
 import com.cbs.account.entity.Account;
 import com.cbs.common.audit.AuditableEntity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -27,6 +28,7 @@ public class PaymentInstruction extends AuditableEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "debit_account_id")
+    @JsonIgnore
     private Account debitAccount;
 
     @Column(name = "debit_account_number", nullable = false, length = 34)
@@ -34,6 +36,7 @@ public class PaymentInstruction extends AuditableEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "credit_account_id")
+    @JsonIgnore
     private Account creditAccount;
 
     @Column(name = "credit_account_number", nullable = false, length = 34)

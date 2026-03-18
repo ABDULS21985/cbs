@@ -58,12 +58,10 @@ public interface CustomerRepository extends JpaRepository<Customer, Long>, JpaSp
             """)
     Page<Customer> searchCustomers(@Param("searchTerm") String searchTerm, Pageable pageable);
 
-    @Query("SELECT c FROM Customer c LEFT JOIN FETCH c.addresses LEFT JOIN FETCH c.identifications " +
-            "LEFT JOIN FETCH c.contacts WHERE c.id = :id")
+    @Query("SELECT c FROM Customer c WHERE c.id = :id")
     Optional<Customer> findByIdWithDetails(@Param("id") Long id);
 
-    @Query("SELECT c FROM Customer c LEFT JOIN FETCH c.addresses LEFT JOIN FETCH c.identifications " +
-            "LEFT JOIN FETCH c.contacts WHERE c.cifNumber = :cifNumber")
+    @Query("SELECT c FROM Customer c WHERE c.cifNumber = :cifNumber")
     Optional<Customer> findByCifNumberWithDetails(@Param("cifNumber") String cifNumber);
 
     @Query(value = "SELECT nextval('cbs.cif_number_seq')", nativeQuery = true)

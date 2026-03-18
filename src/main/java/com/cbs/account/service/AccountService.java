@@ -121,6 +121,8 @@ public class AccountService {
         Account saved = accountRepository.save(account);
 
         if (request.getInitialDeposit() != null && request.getInitialDeposit().compareTo(BigDecimal.ZERO) > 0) {
+            saved.credit(request.getInitialDeposit());
+            accountRepository.save(saved);
             postTransaction(saved, TransactionType.OPENING_BALANCE, request.getInitialDeposit(),
                     "Opening balance deposit", TransactionChannel.BRANCH, null);
         }
@@ -175,13 +177,13 @@ public class AccountService {
         Account account = findAccountOrThrow(request.getAccountNumber());
         accountValidator.validateDebit(account, request.getAmount());
 
+        account.debit(request.getAmount());
+        accountRepository.save(account);
+
         TransactionJournal txn = postTransaction(account, request.getTransactionType(),
                 request.getAmount(), request.getNarration(),
                 request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
                 request.getExternalRef());
-
-        account.debit(request.getAmount());
-        accountRepository.save(account);
 
         return accountMapper.toTransactionResponse(txn);
     }

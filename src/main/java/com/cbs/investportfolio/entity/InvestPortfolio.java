@@ -1,5 +1,6 @@
 package com.cbs.investportfolio.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.cbs.common.audit.AuditableEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,6 +24,21 @@ public class InvestPortfolio extends AuditableEntity {
 
     @Column(nullable = false, length = 200)
     private String portfolioName;
+
+    @JsonIgnore
+    @Column(name = "ifrs9_classification", nullable = false, length = 30)
+    @Builder.Default
+    private String ifrs9Classification = "FVTPL";
+
+    @JsonIgnore
+    @Column(name = "business_model", nullable = false, length = 30)
+    @Builder.Default
+    private String businessModel = "TRADING";
+
+    @JsonIgnore
+    @Column(name = "is_active", nullable = false)
+    @Builder.Default
+    private Boolean isActive = true;
 
     private Long customerId;
 
