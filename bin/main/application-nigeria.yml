@@ -5,7 +5,7 @@ cbs:
     default-currency: NGN
     timezone: Africa/Lagos
     locale: en-NG
-    institution-name: ${CBS_INSTITUTION_NAME:BellBank Microfinance}
+    institution-name: ${CBS_INSTITUTION_NAME:DigiCore Microfinance}
     institution-code: ${CBS_INSTITUTION_CODE:000XXX}
     regulatory-body: Central Bank of Nigeria (CBN)
 

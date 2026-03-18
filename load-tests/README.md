@@ -9,6 +9,7 @@ This directory contains a lightweight local load harness for the CBS application
 - Runs concurrent HTTP scenarios against representative endpoints
 - Warms each scenario before measuring to avoid first-hit initialization skew
 - Prints latency and throughput summary
+- Optionally samples actuator metrics during the run
 - Writes a JSON report into `load-tests/results/`
 
 ## Default Scenarios
@@ -38,6 +39,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
   --duration 20 \
   --connections 20 \
   --warmup-requests 1 \
+  --collect-metrics \
   --scenarios health,customer-get,account-get,customer-search
 ```
 
@@ -57,3 +59,4 @@ To include write load:
 - It assumes local PostgreSQL and Redis are available, matching the repo's existing local test setup.
 - Write scenarios intentionally create data. Use them selectively.
 - Reports include sample error messages when requests fail or time out.
+- With `--collect-metrics`, the harness also writes a metrics report with CPU, thread, Hikari, executor, and per-endpoint actuator summaries.
