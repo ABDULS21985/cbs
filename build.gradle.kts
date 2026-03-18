@@ -83,6 +83,8 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    maxHeapSize = "2g"
+    forkEvery = 100
     jvmArgs("--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED")
 }
 
