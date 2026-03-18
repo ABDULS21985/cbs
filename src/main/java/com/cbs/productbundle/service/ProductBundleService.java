@@ -46,6 +46,6 @@ public class ProductBundleService {
 
     public List<ProductBundle> getActiveBundles() { return bundleRepository.findByStatusOrderByBundleNameAsc("ACTIVE"); }
     public List<CustomerBundleEnrollment> getCustomerEnrollments(Long customerId) {
-        return enrollmentRepository.findByCustomerIdAndStatusOrderByEnrolledAtDesc(customerId, "ACTIVE");
+        return enrollmentRepository.findByCustomerIdAndStatusOrderByEnrollmentDateDesc(customerId, "ACTIVE");
     }
 }

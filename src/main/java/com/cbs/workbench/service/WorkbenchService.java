@@ -21,9 +21,7 @@ public class WorkbenchService {
         StaffWorkbenchSession session = StaffWorkbenchSession.builder()
                 .sessionId("WB-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase())
                 .staffUserId(staffUserId).staffName(staffName).workbenchType(workbenchType).build();
-        StaffWorkbenchSession saved = sessionRepository.save(session);
-        log.info("Workbench session started: id={}, staff={}, type={}", saved.getSessionId(), staffName, workbenchType);
-        return saved;
+        return sessionRepository.save(session);
     }
 
     @Transactional
@@ -31,7 +29,6 @@ public class WorkbenchService {
         StaffWorkbenchSession s = getSession(sessionId);
         s.setCustomerId(customerId);
         s.setLastActivityAt(Instant.now());
-        log.info("Customer context loaded: session={}, customer={}", sessionId, customerId);
         return sessionRepository.save(s);
     }
 
@@ -40,7 +37,6 @@ public class WorkbenchService {
         StaffWorkbenchSession s = getSession(sessionId);
         s.setSessionStatus("TERMINATED");
         s.setEndedAt(Instant.now());
-        log.info("Workbench session ended: id={}", sessionId);
         return sessionRepository.save(s);
     }
 

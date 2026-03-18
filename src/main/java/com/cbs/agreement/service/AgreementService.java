@@ -1,5 +1,5 @@
 package com.cbs.agreement.service;
-import com.cbs.common.exception.BusinessException; import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.agreement.entity.CustomerAgreement; import com.cbs.agreement.repository.CustomerAgreementRepository;
 import lombok.RequiredArgsConstructor; import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +18,7 @@ public class AgreementService {
         CustomerAgreement a = agreementRepository.findByAgreementNumber(number)
                 .orElseThrow(() -> new ResourceNotFoundException("CustomerAgreement", "agreementNumber", number));
         a.setStatus("ACTIVE"); a.setSignedByCustomer("CUSTOMER"); a.setSignedByBank("BANK");
-        a.setSignedDate(java.time.LocalDate.now()); a.setUpdatedAt(Instant.now());
+        a.setSignedDate(LocalDate.now()); a.setUpdatedAt(Instant.now());
         return agreementRepository.save(a);
     }
     @Transactional
@@ -29,5 +29,4 @@ public class AgreementService {
         return agreementRepository.save(a);
     }
     public List<CustomerAgreement> getByCustomer(Long customerId) { return agreementRepository.findByCustomerIdOrderByCreatedAtDesc(customerId); }
-    public List<CustomerAgreement> getActive(Long customerId) { return agreementRepository.findByCustomerIdAndStatusOrderByEffectiveFromDesc(customerId, "ACTIVE"); }
 }

@@ -23,23 +23,23 @@ public class LoyaltyController {
     public ResponseEntity<ApiResponse<LoyaltyAccount>> enroll(@RequestParam Long customerId, @RequestParam String programCode) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(loyaltyService.enroll(customerId, programCode)));
     }
-    @PostMapping("/{membershipNumber}/earn") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<LoyaltyAccount>> earn(@PathVariable String membershipNumber,
-            @RequestParam Long points, @RequestParam(required = false) String description,
+    @PostMapping("/{loyaltyNumber}/earn") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<LoyaltyAccount>> earn(@PathVariable String loyaltyNumber,
+            @RequestParam Integer points, @RequestParam(required = false) String description,
             @RequestParam(required = false) Long sourceTransactionId) {
-        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.earnPoints(membershipNumber, points.intValue(), description, sourceTransactionId)));
+        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.earnPoints(loyaltyNumber, points, description, sourceTransactionId)));
     }
-    @PostMapping("/{membershipNumber}/redeem") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<LoyaltyAccount>> redeem(@PathVariable String membershipNumber,
-            @RequestParam Long points, @RequestParam String redemptionType) {
-        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.redeemPoints(membershipNumber, points.intValue(), redemptionType)));
+    @PostMapping("/{loyaltyNumber}/redeem") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<LoyaltyAccount>> redeem(@PathVariable String loyaltyNumber,
+            @RequestParam Integer points, @RequestParam String description) {
+        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.redeemPoints(loyaltyNumber, points, description)));
     }
     @GetMapping("/customer/{customerId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<LoyaltyAccount>>> getCustomerAccounts(@PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(loyaltyService.getCustomerAccounts(customerId)));
     }
-    @GetMapping("/{membershipNumber}/transactions") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<LoyaltyTransaction>>> getTransactions(@PathVariable String membershipNumber) {
-        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.getTransactions(membershipNumber)));
+    @GetMapping("/{loyaltyNumber}/transactions") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<LoyaltyTransaction>>> getTransactions(@PathVariable String loyaltyNumber) {
+        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.getTransactions(loyaltyNumber)));
     }
 }

@@ -2,7 +2,7 @@ package com.cbs.proposition.service;
 import com.cbs.proposition.entity.CustomerProposition; import com.cbs.proposition.repository.CustomerPropositionRepository;
 import lombok.RequiredArgsConstructor; import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional;
-import java.time.Instant; import java.util.*;
+import java.util.*;
 @Service @RequiredArgsConstructor @Slf4j @Transactional(readOnly = true)
 public class PropositionService {
     private final CustomerPropositionRepository propositionRepository;

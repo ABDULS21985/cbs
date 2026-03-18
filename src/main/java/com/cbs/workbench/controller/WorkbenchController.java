@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController @RequestMapping("/v1/workbench") @RequiredArgsConstructor
-@Tag(name = "Staff Workbench", description = "Unified staff workspace — customer context, tabs, active cases, session management")
+@Tag(name = "Staff Workbench", description = "Unified staff workspace — customer context, session management")
 public class WorkbenchController {
     private final WorkbenchService workbenchService;
 
@@ -26,7 +26,6 @@ public class WorkbenchController {
             @PathVariable String sessionId, @RequestParam Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(workbenchService.loadCustomerContext(sessionId, customerId)));
     }
-
     @PostMapping("/sessions/{sessionId}/logout") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<StaffWorkbenchSession>> logout(@PathVariable String sessionId) {
         return ResponseEntity.ok(ApiResponse.ok(workbenchService.endSession(sessionId)));

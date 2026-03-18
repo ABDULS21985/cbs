@@ -41,15 +41,11 @@ public class LoyaltyService {
     public LoyaltyAccount earnPoints(String loyaltyNumber, int points, String description, Long sourceTransactionId) {
         LoyaltyAccount account = getAccount(loyaltyNumber);
         if (!"ACTIVE".equals(account.getStatus())) throw new BusinessException("Loyalty account not active");
-
         account.setCurrentBalance(account.getCurrentBalance() + points);
         account.setLifetimeEarned(account.getLifetimeEarned() + points);
-
         transactionRepository.save(LoyaltyTransaction.builder()
                 .loyaltyAccountId(account.getId()).transactionType("EARN").points(points)
                 .description(description).sourceTransactionId(sourceTransactionId).build());
-
-        log.debug("Points earned: account={}, points={}", loyaltyNumber, points);
         return accountRepository.save(account);
     }
 
@@ -58,20 +54,15 @@ public class LoyaltyService {
         LoyaltyAccount account = getAccount(loyaltyNumber);
         LoyaltyProgram program = programRepository.findById(account.getProgramId())
                 .orElseThrow(() -> new ResourceNotFoundException("LoyaltyProgram", "id", account.getProgramId()));
-
         if (account.getCurrentBalance() < points)
-            throw new BusinessException("Insufficient points: have=" + account.getCurrentBalance() + ", need=" + points);
+            throw new BusinessException("Insufficient points");
         if (points < program.getMinRedemptionPoints())
-            throw new BusinessException("Minimum redemption: " + program.getMinRedemptionPoints() + " points");
-
+            throw new BusinessException("Minimum redemption: " + program.getMinRedemptionPoints());
         account.setCurrentBalance(account.getCurrentBalance() - points);
         account.setLifetimeRedeemed(account.getLifetimeRedeemed() + points);
-
         transactionRepository.save(LoyaltyTransaction.builder()
                 .loyaltyAccountId(account.getId()).transactionType("REDEEM").points(-points)
                 .description(description).build());
-
-        log.info("Points redeemed: account={}, points={}", loyaltyNumber, points);
         return accountRepository.save(account);
     }
 
