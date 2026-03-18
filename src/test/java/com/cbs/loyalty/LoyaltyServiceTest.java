@@ -26,46 +26,45 @@ class LoyaltyServiceTest {
     @Mock private LoyaltyTransactionRepository transactionRepository;
     @InjectMocks private LoyaltyService loyaltyService;
 
-    @Test @DisplayName("Earning points increases balance and YTD")
+    @Test @DisplayName("Earning points increases balance and lifetime")
     void earnPoints() {
-        LoyaltyAccount account = LoyaltyAccount.builder().id(1L).membershipNumber("LYL-001")
-                .pointsBalance(1000L).pointsEarnedYtd(5000L).lifetimePoints(10000L).status("ACTIVE").build();
-        when(accountRepository.findByMembershipNumber("LYL-001")).thenReturn(Optional.of(account));
+        LoyaltyAccount account = LoyaltyAccount.builder().id(1L).loyaltyNumber("LYL-001")
+                .currentBalance(1000).lifetimeEarned(5000).status("ACTIVE").build();
+        when(accountRepository.findByLoyaltyNumber("LYL-001")).thenReturn(Optional.of(account));
         when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(transactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        LoyaltyAccount result = loyaltyService.earnPoints("LYL-001", 500L, "Purchase reward", null);
-        assertThat(result.getPointsBalance()).isEqualTo(1500L);
-        assertThat(result.getPointsEarnedYtd()).isEqualTo(5500L);
-        assertThat(result.getLifetimePoints()).isEqualTo(10500L);
+        LoyaltyAccount result = loyaltyService.earnPoints("LYL-001", 500, "Purchase reward", null);
+        assertThat(result.getCurrentBalance()).isEqualTo(1500);
+        assertThat(result.getLifetimeEarned()).isEqualTo(5500);
     }
 
     @Test @DisplayName("Redemption fails with insufficient points")
     void insufficientPoints() {
         LoyaltyProgram program = LoyaltyProgram.builder().id(1L).minRedemptionPoints(100)
-                .pointsValueCurrency(new BigDecimal("0.01")).build();
-        LoyaltyAccount account = LoyaltyAccount.builder().id(1L).membershipNumber("LYL-LOW")
-                .programId(1L).pointsBalance(50L).status("ACTIVE").build();
-        when(accountRepository.findByMembershipNumber("LYL-LOW")).thenReturn(Optional.of(account));
+                .pointValue(new BigDecimal("0.01")).build();
+        LoyaltyAccount account = LoyaltyAccount.builder().id(1L).loyaltyNumber("LYL-LOW")
+                .programId(1L).currentBalance(50).status("ACTIVE").build();
+        when(accountRepository.findByLoyaltyNumber("LYL-LOW")).thenReturn(Optional.of(account));
         when(programRepository.findById(1L)).thenReturn(Optional.of(program));
 
-        assertThatThrownBy(() -> loyaltyService.redeemPoints("LYL-LOW", 200L, "STATEMENT_CREDIT"))
+        assertThatThrownBy(() -> loyaltyService.redeemPoints("LYL-LOW", 200, "Statement credit"))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("Insufficient");
     }
 
-    @Test @DisplayName("Successful redemption decreases balance and tracks value")
+    @Test @DisplayName("Successful redemption decreases balance")
     void redeemPoints() {
         LoyaltyProgram program = LoyaltyProgram.builder().id(1L).minRedemptionPoints(100)
-                .pointsValueCurrency(new BigDecimal("0.01")).build();
-        LoyaltyAccount account = LoyaltyAccount.builder().id(1L).membershipNumber("LYL-RDM")
-                .programId(1L).pointsBalance(5000L).pointsRedeemedYtd(1000L).status("ACTIVE").build();
-        when(accountRepository.findByMembershipNumber("LYL-RDM")).thenReturn(Optional.of(account));
+                .pointValue(new BigDecimal("0.01")).build();
+        LoyaltyAccount account = LoyaltyAccount.builder().id(1L).loyaltyNumber("LYL-RDM")
+                .programId(1L).currentBalance(5000).lifetimeRedeemed(1000).status("ACTIVE").build();
+        when(accountRepository.findByLoyaltyNumber("LYL-RDM")).thenReturn(Optional.of(account));
         when(programRepository.findById(1L)).thenReturn(Optional.of(program));
         when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(transactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        LoyaltyAccount result = loyaltyService.redeemPoints("LYL-RDM", 2000L, "STATEMENT_CREDIT");
-        assertThat(result.getPointsBalance()).isEqualTo(3000L);
-        assertThat(result.getPointsRedeemedYtd()).isEqualTo(3000L);
+        LoyaltyAccount result = loyaltyService.redeemPoints("LYL-RDM", 2000, "Statement credit");
+        assertThat(result.getCurrentBalance()).isEqualTo(3000);
+        assertThat(result.getLifetimeRedeemed()).isEqualTo(3000);
     }
 }

@@ -10,7 +10,7 @@ public class TreasuryAnalyticsSnapshot {
     private BigDecimal totalEarningAssets; private BigDecimal yieldOnAssetsPct;
     private BigDecimal netInterestMarginPct; private BigDecimal interestSpreadPct;
     private BigDecimal loanToDepositRatio; private BigDecimal capitalAdequacyRatio;
-    private BigDecimal tier1Ratio; private BigDecimal leverageRatio;
+    @Column(name = "tier1_ratio") private BigDecimal tier1Ratio; private BigDecimal leverageRatio;
     private BigDecimal returnOnAssetsPct; private BigDecimal returnOnEquityPct;
     @Builder.Default private Instant createdAt = Instant.now();
 }

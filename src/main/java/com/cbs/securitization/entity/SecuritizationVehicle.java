@@ -15,9 +15,9 @@ public class SecuritizationVehicle {
     private BigDecimal weightedAvgCoupon; private BigDecimal weightedAvgMaturity;
     @JdbcTypeCode(SqlTypes.JSON) private List<Map<String, Object>> tranches;
     private BigDecimal totalIssued; private BigDecimal creditEnhancementPct;
-    @Builder.Default private BigDecimal delinquency30dPct = BigDecimal.ZERO;
-    @Builder.Default private BigDecimal delinquency60dPct = BigDecimal.ZERO;
-    @Builder.Default private BigDecimal delinquency90dPct = BigDecimal.ZERO;
+    @Builder.Default @Column(name = "delinquency_30d_pct") private BigDecimal delinquency30dPct = BigDecimal.ZERO;
+    @Builder.Default @Column(name = "delinquency_60d_pct") private BigDecimal delinquency60dPct = BigDecimal.ZERO;
+    @Builder.Default @Column(name = "delinquency_90d_pct") private BigDecimal delinquency90dPct = BigDecimal.ZERO;
     @Builder.Default private BigDecimal cumulativeLossPct = BigDecimal.ZERO;
     @Builder.Default private BigDecimal prepaymentRateCpr = BigDecimal.ZERO;
     @Column(nullable = false, length = 15) @Builder.Default private String status = "STRUCTURING";
