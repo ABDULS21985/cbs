@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,7 +39,7 @@ class BranchPerformanceServiceTest {
         perf.setOperatingCost(new BigDecimal("3000000"));
 
         when(repository.save(any(BranchPerformance.class))).thenAnswer(i -> {
-            BranchPerformance saved = i.<BranchPerformance>getArgument(0);
+            BranchPerformance saved = Objects.requireNonNull(i.getArgument(0, BranchPerformance.class));
             saved.setId(1L);
             return saved;
         });

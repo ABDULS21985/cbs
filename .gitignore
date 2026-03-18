@@ -27,3 +27,6 @@ target/
 *.env
 application-local.yml
 application-local.properties
+
+# Local load test artifacts
+load-tests/results/
