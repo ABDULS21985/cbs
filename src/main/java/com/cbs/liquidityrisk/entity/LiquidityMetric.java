@@ -14,9 +14,12 @@ public class LiquidityMetric {
     @Builder.Default private BigDecimal availableStableFunding = BigDecimal.ZERO;
     @Builder.Default private BigDecimal requiredStableFunding = BigDecimal.ZERO;
     private BigDecimal nsfrRatio;
-    private BigDecimal stressLcrModerate; private BigDecimal stressLcrSevere;
-    private Integer survivalDaysModerate; private Integer survivalDaysSevere;
-    @Column(name = "top10_depositor_pct") private BigDecimal top10DepositorPct; private BigDecimal wholesaleFundingPct;
+    private BigDecimal stressLcrModerate;
+    private BigDecimal stressLcrSevere;
+    private Integer survivalDaysModerate;
+    private Integer survivalDaysSevere;
+    @Column(name = "top10_depositor_pct") private BigDecimal top10DepositorPct;
+    private BigDecimal wholesaleFundingPct;
     @Builder.Default private BigDecimal lcrLimit = new BigDecimal("100.0");
     @Builder.Default private BigDecimal nsfrLimit = new BigDecimal("100.0");
     @Builder.Default private Boolean lcrBreach = false; @Builder.Default private Boolean nsfrBreach = false;

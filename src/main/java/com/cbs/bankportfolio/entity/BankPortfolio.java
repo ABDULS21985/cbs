@@ -10,9 +10,13 @@ public class BankPortfolio {
     @Builder.Default private BigDecimal totalValue = BigDecimal.ZERO;
     @Builder.Default private BigDecimal unrealizedPnl = BigDecimal.ZERO;
     @Builder.Default private BigDecimal realizedPnlYtd = BigDecimal.ZERO;
-    private BigDecimal yieldToMaturity; private BigDecimal modifiedDuration; private BigDecimal convexity;
-    private Integer creditSpreadBps; @Column(name = "var_99_1d") private BigDecimal var991d;
-    private String benchmark; private Integer trackingErrorBps;
+    private BigDecimal yieldToMaturity;
+    private BigDecimal modifiedDuration;
+    private BigDecimal convexity;
+    private Integer creditSpreadBps;
+    @Column(name = "var_99_1d") private BigDecimal var991d;
+    private String benchmark;
+    private Integer trackingErrorBps;
     @Builder.Default private Integer assetCount = 0;
     private Instant lastRebalancedAt;
     @Column(nullable = false, length = 15) @Builder.Default private String status = "ACTIVE";

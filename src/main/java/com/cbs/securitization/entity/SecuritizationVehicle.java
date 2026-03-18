@@ -12,16 +12,20 @@ public class SecuritizationVehicle {
     @Column(nullable = false, length = 3) @Builder.Default private String currency = "USD";
     @Column(nullable = false) private BigDecimal totalPoolBalance;
     @Column(nullable = false) private Integer numberOfAssets;
-    private BigDecimal weightedAvgCoupon; private BigDecimal weightedAvgMaturity;
+    private BigDecimal weightedAvgCoupon;
+    private BigDecimal weightedAvgMaturity;
     @JdbcTypeCode(SqlTypes.JSON) private List<Map<String, Object>> tranches;
-    private BigDecimal totalIssued; private BigDecimal creditEnhancementPct;
+    private BigDecimal totalIssued;
+    private BigDecimal creditEnhancementPct;
     @Builder.Default @Column(name = "delinquency_30d_pct") private BigDecimal delinquency30dPct = BigDecimal.ZERO;
     @Builder.Default @Column(name = "delinquency_60d_pct") private BigDecimal delinquency60dPct = BigDecimal.ZERO;
     @Builder.Default @Column(name = "delinquency_90d_pct") private BigDecimal delinquency90dPct = BigDecimal.ZERO;
     @Builder.Default private BigDecimal cumulativeLossPct = BigDecimal.ZERO;
     @Builder.Default private BigDecimal prepaymentRateCpr = BigDecimal.ZERO;
     @Column(nullable = false, length = 15) @Builder.Default private String status = "STRUCTURING";
-    private LocalDate issueDate; private LocalDate maturityDate;
-    private String trusteeName; private String ratingAgency;
+    private LocalDate issueDate;
+    private LocalDate maturityDate;
+    private String trusteeName;
+    private String ratingAgency;
     @Builder.Default private Instant createdAt = Instant.now(); @Builder.Default private Instant updatedAt = Instant.now();
 }

@@ -19,9 +19,15 @@ public class AlmPosition {
     @Builder.Default private BigDecimal bondsIssued = BigDecimal.ZERO;
     @Builder.Default private BigDecimal otherLiabilities = BigDecimal.ZERO;
     @Builder.Default private BigDecimal totalLiabilities = BigDecimal.ZERO;
-    private BigDecimal gapAmount; private BigDecimal cumulativeGap; private BigDecimal gapRatio;
-    @Column(name = "nii_impact_up100bp") private BigDecimal niiImpactUp100bp; @Column(name = "nii_impact_down100bp") private BigDecimal niiImpactDown100bp;
-    @Column(name = "eve_impact_up200bp") private BigDecimal eveImpactUp200bp; @Column(name = "eve_impact_down200bp") private BigDecimal eveImpactDown200bp;
-    private BigDecimal durationAssets; private BigDecimal durationLiabilities; private BigDecimal durationGap;
+    private BigDecimal gapAmount;
+    private BigDecimal cumulativeGap;
+    private BigDecimal gapRatio;
+    @Column(name = "nii_impact_up100bp") private BigDecimal niiImpactUp100bp;
+    @Column(name = "nii_impact_down100bp") private BigDecimal niiImpactDown100bp;
+    @Column(name = "eve_impact_up200bp") private BigDecimal eveImpactUp200bp;
+    @Column(name = "eve_impact_down200bp") private BigDecimal eveImpactDown200bp;
+    private BigDecimal durationAssets;
+    private BigDecimal durationLiabilities;
+    private BigDecimal durationGap;
     @Builder.Default private Instant createdAt = Instant.now();
 }
