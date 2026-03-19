@@ -16,7 +16,7 @@ const columns: ColumnDef<LoanApplication, any>[] = [
   { accessorKey: 'requestedAmount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.requestedAmount)}</span> },
   { accessorKey: 'tenorMonths', header: 'Tenor', cell: ({ row }) => `${row.original.tenorMonths} mo` },
   { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} /> },
-  { accessorKey: 'submittedDate', header: 'Submitted', cell: ({ row }) => formatDate(row.original.submittedDate) },
+  { accessorKey: 'createdAt', header: 'Submitted', cell: ({ row }) => formatDate(row.original.createdAt) },
   { accessorKey: 'assignedOfficer', header: 'Officer' },
 ];
 
@@ -26,7 +26,7 @@ export function LoanApplicationListPage() {
 
   const { data: applications = [], isLoading } = useQuery({
     queryKey: ['loans', 'applications', dateRange],
-    queryFn: () => loanApi.getApplications(dateRange.from ? { fromDate: dateRange.from.toISOString(), toDate: dateRange.to?.toISOString() } : undefined),
+    queryFn: () => loanApi.getApplications(dateRange.from ? { search: `from:${dateRange.from.toISOString()}${dateRange.to ? `,to:${dateRange.to.toISOString()}` : ''}` } : undefined),
   });
 
   return (

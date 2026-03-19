@@ -172,7 +172,7 @@ export function useReportBuilder(editReport?: SavedReport) {
       return saved;
     },
     onSuccess: (_, vars) => {
-      toast.success(vars.formData.runAfter !== undefined && vars.runAfter ? 'Report saved and running!' : 'Report saved successfully');
+      toast.success(vars.runAfter ? 'Report saved and running!' : 'Report saved successfully');
     },
     onError: () => {
       toast.error('Failed to save report');

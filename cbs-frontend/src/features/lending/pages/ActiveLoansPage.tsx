@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Loader2 } from 'lucide-react';
+
 import { loanApi } from '../api/loanApi';
 import type { LoanAccount } from '../types/loan';
 

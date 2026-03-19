@@ -3,7 +3,7 @@ import { StatCard, StatusBadge, DataTable, SummaryBar } from '@/components/share
 import { WidgetCard } from '@/features/dashboard/components/WidgetCard';
 import { BarChartWidget } from '@/features/dashboard/widgets/BarChartWidget';
 import { PieChartWidget } from '@/features/dashboard/widgets/PieChartWidget';
-import { Plus, Landmark, AlertTriangle, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { Plus, Landmark, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -18,7 +18,7 @@ const columns: ColumnDef<LoanAccount, any>[] = [
   { accessorKey: 'outstandingPrincipal', header: 'Outstanding', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.outstandingPrincipal)}</span> },
   { accessorKey: 'daysPastDue', header: 'DPD', cell: ({ row }) => <span className={`font-mono text-sm font-medium ${(row.original.daysPastDue || 0) > 60 ? 'text-red-600' : 'text-amber-600'}`}>{row.original.daysPastDue}</span> },
   { accessorKey: 'classification', header: 'Classification', cell: ({ row }) => <StatusBadge status={row.original.classification} /> },
-  { accessorKey: 'provision', header: 'Provision', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.provision || 0)}</span> },
+  { accessorKey: 'provisionAmount', header: 'Provision', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.provisionAmount || 0)}</span> },
 ];
 
 export function LoanDashboardPage() {
@@ -44,7 +44,7 @@ export function LoanDashboardPage() {
       <div className="page-container space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard label="Total Outstanding" value={stats?.totalOutstanding ?? 0} format="money" compact icon={Landmark} />
-          <StatCard label="Active Loans" value={stats?.activeLoans ?? 0} format="number" change={stats?.activeLoansChange} trend={stats?.activeLoansChange && stats.activeLoansChange > 0 ? 'up' : 'down'} changePeriod="vs last month" />
+          <StatCard label="Active Loans" value={stats?.activeLoansCount ?? 0} format="number" />
           <StatCard label="NPL Ratio" value={stats?.nplRatio ?? 0} format="percent" icon={AlertTriangle} />
           <StatCard label="Disbursed MTD" value={stats?.disbursedMtd ?? 0} format="money" compact icon={TrendingUp} />
           <StatCard label="Collections MTD" value={stats?.collectionsMtd ?? 0} format="money" compact icon={TrendingDown} />
@@ -63,7 +63,7 @@ export function LoanDashboardPage() {
           <SummaryBar items={[
             { label: 'Watch List', value: watchList.length, format: 'number' },
             { label: 'Total Exposure', value: watchList.reduce((s, w) => s + (w.outstandingPrincipal || 0), 0), format: 'money', color: 'danger' },
-            { label: 'Total Provision', value: watchList.reduce((s, w) => s + (w.provision || 0), 0), format: 'money', color: 'warning' },
+            { label: 'Total Provision', value: watchList.reduce((s, w) => s + (w.provisionAmount || 0), 0), format: 'money', color: 'warning' },
           ]} />
           <div className="mt-2">
             <DataTable columns={columns} data={watchList} isLoading={watchLoading} onRowClick={(row) => navigate(`/lending/${row.loanNumber}`)} enableGlobalFilter enableExport exportFilename="watch-list" />

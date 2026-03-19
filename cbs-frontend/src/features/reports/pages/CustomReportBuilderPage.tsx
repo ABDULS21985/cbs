@@ -48,8 +48,6 @@ export function CustomReportBuilderPage() {
     removeColumn,
     updateColumn,
     moveColumn,
-    removeFilter,
-    updateFilter,
     setVisualization,
     fetchPreview,
     saveReport,
