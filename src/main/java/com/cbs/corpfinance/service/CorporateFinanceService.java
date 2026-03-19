@@ -108,6 +108,6 @@ public class CorporateFinanceService {
     }
 
     public List<CorporateFinanceEngagement> getAllEngagements() {
-        return engagementRepository.findAll();
+        return repository.findAll();
     }
 }

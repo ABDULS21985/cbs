@@ -60,8 +60,12 @@ public class TreasuryController {
 
     @GetMapping("/deals")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<TreasuryDeal>>> getByStatus(@RequestParam DealStatus status,
+    public ResponseEntity<ApiResponse<List<TreasuryDeal>>> getByStatus(@RequestParam(required = false) DealStatus status,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        if (status == null) {
+            Page<TreasuryDeal> result = treasuryService.getAllDeals(PageRequest.of(page, size));
+            return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+        }
         Page<TreasuryDeal> result = treasuryService.getDealsByStatus(status, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }

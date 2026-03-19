@@ -10,4 +10,9 @@ public class TreasuryAnalyticsService {
     @Transactional public TreasuryAnalyticsSnapshot record(TreasuryAnalyticsSnapshot snapshot) { return snapshotRepository.save(snapshot); }
     public List<TreasuryAnalyticsSnapshot> getHistory(String currency) { return snapshotRepository.findByCurrencyOrderBySnapshotDateDesc(currency); }
     public Optional<TreasuryAnalyticsSnapshot> getLatest(String currency) { return snapshotRepository.findBySnapshotDateAndCurrency(LocalDate.now(), currency); }
+
+    public java.util.List<TreasuryAnalyticsSnapshot> getAllSnapshots() {
+        return snapshotRepository.findAll();
+    }
+
 }

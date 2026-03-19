@@ -16,6 +16,11 @@ import java.util.*;
 public class VirtualAccountController {
     private final VirtualAccountService vaService;
 
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<VirtualAccount>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(vaService.getAllAccounts()));
+    }
+
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<VirtualAccount>> create(@RequestBody VirtualAccount va) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(vaService.create(va)));

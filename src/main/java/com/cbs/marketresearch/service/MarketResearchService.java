@@ -75,7 +75,7 @@ public class MarketResearchService {
     }
 
     public java.util.List<MarketResearchProject> getAllProjects() {
-        return projectRepository.findAll();
+        return repository.findAll();
     }
 
 }

@@ -234,6 +234,6 @@ public class CollectionsService {
     }
 
     public Page<CollectionCaseResponse> getAllCases(Pageable pageable) {
-        return collectionCaseRepository.findAll(pageable).map(this::toResponse);
+        return caseRepository.findAll(pageable).map(this::toResponse);
     }
 }

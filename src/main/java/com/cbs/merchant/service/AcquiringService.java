@@ -117,7 +117,7 @@ public class AcquiringService {
 
     public Map<String, List<AcquiringFacility>> getPciComplianceReport() {
         List<AcquiringFacility> all = facilityRepository.findAll();
-        return all.stream().collect(Collectors.groupingBy(AcquiringFacility::getPciComplianceStatus));
+        return all.stream().collect(Collectors.groupingBy(f -> f.getPciComplianceStatus() != null ? f.getPciComplianceStatus() : "UNKNOWN"));
     }
 
     public List<AcquiringFacility> getFacilitiesByMerchant(Long merchantId) {

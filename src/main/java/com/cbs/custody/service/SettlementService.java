@@ -110,4 +110,13 @@ public class SettlementService {
         return instructionRepository.findByInstructionRef(ref)
                 .orElseThrow(() -> new ResourceNotFoundException("SettlementInstruction", "instructionRef", ref));
     }
+
+    public java.util.List<SettlementInstruction> getAllInstructions() {
+        return instructionRepository.findAll();
+    }
+
+    public java.util.List<SettlementBatch> getAllBatches() {
+        return batchRepository.findAll();
+    }
+
 }

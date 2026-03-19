@@ -6,6 +6,7 @@ import org.springframework.http.*; import org.springframework.security.access.pr
 @Tag(name = "Treasury Analytics", description = "NIM, cost of funds, yield, CAR, Tier 1, ROA, ROE, loan-to-deposit")
 public class TreasuryAnalyticsController {
     private final TreasuryAnalyticsService service;
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<TreasuryAnalyticsSnapshot>>> listAll() { return ResponseEntity.ok(ApiResponse.ok(service.getAllSnapshots())); }
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<TreasuryAnalyticsSnapshot>> record(@RequestBody TreasuryAnalyticsSnapshot s) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.record(s))); }
     @GetMapping("/{currency}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<TreasuryAnalyticsSnapshot>>> history(@PathVariable String currency) { return ResponseEntity.ok(ApiResponse.ok(service.getHistory(currency))); }
 }

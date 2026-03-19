@@ -19,6 +19,12 @@ public class TrustController {
 
     private final TrustService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<TrustAccount>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllTrusts()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<TrustAccount>> create(@RequestBody TrustAccount trust) {

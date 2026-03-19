@@ -121,7 +121,7 @@ public class MaAdvisoryService {
     }
 
     public java.util.List<MaEngagement> getAllEngagements() {
-        return engagementRepository.findAll();
+        return repository.findAll();
     }
 
 }

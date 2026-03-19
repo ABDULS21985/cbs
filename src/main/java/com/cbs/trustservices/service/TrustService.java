@@ -53,4 +53,9 @@ public class TrustService {
     public List<TrustAccount> getByType(String trustType) {
         return trustRepository.findByTrustTypeAndStatusOrderByTrustNameAsc(trustType, "ACTIVE");
     }
+
+    public java.util.List<TrustAccount> getAllTrusts() {
+        return trustRepository.findAll();
+    }
+
 }

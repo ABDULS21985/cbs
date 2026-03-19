@@ -29,6 +29,15 @@ public class TradeFinanceController {
 
     // ========== LETTERS OF CREDIT ==========
 
+    @GetMapping("/lc")
+    @Operation(summary = "List all Letters of Credit")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<LetterOfCredit>>> listLCs(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        Page<LetterOfCredit> result = tradeService.getAllLCs(PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @PostMapping("/lc")
     @Operation(summary = "Issue a Letter of Credit")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -77,6 +86,15 @@ public class TradeFinanceController {
 
     // ========== BANK GUARANTEES ==========
 
+    @GetMapping("/guarantees")
+    @Operation(summary = "List all Bank Guarantees")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<BankGuarantee>>> listGuarantees(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        Page<BankGuarantee> result = tradeService.getAllGuarantees(PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @PostMapping("/guarantees")
     @Operation(summary = "Issue a Bank Guarantee")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -123,6 +141,15 @@ public class TradeFinanceController {
 
     // ========== DOCUMENTARY COLLECTIONS ==========
 
+    @GetMapping("/collections")
+    @Operation(summary = "List all Documentary Collections")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<DocumentaryCollection>>> listCollections(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        Page<DocumentaryCollection> result = tradeService.getAllCollections(PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @PostMapping("/collections")
     @Operation(summary = "Create a Documentary Collection (D/P or D/A)")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -143,6 +170,13 @@ public class TradeFinanceController {
 
     // ========== SUPPLY CHAIN FINANCE ==========
 
+    @GetMapping("/scf/programmes")
+    @Operation(summary = "List all SCF programmes")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<SupplyChainProgramme>>> listProgrammes() {
+        return ResponseEntity.ok(ApiResponse.ok(tradeService.getAllProgrammes()));
+    }
+
     @PostMapping("/scf/programmes")
     @Operation(summary = "Create a Supply Chain Finance programme")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -153,6 +187,15 @@ public class TradeFinanceController {
             @RequestParam(required = false) BigDecimal discountRate) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
                 tradeService.createScfProgramme(anchorCustomerId, type, programmeName, limit, currencyCode, expiryDate, discountRate)));
+    }
+
+    @GetMapping("/scf/invoices")
+    @Operation(summary = "List all SCF invoices")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ScfInvoice>>> listInvoices(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        Page<ScfInvoice> result = tradeService.getAllInvoices(PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
     @PostMapping("/scf/invoices")
@@ -168,6 +211,13 @@ public class TradeFinanceController {
     }
 
     // ========== TRADE DOCUMENTS ==========
+
+    @GetMapping("/documents")
+    @Operation(summary = "List all trade documents")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<TradeDocument>>> listDocuments() {
+        return ResponseEntity.ok(ApiResponse.ok(tradeService.getAllTradeDocuments()));
+    }
 
     @PostMapping("/documents")
     @Operation(summary = "Upload a trade document for OCR/AI extraction")

@@ -73,4 +73,9 @@ public class TaxAdvisoryService {
         return repository.findByEngagementCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("TaxAdvisoryEngagement", "engagementCode", code));
     }
+
+    public java.util.List<TaxAdvisoryEngagement> getAllEngagements() {
+        return repository.findAll();
+    }
+
 }

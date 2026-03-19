@@ -18,6 +18,12 @@ public class SettlementController {
 
     private final SettlementService service;
 
+    @GetMapping("/instructions")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<SettlementInstruction>>> listInstructions() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllInstructions()));
+    }
+
     @PostMapping("/instructions")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<SettlementInstruction>> createInstruction(@RequestBody SettlementInstruction instruction) {
@@ -46,6 +52,12 @@ public class SettlementController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<SettlementInstruction>> recordResult(@PathVariable String ref, @RequestParam boolean settled) {
         return ResponseEntity.ok(ApiResponse.ok(service.recordResult(ref, settled)));
+    }
+
+    @GetMapping("/batches")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<SettlementBatch>>> listBatches() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllBatches()));
     }
 
     @PostMapping("/batches")

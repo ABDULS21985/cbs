@@ -174,7 +174,7 @@ public class FeeService {
     }
 
     public Page<FeeChargeLog> getAllCharges(org.springframework.data.domain.Pageable pageable) {
-        return chargeLogRepository.findAll(pageable);
+        return feeChargeLogRepository.findAll(pageable);
     }
 
 }

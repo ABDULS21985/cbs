@@ -390,4 +390,29 @@ public class TradeFinanceService {
     }
 
     public List<TradeDocument> getLcDocuments(Long lcId) { return tradeDocRepository.findByLcId(lcId); }
+
+    public Page<LetterOfCredit> getAllLCs(org.springframework.data.domain.Pageable pageable) {
+        return lcRepository.findAll(pageable);
+    }
+
+    public Page<BankGuarantee> getAllGuarantees(org.springframework.data.domain.Pageable pageable) {
+        return bgRepository.findAll(pageable);
+    }
+
+    public Page<DocumentaryCollection> getAllCollections(org.springframework.data.domain.Pageable pageable) {
+        return dcRepository.findAll(pageable);
+    }
+
+    public java.util.List<SupplyChainProgramme> getAllProgrammes() {
+        return scfRepository.findAll();
+    }
+
+    public Page<ScfInvoice> getAllInvoices(org.springframework.data.domain.Pageable pageable) {
+        return invoiceRepository.findAll(pageable);
+    }
+
+    public java.util.List<TradeDocument> getAllTradeDocuments() {
+        return tradeDocRepository.findAll();
+    }
+
 }

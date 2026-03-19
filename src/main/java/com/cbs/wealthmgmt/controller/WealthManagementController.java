@@ -18,6 +18,12 @@ public class WealthManagementController {
 
     private final WealthManagementService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<WealthManagementPlan>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllPlans()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<WealthManagementPlan>> create(@RequestBody WealthManagementPlan plan) {

@@ -111,4 +111,9 @@ public class VirtualAccountService {
         return vaRepository.findByVirtualAccountNumber(number)
                 .orElseThrow(() -> new ResourceNotFoundException("VirtualAccount", "virtualAccountNumber", number));
     }
+
+    public java.util.List<VirtualAccount> getAllAccounts() {
+        return vaRepository.findAll();
+    }
+
 }

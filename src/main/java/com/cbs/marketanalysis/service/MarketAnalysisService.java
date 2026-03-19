@@ -52,7 +52,7 @@ public class MarketAnalysisService {
     }
 
     public java.util.List<MarketAnalysisReport> getAllReports() {
-        return reportRepository.findAll();
+        return repository.findAll();
     }
 
 }

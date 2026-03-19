@@ -79,7 +79,7 @@ public class MarketOrderService {
     }
 
     public java.util.List<MarketOrder> getAllOrders() {
-        return orderRepository.findAll();
+        return repository.findAll();
     }
 
 }

@@ -42,7 +42,9 @@ public class TraderPositionController {
 
     @GetMapping("/breaches")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<TraderPositionLimit>>> getLimitBreaches(@RequestParam LocalDate from, @RequestParam LocalDate to) {
+    public ResponseEntity<ApiResponse<List<TraderPositionLimit>>> getLimitBreaches(@RequestParam(required = false) LocalDate from, @RequestParam(required = false) LocalDate to) {
+        if (from == null) from = LocalDate.now().minusMonths(1);
+        if (to == null) to = LocalDate.now();
         return ResponseEntity.ok(ApiResponse.ok(traderPositionService.getLimitBreaches(from, to)));
     }
 

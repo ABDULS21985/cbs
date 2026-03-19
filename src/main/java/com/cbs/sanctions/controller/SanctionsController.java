@@ -99,6 +99,16 @@ public class SanctionsController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
+    @GetMapping("/batch-screen")
+    @Operation(summary = "Get batch screening status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ScreeningRequest>>> getBatchScreenings(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<ScreeningRequest> result = screeningRequestRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @PostMapping("/batch-screen")
     @Operation(summary = "Batch screen multiple names against watchlists")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

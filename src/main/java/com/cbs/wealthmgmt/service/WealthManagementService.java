@@ -46,4 +46,9 @@ public class WealthManagementService {
     public List<WealthManagementPlan> getByAdvisor(String advisorId) {
         return planRepository.findByAdvisorIdAndStatusOrderByPlanCodeAsc(advisorId, "ACTIVE");
     }
+
+    public java.util.List<WealthManagementPlan> getAllPlans() {
+        return planRepository.findAll();
+    }
+
 }

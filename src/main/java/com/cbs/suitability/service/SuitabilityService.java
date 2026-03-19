@@ -128,4 +128,13 @@ public class SuitabilityService {
     public ClientRiskProfile getProfileByCode(String code) { return profileRepository.findByProfileCode(code).orElseThrow(() -> new ResourceNotFoundException("ClientRiskProfile", "profileCode", code)); }
 
     private SuitabilityCheck getCheckByRef(String ref) { return checkRepository.findByCheckRef(ref).orElseThrow(() -> new ResourceNotFoundException("SuitabilityCheck", "checkRef", ref)); }
+
+    public java.util.List<ClientRiskProfile> getAllProfiles() {
+        return profileRepository.findAll();
+    }
+
+    public java.util.List<SuitabilityCheck> getAllChecks() {
+        return checkRepository.findAll();
+    }
+
 }

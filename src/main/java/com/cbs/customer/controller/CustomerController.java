@@ -382,7 +382,11 @@ public class CustomerController {
     @Operation(summary = "Get distinct active customer segments")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<List<Segment>>> getSegments() {
-        return ResponseEntity.ok(ApiResponse.ok(customerService.getDistinctSegments()));
+        List<Segment> segments = customerService.getDistinctSegments();
+        if (segments == null) {
+            return ResponseEntity.ok(ApiResponse.ok(java.util.Collections.emptyList()));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(segments));
     }
 
     @PostMapping("/verify-bvn")

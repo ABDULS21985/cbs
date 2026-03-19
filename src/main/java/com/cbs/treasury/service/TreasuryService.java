@@ -138,4 +138,9 @@ public class TreasuryService {
     private TreasuryDeal findDealOrThrow(Long id) {
         return dealRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("TreasuryDeal", "id", id));
     }
+
+    public Page<TreasuryDeal> getAllDeals(org.springframework.data.domain.Pageable pageable) {
+        return dealRepository.findAll(pageable);
+    }
+
 }
