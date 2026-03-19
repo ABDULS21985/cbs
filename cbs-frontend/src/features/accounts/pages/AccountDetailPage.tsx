@@ -1,6 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { List, Info, Percent, Lock, Link } from 'lucide-react';
-import { toast } from 'sonner';
+import { List, Info, Percent } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage } from '@/components/shared';
 import { useAccountDetail } from '../hooks/useAccountDetail';
@@ -8,8 +7,6 @@ import { AccountCardHeader } from '../components/detail/AccountCardHeader';
 import { TransactionsTab } from '../components/detail/TransactionsTab';
 import { AccountDetailsTab } from '../components/detail/AccountDetailsTab';
 import { InterestTab } from '../components/detail/InterestTab';
-import { HoldsTab } from '../components/detail/HoldsTab';
-import { LinkedProductsTab } from '../components/detail/LinkedProductsTab';
 
 export function AccountDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -46,18 +43,6 @@ export function AccountDetailPage() {
     );
   }
 
-  const handleTransfer = () => {
-    toast.info('Transfer functionality coming soon');
-  };
-
-  const handleDeposit = () => {
-    toast.info('Deposit functionality coming soon');
-  };
-
-  const handleWithdraw = () => {
-    toast.info('Withdrawal functionality coming soon');
-  };
-
   const tabs = [
     {
       id: 'transactions',
@@ -77,19 +62,6 @@ export function AccountDetailPage() {
       icon: Percent,
       content: <InterestTab account={account} />,
     },
-    {
-      id: 'holds',
-      label: 'Holds',
-      icon: Lock,
-      badge: account.holdAmount > 0 ? 1 : 0,
-      content: <HoldsTab accountId={accountId} />,
-    },
-    {
-      id: 'linked',
-      label: 'Linked Products',
-      icon: Link,
-      content: <LinkedProductsTab accountId={accountId} />,
-    },
   ];
 
   return (
@@ -101,12 +73,7 @@ export function AccountDetailPage() {
       />
       <div className="page-container space-y-4">
         {/* Balance card */}
-        <AccountCardHeader
-          account={account}
-          onTransfer={handleTransfer}
-          onDeposit={handleDeposit}
-          onWithdraw={handleWithdraw}
-        />
+        <AccountCardHeader account={account} />
 
         {/* Tabs */}
         <div className="rounded-xl border bg-card overflow-hidden">

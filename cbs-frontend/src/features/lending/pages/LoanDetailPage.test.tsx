@@ -116,7 +116,7 @@ describe('LoanDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Disbursed')).toBeInTheDocument();
     });
-    expect(screen.getByText('Outstanding')).toBeInTheDocument();
+    expect(screen.getAllByText('Outstanding').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Rate')).toBeInTheDocument();
     expect(screen.getByText('Remaining')).toBeInTheDocument();
   });

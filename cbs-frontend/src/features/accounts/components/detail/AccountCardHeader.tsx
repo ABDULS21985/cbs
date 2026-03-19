@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
-  ArrowRightLeft, Download, MoreVertical, Settings, Plus, Minus, FileText,
+  ArrowRightLeft, FileText, Info,
 } from 'lucide-react';
 import { MoneyDisplay, StatusBadge } from '@/components/shared';
 import { formatAccountNumber, formatDate } from '@/lib/formatters';
@@ -10,9 +9,6 @@ import type { Account } from '../../api/accountDetailApi';
 
 interface AccountCardHeaderProps {
   account: Account;
-  onTransfer: () => void;
-  onDeposit: () => void;
-  onWithdraw: () => void;
 }
 
 const productTypeLabel: Record<string, string> = {
@@ -21,10 +17,7 @@ const productTypeLabel: Record<string, string> = {
   DOMICILIARY: 'Domiciliary Account',
 };
 
-export function AccountCardHeader({ account, onTransfer, onDeposit, onWithdraw }: AccountCardHeaderProps) {
-  const navigate = useNavigate();
-  const [moreOpen, setMoreOpen] = useState(false);
-
+export function AccountCardHeader({ account }: AccountCardHeaderProps) {
   return (
     <div className="bg-gradient-to-br from-primary/90 to-primary rounded-xl text-primary-foreground p-6 shadow-lg">
       {/* Top row: type + status */}
@@ -46,9 +39,9 @@ export function AccountCardHeader({ account, onTransfer, onDeposit, onWithdraw }
         <span className="font-mono text-primary-foreground font-medium tracking-widest">
           {formatAccountNumber(account.accountNumber)}
         </span>
-        <span>{account.branchName}</span>
+        <span>{account.branchCode}</span>
         <span>Opened {formatDate(account.openedDate)}</span>
-        <span>Officer: {account.accountOfficer}</span>
+        <span>Officer: {account.relationshipManager}</span>
       </div>
 
       {/* Balance columns */}
@@ -84,62 +77,23 @@ export function AccountCardHeader({ account, onTransfer, onDeposit, onWithdraw }
 
       {/* Action buttons */}
       <div className="flex items-center gap-2 flex-wrap">
-        <button
-          onClick={onTransfer}
+        <Link
+          to="/payments/new"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition-colors"
         >
           <ArrowRightLeft className="w-4 h-4" />
-          Transfer
-        </button>
-        <button
-          onClick={onDeposit}
+          Initiate Transfer
+        </Link>
+        <Link
+          to="/accounts/statements"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition-colors"
         >
-          <Plus className="w-4 h-4" />
-          Deposit
-        </button>
-        <button
-          onClick={onWithdraw}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition-colors"
-        >
-          <Minus className="w-4 h-4" />
-          Withdraw
-        </button>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition-colors">
           <FileText className="w-4 h-4" />
-          Statement
-        </button>
-
-        {/* More dropdown */}
-        <div className="relative ml-auto">
-          <button
-            onClick={() => setMoreOpen((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition-colors"
-          >
-            <MoreVertical className="w-4 h-4" />
-            More
-          </button>
-          {moreOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)} />
-              <div className="absolute right-0 mt-1 w-48 rounded-lg border bg-popover shadow-lg z-50 py-1">
-                <button
-                  onClick={() => { setMoreOpen(false); navigate(`/accounts/${account.id}/maintenance`); }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                >
-                  <Settings className="w-4 h-4 text-muted-foreground" />
-                  Account Maintenance
-                </button>
-                <button
-                  onClick={() => { setMoreOpen(false); }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                >
-                  <Download className="w-4 h-4 text-muted-foreground" />
-                  Export Data
-                </button>
-              </div>
-            </>
-          )}
+          Statements
+        </Link>
+        <div className="ml-auto inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-primary-foreground/80">
+          <Info className="w-3.5 h-3.5" />
+          Cash deposit, withdrawal, and maintenance workflows are not wired from this view yet.
         </div>
       </div>
     </div>

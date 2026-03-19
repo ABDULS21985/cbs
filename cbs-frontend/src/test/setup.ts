@@ -30,15 +30,12 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-if (!Object.getOwnPropertyDescriptor(navigator, 'clipboard')?.configurable === false) {
-  Object.defineProperty(navigator, 'clipboard', {
-    configurable: true,
-    writable: true,
-    value: { writeText: vi.fn().mockResolvedValue(undefined), readText: vi.fn().mockResolvedValue('') },
-  });
-} else {
-  (navigator as any).clipboard = { writeText: vi.fn().mockResolvedValue(undefined), readText: vi.fn().mockResolvedValue('') };
-}
+// Make clipboard configurable so userEvent.setup() can redefine it
+Object.defineProperty(navigator, 'clipboard', {
+  configurable: true,
+  writable: true,
+  value: { writeText: vi.fn().mockResolvedValue(undefined), readText: vi.fn().mockResolvedValue('') },
+});
 
 window.print = vi.fn();
 

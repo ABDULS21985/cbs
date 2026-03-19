@@ -1,4 +1,4 @@
-import { X, Printer, Download } from 'lucide-react';
+import { X, Printer, Info } from 'lucide-react';
 import { StatusBadge } from '@/components/shared';
 import { formatMoney, formatDateTime, formatDate } from '@/lib/formatters';
 import type { Transaction } from '../../api/accountDetailApi';
@@ -47,7 +47,7 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
             <div className="text-center py-4 bg-muted/30 rounded-lg">
               <p className="text-xs text-muted-foreground font-medium uppercase mb-1">{txnType}</p>
               <p className={`text-2xl font-semibold font-mono ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
-                {isDebit ? '−' : '+'}{formatMoney(amount)}
+                {isDebit ? '−' : '+'}{formatMoney(amount, transaction.currency)}
               </p>
               <div className="mt-2">
                 <StatusBadge status={transaction.status} dot />
@@ -74,7 +74,7 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-0.5">Running Balance</p>
-                <p className="font-mono">{formatMoney(transaction.runningBalance)}</p>
+                <p className="font-mono">{formatMoney(transaction.runningBalance, transaction.currency)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-0.5">Fee</p>
@@ -129,13 +129,10 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
               <Printer className="w-4 h-4" />
               Print Receipt
             </button>
-            <button
-              onClick={() => {}}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Download PDF
-            </button>
+            <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+              <Info className="w-3.5 h-3.5" />
+              PDF export is not available from the current transaction contract.
+            </div>
           </div>
         </div>
       </div>

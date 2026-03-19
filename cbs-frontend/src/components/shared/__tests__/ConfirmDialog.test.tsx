@@ -42,24 +42,25 @@ describe('ConfirmDialog', () => {
   });
 
   it('calls onClose when Cancel button is clicked', async () => {
-    const user = userEvent.setup();
     render(<ConfirmDialog {...defaultProps} />);
-    await user.click(screen.getByRole('button', { name: /cancel/i }));
+    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
   });
 
   it('calls onConfirm when Confirm button is clicked', async () => {
-    const user = userEvent.setup();
     render(<ConfirmDialog {...defaultProps} />);
-    await user.click(screen.getByRole('button', { name: /confirm/i }));
-    expect(defaultProps.onConfirm).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+    await waitFor(() => {
+      expect(defaultProps.onConfirm).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('calls onClose automatically after confirm when not loading', async () => {
-    const user = userEvent.setup();
     render(<ConfirmDialog {...defaultProps} />);
-    await user.click(screen.getByRole('button', { name: /confirm/i }));
-    expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
+    await waitFor(() => {
+      expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('disables both buttons when isLoading is true', () => {
@@ -105,7 +106,6 @@ describe('ConfirmDialog', () => {
   });
 
   it('calls onClose on backdrop click when variant is default', async () => {
-    const user = userEvent.setup();
     render(<ConfirmDialog {...defaultProps} variant="default" />);
     const backdrop =
       document.querySelector('[data-testid="dialog-backdrop"]') ??
@@ -113,7 +113,7 @@ describe('ConfirmDialog', () => {
       document.querySelector('[role="dialog"]')?.parentElement;
 
     if (backdrop) {
-      await user.click(backdrop as HTMLElement);
+      fireEvent.click(backdrop as HTMLElement);
     } else {
       // Fallback: fire mousedown on document body outside modal
       fireEvent.mouseDown(document.body);
@@ -150,7 +150,7 @@ describe('ConfirmDialog', () => {
     const user = userEvent.setup();
     render(<ConfirmDialog {...defaultProps} isLoading={true} />);
     const confirmBtn = screen.getByRole('button', { name: /confirm/i });
-    // Click attempt on disabled button
+    // userEvent.click properly respects disabled attribute
     await user.click(confirmBtn).catch(() => {});
     expect(defaultProps.onConfirm).not.toHaveBeenCalled();
   });

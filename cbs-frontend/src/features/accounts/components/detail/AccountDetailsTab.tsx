@@ -20,8 +20,8 @@ export function AccountDetailsTab({ account }: AccountDetailsTabProps) {
             { label: 'Product Type', value: account.productType },
             { label: 'Currency', value: account.currency },
             { label: 'Status', value: account.status },
-            { label: 'Branch', value: account.branchName },
-            { label: 'Account Officer', value: account.accountOfficer },
+            { label: 'Branch Code', value: account.branchCode },
+            { label: 'Relationship Manager', value: account.relationshipManager },
             { label: 'Date Opened', value: account.openedDate, format: 'date' },
             { label: 'Customer ID', value: account.customerId, copyable: true },
             { label: 'Customer Name', value: account.customerName },
@@ -83,13 +83,15 @@ export function AccountDetailsTab({ account }: AccountDetailsTabProps) {
       </FormSection>
 
       {/* Interest Parameters */}
-      <FormSection title="Interest Parameters" description="Current interest configuration for this account.">
+      <FormSection title="Interest Parameters" description="Current interest configuration exposed by the live account contract.">
         <InfoGrid
           columns={3}
           items={[
             { label: 'Interest Rate', value: formatPercent(account.interestRate) },
-            { label: 'Accrual Method', value: account.accrualMethod },
-            { label: 'Next Posting Date', value: account.nextPostingDate, format: 'date' },
+            { label: 'Accrued Interest', value: `${account.currency} ${account.accruedInterest.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+            { label: 'Statement Frequency', value: account.statementFrequency },
+            { label: 'Last Interest Calculation', value: account.lastInterestCalcDate ?? 'Not yet calculated', format: account.lastInterestCalcDate ? 'date' : undefined },
+            { label: 'Last Interest Posting', value: account.lastInterestPostDate ?? 'Not yet posted', format: account.lastInterestPostDate ? 'date' : undefined },
           ]}
         />
       </FormSection>

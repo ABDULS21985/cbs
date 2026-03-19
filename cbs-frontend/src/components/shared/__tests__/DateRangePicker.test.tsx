@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { DateRangePicker } from '../DateRangePicker';
 
 type DateRange = {
@@ -33,18 +32,16 @@ describe('DateRangePicker', () => {
   });
 
   it('opens dropdown with presets when button is clicked', async () => {
-    const user = userEvent.setup();
     render(<DateRangePicker value={{}} onChange={defaultOnChange} />);
-    await user.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button'));
     await waitFor(() => {
       expect(screen.getByText('Today')).toBeInTheDocument();
     });
   });
 
   it('renders all expected presets in dropdown', async () => {
-    const user = userEvent.setup();
     render(<DateRangePicker value={{}} onChange={defaultOnChange} />);
-    await user.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => {
       expect(screen.getByText('Today')).toBeInTheDocument();
@@ -57,12 +54,11 @@ describe('DateRangePicker', () => {
   });
 
   it('calls onChange with {from: today, to: today} when Today preset is clicked', async () => {
-    const user = userEvent.setup();
     render(<DateRangePicker value={{}} onChange={defaultOnChange} />);
-    await user.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => expect(screen.getByText('Today')).toBeInTheDocument());
-    await user.click(screen.getByText('Today'));
+    fireEvent.click(screen.getByText('Today'));
 
     expect(defaultOnChange).toHaveBeenCalledTimes(1);
     const callArg = defaultOnChange.mock.calls[0][0] as DateRange;
@@ -75,12 +71,11 @@ describe('DateRangePicker', () => {
   });
 
   it('closes dropdown after clicking a preset', async () => {
-    const user = userEvent.setup();
     render(<DateRangePicker value={{}} onChange={defaultOnChange} />);
-    await user.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => expect(screen.getByText('Today')).toBeInTheDocument());
-    await user.click(screen.getByText('Today'));
+    fireEvent.click(screen.getByText('Today'));
 
     await waitFor(() => {
       expect(screen.queryByText(/last 7 days/i)).not.toBeInTheDocument();
@@ -88,9 +83,8 @@ describe('DateRangePicker', () => {
   });
 
   it('shows manual From date input in dropdown', async () => {
-    const user = userEvent.setup();
     render(<DateRangePicker value={{}} onChange={defaultOnChange} />);
-    await user.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => {
       const fromInput =
@@ -102,9 +96,8 @@ describe('DateRangePicker', () => {
   });
 
   it('shows manual To date input in dropdown', async () => {
-    const user = userEvent.setup();
     render(<DateRangePicker value={{}} onChange={defaultOnChange} />);
-    await user.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => {
       const toInput =
@@ -121,23 +114,21 @@ describe('DateRangePicker', () => {
   });
 
   it('dropdown does not open when disabled and button is clicked', async () => {
-    const user = userEvent.setup();
     render(<DateRangePicker value={{}} onChange={defaultOnChange} disabled={true} />);
-    await user.click(screen.getByRole('button')).catch(() => {});
+    fireEvent.click(screen.getByRole('button'));
     await waitFor(() => {
       expect(screen.queryByText('Today')).not.toBeInTheDocument();
     });
   });
 
   it('closes dropdown on mousedown outside', async () => {
-    const user = userEvent.setup();
     render(
       <div>
         <div data-testid="outside">Outside</div>
         <DateRangePicker value={{}} onChange={defaultOnChange} />
       </div>,
     );
-    await user.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button'));
     await waitFor(() => expect(screen.getByText('Today')).toBeInTheDocument());
 
     // Click outside
@@ -149,12 +140,11 @@ describe('DateRangePicker', () => {
   });
 
   it('calls onChange with correct range for Last 7 days preset', async () => {
-    const user = userEvent.setup();
     render(<DateRangePicker value={{}} onChange={defaultOnChange} />);
-    await user.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button'));
 
     await waitFor(() => expect(screen.getByText(/last 7 days/i)).toBeInTheDocument());
-    await user.click(screen.getByText(/last 7 days/i));
+    fireEvent.click(screen.getByText(/last 7 days/i));
 
     expect(defaultOnChange).toHaveBeenCalledTimes(1);
     const callArg = defaultOnChange.mock.calls[0][0] as DateRange;

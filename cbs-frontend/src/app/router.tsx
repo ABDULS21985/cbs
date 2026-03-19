@@ -26,6 +26,7 @@ import { NotificationCenterPage } from '@/features/notifications/pages/Notificat
 import { TransactionSearchPage } from '@/features/transactions/pages/TransactionSearchPage';
 import { AccountMaintenancePage } from '@/features/accounts/pages/AccountMaintenancePage';
 import { AccountOpeningPage } from '@/features/accounts/pages/AccountOpeningPage';
+import { AccountDetailPage } from '@/features/accounts/pages/AccountDetailPage';
 import { GoalListPage } from '@/features/goals/pages/GoalListPage';
 import { GoalDetailPage } from '@/features/goals/pages/GoalDetailPage';
 import { NewGoalPage } from '@/features/goals/pages/NewGoalPage';
@@ -185,7 +186,7 @@ export function AppRouter() {
           <Route path="goals/:id" element={<GoalDetailPage />} />
           <Route path="recurring-deposits" element={<RecurringDepositListPage />} />
           <Route path="recurring-deposits/:id" element={<RecurringDepositDetailPage />} />
-          <Route path=":id" element={<PlaceholderPage title="Account Details" />} />
+          <Route path=":id" element={<AccountDetailPage />} />
           <Route path=":id/maintenance" element={<AccountMaintenancePage />} />
           <Route path="reconciliation" element={<ReconciliationWorkbenchPage />} />
           <Route path="virtual-accounts" element={<VirtualAccountListPage />} />

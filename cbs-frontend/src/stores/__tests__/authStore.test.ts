@@ -252,7 +252,7 @@ describe('authStore', () => {
       });
 
       expect(mockAuthApi.verifyMfa).toHaveBeenCalledWith(
-        expect.objectContaining({ otp: '654321', mfaSessionToken: 'mfa-session-tok' })
+        expect.objectContaining({ otpCode: '654321', sessionToken: 'mfa-session-tok' })
       );
     });
 
@@ -282,7 +282,7 @@ describe('authStore', () => {
     });
 
     it('updates accessToken with new value from API', async () => {
-      mockAuthApi.refreshToken.mockResolvedValue({
+      mockAuthApi.refresh.mockResolvedValue({
         ...MOCK_TOKEN_RESPONSE,
         accessToken: 'new-access-token',
       });
@@ -295,30 +295,23 @@ describe('authStore', () => {
     });
 
     it('calls authApi.refreshToken with stored refresh token', async () => {
-      mockAuthApi.refreshToken.mockResolvedValue(MOCK_TOKEN_RESPONSE);
+      mockAuthApi.refresh.mockResolvedValue(MOCK_TOKEN_RESPONSE);
 
       await act(async () => {
         await getState().refreshToken();
       });
 
-      expect(mockAuthApi.refreshToken).toHaveBeenCalledWith(
-        expect.objectContaining({ refreshToken: 'refresh-tok' })
-      );
+      expect(mockAuthApi.refresh).toHaveBeenCalledWith('refresh-tok');
     });
 
-    it('logs out when refresh fails', async () => {
-      mockAuthApi.refreshToken.mockRejectedValue(new Error('Token expired'));
+    it('throws when refresh fails (logout handled by axios interceptor)', async () => {
+      mockAuthApi.refresh.mockRejectedValue(new Error('Token expired'));
 
-      await act(async () => {
-        try {
+      await expect(
+        act(async () => {
           await getState().refreshToken();
-        } catch {
-          // expected
-        }
-      });
-
-      // After failed refresh, should be logged out
-      expect(getState().isAuthenticated).toBe(false);
+        })
+      ).rejects.toThrow('Token expired');
     });
   });
 

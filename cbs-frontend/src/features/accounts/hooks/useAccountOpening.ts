@@ -76,6 +76,7 @@ export function useAccountOpening() {
       return accountOpeningApi.createAccount({
         customerId: data.customerId,
         productId: data.productId,
+        customerType: data.customerType,
         accountTitle: data.accountTitle,
         currency: data.currency,
         initialDeposit: data.initialDeposit,

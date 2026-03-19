@@ -80,11 +80,11 @@ describe('ActiveLoansPage', () => {
     setupHandlers();
     renderWithProviders(<ActiveLoansPage />);
     await waitFor(() => {
-      expect(screen.getByText('Total Loans')).toBeInTheDocument();
+      expect(screen.getByText('Total Loans:')).toBeInTheDocument();
     });
-    expect(screen.getByText('Total Outstanding')).toBeInTheDocument();
-    expect(screen.getByText('Current')).toBeInTheDocument();
-    expect(screen.getByText('In Arrears')).toBeInTheDocument();
+    expect(screen.getByText('Total Outstanding:')).toBeInTheDocument();
+    expect(screen.getByText('Current:')).toBeInTheDocument();
+    expect(screen.getByText('In Arrears:')).toBeInTheDocument();
   });
 
   it('shows correct total loans count in summary', async () => {
@@ -99,7 +99,7 @@ describe('ActiveLoansPage', () => {
     setupHandlers([]);
     renderWithProviders(<ActiveLoansPage />);
     await waitFor(() => {
-      expect(screen.getByText('Total Loans')).toBeInTheDocument();
+      expect(screen.getByText('Total Loans:')).toBeInTheDocument();
     });
   });
 
@@ -139,8 +139,9 @@ describe('ActiveLoansPage', () => {
   it('calculates in-arrears count correctly', async () => {
     setupHandlers();
     renderWithProviders(<ActiveLoansPage />);
+    // Wait for loan data to load (Borrower One is visible when data arrives)
     await waitFor(() => {
-      expect(screen.getByText('In Arrears')).toBeInTheDocument();
+      expect(screen.getByText('Borrower One')).toBeInTheDocument();
     });
     // 1 loan has DPD > 0
     expect(screen.getByText('1')).toBeInTheDocument();
@@ -165,8 +166,9 @@ describe('ActiveLoansPage', () => {
   it('shows current count in summary bar', async () => {
     setupHandlers();
     renderWithProviders(<ActiveLoansPage />);
+    // Wait for loan data to load (Borrower One is visible when data arrives)
     await waitFor(() => {
-      expect(screen.getByText('Current')).toBeInTheDocument();
+      expect(screen.getByText('Borrower One')).toBeInTheDocument();
     });
     // 2 CURRENT loans
     expect(screen.getByText('2')).toBeInTheDocument();

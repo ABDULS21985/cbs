@@ -12,9 +12,9 @@ const wrap = (data: unknown) => ({ success: true, data, timestamp: new Date().to
 const mockStats = { openCases: 156, slaBreached: 23, resolvedToday: 45, avgResolutionHours: 4.2 };
 
 const mockCases = [
-  { id: 1, caseNumber: 'CASE-000001', customerId: 1, customerName: 'Customer One', caseType: 'COMPLAINT', priority: 'HIGH', status: 'OPEN', subject: 'ATM Issue', assignedTo: 'agent-1', assignedToName: 'Agent One', slaDeadline: new Date(Date.now() + 4 * 3600000).toISOString(), slaBreached: false, activities: [], createdAt: '2026-03-18T10:00:00Z' },
-  { id: 2, caseNumber: 'CASE-000002', customerId: 2, customerName: 'Customer Two', caseType: 'SERVICE_REQUEST', priority: 'MEDIUM', status: 'OPEN', subject: 'Card Request', assignedTo: 'agent-1', assignedToName: 'Agent One', slaDeadline: new Date(Date.now() + 8 * 3600000).toISOString(), slaBreached: false, activities: [], createdAt: '2026-03-18T11:00:00Z' },
-  { id: 3, caseNumber: 'CASE-000003', customerId: 3, customerName: 'Customer Three', caseType: 'DISPUTE', priority: 'CRITICAL', status: 'ESCALATED', subject: 'Transaction Dispute', assignedTo: 'agent-2', assignedToName: 'Agent Two', slaDeadline: new Date(Date.now() - 3600000).toISOString(), slaBreached: true, activities: [], createdAt: '2026-03-18T09:00:00Z' },
+  { id: 1, caseNumber: 'CASE-000001', customerId: 1, customerName: 'Customer One', caseType: 'COMPLAINT', priority: 'HIGH', status: 'OPEN', subject: 'ATM Issue', assignedTo: 'agent-1', assignedToName: 'Agent One', slaDeadline: new Date(Date.now() + 4 * 3600000).toISOString(), slaBreached: false, activities: [], createdAt: '2026-03-18T10:00:00Z', openedAt: '2026-03-18T10:00:00Z' },
+  { id: 2, caseNumber: 'CASE-000002', customerId: 2, customerName: 'Customer Two', caseType: 'SERVICE_REQUEST', priority: 'MEDIUM', status: 'OPEN', subject: 'Card Request', assignedTo: 'agent-1', assignedToName: 'Agent One', slaDeadline: new Date(Date.now() + 8 * 3600000).toISOString(), slaBreached: false, activities: [], createdAt: '2026-03-18T11:00:00Z', openedAt: '2026-03-18T11:00:00Z' },
+  { id: 3, caseNumber: 'CASE-000003', customerId: 3, customerName: 'Customer Three', caseType: 'DISPUTE', priority: 'CRITICAL', status: 'ESCALATED', subject: 'Transaction Dispute', assignedTo: 'agent-2', assignedToName: 'Agent Two', slaDeadline: new Date(Date.now() - 3600000).toISOString(), slaBreached: true, activities: [], createdAt: '2026-03-18T09:00:00Z', openedAt: '2026-03-18T09:00:00Z' },
 ];
 
 function setupHandlers(stats = mockStats, cases = mockCases) {
@@ -162,11 +162,11 @@ describe('CaseListPage', () => {
 
   it('shows escalated cases in the escalated tab', async () => {
     setupHandlers();
-    
+
     renderWithProviders(<CaseListPage />);
     fireEvent.click(screen.getByText('All Cases'));
     await waitFor(() => {
-      expect(screen.getByText('Transaction Dispute')).toBeInTheDocument();
+      expect(screen.getByText('Customer Three')).toBeInTheDocument();
     });
   });
 

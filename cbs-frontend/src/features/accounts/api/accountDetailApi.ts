@@ -4,22 +4,24 @@ export interface Account {
   id: string;
   accountNumber: string;
   accountTitle: string;
-  productType: 'SAVINGS' | 'CURRENT' | 'DOMICILIARY';
+  productType: string;
   productName: string;
   currency: string;
-  status: 'ACTIVE' | 'DORMANT' | 'FROZEN' | 'CLOSED';
+  status: string;
   availableBalance: number;
   ledgerBalance: number;
   holdAmount: number;
-  branchName: string;
+  branchCode: string;
   openedDate: string;
-  accountOfficer: string;
+  relationshipManager: string;
   customerId: string;
   customerName: string;
   signatories?: { name: string; role: string }[];
   interestRate: number;
-  accrualMethod: string;
-  nextPostingDate: string;
+  accruedInterest: number;
+  statementFrequency: string;
+  lastInterestCalcDate?: string;
+  lastInterestPostDate?: string;
 }
 
 export interface Transaction {
@@ -28,6 +30,7 @@ export interface Transaction {
   reference: string;
   description: string;
   channel: string;
+  currency: string;
   debitAmount?: number;
   creditAmount?: number;
   runningBalance: number;
@@ -75,13 +78,172 @@ export interface TransactionQueryParams {
   size?: number;
 }
 
+interface BackendSignatory {
+  customerDisplayName?: string | null;
+  signatoryType?: string | null;
+}
+
+interface BackendAccount {
+  id: number;
+  accountNumber: string;
+  accountName?: string | null;
+  productName?: string | null;
+  productCategory?: string | null;
+  currency?: string | null;
+  branchCode?: string | null;
+  relationshipManager?: string | null;
+  customerId?: number | null;
+  customerDisplayName?: string | null;
+  status?: string | null;
+  availableBalance?: number | null;
+  ledgerBalance?: number | null;
+  lienAmount?: number | null;
+  openedDate?: string | null;
+  signatories?: BackendSignatory[] | null;
+  applicableInterestRate?: number | null;
+  accruedInterest?: number | null;
+  statementFrequency?: string | null;
+  lastInterestCalcDate?: string | null;
+  lastInterestPostDate?: string | null;
+}
+
+interface BackendTransaction {
+  id: number;
+  transactionRef: string;
+  transactionType?: string | null;
+  amount?: number | null;
+  currencyCode?: string | null;
+  runningBalance?: number | null;
+  narration?: string | null;
+  valueDate?: string | null;
+  postingDate?: string | null;
+  channel?: string | null;
+  status?: string | null;
+}
+
+function toNumber(value: number | null | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function mapProductType(productCategory?: string | null, currency?: string | null): string {
+  if (!productCategory) {
+    return currency && currency !== 'NGN' ? 'DOMICILIARY' : 'SAVINGS';
+  }
+
+  if (productCategory === 'NOSTRO' || productCategory === 'VOSTRO' || (currency && currency !== 'NGN')) {
+    return 'DOMICILIARY';
+  }
+
+  return productCategory;
+}
+
+function mapAccount(account: BackendAccount): Account {
+  return {
+    id: String(account.id),
+    accountNumber: account.accountNumber,
+    accountTitle: account.accountName ?? account.accountNumber,
+    productType: mapProductType(account.productCategory, account.currency),
+    productName: account.productName ?? 'Account product',
+    currency: account.currency ?? 'NGN',
+    status: account.status ?? 'ACTIVE',
+    availableBalance: toNumber(account.availableBalance),
+    ledgerBalance: toNumber(account.ledgerBalance),
+    holdAmount: toNumber(account.lienAmount),
+    branchCode: account.branchCode ?? 'N/A',
+    openedDate: account.openedDate ?? '',
+    relationshipManager: account.relationshipManager ?? 'Unassigned',
+    customerId: account.customerId ? String(account.customerId) : 'N/A',
+    customerName: account.customerDisplayName ?? 'Unknown customer',
+    signatories: (account.signatories ?? []).map((signatory) => ({
+      name: signatory.customerDisplayName ?? 'Unknown signatory',
+      role: signatory.signatoryType ?? 'AUTHORISED',
+    })),
+    interestRate: toNumber(account.applicableInterestRate),
+    accruedInterest: toNumber(account.accruedInterest),
+    statementFrequency: account.statementFrequency ?? 'MONTHLY',
+    lastInterestCalcDate: account.lastInterestCalcDate ?? undefined,
+    lastInterestPostDate: account.lastInterestPostDate ?? undefined,
+  };
+}
+
+function isDebitTransaction(transactionType?: string | null): boolean {
+  return ['DEBIT', 'FEE_DEBIT', 'TRANSFER_OUT', 'LIEN_PLACEMENT'].includes(transactionType ?? '');
+}
+
+function mapTransaction(transaction: BackendTransaction): Transaction {
+  const amount = toNumber(transaction.amount);
+  const debit = isDebitTransaction(transaction.transactionType) ? amount : undefined;
+  const credit = !isDebitTransaction(transaction.transactionType) ? amount : undefined;
+
+  return {
+    id: String(transaction.id),
+    date: transaction.postingDate ?? transaction.valueDate ?? '',
+    reference: transaction.transactionRef,
+    description: transaction.narration ?? transaction.transactionType ?? 'Account transaction',
+    channel: transaction.channel ?? 'SYSTEM',
+    currency: transaction.currencyCode ?? 'NGN',
+    debitAmount: debit,
+    creditAmount: credit,
+    runningBalance: toNumber(transaction.runningBalance),
+    status: transaction.status ?? 'POSTED',
+    narration: transaction.narration ?? '',
+    valueDate: transaction.valueDate ?? transaction.postingDate ?? '',
+  };
+}
+
+function matchesFilters(transaction: Transaction, params: TransactionQueryParams): boolean {
+  const amount = transaction.debitAmount ?? transaction.creditAmount ?? 0;
+  const search = params.search?.trim().toLowerCase();
+
+  if (params.type === 'DEBIT' && !transaction.debitAmount) {
+    return false;
+  }
+
+  if (params.type === 'CREDIT' && !transaction.creditAmount) {
+    return false;
+  }
+
+  if (params.minAmount !== undefined && amount < params.minAmount) {
+    return false;
+  }
+
+  if (params.maxAmount !== undefined && amount > params.maxAmount) {
+    return false;
+  }
+
+  if (search) {
+    const haystack = [
+      transaction.reference,
+      transaction.description,
+      transaction.narration,
+      transaction.channel,
+    ]
+      .join(' ')
+      .toLowerCase();
+
+    if (!haystack.includes(search)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export const accountDetailApi = {
   getAccount: async (id: string): Promise<Account> => {
-    return apiGet<Account>(`/v1/accounts/${id}`);
+    const account = await apiGet<BackendAccount>(`/v1/accounts/${id}`);
+    return mapAccount(account);
   },
 
   getTransactions: async (accountId: string, params: TransactionQueryParams): Promise<Transaction[]> => {
-    return apiGet<Transaction[]>(`/v1/accounts/${accountId}/transactions`, params as Record<string, unknown>);
+    const transactions = await apiGet<BackendTransaction[]>(`/v1/accounts/${accountId}/transactions`, {
+      from: params.dateFrom,
+      to: params.dateTo,
+      page: params.page ?? 0,
+      size: params.size ?? 100,
+    });
+
+    return transactions.map(mapTransaction).filter((transaction) => matchesFilters(transaction, params));
   },
 
   getInterestHistory: async (accountId: string): Promise<InterestHistory[]> => {

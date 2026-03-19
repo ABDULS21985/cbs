@@ -101,7 +101,7 @@ describe('LoanDashboardPage', () => {
     setupHandlers(mockStats, []);
     renderWithProviders(<LoanDashboardPage />);
     await waitFor(() => {
-      expect(screen.getByText('Watch List')).toBeInTheDocument();
+      expect(screen.getByText('Watch List:')).toBeInTheDocument();
     });
   });
 
@@ -109,10 +109,10 @@ describe('LoanDashboardPage', () => {
     setupHandlers();
     renderWithProviders(<LoanDashboardPage />);
     await waitFor(() => {
-      expect(screen.getByText('Watch List')).toBeInTheDocument();
+      expect(screen.getByText('Watch List:')).toBeInTheDocument();
     });
-    expect(screen.getByText('Total Exposure')).toBeInTheDocument();
-    expect(screen.getByText('Total Provision')).toBeInTheDocument();
+    expect(screen.getByText('Total Exposure:')).toBeInTheDocument();
+    expect(screen.getByText('Total Provision:')).toBeInTheDocument();
   });
 
   it('handles portfolio stats API error gracefully', async () => {

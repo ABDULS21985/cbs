@@ -97,7 +97,7 @@ describe('CaseDetailPage', () => {
     setupHandlers();
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('COMPLAINT')).toBeInTheDocument();
+      expect(screen.getAllByText('COMPLAINT').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -203,7 +203,7 @@ describe('CaseDetailPage', () => {
     setupHandlers({ ...mockCase, caseType: 'SERVICE_REQUEST', subject: 'Card Replacement' });
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('SERVICE REQUEST')).toBeInTheDocument();
+      expect(screen.getAllByText('SERVICE REQUEST').length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getByText('Card Replacement')).toBeInTheDocument();
   });

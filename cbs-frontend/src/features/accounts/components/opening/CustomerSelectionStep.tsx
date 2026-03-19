@@ -68,7 +68,7 @@ export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold">Select Customer</h2>
-        <p className="text-sm text-muted-foreground mt-1">Search for an existing customer by name, email, phone, or BVN.</p>
+        <p className="text-sm text-muted-foreground mt-1">Search for an existing customer by name, CIF, email, or phone.</p>
       </div>
 
       {/* Search Input */}
@@ -80,7 +80,7 @@ export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
             value={query}
             onChange={(e) => handleQueryChange(e.target.value)}
             onFocus={() => query.length >= 2 && setShowDropdown(true)}
-            placeholder="Search by name, email, phone or BVN..."
+            placeholder="Search by name, CIF, email, or phone..."
             className="w-full pl-10 pr-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
           {isFetching && (

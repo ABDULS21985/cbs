@@ -31,7 +31,7 @@ const sampleTabs: Tab[] = [
   {
     id: 'settings',
     label: 'Settings',
-    icon: <SettingsIcon />,
+    icon: SettingsIcon,
     content: <div>Settings Content</div>,
   },
   {
