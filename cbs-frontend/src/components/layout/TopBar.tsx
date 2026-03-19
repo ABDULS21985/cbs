@@ -1,5 +1,6 @@
-import { Bell, Search, Menu } from 'lucide-react';
+import { Search, Menu } from 'lucide-react';
 import { UserDropdown } from './UserDropdown';
+import { NotificationBell } from '@/features/notifications/components/NotificationBell';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -30,10 +31,7 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
 
       {/* Right */}
       <div className="flex items-center gap-1">
-        <button className="p-2 rounded-md hover:bg-muted transition-colors relative">
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
-        </button>
+        <NotificationBell />
         <div className="ml-1 pl-2 border-l">
           <UserDropdown />
         </div>

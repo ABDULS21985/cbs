@@ -7,6 +7,11 @@ import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { SessionTimeoutModal } from '@/features/auth/components/SessionTimeoutModal';
+import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
+import { NotificationCenterPage } from '@/features/notifications/pages/NotificationCenterPage';
+import { ForbiddenPage } from '@/pages/ForbiddenPage';
+import { NotFoundPage as NotFoundPageFull } from '@/pages/NotFoundPage';
+import { ServerErrorPage } from '@/pages/ServerErrorPage';
 
 // Placeholder page — used for all unimplemented modules
 function PlaceholderPage({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -23,45 +28,7 @@ function PlaceholderPage({ title, subtitle }: { title: string; subtitle?: string
   );
 }
 
-// Dashboard with stat cards
-function DashboardPage() {
-  const stats = [
-    { label: 'Total Customers', value: '12,847', change: '+2.4%', up: true },
-    { label: 'Total Deposits', value: '₦45.2B', change: '+5.1%', up: true },
-    { label: 'Active Loans', value: '₦18.7B', change: '+1.8%', up: true },
-    { label: 'Monthly Revenue', value: '₦2.1B', change: '+12.3%', up: true },
-  ];
-
-  return (
-    <>
-      <PageHeader title="Dashboard" subtitle="Welcome back. Here's your banking overview." />
-      <div className="page-container">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {stats.map((stat) => (
-            <div key={stat.label} className="stat-card">
-              <div className="stat-label">{stat.label}</div>
-              <div className="stat-value">{stat.value}</div>
-              <div className={`stat-change ${stat.up ? 'stat-change-up' : 'stat-change-down'}`}>
-                {stat.change} from last month
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
-  );
-}
-
-// Error pages
-function NotFoundPage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4">
-      <div className="text-6xl font-bold text-muted-foreground/30">404</div>
-      <h1 className="text-xl font-semibold">Page not found</h1>
-      <p className="text-muted-foreground">The page you're looking for doesn't exist.</p>
-    </div>
-  );
-}
+// Inline DashboardPage and NotFoundPage removed — now imported from feature modules
 
 export function AppRouter() {
   return (
@@ -177,8 +144,15 @@ export function AppRouter() {
           <Route path="fees" element={<PlaceholderPage title="Fees & Charges" />} />
         </Route>
 
+        {/* Notifications */}
+        <Route path="/notifications" element={<NotificationCenterPage />} />
+
+        {/* Error pages */}
+        <Route path="/forbidden" element={<ForbiddenPage />} />
+        <Route path="/error" element={<ServerErrorPage />} />
+
         {/* Catch-all */}
-        <Route path="*" element={<NotFoundPage />} />
+        <Route path="*" element={<NotFoundPageFull />} />
       </Route>
     </Routes>
     </>

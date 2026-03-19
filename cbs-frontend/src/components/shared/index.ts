@@ -12,3 +12,5 @@ export { SummaryBar } from './SummaryBar';
 export { FormSection } from './FormSection';
 export { TabsPage } from './TabsPage';
 export { DateRangePicker } from './DateRangePicker';
+export { ExportMenu } from './ExportMenu';
+export { PrintButton } from './PrintButton';
