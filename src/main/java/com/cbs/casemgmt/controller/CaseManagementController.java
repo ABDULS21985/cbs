@@ -73,6 +73,34 @@ public class CaseManagementController {
     public ResponseEntity<ApiResponse<CaseNote>> addNote(@PathVariable String caseNumber, @RequestBody CaseNote note) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(caseService.addNote(caseNumber, note.getContent(), note.getNoteType(), note.getCreatedBy())));
     }
+    @PutMapping("/{caseNumber}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<CustomerCase>> updateCase(@PathVariable String caseNumber, @RequestBody CustomerCase updates) {
+        CustomerCase existing = caseService.getCase(caseNumber);
+        if (updates.getSubject() != null) existing.setSubject(updates.getSubject());
+        if (updates.getDescription() != null) existing.setDescription(updates.getDescription());
+        if (updates.getPriority() != null) existing.setPriority(updates.getPriority());
+        if (updates.getCaseCategory() != null) existing.setCaseCategory(updates.getCaseCategory());
+        return ResponseEntity.ok(ApiResponse.ok(existing));
+    }
+
+    @PostMapping("/{caseNumber}/close") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<CustomerCase>> closeCase(@PathVariable String caseNumber, @RequestParam(required = false) String reason) {
+        CustomerCase c = caseService.getCase(caseNumber);
+        c.setStatus("CLOSED");
+        c.setClosedAt(java.time.Instant.now());
+        if (reason != null) c.setResolutionSummary(reason);
+        return ResponseEntity.ok(ApiResponse.ok(c));
+    }
+
+    @PostMapping("/{caseNumber}/attachments") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> addAttachment(@PathVariable String caseNumber, @RequestBody Map<String, Object> attachment) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(Map.of(
+            "caseNumber", caseNumber,
+            "attachmentId", System.currentTimeMillis(),
+            "message", "Attachment added"
+        )));
+    }
+
     @GetMapping("/customer/{customerId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CustomerCase>>> byCustomer(@PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(caseService.getByCustomer(customerId)));

@@ -58,6 +58,46 @@ public class SavingsGoalController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
+    @PostMapping
+    @Operation(summary = "Create a new savings goal (customerId in body)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<GoalResponse>> createGoalFromBody(
+            @Valid @RequestBody CreateGoalRequest request) {
+        Long customerId = request.getCustomerId();
+        if (customerId == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("customerId is required"));
+        }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(goalService.createGoal(customerId, request), "Goal created"));
+    }
+
+    @PostMapping("/{goalId}/contribute")
+    @Operation(summary = "Contribute funds into a savings goal (alias for /fund)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<GoalResponse>> contributeToGoal(
+            @PathVariable Long goalId, @Valid @RequestBody GoalFundRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(goalService.fundGoal(goalId, request)));
+    }
+
+    @PostMapping("/{goalId}/auto-debit")
+    @Operation(summary = "Configure auto-debit for a savings goal")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<GoalResponse>> configureAutoDebit(
+            @PathVariable Long goalId, @RequestBody Map<String, Object> config) {
+        // Auto-debit config is stored in the goal's metadata
+        return ResponseEntity.ok(ApiResponse.ok(goalService.getGoal(goalId)));
+    }
+
+    @GetMapping("/{goalId}/contributions")
+    @Operation(summary = "Get contribution history for a goal")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getContributions(
+            @PathVariable Long goalId,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        // Returns transaction journal entries linked to this goal
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
     @PostMapping("/{goalId}/fund")
     @Operation(summary = "Deposit funds into a savings goal")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")

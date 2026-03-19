@@ -12,6 +12,8 @@ import java.util.Map;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class CreateGoalRequest {
 
+    private Long customerId;
+
     @NotNull(message = "Account ID is required")
     private Long accountId;
 

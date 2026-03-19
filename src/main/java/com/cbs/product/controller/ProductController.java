@@ -2,6 +2,8 @@ package com.cbs.product.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
+import com.cbs.productbundle.entity.ProductBundle;
+import com.cbs.productbundle.repository.ProductBundleRepository;
 import com.cbs.productcatalog.entity.ProductCatalogEntry;
 import com.cbs.productcatalog.repository.ProductCatalogEntryRepository;
 import com.cbs.productfactory.entity.ProductTemplate;
@@ -27,6 +29,7 @@ public class ProductController {
 
     private final ProductCatalogEntryRepository productCatalogEntryRepository;
     private final ProductTemplateRepository productTemplateRepository;
+    private final ProductBundleRepository productBundleRepository;
 
     @GetMapping
     @Operation(summary = "List all products from the catalog")
@@ -50,13 +53,25 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
+    @GetMapping("/bundles")
+    @Operation(summary = "List product bundles")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ProductBundle>>> listBundles(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<ProductBundle> result = productBundleRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "bundleName")));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @GetMapping("/stats")
     @Operation(summary = "Get product statistics")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "totalCatalogProducts", productCatalogEntryRepository.count(),
-                "totalTemplates", productTemplateRepository.count()
+                "totalTemplates", productTemplateRepository.count(),
+                "totalBundles", productBundleRepository.count()
         )));
     }
 }

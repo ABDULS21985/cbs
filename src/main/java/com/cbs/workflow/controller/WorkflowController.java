@@ -4,6 +4,7 @@ import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.workflow.entity.*;
 import com.cbs.workflow.service.WorkflowService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -76,5 +77,18 @@ public class WorkflowController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Integer>>> checkSla() {
         return ResponseEntity.ok(ApiResponse.ok(Map.of("breached", workflowService.checkSlaBreaches())));
+    }
+
+    @GetMapping("/tasks")
+    @Operation(summary = "Pending workflow tasks")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<WorkflowInstance>>> getPendingTasks(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<WorkflowInstance> pending = workflowService.getByStatus(WorkflowStatus.PENDING, PageRequest.of(page, size));
+        Page<WorkflowInstance> inProgress = workflowService.getByStatus(WorkflowStatus.IN_PROGRESS, PageRequest.of(page, size));
+        List<WorkflowInstance> tasks = new java.util.ArrayList<>(pending.getContent());
+        tasks.addAll(inProgress.getContent());
+        return ResponseEntity.ok(ApiResponse.ok(tasks, PageMeta.from(pending)));
     }
 }

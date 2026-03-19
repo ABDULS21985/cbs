@@ -87,4 +87,103 @@ public class NotificationController {
         Page<NotificationLog> result = notificationLogRepository.findAll(pageable);
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
+
+    // ========================================================================
+    // NOTIFICATION EXTENDED ENDPOINTS
+    // ========================================================================
+
+    @GetMapping("/channels")
+    @Operation(summary = "Notification channel configuration")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getChannels() {
+        List<Map<String, Object>> channels = List.of(
+                Map.of("channel", "EMAIL", "enabled", true, "provider", "SMTP"),
+                Map.of("channel", "SMS", "enabled", true, "provider", "TWILIO"),
+                Map.of("channel", "PUSH", "enabled", true, "provider", "FIREBASE"),
+                Map.of("channel", "IN_APP", "enabled", true, "provider", "INTERNAL")
+        );
+        return ResponseEntity.ok(ApiResponse.ok(channels));
+    }
+
+    @GetMapping("/delivery-stats")
+    @Operation(summary = "Notification delivery success rates")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDeliveryStats() {
+        long total = notificationLogRepository.count();
+        long sent = notificationLogRepository.countByStatus("SENT");
+        long delivered = notificationLogRepository.countByStatus("DELIVERED");
+        long failed = notificationLogRepository.countByStatus("FAILED");
+        long pending = notificationLogRepository.countByStatus("PENDING");
+        double deliveryRate = total > 0 ? (double) (sent + delivered) / total * 100.0 : 0.0;
+        double failureRate = total > 0 ? (double) failed / total * 100.0 : 0.0;
+
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "total", total,
+                "sent", sent,
+                "delivered", delivered,
+                "failed", failed,
+                "pending", pending,
+                "deliveryRatePct", Math.round(deliveryRate * 100.0) / 100.0,
+                "failureRatePct", Math.round(failureRate * 100.0) / 100.0
+        )));
+    }
+
+    @GetMapping("/failures")
+    @Operation(summary = "Failed notifications")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<NotificationLog>>> getFailures(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<NotificationLog> result = notificationLogRepository.findAll(pageable);
+        List<NotificationLog> failures = result.getContent().stream()
+                .filter(n -> "FAILED".equals(n.getStatus()))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok(failures, PageMeta.from(result)));
+    }
+
+    @PostMapping("/mark-all-read")
+    @Operation(summary = "Mark all notifications as read for a customer")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> markAllRead(
+            @RequestParam Long customerId) {
+        Page<NotificationLog> notifications = notificationService.getCustomerNotifications(customerId,
+                PageRequest.of(0, 1000));
+        int marked = 0;
+        for (NotificationLog log : notifications.getContent()) {
+            if (!"READ".equals(log.getStatus()) && "DELIVERED".equals(log.getStatus())) {
+                log.setStatus("READ");
+                notificationLogRepository.save(log);
+                marked++;
+            }
+        }
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("markedAsRead", marked)));
+    }
+
+    @GetMapping("/scheduled")
+    @Operation(summary = "Scheduled notifications")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<NotificationLog>>> getScheduledNotifications(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "scheduledAt"));
+        Page<NotificationLog> result = notificationLogRepository.findAll(pageable);
+        List<NotificationLog> scheduled = result.getContent().stream()
+                .filter(n -> n.getScheduledAt() != null)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok(scheduled, PageMeta.from(result)));
+    }
+
+    @GetMapping("/unread-count")
+    @Operation(summary = "Unread notification count for a customer")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUnreadCount(
+            @RequestParam Long customerId) {
+        Page<NotificationLog> notifications = notificationService.getCustomerNotifications(customerId,
+                PageRequest.of(0, 10000));
+        long unread = notifications.getContent().stream()
+                .filter(n -> !"READ".equals(n.getStatus()) && ("DELIVERED".equals(n.getStatus()) || "SENT".equals(n.getStatus())))
+                .count();
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("unreadCount", unread)));
+    }
 }

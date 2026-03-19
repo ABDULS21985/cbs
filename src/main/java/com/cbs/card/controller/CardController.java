@@ -116,6 +116,17 @@ public class CardController {
     }
 
     // List all cards
+    @PostMapping("/request")
+    @Operation(summary = "Request a new card (alias for POST /)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Card>> requestCard(
+            @RequestParam Long customerId, @RequestParam Long accountId,
+            @RequestParam(required = false) String cardType,
+            @RequestParam(required = false) String deliveryAddress) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
+                cardService.issueCard(customerId, accountId, cardType)));
+    }
+
     @GetMapping
     @Operation(summary = "List all cards")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")

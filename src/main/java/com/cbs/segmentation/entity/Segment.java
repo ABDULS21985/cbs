@@ -51,10 +51,12 @@ public class Segment extends AuditableEntity {
     private String icon;
 
     @OneToMany(mappedBy = "segment", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Builder.Default
     private List<SegmentRule> rules = new ArrayList<>();
 
     @OneToMany(mappedBy = "segment", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Builder.Default
     private List<CustomerSegment> customerSegments = new ArrayList<>();
 

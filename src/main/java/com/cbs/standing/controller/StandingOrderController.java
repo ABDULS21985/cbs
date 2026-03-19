@@ -105,6 +105,79 @@ public class StandingOrderController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
+    @PutMapping("/{id}")
+    @Operation(summary = "Update a standing instruction")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<StandingInstruction>> update(
+            @PathVariable Long id,
+            @RequestParam(required = false) BigDecimal amount,
+            @RequestParam(required = false) String frequency,
+            @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) String narration) {
+        StandingInstruction instruction = standingOrderService.getInstruction(id);
+        if (amount != null) instruction.setAmount(amount);
+        if (frequency != null) instruction.setFrequency(frequency);
+        if (endDate != null) instruction.setEndDate(endDate);
+        if (narration != null) instruction.setNarration(narration);
+        return ResponseEntity.ok(ApiResponse.ok(standingInstructionRepository.save(instruction)));
+    }
+
+    @GetMapping("/{id}/executions")
+    @Operation(summary = "Get execution history (alias for /history)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<StandingExecutionLog>>> getExecutions(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        Page<StandingExecutionLog> result = standingOrderService.getExecutionHistory(id, PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    // ========================================================================
+    // DIRECT DEBITS (filtered view of standing instructions)
+    // ========================================================================
+
+    @GetMapping("/direct-debits")
+    @Operation(summary = "List all direct debit mandates")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<StandingInstruction>>> listDirectDebits(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<StandingInstruction> all = standingInstructionRepository.findAll(pageable);
+        List<StandingInstruction> directDebits = all.getContent().stream()
+                .filter(si -> si.getInstructionType() == InstructionType.DIRECT_DEBIT)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok(directDebits));
+    }
+
+    @PostMapping("/direct-debits")
+    @Operation(summary = "Create a direct debit mandate")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<StandingInstruction>> createDirectDebit(
+            @RequestParam Long debitAccountId,
+            @RequestParam String creditAccountNumber,
+            @RequestParam(required = false) String creditAccountName,
+            @RequestParam BigDecimal amount, @RequestParam String frequency,
+            @RequestParam LocalDate startDate, @RequestParam(required = false) LocalDate endDate,
+            @RequestParam(required = false) String mandateRef,
+            @RequestParam(required = false) String narration) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
+                standingOrderService.create(debitAccountId, InstructionType.DIRECT_DEBIT,
+                        creditAccountNumber, creditAccountName, null, amount, null,
+                        frequency, startDate, endDate, null, mandateRef, narration)));
+    }
+
+    @PostMapping("/direct-debits/{id}/revoke")
+    @Operation(summary = "Revoke a direct debit mandate")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<StandingInstruction>> revokeDirectDebit(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(standingOrderService.cancel(id)));
+    }
+
+    // ========================================================================
+    // LIST ALL
+    // ========================================================================
+
     // List all standing instructions
     @GetMapping
     @Operation(summary = "List all standing orders and direct debits")

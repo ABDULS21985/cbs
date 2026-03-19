@@ -64,4 +64,47 @@ public class EodController {
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "businessDate")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
+
+    @GetMapping("/schedule")
+    @Operation(summary = "Get EOD step schedule/configuration from the most recent run")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<EodStep>>> getSchedule() {
+        EodRun lastRun = eodRunRepository.findTopByRunTypeOrderByBusinessDateDesc(EodRunType.EOD).orElse(null);
+        if (lastRun == null) {
+            return ResponseEntity.ok(ApiResponse.ok(List.of()));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(lastRun.getSteps()));
+    }
+
+    @GetMapping("/duration-trend")
+    @Operation(summary = "Get EOD duration trend over last 30 days")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDurationTrend() {
+        LocalDate since = LocalDate.now().minusDays(30);
+        Page<EodRun> runs = eodRunRepository.findAll(
+                PageRequest.of(0, 30, Sort.by(Sort.Direction.ASC, "businessDate")));
+        List<Map<String, Object>> trend = runs.getContent().stream()
+                .filter(r -> r.getBusinessDate() != null && !r.getBusinessDate().isBefore(since))
+                .map(r -> Map.<String, Object>of(
+                        "date", r.getBusinessDate().toString(),
+                        "durationSeconds", r.getDurationSeconds() != null ? r.getDurationSeconds() : 0,
+                        "status", r.getStatus() != null ? r.getStatus() : "UNKNOWN",
+                        "totalSteps", r.getTotalSteps(),
+                        "completedSteps", r.getCompletedSteps(),
+                        "failedSteps", r.getFailedSteps()
+                ))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok(trend));
+    }
+
+    @PostMapping("/trigger")
+    @Operation(summary = "Manually trigger EOD processing")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<EodRun>> triggerEod(
+            @RequestParam(required = false) LocalDate businessDate,
+            @RequestParam(defaultValue = "MANUAL") String initiatedBy) {
+        LocalDate date = businessDate != null ? businessDate : LocalDate.now();
+        EodRun run = eodService.executeEod(date, initiatedBy);
+        return ResponseEntity.ok(ApiResponse.ok(run));
+    }
 }

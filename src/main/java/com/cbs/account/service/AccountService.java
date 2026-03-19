@@ -456,4 +456,8 @@ public class AccountService {
         response.setSignatories(accountMapper.toSignatoryDtoList(signatories));
         return response;
     }
+
+    public long countByStatus(AccountStatus status) {
+        return accountRepository.countByStatus(status);
+    }
 }

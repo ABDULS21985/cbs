@@ -174,6 +174,40 @@ public class AccountController {
     }
 
     // ========================================================================
+    // DASHBOARD AGGREGATES
+    // ========================================================================
+
+    @GetMapping("/my")
+    @Operation(summary = "Get accounts for the authenticated user (portal)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<List<AccountResponse>>> getMyAccounts() {
+        // In production, extract customerId from SecurityContext / JWT claims
+        // For now, return all accounts (first page)
+        Pageable pageable = PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<AccountResponse> result = accountService.searchAccounts(null, null, pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent()));
+    }
+
+    @GetMapping("/summary")
+    @Operation(summary = "Get account summary stats (total by type, by status)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAccountSummary() {
+        Pageable pageable = PageRequest.of(0, 1000);
+        Page<AccountResponse> all = accountService.searchAccounts(null, null, pageable);
+        long totalAccounts = all.getTotalElements();
+        java.math.BigDecimal totalBalance = all.getContent().stream()
+                .map(a -> a.getBookBalance() != null ? a.getBookBalance() : java.math.BigDecimal.ZERO)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        Map<String, Object> summary = new java.util.LinkedHashMap<>();
+        summary.put("totalAccounts", totalAccounts);
+        summary.put("totalBalance", totalBalance);
+        for (AccountStatus s : AccountStatus.values()) {
+            summary.put("count_" + s.name(), accountService.countByStatus(s));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(summary));
+    }
+
+    // ========================================================================
     // TRANSACTIONS
     // ========================================================================
 
@@ -247,6 +281,25 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Map<String, Integer>>> batchAccrueInterest() {
         int processed = accountService.batchAccrueInterest();
         return ResponseEntity.ok(ApiResponse.ok(Map.of("accountsProcessed", processed)));
+    }
+
+    // ========================================================================
+    // ACCOUNT COMPLIANCE
+    // ========================================================================
+
+    @GetMapping("/compliance-check")
+    @Operation(summary = "Get compliance status overview for accounts")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getComplianceOverview() {
+        long frozen = accountService.countByStatus(AccountStatus.FROZEN);
+        long pndDebit = accountService.countByStatus(AccountStatus.PND_DEBIT);
+        long pndCredit = accountService.countByStatus(AccountStatus.PND_CREDIT);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "frozenAccounts", frozen,
+                "pndDebitAccounts", pndDebit,
+                "pndCreditAccounts", pndCredit,
+                "totalRestricted", frozen + pndDebit + pndCredit
+        )));
     }
 
     // ========================================================================

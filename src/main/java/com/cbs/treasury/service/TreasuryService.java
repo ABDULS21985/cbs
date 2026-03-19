@@ -143,4 +143,8 @@ public class TreasuryService {
         return dealRepository.findAll(pageable);
     }
 
+    public Page<TreasuryDeal> getDealsByTypeAndStatus(DealType dealType, DealStatus status, Pageable pageable) {
+        return dealRepository.findByDealTypeAndStatus(dealType, status, pageable);
+    }
+
 }
