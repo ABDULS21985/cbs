@@ -8,8 +8,9 @@ vi.mock('@/features/auth/api/authApi', () => ({
   authApi: {
     login: vi.fn(),
     verifyMfa: vi.fn(),
-    refreshToken: vi.fn(),
+    refresh: vi.fn(),
     logout: vi.fn(),
+    getMe: vi.fn(),
   },
 }));
 
@@ -22,8 +23,9 @@ import { authApi } from '@/features/auth/api/authApi';
 const mockAuthApi = authApi as {
   login: ReturnType<typeof vi.fn>;
   verifyMfa: ReturnType<typeof vi.fn>;
-  refreshToken: ReturnType<typeof vi.fn>;
+  refresh: ReturnType<typeof vi.fn>;
   logout: ReturnType<typeof vi.fn>;
+  getMe: ReturnType<typeof vi.fn>;
 };
 
 // ---------------------------------------------------------------------------

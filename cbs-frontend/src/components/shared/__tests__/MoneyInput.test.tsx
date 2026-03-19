@@ -52,12 +52,10 @@ describe('MoneyInput', () => {
   });
 
   it('calls onChange with parsed number when typing digits', async () => {
-    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<MoneyInput value={0} onChange={onChange} />);
-    const input = screen.getByRole('textbox');
-    await user.clear(input);
-    await user.type(input, '500');
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '500' } });
     expect(onChange).toHaveBeenCalled();
     const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1][0];
     expect(typeof lastCall).toBe('number');
@@ -65,13 +63,11 @@ describe('MoneyInput', () => {
   });
 
   it('strips non-numeric characters from input', async () => {
-    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<MoneyInput value={0} onChange={onChange} />);
     const input = screen.getByRole('textbox') as HTMLInputElement;
-    await user.clear(input);
-    await user.type(input, 'abc123');
-    // Input should only contain numeric value
+    fireEvent.change(input, { target: { value: 'abc123' } });
+    // handleChange strips non-numeric via replace(/[^0-9.]/g, ''), so input shows '123'
     expect(input.value).toMatch(/^[\d,\.]*$/);
     // onChange should have been called with 123
     if (onChange.mock.calls.length > 0) {
@@ -81,12 +77,10 @@ describe('MoneyInput', () => {
   });
 
   it('allows only 2 decimal places', async () => {
-    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<MoneyInput value={0} onChange={onChange} />);
     const input = screen.getByRole('textbox') as HTMLInputElement;
-    await user.clear(input);
-    await user.type(input, '100.999');
+    fireEvent.change(input, { target: { value: '100.999' } });
     // Value should be capped at 2 decimal places
     const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1]?.[0];
     if (lastCall !== undefined) {
@@ -96,11 +90,9 @@ describe('MoneyInput', () => {
   });
 
   it('formats number with commas on blur with valid value', async () => {
-    const user = userEvent.setup();
     render(<MoneyInput value={0} onChange={vi.fn()} />);
     const input = screen.getByRole('textbox') as HTMLInputElement;
-    await user.clear(input);
-    await user.type(input, '1500');
+    fireEvent.change(input, { target: { value: '1500' } });
     fireEvent.blur(input);
     await waitFor(() => {
       expect(input.value).toBe('1,500.00');
@@ -108,12 +100,10 @@ describe('MoneyInput', () => {
   });
 
   it('resets to min and calls onChange(min) on blur when value is below min', async () => {
-    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<MoneyInput value={0} onChange={onChange} min={100} />);
     const input = screen.getByRole('textbox') as HTMLInputElement;
-    await user.clear(input);
-    await user.type(input, '10');
+    fireEvent.change(input, { target: { value: '10' } });
     fireEvent.blur(input);
     await waitFor(() => {
       expect(input.value).toBe('100.00');
@@ -122,12 +112,10 @@ describe('MoneyInput', () => {
   });
 
   it('resets to max and calls onChange(max) on blur when value exceeds max', async () => {
-    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<MoneyInput value={0} onChange={onChange} max={1000} />);
     const input = screen.getByRole('textbox') as HTMLInputElement;
-    await user.clear(input);
-    await user.type(input, '5000');
+    fireEvent.change(input, { target: { value: '5000' } });
     fireEvent.blur(input);
     await waitFor(() => {
       expect(input.value).toBe('1,000.00');

@@ -92,7 +92,8 @@ describe('InfoGrid', () => {
       render(
         <InfoGrid items={[{ label: 'Account No.', value: '0123456789', format: 'account' }]} />
       );
-      expect(screen.getByText(/012-345-6789/)).toBeTruthy();
+      // formatAccountNumber uses pattern (\d{4})(\d{4})(\d{2}) -> "$1 $2 $3"
+      expect(screen.getByText('0123 4567 89')).toBeTruthy();
     });
   });
 

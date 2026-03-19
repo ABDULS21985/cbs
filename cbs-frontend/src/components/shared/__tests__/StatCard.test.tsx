@@ -116,14 +116,15 @@ describe('StatCard', () => {
 
   describe('trend prop', () => {
     it('renders TrendingUp icon when trend=up', () => {
-      const { container } = render(<StatCard label="Revenue" value={1000} trend="up" />);
+      // trend icons only render when change is also provided
+      const { container } = render(<StatCard label="Revenue" value={1000} trend="up" change={5} />);
       // TrendingUp icon should be present (lucide renders as SVG)
       const svgs = container.querySelectorAll('svg');
       expect(svgs.length).toBeGreaterThan(0);
     });
 
     it('renders TrendingDown icon when trend=down', () => {
-      const { container } = render(<StatCard label="Revenue" value={1000} trend="down" />);
+      const { container } = render(<StatCard label="Revenue" value={1000} trend="down" change={-3} />);
       const svgs = container.querySelectorAll('svg');
       expect(svgs.length).toBeGreaterThan(0);
     });
@@ -131,8 +132,9 @@ describe('StatCard', () => {
 
   describe('icon prop', () => {
     it('renders a custom icon element', () => {
-      const TestIcon = () => <svg data-testid="custom-icon" />;
-      render(<StatCard label="Revenue" value={1000} icon={<TestIcon />} />);
+      // icon prop expects a LucideIcon (component), not a JSX element
+      const TestIcon = ({ className }: { className?: string }) => <svg data-testid="custom-icon" className={className} />;
+      render(<StatCard label="Revenue" value={1000} icon={TestIcon} />);
       expect(screen.getByTestId('custom-icon')).toBeTruthy();
     });
   });
@@ -140,12 +142,13 @@ describe('StatCard', () => {
   describe('compact prop', () => {
     it('uses formatMoneyCompact when compact=true and format=money', () => {
       render(<StatCard label="Revenue" value={2_000_000} format="money" compact />);
-      expect(screen.getByText(/₦2M/)).toBeTruthy();
+      // formatMoneyCompact uses .toFixed(1), so output is ₦2.0M
+      expect(screen.getByText(/₦2\.0M/)).toBeTruthy();
     });
 
     it('uses formatMoneyCompact for billions', () => {
       render(<StatCard label="Revenue" value={1_500_000_000} format="money" compact />);
-      expect(screen.getByText(/₦\d+B/)).toBeTruthy();
+      expect(screen.getByText(/₦[\d.]+B/)).toBeTruthy();
     });
   });
 

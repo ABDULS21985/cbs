@@ -7,14 +7,14 @@ import { renderWithProviders } from '@/test/helpers';
 type Tab = {
   id: string;
   label: string;
-  icon?: React.ReactNode;
+  icon?: React.ComponentType<{ className?: string }>;
   badge?: number;
   content: React.ReactNode;
   disabled?: boolean;
 };
 
-const HomeIcon = () => <svg data-testid="home-icon" />;
-const SettingsIcon = () => <svg data-testid="settings-icon" />;
+const HomeIcon = ({ className }: { className?: string }) => <svg data-testid="home-icon" className={className} />;
+const SettingsIcon = ({ className }: { className?: string }) => <svg data-testid="settings-icon" className={className} />;
 
 const sampleTabs: Tab[] = [
   {

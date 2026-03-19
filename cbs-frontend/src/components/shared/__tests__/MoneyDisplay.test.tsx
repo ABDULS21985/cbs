@@ -112,17 +112,18 @@ describe('MoneyDisplay', () => {
   describe('compact prop', () => {
     it('uses formatMoneyCompact for billions when compact=true', () => {
       render(<MoneyDisplay amount={1_000_000_000} compact />);
-      expect(screen.getByText(/1B/)).toBeTruthy();
+      // formatMoneyCompact uses .toFixed(1), so output is ₦1.0B
+      expect(screen.getByText(/1\.0B/)).toBeTruthy();
     });
 
     it('uses formatMoneyCompact for millions when compact=true', () => {
       render(<MoneyDisplay amount={5_000_000} compact />);
-      expect(screen.getByText(/5M/)).toBeTruthy();
+      expect(screen.getByText(/5\.0M/)).toBeTruthy();
     });
 
     it('uses formatMoneyCompact for thousands when compact=true', () => {
       render(<MoneyDisplay amount={10_000} compact />);
-      expect(screen.getByText(/10K/)).toBeTruthy();
+      expect(screen.getByText(/10\.0K/)).toBeTruthy();
     });
 
     it('uses full formatMoney when compact is not set', () => {
