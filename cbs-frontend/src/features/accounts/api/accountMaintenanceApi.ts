@@ -73,38 +73,38 @@ export interface AccountBasicInfo {
 
 export const accountMaintenanceApi = {
   getAccountBasicInfo: async (accountId: string): Promise<AccountBasicInfo> => {
-    return apiGet<AccountBasicInfo>(`/v1/accounts/${accountId}`);
+    return apiGet<AccountBasicInfo>(`/api/v1/accounts/${accountId}`);
   },
 
   getMaintenanceHistory: async (accountId: string): Promise<MaintenanceHistoryItem[]> => {
-    return apiGet<MaintenanceHistoryItem[]>(`/v1/accounts/${accountId}/maintenance-history`);
+    return apiGet<MaintenanceHistoryItem[]>(`/api/v1/accounts/${accountId}/maintenance-history`);
   },
 
   changeStatus: async (accountId: string, data: StatusChangeRequest): Promise<void> => {
-    return apiPost<void>(`/v1/accounts/${accountId}/status`, data);
+    return apiPost<void>(`/api/v1/accounts/${accountId}/status`, data);
   },
 
   addSignatory: async (accountId: string, data: AddSignatoryRequest): Promise<void> => {
-    return apiPost<void>(`/v1/accounts/${accountId}/signatories`, data);
+    return apiPost<void>(`/api/v1/accounts/${accountId}/signatories`, data);
   },
 
   removeSignatory: async (accountId: string, signatoryId: string, reason: string): Promise<void> => {
-    return apiDelete<void>(`/v1/accounts/${accountId}/signatories/${signatoryId}?reason=${encodeURIComponent(reason)}`);
+    return apiDelete<void>(`/api/v1/accounts/${accountId}/signatories/${signatoryId}?reason=${encodeURIComponent(reason)}`);
   },
 
   updateSigningRule: async (accountId: string, rule: string): Promise<void> => {
-    return apiPatch<void>(`/v1/accounts/${accountId}/signing-rule`, { rule });
+    return apiPatch<void>(`/api/v1/accounts/${accountId}/signing-rule`, { rule });
   },
 
   overrideInterestRate: async (accountId: string, data: InterestRateOverrideRequest): Promise<void> => {
-    return apiPost<void>(`/v1/accounts/${accountId}/interest-rate-override`, data);
+    return apiPost<void>(`/api/v1/accounts/${accountId}/interest-rate-override`, data);
   },
 
   changeTransactionLimit: async (accountId: string, data: LimitChangeRequest): Promise<void> => {
-    return apiPatch<void>(`/v1/accounts/${accountId}/limits`, data);
+    return apiPatch<void>(`/api/v1/accounts/${accountId}/limits`, data);
   },
 
   changeAccountOfficer: async (accountId: string, data: OfficerChangeRequest): Promise<void> => {
-    return apiPatch<void>(`/v1/accounts/${accountId}/officer`, data);
+    return apiPatch<void>(`/api/v1/accounts/${accountId}/officer`, data);
   },
 };

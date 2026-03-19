@@ -5,8 +5,8 @@ export const leaseApi = {
   list: (params?: Record<string, unknown>) =>
     apiGet<LeaseContract[]>('/api/v1/leases', params),
 
-  getById: (id: number) => apiGet<LeaseContract>(`/v1/leases/${id}`),
+  getById: (id: number) => apiGet<LeaseContract>(`/api/v1/leases/${id}`),
 
   getAmortizationSchedule: (id: number) =>
-    apiGet<AmortizationRow[]>(`/v1/leases/${id}/amortization`),
+    apiGet<AmortizationRow[]>(`/api/v1/leases/${id}/amortization`),
 };

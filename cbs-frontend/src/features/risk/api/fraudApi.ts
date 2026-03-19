@@ -13,31 +13,31 @@ export const fraudApi = {
     api.get<ApiResponse<{ items: FraudAlert[]; page: object }>>('/api/v1/fraud/alerts', { params }),
 
   getAlert: (id: number) =>
-    api.get<ApiResponse<FraudAlert>>(`/v1/fraud/alerts/${id}`),
+    api.get<ApiResponse<FraudAlert>>(`/api/v1/fraud/alerts/${id}`),
 
   getAlertTransactions: (alertId: number) =>
-    api.get<ApiResponse<FraudTransaction[]>>(`/v1/fraud/alerts/${alertId}/transactions`),
+    api.get<ApiResponse<FraudTransaction[]>>(`/api/v1/fraud/alerts/${alertId}/transactions`),
 
   blockCard: (alertId: number) =>
-    api.post(`/v1/fraud/alerts/${alertId}/block-card`),
+    api.post(`/api/v1/fraud/alerts/${alertId}/block-card`),
 
   blockAccount: (alertId: number) =>
-    api.post(`/v1/fraud/alerts/${alertId}/block-account`),
+    api.post(`/api/v1/fraud/alerts/${alertId}/block-account`),
 
   allowTransaction: (alertId: number) =>
-    api.post(`/v1/fraud/alerts/${alertId}/allow`),
+    api.post(`/api/v1/fraud/alerts/${alertId}/allow`),
 
   dismissAlert: (alertId: number, reason: string) =>
-    api.post(`/v1/fraud/alerts/${alertId}/dismiss`, { reason }),
+    api.post(`/api/v1/fraud/alerts/${alertId}/dismiss`, { reason }),
 
   fileFraudCase: (alertId: number) =>
-    api.post(`/v1/fraud/alerts/${alertId}/file-case`),
+    api.post(`/api/v1/fraud/alerts/${alertId}/file-case`),
 
   listRules: () =>
     api.get<ApiResponse<FraudRule[]>>('/api/v1/fraud/rules'),
 
   toggleRule: (id: number, active: boolean) =>
-    api.patch(`/v1/fraud/rules/${id}/toggle`, { active }),
+    api.patch(`/api/v1/fraud/rules/${id}/toggle`, { active }),
 
   getModelPerformance: () =>
     api.get<ApiResponse<ModelPerformance>>('/api/v1/fraud/model-performance'),

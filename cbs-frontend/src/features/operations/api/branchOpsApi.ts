@@ -122,55 +122,55 @@ export const branchOpsApi = {
   },
 
   getBranchStats: async (branchId: string): Promise<BranchStats> => {
-    return apiGet<BranchStats>(`/v1/branches/${branchId}/stats`);
+    return apiGet<BranchStats>(`/api/v1/branches/${branchId}/stats`);
   },
 
   getLiveQueue: async (branchId: string): Promise<LiveQueue> => {
-    return apiGet<LiveQueue>(`/v1/branches/${branchId}/queue/live`);
+    return apiGet<LiveQueue>(`/api/v1/branches/${branchId}/queue/live`);
   },
 
   getQueueHistory: async (branchId: string, date: string): Promise<QueueTicket[]> => {
-    return apiGet<QueueTicket[]>(`/v1/branches/${branchId}/queue/history`, { date });
+    return apiGet<QueueTicket[]>(`/api/v1/branches/${branchId}/queue/history`, { date });
   },
 
   issueTicket: async (branchId: string, serviceType: string, priority?: string, customerName?: string): Promise<QueueTicket> => {
-    return apiPost<QueueTicket>(`/v1/branches/${branchId}/queue/issue`, { serviceType, priority, customerName });
+    return apiPost<QueueTicket>(`/api/v1/branches/${branchId}/queue/issue`, { serviceType, priority, customerName });
   },
 
   callNext: async (branchId: string, counterId: string): Promise<QueueTicket> => {
-    return apiPost<QueueTicket>(`/v1/branches/${branchId}/queue/call-next`, { counterId });
+    return apiPost<QueueTicket>(`/api/v1/branches/${branchId}/queue/call-next`, { counterId });
   },
 
   completeService: async (branchId: string, ticketId: string): Promise<void> => {
-    await apiPost<void>(`/v1/branches/${branchId}/queue/${ticketId}/complete`);
+    await apiPost<void>(`/api/v1/branches/${branchId}/queue/${ticketId}/complete`);
   },
 
   markNoShow: async (branchId: string, ticketId: string): Promise<void> => {
-    await apiPost<void>(`/v1/branches/${branchId}/queue/${ticketId}/no-show`);
+    await apiPost<void>(`/api/v1/branches/${branchId}/queue/${ticketId}/no-show`);
   },
 
   getStaffSchedule: async (branchId: string, weekOf: string): Promise<StaffSchedule[]> => {
-    return apiGet<StaffSchedule[]>(`/v1/branches/${branchId}/schedule`, { weekOf });
+    return apiGet<StaffSchedule[]>(`/api/v1/branches/${branchId}/schedule`, { weekOf });
   },
 
   createSchedule: async (branchId: string, data: ScheduleRequest): Promise<void> => {
-    await apiPost<void>(`/v1/branches/${branchId}/schedule`, data);
+    await apiPost<void>(`/api/v1/branches/${branchId}/schedule`, data);
   },
 
   swapShift: async (branchId: string, data: SwapShiftRequest): Promise<void> => {
-    await apiPost<void>(`/v1/branches/${branchId}/schedule/swap`, data);
+    await apiPost<void>(`/api/v1/branches/${branchId}/schedule/swap`, data);
   },
 
   getFacilities: async (branchId: string): Promise<Facility[]> => {
-    return apiGet<Facility[]>(`/v1/branches/${branchId}/facilities`);
+    return apiGet<Facility[]>(`/api/v1/branches/${branchId}/facilities`);
   },
 
   addFacility: async (branchId: string, data: FacilityRequest): Promise<Facility> => {
-    return apiPost<Facility>(`/v1/branches/${branchId}/facilities`, data);
+    return apiPost<Facility>(`/api/v1/branches/${branchId}/facilities`, data);
   },
 
   getServicePlan: async (branchId: string): Promise<ServicePlanMetric[]> => {
-    return apiGet<ServicePlanMetric[]>(`/v1/branches/${branchId}/service-plan`);
+    return apiGet<ServicePlanMetric[]>(`/api/v1/branches/${branchId}/service-plan`);
   },
 
   getBranchRankings: async (): Promise<BranchRanking[]> => {

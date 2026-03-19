@@ -79,7 +79,7 @@ export const marketingAnalyticsApi = {
     apiGet<Campaign[]>('/api/v1/reports/marketing/campaigns', params as unknown as Record<string, unknown>),
 
   getCampaignDetail: (id: string): Promise<CampaignDetail> =>
-    apiGet<CampaignDetail>(`/v1/reports/marketing/campaigns/${id}`),
+    apiGet<CampaignDetail>(`/api/v1/reports/marketing/campaigns/${id}`),
 
   getSurveyResults: (params: DateRangeParams): Promise<{ csatTouchpoints: CsatTouchpoint[]; npsDistribution: NpsDistributionPoint[] }> =>
     apiGet<{ csatTouchpoints: CsatTouchpoint[]; npsDistribution: NpsDistributionPoint[] }>(

@@ -72,23 +72,23 @@ export const eodApi = {
   },
 
   getStepProgress: async (runId: string): Promise<EodStep[]> => {
-    return apiGet<EodStep[]>(`/v1/eod/runs/${runId}/steps`);
+    return apiGet<EodStep[]>(`/api/v1/eod/runs/${runId}/steps`);
   },
 
   getLogs: async (runId: string, cursor?: string): Promise<{ entries: EodLogEntry[]; nextCursor?: string }> => {
-    return apiGet<{ entries: EodLogEntry[]; nextCursor?: string }>(`/v1/eod/runs/${runId}/logs`, cursor ? { cursor } : undefined);
+    return apiGet<{ entries: EodLogEntry[]; nextCursor?: string }>(`/api/v1/eod/runs/${runId}/logs`, cursor ? { cursor } : undefined);
   },
 
   retryStep: async (runId: string, stepId: string): Promise<void> => {
-    await apiPost<void>(`/v1/eod/runs/${runId}/steps/${stepId}/retry`);
+    await apiPost<void>(`/api/v1/eod/runs/${runId}/steps/${stepId}/retry`);
   },
 
   skipStep: async (runId: string, stepId: string, reason: string): Promise<void> => {
-    await apiPost<void>(`/v1/eod/runs/${runId}/steps/${stepId}/skip`, { reason });
+    await apiPost<void>(`/api/v1/eod/runs/${runId}/steps/${stepId}/skip`, { reason });
   },
 
   rollbackRun: async (runId: string): Promise<void> => {
-    await apiPost<void>(`/v1/eod/runs/${runId}/rollback`);
+    await apiPost<void>(`/api/v1/eod/runs/${runId}/rollback`);
   },
 
   getHistory: async (params?: { page?: number; pageSize?: number }): Promise<EodHistoryRow[]> => {

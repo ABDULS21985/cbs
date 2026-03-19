@@ -27,7 +27,7 @@ export const creditRiskApi = {
   getScorecards: () =>
     api.get<ApiResponse<Scorecard[]>>('/api/v1/credit-risk/scorecards'),
   getScorecardDetail: (id: number) =>
-    api.get<ApiResponse<ScorecardDetail>>(`/v1/credit-risk/scorecards/${id}`),
+    api.get<ApiResponse<ScorecardDetail>>(`/api/v1/credit-risk/scorecards/${id}`),
   getWatchList: () =>
     api.get<ApiResponse<CreditWatchItem[]>>('/api/v1/credit-risk/watch-list'),
   generateCommitteePack: () =>

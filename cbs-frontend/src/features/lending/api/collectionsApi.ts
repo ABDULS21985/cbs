@@ -16,13 +16,13 @@ export const collectionsApi = {
   listCases: (params?: Record<string, unknown>) =>
     apiGet<CollectionCase[]>('/api/v1/collections/cases', params),
 
-  getCase: (id: number) => apiGet<CollectionCase>(`/v1/collections/cases/${id}`),
+  getCase: (id: number) => apiGet<CollectionCase>(`/api/v1/collections/cases/${id}`),
 
   listDunningQueue: (params?: Record<string, unknown>) =>
     apiGet<DunningQueueItem[]>('/api/v1/collections/dunning-queue', params),
 
   logDunningOutcome: (id: number, outcome: string) =>
-    apiPost<DunningQueueItem>(`/v1/collections/dunning-queue/${id}/outcome`, { outcome }),
+    apiPost<DunningQueueItem>(`/api/v1/collections/dunning-queue/${id}/outcome`, { outcome }),
 
   listWriteOffRequests: (params?: Record<string, unknown>) =>
     apiGet<WriteOffRequest[]>('/api/v1/collections/write-off-requests', params),

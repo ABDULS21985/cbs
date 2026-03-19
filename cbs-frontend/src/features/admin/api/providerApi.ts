@@ -97,27 +97,27 @@ export const providerApi = {
   getProviders: () =>
     apiGet<ServiceProvider[]>('/api/v1/admin/providers'),
   getProviderById: (id: string) =>
-    apiGet<ServiceProvider>(`/v1/admin/providers/${id}`),
+    apiGet<ServiceProvider>(`/api/v1/admin/providers/${id}`),
   registerProvider: (data: RegisterProviderRequest) =>
     apiPost<ServiceProvider>('/api/v1/admin/providers', data),
   updateProvider: (id: string, data: UpdateProviderRequest) =>
-    apiPut<ServiceProvider>(`/v1/admin/providers/${id}`, data),
+    apiPut<ServiceProvider>(`/api/v1/admin/providers/${id}`, data),
   healthCheckNow: (id: string) =>
-    apiPost<ServiceProvider>(`/v1/admin/providers/${id}/health-check`),
+    apiPost<ServiceProvider>(`/api/v1/admin/providers/${id}/health-check`),
   triggerFailover: (id: string) =>
-    apiPost<{ success: boolean; message: string }>(`/v1/admin/providers/${id}/failover`),
+    apiPost<{ success: boolean; message: string }>(`/api/v1/admin/providers/${id}/failover`),
   suspendProvider: (id: string) =>
-    apiPost<ServiceProvider>(`/v1/admin/providers/${id}/suspend`),
+    apiPost<ServiceProvider>(`/api/v1/admin/providers/${id}/suspend`),
   saveFailoverConfig: (id: string, config: ProviderFailoverConfig) =>
-    apiPut<ServiceProvider>(`/v1/admin/providers/${id}/failover`, config),
+    apiPut<ServiceProvider>(`/api/v1/admin/providers/${id}/failover`, config),
   getHealthLogs: (id: string, days?: number) =>
-    apiGet<ProviderHealthLog[]>(`/v1/admin/providers/${id}/health-logs`, { days }),
+    apiGet<ProviderHealthLog[]>(`/api/v1/admin/providers/${id}/health-logs`, { days }),
   getHealthLog: (id: string, days?: number) =>
-    apiGet<ProviderHealthLog[]>(`/v1/admin/providers/${id}/health-logs`, { days }),
+    apiGet<ProviderHealthLog[]>(`/api/v1/admin/providers/${id}/health-logs`, { days }),
   getTransactionLogs: (id: string, params?: Record<string, unknown>) =>
-    apiGet<ProviderTransaction[]>(`/v1/admin/providers/${id}/transactions`, params),
+    apiGet<ProviderTransaction[]>(`/api/v1/admin/providers/${id}/transactions`, params),
   getTransactionLog: (id: string, params?: Record<string, unknown>) =>
-    apiGet<ProviderTransaction[]>(`/v1/admin/providers/${id}/transactions`, params),
+    apiGet<ProviderTransaction[]>(`/api/v1/admin/providers/${id}/transactions`, params),
   getSlaRecords: (params?: Record<string, unknown>) =>
     apiGet<SlaRecord[]>('/api/v1/admin/providers/sla', params),
   getCostRecords: (params?: Record<string, unknown>) =>

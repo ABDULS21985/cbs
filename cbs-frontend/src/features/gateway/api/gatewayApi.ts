@@ -82,16 +82,16 @@ export const gatewayApi = {
     apiGet<GatewayMessage[]>('/api/v1/gateway/messages', params as Record<string, unknown>),
 
   getMessage: (id: string): Promise<GatewayMessage> =>
-    apiGet<GatewayMessage>(`/v1/gateway/messages/${id}`),
+    apiGet<GatewayMessage>(`/api/v1/gateway/messages/${id}`),
 
   retryMessage: (id: string): Promise<GatewayMessage> =>
-    apiPost<GatewayMessage>(`/v1/gateway/messages/${id}/retry`),
+    apiPost<GatewayMessage>(`/api/v1/gateway/messages/${id}/retry`),
 
   cancelMessage: (id: string): Promise<void> =>
-    apiPost<void>(`/v1/gateway/messages/${id}/cancel`),
+    apiPost<void>(`/api/v1/gateway/messages/${id}/cancel`),
 
   manualOverride: (id: string, data: { action: string; notes: string }): Promise<void> =>
-    apiPost<void>(`/v1/gateway/messages/${id}/override`, data),
+    apiPost<void>(`/api/v1/gateway/messages/${id}/override`, data),
 
   retryAllFailed: (): Promise<{ queued: number }> =>
     apiPost<{ queued: number }>('/api/v1/gateway/messages/retry-all-failed'),
@@ -103,5 +103,5 @@ export const gatewayApi = {
     apiGet<SwiftMessage[]>('/api/v1/gateway/swift', params as Record<string, unknown>),
 
   getSwiftMessage: (id: string): Promise<SwiftMessage> =>
-    apiGet<SwiftMessage>(`/v1/gateway/swift/${id}`),
+    apiGet<SwiftMessage>(`/api/v1/gateway/swift/${id}`),
 };

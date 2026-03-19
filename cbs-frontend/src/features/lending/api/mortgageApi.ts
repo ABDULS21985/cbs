@@ -5,7 +5,7 @@ export const mortgageApi = {
   list: (params?: Record<string, unknown>) =>
     apiGet<MortgageLoan[]>('/api/v1/mortgages', params),
 
-  getById: (id: number) => apiGet<MortgageLoan>(`/v1/mortgages/${id}`),
+  getById: (id: number) => apiGet<MortgageLoan>(`/api/v1/mortgages/${id}`),
 
-  getLtvHistory: (id: number) => apiGet<LtvPoint[]>(`/v1/mortgages/${id}/ltv-history`),
+  getLtvHistory: (id: number) => apiGet<LtvPoint[]>(`/api/v1/mortgages/${id}/ltv-history`),
 };

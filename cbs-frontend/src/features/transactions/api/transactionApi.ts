@@ -67,14 +67,14 @@ export const transactionApi = {
   },
 
   getTransaction: async (id: string): Promise<Transaction> => {
-    return apiGet<Transaction>(`/v1/transactions/${id}`);
+    return apiGet<Transaction>(`/api/v1/transactions/${id}`);
   },
 
   reverseTransaction: async (id: string, reason: string): Promise<{ message: string }> => {
-    return apiPost<{ message: string }>(`/v1/transactions/${id}/reverse`, { reason });
+    return apiPost<{ message: string }>(`/api/v1/transactions/${id}/reverse`, { reason });
   },
 
   downloadReceipt: async (id: string): Promise<void> => {
-    return apiDownload(`/v1/transactions/${id}/receipt`, `receipt-${id}.pdf`);
+    return apiDownload(`/api/v1/transactions/${id}/receipt`, `receipt-${id}.pdf`);
   },
 };

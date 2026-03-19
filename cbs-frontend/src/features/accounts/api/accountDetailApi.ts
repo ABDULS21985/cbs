@@ -231,12 +231,12 @@ function matchesFilters(transaction: Transaction, params: TransactionQueryParams
 
 export const accountDetailApi = {
   getAccount: async (id: string): Promise<Account> => {
-    const account = await apiGet<BackendAccount>(`/v1/accounts/${id}`);
+    const account = await apiGet<BackendAccount>(`/api/v1/accounts/${id}`);
     return mapAccount(account);
   },
 
   getTransactions: async (accountId: string, params: TransactionQueryParams): Promise<Transaction[]> => {
-    const transactions = await apiGet<BackendTransaction[]>(`/v1/accounts/${accountId}/transactions`, {
+    const transactions = await apiGet<BackendTransaction[]>(`/api/v1/accounts/${accountId}/transactions`, {
       from: params.dateFrom,
       to: params.dateTo,
       page: params.page ?? 0,
@@ -247,18 +247,18 @@ export const accountDetailApi = {
   },
 
   getInterestHistory: async (accountId: string): Promise<InterestHistory[]> => {
-    return apiGet<InterestHistory[]>(`/v1/accounts/${accountId}/interest-history`);
+    return apiGet<InterestHistory[]>(`/api/v1/accounts/${accountId}/interest-history`);
   },
 
   getHolds: async (accountId: string): Promise<Hold[]> => {
-    return apiGet<Hold[]>(`/v1/accounts/${accountId}/holds`);
+    return apiGet<Hold[]>(`/api/v1/accounts/${accountId}/holds`);
   },
 
   releaseHold: async (accountId: string, holdId: string, reason: string): Promise<void> => {
-    await apiPost<void>(`/v1/accounts/${accountId}/holds/${holdId}/release`, { reason });
+    await apiPost<void>(`/api/v1/accounts/${accountId}/holds/${holdId}/release`, { reason });
   },
 
   getLinkedProducts: async (accountId: string): Promise<LinkedProducts> => {
-    return apiGet<LinkedProducts>(`/v1/accounts/${accountId}/linked-products`);
+    return apiGet<LinkedProducts>(`/api/v1/accounts/${accountId}/linked-products`);
   },
 };

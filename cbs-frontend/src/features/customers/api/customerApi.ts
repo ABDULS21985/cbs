@@ -523,40 +523,40 @@ export const customerApi = {
   },
 
   async getById(id: number): Promise<Customer> {
-    return mapCustomerDetail(await apiGet<BackendCustomerDetail>(`/v1/customers/${id}`));
+    return mapCustomerDetail(await apiGet<BackendCustomerDetail>(`/api/v1/customers/${id}`));
   },
 
   async getAccounts(id: number): Promise<CustomerAccount[]> {
-    return (await apiGet<BackendAccountResponse[]>(`/v1/accounts/customer/${id}`)).map(mapAccount);
+    return (await apiGet<BackendAccountResponse[]>(`/api/v1/accounts/customer/${id}`)).map(mapAccount);
   },
 
   async getLoans(id: number): Promise<CustomerLoan[]> {
-    return (await apiGet<BackendLoanResponse[]>(`/v1/loans/customer/${id}`)).map(mapLoan);
+    return (await apiGet<BackendLoanResponse[]>(`/api/v1/loans/customer/${id}`)).map(mapLoan);
   },
 
   async getCards(id: number): Promise<CustomerCard[]> {
-    return (await apiGet<BackendCardResponse[]>(`/v1/cards/customer/${id}`)).map(mapCard);
+    return (await apiGet<BackendCardResponse[]>(`/api/v1/cards/customer/${id}`)).map(mapCard);
   },
 
   async getCases(id: number): Promise<CustomerCase[]> {
-    return (await apiGet<BackendCaseResponse[]>(`/v1/cases/customer/${id}`)).map(mapCase);
+    return (await apiGet<BackendCaseResponse[]>(`/api/v1/cases/customer/${id}`)).map(mapCase);
   },
 
   async getDocuments(id: number): Promise<CustomerDocument[]> {
-    return (await apiGet<CustomerIdentification[]>(`/v1/customers/${id}/identifications`)).map(mapDocument);
+    return (await apiGet<CustomerIdentification[]>(`/api/v1/customers/${id}/identifications`)).map(mapDocument);
   },
 
   async getTransactions(id: number, params: PaginationParams): Promise<CustomerTransaction[]> {
-    const response = await api.get<ApiResponse<BackendTransactionResponse[]>>(`/v1/customers/${id}/transactions`, { params });
+    const response = await api.get<ApiResponse<BackendTransactionResponse[]>>(`/api/v1/customers/${id}/transactions`, { params });
     return (response.data.data ?? []).map(mapTransaction);
   },
 
   async getCommunications(id: number): Promise<CustomerCommunication[]> {
-    return (await apiGet<BackendNotificationResponse[]>(`/v1/notifications/customer/${id}`)).map(mapCommunication);
+    return (await apiGet<BackendNotificationResponse[]>(`/api/v1/notifications/customer/${id}`)).map(mapCommunication);
   },
 
   async getAuditTrail(id: number, params?: PaginationParams): Promise<CustomerAuditEntry[]> {
-    const response = await api.get<ApiResponse<BackendAuditResponse[]>>(`/v1/audit/entity/CUSTOMER/${id}`, { params });
+    const response = await api.get<ApiResponse<BackendAuditResponse[]>>(`/api/v1/audit/entity/CUSTOMER/${id}`, { params });
     return (response.data.data ?? []).map(mapAuditEntry);
   },
 

@@ -125,7 +125,7 @@ export const glApi = {
   },
 
   getJournalEntry: async (id: string): Promise<JournalEntry> => {
-    return apiGet<JournalEntry>(`/v1/gl/journals/${id}`);
+    return apiGet<JournalEntry>(`/api/v1/gl/journals/${id}`);
   },
 
   createJournalEntry: async (data: CreateJournalRequest): Promise<JournalEntry> => {
@@ -141,6 +141,6 @@ export const glApi = {
   },
 
   getDrillDown: async (glCode: string, dateFrom: string, dateTo: string): Promise<JournalEntry[]> => {
-    return apiGet<JournalEntry[]>(`/v1/gl/accounts/${glCode}/entries`, { dateFrom, dateTo });
+    return apiGet<JournalEntry[]>(`/api/v1/gl/accounts/${glCode}/entries`, { dateFrom, dateTo });
   },
 };

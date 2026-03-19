@@ -302,7 +302,7 @@ export const accountOpeningApi = {
   },
 
   getCustomerAccounts: async (customerId: string): Promise<CreatedAccount[]> => {
-    const accounts = await apiGet<BackendAccountResponse[]>(`/v1/accounts/customer/${customerId}`);
+    const accounts = await apiGet<BackendAccountResponse[]>(`/api/v1/accounts/customer/${customerId}`);
     return accounts.map(mapCreatedAccount);
   },
 
@@ -310,7 +310,7 @@ export const accountOpeningApi = {
     const summaries = await apiGet<BackendCustomerSummary[]>('/api/v1/customers/quick-search', { q: query, size: 10 });
     const customers = await Promise.all(
       summaries.map(async (summary) => {
-        const detail = await apiGet<BackendCustomerDetail>(`/v1/customers/${summary.id}`);
+        const detail = await apiGet<BackendCustomerDetail>(`/api/v1/customers/${summary.id}`);
         return mapCustomer(summary, detail);
       }),
     );

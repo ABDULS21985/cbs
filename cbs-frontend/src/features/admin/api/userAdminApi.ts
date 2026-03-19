@@ -96,35 +96,35 @@ export const userAdminApi = {
   getUsers: (params?: Record<string, unknown>) =>
     apiGet<CbsUser[]>('/api/v1/admin/users', params),
   getUser: (id: string) =>
-    apiGet<CbsUser>(`/v1/admin/users/${id}`),
+    apiGet<CbsUser>(`/api/v1/admin/users/${id}`),
   createUser: (data: CreateUserRequest) =>
     apiPost<CbsUser>('/api/v1/admin/users', data),
   updateUser: (id: string, data: Partial<CreateUserRequest>) =>
-    apiPut<CbsUser>(`/v1/admin/users/${id}`, data),
+    apiPut<CbsUser>(`/api/v1/admin/users/${id}`, data),
   disableUser: (id: string, reason: string) =>
-    apiPost<void>(`/v1/admin/users/${id}/disable`, { reason }),
+    apiPost<void>(`/api/v1/admin/users/${id}/disable`, { reason }),
   enableUser: (id: string) =>
-    apiPost<void>(`/v1/admin/users/${id}/enable`),
+    apiPost<void>(`/api/v1/admin/users/${id}/enable`),
   resetPassword: (id: string) =>
-    apiPost<{ temporaryPassword: string }>(`/v1/admin/users/${id}/reset-password`),
+    apiPost<{ temporaryPassword: string }>(`/api/v1/admin/users/${id}/reset-password`),
   forceLogout: (id: string) =>
-    apiPost<void>(`/v1/admin/users/${id}/force-logout`),
+    apiPost<void>(`/api/v1/admin/users/${id}/force-logout`),
   unlockUser: (id: string) =>
-    apiPost<void>(`/v1/admin/users/${id}/unlock`),
+    apiPost<void>(`/api/v1/admin/users/${id}/unlock`),
   getRoles: () =>
     apiGet<Role[]>('/api/v1/admin/roles'),
   getRole: (id: string) =>
-    apiGet<Role>(`/v1/admin/roles/${id}`),
+    apiGet<Role>(`/api/v1/admin/roles/${id}`),
   createRole: (data: CreateRoleRequest) =>
     apiPost<Role>('/api/v1/admin/roles', data),
   updateRolePermissions: (roleId: string, permissions: string[]) =>
-    apiPut<Role>(`/v1/admin/roles/${roleId}/permissions`, { permissions }),
+    apiPut<Role>(`/api/v1/admin/roles/${roleId}/permissions`, { permissions }),
   getPermissions: () =>
     apiGet<Permission[]>('/api/v1/admin/permissions'),
   getActiveSessions: () =>
     apiGet<ActiveSession[]>('/api/v1/admin/sessions'),
   forceLogoutSession: (sessionId: string) =>
-    apiDelete<void>(`/v1/admin/sessions/${sessionId}`),
+    apiDelete<void>(`/api/v1/admin/sessions/${sessionId}`),
   getLoginHistory: (params: { userId?: string; dateFrom?: string; dateTo?: string; outcome?: string }) =>
     apiGet<LoginEvent[]>('/api/v1/admin/login-history', params as Record<string, unknown>),
 };
