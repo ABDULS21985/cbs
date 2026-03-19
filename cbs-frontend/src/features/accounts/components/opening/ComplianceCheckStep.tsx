@@ -60,7 +60,7 @@ function CheckRow({ label, description, passed, isWarning, extra }: CheckRowProp
 
 export function ComplianceCheckStep({
   customerId,
-  productId,
+  productId: _productId,
   onNext,
   onBack,
   complianceResult,

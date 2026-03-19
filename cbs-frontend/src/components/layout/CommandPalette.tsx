@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+
 import { navigationItems } from './navigation';
 
 // Flatten nav items for search

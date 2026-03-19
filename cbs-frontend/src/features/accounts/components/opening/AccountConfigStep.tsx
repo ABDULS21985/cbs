@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, CreditCard, MessageSquare, FileText, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CreditCard, MessageSquare, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MoneyInput, FormSection } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
@@ -67,8 +67,6 @@ export function AccountConfigStep({ customer, product, currency, initialValues, 
   const [eStatement, setEStatement] = useState(initialValues?.eStatement ?? true);
   const [titleError, setTitleError] = useState('');
   const [depositError, setDepositError] = useState('');
-
-  const showSignatorySection = customer.type === 'CORPORATE' || signatories.length > 0;
 
   useEffect(() => {
     if (initialValues?.accountTitle) setAccountTitle(initialValues.accountTitle);
