@@ -574,6 +574,22 @@ export const AlmDashboardPage = lazyNamed(
   () => import('@/features/alm/pages/AlmDashboardPage'),
   'AlmDashboardPage',
 );
+export const DurationAnalyticsPage = lazyNamed(
+  () => import('@/features/alm/pages/DurationAnalyticsPage'),
+  'DurationAnalyticsPage',
+);
+export const LiquidityGapPage = lazyNamed(
+  () => import('@/features/alm/pages/LiquidityGapPage'),
+  'LiquidityGapPage',
+);
+export const AlcoReportPage = lazyNamed(
+  () => import('@/features/alm/pages/AlcoReportPage'),
+  'AlcoReportPage',
+);
+export const RegulatorySubmissionPage = lazyNamed(
+  () => import('@/features/alm/pages/RegulatorySubmissionPage'),
+  'RegulatorySubmissionPage',
+);
 
 export const CustodySettlementPage = lazyNamed(
   () => import('@/features/custody/pages/CustodySettlementPage'),

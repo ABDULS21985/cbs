@@ -61,9 +61,9 @@ public class AlmController {
     @GetMapping("/duration/{portfolioCode}")
     @Operation(summary = "Calculate portfolio modified duration")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, BigDecimal>>> getDuration(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDuration(
             @PathVariable String portfolioCode, @RequestParam(defaultValue = "5.0") BigDecimal yieldRate) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("modifiedDuration", almService.calculatePortfolioDuration(portfolioCode, yieldRate))));
+        return ResponseEntity.ok(ApiResponse.ok(almService.calculateDurationAnalytics(portfolioCode, yieldRate)));
     }
 
     // Scenarios
@@ -83,5 +83,28 @@ public class AlmController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<AlmScenario>>> getRegulatoryScenarios() {
         return ResponseEntity.ok(ApiResponse.ok(almService.getRegulatoryScenarios()));
+    }
+
+    // ── Stress Testing ──────────────────────────────────────────────────────
+
+    @PostMapping("/scenarios/{id}/run")
+    @Operation(summary = "Run a stress scenario against the current portfolio")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> runScenario(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.runStressScenario(id)));
+    }
+
+    @GetMapping("/scenarios/historical/{crisisName}")
+    @Operation(summary = "Historical scenario replay")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> historicalReplay(@PathVariable String crisisName) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.historicalReplay(crisisName)));
+    }
+
+    @PostMapping("/scenarios/compare")
+    @Operation(summary = "Compare multiple scenarios side by side")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> compareScenarios(@RequestBody List<Long> scenarioIds) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.compareScenarios(scenarioIds)));
     }
 }

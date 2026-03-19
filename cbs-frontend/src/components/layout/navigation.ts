@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Landmark, HandCoins, ArrowLeftRight, CreditCard,
   TrendingUp, ShieldAlert, Scale, Settings2, BarChart3, Shield,
-  FileText, MessageSquare, Headphones,
+  FileText, MessageSquare, Headphones, Activity,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -125,6 +125,14 @@ export const navigationItems: NavSection[] = [
           { label: 'Positions', path: '/treasury/positions' },
           { label: 'FX Rates', path: '/treasury/fx' },
           { label: 'Investments', path: '/treasury/investments' },
+        ],
+      },
+      {
+        label: 'ALM', icon: Activity, path: '/alm', roles: ['CBS_ADMIN', 'TREASURY', 'RISK_OFFICER'],
+        children: [
+          { label: 'Dashboard', path: '/alm' },
+          { label: 'ALCO Report', path: '/alm/alco-report' },
+          { label: 'Regulatory', path: '/alm/regulatory' },
         ],
       },
     ],

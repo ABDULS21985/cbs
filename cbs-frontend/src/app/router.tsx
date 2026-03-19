@@ -160,6 +160,10 @@ import {
   SuitabilityPage,
   IntelligencePage,
   AlmDashboardPage,
+  DurationAnalyticsPage,
+  LiquidityGapPage,
+  AlcoReportPage,
+  RegulatorySubmissionPage,
   CustodySettlementPage,
   ChannelManagementPage,
   OpenBankingPage,
@@ -341,6 +345,10 @@ export function AppRouter() {
         {/* ALM */}
         <Route path="/alm" element={<Outlet />}>
           <Route index element={<AlmDashboardPage />} />
+          <Route path="liquidity" element={<LiquidityGapPage />} />
+          <Route path="alco-report" element={<AlcoReportPage />} />
+          <Route path="regulatory" element={<RegulatorySubmissionPage />} />
+          <Route path="duration" element={<DurationAnalyticsPage />} />
         </Route>
 
         {/* Custody */}

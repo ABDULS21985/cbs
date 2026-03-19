@@ -1,31 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, TabsPage } from '@/components/shared';
 import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/formatters';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ReferenceLine,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
-import { Activity, TrendingUp, BookOpen, BarChart2, RefreshCw, CheckCircle } from 'lucide-react';
+import { formatDate, formatDateTime, formatMoney } from '@/lib/formatters';
+import { RefreshCw, CheckCircle, Activity, TrendingUp, BookOpen, BarChart2, Download, FileText } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   useAlmGapReport,
+  useAlmPositions,
   useAlmScenarios,
   useRegulatoryScenarios,
   useGenerateGapReport,
   usePortfolioDuration,
 } from '../hooks/useAlm';
-import { almApi, type ShockScenario } from '../api/almApi';
-import { useMutation } from '@tanstack/react-query';
+import { almApi, type ShockScenario, type AlmGapReport } from '../api/almApi';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  DualAxisGapChart,
+  ScenarioDeltaRow,
+  SensitivityHeatMap,
+  PositionSnapshotTable,
+} from '../components/GapAnalysis';
 
-const BUCKETS = ['0-1M', '1-3M', '3-6M', '6-12M', '1-5Y', '5Y+'];
 const SCENARIOS: { key: ShockScenario; label: string }[] = [
   { key: 'PARALLEL_UP_200', label: '+200bps Parallel' },
   { key: 'PARALLEL_DOWN_200', label: '-200bps Parallel' },
@@ -33,238 +29,283 @@ const SCENARIOS: { key: ShockScenario; label: string }[] = [
   { key: 'FLATTENING', label: 'Flattening' },
 ];
 
+const CURRENCIES = ['NGN', 'USD', 'EUR', 'GBP'];
 const DEFAULT_PORTFOLIO = 'MAIN';
 
-// ---- Repricing Gap Chart --------------------------------------------------------
+// ── Generate Report Form ────────────────────────────────────────────────────
 
-function RepricingGapChart({
-  buckets,
-  loading,
-}: {
-  buckets: { bucket: string; gap: number }[];
-  loading: boolean;
-}) {
-  if (loading) {
-    return <div className="h-64 rounded-xl bg-muted animate-pulse" />;
-  }
-
-  const chartData =
-    buckets.length > 0
-      ? buckets
-      : BUCKETS.map((b) => ({ bucket: b, gap: 0 }));
-
-  const formatBillions = (v: number) =>
-    Math.abs(v) >= 1e9
-      ? `${(v / 1e9).toFixed(1)}B`
-      : Math.abs(v) >= 1e6
-      ? `${(v / 1e6).toFixed(1)}M`
-      : v.toLocaleString();
-
-  return (
-    <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-        <XAxis dataKey="bucket" tick={{ fontSize: 11 }} />
-        <YAxis tickFormatter={formatBillions} tick={{ fontSize: 11 }} />
-        <Tooltip
-          formatter={(v: number) => [formatBillions(v), 'Gap']}
-          contentStyle={{ fontSize: 12 }}
-        />
-        <ReferenceLine y={0} stroke="hsl(var(--border))" />
-        <Bar dataKey="gap" radius={[4, 4, 0, 0]}>
-          {chartData.map((entry, index) => (
-            <Cell
-              key={`cell-${index}`}
-              fill={entry.gap < 0 ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'}
-              opacity={0.85}
-            />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ---- NII Sensitivity Table ------------------------------------------------------
-
-function NiiSensitivityTable({
-  buckets,
-  loading,
-}: {
-  buckets: { bucket: string; niiImpact?: number; eveImpact?: number }[];
-  loading: boolean;
-}) {
-  if (loading) return <div className="h-40 rounded-xl bg-muted animate-pulse" />;
-
-  return (
-    <div className="rounded-xl border overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50">
-          <tr>
-            <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Scenario</th>
-            <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">NII Impact %</th>
-            <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">EVE Impact %</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y">
-          {SCENARIOS.map(({ key, label }) => {
-            const row = buckets.find((b) => (b as any).shockScenario === key);
-            const nii = row?.niiImpact ?? null;
-            const eve = row?.eveImpact ?? null;
-            return (
-              <tr key={key} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-3 text-sm">{label}</td>
-                <td
-                  className={cn(
-                    'px-4 py-3 text-sm text-right tabular-nums font-medium',
-                    nii !== null && nii < 0 ? 'text-red-600' : 'text-green-600',
-                  )}
-                >
-                  {nii !== null ? `${nii > 0 ? '+' : ''}${nii.toFixed(2)}%` : '--'}
-                </td>
-                <td
-                  className={cn(
-                    'px-4 py-3 text-sm text-right tabular-nums font-medium',
-                    eve !== null && eve < 0 ? 'text-red-600' : 'text-green-600',
-                  )}
-                >
-                  {eve !== null ? `${eve > 0 ? '+' : ''}${eve.toFixed(2)}%` : '--'}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ---- Generate Report Dialog (inline form) ---------------------------------------
-
-function GenerateReportForm({
-  onGenerated,
-}: {
-  onGenerated: (date: string) => void;
-}) {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+function GenerateReportForm({ onGenerated }: { onGenerated: (date: string) => void }) {
+  const today = new Date().toISOString().split('T')[0];
+  const [date, setDate] = useState(today);
   const [currency, setCurrency] = useState('NGN');
   const [shock, setShock] = useState<ShockScenario>('PARALLEL_UP_200');
+  const [multiCurrency, setMultiCurrency] = useState(false);
   const generate = useGenerateGapReport();
 
-  const handleSubmit = () => {
-    generate.mutate(
-      { asOfDate: date, currency, shockScenario: shock },
-      { onSuccess: () => onGenerated(date) },
-    );
+  const handleSubmit = async () => {
+    if (multiCurrency) {
+      for (const c of CURRENCIES) {
+        await almApi.generateGapReport({ asOfDate: date, currency: c, shockScenario: shock });
+      }
+      toast.success(`Gap reports generated for ${CURRENCIES.join(', ')}`);
+      onGenerated(date);
+    } else {
+      generate.mutate(
+        { asOfDate: date, currency, shockScenario: shock },
+        {
+          onSuccess: () => { toast.success('Gap report generated'); onGenerated(date); },
+          onError: () => toast.error('Failed to generate report'),
+        },
+      );
+    }
+  };
+
+  const setLastBusinessDay = () => {
+    const d = new Date();
+    const day = d.getDay();
+    if (day === 0) d.setDate(d.getDate() - 2);
+    else if (day === 6) d.setDate(d.getDate() - 1);
+    else if (day === 1) d.setDate(d.getDate() - 3);
+    else d.setDate(d.getDate() - 1);
+    setDate(d.toISOString().split('T')[0]);
   };
 
   return (
     <div className="rounded-xl border bg-card p-4 space-y-3">
       <p className="text-sm font-medium">Generate New Gap Report</p>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         <div>
           <label className="text-xs text-muted-foreground block mb-1">As-of Date</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
+          <div className="flex gap-1">
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="flex-1 h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30" />
+            <button onClick={setLastBusinessDay} title="Last business day"
+              className="h-8 px-2 text-xs rounded-lg border bg-muted hover:bg-muted/80 whitespace-nowrap">LBD</button>
+          </div>
         </div>
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Currency</label>
-          <select
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            className="w-full h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-          >
-            {['NGN', 'USD', 'EUR', 'GBP'].map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)} disabled={multiCurrency}
+              className="flex-1 h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50">
+              {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
+            </select>
+            <label className="flex items-center gap-1 text-xs whitespace-nowrap">
+              <input type="checkbox" checked={multiCurrency} onChange={(e) => setMultiCurrency(e.target.checked)} className="rounded" />
+              All
+            </label>
+          </div>
         </div>
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Shock Scenario</label>
-          <select
-            value={shock}
-            onChange={(e) => setShock(e.target.value as ShockScenario)}
-            className="w-full h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-          >
-            {SCENARIOS.map(({ key, label }) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
+          <select value={shock} onChange={(e) => setShock(e.target.value as ShockScenario)}
+            className="w-full h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30">
+            {SCENARIOS.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
           </select>
         </div>
+        <div className="flex items-end gap-2">
+          <button onClick={handleSubmit} disabled={generate.isPending}
+            className="flex items-center gap-1.5 px-3 py-1.5 h-8 text-xs rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+            <RefreshCw className={cn('w-3.5 h-3.5', generate.isPending && 'animate-spin')} />
+            {generate.isPending ? 'Generating...' : 'Generate'}
+          </button>
+        </div>
       </div>
-      <button
-        onClick={handleSubmit}
-        disabled={generate.isPending}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-      >
-        <RefreshCw className={cn('w-3.5 h-3.5', generate.isPending && 'animate-spin')} />
-        {generate.isPending ? 'Generating...' : 'Generate Report'}
-      </button>
     </div>
   );
 }
 
-// ---- Gap Report Tab -------------------------------------------------------------
+// ── Gap Report Tab ──────────────────────────────────────────────────────────
 
 function GapReportTab() {
   const today = new Date().toISOString().split('T')[0];
   const [reportDate, setReportDate] = useState(today);
-  const { data: report, isLoading } = useAlmGapReport(reportDate);
+  const [reportCurrency, setReportCurrency] = useState('NGN');
+  const [comparisonScenario, setComparisonScenario] = useState<string>('');
+  const [drillBucket, setDrillBucket] = useState<string | null>(null);
 
+  const { data: report, isLoading } = useAlmGapReport(reportDate);
+  const { data: positions = [], isLoading: posLoading } = useAlmPositions(reportDate, reportCurrency);
+
+  // Fetch a second report for comparison overlay (client-side)
+  const { data: compReport } = useAlmGapReport(comparisonScenario ? reportDate : '');
+
+  const queryClient = useQueryClient();
   const approveReport = useMutation({
     mutationFn: (id: number) => almApi.approveGapReport(id),
+    onSuccess: () => {
+      toast.success('Report approved');
+      queryClient.invalidateQueries({ queryKey: ['alm', 'gap-report', reportDate] });
+    },
+    onError: () => toast.error('Failed to approve report'),
   });
 
+  const handleExportAlco = () => {
+    if (!report) return;
+    const payload = {
+      reportDate: report.asOfDate,
+      currency: report.currency,
+      status: report.status,
+      approvedBy: report.approvedBy,
+      totalAssets: report.totalAssets,
+      totalLiabilities: report.totalLiabilities,
+      netGap: report.netGap,
+      buckets: report.buckets,
+      positions,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `alco-pack-${report.asOfDate}-${report.currency}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast.success('ALCO pack exported');
+  };
+
   const chartData = report?.buckets ?? [];
+  const compData = comparisonScenario && compReport ? compReport.buckets : undefined;
 
   return (
     <div className="p-4 space-y-4">
       <GenerateReportForm onGenerated={setReportDate} />
 
+      {/* Report Header + Scenario Selector */}
       {report && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <p className="text-sm font-medium">
-              Report — {formatDate(report.asOfDate)}
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <p className="text-sm font-medium">Report — {formatDate(report.asOfDate)}</p>
             <StatusBadge status={report.status} dot />
+            {report.approvedBy && (
+              <span className="text-xs text-muted-foreground">
+                Approved by {report.approvedBy} {report.approvedAt && `at ${formatDateTime(report.approvedAt)}`}
+              </span>
+            )}
           </div>
-          {report.status !== 'APPROVED' && (
-            <button
-              onClick={() => approveReport.mutate(report.id)}
-              disabled={approveReport.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-            >
-              <CheckCircle className="w-3.5 h-3.5" />
-              {approveReport.isPending ? 'Approving...' : 'Approve Report'}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Compare scenario */}
+            <select value={comparisonScenario} onChange={(e) => setComparisonScenario(e.target.value)}
+              className="h-8 px-2 text-xs rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30">
+              <option value="">No comparison</option>
+              {SCENARIOS.filter((s) => s.key !== report.shockScenario).map(({ key, label }) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+            {/* Currency for positions */}
+            <select value={reportCurrency} onChange={(e) => setReportCurrency(e.target.value)}
+              className="h-8 px-2 text-xs rounded-lg border bg-background">
+              {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
+            </select>
+            <button onClick={handleExportAlco}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg border hover:bg-muted transition-colors">
+              <Download className="w-3.5 h-3.5" /> ALCO Pack
             </button>
-          )}
+            {report.status !== 'APPROVED' && (
+              <button onClick={() => approveReport.mutate(report.id)} disabled={approveReport.isPending}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
+                <CheckCircle className="w-3.5 h-3.5" />
+                {approveReport.isPending ? 'Approving...' : 'Approve'}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
+      {/* 1. Dual-Axis Gap Chart */}
       <div className="rounded-xl border bg-card p-4">
-        <p className="text-sm font-medium mb-3">Repricing Gap by Bucket</p>
-        <RepricingGapChart buckets={chartData} loading={isLoading} />
-        <p className="text-xs text-muted-foreground mt-2">
-          Positive = assets reprice faster (asset-sensitive). Negative = funding gap.
-        </p>
+        <p className="text-sm font-medium mb-3">Repricing Gap — Assets vs Liabilities</p>
+        <DualAxisGapChart
+          buckets={chartData}
+          comparisonBuckets={compData}
+          comparisonLabel={comparisonScenario ? SCENARIOS.find((s) => s.key === comparisonScenario)?.label : undefined}
+          loading={isLoading}
+          onBucketClick={setDrillBucket}
+        />
       </div>
 
+      {/* 2. Scenario Comparison Delta */}
+      {compData && (
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-sm font-medium mb-3">Scenario Comparison</p>
+          <ScenarioDeltaRow
+            primary={chartData}
+            comparison={compData}
+            primaryLabel={SCENARIOS.find((s) => s.key === report?.shockScenario)?.label ?? 'Primary'}
+            comparisonLabel={SCENARIOS.find((s) => s.key === comparisonScenario)?.label ?? 'Comparison'}
+          />
+        </div>
+      )}
+
+      {/* 3. Sensitivity Heat Map */}
       <div className="rounded-xl border bg-card p-4">
-        <p className="text-sm font-medium mb-3">NII & EVE Sensitivity</p>
-        <NiiSensitivityTable buckets={chartData} loading={isLoading} />
+        <p className="text-sm font-medium mb-3">NII & EVE Sensitivity Heat Map</p>
+        <SensitivityHeatMap report={report} loading={isLoading} />
+      </div>
+
+      {/* Drill-down panel */}
+      {drillBucket && (
+        <div className="rounded-xl border bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium">Bucket Drill-down: {drillBucket}</p>
+            <button onClick={() => setDrillBucket(null)} className="text-xs text-muted-foreground hover:text-foreground">Close</button>
+          </div>
+          {(() => {
+            const pos = positions.find((p) => p.timeBucket === drillBucket);
+            if (!pos) return <p className="text-xs text-muted-foreground">No position data for this bucket.</p>;
+            const items = [
+              { cat: 'Assets', lines: [
+                { label: 'Cash & Equivalents', value: pos.cashAndEquivalents },
+                { label: 'Interbank Placements', value: pos.interbankPlacements },
+                { label: 'Securities', value: pos.securitiesHeld },
+                { label: 'Loans & Advances', value: pos.loansAndAdvances },
+                { label: 'Other', value: pos.otherAssets },
+              ]},
+              { cat: 'Liabilities', lines: [
+                { label: 'Demand Deposits', value: pos.demandDeposits },
+                { label: 'Term Deposits', value: pos.termDeposits },
+                { label: 'Interbank Borrowings', value: pos.interbankBorrowings },
+                { label: 'Bonds Issued', value: pos.bondsIssued },
+                { label: 'Other', value: pos.otherLiabilities },
+              ]},
+            ];
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {items.map(({ cat, lines }) => (
+                  <div key={cat}>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">{cat}</p>
+                    <div className="space-y-1">
+                      {lines.map(({ label, value }) => (
+                        <div key={label} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{label}</span>
+                          <span className="font-mono tabular-nums">{fmtCompact(value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* 4. Position Snapshot Table */}
+      <div className="rounded-xl border bg-card p-4">
+        <p className="text-sm font-medium mb-3">Repricing Ladder — Position Snapshot ({reportCurrency})</p>
+        <PositionSnapshotTable positions={positions} loading={posLoading} />
       </div>
     </div>
   );
 }
 
-// ---- Duration Tab ---------------------------------------------------------------
+function fmtCompact(v: number) {
+  if (Math.abs(v) >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+  if (Math.abs(v) >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (Math.abs(v) >= 1e3) return `${(v / 1e3).toFixed(0)}K`;
+  return v.toLocaleString();
+}
+
+// ── Duration Tab ────────────────────────────────────────────────────────────
 
 function DurationTab() {
   const { data: dur, isLoading } = usePortfolioDuration(DEFAULT_PORTFOLIO);
@@ -301,7 +342,7 @@ function DurationTab() {
   );
 }
 
-// ---- Scenarios Tab --------------------------------------------------------------
+// ── Scenarios Tab ───────────────────────────────────────────────────────────
 
 function ScenariosTab() {
   const { data: scenarios = [], isLoading: scenLoading } = useAlmScenarios();
@@ -326,23 +367,15 @@ function ScenariosTab() {
               </thead>
               <tbody className="divide-y">
                 {scenarios.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                      No active scenarios
-                    </td>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">No active scenarios</td></tr>
+                ) : scenarios.map((s) => (
+                  <tr key={s.id} className="hover:bg-muted/20">
+                    <td className="px-4 py-3 font-medium text-sm">{s.name}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{s.type}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{s.shockBps}</td>
+                    <td className="px-4 py-3"><StatusBadge status={s.status} dot /></td>
                   </tr>
-                ) : (
-                  scenarios.map((s) => (
-                    <tr key={s.id} className="hover:bg-muted/20">
-                      <td className="px-4 py-3 font-medium text-sm">{s.name}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{s.type}</td>
-                      <td className="px-4 py-3 text-sm text-right tabular-nums">{s.shockBps}</td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={s.status} dot />
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
@@ -366,38 +399,18 @@ function ScenariosTab() {
               </thead>
               <tbody className="divide-y">
                 {regScenarios.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                      No regulatory scenarios configured
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">No regulatory scenarios configured</td></tr>
+                ) : regScenarios.map((s) => (
+                  <tr key={s.id} className="hover:bg-muted/20">
+                    <td className="px-4 py-3 font-medium text-sm">{s.name}</td>
+                    <td className="px-4 py-3 text-sm text-right tabular-nums">{s.requiredCapital?.toLocaleString() ?? '--'}</td>
+                    <td className={cn('px-4 py-3 text-sm text-right tabular-nums font-medium',
+                      s.computedImpact != null && s.computedImpact < 0 ? 'text-red-600' : 'text-green-600')}>
+                      {s.computedImpact != null ? `${s.computedImpact > 0 ? '+' : ''}${s.computedImpact.toFixed(2)}%` : '--'}
                     </td>
+                    <td className="px-4 py-3"><StatusBadge status={s.status} dot /></td>
                   </tr>
-                ) : (
-                  regScenarios.map((s) => (
-                    <tr key={s.id} className="hover:bg-muted/20">
-                      <td className="px-4 py-3 font-medium text-sm">{s.name}</td>
-                      <td className="px-4 py-3 text-sm text-right tabular-nums">
-                        {s.requiredCapital != null
-                          ? s.requiredCapital.toLocaleString()
-                          : '--'}
-                      </td>
-                      <td
-                        className={cn(
-                          'px-4 py-3 text-sm text-right tabular-nums font-medium',
-                          s.computedImpact != null && s.computedImpact < 0
-                            ? 'text-red-600'
-                            : 'text-green-600',
-                        )}
-                      >
-                        {s.computedImpact != null
-                          ? `${s.computedImpact > 0 ? '+' : ''}${s.computedImpact.toFixed(2)}%`
-                          : '--'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={s.status} dot />
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
@@ -407,9 +420,11 @@ function ScenariosTab() {
   );
 }
 
-// ---- Page -----------------------------------------------------------------------
+// ── Page ─────────────────────────────────────────────────────────────────────
 
 export function AlmDashboardPage() {
+  useEffect(() => { document.title = 'ALM Dashboard | CBS'; }, []);
+
   return (
     <>
       <PageHeader
