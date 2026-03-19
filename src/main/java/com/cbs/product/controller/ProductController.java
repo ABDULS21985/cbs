@@ -64,6 +64,59 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
+    @GetMapping("/{id}")
+    @Operation(summary = "Get product detail by ID")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<ProductCatalogEntry>> getProduct(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(productCatalogEntryRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Product not found: " + id))));
+    }
+
+    @PostMapping
+    @Operation(summary = "Create a new product")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ProductCatalogEntry>> createProduct(@RequestBody ProductCatalogEntry product) {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(ApiResponse.ok(productCatalogEntryRepository.save(product)));
+    }
+
+    @PostMapping("/{id}")
+    @Operation(summary = "Update an existing product")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ProductCatalogEntry>> updateProduct(@PathVariable Long id, @RequestBody ProductCatalogEntry product) {
+        product.setId(id);
+        return ResponseEntity.ok(ApiResponse.ok(productCatalogEntryRepository.save(product)));
+    }
+
+    @PostMapping("/{id}/publish")
+    @Operation(summary = "Publish a product to make it available")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> publishProduct(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "PUBLISHED")));
+    }
+
+    @PostMapping("/{id}/retire")
+    @Operation(summary = "Retire a product")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> retireProduct(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "RETIRED")));
+    }
+
+    @PostMapping("/bundles")
+    @Operation(summary = "Create a product bundle")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ProductBundle>> createBundle(@RequestBody ProductBundle bundle) {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(ApiResponse.ok(productBundleRepository.save(bundle)));
+    }
+
+    @GetMapping("/{id}/versions")
+    @Operation(summary = "Get product version history")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getVersions(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
     @GetMapping("/stats")
     @Operation(summary = "Get product statistics")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

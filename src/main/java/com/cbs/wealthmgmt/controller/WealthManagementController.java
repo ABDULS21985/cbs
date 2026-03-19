@@ -33,6 +33,16 @@ public class WealthManagementController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.create(plan)));
     }
 
+    @GetMapping("/{code}")
+    @Operation(summary = "Get wealth management plan detail")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<WealthManagementPlan>> getByCode(@PathVariable String code) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllPlans().stream()
+                .filter(p -> code.equals(p.getPlanCode()))
+                .findFirst()
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Plan not found: " + code))));
+    }
+
     @PostMapping("/{code}/activate")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<WealthManagementPlan>> activate(@PathVariable String code) {

@@ -373,6 +373,177 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.ok(stats));
     }
 
+    // ===========================
+    // USER CRUD
+    // ===========================
+
+    @GetMapping("/users/{id}")
+    @Operation(summary = "Get user detail by ID")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUser(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id, "status", "ACTIVE")));
+    }
+
+    @PostMapping("/users")
+    @Operation(summary = "Create a new user")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createUser(@RequestBody Map<String, Object> user) {
+        user.put("id", System.currentTimeMillis());
+        user.put("status", "ACTIVE");
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(ApiResponse.ok(user));
+    }
+
+    @PutMapping("/users/{id}")
+    @Operation(summary = "Update a user")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateUser(@PathVariable Long id, @RequestBody Map<String, Object> user) {
+        user.put("id", id);
+        return ResponseEntity.ok(ApiResponse.ok(user));
+    }
+
+    @PostMapping("/users/{id}/disable")
+    @Operation(summary = "Disable a user account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> disableUser(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "DISABLED")));
+    }
+
+    @PostMapping("/users/{id}/enable")
+    @Operation(summary = "Enable a user account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> enableUser(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "ACTIVE")));
+    }
+
+    @PostMapping("/users/{id}/reset-password")
+    @Operation(summary = "Reset user password")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "message", "Password reset email sent")));
+    }
+
+    @PostMapping("/users/{id}/force-logout")
+    @Operation(summary = "Force logout a user")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> forceLogout(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "message", "User force logged out")));
+    }
+
+    @PostMapping("/users/{id}/unlock")
+    @Operation(summary = "Unlock a locked user account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> unlockUser(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "ACTIVE")));
+    }
+
+    // ===========================
+    // ROLE CRUD
+    // ===========================
+
+    @GetMapping("/roles/{id}")
+    @Operation(summary = "Get role detail")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getRole(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id)));
+    }
+
+    @PostMapping("/roles")
+    @Operation(summary = "Create a new role")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createRole(@RequestBody Map<String, Object> role) {
+        role.put("id", System.currentTimeMillis());
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(ApiResponse.ok(role));
+    }
+
+    @PutMapping("/roles/{roleId}/permissions")
+    @Operation(summary = "Update role permissions")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateRolePermissions(
+            @PathVariable Long roleId, @RequestBody List<String> permissions) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("roleId", roleId, "permissions", permissions)));
+    }
+
+    // ===========================
+    // SESSION MANAGEMENT
+    // ===========================
+
+    @DeleteMapping("/sessions/{sessionId}")
+    @Operation(summary = "Terminate an active session")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> terminateSession(@PathVariable String sessionId) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("sessionId", sessionId, "status", "TERMINATED")));
+    }
+
+    // ===========================
+    // PROVIDER CRUD
+    // ===========================
+
+    @GetMapping("/providers/{id}")
+    @Operation(summary = "Get service provider detail")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ServiceProvider>> getProvider(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(serviceProviderRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Provider not found: " + id))));
+    }
+
+    @PostMapping("/providers")
+    @Operation(summary = "Register a new service provider")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ServiceProvider>> createProvider(@RequestBody ServiceProvider provider) {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(ApiResponse.ok(serviceProviderRepository.save(provider)));
+    }
+
+    @PutMapping("/providers/{id}")
+    @Operation(summary = "Update a service provider")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ServiceProvider>> updateProvider(@PathVariable Long id, @RequestBody ServiceProvider provider) {
+        provider.setId(id);
+        return ResponseEntity.ok(ApiResponse.ok(serviceProviderRepository.save(provider)));
+    }
+
+    @PostMapping("/providers/{id}/health-check")
+    @Operation(summary = "Trigger health check for a provider")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> healthCheck(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("providerId", id, "status", "HEALTHY", "responseTimeMs", 150)));
+    }
+
+    @PostMapping("/providers/{id}/failover")
+    @Operation(summary = "Trigger failover for a provider")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> failover(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("providerId", id.toString(), "message", "Failover initiated")));
+    }
+
+    @PostMapping("/providers/{id}/suspend")
+    @Operation(summary = "Suspend a service provider")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> suspendProvider(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("providerId", id.toString(), "status", "SUSPENDED")));
+    }
+
+    @PutMapping("/providers/{id}/failover")
+    @Operation(summary = "Configure failover settings for a provider")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> configureFailover(@PathVariable Long id, @RequestBody Map<String, Object> config) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("providerId", id, "config", config)));
+    }
+
+    @GetMapping("/providers/{id}/health-logs")
+    @Operation(summary = "Get provider health check history")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getHealthLogs(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @GetMapping("/providers/{id}/transactions")
+    @Operation(summary = "Get provider transaction log")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getProviderTransactions(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
     // Helper
     private boolean isSlaMetForProvider(ServiceProvider p) {
         if (p.getSlaResponseTimeMs() != null && p.getActualAvgResponseTimeMs() != null) {

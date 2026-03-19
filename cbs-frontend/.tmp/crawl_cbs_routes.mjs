@@ -8,7 +8,7 @@ const FRONTEND_DIR = '/Users/mac/codes/cba/cbs-frontend';
 const ROUTER_PATH = path.join(FRONTEND_DIR, 'src/app/router.tsx');
 const OUT_PATH = '/tmp/cba-route-crawl.json';
 const BASE_URL = 'http://localhost:3000';
-const API_ORIGIN = 'http://127.0.0.1:8081';
+const API_ORIGIN = 'http://localhost:8081';
 const USERNAME = 'endpointdiag';
 const PASSWORD = 'EndpointDiag123!';
 
@@ -208,11 +208,12 @@ async function main() {
   });
 
   await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.fill('[name=username]', USERNAME);
-  await page.fill('[name=password]', PASSWORD);
+  await page.waitForSelector('input[autocomplete="username"]', { timeout: 30000 });
+  await page.fill('input[autocomplete="username"]', USERNAME);
+  await page.fill('input[autocomplete="current-password"]', PASSWORD);
   await Promise.all([
     page.waitForURL(/\/dashboard/, { timeout: 30000 }),
-    page.click('button[type=submit]'),
+    page.getByRole('button', { name: /sign in/i }).click(),
   ]);
   await page.waitForTimeout(3000);
 
