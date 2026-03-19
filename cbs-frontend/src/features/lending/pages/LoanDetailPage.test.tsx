@@ -9,27 +9,34 @@ import { LoanDetailPage } from './LoanDetailPage';
 
 const wrap = (data: unknown) => ({ success: true, data, timestamp: new Date().toISOString() });
 
+// Mock uses backend DTO field names (mapLoanAccount transforms them)
 const mockLoan = {
   id: 1,
   loanNumber: 'LN-000001',
   customerId: 1,
-  customerName: 'Amara Okonkwo',
-  productName: 'Personal Loan',
+  customerDisplayName: 'Amara Okonkwo',
+  loanProductCode: 'PERSONAL',
+  loanProductName: 'Personal Loan',
   disbursedAmount: 5000000,
   outstandingPrincipal: 3200000,
-  outstandingInterest: 156789,
-  totalOutstanding: 3356789,
+  accruedInterest: 156789,
   interestRate: 18,
-  tenorMonths: 12,
+  tenureMonths: 12,
   remainingMonths: 8,
-  monthlyPayment: 466667,
-  nextPaymentDate: '2026-04-18',
+  emiAmount: 466667,
+  nextDueDate: '2026-04-18',
   daysPastDue: 0,
   classification: 'CURRENT',
   status: 'ACTIVE',
-  currency: 'NGN',
-  disbursedDate: '2026-01-18',
+  currencyCode: 'NGN',
+  paidInstallments: 4,
+  disbursementDate: '2026-01-18',
   maturityDate: '2027-01-18',
+  schedule: [
+    { installmentNumber: 1, dueDate: '2026-02-18T00:00:00.000Z', principalDue: 416667, interestDue: 50000, totalDue: 466667, status: 'PAID', outstanding: 4583333 },
+    { installmentNumber: 2, dueDate: '2026-03-18T00:00:00.000Z', principalDue: 416667, interestDue: 45833, totalDue: 462500, status: 'PAID', outstanding: 4166666 },
+    { installmentNumber: 3, dueDate: '2026-04-18T00:00:00.000Z', principalDue: 416667, interestDue: 41667, totalDue: 458334, status: 'DUE', outstanding: 3750000 },
+  ],
 };
 
 const mockSchedule = [
@@ -231,7 +238,7 @@ describe('LoanDetailPage', () => {
   });
 
   it('shows "No schedule data" when schedule is empty', async () => {
-    setupHandlers(mockLoan, []);
+    setupHandlers({ ...mockLoan, schedule: [] }, []);
     renderPage();
     await waitFor(() => {
       expect(screen.getByText(/no schedule data/i)).toBeInTheDocument();

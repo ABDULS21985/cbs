@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/v1/communications")
 @RequiredArgsConstructor
+@org.springframework.transaction.annotation.Transactional(readOnly = true)
 @Tag(name = "Communications", description = "Communications management - sent, scheduled, templates")
 public class CommunicationsController {
 

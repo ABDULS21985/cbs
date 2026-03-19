@@ -10,12 +10,12 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/dashboard")
@@ -118,5 +118,65 @@ public class DashboardStatsController {
                 Map.of("desk", "MONEY_MARKET", "traders", 3, "openPositions", 8, "pnlToday", 0),
                 Map.of("desk", "FIXED_INCOME", "traders", 2, "openPositions", 15, "pnlToday", 0)
         )));
+    }
+
+    @GetMapping("/charts/monthly-volume")
+    @Operation(summary = "Monthly transaction volume trend for dashboard charts")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMonthlyVolume() {
+        List<Map<String, Object>> trend = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            try (java.sql.ResultSet rs = stmt.executeQuery(
+                    "SELECT TO_CHAR(created_at, 'YYYY-MM') AS month, COUNT(*) AS volume, " +
+                    "COALESCE(SUM(amount), 0) AS total_value " +
+                    "FROM cbs.payment_instruction WHERE created_at >= NOW() - INTERVAL '12 months' " +
+                    "GROUP BY TO_CHAR(created_at, 'YYYY-MM') ORDER BY month")) {
+                while (rs.next()) {
+                    trend.add(Map.of("month", rs.getString("month"),
+                            "volume", rs.getLong("volume"),
+                            "totalValue", rs.getBigDecimal("total_value")));
+                }
+            }
+        } catch (Exception e) {
+            // Return empty on error
+        }
+        if (trend.isEmpty()) {
+            java.time.LocalDate now = java.time.LocalDate.now();
+            for (int i = 11; i >= 0; i--) {
+                java.time.LocalDate m = now.minusMonths(i);
+                trend.add(Map.of("month", m.toString().substring(0, 7), "volume", 0L, "totalValue", java.math.BigDecimal.ZERO));
+            }
+        }
+        return ResponseEntity.ok(ApiResponse.ok(trend));
+    }
+
+    @GetMapping("/recent-transactions")
+    @Operation(summary = "Recent transactions for dashboard")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecentTransactions() {
+        List<Map<String, Object>> transactions = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            try (java.sql.ResultSet rs = stmt.executeQuery(
+                    "SELECT p.id, p.payment_reference, p.amount, p.currency_code, p.payment_type, " +
+                    "p.status, p.created_at FROM cbs.payment_instruction p " +
+                    "ORDER BY p.created_at DESC LIMIT 20")) {
+                while (rs.next()) {
+                    Map<String, Object> txn = new HashMap<>();
+                    txn.put("id", rs.getLong("id"));
+                    txn.put("reference", rs.getString("payment_reference"));
+                    txn.put("amount", rs.getBigDecimal("amount"));
+                    txn.put("currency", rs.getString("currency_code"));
+                    txn.put("type", rs.getString("payment_type"));
+                    txn.put("status", rs.getString("status"));
+                    txn.put("createdAt", rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toInstant().toString() : null);
+                    transactions.add(txn);
+                }
+            }
+        } catch (Exception e) {
+            // Return empty on error
+        }
+        return ResponseEntity.ok(ApiResponse.ok(transactions));
     }
 }

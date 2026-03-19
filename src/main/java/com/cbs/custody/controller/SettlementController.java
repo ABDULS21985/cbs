@@ -36,9 +36,10 @@ public class SettlementController {
         return ResponseEntity.ok(ApiResponse.ok(service.getInstruction(ref)));
     }
 
-    @PostMapping("/instructions/match")
+    @RequestMapping(value = "/instructions/match", method = {RequestMethod.GET, RequestMethod.POST})
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<SettlementInstruction>>> matchInstructions(@RequestParam String refA, @RequestParam String refB) {
+    public ResponseEntity<ApiResponse<List<SettlementInstruction>>> matchInstructions(@RequestParam(required = false) String refA, @RequestParam(required = false) String refB) {
+        if (refA == null || refB == null) return ResponseEntity.ok(ApiResponse.ok(java.util.List.of()));
         return ResponseEntity.ok(ApiResponse.ok(service.matchInstruction(refA, refB)));
     }
 

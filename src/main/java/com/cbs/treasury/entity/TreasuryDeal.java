@@ -3,6 +3,7 @@ package com.cbs.treasury.entity;
 import com.cbs.account.entity.Account;
 import com.cbs.common.audit.AuditableEntity;
 import com.cbs.nostro.entity.CorrespondentBank;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -31,6 +32,7 @@ public class TreasuryDeal extends AuditableEntity {
     @Enumerated(EnumType.STRING)
     private DealType dealType;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "counterparty_id")
     private CorrespondentBank counterparty;
@@ -44,6 +46,7 @@ public class TreasuryDeal extends AuditableEntity {
     @Column(name = "leg1_amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal leg1Amount;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "signatories", "transactionJournals"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "leg1_account_id")
     private Account leg1Account;
@@ -57,6 +60,7 @@ public class TreasuryDeal extends AuditableEntity {
     @Column(name = "leg2_amount", precision = 18, scale = 2)
     private BigDecimal leg2Amount;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "signatories", "transactionJournals"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "leg2_account_id")
     private Account leg2Account;

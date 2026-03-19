@@ -6,9 +6,11 @@ import com.cbs.payments.repository.FxRateRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag; import lombok.RequiredArgsConstructor;
 import org.springframework.http.*; import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*; import java.time.LocalDate; import java.util.List; import java.util.Map;
 @RestController @RequestMapping("/v1/market-data") @RequiredArgsConstructor
 @Tag(name = "Market Data", description = "Feeds, prices, signals, research publications")
+@Transactional(readOnly = true)
 public class MarketDataController {
     private final MarketDataService service;
     private final FxRateRepository fxRateRepository;
@@ -46,12 +48,13 @@ public class MarketDataController {
         List<MarketPrice> allPrices = service.getAllPrices();
         List<MarketPrice> moneyMarket = allPrices.stream()
                 .filter(p -> {
-                    String code = p.getInstrumentCode().toUpperCase();
+                    String code = p.getInstrumentCode() != null ? p.getInstrumentCode().toUpperCase() : "";
+                    String type = p.getPriceType() != null ? p.getPriceType() : "";
                     return code.contains("OBB") || code.contains("CALL") || code.contains("O/N")
                             || code.contains("OVERNIGHT") || code.contains("NIBOR")
                             || code.contains("LIBOR") || code.contains("SOFR")
                             || code.contains("MONEY_MARKET") || code.contains("MM_")
-                            || "MONEY_MARKET".equalsIgnoreCase(p.getPriceType());
+                            || "MONEY_MARKET".equalsIgnoreCase(type);
                 })
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok(moneyMarket));

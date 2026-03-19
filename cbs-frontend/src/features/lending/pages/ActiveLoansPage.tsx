@@ -1,7 +1,9 @@
+import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, SummaryBar } from '@/components/shared';
 import { useNavigate } from 'react-router-dom';
 import { formatMoney, formatDate } from '@/lib/formatters';
+import { apiGet } from '@/lib/api';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { LoanAccount } from '../types/loan';
 
@@ -20,9 +22,11 @@ const columns: ColumnDef<LoanAccount, any>[] = [
 export function ActiveLoansPage() {
   const navigate = useNavigate();
 
-  // No list-all endpoint in backend — results populate when a customer context is available
-  const loans: LoanAccount[] = [];
-  const isLoading = false;
+  const { data: loans = [], isLoading } = useQuery({
+    queryKey: ['loans', 'active'],
+    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans', { status: 'ACTIVE' }).catch(() => []),
+    staleTime: 30_000,
+  });
 
   const totalOutstanding = loans.reduce((s, l) => s + (l.outstandingPrincipal || 0), 0);
 

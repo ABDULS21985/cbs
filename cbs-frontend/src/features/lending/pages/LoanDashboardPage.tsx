@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, DataTable, SummaryBar } from '@/components/shared';
 import { WidgetCard } from '@/features/dashboard/components/WidgetCard';
@@ -7,6 +8,7 @@ import { Plus, Landmark, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-
 import { useNavigate } from 'react-router-dom';
 import type { ColumnDef } from '@tanstack/react-table';
 import { formatMoney } from '@/lib/formatters';
+import { apiGet } from '@/lib/api';
 import type { LoanAccount, PortfolioStats } from '../types/loan';
 
 const columns: ColumnDef<LoanAccount, any>[] = [
@@ -22,12 +24,17 @@ const columns: ColumnDef<LoanAccount, any>[] = [
 export function LoanDashboardPage() {
   const navigate = useNavigate();
 
-  // Portfolio stats not available via dedicated endpoint
+  const { data: allLoans = [] } = useQuery({
+    queryKey: ['loans', 'all'],
+    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans').catch(() => []),
+    staleTime: 30_000,
+  });
+
   const stats: PortfolioStats = {
-    totalOutstanding: 0,
-    activeLoansCount: 0,
-    activeLoans: 0,
-    nplRatio: 0,
+    totalOutstanding: allLoans.reduce((s, l) => s + (l.outstandingPrincipal || 0), 0),
+    activeLoansCount: allLoans.filter(l => l.status === 'ACTIVE').length,
+    activeLoans: allLoans.filter(l => l.status === 'ACTIVE').length,
+    nplRatio: allLoans.length > 0 ? allLoans.filter(l => (l.daysPastDue || 0) > 90).length / allLoans.length * 100 : 0,
     disbursedMtd: 0,
     collectionsMtd: 0,
     dpdDistribution: [],
@@ -35,8 +42,7 @@ export function LoanDashboardPage() {
     sectorConcentration: [],
   };
 
-  // Watchlist not available without a customerId — no list-all endpoint in backend
-  const watchList: LoanAccount[] = [];
+  const watchList = allLoans.filter(l => (l.daysPastDue || 0) >= 30);
   const watchLoading = false;
 
   return (

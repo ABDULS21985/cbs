@@ -34,7 +34,7 @@ public class ApprovalController {
     private final WorkflowService workflowService;
     private final SystemParameterRepository systemParameterRepository;
 
-    @GetMapping("/my-queue")
+    @GetMapping({"/my-queue", "/pending"})
     @Operation(summary = "Get current user's pending approval queue")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<WorkflowInstance>>> myQueue(

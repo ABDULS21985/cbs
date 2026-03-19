@@ -186,14 +186,13 @@ describe('Token Security Tests', () => {
           }
           return HttpResponse.json({ success: true, data: { result: 'ok' } });
         }),
-        http.post('/api/auth/refresh', () =>
+        // Mock the actual Keycloak token endpoint used by authApi.refresh()
+        http.post('http://localhost:8180/realms/cbs/protocol/openid-connect/token', () =>
           HttpResponse.json({
-            success: true,
-            data: {
-              accessToken: 'jwt-refreshed-token',
-              refreshToken: 'jwt-new-refresh',
-              expiresIn: 3600,
-            },
+            access_token: 'jwt-refreshed-token',
+            refresh_token: 'jwt-new-refresh',
+            expires_in: 3600,
+            token_type: 'Bearer',
           }),
         ),
       );

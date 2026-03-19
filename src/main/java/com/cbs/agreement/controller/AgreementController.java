@@ -7,11 +7,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController @RequestMapping("/v1/agreements") @RequiredArgsConstructor
 @Tag(name = "Customer Agreement", description = "Master agreement management — product-specific, channel access, privacy consent, mandates")
+@Transactional(readOnly = true)
 public class AgreementController {
     private final AgreementService agreementService;
 

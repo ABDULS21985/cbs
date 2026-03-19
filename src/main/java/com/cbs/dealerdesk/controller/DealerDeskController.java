@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -20,6 +21,7 @@ import java.util.Map;
 @RequestMapping("/v1/dealer-desks")
 @RequiredArgsConstructor
 @Tag(name = "Dealer Desk", description = "Dealing desk management and P&L tracking")
+@Transactional(readOnly = true)
 public class DealerDeskController {
 
     private final DealerDeskService dealerDeskService;

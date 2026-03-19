@@ -23,6 +23,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/transactions")
 @RequiredArgsConstructor
+@org.springframework.transaction.annotation.Transactional(readOnly = true)
 @Tag(name = "Transaction Search", description = "Cross-account transaction search, detail, and reversal")
 public class TransactionController {
 

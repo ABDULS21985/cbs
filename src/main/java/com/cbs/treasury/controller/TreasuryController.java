@@ -19,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/v1/treasury")
 @RequiredArgsConstructor
 @Tag(name = "Treasury", description = "FX deals, money market, bonds, repo, T-bills")
+@Transactional(readOnly = true)
 public class TreasuryController {
 
     private final TreasuryService treasuryService;
@@ -72,6 +74,7 @@ public class TreasuryController {
 
     @GetMapping("/deals")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<List<TreasuryDeal>>> getByStatus(@RequestParam(required = false) DealStatus status,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         if (status == null) {

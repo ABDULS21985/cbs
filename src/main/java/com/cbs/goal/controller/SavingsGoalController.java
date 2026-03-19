@@ -4,6 +4,7 @@ import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.goal.dto.*;
 import com.cbs.goal.entity.SavingsGoal;
+import com.cbs.deposit.repository.RecurringDepositRepository;
 import com.cbs.goal.repository.SavingsGoalRepository;
 import com.cbs.goal.service.SavingsGoalService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,6 +31,7 @@ public class SavingsGoalController {
 
     private final SavingsGoalService goalService;
     private final SavingsGoalRepository savingsGoalRepository;
+    private final RecurringDepositRepository recurringDepositRepository;
 
     @PostMapping("/customer/{customerId}")
     @Operation(summary = "Create a new savings goal")
@@ -139,5 +141,20 @@ public class SavingsGoalController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<SavingsGoal> result = savingsGoalRepository.findAll(pageable);
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/recurring-deposits")
+    @Operation(summary = "List recurring deposits (proxy to deposit module)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<List<?>>> getRecurringDeposits() {
+        return ResponseEntity.ok(ApiResponse.ok(recurringDepositRepository.findAll()));
+    }
+
+    @GetMapping("/recurring-deposits/{id}")
+    @Operation(summary = "Get recurring deposit by ID")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<?>> getRecurringDeposit(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(recurringDepositRepository.findById(id)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("RecurringDeposit", "id", id))));
     }
 }
