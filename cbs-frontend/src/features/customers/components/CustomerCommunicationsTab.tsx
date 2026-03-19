@@ -1,4 +1,4 @@
-import { Mail, MessageSquare, Bell, Smartphone, Send } from 'lucide-react';
+import { Mail, MessageSquare, Bell, Smartphone } from 'lucide-react';
 import { formatDateTime } from '@/lib/formatters';
 import { StatusBadge, EmptyState } from '@/components/shared';
 import { useCustomerCommunications } from '../hooks/useCustomers';
@@ -32,10 +32,8 @@ export function CustomerCommunicationsTab({ customerId, active }: { customerId: 
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <Send className="h-4 w-4" /> Send New Message
-        </button>
+      <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+        Messaging actions are unavailable until the backend exposes an outbound communications endpoint.
       </div>
       {!comms?.length ? (
         <EmptyState

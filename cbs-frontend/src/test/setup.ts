@@ -7,6 +7,14 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => { cleanup(); server.resetHandlers(); });
 afterAll(() => server.close());
 
+// ResizeObserver mock (required by recharts ResponsiveContainer)
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+
 // Browser API mocks
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -22,10 +30,15 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-Object.defineProperty(navigator, 'clipboard', {
-  writable: true,
-  value: { writeText: vi.fn().mockResolvedValue(undefined), readText: vi.fn().mockResolvedValue('') },
-});
+if (!Object.getOwnPropertyDescriptor(navigator, 'clipboard')?.configurable === false) {
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    writable: true,
+    value: { writeText: vi.fn().mockResolvedValue(undefined), readText: vi.fn().mockResolvedValue('') },
+  });
+} else {
+  (navigator as any).clipboard = { writeText: vi.fn().mockResolvedValue(undefined), readText: vi.fn().mockResolvedValue('') };
+}
 
 window.print = vi.fn();
 

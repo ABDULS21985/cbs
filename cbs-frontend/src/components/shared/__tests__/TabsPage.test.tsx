@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TabsPage } from '../TabsPage';
-import { renderWithProviders } from '../../test/helpers';
+import { renderWithProviders } from '@/test/helpers';
 
 type Tab = {
   id: string;

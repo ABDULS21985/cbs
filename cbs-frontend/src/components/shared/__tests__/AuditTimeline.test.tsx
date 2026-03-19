@@ -76,9 +76,10 @@ describe('AuditTimeline', () => {
 
   it('renders each event performedBy', () => {
     render(<AuditTimeline events={sampleEvents} isLoading={false} />);
-    expect(screen.getByText('Alice Johnson')).toBeInTheDocument();
-    expect(screen.getByText('Bob Smith')).toBeInTheDocument();
-    expect(screen.getByText('Carol White')).toBeInTheDocument();
+    // performedBy is part of a text node with " · " and relative time, so use a function matcher
+    expect(screen.getByText((content) => content.includes('Alice Johnson'))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('Bob Smith'))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('Carol White'))).toBeInTheDocument();
   });
 
   it('does not show expand button for events without changes', () => {

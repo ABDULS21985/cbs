@@ -57,7 +57,7 @@ export function CustomerAccountsTab({ customerId }: { customerId: number }) {
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={() => navigate(`/accounts/new?customerId=${customerId}`)}
+            onClick={() => navigate(`/accounts/open?customerId=${customerId}`)}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="h-4 w-4" /> Open New Account

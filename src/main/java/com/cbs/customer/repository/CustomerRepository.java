@@ -75,9 +75,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long>, JpaSp
     @Query("SELECT COUNT(c) FROM Customer c WHERE c.customerType = :type")
     long countByCustomerType(@Param("type") CustomerType type);
 
-    @Query("SELECT COUNT(c) FROM Customer c WHERE c.createdAt >= :from")
-    long countCreatedSince(@Param("from") Instant from);
-
     List<Customer> findByRelationshipManager(String relationshipManager);
 
     // ========================================================================

@@ -1,6 +1,6 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge, TabsPage } from '@/components/shared';
-import { Plus, CreditCard, ShieldCheck, ShieldX, Clock, Loader2 } from 'lucide-react';
+import { CreditCard, ShieldCheck, ShieldX, Clock, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDate } from '@/lib/formatters';
 import { useCards } from '../hooks/useCardData';
@@ -35,11 +35,14 @@ export function CardListPage() {
 
   return (
     <>
-      <PageHeader title="Card Management" actions={
-        <button onClick={() => navigate('/cards/request')} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
-          <Plus className="w-4 h-4" /> Request Card
-        </button>
-      } />
+      <PageHeader
+        title="Card Management"
+        actions={
+          <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+            Card request UI is not available in this frontend yet.
+          </div>
+        }
+      />
       <div className="page-container space-y-4">
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard label="Total Cards" value={cards.length} format="number" icon={CreditCard} />

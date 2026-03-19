@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { type ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '../DataTable';
-import { renderWithProviders } from '../../test/helpers';
+import { renderWithProviders } from '@/test/helpers';
 
 type TestRow = { id: number; name: string; amount: number };
 

@@ -30,10 +30,10 @@ describe('CardListPage', () => {
     expect(screen.getByText('Card Management')).toBeInTheDocument();
   });
 
-  it('renders Request Card button', () => {
+  it('renders the unsupported request note', () => {
     setupHandlers();
     renderWithProviders(<CardListPage />);
-    expect(screen.getByText('Request Card')).toBeInTheDocument();
+    expect(screen.getByText(/card request ui is not available in this frontend yet/i)).toBeInTheDocument();
   });
 
   it('renders stat cards', async () => {
@@ -52,7 +52,7 @@ describe('CardListPage', () => {
     setupHandlers();
     renderWithProviders(<CardListPage />);
     await waitFor(() => {
-      expect(screen.getByText('5')).toBeInTheDocument(); // total
+      expect(screen.getByText('Total Cards').closest('.stat-card')).toHaveTextContent('5');
     });
   });
 
@@ -77,7 +77,7 @@ describe('CardListPage', () => {
     setupHandlers();
     renderWithProviders(<CardListPage />);
     await waitFor(() => {
-      expect(screen.getByText('VISA')).toBeInTheDocument();
+      expect(screen.getAllByText('VISA').length).toBeGreaterThan(0);
     });
     expect(screen.getByText('MASTERCARD')).toBeInTheDocument();
     expect(screen.getByText('VERVE')).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe('CardListPage', () => {
     setupHandlers();
     renderWithProviders(<CardListPage />);
     await waitFor(() => {
-      expect(screen.getByText('DEBIT')).toBeInTheDocument();
+      expect(screen.getAllByText('DEBIT').length).toBeGreaterThan(0);
     });
     expect(screen.getByText('CREDIT')).toBeInTheDocument();
   });
@@ -96,10 +96,10 @@ describe('CardListPage', () => {
     setupHandlers();
     renderWithProviders(<CardListPage />);
     await waitFor(() => {
-      expect(screen.getByText('All Cards')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /all cards/i })).toBeInTheDocument();
     });
-    expect(screen.getByText('Pending Activation')).toBeInTheDocument();
-    expect(screen.getByText('Blocked')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /pending activation/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^blocked/i })).toBeInTheDocument();
   });
 
   it('shows loading state', () => {

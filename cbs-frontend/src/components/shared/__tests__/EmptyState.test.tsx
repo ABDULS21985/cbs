@@ -37,15 +37,14 @@ describe('EmptyState', () => {
     });
 
     it('renders a custom icon when provided', () => {
-      const CustomIcon = () => <svg data-testid="custom-icon" />;
-      render(<EmptyState title="Empty" icon={<CustomIcon />} />);
+      const CustomIcon = ({ className }: { className?: string }) => <svg data-testid="custom-icon" className={className} />;
+      render(<EmptyState title="Empty" icon={CustomIcon} />);
       expect(screen.getByTestId('custom-icon')).toBeTruthy();
     });
 
     it('does not render the default icon when a custom icon is provided', () => {
-      const CustomIcon = () => <svg data-testid="custom-icon" />;
-      const { container } = render(<EmptyState title="Empty" icon={<CustomIcon />} />);
-      // Only one SVG — our custom icon
+      const CustomIcon = ({ className }: { className?: string }) => <svg data-testid="custom-icon" className={className} />;
+      const { container } = render(<EmptyState title="Empty" icon={CustomIcon} />);
       const svgs = container.querySelectorAll('svg');
       expect(svgs.length).toBe(1);
       expect(svgs[0].getAttribute('data-testid')).toBe('custom-icon');
@@ -81,14 +80,14 @@ describe('EmptyState', () => {
     });
 
     it('renders action.icon inside the action button when provided', () => {
-      const ActionIcon = () => <svg data-testid="action-icon" />;
+      const ActionIcon = ({ className }: { className?: string }) => <svg data-testid="action-icon" className={className} />;
       render(
         <EmptyState
           title="Empty"
           action={{
             label: 'Create',
             onClick: vi.fn(),
-            icon: <ActionIcon />,
+            icon: ActionIcon,
           }}
         />
       );

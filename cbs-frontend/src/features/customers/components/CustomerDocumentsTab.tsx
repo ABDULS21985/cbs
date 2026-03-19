@@ -1,4 +1,4 @@
-import { FileText, CheckCircle, Clock, XCircle, Upload } from 'lucide-react';
+import { FileText, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { formatDate } from '@/lib/formatters';
 import { EmptyState } from '@/components/shared';
 import { useCustomerDocuments } from '../hooks/useCustomers';
@@ -25,10 +25,8 @@ export function CustomerDocumentsTab({ customerId, active }: { customerId: numbe
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-          <Upload className="h-4 w-4" /> Upload Document
-        </button>
+      <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+        Document upload is not exposed by the current backend contract.
       </div>
       {!documents?.length ? (
         <EmptyState

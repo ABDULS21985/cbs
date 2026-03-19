@@ -7,10 +7,26 @@ export const mockUser = {
 };
 
 export const mockCustomer = {
-  id: 1, customerNumber: 'CUS-001', fullName: 'Amara Okonkwo',
-  email: 'amara@example.com', phone: '+2348012345678', status: 'ACTIVE',
-  kycStatus: 'VERIFIED', type: 'INDIVIDUAL',
-  createdAt: '2024-01-15T10:00:00Z', updatedAt: '2024-01-15T10:00:00Z', version: 1,
+  id: 1,
+  customerNumber: 'CUS-001',
+  cifNumber: 'CIF0000001',
+  fullName: 'Amara Okonkwo',
+  email: 'amara@example.com',
+  phone: '+2348012345678',
+  phonePrimary: '+2348012345678',
+  status: 'ACTIVE',
+  kycStatus: 'VERIFIED',
+  type: 'INDIVIDUAL',
+  customerType: 'INDIVIDUAL',
+  branchCode: 'HQ01',
+  createdAt: '2024-01-15T10:00:00Z',
+  updatedAt: '2024-01-15T10:00:00Z',
+  addresses: [],
+  identifications: [],
+  contacts: [],
+  relationships: [],
+  notes: [],
+  version: 1,
 };
 
 export const mockAccount = {
@@ -36,6 +52,25 @@ export const handlers = [
     if (params.id === '999') return HttpResponse.json({ success: false, message: 'Not found' }, { status: 404 });
     return HttpResponse.json({ success: true, data: mockCustomer, timestamp: new Date().toISOString() });
   }),
+  http.get('/api/v1/customers/count', () =>
+    HttpResponse.json({
+      success: true,
+      data: { total: 1, active: 1, dormant: 0, suspended: 0, closed: 0, newMtd: 1 },
+      timestamp: new Date().toISOString(),
+    })
+  ),
+  http.get('/api/v1/accounts/customer/:id', () =>
+    HttpResponse.json({ success: true, data: [mockAccount], timestamp: new Date().toISOString() })
+  ),
+  http.get('/api/v1/customers/:id/identifications', () =>
+    HttpResponse.json({ success: true, data: [], timestamp: new Date().toISOString() })
+  ),
+  http.get('/api/v1/notifications/customer/:id', () =>
+    HttpResponse.json({ success: true, data: [], timestamp: new Date().toISOString() })
+  ),
+  http.get('/api/v1/audit/entity/CUSTOMER/:id', () =>
+    HttpResponse.json({ success: true, data: [], timestamp: new Date().toISOString() })
+  ),
   http.get('/api/v1/accounts', () =>
     HttpResponse.json({ success: true, data: [mockAccount], page: { page: 0, size: 10, totalElements: 1, totalPages: 1 }, timestamp: new Date().toISOString() })
   ),

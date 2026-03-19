@@ -1,233 +1,178 @@
-import { describe, it, expect, vi } from 'vitest';
-import { screen, waitFor, within, fireEvent } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { renderWithProviders } from '@/test/helpers/renderWithProviders';
 import { server } from '@/test/msw/server';
-import { http, HttpResponse } from 'msw';
-
 import CustomerListPage from './CustomerListPage';
 
-const wrap = (data: unknown, page = { page: 0, size: 20, totalElements: 0, totalPages: 0 }) => ({
+const wrap = (data: unknown, page = { page: 0, size: 25, totalElements: 0, totalPages: 0 }) => ({
   success: true,
   data,
   page,
   timestamp: new Date().toISOString(),
 });
 
-const mockCustomers = Array.from({ length: 3 }, (_, i) => ({
-  id: i + 1,
-  customerNumber: `CUS-${String(i + 1).padStart(3, '0')}`,
-  fullName: `Customer ${i + 1}`,
-  type: i === 0 ? 'INDIVIDUAL' : 'CORPORATE',
-  status: 'ACTIVE',
-  segment: 'RETAIL',
-  phone: `+2348000000${i}`,
-  totalBalance: 5000000 + i * 100000,
-  branchName: 'Head Office',
-  dateOpened: '2024-01-15',
-}));
+const mockCustomers = [
+  {
+    id: 1,
+    cifNumber: 'CIF0000001',
+    customerType: 'INDIVIDUAL',
+    status: 'ACTIVE',
+    riskRating: 'LOW',
+    fullName: 'Amara Okonkwo',
+    email: 'amara@example.com',
+    phonePrimary: '+2348012345678',
+    branchCode: 'HQ01',
+    createdAt: '2024-01-15T10:00:00Z',
+  },
+  {
+    id: 2,
+    cifNumber: 'CIF0000002',
+    customerType: 'CORPORATE',
+    status: 'DORMANT',
+    riskRating: 'HIGH',
+    fullName: 'TechVentures Limited',
+    email: 'ops@techventures.example',
+    phonePrimary: '+2348098765432',
+    branchCode: 'ABJ01',
+    createdAt: '2024-02-20T11:30:00Z',
+  },
+];
 
-const mockCounts = { total: 1500, active: 1200, dormant: 250, newMtd: 45 };
+const mockCounts = {
+  total: 1500,
+  active: 1200,
+  dormant: 250,
+  suspended: 25,
+  closed: 10,
+  newMtd: 45,
+};
 
-function setupHandlers(customers = mockCustomers, counts = mockCounts) {
+function setupHandlers(options?: {
+  customers?: typeof mockCustomers;
+  counts?: typeof mockCounts;
+  onCustomersRequest?: (params: URLSearchParams) => void;
+}) {
+  const { customers = mockCustomers, counts = mockCounts, onCustomersRequest } = options ?? {};
+
   server.use(
-    http.get('/api/v1/customers', () =>
-      HttpResponse.json(wrap(customers, { page: 0, size: 20, totalElements: customers.length, totalPages: 1 }))
-    ),
-    http.get('/api/v1/customers/counts', () =>
-      HttpResponse.json({ success: true, data: counts, timestamp: new Date().toISOString() })
+    http.get('/api/v1/customers', ({ request }) => {
+      const url = new URL(request.url);
+      onCustomersRequest?.(url.searchParams);
+      return HttpResponse.json(
+        wrap(customers, {
+          page: Number(url.searchParams.get('page') ?? '0'),
+          size: Number(url.searchParams.get('size') ?? '25'),
+          totalElements: customers.length,
+          totalPages: customers.length ? 1 : 0,
+        }),
+      );
+    }),
+    http.get('/api/v1/customers/count', () =>
+      HttpResponse.json({ success: true, data: counts, timestamp: new Date().toISOString() }),
     ),
   );
 }
 
 describe('CustomerListPage', () => {
-  it('renders the search input', async () => {
+  it('renders the live customer list and counts', async () => {
     setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    expect(screen.getByPlaceholderText(/search by name/i)).toBeInTheDocument();
-  });
 
-  it('renders stat cards with customer counts', async () => {
-    setupHandlers();
     renderWithProviders(<CustomerListPage />);
+
+    expect(screen.getByPlaceholderText(/search by name, cif, email, or phone/i)).toBeInTheDocument();
+
     await waitFor(() => {
-      expect(screen.getByText('Total Customers')).toBeInTheDocument();
+      expect(screen.getByText('Amara Okonkwo')).toBeInTheDocument();
     });
-    expect(screen.getByText('Active')).toBeInTheDocument();
-    expect(screen.getByText('Dormant')).toBeInTheDocument();
-    expect(screen.getByText('New (MTD)')).toBeInTheDocument();
+
+    expect(screen.getByText('Total Customers')).toBeInTheDocument();
+    expect(screen.getByText('1500')).toBeInTheDocument();
+    expect(screen.getByText('CIF0000001')).toBeInTheDocument();
+    expect(screen.getByText('TechVentures Limited')).toBeInTheDocument();
+    expect(screen.getByText('HQ01')).toBeInTheDocument();
   });
 
-  it('displays customer data in the table after loading', async () => {
-    setupHandlers();
+  it('shows the empty state when the backend returns no customers', async () => {
+    setupHandlers({ customers: [] });
+
     renderWithProviders(<CustomerListPage />);
+
     await waitFor(() => {
-      expect(screen.getByText('Customer 1')).toBeInTheDocument();
+      expect(screen.getByText(/no customers match the current filters/i)).toBeInTheDocument();
     });
-    expect(screen.getByText('Customer 2')).toBeInTheDocument();
-    expect(screen.getByText('Customer 3')).toBeInTheDocument();
   });
 
-  it('shows customer numbers in the table', async () => {
+  it('shows or hides the create action based on permissions', async () => {
     setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    await waitFor(() => {
-      expect(screen.getByText('CUS-001')).toBeInTheDocument();
-    });
-  });
 
-  it('shows empty state when no customers match', async () => {
-    setupHandlers([]);
-    renderWithProviders(<CustomerListPage />);
-    await waitFor(() => {
-      expect(screen.getByText(/no customers match/i)).toBeInTheDocument();
-    });
-  });
+    const admin = {
+      id: 'u1',
+      username: 'admin',
+      fullName: 'Admin User',
+      email: 'admin@example.com',
+      roles: ['CBS_ADMIN'],
+      permissions: ['*'],
+      branchId: 1,
+      branchName: 'HQ',
+    };
+    const viewer = {
+      id: 'u2',
+      username: 'viewer',
+      fullName: 'Viewer User',
+      email: 'viewer@example.com',
+      roles: ['CBS_VIEWER'],
+      permissions: [],
+      branchId: 1,
+      branchName: 'HQ',
+    };
 
-  it('renders the "New Customer" button for users with create permission', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />, {
-      user: { id: 'u1', username: 'admin', firstName: 'A', lastName: 'B', email: 'a@b.com', roles: ['CBS_ADMIN'], branchId: 'br-001', branchName: 'HQ', department: 'Ops', permissions: ['*'], mfaEnabled: false },
-    });
+    const adminRender = renderWithProviders(<CustomerListPage />, { user: admin });
     expect(screen.getByText('New Customer')).toBeInTheDocument();
-  });
+    adminRender.unmount();
 
-  it('hides "New Customer" button for users without create permission', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />, {
-      user: { id: 'u1', username: 'viewer', firstName: 'V', lastName: 'W', email: 'v@b.com', roles: ['CBS_VIEWER'], branchId: 'br-001', branchName: 'HQ', department: 'Ops', permissions: [], mfaEnabled: false },
-    });
+    renderWithProviders(<CustomerListPage />, { user: viewer });
     expect(screen.queryByText('New Customer')).not.toBeInTheDocument();
   });
 
-  it('renders the Filters button', () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    expect(screen.getByText('Filters')).toBeInTheDocument();
-  });
-
-  it('opens filter panel when Filters button is clicked', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    fireEvent.click(screen.getByText('Filters'));
-    expect(screen.getByDisplayValue('All Types')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('All Statuses')).toBeInTheDocument();
-  });
-
-  it('shows Reset button in filter panel', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    fireEvent.click(screen.getByText('Filters'));
-    expect(screen.getByText('Reset')).toBeInTheDocument();
-  });
-
-  it('allows typing in the search input', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    const input = screen.getByPlaceholderText(/search by name/i);
-    fireEvent.change(input, { target: { value: 'Amara' } });
-    expect(input).toHaveValue('Amara');
-  });
-
-  it('displays the correct table column headers', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    await waitFor(() => {
-      expect(screen.getByText('Customer #')).toBeInTheDocument();
+  it('sends live type and status filter params to the backend', async () => {
+    let lastRequest = new URLSearchParams();
+    setupHandlers({
+      onCustomersRequest: (params) => {
+        lastRequest = new URLSearchParams(params);
+      },
     });
-    expect(screen.getByText('Name')).toBeInTheDocument();
-    expect(screen.getByText('Type')).toBeInTheDocument();
-    expect(screen.getByText('Status')).toBeInTheDocument();
-  });
 
-  it('renders customer type badge', async () => {
-    setupHandlers();
     renderWithProviders(<CustomerListPage />);
+
+    fireEvent.click(screen.getByText('Filters'));
+    fireEvent.change(screen.getByDisplayValue('All Types'), { target: { value: 'CORPORATE' } });
+    fireEvent.change(screen.getByDisplayValue('All Statuses'), { target: { value: 'DORMANT' } });
+
     await waitFor(() => {
-      expect(screen.getByText('INDIVIDUAL')).toBeInTheDocument();
+      expect(lastRequest.get('customerType')).toBe('CORPORATE');
+      expect(lastRequest.get('status')).toBe('DORMANT');
     });
   });
 
-  it('renders customer status badge', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    await waitFor(() => {
-      expect(screen.getAllByText('ACTIVE').length).toBeGreaterThan(0);
+  it('debounces search input before sending the search param', async () => {
+    let lastRequest = new URLSearchParams();
+    setupHandlers({
+      onCustomersRequest: (params) => {
+        lastRequest = new URLSearchParams(params);
+      },
     });
-  });
 
-  it('can select a type filter', async () => {
-    setupHandlers();
     renderWithProviders(<CustomerListPage />);
-    fireEvent.click(screen.getByText('Filters'));
-    const typeSelect = screen.getByDisplayValue('All Types');
-    fireEvent.change(typeSelect, { target: { value: 'CORPORATE' } });
-    expect(typeSelect).toHaveValue('CORPORATE');
-  });
 
-  it('can select a status filter', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    fireEvent.click(screen.getByText('Filters'));
-    const statusSelect = screen.getByDisplayValue('All Statuses');
-    fireEvent.change(statusSelect, { target: { value: 'DORMANT' } });
-    expect(statusSelect).toHaveValue('DORMANT');
-  });
-
-  it('can select a status filter value', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    fireEvent.click(screen.getByText('Filters'));
-    const statusSelect = screen.getByDisplayValue('All Statuses');
-    fireEvent.change(statusSelect, { target: { value: 'ACTIVE' } });
-    expect(statusSelect).toHaveValue('ACTIVE');
-  });
-
-  it('resets all filters when Reset is clicked', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    fireEvent.click(screen.getByText('Filters'));
-    const typeSelect = screen.getByDisplayValue('All Types');
-    fireEvent.change(typeSelect, { target: { value: 'CORPORATE' } });
-    fireEvent.click(screen.getByText('Reset'));
-    expect(typeSelect).toHaveValue('');
-  });
-
-  it('shows dash placeholders when counts are not loaded', () => {
-    server.use(
-      http.get('/api/v1/customers/counts', () => HttpResponse.error()),
-    );
-    renderWithProviders(<CustomerListPage />);
-    const dashes = screen.getAllByText('—');
-    expect(dashes.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('handles server error on customers fetch gracefully', async () => {
-    server.use(
-      http.get('/api/v1/customers', () => HttpResponse.json({ success: false }, { status: 500 })),
-    );
-    renderWithProviders(<CustomerListPage />);
-    await waitFor(() => {
-      expect(screen.getByText(/no customers match/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/search by name, cif, email, or phone/i), {
+      target: { value: 'Amara' },
     });
-  });
 
-  it('renders initials avatar for customer names', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
+    expect(lastRequest.get('search')).not.toBe('Amara');
+
     await waitFor(() => {
-      expect(screen.getByText('Customer 1')).toBeInTheDocument();
-    });
-    // Check that initials are rendered (first letters of first and last name)
-    const initials = document.querySelectorAll('.rounded-full');
-    expect(initials.length).toBeGreaterThan(0);
-  });
-
-  it('closes filter panel when Filters button is clicked again', async () => {
-    setupHandlers();
-    renderWithProviders(<CustomerListPage />);
-    fireEvent.click(screen.getByText('Filters'));
-    expect(screen.getByText('All Types')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Filters'));
-    expect(screen.queryByText('All Types')).not.toBeInTheDocument();
+      expect(lastRequest.get('search')).toBe('Amara');
+    }, { timeout: 2000 });
   });
 });

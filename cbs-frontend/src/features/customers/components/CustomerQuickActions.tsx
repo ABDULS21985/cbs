@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, FileText, Landmark, MessageSquare, Shield } from 'lucide-react';
+import { FileText, Landmark, Shield } from 'lucide-react';
 import { usePermission } from '@/hooks/usePermission';
 
 interface CustomerQuickActionsProps {
@@ -10,7 +10,6 @@ export function CustomerQuickActions({ customerId }: CustomerQuickActionsProps) 
   const navigate = useNavigate();
   const canCreateAccount = usePermission('accounts', 'create');
   const canCreateLoan = usePermission('lending', 'create');
-  const canCreateCard = usePermission('cards', 'create');
   const canCreateCase = usePermission('cases', 'create');
 
   const actions = [
@@ -18,31 +17,19 @@ export function CustomerQuickActions({ customerId }: CustomerQuickActionsProps) 
       label: 'Open Account',
       icon: Landmark,
       show: canCreateAccount,
-      onClick: () => navigate(`/accounts/new?customerId=${customerId}`),
+      onClick: () => navigate(`/accounts/open?customerId=${customerId}`),
     },
     {
       label: 'New Loan',
       icon: FileText,
       show: canCreateLoan,
-      onClick: () => navigate(`/loans/applications/new?customerId=${customerId}`),
-    },
-    {
-      label: 'Issue Card',
-      icon: CreditCard,
-      show: canCreateCard,
-      onClick: () => navigate(`/cards/new?customerId=${customerId}`),
+      onClick: () => navigate(`/lending/applications/new?customerId=${customerId}`),
     },
     {
       label: 'Create Case',
       icon: Shield,
       show: canCreateCase,
       onClick: () => navigate(`/cases/new?customerId=${customerId}`),
-    },
-    {
-      label: 'Send Message',
-      icon: MessageSquare,
-      show: true,
-      onClick: () => {},
     },
   ].filter(a => a.show);
 

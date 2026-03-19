@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { createMockCustomer, createMockCustomerList } from '../factories/customerFactory';
 
 const wrap = (data: unknown) => ({ success: true, data, timestamp: new Date().toISOString() });
+const countPayload = { total: 50, active: 40, dormant: 8, suspended: 1, closed: 1, newMtd: 5 };
 
 export const customerHandlers = [
   http.get('/api/v1/customers', ({ request }) => {
@@ -14,11 +15,14 @@ export const customerHandlers = [
   http.get('/api/v1/customers/:id', ({ params }) => {
     return HttpResponse.json(wrap(createMockCustomer({ id: Number(params.id) })));
   }),
+  http.get('/api/v1/customers/count', () => {
+    return HttpResponse.json(wrap(countPayload));
+  }),
   http.post('/api/v1/customers', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>;
     return HttpResponse.json(wrap(createMockCustomer(body)), { status: 201 });
   }),
-  http.get('/api/v1/customers/:id/accounts', () => {
+  http.get('/api/v1/accounts/customer/:id', () => {
     return HttpResponse.json(wrap([]));
   }),
   http.get('/api/v1/customers/search', ({ request }) => {
