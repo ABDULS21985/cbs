@@ -10,7 +10,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
-  const { login, isLoading, mfaRequired } = useAuthStore();
+  const { login, isLoading } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();

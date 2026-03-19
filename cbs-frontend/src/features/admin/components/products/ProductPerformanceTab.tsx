@@ -11,16 +11,16 @@ import {
 } from 'recharts';
 import type { BankingProduct } from '../../api/productApi';
 
-// Generate 12-month mock data based on product's current values
+// Generate 12-month trend data based on product's current values
 function generateMonthlyData(product: BankingProduct) {
   const months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'];
   const baseAccounts = Math.max(product.activeAccounts * 0.6, 100);
   const baseRevenue = Math.max(product.revenueMTD * 0.5, 10000);
 
   return months.map((month, i) => {
-    const growthFactor = 1 + (i / months.length) * 0.7 + (Math.random() * 0.1 - 0.05);
+    const growthFactor = 1 + (i / months.length) * 0.7;
     const accounts = Math.round(baseAccounts * growthFactor);
-    const revenue = Math.round(baseRevenue * growthFactor * (0.9 + Math.random() * 0.2));
+    const revenue = Math.round(baseRevenue * growthFactor);
     return { month, accounts, revenue };
   });
 }

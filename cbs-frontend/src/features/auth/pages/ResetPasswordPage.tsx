@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { authApi } from '../api/authApi';
 import { PasswordStrengthMeter, getPasswordStrength } from '../components/PasswordStrengthMeter';
-import { Eye, EyeOff, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function ResetPasswordPage() {
