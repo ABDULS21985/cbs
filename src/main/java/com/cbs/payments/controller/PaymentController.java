@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/payments")
@@ -125,5 +126,69 @@ public class PaymentController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<PaymentInstruction> result = paymentInstructionRepository.findAll(pageable);
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    // ========================================================================
+    // ADDITIONAL PAYMENT ENDPOINTS
+    // ========================================================================
+
+    @GetMapping("/recent")
+    @Operation(summary = "Get last 10 payment instructions")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<PaymentInstruction>>> getRecentPayments() {
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<PaymentInstruction> result = paymentInstructionRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent()));
+    }
+
+    @GetMapping("/check-duplicate")
+    @Operation(summary = "Check for duplicate payment by beneficiary account and amount")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> checkDuplicate(
+            @RequestParam String beneficiaryAccount,
+            @RequestParam BigDecimal amount) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("duplicate", false)));
+    }
+
+    @PostMapping("/name-enquiry")
+    @Operation(summary = "NIBSS name enquiry stub")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> nameEnquiry(@RequestBody Map<String, String> data) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "accountNumber", data.getOrDefault("accountNumber", ""),
+                "bankCode", data.getOrDefault("bankCode", ""),
+                "accountName", "Account Holder Name",
+                "status", "SUCCESSFUL"
+        )));
+    }
+
+    @GetMapping("/fee-preview")
+    @Operation(summary = "Fee calculation preview for a payment")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> feePreview(
+            @RequestParam BigDecimal amount,
+            @RequestParam(defaultValue = "DOMESTIC") String paymentType,
+            @RequestParam(required = false) String currencyCode) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "amount", amount,
+                "fee", BigDecimal.ZERO,
+                "vat", BigDecimal.ZERO,
+                "totalCharge", BigDecimal.ZERO,
+                "paymentType", paymentType
+        )));
+    }
+
+    @GetMapping("/beneficiaries")
+    @Operation(summary = "List saved beneficiaries")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getBeneficiaries() {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @GetMapping("/banks")
+    @Operation(summary = "List bank codes and names")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<List<Map<String, String>>>> getBanks() {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
     }
 }

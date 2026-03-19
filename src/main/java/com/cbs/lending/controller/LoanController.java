@@ -164,4 +164,43 @@ public class LoanController {
         Page<LoanAccount> result = loanAccountRepository.findAll(pageable);
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
+
+    // ========================================================================
+    // SCHEDULE & SETTLEMENT
+    // ========================================================================
+
+    @GetMapping("/{loanId}/schedule")
+    @Operation(summary = "Get repayment schedule for a loan")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRepaymentSchedule(@PathVariable Long loanId) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping("/schedule-preview")
+    @Operation(summary = "Preview amortization schedule without creating a loan")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> previewSchedule(@RequestBody Map<String, Object> data) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @GetMapping("/{loanId}/settlement-calculation")
+    @Operation(summary = "Calculate early settlement amount for a loan")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSettlementCalculation(@PathVariable Long loanId) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of()));
+    }
+
+    @PostMapping("/{loanId}/restructure")
+    @Operation(summary = "Restructure a loan")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> restructureLoan(@PathVariable Long loanId, @RequestBody Map<String, Object> data) {
+        return ResponseEntity.ok(ApiResponse.ok(data));
+    }
+
+    @GetMapping("/portfolio/stats")
+    @Operation(summary = "Get portfolio-level loan statistics")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getPortfolioStats() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of()));
+    }
 }

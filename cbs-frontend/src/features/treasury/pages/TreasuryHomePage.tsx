@@ -14,7 +14,7 @@ import {
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/shared';
 import { useTreasuryHomeData } from '../hooks/useTreasuryHome';
-import type { DealerDesk } from '../api/tradingApi';
+import type { DealerDesk, TreasuryDeal } from '../api/tradingApi';
 import { formatDate } from '@/lib/formatters';
 
 // ─── Quick Nav ─────────────────────────────────────────────────────────────────
@@ -99,12 +99,13 @@ const DEAL_STATUS_COLORS: Record<string, string> = {
 export function TreasuryHomePage() {
   const { deals, desks, analytics, almScenarios } = useTreasuryHomeData();
 
-  const dealList = (deals.data?.content ?? []).slice(0, 5);
+  const dealList = (deals.data ?? []).slice(0, 5);
   const deskList = desks.data ?? [];
-  const metrics = analytics.data;
+  // analytics returns an array; use the most recent record
+  const metrics = Array.isArray(analytics.data) ? analytics.data[0] ?? null : null;
   const scenarios = almScenarios.data ?? [];
 
-  const totalDealCount = deals.data?.totalElements ?? 0;
+  const totalDealCount = deals.data?.length ?? 0;
   const activeDeskCount = deskList.filter((d) => d.status === 'ACTIVE').length;
   const totalDeskPnl = deskList.reduce((sum, d) => sum + (d.todayPnl ?? 0), 0);
   const hasAlerts = scenarios.length === 0 && !almScenarios.isLoading;
@@ -137,8 +138,8 @@ export function TreasuryHomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <KpiTile label="ROA" value={metrics.roa} suffix="%" />
             <KpiTile label="ROE" value={metrics.roe} suffix="%" />
-            <KpiTile label="Liquidity Ratio" value={metrics.liquidityRatio} suffix="%" />
-            <KpiTile label="NPL Ratio" value={metrics.nplRatio} suffix="%" />
+            <KpiTile label="Yield" value={metrics.yield} suffix="%" />
+            <KpiTile label="As of" value={null} />
           </div>
         )}
 
@@ -200,7 +201,7 @@ export function TreasuryHomePage() {
               ) : dealList.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-muted-foreground">No deals found</div>
               ) : (
-                dealList.map((deal) => (
+                dealList.map((deal: TreasuryDeal) => (
                   <div key={deal.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">

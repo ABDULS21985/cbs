@@ -81,7 +81,7 @@ export const accountMaintenanceApi = {
   },
 
   changeStatus: async (accountId: string, data: StatusChangeRequest): Promise<void> => {
-    return apiPost<void>(`/api/v1/accounts/${accountId}/status`, data);
+    return apiPatch<void>(`/api/v1/accounts/${accountId}/status`, data);
   },
 
   addSignatory: async (accountId: string, data: AddSignatoryRequest): Promise<void> => {

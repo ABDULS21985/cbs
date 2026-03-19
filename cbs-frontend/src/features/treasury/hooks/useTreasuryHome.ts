@@ -16,8 +16,8 @@ export function useTreasuryHomeData() {
   });
 
   const analytics = useQuery({
-    queryKey: ['dashboard', 'treasury-metrics', 'NGN'],
-    queryFn: () => dashboardApi.getTreasuryMetrics('NGN'),
+    queryKey: ['treasury-analytics', 'NGN'],
+    queryFn: () => tradingApi.getAnalyticsByCurrency('NGN'),
     staleTime: 5 * 60_000,
   });
 

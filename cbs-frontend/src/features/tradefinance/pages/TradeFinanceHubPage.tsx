@@ -1271,9 +1271,9 @@ export function TradeFinanceHubPage() {
   const activeLcs = lcs.filter((lc) => lc.status === 'ISSUED').length;
   const activeGuarantees = guarantees.filter((bg) => bg.status === 'ISSUED').length;
 
-  // Factoring volume: sum of all factored invoice amounts (facilities doubles as invoice list for display)
-  const factoringVolume = (factoringFacilities as unknown as { amount?: number }[]).reduce(
-    (s, f) => s + (f.amount ?? 0),
+  // Factoring volume: sum of limit amounts across all factoring facilities
+  const factoringVolume = factoringFacilities.reduce(
+    (s, f) => s + (f.limitAmount ?? 0),
     0,
   );
 

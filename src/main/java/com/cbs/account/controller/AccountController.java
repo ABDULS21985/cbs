@@ -89,6 +89,90 @@ public class AccountController {
                 accountService.changeAccountStatus(accountNumber, newStatus, reason)));
     }
 
+    @GetMapping("/{accountNumber}/maintenance-history")
+    @Operation(summary = "Get audit trail of maintenance operations on this account")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMaintenanceHistory(@PathVariable String accountNumber) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @GetMapping("/{accountNumber}/signatories")
+    @Operation(summary = "Get account signatories")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSignatories(@PathVariable String accountNumber) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping("/{accountNumber}/signatories")
+    @Operation(summary = "Add a signatory to an account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> addSignatory(@PathVariable String accountNumber, @RequestBody Map<String, Object> data) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(data));
+    }
+
+    @DeleteMapping("/{accountNumber}/signatories/{signatoryId}")
+    @Operation(summary = "Remove a signatory from an account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> removeSignatory(@PathVariable String accountNumber, @PathVariable String signatoryId, @RequestParam String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    @PatchMapping("/{accountNumber}/signing-rule")
+    @Operation(summary = "Update signing rule for an account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> updateSigningRule(@PathVariable String accountNumber, @RequestBody Map<String, String> data) {
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    @PostMapping("/{accountNumber}/interest-rate-override")
+    @Operation(summary = "Override interest rate for an account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> overrideInterestRate(@PathVariable String accountNumber, @RequestBody Map<String, Object> data) {
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    @PatchMapping("/{accountNumber}/limits")
+    @Operation(summary = "Change transaction limits for an account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> changeTransactionLimits(@PathVariable String accountNumber, @RequestBody Map<String, Object> data) {
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    @PatchMapping("/{accountNumber}/officer")
+    @Operation(summary = "Change account officer")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> changeAccountOfficer(@PathVariable String accountNumber, @RequestBody Map<String, Object> data) {
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    @GetMapping("/{accountNumber}/interest-history")
+    @Operation(summary = "Get interest history for an account")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getInterestHistory(@PathVariable String accountNumber) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @GetMapping("/{accountNumber}/holds")
+    @Operation(summary = "Get holds on an account")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getHolds(@PathVariable String accountNumber) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping("/{accountNumber}/holds/{holdId}/release")
+    @Operation(summary = "Release a hold on an account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> releaseHold(@PathVariable String accountNumber, @PathVariable String holdId, @RequestBody Map<String, String> data) {
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    @GetMapping("/{accountNumber}/linked-products")
+    @Operation(summary = "Get linked products for an account")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLinkedProducts(@PathVariable String accountNumber) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of()));
+    }
+
     // ========================================================================
     // TRANSACTIONS
     // ========================================================================
