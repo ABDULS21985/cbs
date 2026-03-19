@@ -7,7 +7,8 @@ interface Props {
   onBack: () => void;
 }
 
-// Generate mock schedule for preview
+// Client-side EMI calculator for schedule preview.
+// In production, this should call /api/v1/loans/schedule-preview for server-authoritative figures.
 function generateSchedule(amount: number, rate: number, tenor: number): { items: any[]; totalInterest: number; totalRepayment: number } {
   const monthlyRate = rate / 100 / 12;
   const emi = monthlyRate > 0 ? (amount * monthlyRate * Math.pow(1 + monthlyRate, tenor)) / (Math.pow(1 + monthlyRate, tenor) - 1) : amount / tenor;

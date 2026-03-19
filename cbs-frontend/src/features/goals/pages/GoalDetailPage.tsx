@@ -84,7 +84,7 @@ export function GoalDetailPage() {
       setWithdrawError(`Cannot withdraw more than ${formatMoney(goal.currentAmount)}`);
       return;
     }
-    // Simulate withdrawal as a negative contribution
+    // Withdrawal is represented as a negative contribution via the API
     contributeMutation.mutate(-amount);
     setWithdrawOpen(false);
     setWithdrawAmount('');

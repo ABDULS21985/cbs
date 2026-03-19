@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Download, ChevronDown } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
@@ -10,6 +11,7 @@ import {
   getCustomerGrowthData,
   getDepositLoanGrowthData,
   getTopBranches,
+  type PnlSummary,
 } from '../api/executiveReportApi';
 import { ExecutiveKpiCards } from '../components/executive/ExecutiveKpiCards';
 import { IncomeStatementSummary } from '../components/executive/IncomeStatementSummary';
@@ -83,18 +85,55 @@ function PeriodSelector({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-// Data is loaded once at module level (mock data doesn't change)
-const kpis = getExecutiveKpis();
-const pnl = getPnlSummary();
-const monthlyPnl = getMonthlyPnl();
-const keyRatios = getKeyRatios();
-const customerGrowth = getCustomerGrowthData();
-const depositLoanGrowth = getDepositLoanGrowthData();
-const topBranches = getTopBranches();
+const EMPTY_PNL: PnlSummary = {
+  interestIncome: 0,
+  interestExpense: 0,
+  netInterestIncome: 0,
+  feeCommission: 0,
+  tradingIncome: 0,
+  otherIncome: 0,
+  totalRevenue: 0,
+  opex: 0,
+  provisions: 0,
+  pbt: 0,
+  tax: 0,
+  netProfit: 0,
+  nim: 0,
+  costToIncome: 0,
+  roe: 0,
+};
 
 export function ExecutiveDashboardPage() {
   const [period, setPeriod] = useState('ytd-2026');
   const selectedLabel = PERIODS.find((p) => p.value === period)?.label ?? '';
+  const { data: kpis = [] } = useQuery({
+    queryKey: ['reports', 'executive', 'kpis'],
+    queryFn: getExecutiveKpis,
+  });
+  const { data: pnl = EMPTY_PNL } = useQuery({
+    queryKey: ['reports', 'executive', 'pnl-summary'],
+    queryFn: () => getPnlSummary().catch(() => EMPTY_PNL),
+  });
+  const { data: monthlyPnl = [] } = useQuery({
+    queryKey: ['reports', 'executive', 'monthly-pnl'],
+    queryFn: getMonthlyPnl,
+  });
+  const { data: keyRatios = [] } = useQuery({
+    queryKey: ['reports', 'executive', 'key-ratios'],
+    queryFn: getKeyRatios,
+  });
+  const { data: customerGrowth = [] } = useQuery({
+    queryKey: ['reports', 'executive', 'customer-growth'],
+    queryFn: getCustomerGrowthData,
+  });
+  const { data: depositLoanGrowth = [] } = useQuery({
+    queryKey: ['reports', 'executive', 'deposit-loan-growth'],
+    queryFn: getDepositLoanGrowthData,
+  });
+  const { data: topBranches = [] } = useQuery({
+    queryKey: ['reports', 'executive', 'top-branches'],
+    queryFn: getTopBranches,
+  });
 
   return (
     <>

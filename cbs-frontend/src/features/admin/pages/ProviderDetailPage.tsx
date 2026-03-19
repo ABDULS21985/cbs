@@ -77,7 +77,7 @@ export function ProviderDetailPage() {
   useEffect(() => {
     if (tab === 'sla' && id) {
       setSlaLoading(true);
-      providerApi.getSlaRecords(id)
+      providerApi.getSlaRecords({ providerId: id })
         .then(setSlaRecords)
         .finally(() => setSlaLoading(false));
     }
@@ -87,7 +87,7 @@ export function ProviderDetailPage() {
   useEffect(() => {
     if (tab === 'costs' && id) {
       setCostLoading(true);
-      providerApi.getCostRecords(id)
+      providerApi.getCostRecords({ providerId: id })
         .then(setCostRecords)
         .finally(() => setCostLoading(false));
     }

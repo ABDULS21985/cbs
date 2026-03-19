@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete, apiDownload } from '@/lib/api';
+import { apiGet, apiPost, apiDelete, apiDownload } from '@/lib/api';
 
 export interface PortalAccount {
   id: number;

@@ -24,6 +24,7 @@ export interface LoanApplication extends Auditable {
   productName: string;
   requestedAmount: number;
   approvedAmount?: number;
+  submittedDate?: string;
   interestRate: number;
   tenorMonths: number;
   purpose: string;
@@ -91,11 +92,14 @@ export interface LoanPayment {
   paymentRef: string;
   loanNumber: string;
   paymentDate: string;
+  paidDate?: string;
   amount: number;
   principalPortion: number;
   interestPortion: number;
   penaltyPortion: number;
   channel: string;
+  source?: string;
+  type?: string;
   status: 'COMPLETED' | 'REVERSED' | 'PENDING';
 }
 
@@ -112,6 +116,8 @@ export interface CollateralItem {
 export interface PortfolioStats {
   totalOutstanding: number;
   activeLoansCount: number;
+  activeLoans: number;
+  activeLoansChange?: number;
   nplRatio: number;
   disbursedMtd: number;
   collectionsMtd: number;
@@ -137,4 +143,7 @@ export interface LoanFilters {
   search?: string;
   page?: number;
   size?: number;
+  fromDate?: string;
+  toDate?: string;
+  [key: string]: unknown;
 }

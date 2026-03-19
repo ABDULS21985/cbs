@@ -1,4 +1,3 @@
-import { cn } from '@/lib/utils';
 import type { VintageCell } from '../../api/loanAnalyticsApi';
 
 interface VintageHeatmapProps {

@@ -21,6 +21,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Benchmark-only security override.
+ * Keep this isolated to the loadtest profile; normal startup should use SecurityConfig.
+ */
 @Configuration
 @Profile("loadtest")
 public class LoadTestSecurityConfig {

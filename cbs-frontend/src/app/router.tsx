@@ -116,6 +116,13 @@ import { ChannelAnalyticsPage } from '@/features/reports/pages/ChannelAnalyticsP
 import { LoanAnalyticsPage } from '@/features/reports/pages/LoanAnalyticsPage';
 import { ExecutiveDashboardPage } from '@/features/reports/pages/ExecutiveDashboardPage';
 import { FinancialReportsPage } from '@/features/reports/pages/FinancialReportsPage';
+import { CustomerAnalyticsPage } from '@/features/reports/pages/CustomerAnalyticsPage';
+import { TreasuryAlmReportsPage } from '@/features/reports/pages/TreasuryAlmReportsPage';
+import { MarketingAnalyticsPage } from '@/features/reports/pages/MarketingAnalyticsPage';
+import { OperationalReportsPage } from '@/features/reports/pages/OperationalReportsPage';
+import { SavedReportsPage } from '@/features/reports/pages/SavedReportsPage';
+import { CustomReportBuilderPage } from '@/features/reports/pages/CustomReportBuilderPage';
+import { ReportViewerPage } from '@/features/reports/pages/ReportViewerPage';
 import { ServiceProviderPage } from '@/features/admin/pages/ServiceProviderPage';
 import { ProviderDetailPage } from '@/features/admin/pages/ProviderDetailPage';
 
@@ -281,10 +288,16 @@ export function AppRouter() {
           <Route path="executive" element={<ExecutiveDashboardPage />} />
           <Route path="financial" element={<FinancialReportsPage />} />
           <Route path="loans" element={<LoanAnalyticsPage />} />
-          <Route path="custom" element={<PlaceholderPage title="Custom Reports" />} />
+          <Route path="custom" element={<SavedReportsPage />} />
+          <Route path="custom/new" element={<CustomReportBuilderPage />} />
+          <Route path="custom/:id/view" element={<ReportViewerPage />} />
           <Route path="payments" element={<PaymentAnalyticsPage />} />
           <Route path="deposits" element={<DepositAnalyticsPage />} />
           <Route path="channels" element={<ChannelAnalyticsPage />} />
+          <Route path="customers" element={<CustomerAnalyticsPage />} />
+          <Route path="treasury" element={<TreasuryAlmReportsPage />} />
+          <Route path="marketing" element={<MarketingAnalyticsPage />} />
+          <Route path="operations" element={<OperationalReportsPage />} />
         </Route>
 
         {/* Admin */}

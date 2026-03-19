@@ -70,6 +70,11 @@ logging:
     org.hibernate.SQL: DEBUG
 
 cbs:
+  kyc:
+    provider: INTERNAL
+  simulation:
+    allow-synthetic-services: true
+    allow-internal-kyc: true
   security:
     cors:
       allowed-origins: http://localhost:3000

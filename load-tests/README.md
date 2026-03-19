@@ -55,7 +55,9 @@ To include write load:
 
 ## Notes
 
+- Normal backend startup should not use `loadtest`; the default application profile keeps real OAuth/JWT security enabled.
 - The harness uses the `loadtest` Spring profile to bypass external OAuth dependencies safely for local benchmarking.
+- The `loadtest` profile also opts into synthetic/internal provider behavior that is blocked by default elsewhere in the application.
 - It assumes local PostgreSQL and Redis are available, matching the repo's existing local test setup.
 - Write scenarios intentionally create data. Use them selectively.
 - Reports include sample error messages when requests fail or time out.

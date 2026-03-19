@@ -1,6 +1,7 @@
 package com.cbs.provider.kyc;
 
 import com.cbs.common.config.CbsProperties;
+import com.cbs.common.guard.SyntheticCapabilityGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -36,6 +37,8 @@ public class InternalKycProvider implements KycProvider {
 
     @Override
     public KycResult verify(KycVerifyCommand command) {
+        SyntheticCapabilityGuard.requireInternalKyc();
+
         if (!StringUtils.hasText(command.getIdNumber()) || command.getIdNumber().length() < 3) {
             return KycResult.builder()
                     .verified(false).status("FAILED").providerName(getProviderName())

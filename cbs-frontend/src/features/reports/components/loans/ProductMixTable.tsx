@@ -6,12 +6,6 @@ interface ProductMixTableProps {
   products: ProductMix[];
 }
 
-function getNplColor(pct: number): string {
-  if (pct < 3) return 'text-emerald-600 dark:text-emerald-400';
-  if (pct <= 5) return 'text-amber-600 dark:text-amber-400';
-  return 'text-red-600 dark:text-red-400';
-}
-
 function getNplBadgeColor(pct: number): string {
   if (pct < 3) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
   if (pct <= 5) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';

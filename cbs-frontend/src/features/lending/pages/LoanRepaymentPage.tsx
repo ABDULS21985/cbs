@@ -1,35 +1,55 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MoneyInput, MoneyDisplay, InfoGrid } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { Loader2, CheckCircle, Printer } from 'lucide-react';
+import { useLoan, useRecordPayment } from '../hooks/useLoanData';
+import { loanApi } from '../api/loanApi';
 
 type PaymentType = 'REGULAR' | 'PARTIAL' | 'MULTIPLE' | 'SETTLEMENT';
 
 export function LoanRepaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const loanId = Number(id);
   const [paymentType, setPaymentType] = useState<PaymentType>('REGULAR');
-  const [amount, setAmount] = useState(133333);
-  const [submitting, setSubmitting] = useState(false);
+  const [amount, setAmount] = useState(0);
   const [receipt, setReceipt] = useState<{ ref: string; amount: number } | null>(null);
 
-  // Mock loan data
-  const outstanding = 3356789;
-  const nextDue = 133333;
-  const settlementAmount = 3452789;
+  const { data: loan } = useLoan(loanId);
+  const { data: settlement } = useQuery({
+    queryKey: ['loans', loanId, 'settlement'],
+    queryFn: () => loanApi.calculateSettlement(loanId),
+    enabled: !!loanId,
+  });
+
+  const paymentMutation = useRecordPayment(loanId);
+
+  const outstanding = loan?.outstandingBalance ?? 0;
+  const nextDue = loan?.nextInstallmentAmount ?? 0;
+  const settlementAmount = settlement?.totalSettlementAmount ?? 0;
 
   const displayAmount = paymentType === 'REGULAR' ? nextDue : paymentType === 'SETTLEMENT' ? settlementAmount : amount;
 
   const handleSubmit = async () => {
-    setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    setSubmitting(false);
-    setReceipt({ ref: `PMT-${Date.now().toString(36).toUpperCase()}`, amount: displayAmount });
-    toast.success('Payment recorded successfully');
+    paymentMutation.mutate(
+      { amount: displayAmount, sourceAccountId: loan?.sourceAccountId ?? 0, type: paymentType },
+      {
+        onSuccess: (payment) => {
+          setReceipt({ ref: payment.reference ?? `PMT-${Date.now().toString(36).toUpperCase()}`, amount: displayAmount });
+          toast.success('Payment recorded successfully');
+        },
+        onError: () => {
+          toast.error('Failed to record payment. Please try again.');
+        },
+      },
+    );
   };
+
+  const submitting = paymentMutation.isPending;
 
   if (receipt) {
     return (
@@ -71,9 +91,9 @@ export function LoanRepaymentPage() {
           <div className="rounded-lg border p-5 space-y-3">
             <h4 className="text-sm font-semibold">Settlement Calculation</h4>
             <InfoGrid columns={2} items={[
-              { label: 'Outstanding Principal', value: 3200000, format: 'money' },
-              { label: 'Accrued Interest', value: 156789, format: 'money' },
-              { label: 'Early Settlement Penalty (3%)', value: 96000, format: 'money' },
+              { label: 'Outstanding Principal', value: settlement?.outstandingPrincipal ?? 0, format: 'money' },
+              { label: 'Accrued Interest', value: settlement?.accruedInterest ?? 0, format: 'money' },
+              { label: 'Early Settlement Penalty', value: settlement?.penalty ?? 0, format: 'money' },
               { label: 'Total Settlement', value: settlementAmount, format: 'money' },
             ]} />
           </div>

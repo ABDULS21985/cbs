@@ -1,4 +1,6 @@
 package com.cbs.pfm.service;
+
+import com.cbs.common.guard.SyntheticCapabilityGuard;
 import com.cbs.pfm.entity.*;
 import com.cbs.pfm.repository.*;
 import lombok.RequiredArgsConstructor; import lombok.extern.slf4j.Slf4j;
@@ -11,8 +13,14 @@ public class PfmService {
     private final PfmBudgetRepository budgetRepository;
     private final PfmFinancialHealthRepository healthRepository;
     private final PfmSpendingCategoryRepository categoryRepository;
+
     @Transactional
     public PfmSnapshot generateSnapshot(Long customerId, String snapshotType) {
+        SyntheticCapabilityGuard.requireSyntheticServices(
+                "PFM snapshot generation",
+                "Connect this flow to real customer transaction aggregates, or enable synthetic services only in isolated environments."
+        );
+
         // TODO: aggregate real CREDIT (income) and DEBIT (expense) transactions for the customer
         // over the snapshot period from a transaction/journal repository when available.
         BigDecimal income = BigDecimal.ZERO;

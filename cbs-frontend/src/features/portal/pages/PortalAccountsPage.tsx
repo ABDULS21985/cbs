@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Loader2 } from 'lucide-react';
 import { formatMoney, formatDate } from '@/lib/formatters';
-import { portalApi, type PortalAccount } from '../api/portalApi';
+import { portalApi } from '../api/portalApi';
 
 export function PortalAccountsPage() {
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
@@ -16,7 +16,6 @@ export function PortalAccountsPage() {
 
   // Auto-select first account
   const effectiveId = selectedAccountId ?? accounts[0]?.id;
-  const selectedAccount = accounts.find((a) => a.id === effectiveId);
 
   const { data: transactions = [], isLoading: txnsLoading } = useQuery({
     queryKey: ['portal', 'transactions', effectiveId, dateFrom, dateTo],

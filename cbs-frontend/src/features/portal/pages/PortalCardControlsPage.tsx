@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CreditCard, Lock, Globe, ShoppingCart, Banknote, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatMoney } from '@/lib/formatters';
-import { portalApi, type PortalCard } from '../api/portalApi';
+import { portalApi } from '../api/portalApi';
 
 export function PortalCardControlsPage() {
   const queryClient = useQueryClient();

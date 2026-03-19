@@ -5,9 +5,11 @@ import type { LoanApplication, LoanAccount, RepaymentScheduleItem, LoanPayment, 
 import { handleApiError } from '@/lib/errorHandler';
 
 export function useLoanApplications(filters?: LoanFilters) {
+  const normalizedFilters = filters as Record<string, unknown> | undefined;
+
   return useQuery({
-    queryKey: queryKeys.loans.applications(filters),
-    queryFn: () => apiGet<LoanApplication[]>('/api/v1/loans/applications', filters as unknown as Record<string, unknown>).catch(() => []),
+    queryKey: queryKeys.loans.applications(normalizedFilters),
+    queryFn: () => apiGet<LoanApplication[]>('/api/v1/loans/applications', normalizedFilters).catch(() => []),
   });
 }
 
@@ -20,9 +22,11 @@ export function useLoanApplication(id: number) {
 }
 
 export function useActiveLoans(filters?: LoanFilters) {
+  const normalizedFilters = filters as Record<string, unknown> | undefined;
+
   return useQuery({
-    queryKey: queryKeys.loans.list(filters),
-    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans', filters as unknown as Record<string, unknown>).catch(() => []),
+    queryKey: queryKeys.loans.list(normalizedFilters),
+    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans', normalizedFilters).catch(() => []),
   });
 }
 

@@ -10,6 +10,7 @@ interface CustomLabelProps {
   cx: number;
   cy: number;
   midAngle: number;
+  innerRadius: number;
   outerRadius: number;
   name: string;
   pct: number;
@@ -17,7 +18,8 @@ interface CustomLabelProps {
 
 const RADIAN = Math.PI / 180;
 
-function CustomLabel({ cx, cy, midAngle, outerRadius, name, pct }: CustomLabelProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function CustomLabel({ cx, cy, midAngle, innerRadius: _ir, outerRadius, name, pct }: CustomLabelProps) {
   const radius = outerRadius + 28;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);

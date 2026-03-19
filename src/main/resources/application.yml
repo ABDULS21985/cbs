@@ -152,6 +152,10 @@ cbs:
     dormancy-detection-cron: ${CBS_DORMANCY_CRON:0 0 0 * * *}
     escheatment-detection-cron: ${CBS_ESCHEATMENT_CRON:0 0 1 1 * *}
 
+  simulation:
+    allow-synthetic-services: ${CBS_ALLOW_SYNTHETIC_SERVICES:false}
+    allow-internal-kyc: ${CBS_ALLOW_INTERNAL_KYC:false}
+
   security:
     cors:
       allowed-origins: ${CBS_CORS_ORIGINS:http://localhost:3000}

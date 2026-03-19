@@ -31,6 +31,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+echo "Starting isolated load-test profile on port ${PORT}. Normal backend startup should use real auth without the loadtest profile." >&2
 ./gradlew bootRun --args="--spring.profiles.active=loadtest --server.port=${PORT}" >"${APP_LOG}" 2>&1 &
 APP_PID=$!
 METRICS_PID=""

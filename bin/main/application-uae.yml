@@ -17,7 +17,7 @@ cbs:
     day-count-convention: ACT_360
 
   kyc:
-    provider: INTERNAL
+    provider: ${CBS_KYC_PROVIDER:INTERNAL}
     require-verified-id: true
     id-types:
       - code: EMIRATES_ID

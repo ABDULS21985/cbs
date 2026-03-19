@@ -82,7 +82,7 @@ export function LoanDetailPage() {
           { id: 'payments', label: 'Payments', content: (
             <div className="p-6">
               {payments.length === 0 ? <p className="text-sm text-muted-foreground text-center py-6">No payments recorded</p> : (
-                <AuditTimeline events={payments.map((p) => ({ id: String(p.id), action: `Payment — ${formatMoney(p.amount)}`, performedBy: p.source || 'Customer', performedAt: p.paidDate, details: p.type || '' }))} />
+                <AuditTimeline events={payments.map((p) => ({ id: String(p.id), action: `Payment — ${formatMoney(p.amount)}`, performedBy: p.channel || 'Customer', performedAt: p.paymentDate, details: p.status || '' }))} />
               )}
             </div>
           )},

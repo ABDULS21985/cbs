@@ -53,7 +53,7 @@ function ContactButton({ customer }: { customer: AtRiskCustomer }) {
   );
 }
 
-function buildColumns(data: AtRiskCustomer[]): ColumnDef<AtRiskCustomer, any>[] {
+function buildColumns(): ColumnDef<AtRiskCustomer, any>[] {
   return [
     {
       accessorKey: 'name',
@@ -112,7 +112,7 @@ function buildColumns(data: AtRiskCustomer[]): ColumnDef<AtRiskCustomer, any>[] 
 }
 
 export function AtRiskCustomersTable({ data, isLoading }: AtRiskCustomersTableProps) {
-  const columns = useMemo(() => buildColumns(data), [data]);
+  const columns = useMemo(() => buildColumns(), []);
 
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3">

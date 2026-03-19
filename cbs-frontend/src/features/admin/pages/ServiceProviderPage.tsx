@@ -62,7 +62,7 @@ export function ServiceProviderPage() {
   useEffect(() => {
     if (tab === 'sla') {
       setSlaLoading(true);
-      providerApi.getSlaRecords(slaSelectedProvider || undefined)
+      providerApi.getSlaRecords(slaSelectedProvider ? { providerId: slaSelectedProvider } : undefined)
         .then(setSlaRecords)
         .finally(() => setSlaLoading(false));
     }

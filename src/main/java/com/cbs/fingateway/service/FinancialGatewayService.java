@@ -1,5 +1,6 @@
 package com.cbs.fingateway.service;
 
+import com.cbs.common.guard.SyntheticCapabilityGuard;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.fingateway.entity.*;
@@ -40,6 +41,11 @@ public class FinancialGatewayService {
 
     @Transactional
     public GatewayMessage sendMessage(GatewayMessage msg) {
+        SyntheticCapabilityGuard.requireSyntheticServices(
+                "Financial gateway delivery",
+                "Connect this service to a real gateway transport or explicitly enable synthetic services for isolated test/load execution."
+        );
+
         long startTime = System.currentTimeMillis();
         msg.setMessageRef("GW-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase());
         FinancialGateway gw = gatewayRepository.findById(msg.getGatewayId())

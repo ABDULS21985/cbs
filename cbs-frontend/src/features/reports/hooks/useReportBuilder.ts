@@ -53,7 +53,7 @@ export function useReportBuilder(editReport?: SavedReport) {
     setIsFetchingPreview(true);
     try {
       await new Promise((r) => setTimeout(r, 300));
-      const result = reportBuilderApi.generatePreview(cfg);
+      const result = await reportBuilderApi.generatePreview(cfg);
       setPreviewData(result);
     } catch {
       setPreviewData(null);

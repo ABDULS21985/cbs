@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Check, Loader2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SavingsCalculator } from '../components/SavingsCalculator';
@@ -11,13 +11,9 @@ import { AutoDebitConfigForm } from '../components/AutoDebitConfigForm';
 import { createGoal } from '../api/goalApi';
 import type { AutoDebitConfig } from '../api/goalApi';
 import { cn } from '@/lib/utils';
+import { apiGet } from '@/lib/api';
 
 const GOAL_EMOJIS = ['🏠', '📚', '✈️', '🚗', '💍', '🏥', '💻', '🎓'];
-
-const MOCK_ACCOUNTS = [
-  { id: 'acc-001', number: '0123456789', name: 'Primary Savings', balance: 5_200_000 },
-  { id: 'acc-002', number: '0987654321', name: 'Secondary Current', balance: 1_800_000 },
-];
 
 // Step 1 schema
 const step1Schema = z.object({
@@ -43,9 +39,21 @@ type Step3Values = z.infer<typeof step3Schema>;
 
 const STEPS = ['Goal Info', 'Timeline', 'Funding'];
 
+interface SourceAccount {
+  id: string;
+  number: string;
+  name: string;
+  balance: number;
+}
+
 export function NewGoalPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+
+  const { data: sourceAccounts = [] } = useQuery({
+    queryKey: ['accounts', 'source-list'],
+    queryFn: () => apiGet<SourceAccount[]>('/api/v1/accounts?type=SAVINGS,CURRENT').catch(() => []),
+  });
   const [selectedIcon, setSelectedIcon] = useState('🏠');
   const [autoDebitConfig, setAutoDebitConfig] = useState<AutoDebitConfig | undefined>();
 
@@ -104,7 +112,7 @@ export function NewGoalPage() {
         targetDate: step2Data.targetDate,
         sourceAccountId: step3Data.sourceAccountId,
         sourceAccountNumber:
-          MOCK_ACCOUNTS.find((a) => a.id === step3Data.sourceAccountId)?.number ?? '',
+          sourceAccounts.find((a) => a.id === step3Data.sourceAccountId)?.number ?? '',
         fundingMethod: step3Data.fundingMethod,
         autoDebit: step3Data.fundingMethod === 'AUTO_DEBIT' ? autoDebitConfig : undefined,
       });
@@ -276,7 +284,7 @@ export function NewGoalPage() {
                 )}
               >
                 <option value="">Select account...</option>
-                {MOCK_ACCOUNTS.map((acc) => (
+                {sourceAccounts.map((acc) => (
                   <option key={acc.id} value={acc.id}>
                     {acc.number} – {acc.name} (₦{acc.balance.toLocaleString()})
                   </option>

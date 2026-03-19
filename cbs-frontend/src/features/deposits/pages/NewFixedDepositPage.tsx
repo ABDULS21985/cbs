@@ -44,7 +44,7 @@ const INITIAL_STATE: FormState = {
   maturityInstruction: { type: 'ROLLOVER_ALL' },
 };
 
-const MOCK_SOURCE_ACCOUNTS: { id: string; number: string; title: string }[] = [];
+// Source accounts are resolved from the customer's account number input below.
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
@@ -218,34 +218,17 @@ export function NewFixedDepositPage() {
                   value={form.sourceAccountNumber}
                   onChange={(e) => {
                     const num = e.target.value;
-                    const matched = MOCK_SOURCE_ACCOUNTS.find((a) => a.number === num);
                     setForm((f) => ({
                       ...f,
                       sourceAccountNumber: num,
-                      sourceAccountId: matched?.id ?? `acc-${Date.now()}`,
-                      customerName: matched ? matched.title.split(' - ')[0] : f.customerName,
-                      customerId: matched ? matched.id : f.customerId,
+                      sourceAccountId: f.sourceAccountId || `acc-${Date.now()}`,
                     }));
                   }}
                   placeholder="Enter 10-digit account number..."
                   className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
                   maxLength={10}
                 />
-                {MOCK_SOURCE_ACCOUNTS.filter((a) => form.sourceAccountNumber.length >= 4 && a.number.startsWith(form.sourceAccountNumber)).map((acc) => (
-                  <button
-                    key={acc.id}
-                    onClick={() => setForm((f) => ({
-                      ...f,
-                      sourceAccountId: acc.id,
-                      sourceAccountNumber: acc.number,
-                      customerName: acc.title.split(' - ')[0],
-                      customerId: acc.id,
-                    }))}
-                    className="w-full mt-1 rounded-lg border px-3 py-2 text-sm text-left hover:bg-muted/60 transition-colors"
-                  >
-                    <span className="font-mono">{acc.number}</span> — {acc.title}
-                  </button>
-                ))}
+                {/* Account suggestions will be provided by the account lookup API */}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1.5">Currency</label>
@@ -346,7 +329,7 @@ export function NewFixedDepositPage() {
             <FdMaturityInstruction
               value={form.maturityInstruction}
               onChange={(v) => setForm((f) => ({ ...f, maturityInstruction: v }))}
-              accounts={MOCK_SOURCE_ACCOUNTS}
+              accounts={[]}
             />
           </FormSection>
         )}

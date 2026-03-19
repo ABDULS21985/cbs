@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { LoanApplicationState } from '../../hooks/useLoanApplication';
 import { useState } from 'react';
 import { Loader2, CheckCircle } from 'lucide-react';
+import { useSubmitLoanApplication } from '../../hooks/useLoanData';
 
 interface Props {
   state: LoanApplicationState;
@@ -12,15 +13,35 @@ interface Props {
 
 export function ReviewSubmitStep({ state, goToStep }: Props) {
   const navigate = useNavigate();
-  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [applicationRef, setApplicationRef] = useState('');
+
+  const submitMutation = useSubmitLoanApplication();
+  const submitting = submitMutation.isPending;
 
   const handleSubmit = async () => {
-    setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1500)); // Simulate API
-    setSubmitting(false);
-    setSubmitted(true);
-    toast.success('Loan application submitted successfully');
+    submitMutation.mutate(
+      {
+        productCode: state.productCode,
+        amount: state.amount,
+        purpose: state.purpose,
+        tenorMonths: state.tenorMonths,
+        interestRate: state.interestRate,
+        repaymentMethod: state.repaymentMethod,
+        monthlyIncome: state.monthlyIncome,
+        monthlyExpenses: state.monthlyExpenses,
+      } as any,
+      {
+        onSuccess: (application) => {
+          setApplicationRef(application.applicationNumber ?? '');
+          setSubmitted(true);
+          toast.success('Loan application submitted successfully');
+        },
+        onError: () => {
+          toast.error('Failed to submit loan application. Please try again.');
+        },
+      },
+    );
   };
 
   if (submitted) {
@@ -30,7 +51,7 @@ export function ReviewSubmitStep({ state, goToStep }: Props) {
           <CheckCircle className="w-8 h-8 text-green-600" />
         </div>
         <h3 className="text-xl font-semibold">Application Submitted</h3>
-        <p className="text-muted-foreground">Reference: <span className="font-mono font-medium">LA-2026-{Math.random().toString(36).slice(2, 8).toUpperCase()}</span></p>
+        <p className="text-muted-foreground">Reference: <span className="font-mono font-medium">{applicationRef}</span></p>
         <p className="text-sm text-muted-foreground">Your application has been routed to {state.approvalLevel} for approval.</p>
         <button onClick={() => navigate('/lending/applications')} className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">View Applications</button>
       </div>

@@ -18,7 +18,7 @@ cbs:
     day-count-convention: ACT_365
 
   kyc:
-    provider: INTERNAL
+    provider: ${CBS_KYC_PROVIDER:INTERNAL}
     require-verified-id: true
     id-types:
       - code: BVN
