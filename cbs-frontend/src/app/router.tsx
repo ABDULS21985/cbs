@@ -82,6 +82,11 @@ import { CardTransactionsPage } from '@/features/cards/pages/CardTransactionsPag
 import { MerchantListPage } from '@/features/cards/pages/MerchantListPage';
 import { PosTerminalPage } from '@/features/cards/pages/PosTerminalPage';
 import { CardClearingPage } from '@/features/cards/pages/CardClearingPage';
+import { WealthManagementPage } from '@/features/wealth/pages/WealthManagementPage';
+import { WealthPlanDetailPage } from '@/features/wealth/pages/WealthPlanDetailPage';
+import { TradeFinancePage } from '@/features/tradefinance/pages/TradeFinancePage';
+import { SyndicationPage } from '@/features/lending/pages/SyndicationPage';
+import { ContactCenterPage } from '@/features/contactcenter/pages/ContactCenterPage';
 import { FixedIncomePage } from '@/features/treasury/pages/FixedIncomePage';
 import { MarketDataPage } from '@/features/treasury/pages/MarketDataPage';
 import { OrderManagementPage } from '@/features/treasury/pages/OrderManagementPage';
@@ -333,6 +338,23 @@ export function AppRouter() {
           <Route path="new" element={<NewCasePage />} />
           <Route path=":id" element={<CaseDetailPage />} />
         </Route>
+
+        {/* Wealth & Trust */}
+        <Route path="/wealth" element={<Outlet />}>
+          <Route index element={<WealthManagementPage />} />
+          <Route path=":code" element={<WealthPlanDetailPage />} />
+        </Route>
+
+        {/* Trade Finance */}
+        <Route path="/trade-finance" element={<Outlet />}>
+          <Route index element={<TradeFinancePage />} />
+        </Route>
+
+        {/* Syndication */}
+        <Route path="/lending/syndication" element={<SyndicationPage />} />
+
+        {/* Contact Center */}
+        <Route path="/operations/contact-center" element={<ContactCenterPage />} />
 
         {/* Notifications */}
         <Route path="/notifications" element={<NotificationCenterPage />} />
