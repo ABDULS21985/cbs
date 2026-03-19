@@ -1,7 +1,14 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { UserCheck, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiGet } from '@/lib/api';
 import type { ApprovalType } from '../../api/approvalApi';
+
+interface Approver {
+  name: string;
+  role: string;
+}
 
 interface DelegationFormProps {
   onSubmit: (data: {
@@ -17,17 +24,6 @@ interface DelegationFormProps {
   onCancel: () => void;
   loading?: boolean;
 }
-
-const MOCK_APPROVERS = [
-  { name: 'Chidi Nwachukwu', role: 'Senior Credit Analyst' },
-  { name: 'Taiwo Adesanya', role: 'Senior Relationship Manager' },
-  { name: 'Kola Adebayo', role: 'Head of Collections' },
-  { name: 'Babatunde Fasanya', role: 'Branch Operations Manager' },
-  { name: 'Emeka Okonkwo', role: 'Senior Relationship Manager' },
-  { name: 'Adaeze Nwosu', role: 'Senior Operations Officer' },
-  { name: 'Yetunde Olatunji', role: 'Senior Relationship Manager' },
-  { name: 'Chisom Eze', role: 'Branch Manager' },
-];
 
 const APPROVAL_TYPES: { value: ApprovalType; label: string }[] = [
   { value: 'ACCOUNT_OPENING', label: 'Account Opening' },
@@ -55,6 +51,11 @@ const REASONS = [
 const today = new Date().toISOString().split('T')[0];
 
 export function DelegationForm({ onSubmit, onCancel, loading = false }: DelegationFormProps) {
+  const { data: approvers = [] } = useQuery({
+    queryKey: ['approvers-list'],
+    queryFn: () => apiGet<Approver[]>('/api/v1/approvals/approvers').catch(() => []),
+  });
+
   const [delegateTo, setDelegateTo] = useState('');
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState('');
@@ -63,7 +64,7 @@ export function DelegationForm({ onSubmit, onCancel, loading = false }: Delegati
   const [reason, setReason] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const selectedApprover = MOCK_APPROVERS.find((a) => a.name === delegateTo);
+  const selectedApprover = approvers.find((a) => a.name === delegateTo);
 
   const toggleType = (type: ApprovalType) => {
     setSelectedTypes((prev) =>
@@ -115,7 +116,7 @@ export function DelegationForm({ onSubmit, onCancel, loading = false }: Delegati
           )}
         >
           <option value="">Select an approver...</option>
-          {MOCK_APPROVERS.map((a) => (
+          {approvers.map((a) => (
             <option key={a.name} value={a.name}>
               {a.name} — {a.role}
             </option>

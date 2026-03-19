@@ -2,6 +2,8 @@ import { X, Smartphone, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { NotificationTemplate } from '../../api/notificationAdminApi';
 
+// Sample merge-field values used for template preview rendering only.
+// These are illustrative placeholders for the preview UI, not API mock data.
 const SAMPLE_DATA: Record<string, string> = {
   customerName: 'Adeola Johnson',
   accountNumber: '0123456789',

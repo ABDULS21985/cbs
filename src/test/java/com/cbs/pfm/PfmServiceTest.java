@@ -1,8 +1,10 @@
 package com.cbs.pfm;
 
+import com.cbs.common.guard.SyntheticCapabilityGuard;
 import com.cbs.pfm.entity.*;
 import com.cbs.pfm.repository.*;
 import com.cbs.pfm.service.PfmService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +28,11 @@ class PfmServiceTest {
     @Mock private PfmBudgetRepository budgetRepository;
     @Mock private PfmFinancialHealthRepository healthRepository;
     @InjectMocks private PfmService pfmService;
+
+    @BeforeEach
+    void setUp() {
+        SyntheticCapabilityGuard.enableSyntheticServicesForTesting();
+    }
 
     @Test @DisplayName("Budget utilization calculated correctly")
     void budgetUtilization() {

@@ -14,6 +14,7 @@ export interface ReconciliationEntry {
   status: ReconciliationStatus;
   matchedRef?: string;
   matchConfidence?: number; // 0-100
+  matchType?: 'AUTO' | 'MANUAL' | 'RULE';
 }
 
 export interface ReconciliationSession {

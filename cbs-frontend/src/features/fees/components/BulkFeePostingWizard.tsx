@@ -66,14 +66,12 @@ export function BulkFeePostingWizard({ onComplete }: BulkFeePostingWizardProps) 
     setIsPosting(true);
     try {
       const job = await createBulkFeeJob(selectedFeeId, effectiveDate);
-      // Simulate processing
-      await new Promise((r) => setTimeout(r, 1500));
       setResults({
         feeName: job.feeName,
-        totalAccounts: preview.affectedAccounts,
-        charged: preview.affectedAccounts - Math.floor(preview.affectedAccounts * 0.02),
-        failed: Math.floor(preview.affectedAccounts * 0.02),
-        totalAmount: preview.totalAmount,
+        totalAccounts: job.affectedAccounts,
+        charged: job.processedCount,
+        failed: job.failedCount,
+        totalAmount: job.totalAmount ?? preview.totalAmount,
       });
       setStep('results');
     } finally {

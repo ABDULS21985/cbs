@@ -39,17 +39,17 @@ export function StatementUploader({ onUpload, accountId }: StatementUploaderProp
     return ACCEPTED_EXTENSIONS.includes(ext) || ACCEPTED_MIME.includes(f.type);
   };
 
-  // Simulate parsing the file for preview
+  // Parse the uploaded file on the server for a preview summary
   const parseFile = async (f: File): Promise<ParsedPreview> => {
-    await new Promise((r) => setTimeout(r, 800));
-    // Mock parse result — in production this would parse CSV/MT940/XML
-    const sizeFactor = Math.max(1, Math.floor(f.size / 512));
-    return {
-      entriesCount: Math.min(50, 10 + sizeFactor),
-      dateRange: { from: '2026-03-01', to: '2026-03-19' },
-      totalAmount: 28_459_000 + (sizeFactor * 1000),
-      isDuplicate: false,
-    };
+    const formData = new FormData();
+    formData.append('file', f);
+    formData.append('accountId', accountId);
+    const response = await fetch('/api/v1/reconciliation/parse-preview', {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) throw new Error('Parse failed');
+    return response.json();
   };
 
   const handleFile = async (f: File) => {

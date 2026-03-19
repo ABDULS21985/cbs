@@ -19,11 +19,9 @@ function ConfidenceBadge({ confidence }: { confidence: number }) {
   );
 }
 
-function MatchTypeBadge({ reference }: { reference: string }) {
-  // Infer match type from reference pattern for mock display
-  const isExact = reference.includes('001') || reference.includes('002') || reference.includes('005') || reference.includes('007') || reference.includes('008') || reference.includes('010');
-  const label = isExact ? 'EXACT' : 'FUZZY';
-  const color = isExact
+function MatchTypeBadge({ matchType }: { matchType?: string }) {
+  const label = matchType === 'EXACT' ? 'EXACT' : 'FUZZY';
+  const color = label === 'EXACT'
     ? 'text-blue-700 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20'
     : 'text-purple-700 bg-purple-50 dark:text-purple-400 dark:bg-purple-900/20';
   return <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', color)}>{label}</span>;
@@ -95,7 +93,7 @@ export function MatchedItemsTable({ entries }: MatchedItemsTableProps) {
                   {entry.type === 'CREDIT' ? '+' : '-'}{formatMoney(entry.amount)}
                 </td>
                 <td className="px-4 py-2.5 text-center">
-                  <MatchTypeBadge reference={entry.reference} />
+                  <MatchTypeBadge matchType={entry.matchType} />
                 </td>
                 <td className="px-4 py-2.5 text-center">
                   <ConfidenceBadge confidence={entry.matchConfidence ?? 100} />

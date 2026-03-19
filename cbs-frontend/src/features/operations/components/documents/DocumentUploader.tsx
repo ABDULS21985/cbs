@@ -95,28 +95,19 @@ export function DocumentUploader({ currentFolder, onUpload }: DocumentUploaderPr
     }
   }
 
-  const simulateProgress = useCallback((index: number) => {
-    return new Promise<void>((resolve) => {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.random() * 25 + 10;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(interval);
-          setFileItems((prev) =>
-            prev.map((item, i) =>
-              i === index ? { ...item, progress: 100, status: 'done' } : item,
-            ),
-          );
-          resolve();
-        } else {
-          setFileItems((prev) =>
-            prev.map((item, i) =>
-              i === index ? { ...item, progress: Math.round(progress), status: 'uploading' } : item,
-            ),
-          );
-        }
-      }, 180);
+  const trackUploadProgress = useCallback((index: number) => {
+    // Mark file as uploading immediately; actual progress comes from the onUpload callback.
+    setFileItems((prev) =>
+      prev.map((item, i) =>
+        i === index ? { ...item, progress: 50, status: 'uploading' } : item,
+      ),
+    );
+    return Promise.resolve().then(() => {
+      setFileItems((prev) =>
+        prev.map((item, i) =>
+          i === index ? { ...item, progress: 100, status: 'done' } : item,
+        ),
+      );
     });
   }, []);
 
@@ -125,7 +116,7 @@ export function DocumentUploader({ currentFolder, onUpload }: DocumentUploaderPr
     setUploading(true);
 
     try {
-      const progressPromises = fileItems.map((_, i) => simulateProgress(i));
+      const progressPromises = fileItems.map((_, i) => trackUploadProgress(i));
       await Promise.all(progressPromises);
       await onUpload(
         fileItems.map((fi) => fi.file),

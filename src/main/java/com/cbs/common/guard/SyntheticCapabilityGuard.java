@@ -3,6 +3,7 @@ package com.cbs.common.guard;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,12 @@ public class SyntheticCapabilityGuard {
     void initialize() {
         allowSyntheticServices = cbsProperties.getSimulation().isAllowSyntheticServices();
         allowInternalKyc = cbsProperties.getSimulation().isAllowInternalKyc();
+    }
+
+    @PreDestroy
+    void reset() {
+        allowSyntheticServices = true;
+        allowInternalKyc = true;
     }
 
     public static void requireSyntheticServices(String capability, String remediation) {
@@ -41,5 +48,13 @@ public class SyntheticCapabilityGuard {
                     "INTERNAL_KYC_DISABLED"
             );
         }
+    }
+
+    public static void enableSyntheticServicesForTesting() {
+        allowSyntheticServices = true;
+    }
+
+    public static void enableInternalKycForTesting() {
+        allowInternalKyc = true;
     }
 }

@@ -1,6 +1,8 @@
 import { useEffect, useCallback, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Search, Filter, CheckSquare, Users2, UserCog, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiGet } from '@/lib/api';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useApprovalQueue, type QueueTab } from '../hooks/useApprovalQueue';
 import { ApprovalStatsCards } from '../components/approvals/ApprovalStatsCards';
@@ -92,15 +94,12 @@ interface DelegateRequestDialogProps {
   loading: boolean;
 }
 
-const MOCK_APPROVERS = [
-  { name: 'Chidi Nwachukwu', role: 'Senior Credit Analyst' },
-  { name: 'Taiwo Adesanya', role: 'Senior Relationship Manager' },
-  { name: 'Kola Adebayo', role: 'Head of Collections' },
-  { name: 'Babatunde Fasanya', role: 'Branch Operations Manager' },
-  { name: 'Emeka Okonkwo', role: 'Senior Relationship Manager' },
-];
-
 function DelegateRequestDialog({ open, onClose, onDelegate, loading }: DelegateRequestDialogProps) {
+  const { data: approversList = [] } = useQuery({
+    queryKey: ['approvers-list'],
+    queryFn: () => apiGet<{ name: string; role: string }[]>('/api/v1/approvals/approvers').catch(() => []),
+    enabled: open,
+  });
   const [delegateTo, setDelegateTo] = useState('');
   const [reason, setReason] = useState('');
 
@@ -136,7 +135,7 @@ function DelegateRequestDialog({ open, onClose, onDelegate, loading }: DelegateR
               className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
               <option value="">Select approver...</option>
-              {MOCK_APPROVERS.map((a) => (
+              {approversList.map((a) => (
                 <option key={a.name} value={a.name}>{a.name} — {a.role}</option>
               ))}
             </select>

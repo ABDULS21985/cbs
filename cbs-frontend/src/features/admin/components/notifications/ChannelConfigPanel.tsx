@@ -83,18 +83,20 @@ export function ChannelConfigPanel({ configs, onUpdate, onTest }: ChannelConfigP
   const handleTestSend = async () => {
     if (!testState) return;
     setTestState((s) => s ? { ...s, loading: true, result: null } : s);
-    // Call parent which actually calls the API
-    onTest(testState.channel, testState.recipient);
-    // Simulate result locally for UX demo
-    await new Promise((r) => setTimeout(r, 1200));
-    const success = !testState.recipient.includes('fail') && testState.recipient.length > 3;
-    setTestState((s) => s ? {
-      ...s,
-      loading: false,
-      result: success
-        ? { success: true, messageId: `TEST-${Date.now()}` }
-        : { success: false, error: 'Recipient unreachable or invalid address.' },
-    } : s);
+    try {
+      onTest(testState.channel, testState.recipient);
+      setTestState((s) => s ? {
+        ...s,
+        loading: false,
+        result: { success: true, messageId: `TEST-${Date.now()}` },
+      } : s);
+    } catch {
+      setTestState((s) => s ? {
+        ...s,
+        loading: false,
+        result: { success: false, error: 'Test send failed. Please verify the recipient and try again.' },
+      } : s);
+    }
   };
 
   return (

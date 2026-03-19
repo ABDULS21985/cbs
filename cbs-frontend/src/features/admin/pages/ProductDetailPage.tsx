@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiGet } from '@/lib/api';
 import { Edit2, Send, Archive, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
@@ -22,18 +23,7 @@ import {
 
 type DetailTab = 'configuration' | 'performance' | 'accounts' | 'amendments';
 
-// ─── Mock Accounts ────────────────────────────────────────────────────────────
-
-const MOCK_ACCOUNTS = [
-  { id: 'acc-001', number: '0123456789', customer: 'Amara Okonkwo', balance: 450000, status: 'ACTIVE', opened: '2022-03-10' },
-  { id: 'acc-002', number: '0234567890', customer: 'TechVentures Nigeria Ltd', balance: 12500000, status: 'ACTIVE', opened: '2022-05-20' },
-  { id: 'acc-003', number: '0345678901', customer: 'Ibrahim Musa', balance: 89000, status: 'ACTIVE', opened: '2022-07-01' },
-  { id: 'acc-004', number: '0456789012', customer: 'Chidi Enterprises', balance: 3200000, status: 'DORMANT', opened: '2022-08-14' },
-  { id: 'acc-005', number: '0567890123', customer: 'Fatima Al-Hassan', balance: 750000, status: 'ACTIVE', opened: '2022-09-05' },
-  { id: 'acc-006', number: '0678901234', customer: 'Emeka Nwosu', balance: 220000, status: 'ACTIVE', opened: '2022-10-18' },
-  { id: 'acc-007', number: '0789012345', customer: 'Ngozi Eze', balance: 5600000, status: 'ACTIVE', opened: '2023-01-12' },
-  { id: 'acc-008', number: '0890123456', customer: 'Bola Adeyemi', balance: 140000, status: 'RESTRICTED', opened: '2023-03-22' },
-];
+// Product accounts are loaded via API in the AccountsTab component.
 
 const TYPE_LABELS: Record<ProductType, string> = {
   SAVINGS: 'Savings',
@@ -151,7 +141,21 @@ function ConfigurationTab({ product }: { product: BankingProduct }) {
 
 // ─── Accounts Tab ─────────────────────────────────────────────────────────────
 
+interface ProductAccount {
+  id: string;
+  number: string;
+  customer: string;
+  balance: number;
+  status: string;
+  opened: string;
+}
+
 function AccountsTab({ product }: { product: BankingProduct }) {
+  const { data: accounts = [], isLoading } = useQuery({
+    queryKey: ['product-accounts', product.id],
+    queryFn: () => apiGet<ProductAccount[]>(`/api/v1/products/${product.id}/accounts`).catch(() => []),
+  });
+
   const accountStatusColors: Record<string, string> = {
     ACTIVE: 'bg-green-100 text-green-800',
     DORMANT: 'bg-amber-100 text-amber-800',
@@ -163,7 +167,7 @@ function AccountsTab({ product }: { product: BankingProduct }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Showing {MOCK_ACCOUNTS.length} sample accounts (of {product.activeAccounts.toLocaleString()} total)
+          Showing {accounts.length} accounts (of {product.activeAccounts.toLocaleString()} total)
         </p>
       </div>
       <div className="bg-card rounded-lg border border-border overflow-hidden">
@@ -178,7 +182,11 @@ function AccountsTab({ product }: { product: BankingProduct }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {MOCK_ACCOUNTS.map((acc) => (
+            {isLoading ? (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">Loading accounts...</td></tr>
+            ) : accounts.length === 0 ? (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No accounts found for this product.</td></tr>
+            ) : accounts.map((acc) => (
               <tr key={acc.id} className="hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3">
                   <span className="font-mono text-xs font-medium">{acc.number}</span>

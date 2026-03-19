@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Calculator, Loader2, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiGet } from '@/lib/api';
 import { previewCharge, type PreviewChargeResult } from '../api/feeApi';
 
 const schema = z.object({
@@ -23,14 +25,6 @@ const EVENT_TYPES = [
   { value: 'LC_ISSUANCE', label: 'Letter of Credit Issuance' },
 ];
 
-const MOCK_CUSTOMER_OPTIONS = [
-  { value: 'cust-001', label: 'Amara Okonkwo' },
-  { value: 'cust-002', label: 'TechVentures Nigeria Ltd' },
-  { value: 'cust-003', label: 'Ibrahim Musa' },
-  { value: 'cust-004', label: 'Chidi Enterprises' },
-  { value: 'cust-005', label: 'Fatima Al-Hassan' },
-];
-
 const inputCls = cn(
   'w-full px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-colors',
 );
@@ -42,6 +36,12 @@ interface FeePreviewCalculatorProps {
 }
 
 export function FeePreviewCalculator({ accountId }: FeePreviewCalculatorProps) {
+  const { data: customerOptions = [] } = useQuery({
+    queryKey: ['customer-selector'],
+    queryFn: () => apiGet<{ value: string; label: string }[]>('/api/v1/customers/selector').catch(() => []),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const [result, setResult] = useState<PreviewChargeResult | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +93,7 @@ export function FeePreviewCalculator({ accountId }: FeePreviewCalculatorProps) {
               <label className={labelCls}>Customer</label>
               <select {...register('customerId')} className={inputCls}>
                 <option value="">Select customer...</option>
-                {MOCK_CUSTOMER_OPTIONS.map((opt) => (
+                {customerOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>

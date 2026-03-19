@@ -1,6 +1,7 @@
 package com.cbs.integration;
 
 import com.cbs.common.config.CbsProperties;
+import com.cbs.common.guard.SyntheticCapabilityGuard;
 import com.cbs.customer.mapper.CustomerMapper;
 import com.cbs.customer.repository.*;
 import com.cbs.customer.service.CustomerService;
@@ -40,6 +41,8 @@ class BvnNinProviderTest {
 
     @BeforeEach
     void setUp() {
+        SyntheticCapabilityGuard.enableInternalKycForTesting();
+
         customerService = new CustomerService(
                 customerRepository,
                 addressRepository,

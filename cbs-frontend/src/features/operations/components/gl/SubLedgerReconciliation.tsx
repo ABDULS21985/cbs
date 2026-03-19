@@ -1,25 +1,25 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { RefreshCw, X, CheckCircle2, XCircle } from 'lucide-react';
+import { RefreshCw, X, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { glApi } from '../../api/glApi';
+import { apiGet } from '@/lib/api';
 import type { SubLedgerRow } from '../../api/glApi';
 import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
-const MOCK_BREAK_DETAILS: Record<string, { account: string; subLedger: number; gl: number; diff: number }[]> = {
-  'Personal & SME Loans': [
-    { account: 'Personal Loan #PL20260301042', subLedger: 15_050_000_000, gl: 15_000_000_000, diff: 50_000_000 },
-    { account: 'SME Loan #SM20260215009', subLedger: 42_000_000_000, gl: 42_000_000_000, diff: 0 },
-    { account: 'Personal Loan #PL20260218077', subLedger: 56_000_000_000, gl: 56_000_000_000, diff: 0 },
-  ],
-  'Treasury Investments': [
-    { account: 'T-Bill Placement #TB20260301', subLedger: 4_100_000_000, gl: 4_105_000_000, diff: -5_000_000 },
-  ],
-};
+interface BreakDetail {
+  account: string;
+  subLedger: number;
+  gl: number;
+  diff: number;
+}
 
-function BreakDrillDownModal({ row, onClose }: { row: SubLedgerRow; onClose: () => void }) {
-  const details = MOCK_BREAK_DETAILS[row.module] || [];
+function BreakDrillDownModal({ row, date, onClose }: { row: SubLedgerRow; date: string; onClose: () => void }) {
+  const { data: details = [], isLoading } = useQuery({
+    queryKey: ['gl-reconciliation-break', row.module, date],
+    queryFn: () => apiGet<BreakDetail[]>('/v1/gl/reconciliation/break-details', { module: row.module, date }).catch(() => []),
+  });
 
   return (
     <>
@@ -39,6 +39,12 @@ function BreakDrillDownModal({ row, onClose }: { row: SubLedgerRow; onClose: () 
           </div>
 
           <div className="p-6">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Loading break details...
+              </div>
+            ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-xs text-muted-foreground">
@@ -71,6 +77,7 @@ function BreakDrillDownModal({ row, onClose }: { row: SubLedgerRow; onClose: () 
                 </tr>
               </tfoot>
             </table>
+            )}
           </div>
         </div>
       </div>
@@ -207,7 +214,7 @@ export function SubLedgerReconciliation() {
       </div>
 
       {breakRow && (
-        <BreakDrillDownModal row={breakRow} onClose={() => setBreakRow(null)} />
+        <BreakDrillDownModal row={breakRow} date={date} onClose={() => setBreakRow(null)} />
       )}
     </div>
   );

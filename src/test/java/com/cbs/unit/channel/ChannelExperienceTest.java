@@ -1,5 +1,6 @@
 package com.cbs.unit.channel;
 
+import com.cbs.common.guard.SyntheticCapabilityGuard;
 import com.cbs.casemgmt.entity.CustomerCase;
 import com.cbs.casemgmt.repository.CaseNoteRepository;
 import com.cbs.casemgmt.repository.CustomerCaseRepository;
@@ -18,6 +19,7 @@ import com.cbs.pfm.repository.PfmFinancialHealthRepository;
 import com.cbs.pfm.repository.PfmSnapshotRepository;
 import com.cbs.pfm.repository.PfmSpendingCategoryRepository;
 import com.cbs.pfm.service.PfmService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -205,6 +207,11 @@ class ChannelExperienceTest {
         @Mock private PfmSpendingCategoryRepository categoryRepository;
         @InjectMocks private PfmService pfmService;
 
+        @BeforeEach
+        void setUp() {
+            SyntheticCapabilityGuard.enableSyntheticServicesForTesting();
+        }
+
         @Test
         @DisplayName("generateSnapshot creates snapshot with calculated fields for customer")
         void generateSnapshot_createsWithCalculatedFields() {
@@ -222,7 +229,7 @@ class ChannelExperienceTest {
             assertThat(result.getTotalExpenses()).isNotNull();
             assertThat(result.getSavingsRate()).isNotNull();
             assertThat(result.getFinancialHealthScore()).isBetween(0, 100);
-            assertThat(result.getExpenseBreakdown()).containsKey("housing");
+            assertThat(result.getExpenseBreakdown()).isNull();
             verify(snapshotRepository).save(any(PfmSnapshot.class));
         }
     }

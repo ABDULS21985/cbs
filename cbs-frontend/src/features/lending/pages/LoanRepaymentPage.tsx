@@ -28,18 +28,18 @@ export function LoanRepaymentPage() {
 
   const paymentMutation = useRecordPayment(loanId);
 
-  const outstanding = loan?.outstandingBalance ?? 0;
-  const nextDue = loan?.nextInstallmentAmount ?? 0;
+  const outstanding = loan?.totalOutstanding ?? 0;
+  const nextDue = loan?.nextPaymentAmount ?? 0;
   const settlementAmount = settlement?.totalSettlementAmount ?? 0;
 
   const displayAmount = paymentType === 'REGULAR' ? nextDue : paymentType === 'SETTLEMENT' ? settlementAmount : amount;
 
   const handleSubmit = async () => {
     paymentMutation.mutate(
-      { amount: displayAmount, sourceAccountId: loan?.sourceAccountId ?? 0, type: paymentType },
+      { amount: displayAmount, sourceAccountId: 0, type: paymentType },
       {
         onSuccess: (payment) => {
-          setReceipt({ ref: payment.reference ?? `PMT-${Date.now().toString(36).toUpperCase()}`, amount: displayAmount });
+          setReceipt({ ref: payment.paymentRef ?? `PMT-${Date.now().toString(36).toUpperCase()}`, amount: displayAmount });
           toast.success('Payment recorded successfully');
         },
         onError: () => {
@@ -93,7 +93,7 @@ export function LoanRepaymentPage() {
             <InfoGrid columns={2} items={[
               { label: 'Outstanding Principal', value: settlement?.outstandingPrincipal ?? 0, format: 'money' },
               { label: 'Accrued Interest', value: settlement?.accruedInterest ?? 0, format: 'money' },
-              { label: 'Early Settlement Penalty', value: settlement?.penalty ?? 0, format: 'money' },
+              { label: 'Early Settlement Penalty', value: settlement?.earlySettlementPenalty ?? 0, format: 'money' },
               { label: 'Total Settlement', value: settlementAmount, format: 'money' },
             ]} />
           </div>

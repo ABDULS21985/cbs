@@ -1,12 +1,19 @@
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FileText, Award, Building2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiGet } from '@/lib/api';
 import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { FormSection } from '@/components/shared/FormSection';
 import type { StatementFormat, StatementType } from '../api/statementApi';
+
+interface AccountOption {
+  id: string;
+  label: string;
+}
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -60,12 +67,6 @@ const CONFIRMATION_PURPOSES = [
   { value: 'OTHER', label: 'Other' },
 ];
 
-const MOCK_ACCOUNTS = [
-  { id: 'acc-001', label: '0123456789 — Amara Okonkwo' },
-  { id: 'acc-002', label: '0234567890 — TechVentures Nigeria Ltd' },
-  { id: 'acc-003', label: '0345678901 — Ibrahim Musa' },
-  { id: 'acc-004', label: '0456789012 — Fatima Al-Hassan' },
-];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,12 @@ export function StatementRequestForm({
 }: StatementRequestFormProps) {
   const [selectedPurpose, setSelectedPurpose] = useState('EMPLOYER_VERIFICATION');
 
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['statement-accounts'],
+    queryFn: () => apiGet<AccountOption[]>('/api/v1/accounts/selector').catch(() => []),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const {
     register,
     control,
@@ -87,7 +94,7 @@ export function StatementRequestForm({
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      accountId: accountId ?? 'acc-001',
+      accountId: accountId ?? '',
       statementType: 'FULL',
       format: 'PDF',
       dateRange: {
@@ -119,7 +126,7 @@ export function StatementRequestForm({
             {...register('accountId')}
             className="w-full px-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            {MOCK_ACCOUNTS.map((acc) => (
+            {accounts.map((acc) => (
               <option key={acc.id} value={acc.id}>
                 {acc.label}
               </option>

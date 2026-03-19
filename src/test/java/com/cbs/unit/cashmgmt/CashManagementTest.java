@@ -1,5 +1,7 @@
 package com.cbs.unit.cashmgmt;
 
+import com.cbs.account.entity.Account;
+import com.cbs.account.repository.AccountRepository;
 import com.cbs.bankdraft.entity.BankDraft;
 import com.cbs.bankdraft.repository.BankDraftRepository;
 import com.cbs.bankdraft.service.BankDraftService;
@@ -59,6 +61,7 @@ class CashManagementTest {
         @Mock private CashPoolStructureRepository poolRepository;
         @Mock private CashPoolParticipantRepository participantRepository;
         @Mock private CashPoolSweepLogRepository sweepLogRepository;
+        @Mock private AccountRepository accountRepository;
 
         @InjectMocks private CashPoolService cashPoolService;
 
@@ -88,6 +91,8 @@ class CashManagementTest {
             when(poolRepository.findByPoolCode("CPL-SWEEP001")).thenReturn(Optional.of(pool));
             when(participantRepository.findByPoolIdAndIsActiveTrueOrderByPriorityAsc(1L))
                     .thenReturn(List.of(header, participant));
+            when(accountRepository.findById(200L))
+                    .thenReturn(Optional.of(Account.builder().availableBalance(new BigDecimal("85000.00")).build()));
             when(sweepLogRepository.save(any(CashPoolSweepLog.class))).thenAnswer(inv -> inv.getArgument(0));
 
             List<CashPoolSweepLog> logs = cashPoolService.executeSweep("CPL-SWEEP001");
@@ -288,8 +293,8 @@ class CashManagementTest {
         @InjectMocks private LockboxService lockboxService;
 
         @Test
-        @DisplayName("receiveItem with OCR enabled and auto-deposit marks item as DEPOSITED when confidence is high")
-        void receiveItem_autoDepositsWhenOcrConfidenceIsHigh() {
+        @DisplayName("receiveItem with OCR enabled leaves item pending manual review until a real OCR response exists")
+        void receiveItem_requiresManualReviewWithoutOcrResponse() {
             Lockbox lockbox = Lockbox.builder()
                     .id(1L).lockboxNumber("LBX-CORP001").customerId(100L)
                     .creditAccountId(500L).lockboxType("STANDARD")
@@ -309,11 +314,10 @@ class CashManagementTest {
             LockboxItem result = lockboxService.receiveItem("LBX-CORP001", item);
 
             assertThat(result.getItemReference()).startsWith("LBI-");
-            assertThat(result.getStatus()).isEqualTo("DEPOSITED");
-            assertThat(result.getOcrConfidence()).isNotNull();
-            assertThat(result.getDepositedAt()).isNotNull();
-            // save called twice: once after OCR processing, once after auto-deposit
-            verify(itemRepository, atLeast(2)).save(any(LockboxItem.class));
+            assertThat(result.getStatus()).isEqualTo("OCR_PROCESSED");
+            assertThat(result.getOcrConfidence()).isNull();
+            assertThat(result.getDepositedAt()).isNull();
+            verify(itemRepository).save(any(LockboxItem.class));
         }
     }
 

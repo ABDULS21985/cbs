@@ -33,7 +33,7 @@ export function ReviewSubmitStep({ state, goToStep }: Props) {
       } as any,
       {
         onSuccess: (application) => {
-          setApplicationRef(application.applicationNumber ?? '');
+          setApplicationRef(application.applicationRef ?? '');
           setSubmitted(true);
           toast.success('Loan application submitted successfully');
         },

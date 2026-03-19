@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/formatters';
-import { X, Layers } from 'lucide-react';
+import { X, Layers, Loader2 } from 'lucide-react';
+import { apiGet } from '@/lib/api';
 import { FinancialLineItemRow } from './FinancialLineItemRow';
 import { VarianceIndicator } from './VarianceIndicator';
 import type { BalanceSheetData, FinancialLineItem } from '../../api/financialReportApi';
@@ -14,16 +16,19 @@ interface DrillDownPanelProps {
   currency: string;
 }
 
-const MOCK_GL_ACCOUNTS: Record<string, Array<{ id: string; name: string; balance: number }>> = {
-  '10001': [{ id: '10001-001', name: 'CBN Reserve Account', balance: 6_400_000_000 }, { id: '10001-002', name: 'CBN SLF Account', balance: 1_800_000_000 }],
-  '10002': [{ id: '10002-001', name: 'Currency in CBN Vault', balance: 4_100_000_000 }],
-  '10003': [{ id: '10003-001', name: 'Lagos Main Branch Cash', balance: 1_200_000_000 }, { id: '10003-002', name: 'Abuja Branch Cash', balance: 980_000_000 }, { id: '10003-003', name: 'Other Branches', balance: 1_920_000_000 }],
-  'default': [{ id: 'GL-001', name: 'Primary GL Account', balance: 0 }, { id: 'GL-002', name: 'Secondary GL Account', balance: 0 }],
-};
+interface GlAccountDetail {
+  id: string;
+  name: string;
+  balance: number;
+}
 
 function DrillDownPanel({ item, onClose, currency }: DrillDownPanelProps) {
   const glIds = item.glAccountIds ?? [];
-  const accounts = glIds.flatMap((id) => MOCK_GL_ACCOUNTS[id] ?? MOCK_GL_ACCOUNTS['default']?.map((a) => ({ ...a, balance: item.current / Math.max(1, glIds.length) })) ?? []);
+  const { data: accounts = [], isLoading } = useQuery({
+    queryKey: ['gl-drill-down', item.code, glIds],
+    queryFn: () => apiGet<GlAccountDetail[]>('/v1/gl/line-item-accounts', { glCodes: glIds.join(',') }).catch(() => []),
+    enabled: glIds.length > 0,
+  });
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 w-[420px] bg-card border-l border-border shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
@@ -50,6 +55,12 @@ function DrillDownPanel({ item, onClose, currency }: DrillDownPanelProps) {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
           Supporting GL Accounts ({accounts.length})
         </p>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Loading GL accounts...</span>
+          </div>
+        ) : (
         <div className="space-y-2">
           {accounts.map((acc) => (
             <div key={acc.id} className="flex items-center justify-between py-2.5 px-3 rounded-md bg-muted/50 border border-border/50">
@@ -61,9 +72,7 @@ function DrillDownPanel({ item, onClose, currency }: DrillDownPanelProps) {
             </div>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground mt-4 text-center">
-          Drill-down data is illustrative. Connect to GL module for live data.
-        </p>
+        )}
       </div>
     </div>
   );

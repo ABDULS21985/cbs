@@ -1,10 +1,12 @@
 package com.cbs.integration;
 
+import com.cbs.common.guard.SyntheticCapabilityGuard;
 import com.cbs.fingateway.entity.FinancialGateway;
 import com.cbs.fingateway.entity.GatewayMessage;
 import com.cbs.fingateway.repository.FinancialGatewayRepository;
 import com.cbs.fingateway.repository.GatewayMessageRepository;
 import com.cbs.fingateway.service.FinancialGatewayService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +32,11 @@ class SwiftMessageTest {
 
     @InjectMocks
     private FinancialGatewayService financialGatewayService;
+
+    @BeforeEach
+    void setUp() {
+        SyntheticCapabilityGuard.enableSyntheticServicesForTesting();
+    }
 
     @Test
     @DisplayName("MT103 single customer credit transfer format is valid")

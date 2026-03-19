@@ -1,9 +1,11 @@
 package com.cbs.fingateway;
 
+import com.cbs.common.guard.SyntheticCapabilityGuard;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.fingateway.entity.*;
 import com.cbs.fingateway.repository.*;
 import com.cbs.fingateway.service.FinancialGatewayService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +26,11 @@ class FinancialGatewayServiceTest {
     @Mock private FinancialGatewayRepository gatewayRepository;
     @Mock private GatewayMessageRepository messageRepository;
     @InjectMocks private FinancialGatewayService service;
+
+    @BeforeEach
+    void setUp() {
+        SyntheticCapabilityGuard.enableSyntheticServicesForTesting();
+    }
 
     @Test @DisplayName("Message sent through connected gateway with sanctions check")
     void sendMessage() {

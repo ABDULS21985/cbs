@@ -1,5 +1,7 @@
 package com.cbs.cashpool;
 
+import com.cbs.account.entity.Account;
+import com.cbs.account.repository.AccountRepository;
 import com.cbs.cashpool.entity.*;
 import com.cbs.cashpool.repository.*;
 import com.cbs.cashpool.service.CashPoolService;
@@ -23,6 +25,7 @@ class CashPoolServiceTest {
     @Mock private CashPoolStructureRepository poolRepository;
     @Mock private CashPoolParticipantRepository participantRepository;
     @Mock private CashPoolSweepLogRepository sweepLogRepository;
+    @Mock private AccountRepository accountRepository;
     @InjectMocks private CashPoolService cashPoolService;
 
     @Test @DisplayName("Pool creation generates code and persists")
@@ -46,6 +49,9 @@ class CashPoolServiceTest {
         CashPoolParticipant participant = CashPoolParticipant.builder().id(2L).poolId(1L)
                 .accountId(200L).participantRole("PARTICIPANT").targetBalance(BigDecimal.ZERO).isActive(true).build();
         when(participantRepository.findByPoolIdAndIsActiveTrueOrderByPriorityAsc(1L)).thenReturn(List.of(header, participant));
+        when(accountRepository.findById(200L))
+                .thenReturn(Optional.of(Account.builder().availableBalance(new BigDecimal("150.00")).build()));
+        when(sweepLogRepository.save(any(CashPoolSweepLog.class))).thenAnswer(inv -> inv.getArgument(0));
 
         List<CashPoolSweepLog> logs = cashPoolService.executeSweep("CPL-TEST");
         // Header skipped, only participant swept

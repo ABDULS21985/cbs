@@ -156,8 +156,8 @@ export function DocumentLibrary({ documents: initialDocuments, onUpload }: Docum
                 setTagDoc(null);
               }}
               onDownload={(doc) => {
-                // Mock download: create a toast-like notification
-                console.log('Downloading:', doc.name);
+                // Trigger document download via the API
+                window.open(`/api/v1/documents/${doc.id}/download`, '_blank');
               }}
               onTag={(doc) => {
                 setTagDoc(doc);

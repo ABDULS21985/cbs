@@ -6,6 +6,7 @@ import com.cbs.achops.service.AchService;
 import com.cbs.cardswitch.entity.CardSwitchTransaction;
 import com.cbs.cardswitch.repository.CardSwitchTransactionRepository;
 import com.cbs.cardswitch.service.CardSwitchService;
+import com.cbs.common.guard.SyntheticCapabilityGuard;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.fingateway.entity.FinancialGateway;
 import com.cbs.fingateway.entity.GatewayMessage;
@@ -15,6 +16,7 @@ import com.cbs.fingateway.service.FinancialGatewayService;
 import com.cbs.merchant.entity.MerchantProfile;
 import com.cbs.merchant.repository.MerchantProfileRepository;
 import com.cbs.merchant.service.MerchantService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,6 +47,11 @@ class FinancialGatewayTest {
         @Mock private FinancialGatewayRepository gatewayRepository;
         @Mock private GatewayMessageRepository messageRepository;
         @InjectMocks private FinancialGatewayService financialGatewayService;
+
+        @BeforeEach
+        void setUp() {
+            SyntheticCapabilityGuard.enableSyntheticServicesForTesting();
+        }
 
         @Test
         @DisplayName("sendMessage assigns ref, sanctions check, and delivers when gateway is CONNECTED")

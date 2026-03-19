@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/formatters';
+import { apiGet } from '@/lib/api';
 import type { DocumentTemplate } from '../../api/documentApi';
 
 interface DocumentTemplateEditorProps {
@@ -20,71 +21,6 @@ interface DocumentTemplateEditorProps {
 }
 
 type EntityType = 'customer' | 'loan' | 'account';
-
-// Mock entity lookup data
-const MOCK_ENTITIES: Record<string, { name: string; data: Record<string, string> }> = {
-  'CUS-000142': {
-    name: 'Adeyemi Kolawole',
-    data: {
-      customerName: 'Adeyemi Kolawole',
-      accountNumber: '0012345678',
-      accountType: 'Savings Account',
-      branchName: 'Victoria Island Branch',
-      openingDate: '15 Jan 2020',
-      rmName: 'Fatima Ibrahim',
-      bankingRelationshipSince: '15 Jan 2020',
-      averageBalance: '₦450,000.00',
-      bvn: '22**********1',
-      addressLine1: '7 Adeola Odeku Street',
-      city: 'Victoria Island',
-      state: 'Lagos',
-    },
-  },
-  'CUS-000289': {
-    name: 'Chidi Okonkwo',
-    data: {
-      customerName: 'Chidi Okonkwo',
-      accountNumber: '0098765432',
-      accountType: 'Current Account',
-      branchName: 'Apapa Branch',
-      openingDate: '03 Mar 2018',
-      rmName: 'Emeka Obi',
-      bankingRelationshipSince: '03 Mar 2018',
-      averageBalance: '₦2,100,000.00',
-      bvn: '22**********5',
-      addressLine1: '14 Commercial Road',
-      city: 'Apapa',
-      state: 'Lagos',
-    },
-  },
-  'LN-20250887': {
-    name: 'Personal Loan - Ngozi Eze',
-    data: {
-      customerName: 'Ngozi Eze',
-      loanRef: 'LN-20250887',
-      loanAmount: '₦3,500,000.00',
-      tenor: '36 months',
-      interestRate: '22% per annum',
-      monthlyRepayment: '₦139,722.22',
-      purposeOfLoan: 'Business Working Capital',
-      approvalDate: '05 Oct 2025',
-      expiryDate: '19 Oct 2025',
-    },
-  },
-  'FD-20261002': {
-    name: 'Fixed Deposit - Halima Musa',
-    data: {
-      customerName: 'Halima Musa',
-      fdReference: 'FD-20261002',
-      principalAmount: '₦10,000,000.00',
-      interestRate: '18.5% per annum',
-      tenor: '180 days',
-      maturityDate: '30 Jul 2026',
-      maturityAmount: '₦10,912,328.77',
-      valueDate: '01 Feb 2026',
-    },
-  },
-};
 
 function substituteFields(template: string, data: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (match, field) => data[field] ?? match);
@@ -222,14 +158,18 @@ export function DocumentTemplateEditor({ templates, onGenerate }: DocumentTempla
     setLookupError('');
     setLookedUpEntity(null);
     try {
-      await new Promise((r) => setTimeout(r, 600));
-      const found = MOCK_ENTITIES[entityIdInput.trim().toUpperCase()];
-      if (found) {
-        setLookedUpEntity({ id: entityIdInput.trim().toUpperCase(), ...found });
-        setEntityIdInput(entityIdInput.trim().toUpperCase());
+      const result = await apiGet<{ id: string; name: string; data: Record<string, string> }>(
+        `/api/v1/documents/entity-lookup`,
+        { entityType, entityId: entityIdInput.trim() },
+      );
+      if (result) {
+        setLookedUpEntity(result);
+        setEntityIdInput(result.id);
       } else {
-        setLookupError(`No ${entityType} found with ID "${entityIdInput.trim()}". Try: CUS-000142, CUS-000289, LN-20250887, FD-20261002`);
+        setLookupError(`No ${entityType} found with ID "${entityIdInput.trim()}".`);
       }
+    } catch {
+      setLookupError(`No ${entityType} found with ID "${entityIdInput.trim()}".`);
     } finally {
       setLookupLoading(false);
     }
@@ -239,7 +179,6 @@ export function DocumentTemplateEditor({ templates, onGenerate }: DocumentTempla
     if (!selectedTemplate || !lookedUpEntity) return;
     setGenerating(true);
     try {
-      await new Promise((r) => setTimeout(r, 1400));
       onGenerate(selectedTemplate.id, lookedUpEntity.id, entityType);
       setGenerated(true);
     } finally {
