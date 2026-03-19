@@ -29,13 +29,17 @@ public class NotificationService {
     /**
      * Sends notifications for a business event across all configured channels.
      * Respects customer opt-out preferences.
+     *
+     * Notifications are saved with status PENDING_DISPATCH until a real provider
+     * is configured and confirms delivery. No provider (JavaMailSender, SMS gateway,
+     * push service) is wired in this deployment, so dispatch is not attempted here.
      */
     @Transactional
     public List<NotificationLog> sendEventNotification(String eventType, Long customerId,
                                                          String recipientEmail, String recipientPhone,
                                                          String recipientName, Map<String, String> params) {
         List<NotificationTemplate> templates = templateRepository.findByEventTypeAndIsActiveTrue(eventType);
-        List<NotificationLog> sent = new ArrayList<>();
+        List<NotificationLog> queued = new ArrayList<>();
 
         for (NotificationTemplate template : templates) {
             // Check opt-out preference
@@ -62,21 +66,66 @@ public class NotificationService {
                     .customerId(customerId).recipientAddress(recipientAddress)
                     .recipientName(recipientName)
                     .subject(resolvedSubject).body(resolvedBody)
-                    .status("SENT").sentAt(Instant.now())
+                    .status("PENDING_DISPATCH")
                     .provider(resolveProvider(template.getChannel()))
                     .build();
 
-            // In production: dispatch to actual provider (SendGrid, Twilio, Firebase, etc.)
-            // For now, mark as SENT immediately
-            sent.add(logRepository.save(notifLog));
-            log.info("Notification sent: channel={}, event={}, recipient={}", template.getChannel(), eventType, recipientAddress);
+            notifLog = logRepository.save(notifLog);
+            dispatchNotification(notifLog);
+            queued.add(notifLog);
         }
 
-        return sent;
+        return queued;
+    }
+
+    /**
+     * Attempt to dispatch a notification through its configured channel.
+     * If no provider is configured for the channel, the status stays PENDING_DISPATCH
+     * and a warning is logged so operators know action is required.
+     */
+    private void dispatchNotification(NotificationLog notifLog) {
+        switch (notifLog.getChannel()) {
+            case EMAIL -> {
+                // JavaMailSender / SendGrid not configured (spring-boot-starter-mail absent).
+                // To enable: add spring-boot-starter-mail to build.gradle.kts, configure
+                // spring.mail.* properties, inject JavaMailSender, and send via
+                // MimeMessageHelper.
+                log.warn("Notification dispatch not configured — email notification #{} queued (channel=EMAIL, recipient={})",
+                        notifLog.getId(), notifLog.getRecipientAddress());
+            }
+            case SMS -> {
+                // No SMS provider (Twilio, Africa's Talking, SMPP) found in the project.
+                // To enable: add the provider's SDK, configure credentials, and implement
+                // SMS dispatch here.
+                log.warn("Notification dispatch not configured — SMS notification #{} queued (channel=SMS, recipient={})",
+                        notifLog.getId(), notifLog.getRecipientAddress());
+            }
+            case PUSH -> {
+                // Firebase Cloud Messaging or similar push provider not configured.
+                log.warn("Notification dispatch not configured — push notification #{} queued (channel=PUSH, recipient={})",
+                        notifLog.getId(), notifLog.getRecipientAddress());
+            }
+            case IN_APP -> {
+                // In-app notifications are stored in the log and surfaced via
+                // getCustomerNotifications(). No external dispatch required.
+                notifLog.setStatus("DELIVERED");
+                notifLog.setSentAt(Instant.now());
+                notifLog.setDeliveredAt(Instant.now());
+                logRepository.save(notifLog);
+                log.debug("In-app notification #{} stored for customer {}", notifLog.getId(), notifLog.getCustomerId());
+            }
+            case WEBHOOK -> {
+                // Webhook delivery is handled by EsbService / HTTP client integration.
+                // Mark as PENDING_DISPATCH for the ESB to pick up.
+                log.warn("Notification dispatch not configured — webhook notification #{} queued for url={}",
+                        notifLog.getId(), notifLog.getRecipientAddress());
+            }
+        }
     }
 
     /**
      * Send a direct notification without template lookup.
+     * Status is PENDING_DISPATCH until a provider actually delivers it.
      */
     @Transactional
     public NotificationLog sendDirect(NotificationChannel channel, String recipientAddress,
@@ -86,9 +135,11 @@ public class NotificationService {
                 .channel(channel).eventType(eventType != null ? eventType : "DIRECT")
                 .customerId(customerId).recipientAddress(recipientAddress)
                 .recipientName(recipientName).subject(subject).body(body)
-                .status("SENT").sentAt(Instant.now())
+                .status("PENDING_DISPATCH")
                 .provider(resolveProvider(channel)).build();
-        return logRepository.save(notifLog);
+        notifLog = logRepository.save(notifLog);
+        dispatchNotification(notifLog);
+        return notifLog;
     }
 
     public Map<String, Object> buildWebhookPayload(WebhookEvent event) {
@@ -134,18 +185,17 @@ public class NotificationService {
         for (NotificationLog notif : pending) {
             try {
                 notif.setRetryCount(notif.getRetryCount() + 1);
-                // In production: re-dispatch to provider
-                notif.setStatus("SENT");
-                notif.setSentAt(Instant.now());
-                notif.setScheduledAt(null);
+                notif.setStatus("PENDING_DISPATCH");
                 logRepository.save(notif);
+                // Re-attempt dispatch; dispatchNotification will update status on success
+                dispatchNotification(notif);
                 retried++;
             } catch (Exception e) {
                 registerDeliveryFailure(notif, e.getMessage(), Instant.now());
                 logRepository.save(notif);
             }
         }
-        log.info("Notification retry: {} of {} retried", retried, pending.size());
+        log.info("Notification retry: {} of {} re-dispatched", retried, pending.size());
         return retried;
     }
 

@@ -5,7 +5,7 @@ import { Loader2, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoGrid, FormSection, AuditTimeline, StatusBadge } from '@/components/shared';
-import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
+import { formatMoney, formatPercent } from '@/lib/formatters';
 import { fixedDepositApi, type MaturityInstruction } from '../api/fixedDepositApi';
 import { FdCalculator } from '../components/FdCalculator';
 import { FdEarlyWithdrawalCalc } from '../components/FdEarlyWithdrawalCalc';

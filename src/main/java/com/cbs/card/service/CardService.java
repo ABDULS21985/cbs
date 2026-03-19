@@ -208,7 +208,8 @@ public class CardService {
 
         // Authorize
         txn.setStatus("AUTHORIZED");
-        txn.setAuthCode(String.format("%06d", (int)(Math.random() * 999999)));
+        java.security.SecureRandom secureRandom = new java.security.SecureRandom();
+        txn.setAuthCode(String.format("%06d", secureRandom.nextInt(1000000)));
         txn.setResponseCode("00");
         card.setLastUsedDate(LocalDate.now());
 
@@ -242,13 +243,27 @@ public class CardService {
     private String generateSimulatedPan(CardScheme scheme) {
         String prefix = switch (scheme) {
             case VISA -> "4";
-            case MASTERCARD -> "5";
-            case VERVE -> "506";
+            case MASTERCARD -> "52";
+            case VERVE -> "650271";
             case AMEX -> "37";
-            default -> "6";
+            default -> "9";
         };
+        // Fill digits to length 15, then compute Luhn check digit
         StringBuilder sb = new StringBuilder(prefix);
-        while (sb.length() < 16) sb.append((int)(Math.random() * 10));
+        java.security.SecureRandom rng = new java.security.SecureRandom();
+        while (sb.length() < 15) sb.append(rng.nextInt(10));
+        // Compute Luhn check digit
+        String partial = sb.toString();
+        int sum = 0;
+        boolean alt = true;
+        for (int i = partial.length() - 1; i >= 0; i--) {
+            int d = partial.charAt(i) - '0';
+            if (alt) { d *= 2; if (d > 9) d -= 9; }
+            sum += d;
+            alt = !alt;
+        }
+        int check = (10 - (sum % 10)) % 10;
+        sb.append(check);
         return sb.toString();
     }
 

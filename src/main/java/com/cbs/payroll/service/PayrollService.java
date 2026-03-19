@@ -86,7 +86,14 @@ public class PayrollService {
 
         for (PayrollItem item : items) {
             try {
-                // In production: execute payment via PaymentService
+                // TODO: inject PaymentService / AccountService and call:
+                //   1. debit batch.getSourceAccountId() by item.getNetAmount()
+                //   2. credit item.getCreditAccountNumber() by item.getNetAmount()
+                //   3. post a journal entry for the tax deduction
+                // Only mark PAID after the posting succeeds; on exception, mark FAILED.
+                // Example (when PaymentService is wired):
+                //   paymentService.postPayrollEntry(batch.getSourceAccountId(),
+                //       item.getCreditAccountNumber(), item.getNetAmount(), batch.getCurrencyCode());
                 item.setStatus("PAID");
                 item.setPaymentReference("PMT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
             } catch (Exception e) {

@@ -33,10 +33,10 @@ public class LockboxService {
         item.setItemReference("LBI-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase());
         item.setStatus("RECEIVED");
 
-        // Simulate OCR if enabled
+        // OCR confidence: requires OCR service integration
         if (lockbox.getOcrEnabled()) {
             item.setStatus("OCR_PROCESSED");
-            item.setOcrConfidence(new BigDecimal("92.5")); // simulated
+            item.setOcrConfidence(null); // TODO: set from real OCR service response
             log.debug("OCR processed: item={}, confidence={}%", item.getItemReference(), item.getOcrConfidence());
         }
 

@@ -40,6 +40,7 @@ public class FinancialGatewayService {
 
     @Transactional
     public GatewayMessage sendMessage(GatewayMessage msg) {
+        long startTime = System.currentTimeMillis();
         msg.setMessageRef("GW-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase());
         FinancialGateway gw = gatewayRepository.findById(msg.getGatewayId())
                 .orElseThrow(() -> new ResourceNotFoundException("FinancialGateway", "id", msg.getGatewayId()));
@@ -56,7 +57,7 @@ public class FinancialGatewayService {
         msg.setDeliveryStatus("SENT");
         msg.setSentAt(Instant.now());
         msg.setDeliveryAttempts(1);
-        msg.setProcessingTimeMs((int)(Math.random() * 500 + 100));
+        msg.setProcessingTimeMs((int)(System.currentTimeMillis() - startTime));
 
         // Update gateway counters
         gw.setMessagesToday(gw.getMessagesToday() + 1);

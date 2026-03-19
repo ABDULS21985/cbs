@@ -1,22 +1,23 @@
+import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Loader2 } from 'lucide-react';
+import { apiGet } from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface LineChartDataPoint {
   month: string;
   volume: number;
 }
 
-interface LineChartWidgetProps {
-  data?: LineChartDataPoint[];
-}
+export function LineChartWidget() {
+  const { data = [], isLoading } = useQuery({
+    queryKey: queryKeys.dashboard.charts('monthly-volume'),
+    queryFn: () => apiGet<LineChartDataPoint[]>('/api/v1/dashboard/charts/monthly-volume'),
+    staleTime: 60_000,
+  });
 
-export function LineChartWidget({ data }: LineChartWidgetProps) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[280px] text-sm text-muted-foreground">
-        No data available
-      </div>
-    );
-  }
+  if (isLoading) return <div className="flex justify-center items-center h-[280px]"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+  if (data.length === 0) return <p className="text-sm text-muted-foreground text-center py-12">No chart data available</p>;
 
   return (
     <ResponsiveContainer width="100%" height={280}>

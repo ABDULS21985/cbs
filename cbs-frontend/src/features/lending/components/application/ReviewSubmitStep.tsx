@@ -1,5 +1,4 @@
-import { formatMoney } from '@/lib/formatters';
-import { InfoGrid, StatusBadge } from '@/components/shared';
+import { InfoGrid } from '@/components/shared';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import type { LoanApplicationState } from '../../hooks/useLoanApplication';

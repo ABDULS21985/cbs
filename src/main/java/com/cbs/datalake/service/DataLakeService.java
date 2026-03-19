@@ -31,9 +31,10 @@ public class DataLakeService {
 
         long startTime = System.currentTimeMillis();
         try {
-            // In production: execute COPY TO / Spring Batch / Spark job
-            int recordCount = (int)(Math.random() * 100000) + 1000;
-            long fileSize = recordCount * 128L;
+            // TODO: implement actual export via COPY TO / Spring Batch / Spark job
+            // recordCount and fileSize should be populated from the real export result
+            int recordCount = 0;   // TODO: set to actual exported record count
+            long fileSize = 0L;    // TODO: set to actual output file size in bytes
 
             job.setLastRunAt(Instant.now());
             job.setLastRecordCount(recordCount);

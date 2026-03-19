@@ -1,89 +1,51 @@
+import { useQuery } from '@tanstack/react-query';
 import { formatMoney, formatRelative } from '@/lib/formatters';
 import { StatusBadge, EmptyState } from '@/components/shared';
-import { ArrowUpRight, ArrowDownLeft, Receipt } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Loader2 } from 'lucide-react';
+import { apiGet } from '@/lib/api';
+import { queryKeys } from '@/lib/queryKeys';
 
-interface Transaction {
-  id: number | string;
-  ref?: string;
-  referenceNumber?: string;
-  type: string;
+interface RecentTxn {
+  id: number;
+  ref: string;
+  type: 'CREDIT' | 'DEBIT';
   description: string;
   amount: number;
-  currency?: string;
+  currency: string;
   status: string;
-  time?: string;
-  createdAt?: string;
+  time: string;
 }
 
-interface RecentTransactionsWidgetProps {
-  transactions?: Transaction[];
-  isLoading?: boolean;
-}
+export function RecentTransactionsWidget() {
+  const { data: transactions = [], isLoading } = useQuery({
+    queryKey: queryKeys.dashboard.recentTransactions,
+    queryFn: () => apiGet<RecentTxn[]>('/api/v1/dashboard/recent-transactions'),
+    staleTime: 30_000,
+  });
 
-function TransactionSkeleton() {
+  if (isLoading) return <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+  if (transactions.length === 0) return <EmptyState title="No recent transactions" />;
+
   return (
     <div className="divide-y">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 py-2.5 px-1 animate-pulse">
-          <div className="w-8 h-8 rounded-full bg-muted" />
-          <div className="flex-1 min-w-0 space-y-2">
-            <div className="h-4 w-48 bg-muted rounded" />
-            <div className="h-3 w-28 bg-muted rounded" />
+      {transactions.map((txn) => (
+        <div key={txn.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-muted/30 transition-colors">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${txn.type === 'CREDIT' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+            {txn.type === 'CREDIT' ? <ArrowDownLeft className="w-4 h-4 text-green-600" /> : <ArrowUpRight className="w-4 h-4 text-red-600" />}
           </div>
-          <div className="text-right space-y-2">
-            <div className="h-4 w-20 bg-muted rounded ml-auto" />
-            <div className="h-3 w-16 bg-muted rounded ml-auto" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm truncate">{txn.description}</p>
+            <p className="text-xs text-muted-foreground font-mono">{txn.ref}</p>
           </div>
-          <div className="h-5 w-16 bg-muted rounded-full" />
+          <div className="text-right">
+            <p className={`text-sm font-mono font-medium ${txn.type === 'CREDIT' ? 'text-green-600' : 'text-foreground'}`}>
+              {txn.type === 'CREDIT' ? '+' : '-'}{formatMoney(txn.amount, txn.currency)}
+            </p>
+            <p className="text-xs text-muted-foreground">{formatRelative(txn.time)}</p>
+          </div>
+          <StatusBadge status={txn.status} size="sm" />
         </div>
       ))}
-    </div>
-  );
-}
-
-export function RecentTransactionsWidget({ transactions, isLoading }: RecentTransactionsWidgetProps) {
-  if (isLoading) {
-    return <TransactionSkeleton />;
-  }
-
-  if (!transactions || transactions.length === 0) {
-    return (
-      <EmptyState
-        icon={Receipt}
-        title="No recent transactions"
-        description="Transactions will appear here once activity begins."
-        className="py-10"
-      />
-    );
-  }
-
-  return (
-    <div className="divide-y">
-      {transactions.map((txn) => {
-        const ref = txn.ref ?? txn.referenceNumber ?? '';
-        const time = txn.time ?? txn.createdAt ?? '';
-        const currency = txn.currency ?? 'NGN';
-        const txnType = txn.type?.toUpperCase();
-
-        return (
-          <div key={txn.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-muted/30 transition-colors">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${txnType === 'CREDIT' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-              {txnType === 'CREDIT' ? <ArrowDownLeft className="w-4 h-4 text-green-600" /> : <ArrowUpRight className="w-4 h-4 text-red-600" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm truncate">{txn.description}</p>
-              {ref && <p className="text-xs text-muted-foreground font-mono">{ref}</p>}
-            </div>
-            <div className="text-right">
-              <p className={`text-sm font-mono font-medium ${txnType === 'CREDIT' ? 'text-green-600' : 'text-foreground'}`}>
-                {txnType === 'CREDIT' ? '+' : '-'}{formatMoney(txn.amount, currency)}
-              </p>
-              {time && <p className="text-xs text-muted-foreground">{formatRelative(time)}</p>}
-            </div>
-            <StatusBadge status={txn.status} size="sm" />
-          </div>
-        );
-      })}
     </div>
   );
 }

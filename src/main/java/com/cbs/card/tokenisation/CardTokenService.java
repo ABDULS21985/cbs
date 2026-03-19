@@ -83,9 +83,10 @@ public class CardTokenService {
                                                  String cardholderName, String deviceName,
                                                  String deviceId) {
         // Issue virtual card first
+        java.security.SecureRandom rng = new java.security.SecureRandom();
         Card virtualCard = Card.builder()
                 .cardNumberHash(hashToken(UUID.randomUUID().toString()))
-                .cardNumberMasked("****" + String.format("%04d", (int)(Math.random() * 9999)))
+                .cardNumberMasked("****" + String.format("%04d", rng.nextInt(10000)))
                 .cardReference("VCR-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase())
                 .cardType(CardType.VIRTUAL)
                 .cardholderName(cardholderName)
@@ -94,10 +95,12 @@ public class CardTokenService {
                 .build();
 
         // Account and customer set via accountId lookup would happen here
-        // Simplified — in production, CardService.issueCard() would be called
+        // TODO: call CardService.issueCard() to properly link account and customer
+        // Save the card so it has a DB-assigned ID before provisioning a token
+        Card savedVirtualCard = cardRepository.save(virtualCard);
 
         // Then provision token
-        return provisionToken(virtualCard.getId(), walletProvider, deviceName, deviceId, "PHONE", null);
+        return provisionToken(savedVirtualCard.getId(), walletProvider, deviceName, deviceId, "PHONE", null);
     }
 
     @Transactional
@@ -180,8 +183,10 @@ public class CardTokenService {
             case SAMSUNG_PAY -> "53";
             default -> "40";
         };
+        // TODO: in production, call the Token Service Provider (TSP) to obtain the token number
         StringBuilder sb = new StringBuilder(prefix);
-        while (sb.length() < 16) sb.append((int)(Math.random() * 10));
+        java.security.SecureRandom secureRandom = new java.security.SecureRandom();
+        while (sb.length() < 16) sb.append(secureRandom.nextInt(10));
         return sb.toString();
     }
 

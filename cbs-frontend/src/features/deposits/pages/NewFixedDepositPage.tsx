@@ -5,7 +5,7 @@ import { Check, ChevronRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MoneyInput, FormSection } from '@/components/shared';
-import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
+import { formatMoney, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { fixedDepositApi, type RateTable, type MaturityInstruction } from '../api/fixedDepositApi';
 import { FdRateTable } from '../components/FdRateTable';
