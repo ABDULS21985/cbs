@@ -3,7 +3,6 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, StatCard, TabsPage } from '@/components/shared';
 import { syndicationApi, type SyndicatedLoan, type ProjectFinance } from '../api/syndicationApi';
 import { formatMoney, formatPercent } from '@/lib/formatters';
-import { useNavigate } from 'react-router-dom';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Landmark, Users, TrendingUp, Building2 } from 'lucide-react';
 
@@ -29,7 +28,6 @@ const projCols: ColumnDef<ProjectFinance, any>[] = [
 ];
 
 export function SyndicationPage() {
-  const navigate = useNavigate();
   const { data: loans = [], isLoading: loansLoading } = useQuery({ queryKey: ['syndication', 'loans'], queryFn: () => syndicationApi.getSyndicatedLoans() });
   const { data: projects = [], isLoading: projLoading } = useQuery({ queryKey: ['syndication', 'projects'], queryFn: () => syndicationApi.getProjects() });
 

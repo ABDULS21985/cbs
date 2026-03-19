@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatCard, DataTable, StatusBadge, TabsPage } from '@/components/shared';
+import { StatCard, DataTable, TabsPage } from '@/components/shared';
 import { contactCenterApi, type AgentState, type QueueStatus } from '../api/contactCenterApi';
 import type { ColumnDef } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
-import { Phone, PhoneOff, Users, Clock, HeadphonesIcon, BarChart3 } from 'lucide-react';
+import { Phone, Users, Clock, HeadphonesIcon } from 'lucide-react';
 
 const stateColors: Record<string, string> = {
   AVAILABLE: 'bg-green-500', ON_CALL: 'bg-blue-500', WRAP_UP: 'bg-amber-500', BREAK: 'bg-red-500', OFFLINE: 'bg-gray-400',

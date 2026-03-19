@@ -9,10 +9,10 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { usePermission } from '@/hooks/usePermission';
 import { formatDateTime } from '@/lib/formatters';
 import { useCustomerCounts, useCustomerFiltersFromUrl, useCustomers } from '../hooks/useCustomers';
-import type { CustomerListItem } from '../types/customer';
+import type { CustomerListItem, CustomerStatus, CustomerType } from '../types/customer';
 
-const CUSTOMER_TYPES = ['INDIVIDUAL', 'SOLE_PROPRIETOR', 'SME', 'CORPORATE', 'TRUST', 'GOVERNMENT', 'NGO'];
-const STATUSES = ['PROSPECT', 'ACTIVE', 'DORMANT', 'SUSPENDED', 'CLOSED', 'DECEASED'];
+const CUSTOMER_TYPES: readonly CustomerType[] = ['INDIVIDUAL', 'SOLE_PROPRIETOR', 'SME', 'CORPORATE', 'TRUST', 'GOVERNMENT', 'NGO'];
+const STATUSES: readonly CustomerStatus[] = ['PROSPECT', 'ACTIVE', 'DORMANT', 'SUSPENDED', 'CLOSED', 'DECEASED'];
 
 export default function CustomerListPage() {
   const navigate = useNavigate();
@@ -155,7 +155,7 @@ export default function CustomerListPage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <select
               value={filters.type || ''}
-              onChange={(event) => setFilters({ type: event.target.value || undefined })}
+              onChange={(event) => setFilters({ type: (event.target.value || undefined) as CustomerType | undefined })}
               className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
             >
               <option value="">All Types</option>
@@ -168,7 +168,7 @@ export default function CustomerListPage() {
 
             <select
               value={filters.status || ''}
-              onChange={(event) => setFilters({ status: event.target.value || undefined })}
+              onChange={(event) => setFilters({ status: (event.target.value || undefined) as CustomerStatus | undefined })}
               className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800"
             >
               <option value="">All Statuses</option>

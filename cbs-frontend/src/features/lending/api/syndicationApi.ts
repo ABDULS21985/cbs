@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet } from '@/lib/api';
 
 export interface SyndicatedLoan {
   id: number; facilityRef: string; borrowerName: string;

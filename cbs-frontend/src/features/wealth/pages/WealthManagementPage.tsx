@@ -1,12 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { DataTable, StatusBadge, StatCard, TabsPage, InfoGrid } from '@/components/shared';
+import { DataTable, StatusBadge, StatCard, TabsPage } from '@/components/shared';
 import { wealthApi, type WealthPlan, type TrustAccount, type Advisor } from '../api/wealthApi';
 import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
-import { useNavigate } from 'react-router-dom';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Landmark, Users, TrendingUp, Shield, Calendar } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { Landmark, Users, TrendingUp, Shield } from 'lucide-react';
 
 const planCols: ColumnDef<WealthPlan, any>[] = [
   { accessorKey: 'planCode', header: 'Plan #', cell: ({ row }) => <span className="font-mono text-xs text-primary">{row.original.planCode}</span> },
@@ -40,7 +38,6 @@ const advisorCols: ColumnDef<Advisor, any>[] = [
 ];
 
 export function WealthManagementPage() {
-  const navigate = useNavigate();
   const { data: plans = [], isLoading: plansLoading } = useQuery({ queryKey: ['wealth', 'plans'], queryFn: () => wealthApi.getPlans() });
   const { data: trusts = [], isLoading: trustsLoading } = useQuery({ queryKey: ['wealth', 'trusts'], queryFn: () => wealthApi.getTrusts() });
   const { data: advisors = [], isLoading: advisorsLoading } = useQuery({ queryKey: ['wealth', 'advisors'], queryFn: () => wealthApi.getAdvisors() });

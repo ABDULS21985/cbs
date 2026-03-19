@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoGrid, StatusBadge } from '@/components/shared';
 import { wealthApi } from '../api/wealthApi';
-import { formatMoney, formatPercent, formatDate } from '@/lib/formatters';
+import { formatMoney } from '@/lib/formatters';
 import { Loader2, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';

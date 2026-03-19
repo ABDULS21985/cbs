@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { DataTable, StatusBadge, StatCard, TabsPage, SummaryBar } from '@/components/shared';
+import { DataTable, StatusBadge, StatCard, TabsPage } from '@/components/shared';
 import { tradeFinanceApi, type LetterOfCredit, type BankGuarantee } from '../api/tradeFinanceApi';
 import { formatMoney, formatDate } from '@/lib/formatters';
-import { Plus, FileText, Shield, Landmark, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, FileText, Shield, Landmark, Clock } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 
 const lcCols: ColumnDef<LetterOfCredit, any>[] = [

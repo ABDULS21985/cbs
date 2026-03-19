@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
 
 export interface WealthPlan {
   id: number; planCode: string; customerId: number; customerName: string;
@@ -32,7 +32,8 @@ export const wealthApi = {
 
   getTrusts: (filters?: Record<string, unknown>) => apiGet<TrustAccount[]>('/api/v1/trusts', filters),
   getTrust: (code: string) => apiGet<TrustAccount>(`/api/v1/trusts/${code}`),
-  recordDistribution: (code: string, amount: number) => apiPost<TrustAccount>(`/api/v1/trusts/${code}/distribute`, null, ),
+  recordDistribution: (code: string, amount: number) =>
+    apiPost<TrustAccount>(`/api/v1/trusts/${code}/distribute`, { amount }),
 
   getAdvisors: () => apiGet<Advisor[]>('/api/v1/wealth-management/advisors').catch(() => []),
 };
