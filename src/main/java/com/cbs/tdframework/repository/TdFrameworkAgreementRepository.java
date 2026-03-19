@@ -9,4 +9,5 @@ public interface TdFrameworkAgreementRepository extends JpaRepository<TdFramewor
     Optional<TdFrameworkAgreement> findByAgreementNumber(String number);
     List<TdFrameworkAgreement> findByCustomerIdAndStatusOrderByCreatedAtDesc(Long customerId, String status);
     List<TdFrameworkAgreement> findByStatusOrderByCreatedAtDesc(String status);
+    List<TdFrameworkAgreement> findAllByOrderByCreatedAtDesc();
 }

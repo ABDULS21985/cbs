@@ -128,8 +128,17 @@ import {
   VirtualAccountListPage,
   WealthManagementPage,
   WealthPlanDetailPage,
+  AgreementCreatePage,
   AgreementDetailPage,
+  AgreementEditPage,
   AgreementListPage,
+  AgreementsHubPage,
+  PricingDashboardPage,
+  TdFrameworkListPage,
+  TdFrameworkDetailPage,
+  TdSummaryDashboardPage,
+  CommissionAgreementsPage,
+  CommissionDetailPage,
   CommunicationCenterPage,
   CollateralRegisterPage,
   CollateralDetailPage,
@@ -435,8 +444,17 @@ export function AppRouter() {
 
         {/* Agreements */}
         <Route path="/agreements" element={<Outlet />}>
-          <Route index element={<AgreementListPage />} />
+          <Route index element={<AgreementsHubPage />} />
+          <Route path="list" element={<AgreementListPage />} />
+          <Route path="new" element={<AgreementCreatePage />} />
           <Route path=":id" element={<AgreementDetailPage />} />
+          <Route path=":id/edit" element={<AgreementEditPage />} />
+          <Route path="td-frameworks" element={<TdFrameworkListPage />} />
+          <Route path="td-frameworks/:number" element={<TdFrameworkDetailPage />} />
+          <Route path="td-summary" element={<TdSummaryDashboardPage />} />
+          <Route path="commissions" element={<CommissionAgreementsPage />} />
+          <Route path="commissions/:code" element={<CommissionDetailPage />} />
+          <Route path="pricing" element={<PricingDashboardPage />} />
         </Route>
 
         {/* Communications */}

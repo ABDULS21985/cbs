@@ -96,6 +96,14 @@ export const navigationItems: NavSection[] = [
       },
       {
         label: 'Agreements', icon: FileText, path: '/agreements', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
+        children: [
+          { label: 'Agreements Hub', path: '/agreements' },
+          { label: 'Customer Agreements', path: '/agreements/list' },
+          { label: 'TD Frameworks', path: '/agreements/td-frameworks' },
+          { label: 'TD Analytics', path: '/agreements/td-summary' },
+          { label: 'Commissions', path: '/agreements/commissions' },
+          { label: 'Pricing & Discounts', path: '/agreements/pricing' },
+        ],
       },
       {
         label: 'Communications', icon: MessageSquare, path: '/communications', roles: ['CBS_ADMIN', 'CBS_OFFICER'],

@@ -17,6 +17,14 @@ import java.util.Map;
 public class TdFrameworkController {
     private final TdFrameworkService tdFrameworkService;
 
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<TdFrameworkAgreement>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(tdFrameworkService.listAll()));
+    }
+    @GetMapping("/{number}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<TdFrameworkAgreement>> getByNumber(@PathVariable String number) {
+        return ResponseEntity.ok(ApiResponse.ok(tdFrameworkService.getByAgreementNumber(number)));
+    }
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<TdFrameworkAgreement>> create(@RequestBody TdFrameworkAgreement agreement) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(tdFrameworkService.create(agreement)));

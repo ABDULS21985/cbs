@@ -61,6 +61,14 @@ public class TdFrameworkService {
         return a.getBaseRate() != null ? a.getBaseRate() : BigDecimal.ZERO;
     }
 
+    public List<TdFrameworkAgreement> listAll() {
+        return agreementRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public TdFrameworkAgreement getByAgreementNumber(String number) {
+        return getByNumber(number);
+    }
+
     public List<TdFrameworkAgreement> getActiveByCustomer(Long customerId) {
         return agreementRepository.findByCustomerIdAndStatusOrderByCreatedAtDesc(customerId, "ACTIVE");
     }

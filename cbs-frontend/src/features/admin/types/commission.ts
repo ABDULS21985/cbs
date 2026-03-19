@@ -9,7 +9,7 @@ export interface CommissionAgreement {
   partyName: string;
   commissionBasis: string;
   baseRatePct: number;
-  tierStructure: Map<String, Object[];
+  tierStructure: Record<string, unknown>[];
   applicableProducts: string[];
   minPayout: number;
   maxPayoutMonthly: number;
@@ -44,4 +44,3 @@ export interface CommissionPayout {
   paidAt: string;
   status: string;
 }
-

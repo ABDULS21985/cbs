@@ -129,6 +129,42 @@ export const AgreementDetailPage = lazyNamed(
   () => import('@/features/agreements/pages/AgreementDetailPage'),
   'AgreementDetailPage',
 );
+export const TdFrameworkListPage = lazyNamed(
+  () => import('@/features/agreements/pages/TdFrameworkListPage'),
+  'TdFrameworkListPage',
+);
+export const TdFrameworkDetailPage = lazyNamed(
+  () => import('@/features/agreements/pages/TdFrameworkDetailPage'),
+  'TdFrameworkDetailPage',
+);
+export const TdSummaryDashboardPage = lazyNamed(
+  () => import('@/features/agreements/pages/TdSummaryDashboardPage'),
+  'TdSummaryDashboardPage',
+);
+export const CommissionAgreementsPage = lazyNamed(
+  () => import('@/features/agreements/pages/CommissionAgreementsPage'),
+  'CommissionAgreementsPage',
+);
+export const CommissionDetailPage = lazyNamed(
+  () => import('@/features/agreements/pages/CommissionDetailPage'),
+  'CommissionDetailPage',
+);
+export const AgreementCreatePage = lazyNamed(
+  () => import('@/features/agreements/pages/AgreementCreatePage'),
+  'AgreementCreatePage',
+);
+export const AgreementEditPage = lazyNamed(
+  () => import('@/features/agreements/pages/AgreementEditPage'),
+  'AgreementEditPage',
+);
+export const AgreementsHubPage = lazyNamed(
+  () => import('@/features/agreements/pages/AgreementsHubPage'),
+  'AgreementsHubPage',
+);
+export const PricingDashboardPage = lazyNamed(
+  () => import('@/features/agreements/pages/PricingDashboardPage'),
+  'PricingDashboardPage',
+);
 
 export const CommunicationCenterPage = lazyNamed(
   () => import('@/features/communications/pages/CommunicationCenterPage'),

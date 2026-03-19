@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from '@/lib/api';
+import api from '@/lib/api';
 import type { CommissionAgreement, CommissionPayout } from '../types/commission';
 
 export const commissionsApi = {
@@ -11,23 +12,28 @@ export const commissionsApi = {
     apiPost<CommissionAgreement>('/api/v1/commissions/agreements', data),
 
   /** POST /v1/commissions/agreements/{code}/activate */
-  createAgreement2: (code: string, data: Partial<CommissionAgreement>) =>
-    apiPost<CommissionAgreement>(`/api/v1/commissions/agreements/${code}/activate`, data),
+  activateAgreement: (code: string) =>
+    apiPost<CommissionAgreement>(`/api/v1/commissions/agreements/${code}/activate`),
 
-  /** POST /v1/commissions/agreements/{code}/calculate-payout */
-  calculatePayout: (code: string) =>
-    apiPost<CommissionPayout>(`/api/v1/commissions/agreements/${code}/calculate-payout`),
+  /** GET /v1/commissions/agreements/{code} */
+  getAgreementByCode: (code: string) =>
+    apiGet<CommissionAgreement>(`/api/v1/commissions/agreements/${code}`),
+
+  /** POST /v1/commissions/agreements/{code}/calculate-payout (query params) */
+  calculatePayout: (code: string, params: { grossSales: number; qualifyingSales: number; period: string }) =>
+    api.post<{ data: CommissionPayout }>(`/api/v1/commissions/agreements/${code}/calculate-payout`, null, {
+      params: { grossSales: params.grossSales, qualifyingSales: params.qualifyingSales, period: params.period },
+    }).then(r => r.data.data),
 
   /** POST /v1/commissions/payouts/{code}/approve */
-  calculatePayout2: (code: string) =>
+  approvePayout: (code: string) =>
     apiPost<CommissionPayout>(`/api/v1/commissions/payouts/${code}/approve`),
 
   /** GET /v1/commissions/agreements/party/{id} */
-  getAgreementsByParty: (id: number) =>
-    apiGet<CommissionAgreement[]>(`/api/v1/commissions/agreements/party/${id}`),
+  getAgreementsByParty: (partyId: string) =>
+    apiGet<CommissionAgreement[]>(`/api/v1/commissions/agreements/party/${partyId}`),
 
   /** GET /v1/commissions/payouts/party/{id} */
-  getAgreementsByParty2: (id: number) =>
-    apiGet<CommissionAgreement[]>(`/api/v1/commissions/payouts/party/${id}`),
-
+  getPayoutsByParty: (partyId: string) =>
+    apiGet<CommissionPayout[]>(`/api/v1/commissions/payouts/party/${partyId}`),
 };
