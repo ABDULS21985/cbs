@@ -54,6 +54,12 @@ import { StandingOrderListPage } from '@/features/payments/pages/StandingOrderLi
 import { StandingOrderDetailPage } from '@/features/payments/pages/StandingOrderDetailPage';
 import { BillPaymentPage } from '@/features/payments/pages/BillPaymentPage';
 import { InternationalTransferPage } from '@/features/payments/pages/InternationalTransferPage';
+import { MarketLiquidityRiskPage } from '@/features/risk/pages/MarketLiquidityRiskPage';
+import { OperationalRiskPage } from '@/features/risk/pages/OperationalRiskPage';
+import { RegulatoryReturnsPage } from '@/features/compliance/pages/RegulatoryReturnsPage';
+import { ReturnDetailPage } from '@/features/compliance/pages/ReturnDetailPage';
+import { ComplianceDashboardPage } from '@/features/compliance/pages/ComplianceDashboardPage';
+import { AuditTrailPage } from '@/features/compliance/pages/AuditTrailPage';
 import { ForbiddenPage } from '@/pages/ForbiddenPage';
 import { NotFoundPage as NotFoundPageFull } from '@/pages/NotFoundPage';
 import { ServerErrorPage } from '@/pages/ServerErrorPage';
@@ -62,6 +68,11 @@ import { LoanApplicationListPage } from '@/features/lending/pages/LoanApplicatio
 import { LoanApplicationPage } from '@/features/lending/pages/LoanApplicationPage';
 import { ActiveLoansPage } from '@/features/lending/pages/ActiveLoansPage';
 import { LoanDetailPage } from '@/features/lending/pages/LoanDetailPage';
+import { FixedIncomePage } from '@/features/treasury/pages/FixedIncomePage';
+import { MarketDataPage } from '@/features/treasury/pages/MarketDataPage';
+import { OrderManagementPage } from '@/features/treasury/pages/OrderManagementPage';
+import { TradeOpsPage } from '@/features/treasury/pages/TradeOpsPage';
+import { CapitalMarketsPage } from '@/features/treasury/pages/CapitalMarketsPage';
 import { LoanRepaymentPage } from '@/features/lending/pages/LoanRepaymentPage';
 import { LoanRestructurePage } from '@/features/lending/pages/LoanRestructurePage';
 import { FacilityListPage } from '@/features/lending/pages/FacilityListPage';
@@ -194,6 +205,11 @@ export function AppRouter() {
           <Route path="positions" element={<PlaceholderPage title="Positions" />} />
           <Route path="fx" element={<PlaceholderPage title="FX Rates" />} />
           <Route path="investments" element={<PlaceholderPage title="Investments" />} />
+          <Route path="fixed-income" element={<FixedIncomePage />} />
+          <Route path="market-data" element={<MarketDataPage />} />
+          <Route path="orders" element={<OrderManagementPage />} />
+          <Route path="trade-ops" element={<TradeOpsPage />} />
+          <Route path="capital-markets" element={<CapitalMarketsPage />} />
         </Route>
 
         {/* Risk */}
@@ -203,14 +219,17 @@ export function AppRouter() {
           <Route path="fraud" element={<PlaceholderPage title="Fraud Alerts" />} />
           <Route path="sanctions" element={<PlaceholderPage title="Sanctions Screening" />} />
           <Route path="credit" element={<PlaceholderPage title="Credit Risk" />} />
+          <Route path="market-liquidity" element={<MarketLiquidityRiskPage />} />
+          <Route path="operational" element={<OperationalRiskPage />} />
         </Route>
 
         {/* Compliance */}
         <Route path="/compliance" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Compliance" />} />
-          <Route path="returns" element={<PlaceholderPage title="Regulatory Returns" />} />
+          <Route index element={<ComplianceDashboardPage />} />
+          <Route path="returns" element={<RegulatoryReturnsPage />} />
+          <Route path="returns/:id" element={<ReturnDetailPage />} />
           <Route path="assessments" element={<PlaceholderPage title="Assessments" />} />
-          <Route path="audit" element={<PlaceholderPage title="Audit Trail" />} />
+          <Route path="audit" element={<AuditTrailPage />} />
         </Route>
 
         {/* Operations */}
