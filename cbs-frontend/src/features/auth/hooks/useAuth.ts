@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/stores/authStore';
-import type { User } from '@/types/auth';
+
 
 /** Convenience hook for auth state */
 export function useAuth() {

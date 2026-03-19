@@ -2,10 +2,11 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, DateRangePicker } from '@/components/shared';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
-import { useLoanApplications } from '../hooks/useLoanData';
+import { useState } from 'react';
+import { loanApi } from '../api/loanApi';
 import type { LoanApplication } from '../types/loan';
 
 const columns: ColumnDef<LoanApplication, any>[] = [
@@ -15,19 +16,18 @@ const columns: ColumnDef<LoanApplication, any>[] = [
   { accessorKey: 'requestedAmount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.requestedAmount)}</span> },
   { accessorKey: 'tenorMonths', header: 'Tenor', cell: ({ row }) => `${row.original.tenorMonths} mo` },
   { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} /> },
-  { accessorKey: 'createdAt', header: 'Submitted', cell: ({ row }) => formatDate(row.original.createdAt) },
+  { accessorKey: 'submittedDate', header: 'Submitted', cell: ({ row }) => formatDate(row.original.submittedDate) },
+  { accessorKey: 'assignedOfficer', header: 'Officer' },
 ];
 
 export function LoanApplicationListPage() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
 
-  const filters = useMemo(() => ({
-    ...(dateRange.from ? { from: dateRange.from.toISOString().slice(0, 10) } : {}),
-    ...(dateRange.to ? { to: dateRange.to.toISOString().slice(0, 10) } : {}),
-  }), [dateRange.from, dateRange.to]);
-
-  const { data: applications = [], isLoading } = useLoanApplications(filters);
+  const { data: applications = [], isLoading } = useQuery({
+    queryKey: ['loans', 'applications', dateRange],
+    queryFn: () => loanApi.getApplications(dateRange.from ? { fromDate: dateRange.from.toISOString(), toDate: dateRange.to?.toISOString() } : undefined),
+  });
 
   return (
     <>
@@ -40,7 +40,7 @@ export function LoanApplicationListPage() {
         </div>
       } />
       <div className="page-container">
-        <DataTable columns={columns} data={applications} isLoading={isLoading} enableGlobalFilter enableExport exportFilename="loan-applications" onRowClick={(row) => navigate(`/lending/applications/${row.id}`)} emptyMessage="No loan applications found" />
+        <DataTable columns={columns} data={applications} isLoading={isLoading} enableGlobalFilter enableExport exportFilename="loan-applications" onRowClick={(row) => navigate(`/lending/applications/${row.id}`)} />
       </div>
     </>
   );

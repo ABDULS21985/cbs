@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
-import { cn } from '@/lib/utils';
+
 import { NotificationDropdown } from './NotificationDropdown';
 import { useNotifications } from '../hooks/useNotifications';
 

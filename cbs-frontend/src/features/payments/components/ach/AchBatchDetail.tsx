@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import { achApi, type AchBatch } from '../../api/achApi';
 import { AchItemsTable } from './AchItemsTable';
 import { NachaFileViewer } from './NachaFileViewer';
-import { formatDate, formatDateTime } from '@/lib/formatters';
 
 interface AchBatchDetailProps {
   batchId: string | null;
@@ -38,8 +37,6 @@ function StatusStepper({ status }: { status: AchBatch['status'] }) {
       {STATUS_STEPS.map((step, idx) => {
         const isPast = currentIndex > idx;
         const isCurrent = currentIndex === idx && !isTerminalError;
-        const isFuture = currentIndex < idx && !isTerminalError;
-
         return (
           <div key={step} className="flex items-center flex-shrink-0">
             <div className="flex flex-col items-center">

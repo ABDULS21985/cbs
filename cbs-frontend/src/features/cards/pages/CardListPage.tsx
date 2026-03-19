@@ -1,10 +1,9 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge, TabsPage } from '@/components/shared';
-import { Plus, CreditCard, ShieldCheck, ShieldX, Clock } from 'lucide-react';
+import { Plus, CreditCard, ShieldCheck, ShieldX, Clock, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDate } from '@/lib/formatters';
-import { cardApi } from '../api/cardApi';
-import { useQuery } from '@tanstack/react-query';
+import { useCards } from '../hooks/useCardData';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Card } from '../types/card';
 import { cn } from '@/lib/utils';
@@ -27,7 +26,7 @@ const columns: ColumnDef<Card, any>[] = [
 
 export function CardListPage() {
   const navigate = useNavigate();
-  const { data: cards = [] } = useQuery({ queryKey: ['cards'], queryFn: () => cardApi.getCards() });
+  const { data: cards = [], isLoading } = useCards();
 
   const active = cards.filter((c) => c.status === 'ACTIVE').length;
   const blocked = cards.filter((c) => c.status === 'BLOCKED').length;
@@ -50,11 +49,22 @@ export function CardListPage() {
           <StatCard label="Expired" value={expired} format="number" />
         </div>
 
-        <TabsPage syncWithUrl tabs={[
-          { id: 'all', label: 'All Cards', badge: cards.length, content: <div className="p-4"><DataTable columns={columns} data={cards} enableGlobalFilter enableExport exportFilename="cards" onRowClick={(row) => navigate(`/cards/${row.id}`)} /></div> },
-          { id: 'pending', label: 'Pending Activation', badge: pending, content: <div className="p-4"><DataTable columns={columns} data={cards.filter((c) => c.status === 'PENDING_ACTIVATION')} /></div> },
-          { id: 'blocked', label: 'Blocked', badge: blocked, content: <div className="p-4"><DataTable columns={columns} data={cards.filter((c) => c.status === 'BLOCKED')} /></div> },
-        ]} />
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64 text-muted-foreground gap-2">
+            <Loader2 className="w-5 h-5 animate-spin" /> Loading cards…
+          </div>
+        ) : cards.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+            <CreditCard className="w-10 h-10 mb-2 opacity-40" />
+            <p className="text-sm">No cards found.</p>
+          </div>
+        ) : (
+          <TabsPage syncWithUrl tabs={[
+            { id: 'all', label: 'All Cards', badge: cards.length, content: <div className="p-4"><DataTable columns={columns} data={cards} enableGlobalFilter enableExport exportFilename="cards" onRowClick={(row) => navigate(`/cards/${row.id}`)} /></div> },
+            { id: 'pending', label: 'Pending Activation', badge: pending, content: <div className="p-4"><DataTable columns={columns} data={cards.filter((c) => c.status === 'PENDING_ACTIVATION')} /></div> },
+            { id: 'blocked', label: 'Blocked', badge: blocked, content: <div className="p-4"><DataTable columns={columns} data={cards.filter((c) => c.status === 'BLOCKED')} /></div> },
+          ]} />
+        )}
       </div>
     </>
   );

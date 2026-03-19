@@ -1,9 +1,8 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable } from '@/components/shared';
-import { Plus, Monitor, Wifi, WifiOff, Clock } from 'lucide-react';
+import { Plus, Monitor, Wifi, WifiOff, Clock, Loader2 } from 'lucide-react';
 import { formatDate, formatRelative } from '@/lib/formatters';
-import { cardApi } from '../api/cardApi';
-import { useQuery } from '@tanstack/react-query';
+import { usePosTerminals } from '../hooks/useCardData';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { PosTerminal } from '../types/card';
 import { cn } from '@/lib/utils';
@@ -28,7 +27,7 @@ const columns: ColumnDef<PosTerminal, any>[] = [
 ];
 
 export function PosTerminalPage() {
-  const { data: terminals = [] } = useQuery({ queryKey: ['pos-terminals'], queryFn: () => cardApi.getTerminals() });
+  const { data: terminals = [], isLoading } = usePosTerminals();
 
   const online = terminals.filter((t) => t.onlineStatus === 'ONLINE').length;
   const idle = terminals.filter((t) => t.onlineStatus === 'IDLE').length;
@@ -48,7 +47,18 @@ export function PosTerminalPage() {
           <StatCard label="Idle" value={idle} format="number" icon={Clock} />
           <StatCard label="Offline" value={offline} format="number" icon={WifiOff} />
         </div>
-        <DataTable columns={columns} data={terminals} enableGlobalFilter enableExport exportFilename="pos-terminals" />
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64 text-muted-foreground gap-2">
+            <Loader2 className="w-5 h-5 animate-spin" /> Loading terminals…
+          </div>
+        ) : terminals.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+            <Monitor className="w-10 h-10 mb-2 opacity-40" />
+            <p className="text-sm">No terminals found.</p>
+          </div>
+        ) : (
+          <DataTable columns={columns} data={terminals} enableGlobalFilter enableExport exportFilename="pos-terminals" />
+        )}
       </div>
     </>
   );

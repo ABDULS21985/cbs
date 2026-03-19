@@ -9,9 +9,8 @@ export function useDashboardStats() {
     queryFn: async () => {
       // Aggregate from multiple endpoints
       try {
-        const [customers, accounts] = await Promise.allSettled([
+        const [customers] = await Promise.allSettled([
           apiGet<any[]>('/api/v1/customers', { page: 0, size: 1 }),
-          apiGet<any[]>('/api/v1/accounts', { page: 0, size: 1 }),
         ]);
         return {
           totalCustomers: customers.status === 'fulfilled' ? (customers.value as any)?.totalElements || 0 : 0,

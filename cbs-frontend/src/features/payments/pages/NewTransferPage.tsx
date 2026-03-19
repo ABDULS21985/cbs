@@ -11,7 +11,7 @@ import { TransferReview } from '../components/transfer/TransferReview';
 import { TransferReceipt } from '../components/transfer/TransferReceipt';
 import { RecentTransfersList } from '../components/transfer/RecentTransfersList';
 import { useAccounts, useBeneficiaries, useInitiateTransfer, useDuplicateCheck } from '../hooks/useTransfer';
-import type { Account, TransferResponse, TransferRequest } from '../api/paymentApi';
+import type { TransferResponse, TransferRequest } from '../api/paymentApi';
 
 type Step = 'form' | 'review' | 'receipt';
 

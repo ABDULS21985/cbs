@@ -2,10 +2,10 @@ import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoGrid, StatusBadge, TabsPage, DataTable, AuditTimeline } from '@/components/shared';
 import { formatMoney, formatDate } from '@/lib/formatters';
-import { cardApi } from '../api/cardApi';
-import { useQuery } from '@tanstack/react-query';
+import { useCard, useCardTransactions } from '../hooks/useCardData';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { CardTransaction } from '../types/card';
 
@@ -26,8 +26,8 @@ const txnCols: ColumnDef<CardTransaction, any>[] = [
 export function CardDetailPage() {
   const { id } = useParams();
   const cardId = parseInt(id || '0');
-  const { data: card } = useQuery({ queryKey: ['card', cardId], queryFn: () => cardApi.getCard(cardId), enabled: !!cardId });
-  const { data: transactions = [] } = useQuery({ queryKey: ['card-transactions'], queryFn: () => cardApi.getTransactions() });
+  const { data: card, isLoading: cardLoading, isError: cardError } = useCard(cardId);
+  const { data: transactions = [], isLoading: txnLoading } = useCardTransactions({ cardId });
 
   const [controls, setControls] = useState(card?.controls ?? {
     posEnabled: false, atmEnabled: false, onlineEnabled: false,
@@ -38,8 +38,20 @@ export function CardDetailPage() {
     setControls((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  if (!card) {
-    return <div className="page-container flex items-center justify-center h-64 text-muted-foreground">Loading card details…</div>;
+  if (cardLoading) {
+    return (
+      <div className="page-container flex items-center justify-center h-64 text-muted-foreground gap-2">
+        <Loader2 className="w-5 h-5 animate-spin" /> Loading card details…
+      </div>
+    );
+  }
+
+  if (cardError || !card) {
+    return (
+      <div className="page-container flex items-center justify-center h-64 text-muted-foreground gap-2">
+        <AlertCircle className="w-5 h-5" /> {cardError ? 'Failed to load card details. Please try again.' : 'Card not found.'}
+      </div>
+    );
   }
 
   const cardTxns = transactions.filter((t) => t.cardMasked === card.cardNumberMasked.slice(-8));
@@ -81,7 +93,17 @@ export function CardDetailPage() {
 
         <TabsPage syncWithUrl tabs={[
           { id: 'transactions', label: 'Transactions', content: (
-            <div className="p-4"><DataTable columns={txnCols} data={cardTxns} enableGlobalFilter /></div>
+            <div className="p-4">
+              {txnLoading ? (
+                <div className="flex items-center justify-center h-32 text-muted-foreground gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading transactions…
+                </div>
+              ) : cardTxns.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">No transactions found for this card.</div>
+              ) : (
+                <DataTable columns={txnCols} data={cardTxns} enableGlobalFilter />
+              )}
+            </div>
           )},
           { id: 'controls', label: 'Controls', content: (
             <div className="p-6 max-w-lg space-y-4">

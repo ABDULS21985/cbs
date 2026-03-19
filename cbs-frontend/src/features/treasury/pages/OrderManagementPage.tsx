@@ -1,8 +1,8 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, TabsPage, StatCard } from '@/components/shared';
 import { Plus, ArrowUpDown, CheckCircle, XCircle } from 'lucide-react';
-import { formatMoney, formatDateTime } from '@/lib/formatters';
-import { mockOrders } from '../api/mockTreasuryData';
+import { formatDateTime } from '@/lib/formatters';
+import { useOrders } from '../hooks/useTreasuryData';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { MarketOrder } from '../types/treasury';
 import { cn } from '@/lib/utils';
@@ -29,8 +29,11 @@ const columns: ColumnDef<MarketOrder, any>[] = [
 ];
 
 export function OrderManagementPage() {
-  const openOrders = mockOrders.filter((o) => ['NEW', 'PARTIALLY_FILLED'].includes(o.status));
-  const filledOrders = mockOrders.filter((o) => o.status === 'FILLED');
+  const { data: orders = [], isLoading } = useOrders();
+
+  const openOrders = orders.filter((o) => ['NEW', 'PARTIALLY_FILLED'].includes(o.status));
+  const filledOrders = orders.filter((o) => o.status === 'FILLED');
+  const cancelledOrders = orders.filter((o) => o.status === 'CANCELLED');
 
   return (
     <>
@@ -43,19 +46,19 @@ export function OrderManagementPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Open Orders" value={openOrders.length} format="number" icon={ArrowUpDown} />
           <StatCard label="Filled Today" value={filledOrders.length} format="number" icon={CheckCircle} />
-          <StatCard label="Cancelled" value={mockOrders.filter((o) => o.status === 'CANCELLED').length} format="number" icon={XCircle} />
-          <StatCard label="Total Volume" value={mockOrders.reduce((s, o) => s + o.filledQuantity * (o.avgFillPrice || 0), 0)} format="money" compact />
+          <StatCard label="Cancelled" value={cancelledOrders.length} format="number" icon={XCircle} />
+          <StatCard label="Total Volume" value={orders.reduce((s, o) => s + o.filledQuantity * (o.avgFillPrice || 0), 0)} format="money" compact />
         </div>
 
         <TabsPage syncWithUrl tabs={[
           { id: 'open', label: 'Open Orders', badge: openOrders.length, content: (
-            <div className="p-4"><DataTable columns={columns} data={openOrders} enableGlobalFilter /></div>
+            <div className="p-4"><DataTable columns={columns} data={openOrders} isLoading={isLoading} enableGlobalFilter /></div>
           )},
           { id: 'executed', label: 'Executed', content: (
-            <div className="p-4"><DataTable columns={columns} data={filledOrders} enableGlobalFilter enableExport exportFilename="executed-orders" /></div>
+            <div className="p-4"><DataTable columns={columns} data={filledOrders} isLoading={isLoading} enableGlobalFilter enableExport exportFilename="executed-orders" /></div>
           )},
           { id: 'all', label: 'All Orders', content: (
-            <div className="p-4"><DataTable columns={columns} data={mockOrders} enableGlobalFilter enableExport exportFilename="all-orders" /></div>
+            <div className="p-4"><DataTable columns={columns} data={orders} isLoading={isLoading} enableGlobalFilter enableExport exportFilename="all-orders" /></div>
           )},
         ]} />
       </div>

@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatMoney } from '@/lib/formatters';
 import type { HqlaItem } from '../../api/marketRiskApi';
 
@@ -18,7 +18,7 @@ export function HqlaCompositionDonut({ data, currency }: Props) {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, percent }) => `${name.split('—')[0]} ${(percent * 100).toFixed(0)}%`}>
-                {chartData.map((entry, i) => {
+                {chartData.map((_entry, i) => {
                   const level = data[i]?.level || 'LEVEL_1';
                   return <Cell key={i} fill={COLORS[level] || '#94a3b8'} />;
                 })}

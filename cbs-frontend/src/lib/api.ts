@@ -3,13 +3,30 @@ import { useAuthStore } from '@/stores/authStore';
 import type { ApiResponse } from '@/types/common';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
 });
 
+function normalizeApiUrl(url?: string): string | undefined {
+  if (!url || /^(https?:)?\/\//.test(url)) {
+    return url;
+  }
+
+  if (url.startsWith('/api/')) {
+    return url;
+  }
+
+  if (url.startsWith('/v1/') || url.startsWith('/v3/') || url.startsWith('/actuator/')) {
+    return `/api${url}`;
+  }
+
+  return url;
+}
+
 // Request: attach JWT + correlation ID
 api.interceptors.request.use((config) => {
+  config.url = normalizeApiUrl(config.url);
   const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   config.headers['X-Request-ID'] = crypto.randomUUID();

@@ -7,11 +7,10 @@ import { PieChartWidget } from '../widgets/PieChartWidget';
 import { RecentTransactionsWidget } from '../widgets/RecentTransactionsWidget';
 import { PendingApprovalsWidget } from '../widgets/PendingApprovalsWidget';
 import { Wallet, Landmark, AlertTriangle, TrendingUp } from 'lucide-react';
-import { useDashboardStats, useRecentTransactions } from '../hooks/useDashboardData';
+import { useDashboardStats } from '../hooks/useDashboardData';
 
 export function DashboardPage() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
-  const { data: recentTransactions, isLoading: txLoading } = useRecentTransactions();
 
   return (
     <>
@@ -65,7 +64,7 @@ export function DashboardPage() {
         {/* Data Row */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <WidgetCard title="Recent Transactions" colSpan={8}>
-            <RecentTransactionsWidget transactions={recentTransactions} isLoading={txLoading} />
+            <RecentTransactionsWidget />
           </WidgetCard>
           <WidgetCard title="Pending Approvals" colSpan={4}>
             <PendingApprovalsWidget />

@@ -111,6 +111,11 @@ import { QrPaymentPage } from '@/features/payments/pages/QrPaymentPage';
 import { MobileMoneyPage } from '@/features/payments/pages/MobileMoneyPage';
 import AchOperationsPage from '@/features/payments/pages/AchOperationsPage';
 import { PaymentAnalyticsPage } from '@/features/reports/pages/PaymentAnalyticsPage';
+import { DepositAnalyticsPage } from '@/features/reports/pages/DepositAnalyticsPage';
+import { ChannelAnalyticsPage } from '@/features/reports/pages/ChannelAnalyticsPage';
+import { LoanAnalyticsPage } from '@/features/reports/pages/LoanAnalyticsPage';
+import { ExecutiveDashboardPage } from '@/features/reports/pages/ExecutiveDashboardPage';
+import { FinancialReportsPage } from '@/features/reports/pages/FinancialReportsPage';
 import { ServiceProviderPage } from '@/features/admin/pages/ServiceProviderPage';
 import { ProviderDetailPage } from '@/features/admin/pages/ProviderDetailPage';
 
@@ -273,11 +278,13 @@ export function AppRouter() {
         {/* Reports */}
         <Route path="/reports" element={<Outlet />}>
           <Route index element={<PlaceholderPage title="Reports" />} />
-          <Route path="executive" element={<PlaceholderPage title="Executive Dashboard" />} />
-          <Route path="financial" element={<PlaceholderPage title="Financial Reports" />} />
-          <Route path="loans" element={<PlaceholderPage title="Loan Portfolio Report" />} />
+          <Route path="executive" element={<ExecutiveDashboardPage />} />
+          <Route path="financial" element={<FinancialReportsPage />} />
+          <Route path="loans" element={<LoanAnalyticsPage />} />
           <Route path="custom" element={<PlaceholderPage title="Custom Reports" />} />
           <Route path="payments" element={<PaymentAnalyticsPage />} />
+          <Route path="deposits" element={<DepositAnalyticsPage />} />
+          <Route path="channels" element={<ChannelAnalyticsPage />} />
         </Route>
 
         {/* Admin */}

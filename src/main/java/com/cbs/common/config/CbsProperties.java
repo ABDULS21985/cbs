@@ -26,6 +26,7 @@ public class CbsProperties {
     private InterestConfig interest = new InterestConfig();
     private KycConfig kyc = new KycConfig();
     private LifecycleConfig lifecycle = new LifecycleConfig();
+    private Simulation simulation = new Simulation();
 
     @Getter @Setter
     public static class Deployment {
@@ -112,5 +113,20 @@ public class CbsProperties {
         private String interestAccrualCron = "0 30 23 * * *";
         private String dormancyDetectionCron = "0 0 0 * * *";
         private String escheatmentDetectionCron = "0 0 1 1 * *";
+    }
+
+    @Getter @Setter
+    public static class Simulation {
+        /**
+         * Allows endpoints backed by synthetic calculations, seeded demo data,
+         * or stubbed third-party integrations.
+         */
+        private boolean allowSyntheticServices = false;
+
+        /**
+         * Allows the INTERNAL KYC provider, which only validates configured formats
+         * and must never be treated as a production verification source.
+         */
+        private boolean allowInternalKyc = false;
     }
 }

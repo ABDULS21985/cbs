@@ -126,7 +126,7 @@ export function LinkedAccountsTable() {
       <ConfirmDialog
         open={!!unlinkTarget}
         onClose={() => setUnlinkTarget(null)}
-        onConfirm={() => unlinkTarget && unlinkMutation.mutate(unlinkTarget.id)}
+        onConfirm={() => { if (unlinkTarget) unlinkMutation.mutate(unlinkTarget.id); }}
         title="Unlink Mobile Money Account"
         description={`Are you sure you want to unlink ${unlinkTarget ? PROVIDER_STYLES[unlinkTarget.provider]?.label || unlinkTarget.provider : ''} account (${unlinkTarget?.mobileNumber})? You can re-link it at any time.`}
         confirmLabel="Unlink"

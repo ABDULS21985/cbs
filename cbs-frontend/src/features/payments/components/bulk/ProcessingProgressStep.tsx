@@ -1,10 +1,9 @@
-import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle, XCircle, Loader2, Download } from 'lucide-react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared/DataTable';
 import { formatMoney } from '@/lib/formatters';
-import { bulkPaymentApi, type BulkPaymentBatch, type BulkPaymentRow } from '../../api/bulkPaymentApi';
+import { bulkPaymentApi, type BulkPaymentRow } from '../../api/bulkPaymentApi';
 
 const failedColumns: ColumnDef<BulkPaymentRow, any>[] = [
   { accessorKey: 'rowNumber', header: '#' },
@@ -18,7 +17,7 @@ interface Props {
 }
 
 export function ProcessingProgressStep({ batchId }: Props) {
-  const { data: batch, refetch } = useQuery({
+  const { data: batch } = useQuery({
     queryKey: ['bulk-payment', 'status', batchId],
     queryFn: () => bulkPaymentApi.getProcessingStatus(batchId),
     refetchInterval: (query) => {

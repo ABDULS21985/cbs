@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, ListChecks, ArrowRightLeft, Ban, RotateCcw, Clock } from 'lucide-react';
+import { BookOpen, ListChecks, ArrowRightLeft, Ban, RotateCcw } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage, DataTable, EmptyState, StatusBadge } from '@/components/shared';

@@ -35,7 +35,7 @@ export function PortalLayout() {
               <div className="relative">
                 <button onClick={() => setMenuOpen(!menuOpen)} className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-muted text-sm">
                   <User className="w-4 h-4" />
-                  <span className="hidden sm:block">{user?.firstName || 'User'}</span>
+                  <span className="hidden sm:block">{user?.fullName?.split(' ')[0] || 'User'}</span>
                   <ChevronDown className="w-3 h-3" />
                 </button>
                 {menuOpen && (

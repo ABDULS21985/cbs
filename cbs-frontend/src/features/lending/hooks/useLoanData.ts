@@ -7,7 +7,7 @@ import { handleApiError } from '@/lib/errorHandler';
 export function useLoanApplications(filters?: LoanFilters) {
   return useQuery({
     queryKey: queryKeys.loans.applications(filters),
-    queryFn: () => apiGet<LoanApplication[]>('/api/v1/loans/applications', filters as Record<string, unknown>).catch(() => []),
+    queryFn: () => apiGet<LoanApplication[]>('/api/v1/loans/applications', filters as unknown as Record<string, unknown>).catch(() => []),
   });
 }
 
@@ -22,7 +22,7 @@ export function useLoanApplication(id: number) {
 export function useActiveLoans(filters?: LoanFilters) {
   return useQuery({
     queryKey: queryKeys.loans.list(filters),
-    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans', filters as Record<string, unknown>).catch(() => []),
+    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans', filters as unknown as Record<string, unknown>).catch(() => []),
   });
 }
 

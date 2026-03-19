@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+
 import { type ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable } from '@/components/shared/DataTable';

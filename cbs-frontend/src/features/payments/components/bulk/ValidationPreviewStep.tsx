@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared/DataTable';
-import { StatusBadge } from '@/components/shared/StatusBadge';
+
 import { formatMoney } from '@/lib/formatters';
 import type { BulkPaymentBatch, BulkPaymentRow } from '../../api/bulkPaymentApi';
 

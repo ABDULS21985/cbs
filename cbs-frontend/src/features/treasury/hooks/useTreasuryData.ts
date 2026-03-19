@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api';
-import type { SecurityHolding, CouponEvent, FeedStatus, MarketOrder, TradeConfirmation, SettlementFail } from '../types/treasury';
+import type { SecurityHolding, CouponEvent, FeedStatus, MoneyMarketRate, MarketOrder, TradeConfirmation, SettlementFail } from '../types/treasury';
 
 export function useSecurityHoldings() {
   return useQuery({
@@ -29,6 +29,14 @@ export function useFxRates() {
     queryKey: ['market-data', 'fx-rates'],
     queryFn: () => apiGet<any[]>('/api/v1/market-data/prices/FX').catch(() => []),
     refetchInterval: 10_000, // refresh every 10s for live rates
+  });
+}
+
+export function useMoneyMarketRates() {
+  return useQuery({
+    queryKey: ['market-data', 'money-market'],
+    queryFn: () => apiGet<MoneyMarketRate[]>('/api/v1/market-data/money-market').catch(() => []),
+    refetchInterval: 30_000,
   });
 }
 

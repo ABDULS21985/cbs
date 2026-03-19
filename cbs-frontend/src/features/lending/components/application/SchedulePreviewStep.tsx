@@ -1,5 +1,4 @@
 import { formatMoney, formatDate } from '@/lib/formatters';
-import { cn } from '@/lib/utils';
 import type { LoanApplicationState } from '../../hooks/useLoanApplication';
 
 interface Props {

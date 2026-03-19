@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { X, Printer, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FormSection } from '@/components/shared';
+import { cn } from '@/lib/utils';
 import { branchOpsApi, type QueueTicket } from '../../api/branchOpsApi';
 
 interface QueueIssueFormProps {

@@ -1,21 +1,10 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge, TabsPage, SummaryBar } from '@/components/shared';
-import { WidgetCard } from '@/features/dashboard/components/WidgetCard';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Landmark, TrendingUp, Calendar, Clock } from 'lucide-react';
 import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
-import { mockHoldings, mockCoupons } from '../api/mockTreasuryData';
+import { useSecurityHoldings, useCouponCalendar } from '../hooks/useTreasuryData';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { SecurityHolding, CouponEvent } from '../types/treasury';
-
-const maturityData = [
-  { month: 'Apr', tBills: 8000, fgnBonds: 0, corporate: 0, sukuk: 0 },
-  { month: 'May', tBills: 2500, fgnBonds: 0, corporate: 500, sukuk: 0 },
-  { month: 'Jun', tBills: 3000, fgnBonds: 0, corporate: 0, sukuk: 800 },
-  { month: 'Jul', tBills: 5500, fgnBonds: 0, corporate: 0, sukuk: 0 },
-  { month: 'Aug', tBills: 4200, fgnBonds: 0, corporate: 1200, sukuk: 0 },
-  { month: 'Sep', tBills: 6000, fgnBonds: 2000, corporate: 0, sukuk: 0 },
-];
 
 const holdingCols: ColumnDef<SecurityHolding, any>[] = [
   { accessorKey: 'isin', header: 'ISIN', cell: ({ row }) => <span className="font-mono text-xs">{row.original.isin}</span> },
@@ -38,13 +27,16 @@ const couponCols: ColumnDef<CouponEvent, any>[] = [
   { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} dot /> },
 ];
 
-const totalFace = mockHoldings.reduce((s, h) => s + h.faceValue, 0);
-const totalMarket = mockHoldings.reduce((s, h) => s + h.marketValue, 0);
-const avgYield = mockHoldings.reduce((s, h) => s + h.yieldToMaturity, 0) / mockHoldings.length;
-const totalCoupon30d = mockCoupons.filter((c) => c.eventType === 'COUPON').reduce((s, c) => s + c.amount, 0);
-const totalMaturing90d = mockCoupons.filter((c) => c.eventType === 'MATURITY').reduce((s, c) => s + c.amount, 0);
-
 export function FixedIncomePage() {
+  const { data: holdings = [], isLoading: holdingsLoading } = useSecurityHoldings();
+  const { data: coupons = [], isLoading: couponsLoading } = useCouponCalendar();
+
+  const totalFace = holdings.reduce((s, h) => s + h.faceValue, 0);
+  const totalMarket = holdings.reduce((s, h) => s + h.marketValue, 0);
+  const avgYield = holdings.length > 0 ? holdings.reduce((s, h) => s + h.yieldToMaturity, 0) / holdings.length : 0;
+  const totalCoupon30d = coupons.filter((c) => c.eventType === 'COUPON').reduce((s, c) => s + c.amount, 0);
+  const totalMaturing90d = coupons.filter((c) => c.eventType === 'MATURITY').reduce((s, c) => s + c.amount, 0);
+
   return (
     <>
       <PageHeader title="Fixed Income & Securities" subtitle="Bond portfolio management, coupon schedule, maturity ladder" />
@@ -57,35 +49,19 @@ export function FixedIncomePage() {
           <StatCard label="Maturing (90d)" value={totalMaturing90d} format="money" compact icon={Clock} />
         </div>
 
-        <WidgetCard title="Maturity Ladder (₦M — Next 6 Months)" colSpan={12}>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={maturityData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-              <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-              <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} tickFormatter={(v) => `${v}M`} />
-              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
-              <Legend iconSize={10} wrapperStyle={{ fontSize: '12px' }} />
-              <Bar dataKey="tBills" name="T-Bills" fill="hsl(217, 91%, 60%)" stackId="stack" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="fgnBonds" name="FGN Bonds" fill="hsl(221, 83%, 53%)" stackId="stack" />
-              <Bar dataKey="corporate" name="Corporate" fill="hsl(43, 74%, 49%)" stackId="stack" />
-              <Bar dataKey="sukuk" name="Sukuk" fill="hsl(142, 71%, 45%)" stackId="stack" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </WidgetCard>
-
         <TabsPage syncWithUrl tabs={[
-          { id: 'holdings', label: 'Holdings', badge: mockHoldings.length, content: (
+          { id: 'holdings', label: 'Holdings', badge: holdings.length, content: (
             <div className="p-4">
               <SummaryBar items={[
                 { label: 'Total Face', value: totalFace, format: 'money' },
                 { label: 'Market Value', value: totalMarket, format: 'money' },
-                { label: 'Unrealized P&L', value: mockHoldings.reduce((s, h) => s + h.unrealizedPnl, 0), format: 'money', color: 'success' },
+                { label: 'Unrealized P&L', value: holdings.reduce((s, h) => s + h.unrealizedPnl, 0), format: 'money', color: 'success' },
               ]} />
-              <div className="mt-2"><DataTable columns={holdingCols} data={mockHoldings} enableGlobalFilter enableExport exportFilename="fixed-income-holdings" /></div>
+              <div className="mt-2"><DataTable columns={holdingCols} data={holdings} isLoading={holdingsLoading} enableGlobalFilter enableExport exportFilename="fixed-income-holdings" /></div>
             </div>
           )},
-          { id: 'coupons', label: 'Coupon Calendar', badge: mockCoupons.length, content: (
-            <div className="p-4"><DataTable columns={couponCols} data={mockCoupons} enableGlobalFilter enableExport exportFilename="coupon-calendar" /></div>
+          { id: 'coupons', label: 'Coupon Calendar', badge: coupons.length, content: (
+            <div className="p-4"><DataTable columns={couponCols} data={coupons} isLoading={couponsLoading} enableGlobalFilter enableExport exportFilename="coupon-calendar" /></div>
           )},
           { id: 'yield', label: 'Yield Curve', content: <div className="p-8 text-center text-muted-foreground">Interactive yield curve visualization coming soon</div> },
           { id: 'repos', label: 'Repos & Lending', content: <div className="p-8 text-center text-muted-foreground">Repo and securities lending tracking coming soon</div> },

@@ -10,7 +10,7 @@ import { ChargesBreakdown } from '../components/international/ChargesBreakdown';
 import { ComplianceChecks } from '../components/international/ComplianceChecks';
 import { TransferTracker } from '../components/international/TransferTracker';
 import { SwiftMessageViewer } from '../components/international/SwiftMessageViewer';
-import { internationalPaymentApi, type InternationalTransferRequest, type InternationalTransferResponse, type FxRate, type ComplianceCheck as ComplianceCheckType } from '../api/internationalPaymentApi';
+import { internationalPaymentApi, type InternationalTransferRequest, type InternationalTransferResponse } from '../api/internationalPaymentApi';
 
 type Step = 'form' | 'review' | 'tracking';
 

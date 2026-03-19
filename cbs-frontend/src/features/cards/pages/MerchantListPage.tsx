@@ -1,10 +1,9 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge } from '@/components/shared';
-import { Plus, Store, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Plus, Store, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatMoney, formatPercent } from '@/lib/formatters';
-import { cardApi } from '../api/cardApi';
-import { useQuery } from '@tanstack/react-query';
+import { useMerchants } from '../hooks/useCardData';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Merchant } from '../types/card';
 import { cn } from '@/lib/utils';
@@ -25,7 +24,7 @@ const columns: ColumnDef<Merchant, any>[] = [
 
 export function MerchantListPage() {
   const navigate = useNavigate();
-  const { data: merchants = [] } = useQuery({ queryKey: ['merchants'], queryFn: () => cardApi.getMerchants() });
+  const { data: merchants = [], isLoading } = useMerchants();
 
   const totalVolume = merchants.reduce((s, m) => s + m.monthlyVolume, 0);
   const mdrRevenue = merchants.reduce((s, m) => s + m.monthlyVolume * m.mdrRate / 100, 0);
@@ -44,7 +43,18 @@ export function MerchantListPage() {
           <StatCard label="MDR Revenue" value={mdrRevenue} format="money" compact />
           <StatCard label="High Risk" value={merchants.filter((m) => m.riskCategory === 'HIGH').length} format="number" icon={AlertTriangle} />
         </div>
-        <DataTable columns={columns} data={merchants} enableGlobalFilter enableExport exportFilename="merchants" onRowClick={(row) => navigate(`/cards/merchants/${row.id}`)} />
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64 text-muted-foreground gap-2">
+            <Loader2 className="w-5 h-5 animate-spin" /> Loading merchants…
+          </div>
+        ) : merchants.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+            <Store className="w-10 h-10 mb-2 opacity-40" />
+            <p className="text-sm">No merchants found.</p>
+          </div>
+        ) : (
+          <DataTable columns={columns} data={merchants} enableGlobalFilter enableExport exportFilename="merchants" onRowClick={(row) => navigate(`/cards/merchants/${row.id}`)} />
+        )}
       </div>
     </>
   );

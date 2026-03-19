@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard, ListOrdered, CalendarDays, Building2, BarChart3,
-  ArrowLeftRight, Ticket, Clock, Users, Banknote, Medal, Loader2,
+  ArrowLeftRight, Ticket, Clock, Users, Medal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';

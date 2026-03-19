@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { formatMoney } from '@/lib/formatters';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export function LoanRestructurePage() {
   const { id } = useParams();

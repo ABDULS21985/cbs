@@ -153,7 +153,7 @@ export function LoginPage() {
           </form>
 
           <p className="text-xs text-center text-muted-foreground mt-8">
-            Demo: username <code className="bg-muted px-1 rounded">admin</code> / password <code className="bg-muted px-1 rounded">admin</code>
+            Authentication uses live backend services. Demo credentials are disabled.
           </p>
         </div>
       </div>

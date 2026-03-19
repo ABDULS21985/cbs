@@ -1,15 +1,11 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage, StatusBadge, DataTable } from '@/components/shared';
-import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
+import { formatMoney } from '@/lib/formatters';
+import { useQuery } from '@tanstack/react-query';
+import { apiGet } from '@/lib/api';
 import type { ColumnDef } from '@tanstack/react-table';
 
 interface Deal { id: number; name: string; type: string; issuer: string; targetAmount: number; stage: string; leadManager: string; }
-
-const mockDeals: Deal[] = [
-  { id: 1, name: 'BUA Cement Bond', type: 'CORPORATE_BOND', issuer: 'BUA Cement Plc', targetAmount: 50000000000, stage: 'BOOKBUILDING', leadManager: 'BellBank' },
-  { id: 2, name: 'FBNH Rights Issue', type: 'RIGHTS_ISSUE', issuer: 'FBN Holdings Plc', targetAmount: 150000000000, stage: 'REGULATORY', leadManager: 'FBN Quest' },
-  { id: 3, name: 'MTN Nigeria CP', type: 'COMMERCIAL_PAPER', issuer: 'MTN Nigeria', targetAmount: 100000000000, stage: 'PRICING', leadManager: 'Stanbic IBTC' },
-];
 
 const dealCols: ColumnDef<Deal, any>[] = [
   { accessorKey: 'name', header: 'Deal Name', cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
@@ -21,13 +17,18 @@ const dealCols: ColumnDef<Deal, any>[] = [
 ];
 
 export function CapitalMarketsPage() {
+  const { data: deals = [], isLoading } = useQuery({
+    queryKey: ['treasury', 'capital-markets', 'deals'],
+    queryFn: () => apiGet<Deal[]>('/api/v1/capital-markets/deals'),
+  });
+
   return (
     <>
       <PageHeader title="Capital Markets" subtitle="ECM/DCM deal pipeline, book building, allotments" />
       <div className="page-container">
         <TabsPage syncWithUrl tabs={[
-          { id: 'pipeline', label: 'Deal Pipeline', badge: mockDeals.length, content: (
-            <div className="p-4"><DataTable columns={dealCols} data={mockDeals} enableGlobalFilter /></div>
+          { id: 'pipeline', label: 'Deal Pipeline', badge: deals.length || undefined, content: (
+            <div className="p-4"><DataTable columns={dealCols} data={deals} isLoading={isLoading} enableGlobalFilter /></div>
           )},
           { id: 'offers', label: 'Active Offers', content: <div className="p-8 text-center text-muted-foreground">Active offers tracking coming soon</div> },
           { id: 'book', label: 'Book Building', content: <div className="p-8 text-center text-muted-foreground">Investor order book coming soon</div> },

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Download, Search } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { SummaryBar, EmptyState } from '@/components/shared';
-import { formatMoney } from '@/lib/formatters';
+
 import { useTransactionSearch } from '../hooks/useTransactionSearch';
 import { TransactionSearchForm } from '../components/TransactionSearchForm';
 import { TransactionResultsTable } from '../components/TransactionResultsTable';
@@ -73,19 +73,19 @@ export function TransactionSearchPage() {
       label: 'Total Debit',
       value: summary.totalDebit,
       format: 'money' as const,
-      color: summary.totalDebit > 0 ? 'danger' : 'default' as const,
+      color: (summary.totalDebit > 0 ? 'danger' : 'default') as 'danger' | 'default',
     },
     {
       label: 'Total Credit',
       value: summary.totalCredit,
       format: 'money' as const,
-      color: summary.totalCredit > 0 ? 'success' : 'default' as const,
+      color: (summary.totalCredit > 0 ? 'success' : 'default') as 'success' | 'default',
     },
     {
       label: 'Net',
       value: summary.netAmount,
       format: 'money' as const,
-      color: summary.netAmount >= 0 ? 'success' : 'danger' as const,
+      color: (summary.netAmount >= 0 ? 'success' : 'danger') as 'success' | 'danger',
     },
   ];
 

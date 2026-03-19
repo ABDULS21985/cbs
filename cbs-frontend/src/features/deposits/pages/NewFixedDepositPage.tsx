@@ -44,12 +44,7 @@ const INITIAL_STATE: FormState = {
   maturityInstruction: { type: 'ROLLOVER_ALL' },
 };
 
-// Mock accounts for demo purposes
-const MOCK_SOURCE_ACCOUNTS = [
-  { id: 'acc-001', number: '0012345678', title: 'Chukwuemeka Obi - Savings' },
-  { id: 'acc-002', number: '0023456789', title: 'Adaeze Nwosu - Current' },
-  { id: 'acc-003', number: '0034567890', title: 'Emeka Eze - Savings' },
-];
+const MOCK_SOURCE_ACCOUNTS: { id: string; number: string; title: string }[] = [];
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (

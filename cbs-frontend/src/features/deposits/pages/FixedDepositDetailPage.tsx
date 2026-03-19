@@ -12,32 +12,6 @@ import { FdEarlyWithdrawalCalc } from '../components/FdEarlyWithdrawalCalc';
 import { FdCertificate } from '../components/FdCertificate';
 import { FdMaturityInstruction } from '../components/FdMaturityInstruction';
 
-// Mock accounts for destination account selector
-const MOCK_ACCOUNTS = [
-  { id: 'acc-001', number: '0012345678', title: 'Chukwuemeka Obi - Savings' },
-  { id: 'acc-002', number: '0023456789', title: 'Adaeze Nwosu - Current' },
-  { id: 'acc-003', number: '0034567890', title: 'Emeka Eze - Savings' },
-];
-
-// Mock rollover history for rolled-over FDs
-function mockRolloverHistory(fdNumber: string) {
-  return [
-    {
-      id: `ev-1-${fdNumber}`,
-      action: 'Created — Initial Placement',
-      performedBy: 'Amaka Okafor (Teller)',
-      performedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365).toISOString(),
-      details: `Fixed deposit ${fdNumber} placed with principal amount.`,
-    },
-    {
-      id: `ev-2-${fdNumber}`,
-      action: 'Matured — Auto-Rollover Executed',
-      performedBy: 'System (EOD Process)',
-      performedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 180).toISOString(),
-      details: 'Deposit matured and automatically rolled over per standing instruction.',
-    },
-  ];
-}
 
 export function FixedDepositDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -168,7 +142,7 @@ export function FixedDepositDetailPage() {
                 <FdMaturityInstruction
                   value={pendingInstruction ?? { type: fd.maturityInstruction }}
                   onChange={(v) => setPendingInstruction(v)}
-                  accounts={MOCK_ACCOUNTS}
+                  accounts={[]}
                 />
                 <div className="flex gap-2 justify-end">
                   <button
@@ -206,7 +180,7 @@ export function FixedDepositDetailPage() {
         {/* Rollover History */}
         {isRolledOver && (
           <FormSection title="Rollover History" description="Previous rollovers for this deposit">
-            <AuditTimeline events={mockRolloverHistory(fd.fdNumber)} />
+            <AuditTimeline events={[]} />
           </FormSection>
         )}
       </div>

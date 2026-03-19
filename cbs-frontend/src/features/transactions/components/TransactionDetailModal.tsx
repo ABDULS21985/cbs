@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Printer, Download, RotateCcw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { ConfirmDialog, InfoGrid, StatusBadge } from '@/components/shared';
-import { formatMoney, formatDate, formatDateTime } from '@/lib/formatters';
+import { InfoGrid, StatusBadge } from '@/components/shared';
+import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { transactionApi, type Transaction } from '../api/transactionApi';
 import { TransactionReceipt } from './TransactionReceipt';

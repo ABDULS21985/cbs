@@ -111,11 +111,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setUser: (user: User) => set({ user }),
 
   initialize: async () => {
-    // On app load, check if we have a stored session indicator
-    // In production, this would check httpOnly cookie via /auth/me
-    // For demo mode, auto-login
-    if (import.meta.env.VITE_ENABLE_MOCK_API === 'true') {
-      // Don't auto-login in mock mode — require explicit login
-    }
+    // Session bootstrap stays explicit until a real cookie/session bootstrap endpoint is wired.
   },
 }));

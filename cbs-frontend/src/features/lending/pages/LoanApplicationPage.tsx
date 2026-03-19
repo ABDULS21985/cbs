@@ -14,7 +14,7 @@ const STEPS = [
 ];
 
 export function LoanApplicationPage() {
-  const { state, updateField, nextStep, prevStep, goToStep, reset } = useLoanApplication();
+  const { state, updateField, nextStep, prevStep, goToStep } = useLoanApplication();
 
   const renderStep = () => {
     switch (state.step) {

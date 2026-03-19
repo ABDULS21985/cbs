@@ -24,15 +24,17 @@ public class DocumentProcessingService {
         long start = System.currentTimeMillis();
 
         try {
-            Map<String, Object> extracted = simulateExtraction(job.getDocumentType(), job.getProcessingType());
+            Map<String, Object> extracted = extractDocumentData(job.getDocumentType(), job.getProcessingType());
             List<String> flags = detectFlags(job.getDocumentType(), extracted);
 
             job.setExtractedData(extracted);
             job.setFlags(flags);
             job.setConfidenceScore(calculateConfidence(extracted, flags));
             job.setProcessingTimeMs((int)(System.currentTimeMillis() - start));
-            job.setModelUsed("cbs-doc-ai-v2.1");
+            job.setModelUsed("MANUAL_REVIEW_REQUIRED");
 
+            // With no OCR integration, confidence is 0.0 and extracted data is empty,
+            // so the document always routes to MANUAL_REVIEW — no auto-approval.
             if (job.getConfidenceScore().compareTo(new BigDecimal("90")) >= 0 && flags.isEmpty()) {
                 job.setVerificationStatus("VERIFIED");
             } else if (job.getConfidenceScore().compareTo(new BigDecimal("60")) >= 0) {
@@ -41,7 +43,7 @@ public class DocumentProcessingService {
                 job.setVerificationStatus("MANUAL_REVIEW");
             }
 
-            log.info("Document processed: jobId={}, type={}, confidence={}%, status={}, flags={}",
+            log.info("Document job submitted: jobId={}, type={}, confidence={}%, status={}, flags={}",
                     job.getJobId(), job.getDocumentType(), job.getConfidenceScore(), job.getVerificationStatus(), flags.size());
         } catch (Exception e) {
             job.setVerificationStatus("FAILED");
@@ -52,27 +54,44 @@ public class DocumentProcessingService {
         return jobRepository.save(job);
     }
 
-    private Map<String, Object> simulateExtraction(String documentType, String processingType) {
-        Map<String, Object> data = new LinkedHashMap<>();
-        switch (documentType) {
-            case "NATIONAL_ID" -> { data.put("full_name", "EXTRACTED"); data.put("id_number", "EXTRACTED"); data.put("date_of_birth", "EXTRACTED"); data.put("expiry_date", "EXTRACTED"); data.put("nationality", "EXTRACTED"); }
-            case "PASSPORT" -> { data.put("full_name", "EXTRACTED"); data.put("passport_number", "EXTRACTED"); data.put("nationality", "EXTRACTED"); data.put("date_of_birth", "EXTRACTED"); data.put("expiry_date", "EXTRACTED"); data.put("mrz_line1", "EXTRACTED"); data.put("mrz_line2", "EXTRACTED"); }
-            case "BANK_STATEMENT" -> { data.put("account_holder", "EXTRACTED"); data.put("account_number", "EXTRACTED"); data.put("period", "EXTRACTED"); data.put("opening_balance", "EXTRACTED"); data.put("closing_balance", "EXTRACTED"); data.put("transaction_count", "EXTRACTED"); }
-            case "PAY_SLIP" -> { data.put("employee_name", "EXTRACTED"); data.put("employer", "EXTRACTED"); data.put("gross_salary", "EXTRACTED"); data.put("net_salary", "EXTRACTED"); data.put("pay_period", "EXTRACTED"); }
-            case "CHEQUE" -> { data.put("payee", "EXTRACTED"); data.put("amount_numeric", "EXTRACTED"); data.put("amount_words", "EXTRACTED"); data.put("date", "EXTRACTED"); data.put("micr_code", "EXTRACTED"); }
-            default -> data.put("raw_text", "EXTRACTED");
-        }
-        return data;
+    /**
+     * Attempt to extract structured data from a document image or file.
+     *
+     * No OCR provider (AWS Textract, Google Vision, Azure Form Recognizer) is
+     * configured in this deployment.  An empty map is returned so that the
+     * confidence score stays at 0.0 and the job is routed to MANUAL_REVIEW
+     * rather than being auto-approved on fake "EXTRACTED" strings.
+     *
+     * To enable real extraction: add the provider SDK to build.gradle.kts,
+     * inject its client here, and replace this method body with the actual
+     * provider call.
+     */
+    private Map<String, Object> extractDocumentData(String documentType, String processingType) {
+        log.warn("Document extraction not configured. Document type {} requires OCR integration (jobType={}).",
+                documentType, processingType);
+        return Map.of(); // Empty — triggers MANUAL_REVIEW workflow
     }
 
     private List<String> detectFlags(String documentType, Map<String, Object> extracted) {
         List<String> flags = new ArrayList<>();
-        // In production: run tamper detection, face matching, date validation
-        if (extracted.containsKey("expiry_date")) flags.add("INFO:EXPIRY_DATE_CHECK_REQUIRED");
+        // No tamper detection or face matching is implemented.
+        // Always flag that OCR has not run so reviewers know to perform manual checks.
+        flags.add("WARN:OCR_NOT_CONFIGURED");
+        if (extracted.isEmpty()) {
+            flags.add("WARN:NO_DATA_EXTRACTED");
+        }
         return flags;
     }
 
+    /**
+     * Confidence score.
+     * With no OCR result the score is 0.0, ensuring every document goes to
+     * MANUAL_REVIEW until a real extraction service is wired in.
+     */
     private BigDecimal calculateConfidence(Map<String, Object> extracted, List<String> flags) {
+        if (extracted.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
         double base = 95.0;
         base -= flags.size() * 5;
         base -= (extracted.values().stream().filter(v -> v == null).count()) * 10;

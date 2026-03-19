@@ -1,6 +1,5 @@
 package com.cbs.notification.service;
 
-import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.notification.entity.*;
 import com.cbs.notification.repository.*;
 import lombok.RequiredArgsConstructor;
