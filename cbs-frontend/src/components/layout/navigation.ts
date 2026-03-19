@@ -64,6 +64,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Standing Orders', path: '/payments/standing-orders' },
           { label: 'Bill Payments', path: '/payments/bills' },
           { label: 'Bulk Payments', path: '/payments/bulk' },
+          { label: 'International', path: '/payments/international' },
         ],
       },
       {

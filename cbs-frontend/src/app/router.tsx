@@ -48,9 +48,38 @@ import Customer360Page from '@/features/customers/pages/Customer360Page';
 import OnboardingWizardPage from '@/features/customers/pages/OnboardingWizardPage';
 import KycDashboardPage from '@/features/customers/pages/KycDashboardPage';
 import SegmentationPage from '@/features/customers/pages/SegmentationPage';
+import { NewTransferPage } from '@/features/payments/pages/NewTransferPage';
+import { BulkPaymentPage } from '@/features/payments/pages/BulkPaymentPage';
+import { StandingOrderListPage } from '@/features/payments/pages/StandingOrderListPage';
+import { StandingOrderDetailPage } from '@/features/payments/pages/StandingOrderDetailPage';
+import { BillPaymentPage } from '@/features/payments/pages/BillPaymentPage';
+import { InternationalTransferPage } from '@/features/payments/pages/InternationalTransferPage';
 import { ForbiddenPage } from '@/pages/ForbiddenPage';
 import { NotFoundPage as NotFoundPageFull } from '@/pages/NotFoundPage';
 import { ServerErrorPage } from '@/pages/ServerErrorPage';
+import { LoanDashboardPage } from '@/features/lending/pages/LoanDashboardPage';
+import { LoanApplicationListPage } from '@/features/lending/pages/LoanApplicationListPage';
+import { LoanApplicationPage } from '@/features/lending/pages/LoanApplicationPage';
+import { ActiveLoansPage } from '@/features/lending/pages/ActiveLoansPage';
+import { LoanDetailPage } from '@/features/lending/pages/LoanDetailPage';
+import { LoanRepaymentPage } from '@/features/lending/pages/LoanRepaymentPage';
+import { LoanRestructurePage } from '@/features/lending/pages/LoanRestructurePage';
+import { FacilityListPage } from '@/features/lending/pages/FacilityListPage';
+import { FacilityDetailPage } from '@/features/lending/pages/FacilityDetailPage';
+import { CollateralRegisterPage } from '@/features/lending/pages/CollateralRegisterPage';
+import { CollateralDetailPage } from '@/features/lending/pages/CollateralDetailPage';
+import CollectionsPage from '@/features/lending/pages/CollectionsPage';
+import EclDashboardPage from '@/features/lending/pages/EclDashboardPage';
+import MortgageListPage from '@/features/lending/pages/MortgageListPage';
+import MortgageDetailPage from '@/features/lending/pages/MortgageDetailPage';
+import LeaseListPage from '@/features/lending/pages/LeaseListPage';
+import LeaseDetailPage from '@/features/lending/pages/LeaseDetailPage';
+import { GatewayConsolePage } from '@/features/gateway/pages/GatewayConsolePage';
+import { ChequeManagementPage } from '@/features/payments/pages/ChequeManagementPage';
+import { QrPaymentPage } from '@/features/payments/pages/QrPaymentPage';
+import { MobileMoneyPage } from '@/features/payments/pages/MobileMoneyPage';
+import AchOperationsPage from '@/features/payments/pages/AchOperationsPage';
+import { PaymentAnalyticsPage } from '@/features/reports/pages/PaymentAnalyticsPage';
 
 // Placeholder page — used for all unimplemented modules
 function PlaceholderPage({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -117,22 +146,38 @@ export function AppRouter() {
 
         {/* Lending */}
         <Route path="/lending" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Lending Dashboard" />} />
-          <Route path="applications" element={<PlaceholderPage title="Loan Applications" subtitle="Application pipeline and processing" />} />
-          <Route path="active" element={<PlaceholderPage title="Active Loans" subtitle="Active loan portfolio" />} />
-          <Route path="facilities" element={<PlaceholderPage title="Credit Facilities" subtitle="Credit lines and overdrafts" />} />
-          <Route path="collections" element={<PlaceholderPage title="Collections" subtitle="Delinquency management and recovery" />} />
-          <Route path="ecl" element={<PlaceholderPage title="ECL Dashboard" subtitle="Expected credit loss monitoring" />} />
+          <Route index element={<LoanDashboardPage />} />
+          <Route path="applications" element={<LoanApplicationListPage />} />
+          <Route path="applications/new" element={<LoanApplicationPage />} />
+          <Route path="active" element={<ActiveLoansPage />} />
+          <Route path=":id" element={<LoanDetailPage />} />
+          <Route path=":id/repay" element={<LoanRepaymentPage />} />
+          <Route path=":id/restructure" element={<LoanRestructurePage />} />
+          <Route path="facilities" element={<FacilityListPage />} />
+          <Route path="facilities/:id" element={<FacilityDetailPage />} />
+          <Route path="collateral" element={<CollateralRegisterPage />} />
+          <Route path="collateral/:id" element={<CollateralDetailPage />} />
+          <Route path="collections" element={<CollectionsPage />} />
+          <Route path="mortgages" element={<MortgageListPage />} />
+          <Route path="mortgages/:id" element={<MortgageDetailPage />} />
+          <Route path="leases" element={<LeaseListPage />} />
+          <Route path="leases/:id" element={<LeaseDetailPage />} />
+          <Route path="ecl" element={<EclDashboardPage />} />
         </Route>
 
         {/* Payments */}
         <Route path="/payments" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Payments" />} />
-          <Route path="new" element={<PlaceholderPage title="New Transfer" subtitle="Initiate a payment or transfer" />} />
+          <Route index element={<PlaceholderPage title="Payments Dashboard" />} />
+          <Route path="new" element={<NewTransferPage />} />
           <Route path="history" element={<TransactionSearchPage />} />
-          <Route path="standing-orders" element={<PlaceholderPage title="Standing Orders" />} />
-          <Route path="bills" element={<PlaceholderPage title="Bill Payments" />} />
-          <Route path="bulk" element={<PlaceholderPage title="Bulk Payments" subtitle="Payroll and batch processing" />} />
+          <Route path="standing-orders" element={<StandingOrderListPage />} />
+          <Route path="standing-orders/:id" element={<StandingOrderDetailPage />} />
+          <Route path="bills" element={<BillPaymentPage />} />
+          <Route path="bulk" element={<BulkPaymentPage />} />
+          <Route path="international" element={<InternationalTransferPage />} />
+          <Route path="cheques" element={<ChequeManagementPage />} />
+          <Route path="qr" element={<QrPaymentPage />} />
+          <Route path="mobile-money" element={<MobileMoneyPage />} />
         </Route>
 
         {/* Cards */}
@@ -175,6 +220,8 @@ export function AppRouter() {
           <Route path="gl" element={<PlaceholderPage title="General Ledger" />} />
           <Route path="branches" element={<PlaceholderPage title="Branch Operations" />} />
           <Route path="approvals" element={<PlaceholderPage title="Approvals Queue" />} />
+          <Route path="gateway" element={<GatewayConsolePage />} />
+          <Route path="ach" element={<AchOperationsPage />} />
         </Route>
 
         {/* Reports */}
@@ -184,6 +231,7 @@ export function AppRouter() {
           <Route path="financial" element={<PlaceholderPage title="Financial Reports" />} />
           <Route path="loans" element={<PlaceholderPage title="Loan Portfolio Report" />} />
           <Route path="custom" element={<PlaceholderPage title="Custom Reports" />} />
+          <Route path="payments" element={<PaymentAnalyticsPage />} />
         </Route>
 
         {/* Admin */}
