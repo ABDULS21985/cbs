@@ -62,7 +62,7 @@ export const transactionApi = {
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== '' && v !== 'ALL') cleanParams[k] = v;
     });
-    const result = await api.get('/v1/transactions', { params: cleanParams });
+    const result = await api.get('/api/v1/transactions', { params: cleanParams });
     return result.data.data;
   },
 

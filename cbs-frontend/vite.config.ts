@@ -19,6 +19,87 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+
+            if (id.includes('@tanstack')) {
+              return 'vendor-tanstack';
+            }
+
+            if (id.includes('recharts')) {
+              return 'vendor-charts';
+            }
+
+            if (id.includes('@radix-ui')) {
+              return 'vendor-radix';
+            }
+
+            if (id.includes('date-fns')) {
+              return 'vendor-date';
+            }
+
+            if (
+              id.includes('react-hook-form') ||
+              id.includes('@hookform/resolvers') ||
+              id.includes('zod')
+            ) {
+              return 'vendor-forms';
+            }
+
+            return 'vendor';
+          }
+
+          if (id.includes('/src/features/reports/')) {
+            return 'feature-reports';
+          }
+
+          if (id.includes('/src/features/lending/')) {
+            return 'feature-lending';
+          }
+
+          if (id.includes('/src/features/risk/')) {
+            return 'feature-risk';
+          }
+
+          if (id.includes('/src/features/treasury/')) {
+            return 'feature-treasury';
+          }
+
+          if (id.includes('/src/features/wealth/')) {
+            return 'feature-wealth';
+          }
+
+          if (id.includes('/src/features/tradefinance/')) {
+            return 'feature-tradefinance';
+          }
+
+          if (id.includes('/src/features/contactcenter/')) {
+            return 'feature-contactcenter';
+          }
+
+          if (id.includes('/src/features/payments/')) {
+            return 'feature-payments';
+          }
+
+          if (id.includes('/src/features/cards/')) {
+            return 'feature-cards';
+          }
+
+          if (id.includes('/src/features/admin/')) {
+            return 'feature-admin';
+          }
+
+          return undefined;
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

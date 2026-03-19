@@ -96,7 +96,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: () => {
-    authApi.logout();
+    authApi.logout(get().refreshTokenValue);
     set({
       user: null,
       accessToken: null,

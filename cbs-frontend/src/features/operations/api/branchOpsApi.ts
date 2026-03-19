@@ -118,7 +118,7 @@ export interface FacilityRequest {
 
 export const branchOpsApi = {
   getBranches: async (): Promise<Branch[]> => {
-    return apiGet<Branch[]>('/v1/branches');
+    return apiGet<Branch[]>('/api/v1/branches');
   },
 
   getBranchStats: async (branchId: string): Promise<BranchStats> => {
@@ -174,6 +174,6 @@ export const branchOpsApi = {
   },
 
   getBranchRankings: async (): Promise<BranchRanking[]> => {
-    return apiGet<BranchRanking[]>('/v1/branches/rankings');
+    return apiGet<BranchRanking[]>('/api/v1/branches/rankings');
   },
 };

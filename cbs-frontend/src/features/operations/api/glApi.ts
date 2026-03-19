@@ -109,19 +109,19 @@ export interface JournalFilters {
 
 export const glApi = {
   getChartOfAccounts: async (): Promise<GlAccount[]> => {
-    return apiGet<GlAccount[]>('/v1/gl/accounts');
+    return apiGet<GlAccount[]>('/api/v1/gl/accounts');
   },
 
   createGlAccount: async (data: CreateGlAccountRequest): Promise<GlAccount> => {
-    return apiPost<GlAccount>('/v1/gl/accounts', data);
+    return apiPost<GlAccount>('/api/v1/gl/accounts', data);
   },
 
   getGlBalances: async (date: string): Promise<GlBalance[]> => {
-    return apiGet<GlBalance[]>('/v1/gl/balances', { date });
+    return apiGet<GlBalance[]>('/api/v1/gl/balances', { date });
   },
 
   getJournalEntries: async (params: JournalSearchParams): Promise<JournalEntry[]> => {
-    return apiGet<JournalEntry[]>('/v1/gl/journals', params as Record<string, unknown>);
+    return apiGet<JournalEntry[]>('/api/v1/gl/journals', params as Record<string, unknown>);
   },
 
   getJournalEntry: async (id: string): Promise<JournalEntry> => {
@@ -129,15 +129,15 @@ export const glApi = {
   },
 
   createJournalEntry: async (data: CreateJournalRequest): Promise<JournalEntry> => {
-    return apiPost<JournalEntry>('/v1/gl/journals', data);
+    return apiPost<JournalEntry>('/api/v1/gl/journals', data);
   },
 
   getTrialBalance: async (params: { year: number; month: number }): Promise<TrialBalanceRow[]> => {
-    return apiGet<TrialBalanceRow[]>('/v1/gl/trial-balance', params as Record<string, unknown>);
+    return apiGet<TrialBalanceRow[]>('/api/v1/gl/trial-balance', params as Record<string, unknown>);
   },
 
   getSubLedgerReconciliation: async (date: string): Promise<SubLedgerRow[]> => {
-    return apiGet<SubLedgerRow[]>('/v1/gl/reconciliation', { date });
+    return apiGet<SubLedgerRow[]>('/api/v1/gl/reconciliation', { date });
   },
 
   getDrillDown: async (glCode: string, dateFrom: string, dateTo: string): Promise<JournalEntry[]> => {

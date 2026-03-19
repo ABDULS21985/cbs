@@ -4,13 +4,13 @@ import type { FraudAlert, FraudStats, FraudTrendPoint, FraudTransaction, FraudRu
 
 export const fraudApi = {
   getStats: () =>
-    api.get<ApiResponse<FraudStats>>('/v1/fraud/stats'),
+    api.get<ApiResponse<FraudStats>>('/api/v1/fraud/stats'),
 
   getTrend: (days?: number) =>
-    api.get<ApiResponse<FraudTrendPoint[]>>('/v1/fraud/trend', { params: { days } }),
+    api.get<ApiResponse<FraudTrendPoint[]>>('/api/v1/fraud/trend', { params: { days } }),
 
   listAlerts: (params?: { status?: string; severity?: string; page?: number; size?: number }) =>
-    api.get<ApiResponse<{ items: FraudAlert[]; page: object }>>('/v1/fraud/alerts', { params }),
+    api.get<ApiResponse<{ items: FraudAlert[]; page: object }>>('/api/v1/fraud/alerts', { params }),
 
   getAlert: (id: number) =>
     api.get<ApiResponse<FraudAlert>>(`/v1/fraud/alerts/${id}`),
@@ -34,11 +34,11 @@ export const fraudApi = {
     api.post(`/v1/fraud/alerts/${alertId}/file-case`),
 
   listRules: () =>
-    api.get<ApiResponse<FraudRule[]>>('/v1/fraud/rules'),
+    api.get<ApiResponse<FraudRule[]>>('/api/v1/fraud/rules'),
 
   toggleRule: (id: number, active: boolean) =>
     api.patch(`/v1/fraud/rules/${id}/toggle`, { active }),
 
   getModelPerformance: () =>
-    api.get<ApiResponse<ModelPerformance>>('/v1/fraud/model-performance'),
+    api.get<ApiResponse<ModelPerformance>>('/api/v1/fraud/model-performance'),
 };

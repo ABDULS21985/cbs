@@ -1,7 +1,8 @@
+import { Suspense, useState } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { Bell, User, LogOut, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { RouteContentLoader } from '@/components/layout/RouteContentLoader';
 
 export function PortalLayout() {
   const { user, logout } = useAuthStore();
@@ -56,7 +57,9 @@ export function PortalLayout() {
 
       {/* Main content */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Outlet />
+        <Suspense fallback={<RouteContentLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

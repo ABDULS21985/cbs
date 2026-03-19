@@ -1,8 +1,10 @@
+import { Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { Breadcrumbs } from './Breadcrumbs';
 import { CommandPalette } from './CommandPalette';
+import { RouteContentLoader } from './RouteContentLoader';
 import { useSidebarState } from '@/hooks/useSidebarState';
 import { cn } from '@/lib/utils';
 
@@ -39,7 +41,9 @@ export function AppShell() {
         <TopBar onToggleSidebar={() => setMobileOpen(!mobileOpen)} />
         <main className="flex-1 overflow-y-auto">
           <Breadcrumbs />
-          <Outlet />
+          <Suspense fallback={<RouteContentLoader className="page-container" />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
 

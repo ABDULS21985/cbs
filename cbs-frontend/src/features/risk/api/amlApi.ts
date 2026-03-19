@@ -4,10 +4,10 @@ import type { AmlAlert, AmlStats, StrReport, AmlRule, CtrReport } from '../types
 
 export const amlApi = {
   getStats: () =>
-    api.get<ApiResponse<AmlStats>>('/v1/aml/stats'),
+    api.get<ApiResponse<AmlStats>>('/api/v1/aml/stats'),
 
   listAlerts: (params?: { status?: string; priority?: string; page?: number; size?: number }) =>
-    api.get<ApiResponse<AmlAlert[]>>('/v1/aml/alerts', { params }),
+    api.get<ApiResponse<AmlAlert[]>>('/api/v1/aml/alerts', { params }),
 
   getAlert: (id: number) =>
     api.get<ApiResponse<AmlAlert>>(`/v1/aml/alerts/${id}`),
@@ -22,16 +22,16 @@ export const amlApi = {
     api.post<ApiResponse<AmlAlert>>(`/v1/aml/alerts/${id}/dismiss`, { reason }),
 
   listStrs: (params?: object) =>
-    api.get<ApiResponse<StrReport[]>>('/v1/aml/strs', { params }),
+    api.get<ApiResponse<StrReport[]>>('/api/v1/aml/strs', { params }),
 
   createStr: (data: Partial<StrReport>) =>
-    api.post<ApiResponse<StrReport>>('/v1/aml/strs', data),
+    api.post<ApiResponse<StrReport>>('/api/v1/aml/strs', data),
 
   listCtrs: (params?: object) =>
-    api.get<ApiResponse<CtrReport[]>>('/v1/aml/ctrs', { params }),
+    api.get<ApiResponse<CtrReport[]>>('/api/v1/aml/ctrs', { params }),
 
   listRules: () =>
-    api.get<ApiResponse<AmlRule[]>>('/v1/aml/rules'),
+    api.get<ApiResponse<AmlRule[]>>('/api/v1/aml/rules'),
 
   toggleRule: (id: number, active: boolean) =>
     api.patch<ApiResponse<AmlRule>>(`/v1/aml/rules/${id}/toggle`, { active }),

@@ -72,20 +72,20 @@ export interface ReconciliationRow {
 
 export const paymentAnalyticsApi = {
   getStats: (params: DateRangeParams): Promise<PaymentStats> =>
-    apiGet<PaymentStats>('/v1/reports/payments/stats', params as unknown as Record<string, unknown>),
+    apiGet<PaymentStats>('/api/v1/reports/payments/stats', params as unknown as Record<string, unknown>),
 
   getVolumeTrend: (params: { dateFrom: string; dateTo: string; groupBy: 'day' | 'week' | 'month' }): Promise<VolumeTrendPoint[]> =>
-    apiGet<VolumeTrendPoint[]>('/v1/reports/payments/volume-trend', params as unknown as Record<string, unknown>),
+    apiGet<VolumeTrendPoint[]>('/api/v1/reports/payments/volume-trend', params as unknown as Record<string, unknown>),
 
   getChannelBreakdown: (params: DateRangeParams): Promise<ChannelBreakdown[]> =>
-    apiGet<ChannelBreakdown[]>('/v1/reports/payments/channel-breakdown', params as unknown as Record<string, unknown>),
+    apiGet<ChannelBreakdown[]>('/api/v1/reports/payments/channel-breakdown', params as unknown as Record<string, unknown>),
 
   getFailureAnalysis: (params: DateRangeParams): Promise<{ reasons: FailureReason[]; topFailed: FailedTransaction[] }> =>
-    apiGet<{ reasons: FailureReason[]; topFailed: FailedTransaction[] }>('/v1/reports/payments/failures', params as unknown as Record<string, unknown>),
+    apiGet<{ reasons: FailureReason[]; topFailed: FailedTransaction[] }>('/api/v1/reports/payments/failures', params as unknown as Record<string, unknown>),
 
   getRailsUtilization: (params: DateRangeParams): Promise<RailUtilization[]> =>
-    apiGet<RailUtilization[]>('/v1/reports/payments/rails', params as unknown as Record<string, unknown>),
+    apiGet<RailUtilization[]>('/api/v1/reports/payments/rails', params as unknown as Record<string, unknown>),
 
   getReconciliationSummary: (params: DateRangeParams): Promise<ReconciliationRow[]> =>
-    apiGet<ReconciliationRow[]>('/v1/reports/payments/reconciliation', params as unknown as Record<string, unknown>),
+    apiGet<ReconciliationRow[]>('/api/v1/reports/payments/reconciliation', params as unknown as Record<string, unknown>),
 };

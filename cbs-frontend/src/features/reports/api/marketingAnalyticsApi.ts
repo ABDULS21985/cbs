@@ -73,23 +73,23 @@ export interface LeadFunnelRow {
 
 export const marketingAnalyticsApi = {
   getStats: (params: DateRangeParams): Promise<MarketingStats> =>
-    apiGet<MarketingStats>('/v1/reports/marketing/stats', params as unknown as Record<string, unknown>),
+    apiGet<MarketingStats>('/api/v1/reports/marketing/stats', params as unknown as Record<string, unknown>),
 
   getCampaigns: (params: DateRangeParams): Promise<Campaign[]> =>
-    apiGet<Campaign[]>('/v1/reports/marketing/campaigns', params as unknown as Record<string, unknown>),
+    apiGet<Campaign[]>('/api/v1/reports/marketing/campaigns', params as unknown as Record<string, unknown>),
 
   getCampaignDetail: (id: string): Promise<CampaignDetail> =>
     apiGet<CampaignDetail>(`/v1/reports/marketing/campaigns/${id}`),
 
   getSurveyResults: (params: DateRangeParams): Promise<{ csatTouchpoints: CsatTouchpoint[]; npsDistribution: NpsDistributionPoint[] }> =>
     apiGet<{ csatTouchpoints: CsatTouchpoint[]; npsDistribution: NpsDistributionPoint[] }>(
-      '/v1/reports/marketing/surveys',
+      '/api/v1/reports/marketing/surveys',
       params as unknown as Record<string, unknown>,
     ),
 
   getNpsTrend: (months?: number): Promise<NpsPoint[]> =>
-    apiGet<NpsPoint[]>('/v1/reports/marketing/nps-trend', months ? { months } : undefined),
+    apiGet<NpsPoint[]>('/api/v1/reports/marketing/nps-trend', months ? { months } : undefined),
 
   getLeadFunnel: (params: DateRangeParams): Promise<LeadFunnelRow[]> =>
-    apiGet<LeadFunnelRow[]>('/v1/reports/marketing/lead-funnel', params as unknown as Record<string, unknown>),
+    apiGet<LeadFunnelRow[]>('/api/v1/reports/marketing/lead-funnel', params as unknown as Record<string, unknown>),
 };

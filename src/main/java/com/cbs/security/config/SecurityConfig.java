@@ -48,12 +48,25 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("roles");
-        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
-
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
+        converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            // Extract roles from Keycloak's realm_access.roles claim
+            var authorities = new java.util.ArrayList<org.springframework.security.core.GrantedAuthority>();
+            var realmAccess = jwt.getClaimAsMap("realm_access");
+            if (realmAccess != null && realmAccess.get("roles") instanceof java.util.Collection<?> roles) {
+                roles.forEach(role -> authorities.add(
+                    new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + role)
+                ));
+            }
+            // Also check top-level roles claim (for non-Keycloak providers)
+            var topLevelRoles = jwt.getClaimAsStringList("roles");
+            if (topLevelRoles != null) {
+                topLevelRoles.forEach(role -> authorities.add(
+                    new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + role)
+                ));
+            }
+            return authorities;
+        });
         return converter;
     }
 

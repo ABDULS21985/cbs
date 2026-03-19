@@ -85,29 +85,29 @@ export interface AutomationStats {
 
 export const operationalReportApi = {
   getStats: (params: DateRangeParams): Promise<OpsStats> =>
-    apiGet<OpsStats>('/v1/reports/operations/stats', params as unknown as Record<string, unknown>),
+    apiGet<OpsStats>('/api/v1/reports/operations/stats', params as unknown as Record<string, unknown>),
 
   getSlaPerformance: (params: DateRangeParams): Promise<SlaRow[]> =>
-    apiGet<SlaRow[]>('/v1/reports/operations/sla', params as unknown as Record<string, unknown>),
+    apiGet<SlaRow[]>('/api/v1/reports/operations/sla', params as unknown as Record<string, unknown>),
 
   getSlaTrend: (params: DateRangeParams): Promise<SlaTrendPoint[]> =>
-    apiGet<SlaTrendPoint[]>('/v1/reports/operations/sla-trend', params as unknown as Record<string, unknown>),
+    apiGet<SlaTrendPoint[]>('/api/v1/reports/operations/sla-trend', params as unknown as Record<string, unknown>),
 
   getQueueAnalytics: (params: DateRangeParams): Promise<{ metrics: QueueMetric[]; peakHours: PeakHourData[] }> =>
-    apiGet<{ metrics: QueueMetric[]; peakHours: PeakHourData[] }>('/v1/reports/operations/queue', params as unknown as Record<string, unknown>),
+    apiGet<{ metrics: QueueMetric[]; peakHours: PeakHourData[] }>('/api/v1/reports/operations/queue', params as unknown as Record<string, unknown>),
 
   getStaffProductivity: (params: DateRangeParams): Promise<StaffProductivity[]> =>
-    apiGet<StaffProductivity[]>('/v1/reports/operations/staff', params as unknown as Record<string, unknown>),
+    apiGet<StaffProductivity[]>('/api/v1/reports/operations/staff', params as unknown as Record<string, unknown>),
 
   getEfficiencyTrend: (months = 12): Promise<EfficiencyPoint[]> =>
-    apiGet<EfficiencyPoint[]>('/v1/reports/operations/efficiency-trend', { months } as unknown as Record<string, unknown>),
+    apiGet<EfficiencyPoint[]>('/api/v1/reports/operations/efficiency-trend', { months } as unknown as Record<string, unknown>),
 
   getSystemUptime: (params: DateRangeParams): Promise<ServiceUptime[]> =>
-    apiGet<ServiceUptime[]>('/v1/reports/operations/uptime', params as unknown as Record<string, unknown>),
+    apiGet<ServiceUptime[]>('/api/v1/reports/operations/uptime', params as unknown as Record<string, unknown>),
 
   getIncidentTrend: (months = 12): Promise<IncidentPoint[]> =>
-    apiGet<IncidentPoint[]>('/v1/reports/operations/incidents', { months } as unknown as Record<string, unknown>),
+    apiGet<IncidentPoint[]>('/api/v1/reports/operations/incidents', { months } as unknown as Record<string, unknown>),
 
   getAutomationStats: (params: DateRangeParams): Promise<AutomationStats[]> =>
-    apiGet<AutomationStats[]>('/v1/reports/operations/automation', params as unknown as Record<string, unknown>),
+    apiGet<AutomationStats[]>('/api/v1/reports/operations/automation', params as unknown as Record<string, unknown>),
 };

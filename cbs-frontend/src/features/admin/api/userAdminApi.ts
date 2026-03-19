@@ -94,11 +94,11 @@ export interface LoginEvent {
 
 export const userAdminApi = {
   getUsers: (params?: Record<string, unknown>) =>
-    apiGet<CbsUser[]>('/v1/admin/users', params),
+    apiGet<CbsUser[]>('/api/v1/admin/users', params),
   getUser: (id: string) =>
     apiGet<CbsUser>(`/v1/admin/users/${id}`),
   createUser: (data: CreateUserRequest) =>
-    apiPost<CbsUser>('/v1/admin/users', data),
+    apiPost<CbsUser>('/api/v1/admin/users', data),
   updateUser: (id: string, data: Partial<CreateUserRequest>) =>
     apiPut<CbsUser>(`/v1/admin/users/${id}`, data),
   disableUser: (id: string, reason: string) =>
@@ -112,19 +112,19 @@ export const userAdminApi = {
   unlockUser: (id: string) =>
     apiPost<void>(`/v1/admin/users/${id}/unlock`),
   getRoles: () =>
-    apiGet<Role[]>('/v1/admin/roles'),
+    apiGet<Role[]>('/api/v1/admin/roles'),
   getRole: (id: string) =>
     apiGet<Role>(`/v1/admin/roles/${id}`),
   createRole: (data: CreateRoleRequest) =>
-    apiPost<Role>('/v1/admin/roles', data),
+    apiPost<Role>('/api/v1/admin/roles', data),
   updateRolePermissions: (roleId: string, permissions: string[]) =>
     apiPut<Role>(`/v1/admin/roles/${roleId}/permissions`, { permissions }),
   getPermissions: () =>
-    apiGet<Permission[]>('/v1/admin/permissions'),
+    apiGet<Permission[]>('/api/v1/admin/permissions'),
   getActiveSessions: () =>
-    apiGet<ActiveSession[]>('/v1/admin/sessions'),
+    apiGet<ActiveSession[]>('/api/v1/admin/sessions'),
   forceLogoutSession: (sessionId: string) =>
     apiDelete<void>(`/v1/admin/sessions/${sessionId}`),
   getLoginHistory: (params: { userId?: string; dateFrom?: string; dateTo?: string; outcome?: string }) =>
-    apiGet<LoginEvent[]>('/v1/admin/login-history', params as Record<string, unknown>),
+    apiGet<LoginEvent[]>('/api/v1/admin/login-history', params as Record<string, unknown>),
 };

@@ -64,11 +64,11 @@ export interface EodScheduleConfig {
 
 export const eodApi = {
   getCurrentStatus: async (): Promise<EodRun> => {
-    return apiGet<EodRun>('/v1/eod/status');
+    return apiGet<EodRun>('/api/v1/eod/status');
   },
 
   triggerEod: async (businessDate: string): Promise<EodRun> => {
-    return apiPost<EodRun>('/v1/eod/trigger', { businessDate });
+    return apiPost<EodRun>('/api/v1/eod/trigger', { businessDate });
   },
 
   getStepProgress: async (runId: string): Promise<EodStep[]> => {
@@ -92,18 +92,18 @@ export const eodApi = {
   },
 
   getHistory: async (params?: { page?: number; pageSize?: number }): Promise<EodHistoryRow[]> => {
-    return apiGet<EodHistoryRow[]>('/v1/eod/history', params as Record<string, unknown>);
+    return apiGet<EodHistoryRow[]>('/api/v1/eod/history', params as Record<string, unknown>);
   },
 
   getDurationTrend: async (days = 30): Promise<EodDurationPoint[]> => {
-    return apiGet<EodDurationPoint[]>('/v1/eod/duration-trend', { days });
+    return apiGet<EodDurationPoint[]>('/api/v1/eod/duration-trend', { days });
   },
 
   getScheduleConfig: async (): Promise<EodScheduleConfig> => {
-    return apiGet<EodScheduleConfig>('/v1/eod/schedule');
+    return apiGet<EodScheduleConfig>('/api/v1/eod/schedule');
   },
 
   saveScheduleConfig: async (config: EodScheduleConfig): Promise<EodScheduleConfig> => {
-    return apiPut<EodScheduleConfig>('/v1/eod/schedule', config);
+    return apiPut<EodScheduleConfig>('/api/v1/eod/schedule', config);
   },
 };

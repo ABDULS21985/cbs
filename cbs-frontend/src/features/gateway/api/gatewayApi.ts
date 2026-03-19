@@ -73,13 +73,13 @@ export interface GetSwiftMessagesParams {
 
 export const gatewayApi = {
   getLiveStats: (): Promise<GatewayStats> =>
-    apiGet<GatewayStats>('/v1/gateway/stats'),
+    apiGet<GatewayStats>('/api/v1/gateway/stats'),
 
   getThroughput: (): Promise<ThroughputPoint[]> =>
-    apiGet<ThroughputPoint[]>('/v1/gateway/throughput'),
+    apiGet<ThroughputPoint[]>('/api/v1/gateway/throughput'),
 
   getMessages: (params: GetMessagesParams): Promise<GatewayMessage[]> =>
-    apiGet<GatewayMessage[]>('/v1/gateway/messages', params as Record<string, unknown>),
+    apiGet<GatewayMessage[]>('/api/v1/gateway/messages', params as Record<string, unknown>),
 
   getMessage: (id: string): Promise<GatewayMessage> =>
     apiGet<GatewayMessage>(`/v1/gateway/messages/${id}`),
@@ -94,13 +94,13 @@ export const gatewayApi = {
     apiPost<void>(`/v1/gateway/messages/${id}/override`, data),
 
   retryAllFailed: (): Promise<{ queued: number }> =>
-    apiPost<{ queued: number }>('/v1/gateway/messages/retry-all-failed'),
+    apiPost<{ queued: number }>('/api/v1/gateway/messages/retry-all-failed'),
 
   getGatewayStatus: (): Promise<GatewayStatus[]> =>
-    apiGet<GatewayStatus[]>('/v1/gateway/status'),
+    apiGet<GatewayStatus[]>('/api/v1/gateway/status'),
 
   getSwiftMessages: (params: GetSwiftMessagesParams): Promise<SwiftMessage[]> =>
-    apiGet<SwiftMessage[]>('/v1/gateway/swift', params as Record<string, unknown>),
+    apiGet<SwiftMessage[]>('/api/v1/gateway/swift', params as Record<string, unknown>),
 
   getSwiftMessage: (id: string): Promise<SwiftMessage> =>
     apiGet<SwiftMessage>(`/v1/gateway/swift/${id}`),

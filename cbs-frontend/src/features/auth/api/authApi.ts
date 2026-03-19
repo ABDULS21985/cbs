@@ -1,51 +1,132 @@
 import axios from 'axios';
-import { apiGet, apiPost } from '@/lib/api';
-import type { LoginRequest, LoginResponse, MfaVerifyRequest, RefreshResponse, ForgotPasswordRequest, ResetPasswordRequest } from '@/types/auth';
+import type {
+  ForgotPasswordRequest,
+  LoginRequest,
+  LoginResponse,
+  MfaVerifyRequest,
+  RefreshResponse,
+  ResetPasswordRequest,
+} from '@/types/auth';
 import type { User } from '@/types/auth';
 
-const AUTH_BASE = import.meta.env.VITE_AUTH_BASE_PATH || '/api/auth';
+// Keycloak OpenID Connect endpoints
+const KEYCLOAK_BASE = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180';
+const KEYCLOAK_REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'cbs';
+const KEYCLOAK_CLIENT = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'cbs-app';
+const TOKEN_URL = `${KEYCLOAK_BASE}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`;
+const USERINFO_URL = `${KEYCLOAK_BASE}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo`;
+const LOGOUT_URL = `${KEYCLOAK_BASE}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/logout`;
 
-async function withAuthErrorHandling<T>(request: () => Promise<T>): Promise<T> {
+// Direct Keycloak calls (not through the API proxy — Keycloak is a separate service)
+const keycloakPost = async (url: string, params: Record<string, string>) => {
+  const body = new URLSearchParams(params);
+  return axios.post(url, body.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+};
+
+function decodeJwtPayload(token: string): Record<string, any> {
   try {
-    return await request();
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.status === 404) {
-      throw new Error('Live authentication is not configured. Connect the frontend to a real auth adapter or identity provider.');
-    }
-    throw error instanceof Error ? error : new Error('Authentication request failed.');
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+  } catch {
+    return {};
   }
 }
 
 export const authApi = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {
-    return withAuthErrorHandling(() => apiPost<LoginResponse>(`${AUTH_BASE}/token`, data));
+    const res = await keycloakPost(TOKEN_URL, {
+      grant_type: 'password',
+      client_id: KEYCLOAK_CLIENT,
+      username: data.username,
+      password: data.password,
+    });
+
+    const tokenData = res.data;
+    const claims = decodeJwtPayload(tokenData.access_token);
+    const roles = claims.realm_access?.roles?.filter(
+      (r: string) => r.startsWith('CBS_') || r.startsWith('BRANCH_') || ['TELLER', 'TREASURY', 'COMPLIANCE', 'AUDITOR'].includes(r)
+    ) || [];
+
+    return {
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token,
+      mfaRequired: false,
+      expiresIn: tokenData.expires_in,
+      user: {
+        id: claims.sub || '',
+        username: claims.preferred_username || data.username,
+        fullName: claims.name || `${claims.given_name || ''} ${claims.family_name || ''}`.trim() || data.username,
+        email: claims.email || '',
+        roles,
+        permissions: roles.includes('CBS_ADMIN') ? ['*'] : [],
+        lastLogin: new Date().toISOString(),
+      },
+    };
   },
 
   refresh: async (refreshToken: string): Promise<RefreshResponse> => {
-    return withAuthErrorHandling(() => apiPost<RefreshResponse>(`${AUTH_BASE}/refresh`, { refreshToken }));
+    const res = await keycloakPost(TOKEN_URL, {
+      grant_type: 'refresh_token',
+      client_id: KEYCLOAK_CLIENT,
+      refresh_token: refreshToken,
+    });
+    return {
+      accessToken: res.data.access_token,
+      refreshToken: res.data.refresh_token,
+      expiresIn: res.data.expires_in,
+    };
   },
 
-  verifyMfa: async (data: MfaVerifyRequest): Promise<LoginResponse> => {
-    return withAuthErrorHandling(() => apiPost<LoginResponse>(`${AUTH_BASE}/mfa/verify`, data));
+  verifyMfa: async (_data: MfaVerifyRequest): Promise<LoginResponse> => {
+    // Keycloak handles MFA as part of the login flow
+    // This is a placeholder — real MFA would use Keycloak's authentication flow API
+    throw new Error('MFA verification should be handled through Keycloak authentication flow');
   },
 
-  forgotPassword: async (data: ForgotPasswordRequest): Promise<void> => {
-    await withAuthErrorHandling(() => apiPost<void>(`${AUTH_BASE}/forgot-password`, data));
+  forgotPassword: async (_data: ForgotPasswordRequest): Promise<void> => {
+    // Password reset is handled by Keycloak's built-in flow
+    // Redirect user to: ${KEYCLOAK_BASE}/realms/${KEYCLOAK_REALM}/login-actions/reset-credentials
+    throw new Error('Password reset is handled by Keycloak. Use the Keycloak login page.');
   },
 
-  resetPassword: async (data: ResetPasswordRequest): Promise<void> => {
-    await withAuthErrorHandling(() => apiPost<void>(`${AUTH_BASE}/reset-password`, data));
+  resetPassword: async (_data: ResetPasswordRequest): Promise<void> => {
+    throw new Error('Password reset is handled by Keycloak.');
   },
 
-  getMe: async (): Promise<User> => {
-    return withAuthErrorHandling(() => apiGet<User>(`${AUTH_BASE}/me`));
+  getMe: async (token: string | null): Promise<User> => {
+    if (!token) throw new Error('Not authenticated');
+
+    const res = await axios.get(USERINFO_URL, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const claims = decodeJwtPayload(token);
+    const roles = claims.realm_access?.roles?.filter(
+      (r: string) => r.startsWith('CBS_') || r.startsWith('BRANCH_') || ['TELLER', 'TREASURY', 'COMPLIANCE', 'AUDITOR'].includes(r)
+    ) || [];
+
+    return {
+      id: res.data.sub,
+      username: res.data.preferred_username,
+      fullName: res.data.name || res.data.preferred_username,
+      email: res.data.email || '',
+      roles,
+      permissions: roles.includes('CBS_ADMIN') ? ['*'] : [],
+    };
   },
 
-  logout: async (): Promise<void> => {
+  logout: async (refreshToken: string | null): Promise<void> => {
     try {
-      await withAuthErrorHandling(() => apiPost<void>(`${AUTH_BASE}/logout`));
+      if (refreshToken) {
+        await keycloakPost(LOGOUT_URL, {
+          client_id: KEYCLOAK_CLIENT,
+          refresh_token: refreshToken,
+        });
+      }
     } catch {
-      // Ignore logout cleanup failures.
+      // Ignore — local state will be cleared regardless
     }
   },
 };

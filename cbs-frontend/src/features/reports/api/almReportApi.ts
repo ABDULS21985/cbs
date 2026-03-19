@@ -63,23 +63,23 @@ export interface RateOutlookItem {
 
 export const almReportApi = {
   getGapAnalysis: (asOfDate: string): Promise<GapBucket[]> =>
-    apiGet<GapBucket[]>('/v1/reports/treasury/gap-analysis', { asOfDate }),
+    apiGet<GapBucket[]>('/api/v1/reports/treasury/gap-analysis', { asOfDate }),
 
   getDurationAnalysis: (asOfDate: string): Promise<DurationAnalysis> =>
-    apiGet<DurationAnalysis>('/v1/reports/treasury/duration', { asOfDate }),
+    apiGet<DurationAnalysis>('/api/v1/reports/treasury/duration', { asOfDate }),
 
   getNiiSensitivity: (asOfDate: string): Promise<NiiScenario[]> =>
-    apiGet<NiiScenario[]>('/v1/reports/treasury/nii-sensitivity', { asOfDate }),
+    apiGet<NiiScenario[]>('/api/v1/reports/treasury/nii-sensitivity', { asOfDate }),
 
   getFxExposure: (asOfDate: string): Promise<FxPosition[]> =>
-    apiGet<FxPosition[]>('/v1/reports/treasury/fx-exposure', { asOfDate }),
+    apiGet<FxPosition[]>('/api/v1/reports/treasury/fx-exposure', { asOfDate }),
 
   getLiquidityRatios: (asOfDate: string): Promise<LiquidityRatio[]> =>
-    apiGet<LiquidityRatio[]>('/v1/reports/treasury/liquidity', { asOfDate }),
+    apiGet<LiquidityRatio[]>('/api/v1/reports/treasury/liquidity', { asOfDate }),
 
   getRateOutlook: (): Promise<RateOutlookItem[]> =>
-    apiGet<RateOutlookItem[]>('/v1/reports/treasury/rate-outlook'),
+    apiGet<RateOutlookItem[]>('/api/v1/reports/treasury/rate-outlook'),
 
   getDurationTrend: (months = 12): Promise<DurationTrendPoint[]> =>
-    apiGet<DurationTrendPoint[]>('/v1/reports/treasury/duration-trend', { months }),
+    apiGet<DurationTrendPoint[]>('/api/v1/reports/treasury/duration-trend', { months }),
 };

@@ -500,7 +500,7 @@ function buildOnboardingPayload(data: OnboardingFormData) {
 
 export const customerApi = {
   async list(filters: CustomerFilters): Promise<PaginatedResult<CustomerListItem>> {
-    const response = await api.get<ApiResponse<BackendCustomerSummary[]>>('/v1/customers', {
+    const response = await api.get<ApiResponse<BackendCustomerSummary[]>>('/api/v1/customers', {
       params: {
         search: filters.search,
         customerType: filters.type || undefined,
@@ -519,7 +519,7 @@ export const customerApi = {
   },
 
   async counts(): Promise<CustomerCounts> {
-    return mapCounts(await apiGet<Record<string, number>>('/v1/customers/count'));
+    return mapCounts(await apiGet<Record<string, number>>('/api/v1/customers/count'));
   },
 
   async getById(id: number): Promise<Customer> {
@@ -561,7 +561,7 @@ export const customerApi = {
   },
 
   async submitOnboarding(data: OnboardingFormData): Promise<Customer> {
-    return mapCustomerDetail(await apiPost<BackendCustomerDetail>('/v1/customers', buildOnboardingPayload(data)));
+    return mapCustomerDetail(await apiPost<BackendCustomerDetail>('/api/v1/customers', buildOnboardingPayload(data)));
   },
 
   async saveDraft(): Promise<never> {
@@ -573,7 +573,7 @@ export const customerApi = {
     customerId?: number,
     details?: Pick<OnboardingFormData, 'firstName' | 'lastName' | 'dateOfBirth'>,
   ): Promise<BvnVerifyResult> {
-    return await apiPost<BvnVerifyResult>('/v1/customers/verify-bvn', {
+    return await apiPost<BvnVerifyResult>('/api/v1/customers/verify-bvn', {
       bvn,
       customerId,
       firstName: details?.firstName,
@@ -583,7 +583,7 @@ export const customerApi = {
   },
 
   async kycList(params: { status?: string; page?: number; size?: number }): Promise<PaginatedResult<CustomerListItem>> {
-    const response = await api.get<ApiResponse<BackendCustomerSummary[]>>('/v1/customers/kyc', {
+    const response = await api.get<ApiResponse<BackendCustomerSummary[]>>('/api/v1/customers/kyc', {
       params: {
         kycStatus: params.status || undefined,
         page: params.page ?? 0,
@@ -598,7 +598,7 @@ export const customerApi = {
   },
 
   async kycStats(): Promise<KycStats> {
-    return mapKycStats(await apiGet<Record<string, number>>('/v1/customers/kyc/stats'));
+    return mapKycStats(await apiGet<Record<string, number>>('/api/v1/customers/kyc/stats'));
   },
 
   async kycVerifyDocument(_customerId: number, _documentId: number, _decision: 'VERIFIED' | 'REJECTED', _reason?: string): Promise<never> {
@@ -610,6 +610,6 @@ export const customerApi = {
   },
 
   async getSegments(): Promise<CustomerSegment[]> {
-    return (await apiGet<BackendSegmentResponse[]>('/v1/customers/segments')).map(mapSegment);
+    return (await apiGet<BackendSegmentResponse[]>('/api/v1/customers/segments')).map(mapSegment);
   },
 };

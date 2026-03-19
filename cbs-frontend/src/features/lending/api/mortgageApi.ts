@@ -3,7 +3,7 @@ import type { MortgageLoan, LtvPoint } from '../types/mortgage';
 
 export const mortgageApi = {
   list: (params?: Record<string, unknown>) =>
-    apiGet<MortgageLoan[]>('/v1/mortgages', params),
+    apiGet<MortgageLoan[]>('/api/v1/mortgages', params),
 
   getById: (id: number) => apiGet<MortgageLoan>(`/v1/mortgages/${id}`),
 

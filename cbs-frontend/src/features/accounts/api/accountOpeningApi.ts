@@ -266,7 +266,7 @@ function resolveAccountType(data: CreateAccountRequest): string {
 
 export const accountOpeningApi = {
   getEligibleProducts: async (params: { type?: string; customerId?: string }): Promise<Product[]> => {
-    const products = await apiGet<BackendProduct[]>('/v1/accounts/products');
+    const products = await apiGet<BackendProduct[]>('/api/v1/accounts/products');
     const mappedProducts = products.map(mapProduct).filter((product) => product.eligible);
 
     if (!params.type || params.type === 'ALL') {
@@ -277,7 +277,7 @@ export const accountOpeningApi = {
   },
 
   createAccount: async (data: CreateAccountRequest): Promise<CreatedAccount> => {
-    const created = await apiPost<BackendAccountResponse>('/v1/accounts', {
+    const created = await apiPost<BackendAccountResponse>('/api/v1/accounts', {
       customerId: Number(data.customerId),
       productCode: data.productId,
       accountType: resolveAccountType(data),
@@ -295,7 +295,7 @@ export const accountOpeningApi = {
   },
 
   runComplianceCheck: async (data: ComplianceCheckRequest): Promise<ComplianceCheckResult> => {
-    return apiPost<ComplianceCheckResult>('/v1/accounts/compliance-check', {
+    return apiPost<ComplianceCheckResult>('/api/v1/accounts/compliance-check', {
       customerId: Number(data.customerId),
       productCode: data.productId,
     });
@@ -307,7 +307,7 @@ export const accountOpeningApi = {
   },
 
   searchCustomers: async (query: string): Promise<CustomerSearchResult[]> => {
-    const summaries = await apiGet<BackendCustomerSummary[]>('/v1/customers/quick-search', { q: query, size: 10 });
+    const summaries = await apiGet<BackendCustomerSummary[]>('/api/v1/customers/quick-search', { q: query, size: 10 });
     const customers = await Promise.all(
       summaries.map(async (summary) => {
         const detail = await apiGet<BackendCustomerDetail>(`/v1/customers/${summary.id}`);

@@ -92,32 +92,32 @@ export interface LtvBucket {
 
 export const customerAnalyticsApi = {
   getStats: (params: DateRangeParams): Promise<CustomerStats> =>
-    apiGet<CustomerStats>('/v1/reports/customers/stats', params as unknown as Record<string, unknown>),
+    apiGet<CustomerStats>('/api/v1/reports/customers/stats', params as unknown as Record<string, unknown>),
 
   getAcquisitionFunnel: (params: DateRangeParams): Promise<FunnelStep[]> =>
-    apiGet<FunnelStep[]>('/v1/reports/customers/funnel', params as unknown as Record<string, unknown>),
+    apiGet<FunnelStep[]>('/api/v1/reports/customers/funnel', params as unknown as Record<string, unknown>),
 
   getGrowthTrend: (params: DateRangeParams): Promise<GrowthPoint[]> =>
-    apiGet<GrowthPoint[]>('/v1/reports/customers/growth-trend', params as unknown as Record<string, unknown>),
+    apiGet<GrowthPoint[]>('/api/v1/reports/customers/growth-trend', params as unknown as Record<string, unknown>),
 
   getLifecycleDistribution: (params: DateRangeParams): Promise<LifecycleSegment[]> =>
-    apiGet<LifecycleSegment[]>('/v1/reports/customers/lifecycle', params as unknown as Record<string, unknown>),
+    apiGet<LifecycleSegment[]>('/api/v1/reports/customers/lifecycle', params as unknown as Record<string, unknown>),
 
   getSegmentProfitability: (params: DateRangeParams): Promise<SegmentProfitability[]> =>
-    apiGet<SegmentProfitability[]>('/v1/reports/customers/segments', params as unknown as Record<string, unknown>),
+    apiGet<SegmentProfitability[]>('/api/v1/reports/customers/segments', params as unknown as Record<string, unknown>),
 
   getChurnAnalysis: (params: DateRangeParams): Promise<{ trend: ChurnPoint[]; reasons: ChurnReason[] }> =>
-    apiGet<{ trend: ChurnPoint[]; reasons: ChurnReason[] }>('/v1/reports/customers/churn', params as unknown as Record<string, unknown>),
+    apiGet<{ trend: ChurnPoint[]; reasons: ChurnReason[] }>('/api/v1/reports/customers/churn', params as unknown as Record<string, unknown>),
 
   getAtRiskCustomers: (params: DateRangeParams): Promise<AtRiskCustomer[]> =>
-    apiGet<AtRiskCustomer[]>('/v1/reports/customers/at-risk', params as unknown as Record<string, unknown>),
+    apiGet<AtRiskCustomer[]>('/api/v1/reports/customers/at-risk', params as unknown as Record<string, unknown>),
 
   getCrossSellMatrix: (params: DateRangeParams): Promise<CrossSellCell[]> =>
-    apiGet<CrossSellCell[]>('/v1/reports/customers/cross-sell', params as unknown as Record<string, unknown>),
+    apiGet<CrossSellCell[]>('/api/v1/reports/customers/cross-sell', params as unknown as Record<string, unknown>),
 
   getProductPenetration: (params: DateRangeParams): Promise<ProductPenetration[]> =>
-    apiGet<ProductPenetration[]>('/v1/reports/customers/product-penetration', params as unknown as Record<string, unknown>),
+    apiGet<ProductPenetration[]>('/api/v1/reports/customers/product-penetration', params as unknown as Record<string, unknown>),
 
   getLtvDistribution: (params: DateRangeParams): Promise<LtvBucket[]> =>
-    apiGet<LtvBucket[]>('/v1/reports/customers/ltv', params as unknown as Record<string, unknown>),
+    apiGet<LtvBucket[]>('/api/v1/reports/customers/ltv', params as unknown as Record<string, unknown>),
 };

@@ -99,29 +99,29 @@ export interface DateRangeParams {
 
 export const channelAnalyticsApi = {
   getChannelStats: (_params?: DateRangeParams): Promise<ChannelStats> =>
-    apiGet<ChannelStats>('/v1/reports/channels/stats'),
+    apiGet<ChannelStats>('/api/v1/reports/channels/stats'),
 
   getChannelVolumes: (_params?: DateRangeParams): Promise<ChannelVolume[]> =>
-    apiGet<ChannelVolume[]>('/v1/reports/channels/volumes'),
+    apiGet<ChannelVolume[]>('/api/v1/reports/channels/volumes'),
 
   getChannelMixTrend: (): Promise<ChannelMixPoint[]> =>
-    apiGet<ChannelMixPoint[]>('/v1/reports/channels/mix-trend'),
+    apiGet<ChannelMixPoint[]>('/api/v1/reports/channels/mix-trend'),
 
   getHourlyHeatmap: (_params?: DateRangeParams): Promise<HourlyHeatmapCell[]> =>
-    apiGet<HourlyHeatmapCell[]>('/v1/reports/channels/heatmap'),
+    apiGet<HourlyHeatmapCell[]>('/api/v1/reports/channels/heatmap'),
 
   getChannelSuccessRates: (_params?: DateRangeParams): Promise<ChannelSuccessRate[]> =>
-    apiGet<ChannelSuccessRate[]>('/v1/reports/channels/success-rates'),
+    apiGet<ChannelSuccessRate[]>('/api/v1/reports/channels/success-rates'),
 
   getSuccessRateTrend: (): Promise<SuccessRateTrendPoint[]> =>
-    apiGet<SuccessRateTrendPoint[]>('/v1/reports/channels/success-trend'),
+    apiGet<SuccessRateTrendPoint[]>('/api/v1/reports/channels/success-trend'),
 
   getDigitalAdoption: (): Promise<DigitalAdoption> =>
-    apiGet<DigitalAdoption>('/v1/reports/channels/digital-adoption'),
+    apiGet<DigitalAdoption>('/api/v1/reports/channels/digital-adoption'),
 
   getTransactionTypes: (_params?: DateRangeParams): Promise<TransactionType[]> =>
-    apiGet<TransactionType[]>('/v1/reports/channels/transaction-types'),
+    apiGet<TransactionType[]>('/api/v1/reports/channels/transaction-types'),
 
   getMigrationData: (): Promise<{ migrations: MigrationData[]; migrationScore: string }> =>
-    apiGet('/v1/reports/channels/migration'),
+    apiGet('/api/v1/reports/channels/migration'),
 };

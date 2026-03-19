@@ -3,7 +3,7 @@ import type { LeaseContract, AmortizationRow } from '../types/lease';
 
 export const leaseApi = {
   list: (params?: Record<string, unknown>) =>
-    apiGet<LeaseContract[]>('/v1/leases', params),
+    apiGet<LeaseContract[]>('/api/v1/leases', params),
 
   getById: (id: number) => apiGet<LeaseContract>(`/v1/leases/${id}`),
 

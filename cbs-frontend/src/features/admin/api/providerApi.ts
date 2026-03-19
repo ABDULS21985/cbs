@@ -95,11 +95,11 @@ export type UpdateProviderRequest = Partial<RegisterProviderRequest>;
 
 export const providerApi = {
   getProviders: () =>
-    apiGet<ServiceProvider[]>('/v1/admin/providers'),
+    apiGet<ServiceProvider[]>('/api/v1/admin/providers'),
   getProviderById: (id: string) =>
     apiGet<ServiceProvider>(`/v1/admin/providers/${id}`),
   registerProvider: (data: RegisterProviderRequest) =>
-    apiPost<ServiceProvider>('/v1/admin/providers', data),
+    apiPost<ServiceProvider>('/api/v1/admin/providers', data),
   updateProvider: (id: string, data: UpdateProviderRequest) =>
     apiPut<ServiceProvider>(`/v1/admin/providers/${id}`, data),
   healthCheckNow: (id: string) =>
@@ -119,7 +119,7 @@ export const providerApi = {
   getTransactionLog: (id: string, params?: Record<string, unknown>) =>
     apiGet<ProviderTransaction[]>(`/v1/admin/providers/${id}/transactions`, params),
   getSlaRecords: (params?: Record<string, unknown>) =>
-    apiGet<SlaRecord[]>('/v1/admin/providers/sla', params),
+    apiGet<SlaRecord[]>('/api/v1/admin/providers/sla', params),
   getCostRecords: (params?: Record<string, unknown>) =>
-    apiGet<CostRecord[]>('/v1/admin/providers/costs', params),
+    apiGet<CostRecord[]>('/api/v1/admin/providers/costs', params),
 };

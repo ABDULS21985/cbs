@@ -15,35 +15,35 @@ import type {
 
 export const eclApi = {
   getSummary: () =>
-    api.get<ApiResponse<EclSummary>>('/v1/ecl/summary'),
+    api.get<ApiResponse<EclSummary>>('/api/v1/ecl/summary'),
 
   getStageDistribution: () =>
-    api.get<ApiResponse<StageDistributionItem[]>>('/v1/ecl/stage-distribution'),
+    api.get<ApiResponse<StageDistributionItem[]>>('/api/v1/ecl/stage-distribution'),
 
   getStageMigration: () =>
-    api.get<ApiResponse<StageMigration[]>>('/v1/ecl/stage-migration'),
+    api.get<ApiResponse<StageMigration[]>>('/api/v1/ecl/stage-migration'),
 
   getProvisionMovement: () =>
-    api.get<ApiResponse<ProvisionMovementRow[]>>('/v1/ecl/provision-movement'),
+    api.get<ApiResponse<ProvisionMovementRow[]>>('/api/v1/ecl/provision-movement'),
 
   getPdTermStructure: () =>
-    api.get<ApiResponse<PdTermStructure[]>>('/v1/ecl/pd-term-structure'),
+    api.get<ApiResponse<PdTermStructure[]>>('/api/v1/ecl/pd-term-structure'),
 
   getLgdByCollateral: () =>
-    api.get<ApiResponse<LgdByCollateral[]>>('/v1/ecl/lgd-by-collateral'),
+    api.get<ApiResponse<LgdByCollateral[]>>('/api/v1/ecl/lgd-by-collateral'),
 
   getEadByProduct: () =>
-    api.get<ApiResponse<EadByProduct[]>>('/v1/ecl/ead-by-product'),
+    api.get<ApiResponse<EadByProduct[]>>('/api/v1/ecl/ead-by-product'),
 
   getGlReconciliation: () =>
-    api.get<ApiResponse<GlReconciliation>>('/v1/ecl/gl-reconciliation'),
+    api.get<ApiResponse<GlReconciliation>>('/api/v1/ecl/gl-reconciliation'),
 
   getMacroScenarios: () =>
-    api.get<ApiResponse<MacroScenario[]>>('/v1/ecl/macro-scenarios'),
+    api.get<ApiResponse<MacroScenario[]>>('/api/v1/ecl/macro-scenarios'),
 
   getLoansByStage: (stage: 1 | 2 | 3) =>
-    api.get<ApiResponse<{ items: EclLoan[] }>>('/v1/ecl/loans', { params: { stage } }),
+    api.get<ApiResponse<{ items: EclLoan[] }>>('/api/v1/ecl/loans', { params: { stage } }),
 
   runCalculation: () =>
-    api.post<ApiResponse<{ jobId: string }>>('/v1/ecl/run'),
+    api.post<ApiResponse<{ jobId: string }>>('/api/v1/ecl/run'),
 };

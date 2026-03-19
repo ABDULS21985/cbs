@@ -70,33 +70,33 @@ export interface TopObligor {
 // ─── API Functions ─────────────────────────────────────────────────────────────
 
 export function getLoanPortfolioStats(): Promise<LoanPortfolioStats> {
-  return apiGet<LoanPortfolioStats>('/v1/reports/loans/stats');
+  return apiGet<LoanPortfolioStats>('/api/v1/reports/loans/stats');
 }
 
 export function getDpdBuckets(): Promise<DpdBucket[]> {
-  return apiGet<DpdBucket[]>('/v1/reports/loans/dpd-buckets');
+  return apiGet<DpdBucket[]>('/api/v1/reports/loans/dpd-buckets');
 }
 
 export function getSectorExposure(): Promise<SectorExposure[]> {
-  return apiGet<SectorExposure[]>('/v1/reports/loans/sector-exposure');
+  return apiGet<SectorExposure[]>('/api/v1/reports/loans/sector-exposure');
 }
 
 export function getProductMix(): Promise<ProductMix[]> {
-  return apiGet<ProductMix[]>('/v1/reports/loans/product-mix');
+  return apiGet<ProductMix[]>('/api/v1/reports/loans/product-mix');
 }
 
 export function getVintageData(): Promise<VintageCell[]> {
-  return apiGet<VintageCell[]>('/v1/reports/loans/vintage');
+  return apiGet<VintageCell[]>('/api/v1/reports/loans/vintage');
 }
 
 export function getNplTrend(): Promise<NplTrendPoint[]> {
-  return apiGet<NplTrendPoint[]>('/v1/reports/loans/npl-trend');
+  return apiGet<NplTrendPoint[]>('/api/v1/reports/loans/npl-trend');
 }
 
 export function getProvisionWaterfall(): Promise<ProvisionWaterfallItem[]> {
-  return apiGet<ProvisionWaterfallItem[]>('/v1/reports/loans/provision-waterfall');
+  return apiGet<ProvisionWaterfallItem[]>('/api/v1/reports/loans/provision-waterfall');
 }
 
 export function getTopObligors(): Promise<TopObligor[]> {
-  return apiGet<TopObligor[]>('/v1/reports/loans/top-obligors');
+  return apiGet<TopObligor[]>('/api/v1/reports/loans/top-obligors');
 }
