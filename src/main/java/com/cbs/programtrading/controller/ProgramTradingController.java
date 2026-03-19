@@ -21,6 +21,12 @@ public class ProgramTradingController {
 
     private final ProgramTradingService service;
 
+    @GetMapping("/strategies")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<TradingStrategy>>> listStrategies() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllStrategies()));
+    }
+
     @PostMapping("/strategies")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<TradingStrategy>> defineStrategy(@RequestBody TradingStrategy strategy) {

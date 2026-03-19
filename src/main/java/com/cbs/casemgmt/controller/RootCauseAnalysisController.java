@@ -45,6 +45,11 @@ public class RootCauseAnalysisController {
         return ResponseEntity.ok(ApiResponse.ok(service.validateRca(rca.getId())));
     }
 
+    @GetMapping("/patterns") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CasePatternInsight>>> listPatterns() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllPatterns()));
+    }
+
     @PostMapping("/patterns") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CasePatternInsight>>> generatePatterns(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

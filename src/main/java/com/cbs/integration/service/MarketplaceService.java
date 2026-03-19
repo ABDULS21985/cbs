@@ -136,6 +136,9 @@ public class MarketplaceService {
         return usageLogRepository.save(usage);
     }
 
+    public List<MarketplaceSubscription> getAllSubscriptions() { return subscriptionRepository.findAll(); }
+    public List<MarketplaceUsageLog> getAllUsageLogs() { return usageLogRepository.findAll(); }
+
     public Map<String, Object> getProductAnalytics(Long productId) {
         Instant last30d = Instant.now().minus(30, ChronoUnit.DAYS);
         Double avgResponseTime = usageLogRepository.avgResponseTimeByProduct(productId, last30d);

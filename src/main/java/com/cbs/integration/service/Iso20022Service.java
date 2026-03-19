@@ -179,6 +179,7 @@ public class Iso20022Service {
     }
 
     public List<Iso20022Message> getByStatus(String status) { return messageRepository.findByStatusOrderByCreatedAtAsc(status); }
+    public List<Iso20022Message> getAllMessages() { return messageRepository.findAll(); }
 
     private String extractDefinitionPrefix(String definition) {
         if (definition == null) return "";

@@ -23,6 +23,36 @@ public class TradeOpsController {
 
     private final TradeOpsService service;
 
+    @GetMapping("/confirmations")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<TradeConfirmation>>> listConfirmations() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllConfirmations()));
+    }
+
+    @GetMapping("/confirmations/match")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<TradeConfirmation>>> getMatchInfo() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getUnmatched()));
+    }
+
+    @GetMapping("/allocations")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<OrderAllocation>>> listAllocations() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllAllocations()));
+    }
+
+    @GetMapping("/clearing")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ClearingSubmission>>> listClearing() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllClearingSubmissions()));
+    }
+
+    @GetMapping("/reports")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<TradeReport>>> listReports() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllReports()));
+    }
+
     @PostMapping("/confirmations")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<TradeConfirmation>> submitConfirmation(@RequestBody TradeConfirmation confirmation) {

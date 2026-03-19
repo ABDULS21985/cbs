@@ -104,6 +104,8 @@ public class RootCauseAnalysisService {
         return insights;
     }
 
+    public List<CasePatternInsight> getAllPatterns() { return patternRepository.findAll(); }
+
     public Map<String, Long> getRecurringRootCauses() {
         return rcaRepository.findAll().stream()
                 .filter(r -> r.getRootCauseCategory() != null)

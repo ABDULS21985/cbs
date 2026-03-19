@@ -1,0 +1,39 @@
+{
+  "frontend_calls": 831,
+  "backend_endpoints": 988,
+  "missing_frontend_endpoints": 529,
+  "backend_unused_endpoints": 680,
+  "missing_by_wave": {
+    "1": 81,
+    "2": 56,
+    "3": 37,
+    "4": 355
+  },
+  "missing_by_module": {
+    "admin": 34,
+    "payments": 30,
+    "risk": 25,
+    "accounts": 24,
+    "approvals": 19,
+    "notifications": 18,
+    "compliance": 17,
+    "loans": 15,
+    "trade": 15,
+    "parameters": 13,
+    "customers": 12,
+    "portal": 12,
+    "treasury": 12,
+    "eod": 11,
+    "gateway": 11,
+    "reports": 11,
+    "ach": 10,
+    "branches": 10,
+    "collections": 10,
+    "documents": 10,
+    "products": 10,
+    "statements": 10,
+    "cheques": 9,
+    "deposits": 9,
+    "audit": 8
+  }
+}

@@ -39,7 +39,7 @@ public class ParameterAliasController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<SystemParameter>> getParameter(@PathVariable String code) {
         return ResponseEntity.ok(ApiResponse.ok(
-                systemParameterRepository.findByParamKey(code)
+                systemParameterRepository.findByParamKeyAndTenantIdIsNullAndIsActiveTrue(code)
                         .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Parameter not found: " + code))));
     }
 
@@ -48,7 +48,7 @@ public class ParameterAliasController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<SystemParameter>> updateParameter(
             @PathVariable String code, @RequestBody Map<String, Object> body) {
-        SystemParameter param = systemParameterRepository.findByParamKey(code)
+        SystemParameter param = systemParameterRepository.findByParamKeyAndTenantIdIsNullAndIsActiveTrue(code)
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Parameter not found: " + code));
         if (body.containsKey("value")) {
             param.setParamValue(body.get("value").toString());

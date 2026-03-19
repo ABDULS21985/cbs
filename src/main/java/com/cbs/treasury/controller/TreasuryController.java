@@ -82,6 +82,12 @@ public class TreasuryController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
+    @GetMapping("/deals/batch/maturity")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getMaturityStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "IDLE")));
+    }
+
     @PostMapping("/deals/batch/maturity")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Integer>>> processMaturity() {

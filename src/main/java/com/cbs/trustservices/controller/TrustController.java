@@ -31,6 +31,16 @@ public class TrustController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.create(trust)));
     }
 
+    @GetMapping("/{code}")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get trust detail by code")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<TrustAccount>> getByCode(@PathVariable String code) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllTrusts().stream()
+                .filter(t -> code.equals(t.getTrustCode()))
+                .findFirst()
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Trust not found: " + code))));
+    }
+
     @PostMapping("/{code}/distribute")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<TrustAccount>> distribute(

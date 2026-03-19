@@ -42,17 +42,20 @@ public class BusinessContributionController {
 
     @GetMapping("/top") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<BusinessContribution>>> topContributors(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate,
-            @RequestParam String periodType,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate,
+            @RequestParam(required = false, defaultValue = "MONTHLY") String periodType,
             @RequestParam(defaultValue = "10") int limit) {
+        if (periodDate == null) periodDate = LocalDate.now();
         return ResponseEntity.ok(ApiResponse.ok(service.getTopContributors(periodDate, periodType, limit)));
     }
 
     @GetMapping("/underperformers") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<BusinessContribution>>> underperformers(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate,
-            @RequestParam String periodType,
-            @RequestParam BigDecimal minRaroc) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate,
+            @RequestParam(required = false, defaultValue = "MONTHLY") String periodType,
+            @RequestParam(required = false) BigDecimal minRaroc) {
+        if (periodDate == null) periodDate = LocalDate.now();
+        if (minRaroc == null) minRaroc = BigDecimal.ZERO;
         return ResponseEntity.ok(ApiResponse.ok(service.getUnderperformers(periodDate, periodType, minRaroc)));
     }
 }

@@ -35,6 +35,12 @@ public class RemittanceController {
     }
 
     // Beneficiaries
+    @GetMapping("/beneficiaries")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<List<RemittanceBeneficiary>>> listBeneficiaries() {
+        return ResponseEntity.ok(ApiResponse.ok(remittanceService.getAllBeneficiaries()));
+    }
+
     @PostMapping("/beneficiaries")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<RemittanceBeneficiary>> addBeneficiary(@RequestBody RemittanceBeneficiary beneficiary) {

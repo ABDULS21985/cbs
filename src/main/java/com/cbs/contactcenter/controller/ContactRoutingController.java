@@ -30,6 +30,12 @@ public class ContactRoutingController {
         return ResponseEntity.ok(ApiResponse.ok(service.getActiveRules()));
     }
 
+    @GetMapping("/route")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getRouteInfo() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "READY")));
+    }
+
     @PostMapping("/route")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, String>>> routeContact(
@@ -51,6 +57,12 @@ public class ContactRoutingController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<AgentState>>> getAgentPerformance(@PathVariable Long centerId) {
         return ResponseEntity.ok(ApiResponse.ok(service.getAgentPerformance(centerId)));
+    }
+
+    @GetMapping("/callbacks")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CallbackRequest>>> listCallbacks() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllCallbacks()));
     }
 
     @PostMapping("/callbacks")

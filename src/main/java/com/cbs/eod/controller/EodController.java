@@ -97,6 +97,18 @@ public class EodController {
         return ResponseEntity.ok(ApiResponse.ok(trend));
     }
 
+    @GetMapping("/trigger")
+    @Operation(summary = "Get EOD trigger status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTriggerStatus() {
+        EodRun lastEod = eodRunRepository.findTopByRunTypeOrderByBusinessDateDesc(EodRunType.EOD).orElse(null);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "canTrigger", true,
+                "lastRunDate", lastEod != null ? lastEod.getBusinessDate().toString() : "N/A",
+                "lastRunStatus", lastEod != null ? lastEod.getStatus() : "N/A"
+        )));
+    }
+
     @PostMapping("/trigger")
     @Operation(summary = "Manually trigger EOD processing")
     @PreAuthorize("hasRole('CBS_ADMIN')")

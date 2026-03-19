@@ -22,6 +22,20 @@ public class FtpController {
 
     private final FtpService ftpService;
 
+    @GetMapping("/curves")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<FtpRateCurve>>> listCurves() {
+        return ResponseEntity.ok(ApiResponse.ok(ftpService.getAllCurves()));
+    }
+
+    @GetMapping("/allocate")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<FtpAllocation>>> listAllocations(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(ftpService.getAllAllocations()));
+    }
+
     @PostMapping("/curves")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<FtpRateCurve>> addRatePoint(

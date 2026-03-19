@@ -143,6 +143,8 @@ public class EclService {
     @Transactional
     public EclModelParameter saveParameter(EclModelParameter param) { return paramRepository.save(param); }
 
+    public List<EclModelParameter> getAllParameters() { return paramRepository.findAll(); }
+
     public record EclSummary(LocalDate date, BigDecimal totalEcl, BigDecimal stage1, BigDecimal stage2, BigDecimal stage3) {}
 
     // ========================================================================

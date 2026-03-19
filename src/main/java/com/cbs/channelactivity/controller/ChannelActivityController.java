@@ -22,9 +22,17 @@ public class ChannelActivityController {
     public ResponseEntity<ApiResponse<ChannelActivityLog>> log(@RequestBody ChannelActivityLog entry) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.logActivity(entry)));
     }
+    @GetMapping("/log") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ChannelActivityLog>>> listLogs() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllLogs()));
+    }
     @GetMapping("/customer/{id}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<ChannelActivityLog>>> getCustomerActivity(@PathVariable Long id, @RequestParam(required = false) String channel) {
         return ResponseEntity.ok(ApiResponse.ok(service.getCustomerActivity(id, channel)));
+    }
+    @GetMapping("/summarize") @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<ChannelActivitySummary>>> getSummaries() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllSummaries()));
     }
     @PostMapping("/summarize") @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<ChannelActivitySummary>> summarize(@RequestParam Long customerId, @RequestParam String channel, @RequestParam String periodType, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate) {

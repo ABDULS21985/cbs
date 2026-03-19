@@ -1,0 +1,32 @@
+[
+  {
+    "type": "runtime",
+    "finding": "Live backend on port 8081 disappeared during discovery crawl.",
+    "evidence": "No listener on 8081 after crawl attempts; original bootRun/java processes exited."
+  },
+  {
+    "type": "runtime",
+    "finding": "OpenAPI document endpoint was unstable.",
+    "evidence": "GET /api/v3/api-docs returned HTTP 500 unauthenticated, then timed out when called with a valid bearer token."
+  },
+  {
+    "type": "runtime",
+    "finding": "Actuator mappings endpoint is not available for discovery.",
+    "evidence": "GET /api/actuator/mappings returned 401 without auth and 404 with a valid bearer token."
+  },
+  {
+    "type": "build",
+    "finding": "Current source tree cannot compile cleanly.",
+    "evidence": "bootRun compile phase failed on DepositController/CardController/StatementController symbol and signature mismatches."
+  },
+  {
+    "type": "startup",
+    "finding": "Starting from already-built classes also fails.",
+    "evidence": "bootRun -x compileJava -x processResources failed with ConflictingBeanDefinitionException between com.cbs.merchant.controller.MerchantController and com.cbs.card.controller.MerchantController."
+  },
+  {
+    "type": "auth",
+    "finding": "Keycloak test users referenced by E2E are absent from the running cbs realm.",
+    "evidence": "cbs realm contained only enabled user admin until a temporary diagnostic user was created for discovery."
+  }
+]

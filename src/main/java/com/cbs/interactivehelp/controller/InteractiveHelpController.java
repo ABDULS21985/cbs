@@ -21,6 +21,12 @@ public class InteractiveHelpController {
 
     private final InteractiveHelpService service;
 
+    @GetMapping("/articles")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<HelpArticle>>> listArticles() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllArticles()));
+    }
+
     @PostMapping("/articles")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<HelpArticle>> createArticle(@RequestBody HelpArticle article) {
@@ -47,8 +53,17 @@ public class InteractiveHelpController {
 
     @GetMapping("/articles/search")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<HelpArticle>>> searchArticles(@RequestParam String category, @RequestParam(required = false) String productFamily) {
+    public ResponseEntity<ApiResponse<List<HelpArticle>>> searchArticles(@RequestParam(required = false) String category, @RequestParam(required = false) String productFamily) {
+        if (category == null || category.isBlank()) {
+            return ResponseEntity.ok(ApiResponse.ok(service.getAllArticles()));
+        }
         return ResponseEntity.ok(ApiResponse.ok(service.searchArticles(category, productFamily)));
+    }
+
+    @GetMapping("/flows")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<GuidedFlow>>> listFlows() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllFlows()));
     }
 
     @PostMapping("/flows")

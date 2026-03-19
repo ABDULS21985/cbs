@@ -1,0 +1,17 @@
+import { apiGet, apiPost } from '@/lib/api';
+import type { PfmSnapshot } from '../types/pfm';
+
+export const pfmApi = {
+  /** POST /v1/pfm/snapshot/{customerId} */
+  generate: (customerId: number) =>
+    apiPost<PfmSnapshot>(`/api/v1/pfm/snapshot/${customerId}`),
+
+  /** GET /v1/pfm/customer/{customerId} */
+  history: (customerId: number) =>
+    apiGet<PfmSnapshot[]>(`/api/v1/pfm/customer/${customerId}`),
+
+  /** GET /v1/pfm/customer/{customerId}/latest */
+  latest: (customerId: number) =>
+    apiGet<PfmSnapshot[]>(`/api/v1/pfm/customer/${customerId}/latest`),
+
+};

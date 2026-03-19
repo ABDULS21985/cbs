@@ -47,6 +47,12 @@ public class MarketplaceController {
         return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getByCategory(category)));
     }
 
+    @GetMapping("/subscriptions")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MarketplaceSubscription>>> listSubscriptions() {
+        return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getAllSubscriptions()));
+    }
+
     @PostMapping("/subscriptions")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<MarketplaceSubscription>> subscribe(
@@ -62,6 +68,12 @@ public class MarketplaceController {
     public ResponseEntity<ApiResponse<MarketplaceSubscription>> approve(
             @PathVariable String subscriptionId, @RequestParam String approvedBy) {
         return ResponseEntity.ok(ApiResponse.ok(marketplaceService.approveSubscription(subscriptionId, approvedBy)));
+    }
+
+    @GetMapping("/usage")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MarketplaceUsageLog>>> listUsage() {
+        return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getAllUsageLogs()));
     }
 
     @PostMapping("/usage")

@@ -78,6 +78,8 @@ public class ProgramTradingService {
         return executionRepository.findByStrategyIdOrderByExecutionDateDesc(strategy.getId());
     }
 
+    public List<TradingStrategy> getAllStrategies() { return strategyRepository.findAll(); }
+
     private TradingStrategy getStrategyByCode(String code) {
         return strategyRepository.findByStrategyCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("TradingStrategy", "strategyCode", code));

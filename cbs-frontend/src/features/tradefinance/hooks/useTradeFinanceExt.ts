@@ -1,5 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tradeFinanceExtApi } from '../api/tradeFinanceExtApi';
+import { lcApi } from '../api/lcApi';
+import { guaranteesApi } from '../api/guaranteeApi';
+import { factoringApi } from '../api/factoringApi';
+import { tradeOpsApi } from '../api/tradeOpsApi';
 import type {
   LcPaymentTerms,
   GuaranteeType,
@@ -8,24 +12,51 @@ import type {
   DocumentComplianceStatus,
   FactoringRecourse,
 } from '../api/tradeFinanceExtApi';
+import type { TradeConfirmation, OrderAllocation, TradeReport, ClearingSubmission } from '../types/tradeOps';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
-const keys = {
-  lcs: (customerId?: number) => ['trade', 'lcs', customerId ?? 'all'] as const,
-  lc: (id: number) => ['trade', 'lc', id] as const,
-  guarantees: (customerId?: number) => ['trade', 'guarantees', customerId ?? 'all'] as const,
-  guarantee: (id: number) => ['trade', 'guarantee', id] as const,
-  scfProgrammes: ['trade', 'scf', 'programmes'] as const,
-  lcDocuments: (lcId: number) => ['trade', 'documents', 'lc', lcId] as const,
-  factoringFacilities: ['factoring', 'facilities'] as const,
-};
+const KEYS = {
+  lcs: {
+    all: ['trade', 'lcs'] as const,
+    list: (customerId?: number) => ['trade', 'lcs', customerId ?? 'all'] as const,
+    detail: (id: number) => ['trade', 'lc', id] as const,
+    customerLcs: (customerId: number) => ['trade', 'lc', 'customer', customerId] as const,
+    documents: (lcId: number) => ['trade', 'documents', 'lc', lcId] as const,
+  },
+  guarantees: {
+    all: ['trade', 'guarantees'] as const,
+    list: (customerId?: number) => ['trade', 'guarantees', customerId ?? 'all'] as const,
+    detail: (id: number) => ['trade', 'guarantee', id] as const,
+    customerGuarantees: (customerId: number) =>
+      ['trade', 'guarantees', 'customer', customerId] as const,
+  },
+  scf: {
+    programmes: ['trade', 'scf', 'programmes'] as const,
+  },
+  factoring: {
+    all: ['trade', 'factoring'] as const,
+    facilities: (params?: Record<string, unknown>) =>
+      ['trade', 'factoring', 'facilities', params] as const,
+    invoices: (params?: Record<string, unknown>) =>
+      ['trade', 'factoring', 'invoices', params] as const,
+    concentration: (code: string) =>
+      ['trade', 'factoring', 'concentration', code] as const,
+  },
+  tradeOps: {
+    all: ['trade', 'ops'] as const,
+    unmatched: (params?: Record<string, unknown>) =>
+      ['trade', 'ops', 'unmatched', params] as const,
+    pendingClearing: (params?: Record<string, unknown>) =>
+      ['trade', 'ops', 'pending-clearing', params] as const,
+  },
+} as const;
 
-// ─── Letters of Credit ────────────────────────────────────────────────────────
+// ─── Letters of Credit (tradeFinanceExtApi) ──────────────────────────────────
 
 export function useLettersOfCredit(customerId?: number) {
   return useQuery({
-    queryKey: keys.lcs(customerId),
+    queryKey: KEYS.lcs.list(customerId),
     queryFn: () =>
       customerId
         ? tradeFinanceExtApi.getCustomerLcs(customerId)
@@ -37,7 +68,7 @@ export function useLettersOfCredit(customerId?: number) {
 
 export function useLetterOfCredit(id: number) {
   return useQuery({
-    queryKey: keys.lc(id),
+    queryKey: KEYS.lcs.detail(id),
     queryFn: () => tradeFinanceExtApi.getLc(id),
     enabled: !!id,
   });
@@ -56,7 +87,7 @@ export function useIssueLc() {
       tenor?: number;
     }) => tradeFinanceExtApi.issueLc(input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['trade', 'lcs'] });
+      qc.invalidateQueries({ queryKey: KEYS.lcs.all });
     },
   });
 }
@@ -72,17 +103,56 @@ export function useSettleLc() {
       input: { presentationDate: string; presentedDocuments: string[]; discrepancies?: string };
     }) => tradeFinanceExtApi.settleLc(id, input),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: ['trade', 'lcs'] });
-      qc.invalidateQueries({ queryKey: keys.lc(id) });
+      qc.invalidateQueries({ queryKey: KEYS.lcs.all });
+      qc.invalidateQueries({ queryKey: KEYS.lcs.detail(id) });
     },
   });
 }
 
-// ─── Bank Guarantees ──────────────────────────────────────────────────────────
+// ─── LC API (lcApi) ──────────────────────────────────────────────────────────
+
+export function useLcDetail(id: number) {
+  return useQuery({
+    queryKey: KEYS.lcs.detail(id),
+    queryFn: () => lcApi.getLC(id),
+    enabled: !!id,
+  });
+}
+
+export function useCustomerLCs(customerId: number) {
+  return useQuery({
+    queryKey: KEYS.lcs.customerLcs(customerId),
+    queryFn: () => lcApi.getCustomerLCs(customerId),
+    enabled: !!customerId,
+    staleTime: 30_000,
+  });
+}
+
+export function useSettleLcDirect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => lcApi.settleLC(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.lcs.all });
+    },
+  });
+}
+
+export function useExpireLCs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => lcApi.expireLCs(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.lcs.all });
+    },
+  });
+}
+
+// ─── Bank Guarantees (tradeFinanceExtApi) ────────────────────────────────────
 
 export function useBankGuarantees(customerId?: number) {
   return useQuery({
-    queryKey: keys.guarantees(customerId),
+    queryKey: KEYS.guarantees.list(customerId),
     queryFn: () =>
       customerId
         ? tradeFinanceExtApi.getCustomerGuarantees(customerId)
@@ -104,7 +174,7 @@ export function useIssueGuarantee() {
       expiryDate: string;
     }) => tradeFinanceExtApi.issueGuarantee(input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['trade', 'guarantees'] });
+      qc.invalidateQueries({ queryKey: KEYS.guarantees.all });
     },
   });
 }
@@ -120,19 +190,57 @@ export function useClaimGuarantee() {
       input: { claimAmount: number; claimRef: string; claimDate: string };
     }) => tradeFinanceExtApi.claimGuarantee(id, input),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: ['trade', 'guarantees'] });
-      qc.invalidateQueries({ queryKey: keys.guarantee(id) });
+      qc.invalidateQueries({ queryKey: KEYS.guarantees.all });
+      qc.invalidateQueries({ queryKey: KEYS.guarantees.detail(id) });
     },
   });
 }
 
-// ─── SCF Programmes ───────────────────────────────────────────────────────────
+// ─── Guarantees API (guaranteesApi) ──────────────────────────────────────────
+
+export function useGuaranteeDetail(id: number) {
+  return useQuery({
+    queryKey: KEYS.guarantees.detail(id),
+    queryFn: () => guaranteesApi.getGuarantee(id),
+    enabled: !!id,
+  });
+}
+
+export function useCustomerGuarantees(customerId: number) {
+  return useQuery({
+    queryKey: KEYS.guarantees.customerGuarantees(customerId),
+    queryFn: () => guaranteesApi.getCustomerGuarantees(customerId),
+    enabled: !!customerId,
+    staleTime: 30_000,
+  });
+}
+
+export function useClaimGuaranteeDirect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => guaranteesApi.claimGuarantee(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.guarantees.all });
+    },
+  });
+}
+
+export function useProcessGuaranteeExpiry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => guaranteesApi.processGuaranteeExpiry(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.guarantees.all });
+    },
+  });
+}
+
+// ─── SCF Programmes ──────────────────────────────────────────────────────────
 
 export function useScfProgrammes() {
   return useQuery({
-    queryKey: keys.scfProgrammes,
+    queryKey: KEYS.scf.programmes,
     queryFn: () =>
-      // SCF programmes list is derived from created programmes; use a fallback empty list
       Promise.resolve([] as Awaited<ReturnType<typeof tradeFinanceExtApi.createScfProgramme>>[]),
     staleTime: 60_000,
   });
@@ -148,7 +256,7 @@ export function useCreateScfProgramme() {
       limitAmount: number;
     }) => tradeFinanceExtApi.createScfProgramme(input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.scfProgrammes });
+      qc.invalidateQueries({ queryKey: KEYS.scf.programmes });
     },
   });
 }
@@ -165,16 +273,16 @@ export function useFinanceInvoice() {
       maturityDate: string;
     }) => tradeFinanceExtApi.financeInvoice(input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.scfProgrammes });
+      qc.invalidateQueries({ queryKey: KEYS.scf.programmes });
     },
   });
 }
 
-// ─── Trade Documents ──────────────────────────────────────────────────────────
+// ─── Trade Documents ─────────────────────────────────────────────────────────
 
 export function useLcDocuments(lcId: number) {
   return useQuery({
-    queryKey: keys.lcDocuments(lcId),
+    queryKey: KEYS.lcs.documents(lcId),
     queryFn: () => tradeFinanceExtApi.getLcDocuments(lcId),
     enabled: !!lcId,
   });
@@ -203,17 +311,17 @@ export function useUploadDocument() {
       tradeFinanceExtApi.uploadDocument(input),
     onSuccess: (_data, variables) => {
       if (variables.lcId) {
-        qc.invalidateQueries({ queryKey: keys.lcDocuments(variables.lcId) });
+        qc.invalidateQueries({ queryKey: KEYS.lcs.documents(variables.lcId) });
       }
     },
   });
 }
 
-// ─── Factoring ────────────────────────────────────────────────────────────────
+// ─── Factoring (tradeFinanceExtApi) ──────────────────────────────────────────
 
-export function useFactoringFacilities() {
+export function useFactoringFacilitiesExt() {
   return useQuery({
-    queryKey: keys.factoringFacilities,
+    queryKey: [...KEYS.factoring.all, 'ext'],
     queryFn: () =>
       Promise.resolve([] as Awaited<ReturnType<typeof tradeFinanceExtApi.createFactoringFacility>>[]),
     staleTime: 60_000,
@@ -231,7 +339,7 @@ export function useCreateFactoringFacility() {
       discountRate: number;
     }) => tradeFinanceExtApi.createFactoringFacility(input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.factoringFacilities });
+      qc.invalidateQueries({ queryKey: KEYS.factoring.all });
     },
   });
 }
@@ -248,7 +356,7 @@ export function useSubmitInvoice() {
       dueDate: string;
     }) => tradeFinanceExtApi.submitInvoice(input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.factoringFacilities });
+      qc.invalidateQueries({ queryKey: KEYS.factoring.all });
     },
   });
 }
@@ -258,7 +366,7 @@ export function useFundInvoice() {
   return useMutation({
     mutationFn: (id: number) => tradeFinanceExtApi.fundInvoice(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.factoringFacilities });
+      qc.invalidateQueries({ queryKey: KEYS.factoring.all });
     },
   });
 }
@@ -269,7 +377,7 @@ export function useRecordCollection() {
     mutationFn: ({ id, input }: { id: number; input: { amount: number; collectionDate: string } }) =>
       tradeFinanceExtApi.recordCollection(id, input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: keys.factoringFacilities });
+      qc.invalidateQueries({ queryKey: KEYS.factoring.all });
     },
   });
 }
@@ -284,5 +392,110 @@ export function useCreateCollection() {
       type: CollectionType;
       documents: string[];
     }) => tradeFinanceExtApi.createCollection(input),
+  });
+}
+
+// ─── Factoring API (factoringApi) ────────────────────────────────────────────
+
+export function useFactoringFacilities(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: KEYS.factoring.facilities(params),
+    queryFn: () => factoringApi.listFacilities(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useFactoringInvoices(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: KEYS.factoring.invoices(params),
+    queryFn: () => factoringApi.listInvoices(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useFactoringConcentration(code: string) {
+  return useQuery({
+    queryKey: KEYS.factoring.concentration(code),
+    queryFn: () => factoringApi.concentration(code),
+    enabled: !!code,
+    staleTime: 60_000,
+  });
+}
+
+export function useFactoringRecourse() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => factoringApi.recourse(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.factoring.all });
+    },
+  });
+}
+
+// ─── Trade Ops ───────────────────────────────────────────────────────────────
+
+export function useUnmatchedConfirmations(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: KEYS.tradeOps.unmatched(params),
+    queryFn: () => tradeOpsApi.getUnmatched(params),
+    staleTime: 30_000,
+  });
+}
+
+export function usePendingClearing(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: KEYS.tradeOps.pendingClearing(params),
+    queryFn: () => tradeOpsApi.getPendingClearing(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useSubmitTradeConfirmation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<TradeConfirmation>) => tradeOpsApi.submitConfirmation(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.tradeOps.all });
+    },
+  });
+}
+
+export function useMatchConfirmations() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => tradeOpsApi.matchConfirmation(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.tradeOps.all });
+    },
+  });
+}
+
+export function useAllocateOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<OrderAllocation>) => tradeOpsApi.allocateOrder(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.tradeOps.all });
+    },
+  });
+}
+
+export function useSubmitTradeReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<TradeReport>) => tradeOpsApi.submitTradeReport(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.tradeOps.all });
+    },
+  });
+}
+
+export function useSubmitForClearing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<ClearingSubmission>) => tradeOpsApi.submitForClearing(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.tradeOps.all });
+    },
   });
 }

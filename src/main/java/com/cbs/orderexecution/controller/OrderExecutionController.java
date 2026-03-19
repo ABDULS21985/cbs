@@ -33,6 +33,12 @@ public class OrderExecutionController {
         return ResponseEntity.ok(ApiResponse.ok(service.bustExecution(ref)));
     }
 
+    @GetMapping("/quality")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ExecutionQuality>>> listQuality() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllQualityReports()));
+    }
+
     @PostMapping("/quality")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<ExecutionQuality>> analyzeExecutionQuality(@RequestBody ExecutionQuality quality) {

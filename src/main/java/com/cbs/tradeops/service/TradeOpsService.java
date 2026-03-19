@@ -108,4 +108,9 @@ public class TradeOpsService {
     public List<ClearingSubmission> getPendingClearing() {
         return clearingRepository.findByStatusOrderBySubmittedAtAsc("SUBMITTED");
     }
+
+    public List<TradeConfirmation> getAllConfirmations() { return confirmationRepository.findAll(); }
+    public List<OrderAllocation> getAllAllocations() { return allocationRepository.findAll(); }
+    public List<ClearingSubmission> getAllClearingSubmissions() { return clearingRepository.findAll(); }
+    public List<TradeReport> getAllReports() { return reportRepository.findAll(); }
 }

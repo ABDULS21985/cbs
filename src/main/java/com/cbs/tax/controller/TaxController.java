@@ -21,6 +21,12 @@ public class TaxController {
 
     private final TaxService taxService;
 
+    @GetMapping("/rules")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<TaxRule>>> listRules() {
+        return ResponseEntity.ok(ApiResponse.ok(taxService.getAllRules()));
+    }
+
     @PostMapping("/rules")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<TaxRule>> createRule(@RequestBody TaxRule rule) {
@@ -30,8 +36,10 @@ public class TaxController {
     @GetMapping("/preview")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<TaxService.TaxPreview>>> preview(
-            @RequestParam String appliesTo, @RequestParam BigDecimal amount,
+            @RequestParam(required = false, defaultValue = "INTEREST") String appliesTo,
+            @RequestParam(required = false) BigDecimal amount,
             @RequestParam(required = false) String customerType, @RequestParam(required = false) String productCode) {
+        if (amount == null) amount = BigDecimal.ZERO;
         return ResponseEntity.ok(ApiResponse.ok(taxService.previewTax(appliesTo, amount, customerType, productCode)));
     }
 

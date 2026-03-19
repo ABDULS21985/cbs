@@ -145,6 +145,10 @@ public class WorkflowService {
         return instanceRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
     }
 
+    public Page<WorkflowInstance> getAllInstances(Pageable pageable) {
+        return instanceRepository.findAll(pageable);
+    }
+
     @Transactional
     public WorkflowDefinition createDefinition(WorkflowDefinition def) {
         return definitionRepository.save(def);

@@ -20,6 +20,10 @@ public class SecuritiesPositionController {
     public ResponseEntity<ApiResponse<SecuritiesPosition>> record(@RequestBody SecuritiesPosition pos) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.record(pos)));
     }
+    @GetMapping("/movements") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<SecuritiesMovement>>> listMovements() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllMovements()));
+    }
     @PostMapping("/movements") @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<SecuritiesMovement>> recordMovement(@RequestBody SecuritiesMovement movement) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.recordMovement(movement)));

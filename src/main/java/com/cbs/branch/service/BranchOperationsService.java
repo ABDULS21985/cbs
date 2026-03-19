@@ -61,8 +61,16 @@ public class BranchOperationsService {
         return facilityRepository.findByBranchIdAndStatus(branchId, status);
     }
 
+    public List<BranchFacility> getAllFacilities() {
+        return facilityRepository.findAll();
+    }
+
     public List<BranchFacility> getOverdueInspections() {
         return facilityRepository.findByNextInspectionDueBefore(LocalDate.now());
+    }
+
+    public List<BranchQueueTicket> getAllQueueTickets() {
+        return queueTicketRepository.findAll();
     }
 
     // ── Queue Ticket Operations ──────────────────────────────────────────
@@ -127,6 +135,10 @@ public class BranchOperationsService {
         status.put("waitingCount", waitingCount);
         status.put("avgWaitTime", avgWaitTime);
         return status;
+    }
+
+    public List<BranchServicePlan> getAllServicePlans() {
+        return servicePlanRepository.findAll();
     }
 
     // ── Service Plan Operations ──────────────────────────────────────────

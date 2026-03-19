@@ -24,4 +24,5 @@ public class CreditMarginService {
     public List<MarginCall> getByCounterparty(String code) { return callRepository.findByCounterpartyCodeOrderByCallDateDesc(code); }
     public List<MarginCall> getOpenCalls() { return callRepository.findByStatusInOrderByCallDateDesc(List.of("ISSUED", "ACKNOWLEDGED", "AGREED", "DISPUTED", "PARTIALLY_SETTLED")); }
     public MarginCall getCallByRef(String ref) { return callRepository.findByCallRef(ref).orElseThrow(() -> new ResourceNotFoundException("MarginCall", "callRef", ref)); }
+    public List<CollateralPosition> getAllCollateralPositions() { return collateralRepository.findAll(); }
 }

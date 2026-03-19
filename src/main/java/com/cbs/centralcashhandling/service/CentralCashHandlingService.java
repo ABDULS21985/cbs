@@ -22,5 +22,6 @@ public class CentralCashHandlingService {
     @Transactional public CashVault reconcileVault(String vaultCode) { CashVault v = getVaultByCode(vaultCode); v.setLastReconciledAt(Instant.now()); return vaultRepository.save(v); }
     public List<CashVault> getVaultsByType(String type) { return vaultRepository.findByVaultTypeAndStatusOrderByVaultNameAsc(type, "ACTIVE"); }
     public List<CashMovement> getMovements(String vaultCode) { return movementRepository.findByFromVaultCodeOrToVaultCodeOrderByScheduledDateDesc(vaultCode, vaultCode); }
+    public List<CashMovement> getAllMovements() { return movementRepository.findAll(); }
     public CashVault getVaultByCode(String code) { return vaultRepository.findByVaultCode(code).orElseThrow(() -> new ResourceNotFoundException("CashVault", "vaultCode", code)); }
 }

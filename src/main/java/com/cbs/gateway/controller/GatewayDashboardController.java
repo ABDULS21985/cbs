@@ -48,6 +48,14 @@ public class GatewayDashboardController {
         return ResponseEntity.ok(ApiResponse.ok(filtered, PageMeta.from(result)));
     }
 
+    @GetMapping("/messages/retry-all-failed")
+    @Operation(summary = "Get count of failed gateway messages")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getFailedCount() {
+        List<GatewayMessage> failed = gatewayMessageRepository.findByDeliveryStatusOrderByQueuedAtAsc("FAILED");
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("failedCount", failed.size())));
+    }
+
     @PostMapping("/messages/retry-all-failed")
     @Operation(summary = "Retry all failed gateway messages")
     @PreAuthorize("hasRole('CBS_ADMIN')")

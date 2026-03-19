@@ -28,6 +28,16 @@ public class AtmManagementController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(atmService.registerTerminal(terminal)));
     }
 
+    @GetMapping("/terminals")
+    @Operation(summary = "List all ATM terminals")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AtmTerminal>>> listTerminals(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<AtmTerminal> result = atmService.getAllTerminals(PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @GetMapping("/terminals/{terminalId}")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<AtmTerminal>> getTerminal(@PathVariable String terminalId) {

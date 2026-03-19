@@ -124,6 +124,8 @@ public class FixedIncomeService {
         return count;
     }
 
+    public List<SecurityHolding> getAllHoldings() { return holdingRepository.findAll(); }
+
     public SecurityHolding getHolding(Long id) {
         return holdingRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("SecurityHolding", "id", id));
     }

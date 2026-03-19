@@ -106,5 +106,7 @@ public class TaxService {
         return txnRepository.findByStatusOrderByCreatedAtDesc("DEDUCTED", pageable);
     }
 
+    public List<TaxRule> getAllRules() { return ruleRepository.findAll(); }
+
     public record TaxPreview(String taxCode, String taxName, String taxType, BigDecimal rate, BigDecimal amount) {}
 }

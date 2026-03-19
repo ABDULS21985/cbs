@@ -27,6 +27,12 @@ public class FraudController {
     private final FraudDetectionService fraudService;
     private final FraudAlertRepository fraudAlertRepository;
 
+    @GetMapping("/score")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getScoreInfo() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "ACTIVE", "rulesCount", fraudService.getAllActiveRules().size())));
+    }
+
     @PostMapping("/score")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<FraudAlert>> score(

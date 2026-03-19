@@ -59,6 +59,8 @@ public class RemittanceService {
         return beneficiaryRepository.save(beneficiary);
     }
 
+    public List<RemittanceBeneficiary> getAllBeneficiaries() { return beneficiaryRepository.findAll(); }
+
     public List<RemittanceBeneficiary> getCustomerBeneficiaries(Long customerId) {
         return beneficiaryRepository.findByCustomerIdAndIsActiveTrueOrderByBeneficiaryNameAsc(customerId);
     }

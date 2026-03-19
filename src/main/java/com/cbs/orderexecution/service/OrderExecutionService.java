@@ -97,4 +97,6 @@ public class OrderExecutionService {
     public List<ExecutionQuality> getBestExecutionReport(Long orderId) {
         return qualityRepository.findByOrderIdOrderByAnalysisDateDesc(orderId);
     }
+
+    public List<ExecutionQuality> getAllQualityReports() { return qualityRepository.findAll(); }
 }

@@ -37,6 +37,12 @@ public class EsbController {
         return ResponseEntity.ok(ApiResponse.ok(esbService.healthCheck(routeCode)));
     }
 
+    @GetMapping("/messages")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<IntegrationMessage>>> listMessages() {
+        return ResponseEntity.ok(ApiResponse.ok(esbService.getAllMessages()));
+    }
+
     @PostMapping("/messages")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<IntegrationMessage>> sendMessage(
@@ -45,6 +51,12 @@ public class EsbController {
             @RequestBody String payload) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
                 esbService.sendMessage(routeId, messageType, contentType, null, payload)));
+    }
+
+    @GetMapping("/dlq/retry")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getDlqRetryStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("pending", esbService.getDeadLetterCount())));
     }
 
     @PostMapping("/dlq/retry")

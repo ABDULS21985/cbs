@@ -22,6 +22,18 @@ public class TraderPositionController {
 
     private final TraderPositionService traderPositionService;
 
+    @GetMapping("/update")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<TraderPosition>>> listAllPositions() {
+        return ResponseEntity.ok(ApiResponse.ok(traderPositionService.getAllPositions()));
+    }
+
+    @GetMapping("/limits")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<TraderPositionLimit>>> listAllLimits() {
+        return ResponseEntity.ok(ApiResponse.ok(traderPositionService.getAllLimits()));
+    }
+
     @PostMapping("/update")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<TraderPosition>> updatePosition(@RequestParam String dealerId, @RequestBody TraderPosition position) {

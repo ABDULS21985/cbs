@@ -15,6 +15,10 @@ import java.util.List;
 public class PayrollController {
     private final PayrollService payrollService;
 
+    @GetMapping("/batches") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<PayrollBatch>>> listBatches() {
+        return ResponseEntity.ok(ApiResponse.ok(payrollService.getAllBatches()));
+    }
     @PostMapping("/batches") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<PayrollBatch>> create(@RequestBody PayrollBatch batch) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(payrollService.createBatch(batch, List.of())));

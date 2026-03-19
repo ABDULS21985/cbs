@@ -31,4 +31,6 @@ public class CardClearingService {
     }
     public List<CardClearingBatch> getByNetwork(String network, LocalDate date) { return batchRepository.findByNetworkAndClearingDateOrderByCreatedAtDesc(network, date); }
     public List<CardSettlementPosition> getPositions(LocalDate date, String network) { return positionRepository.findBySettlementDateAndNetworkOrderByCounterpartyNameAsc(date, network); }
+    public List<CardClearingBatch> getAllBatches() { return batchRepository.findAll(); }
+    public List<CardSettlementPosition> getAllPositions() { return positionRepository.findAll(); }
 }

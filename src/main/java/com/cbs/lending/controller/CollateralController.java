@@ -30,6 +30,16 @@ public class CollateralController {
     private final CollateralService collateralService;
     private final LoanRestructuringService restructuringService;
 
+    @GetMapping
+    @Operation(summary = "List all collaterals")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<CollateralDto>>> listAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<CollateralDto> result = collateralService.getAllCollaterals(PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @PostMapping
     @Operation(summary = "Register a new collateral")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

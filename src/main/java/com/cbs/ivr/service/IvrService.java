@@ -37,4 +37,5 @@ public class IvrService {
     }
     @Transactional public IvrMenu createMenu(IvrMenu menu) { return menuRepository.save(menu); }
     public List<IvrMenu> getRootMenus() { return menuRepository.findByMenuLevelAndIsActiveTrueOrderByMenuCodeAsc(0); }
+    public List<IvrSession> getAllSessions() { return sessionRepository.findAll(); }
 }

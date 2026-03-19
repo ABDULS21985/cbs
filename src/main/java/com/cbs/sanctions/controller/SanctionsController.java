@@ -28,6 +28,12 @@ public class SanctionsController {
     private final ScreeningRequestRepository screeningRequestRepository;
     private final WatchlistRepository watchlistRepository;
 
+    @GetMapping("/screen")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> getScreenInfo() {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("status", "READY")));
+    }
+
     @PostMapping("/screen")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<ScreeningRequest>> screen(

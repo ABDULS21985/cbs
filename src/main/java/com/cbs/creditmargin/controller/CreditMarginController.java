@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*; import java.math.BigDecimal; i
 @Tag(name = "Credit & Margin Management", description = "Margin calls, collateral positions, settlement")
 public class CreditMarginController {
     private final CreditMarginService service;
+    @GetMapping("/margin-calls") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<MarginCall>>> listMarginCalls() { return ResponseEntity.ok(ApiResponse.ok(service.getOpenCalls())); }
+    @GetMapping("/collateral") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<CollateralPosition>>> listCollateral() { return ResponseEntity.ok(ApiResponse.ok(service.getAllCollateralPositions())); }
     @PostMapping("/margin-calls") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<MarginCall>> issue(@RequestBody MarginCall call) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.issueMarginCall(call))); }
     @PostMapping("/margin-calls/{ref}/acknowledge") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<MarginCall>> acknowledge(@PathVariable String ref) { return ResponseEntity.ok(ApiResponse.ok(service.acknowledgeCall(ref))); }
     @PostMapping("/margin-calls/{ref}/settle") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<MarginCall>> settle(@PathVariable String ref, @RequestParam BigDecimal agreedAmount, @RequestParam String collateralType) { return ResponseEntity.ok(ApiResponse.ok(service.settleCall(ref, agreedAmount, collateralType))); }

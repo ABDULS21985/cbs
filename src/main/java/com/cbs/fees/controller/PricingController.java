@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/pricing")
@@ -21,6 +22,24 @@ import java.util.List;
 public class PricingController {
 
     private final PricingService pricingService;
+
+    @GetMapping("/discounts")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<DiscountScheme>>> listDiscounts() {
+        return ResponseEntity.ok(ApiResponse.ok(pricingService.getDiscountUtilization()));
+    }
+
+    @GetMapping("/discounts/evaluate")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getEvaluateInfo() {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("status", "READY")));
+    }
+
+    @GetMapping("/special-pricing")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<SpecialPricingAgreement>>> listSpecialPricing() {
+        return ResponseEntity.ok(ApiResponse.ok(pricingService.getAllSpecialPricing()));
+    }
 
     @PostMapping("/discounts")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

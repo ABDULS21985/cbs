@@ -15,9 +15,17 @@ import java.util.List;
 public class LoyaltyController {
     private final LoyaltyService loyaltyService;
 
+    @GetMapping("/programs") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<LoyaltyProgram>>> listPrograms() {
+        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.getAllPrograms()));
+    }
     @PostMapping("/programs") @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<LoyaltyProgram>> createProgram(@RequestBody LoyaltyProgram program) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(loyaltyService.createProgram(program)));
+    }
+    @GetMapping("/enroll") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<LoyaltyAccount>>> listEnrollments() {
+        return ResponseEntity.ok(ApiResponse.ok(loyaltyService.getAllAccounts()));
     }
     @PostMapping("/enroll") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<LoyaltyAccount>> enroll(@RequestParam Long customerId, @RequestParam String programCode) {

@@ -12,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/quotes")
@@ -27,6 +28,12 @@ public class QuoteManagementController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(quoteManagementService.submitQuoteRequest(request)));
     }
 
+    @GetMapping("/generate")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<PriceQuote>>> listQuotes() {
+        return ResponseEntity.ok(ApiResponse.ok(quoteManagementService.getAllQuotes()));
+    }
+
     @PostMapping("/generate")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<PriceQuote>> generateQuote(@RequestParam Long requestId, @RequestBody PriceQuote quote) {
@@ -37,6 +44,12 @@ public class QuoteManagementController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<PriceQuote>> acceptQuote(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(quoteManagementService.acceptQuote(id)));
+    }
+
+    @GetMapping("/expire-stale")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getExpireStaleStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("status", "READY")));
     }
 
     @PostMapping("/expire-stale")
@@ -53,7 +66,7 @@ public class QuoteManagementController {
 
     @GetMapping("/requests")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<QuoteRequest>>> getQuoteRequests(@RequestParam String status) {
+    public ResponseEntity<ApiResponse<List<QuoteRequest>>> getQuoteRequests(@RequestParam(required = false, defaultValue = "OPEN") String status) {
         return ResponseEntity.ok(ApiResponse.ok(quoteManagementService.getQuoteRequests(status)));
     }
 }

@@ -97,4 +97,7 @@ public class EventingService {
     @Transactional
     public EventSubscription createSubscription(EventSubscription sub) { return subscriptionRepository.save(sub); }
     public List<EventSubscription> getActiveSubscriptions() { return subscriptionRepository.findByIsActiveTrueOrderBySubscriptionNameAsc(); }
+
+    public List<DomainEvent> getRecentEvents() { return eventRepository.findAll(); }
+    public int getOutboxPendingCount() { return eventRepository.findUnpublished().size(); }
 }

@@ -15,6 +15,10 @@ import java.util.List;
 public class WorkbenchController {
     private final WorkbenchService workbenchService;
 
+    @GetMapping("/sessions") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<StaffWorkbenchSession>>> listSessions() {
+        return ResponseEntity.ok(ApiResponse.ok(workbenchService.getAllSessions()));
+    }
     @PostMapping("/sessions") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<StaffWorkbenchSession>> start(
             @RequestParam String staffUserId, @RequestParam String staffName, @RequestParam String workbenchType) {

@@ -66,6 +66,9 @@ public class LoyaltyService {
         return accountRepository.save(account);
     }
 
+    public List<LoyaltyProgram> getAllPrograms() { return programRepository.findAll(); }
+    public List<LoyaltyAccount> getAllAccounts() { return accountRepository.findAll(); }
+
     public List<LoyaltyAccount> getCustomerAccounts(Long customerId) {
         return accountRepository.findByCustomerIdAndStatus(customerId, "ACTIVE");
     }

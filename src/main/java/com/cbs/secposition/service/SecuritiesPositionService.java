@@ -49,4 +49,6 @@ public class SecuritiesPositionService {
     public List<SecuritiesMovement> getMovements(String positionId) {
         return movementRepository.findByPositionIdOrderByTradeDateDesc(positionId);
     }
+
+    public List<SecuritiesMovement> getAllMovements() { return movementRepository.findAll(); }
 }

@@ -15,6 +15,12 @@ import java.util.*;
 public class BehaviourAnalyticsController {
     private final BehaviourAnalyticsService service;
 
+    @GetMapping("/events")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CustomerBehaviourEvent>>> listEvents() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllEvents()));
+    }
+
     @PostMapping("/events")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CustomerBehaviourEvent>> track(@RequestBody CustomerBehaviourEvent event) {

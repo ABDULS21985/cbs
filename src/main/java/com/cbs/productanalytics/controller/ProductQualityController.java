@@ -40,7 +40,11 @@ public class ProductQualityController {
 
     @GetMapping("/compare")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<ProductQualityAssessment>>> compareProducts(@RequestParam String code1, @RequestParam String code2) {
+    public ResponseEntity<ApiResponse<List<ProductQualityAssessment>>> compareProducts(
+            @RequestParam(required = false) String code1, @RequestParam(required = false) String code2) {
+        if (code1 == null || code2 == null) {
+            return ResponseEntity.ok(ApiResponse.ok(List.of()));
+        }
         return ResponseEntity.ok(ApiResponse.ok(service.compareProducts(code1, code2)));
     }
 }

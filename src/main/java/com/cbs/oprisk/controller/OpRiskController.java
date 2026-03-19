@@ -28,6 +28,16 @@ public class OpRiskController {
     private final OpRiskService opRiskService;
     private final OpRiskLossEventRepository opRiskLossEventRepository;
 
+    @GetMapping("/loss-events")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<OpRiskLossEvent>>> listAllLossEvents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "eventDate"));
+        Page<OpRiskLossEvent> result = opRiskLossEventRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @PostMapping("/loss-events")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<OpRiskLossEvent>> reportEvent(
@@ -50,7 +60,10 @@ public class OpRiskController {
 
     @GetMapping("/loss-events/total")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, BigDecimal>>> getTotalLoss(@RequestParam LocalDate from, @RequestParam LocalDate to) {
+    public ResponseEntity<ApiResponse<Map<String, BigDecimal>>> getTotalLoss(
+            @RequestParam(required = false) LocalDate from, @RequestParam(required = false) LocalDate to) {
+        if (from == null) from = LocalDate.now().minusYears(1);
+        if (to == null) to = LocalDate.now();
         return ResponseEntity.ok(ApiResponse.ok(Map.of("totalNetLoss", opRiskService.getTotalNetLoss(from, to))));
     }
 

@@ -55,6 +55,12 @@ public class WorkbenchEnhancementController {
         return ResponseEntity.ok(ApiResponse.ok(enhancementService.loadWorkbench(workbenchType)));
     }
 
+    @GetMapping("/alerts")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<WorkbenchAlert>>> listAlerts() {
+        return ResponseEntity.ok(ApiResponse.ok(enhancementService.getAllAlerts()));
+    }
+
     @PostMapping("/alerts")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<WorkbenchAlert>> raiseAlert(

@@ -156,6 +156,14 @@ import {
   MerchantAcquiringPage,
   MarketDataManagementPage,
   TradeFinanceHubPage,
+  AccountListPage,
+  PaymentsDashboardPage,
+  CardDisputePage,
+  TreasuryPositionsPage,
+  FxRatesPage,
+  ComplianceAssessmentsPage,
+  ReportsHomePage,
+  AdminHomePage,
 } from './lazyRoutes';
 
 // Placeholder page — used for all unimplemented modules
@@ -202,7 +210,7 @@ export function AppRouter() {
 
         {/* Accounts */}
         <Route path="/accounts" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="All Accounts" subtitle="Account listing and management" />} />
+          <Route index element={<AccountListPage />} />
           <Route path="open" element={<AccountOpeningPage />} />
           <Route path="fixed-deposits" element={<FixedDepositListPage />} />
           <Route path="fixed-deposits/new" element={<NewFixedDepositPage />} />
@@ -244,7 +252,7 @@ export function AppRouter() {
 
         {/* Payments */}
         <Route path="/payments" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Payments Dashboard" />} />
+          <Route index element={<PaymentsDashboardPage />} />
           <Route path="new" element={<NewTransferPage />} />
           <Route path="history" element={<TransactionSearchPage />} />
           <Route path="standing-orders" element={<StandingOrderListPage />} />
@@ -265,7 +273,7 @@ export function AppRouter() {
           <Route path="merchants" element={<MerchantListPage />} />
           <Route path="pos" element={<PosTerminalPage />} />
           <Route path="clearing" element={<CardClearingPage />} />
-          <Route path="disputes" element={<PlaceholderPage title="Disputes & Chargebacks" />} />
+          <Route path="disputes" element={<CardDisputePage />} />
         </Route>
 
         {/* Treasury */}
@@ -275,8 +283,8 @@ export function AppRouter() {
           <Route path="deals" element={<TreasuryDealsPage />} />
           <Route path="trading-desk" element={<TradingDeskPage />} />
           <Route path="market-making" element={<MarketMakingPage />} />
-          <Route path="positions" element={<PlaceholderPage title="Positions" />} />
-          <Route path="fx" element={<PlaceholderPage title="FX Rates" />} />
+          <Route path="positions" element={<TreasuryPositionsPage />} />
+          <Route path="fx" element={<FxRatesPage />} />
           <Route path="fixed-income" element={<FixedIncomePage />} />
           <Route path="market-data" element={<MarketDataPage />} />
           <Route path="orders" element={<OrderManagementPage />} />
@@ -355,7 +363,7 @@ export function AppRouter() {
           <Route index element={<ComplianceDashboardPage />} />
           <Route path="returns" element={<RegulatoryReturnsPage />} />
           <Route path="returns/:id" element={<ReturnDetailPage />} />
-          <Route path="assessments" element={<PlaceholderPage title="Assessments" />} />
+          <Route path="assessments" element={<ComplianceAssessmentsPage />} />
           <Route path="reports" element={<ComplianceReportsPage />} />
           <Route path="audit" element={<AuditTrailPage />} />
         </Route>
@@ -374,7 +382,7 @@ export function AppRouter() {
 
         {/* Reports */}
         <Route path="/reports" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Reports" />} />
+          <Route index element={<ReportsHomePage />} />
           <Route path="executive" element={<ExecutiveDashboardPage />} />
           <Route path="financial" element={<FinancialReportsPage />} />
           <Route path="loans" element={<LoanAnalyticsPage />} />
@@ -392,7 +400,7 @@ export function AppRouter() {
 
         {/* Admin */}
         <Route path="/admin" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Administration" />} />
+          <Route index element={<AdminHomePage />} />
           <Route path="users" element={<UserAdminPage />} />
           <Route path="parameters" element={<SystemParametersPage />} />
           <Route path="products" element={<ProductFactoryPage />} />

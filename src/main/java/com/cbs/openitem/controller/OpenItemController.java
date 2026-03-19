@@ -9,6 +9,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController @RequestMapping("/v1/open-items") @RequiredArgsConstructor
 @Tag(name = "Open Item Management", description = "Unmatched transactions, suspense entries, reconciliation breaks")
@@ -34,6 +35,10 @@ public class OpenItemController {
     @GetMapping("/assignee/{assignedTo}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<OpenItem>>> getByAssignee(@PathVariable String assignedTo) {
         return ResponseEntity.ok(ApiResponse.ok(service.getByAssignee(assignedTo)));
+    }
+    @GetMapping("/update-aging") @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getAgingStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("status", "READY")));
     }
     @PostMapping("/update-aging") @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Integer>> updateAging() {

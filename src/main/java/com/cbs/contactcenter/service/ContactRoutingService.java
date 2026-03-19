@@ -86,6 +86,8 @@ public class ContactRoutingService {
         return saved;
     }
 
+    public List<CallbackRequest> getAllCallbacks() { return callbackRequestRepository.findAll(); }
+
     public List<ContactQueue> getQueueDashboard(Long centerId) {
         return contactQueueRepository.findByCenterIdAndStatus(centerId, "ACTIVE");
     }

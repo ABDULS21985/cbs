@@ -60,6 +60,8 @@ public class BehaviourAnalyticsService {
         return saved;
     }
 
+    public List<CustomerBehaviourEvent> getAllEvents() { return eventRepository.findAll(); }
+
     public Map<String, Object> getChurnScore(Long customerId) {
         Instant last30d = Instant.now().minus(30, ChronoUnit.DAYS);
         Instant last90d = Instant.now().minus(90, ChronoUnit.DAYS);

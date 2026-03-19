@@ -34,6 +34,12 @@ public class WorkflowController {
         return ResponseEntity.ok(ApiResponse.ok(workflowService.getAllDefinitions()));
     }
 
+    @GetMapping("/initiate")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getInitiateInfo() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "READY")));
+    }
+
     @PostMapping("/initiate")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<WorkflowInstance>> initiate(
@@ -52,8 +58,12 @@ public class WorkflowController {
 
     @GetMapping("/instances")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<WorkflowInstance>>> getByStatus(@RequestParam WorkflowStatus status,
+    public ResponseEntity<ApiResponse<List<WorkflowInstance>>> getByStatus(@RequestParam(required = false) WorkflowStatus status,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        if (status == null) {
+            Page<WorkflowInstance> result = workflowService.getAllInstances(PageRequest.of(page, size));
+            return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+        }
         Page<WorkflowInstance> result = workflowService.getByStatus(status, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
@@ -70,6 +80,12 @@ public class WorkflowController {
     public ResponseEntity<ApiResponse<WorkflowInstance>> reject(@PathVariable Long id,
             @RequestParam String actionBy, @RequestParam String comments) {
         return ResponseEntity.ok(ApiResponse.ok(workflowService.rejectStep(id, actionBy, comments)));
+    }
+
+    @GetMapping("/sla-check")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getSlaCheckStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("breached", 0)));
     }
 
     @PostMapping("/sla-check")

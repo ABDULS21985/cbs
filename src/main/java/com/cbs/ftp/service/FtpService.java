@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -50,7 +52,7 @@ public class FtpService {
                 .interestIncomeExpense(interestIncomeExpense)
                 .ftpCharge(ftpCharge).netMargin(netMargin).build();
 
-        FtpAllocation saved = allocationRepository.save(allocation);
+        FtpAllocation saved = Objects.requireNonNull(allocationRepository.save(allocation));
         log.debug("FTP allocated: entity={}/{}, balance={}, actual={}%, ftp={}%, spread={}%, margin={}",
                 entityType, entityId, averageBalance, actualRate, ftpRate, spread, netMargin);
         return saved;
@@ -62,7 +64,7 @@ public class FtpService {
         FtpRateCurve curve = FtpRateCurve.builder()
                 .curveName(curveName).currencyCode(currencyCode)
                 .effectiveDate(effectiveDate).tenorDays(tenorDays).rate(rate).build();
-        return curveRepository.save(curve);
+        return Objects.requireNonNull(curveRepository.save(curve));
     }
 
     public Page<FtpAllocation> getProfitabilityByEntity(String entityType, LocalDate date, Pageable pageable) {
@@ -72,4 +74,7 @@ public class FtpService {
     public Page<FtpAllocation> getEntityHistory(String entityType, Long entityId, Pageable pageable) {
         return allocationRepository.findByEntityTypeAndEntityIdOrderByAllocationDateDesc(entityType, entityId, pageable);
     }
+
+    public List<FtpRateCurve> getAllCurves() { return curveRepository.findAll(); }
+    public List<FtpAllocation> getAllAllocations() { return allocationRepository.findAll(); }
 }

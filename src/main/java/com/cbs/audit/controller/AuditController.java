@@ -113,9 +113,12 @@ public class AuditController {
     @Operation(summary = "Activity log for a specific user")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<List<AuditEvent>>> getUserActivity(
-            @RequestParam String userId,
+            @RequestParam(required = false) String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        if (userId == null || userId.isBlank()) {
+            return ResponseEntity.ok(ApiResponse.ok(List.of()));
+        }
         Page<AuditEvent> result = auditService.getUserAuditTrail(userId, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
@@ -124,7 +127,10 @@ public class AuditController {
     @Operation(summary = "User activity heatmap (hour of day x day of week)")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUserHeatmap(
-            @RequestParam String userId) {
+            @RequestParam(required = false) String userId) {
+        if (userId == null || userId.isBlank()) {
+            return ResponseEntity.ok(ApiResponse.ok(Map.of("userId", "", "totalEvents", 0L, "heatmap", Map.of())));
+        }
         Page<AuditEvent> events = auditService.getUserAuditTrail(userId, PageRequest.of(0, 10000));
 
         // Build heatmap: dayOfWeek -> hour -> count
@@ -157,10 +163,13 @@ public class AuditController {
     @Operation(summary = "Audit events related to a specific entity")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<AuditEvent>>> getRelatedEvents(
-            @RequestParam String entityType,
-            @RequestParam Long entityId,
+            @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) Long entityId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        if (entityType == null || entityId == null) {
+            return ResponseEntity.ok(ApiResponse.ok(List.of()));
+        }
         Page<AuditEvent> result = auditService.getEntityAuditTrail(entityType, entityId, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }

@@ -143,6 +143,7 @@ public class PaymentOrchestrationService {
     public PaymentRoutingRule createRule(PaymentRoutingRule rule) { return ruleRepository.save(rule); }
 
     public List<PaymentRail> getAllActiveRails() { return railRepository.findByIsActiveTrueAndIsAvailableTrueOrderByPriorityRankAsc(); }
+    public List<PaymentRoutingRule> getAllRules() { return ruleRepository.findAll(); }
 
     public record RoutingDecision(String railCode, String railName, String settlementSpeed,
                                     BigDecimal estimatedFee, boolean fallbackUsed,

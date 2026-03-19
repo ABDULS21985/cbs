@@ -24,6 +24,12 @@ public class BranchOperationsController {
 
     // ── Facility Endpoints ───────────────────────────────────────────────
 
+    @GetMapping("/facilities")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<BranchFacility>>> listFacilities() {
+        return ResponseEntity.ok(ApiResponse.ok(branchOperationsService.getAllFacilities()));
+    }
+
     @PostMapping("/facilities")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<BranchFacility>> registerFacility(@RequestBody BranchFacility facility) {
@@ -55,6 +61,12 @@ public class BranchOperationsController {
 
     // ── Queue Ticket Endpoints ───────────────────────────────────────────
 
+    @GetMapping("/queue-tickets")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<BranchQueueTicket>>> listQueueTickets() {
+        return ResponseEntity.ok(ApiResponse.ok(branchOperationsService.getAllQueueTickets()));
+    }
+
     @PostMapping("/queue-tickets")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<BranchQueueTicket>> issueQueueTicket(@RequestBody BranchQueueTicket ticket) {
@@ -84,6 +96,12 @@ public class BranchOperationsController {
     }
 
     // ── Service Plan Endpoints ───────────────────────────────────────────
+
+    @GetMapping("/service-plans")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<BranchServicePlan>>> listServicePlans() {
+        return ResponseEntity.ok(ApiResponse.ok(branchOperationsService.getAllServicePlans()));
+    }
 
     @PostMapping("/service-plans")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

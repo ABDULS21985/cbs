@@ -60,6 +60,7 @@ public class Psd2Service {
     }
 
     public List<Psd2TppRegistration> getActiveTpps() { return tppRepository.findByStatusOrderByTppNameAsc("ACTIVE"); }
+    public List<Psd2TppRegistration> getAllTpps() { return tppRepository.findAll(); }
 
     // ── SCA Session Management ───────────────────────────────
 

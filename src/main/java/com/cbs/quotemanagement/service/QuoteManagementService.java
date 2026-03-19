@@ -96,4 +96,6 @@ public class QuoteManagementService {
     public List<QuoteRequest> getQuoteRequests(String status) {
         return requestRepository.findByStatus(status);
     }
+
+    public List<PriceQuote> getAllQuotes() { return quoteRepository.findAll(); }
 }

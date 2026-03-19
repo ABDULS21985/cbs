@@ -112,6 +112,7 @@ public class PayrollService {
         return batchRepository.save(batch);
     }
 
+    public List<PayrollBatch> getAllBatches() { return batchRepository.findAll(); }
     public List<PayrollBatch> getByCustomer(Long customerId) { return batchRepository.findByCustomerIdOrderByPaymentDateDesc(customerId); }
     public List<PayrollItem> getItems(String batchId) {
         PayrollBatch batch = getBatch(batchId);

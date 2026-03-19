@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController @RequestMapping("/v1/receivables") @RequiredArgsConstructor
 @Tag(name = "Accounts Receivable", description = "Invoice management, payment tracking, overdue management")
@@ -27,6 +28,10 @@ public class ReceivableInvoiceController {
     @GetMapping("/overdue") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<ReceivableInvoice>>> getOverdue() {
         return ResponseEntity.ok(ApiResponse.ok(service.getOverdue()));
+    }
+    @GetMapping("/mark-overdue") @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getMarkOverdueStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("status", "READY")));
     }
     @PostMapping("/mark-overdue") @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Integer>> markOverdue() {

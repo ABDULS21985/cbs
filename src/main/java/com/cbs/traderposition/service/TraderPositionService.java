@@ -90,4 +90,7 @@ public class TraderPositionService {
     public List<TraderPosition> getOvernightPositions(Long deskId) {
         return positionRepository.findLatestByDeskId(deskId);
     }
+
+    public List<TraderPosition> getAllPositions() { return positionRepository.findAll(); }
+    public List<TraderPositionLimit> getAllLimits() { return limitRepository.findAll(); }
 }

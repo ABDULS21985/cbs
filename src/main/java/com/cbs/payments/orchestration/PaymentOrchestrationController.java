@@ -41,6 +41,12 @@ public class PaymentOrchestrationController {
         return ResponseEntity.ok(ApiResponse.ok(orchestrationService.getAllActiveRails()));
     }
 
+    @GetMapping("/rules")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<PaymentRoutingRule>>> listRules() {
+        return ResponseEntity.ok(ApiResponse.ok(orchestrationService.getAllRules()));
+    }
+
     @PostMapping("/rules")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<PaymentRoutingRule>> createRule(@RequestBody PaymentRoutingRule rule) {

@@ -37,6 +37,10 @@ public class VirtualAccountController {
     public ResponseEntity<ApiResponse<Optional<VirtualAccount>>> match(@RequestParam String paymentReference) {
         return ResponseEntity.ok(ApiResponse.ok(vaService.matchPayment(paymentReference)));
     }
+    @GetMapping("/sweep") @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getSweepStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("swept", 0)));
+    }
     @PostMapping("/sweep") @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Integer>>> sweep() {
         return ResponseEntity.ok(ApiResponse.ok(Map.of("swept", vaService.executeSweeps())));

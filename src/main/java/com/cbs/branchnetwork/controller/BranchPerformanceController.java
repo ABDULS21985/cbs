@@ -27,23 +27,27 @@ public class BranchPerformanceController {
 
     @GetMapping("/ranking") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<BranchPerformance>>> ranking(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate,
-            @RequestParam String periodType) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate,
+            @RequestParam(required = false, defaultValue = "MONTHLY") String periodType) {
+        if (periodDate == null) periodDate = LocalDate.now();
         return ResponseEntity.ok(ApiResponse.ok(service.getBranchRanking(periodDate, periodType)));
     }
 
     @GetMapping("/underperformers") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<BranchPerformance>>> underperformers(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate,
-            @RequestParam String periodType,
-            @RequestParam BigDecimal maxCostToIncome) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate,
+            @RequestParam(required = false, defaultValue = "MONTHLY") String periodType,
+            @RequestParam(required = false) BigDecimal maxCostToIncome) {
+        if (periodDate == null) periodDate = LocalDate.now();
+        if (maxCostToIncome == null) maxCostToIncome = new BigDecimal("100");
         return ResponseEntity.ok(ApiResponse.ok(service.getUnderperformers(periodDate, periodType, maxCostToIncome)));
     }
 
     @GetMapping("/digital-migration") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<BranchPerformance>>> digitalMigration(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate,
-            @RequestParam String periodType) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate periodDate,
+            @RequestParam(required = false, defaultValue = "MONTHLY") String periodType) {
+        if (periodDate == null) periodDate = LocalDate.now();
         return ResponseEntity.ok(ApiResponse.ok(service.getDigitalMigrationReport(periodDate, periodType)));
     }
 

@@ -84,6 +84,8 @@ public class WorkbenchEnhancementService {
         return alertRepository.save(alert);
     }
 
+    public List<WorkbenchAlert> getAllAlerts() { return alertRepository.findAll(); }
+
     public List<WorkbenchAlert> getAlerts(Long sessionId) {
         return alertRepository.findBySessionIdAndAcknowledgedFalseOrderByCreatedAtDesc(sessionId);
     }

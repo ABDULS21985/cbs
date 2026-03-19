@@ -17,6 +17,12 @@ public class EventingController {
 
     private final EventingService eventingService;
 
+    @GetMapping("/publish")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<DomainEvent>>> listPublished() {
+        return ResponseEntity.ok(ApiResponse.ok(eventingService.getRecentEvents()));
+    }
+
     @PostMapping("/publish")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<DomainEvent>> publish(
@@ -25,6 +31,12 @@ public class EventingController {
             @RequestParam(required = false) String topic) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
                 eventingService.publishEvent(eventType, aggregateType, aggregateId, payload, topic)));
+    }
+
+    @GetMapping("/outbox/process")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getOutboxStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("pending", eventingService.getOutboxPendingCount())));
     }
 
     @PostMapping("/outbox/process")

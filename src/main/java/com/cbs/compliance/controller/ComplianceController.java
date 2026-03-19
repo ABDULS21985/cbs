@@ -108,6 +108,26 @@ public class ComplianceController {
         return ResponseEntity.ok(ApiResponse.ok(gaps));
     }
 
+    @GetMapping("/assessments/{id}")
+    @Operation(summary = "Get compliance assessment detail")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<GuidelineAssessment>> getAssessmentDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(guidelineAssessmentRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Assessment not found: " + id))));
+    }
+
+    @PostMapping("/gaps/{id}/status")
+    @Operation(summary = "Update compliance gap remediation status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<ComplianceGapAnalysis>> updateGapStatus(
+            @PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        ComplianceGapAnalysis gap = complianceGapAnalysisRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Gap not found: " + id));
+        String newStatus = body.getOrDefault("status", gap.getStatus());
+        gap.setStatus(newStatus);
+        return ResponseEntity.ok(ApiResponse.ok(complianceGapAnalysisRepository.save(gap)));
+    }
+
     @GetMapping("/audit-findings")
     @Operation(summary = "List audit findings from guideline assessments")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

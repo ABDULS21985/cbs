@@ -30,6 +30,14 @@ public class CardSwitchController {
     public ResponseEntity<ApiResponse<CardSwitchTransaction>> process(@RequestBody CardSwitchTransaction txn) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.processTransaction(txn)));
     }
+    @GetMapping("/process") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CardSwitchTransaction>>> getProcessedTransactions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<CardSwitchTransaction> result = cardSwitchTransactionRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "processedAt")));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
     @GetMapping("/scheme/{scheme}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CardSwitchTransaction>>> getByScheme(@PathVariable String scheme, @RequestParam Instant from, @RequestParam Instant to) {
         return ResponseEntity.ok(ApiResponse.ok(service.getByScheme(scheme, from, to)));

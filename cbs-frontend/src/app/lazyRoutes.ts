@@ -564,3 +564,36 @@ export const TradeFinanceHubPage = lazyNamed(
   () => import('@/features/tradefinance/pages/TradeFinanceHubPage'),
   'TradeFinanceHubPage',
 );
+
+export const AccountListPage = lazyNamed(
+  () => import('@/features/accounts/pages/AccountListPage'),
+  'AccountListPage',
+);
+export const PaymentsDashboardPage = lazyNamed(
+  () => import('@/features/payments/pages/PaymentsDashboardPage'),
+  'PaymentsDashboardPage',
+);
+export const CardDisputePage = lazyNamed(
+  () => import('@/features/cards/pages/CardDisputePage'),
+  'CardDisputePage',
+);
+export const TreasuryPositionsPage = lazyNamed(
+  () => import('@/features/treasury/pages/TreasuryPositionsPage'),
+  'TreasuryPositionsPage',
+);
+export const FxRatesPage = lazyNamed(
+  () => import('@/features/treasury/pages/FxRatesPage'),
+  'FxRatesPage',
+);
+export const ComplianceAssessmentsPage = lazyNamed(
+  () => import('@/features/compliance/pages/ComplianceAssessmentsPage'),
+  'ComplianceAssessmentsPage',
+);
+export const ReportsHomePage = lazyNamed(
+  () => import('@/features/reports/pages/ReportsHomePage'),
+  'ReportsHomePage',
+);
+export const AdminHomePage = lazyNamed(
+  () => import('@/features/admin/pages/AdminHomePage'),
+  'AdminHomePage',
+);

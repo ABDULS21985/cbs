@@ -55,6 +55,7 @@ public class CommissionService {
         p.setStatus("APPROVED");
         return payoutRepository.save(p);
     }
+    public List<CommissionAgreement> getAllAgreements() { return agreementRepository.findAll(); }
     public List<CommissionAgreement> getAgreementsByParty(String partyId) { return agreementRepository.findByPartyIdAndStatusOrderByEffectiveFromDesc(partyId, "ACTIVE"); }
     public List<CommissionPayout> getPayoutsByParty(String partyId) { return payoutRepository.findByPartyIdOrderByPeriodStartDesc(partyId); }
     public CommissionAgreement getAgreementByCode(String code) {

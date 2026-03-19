@@ -35,7 +35,9 @@ public class TdFrameworkSummaryController {
     }
 
     @GetMapping("/large-deposits") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<TdFrameworkSummary>>> largeDeposits(@RequestParam BigDecimal threshold) {
+    public ResponseEntity<ApiResponse<List<TdFrameworkSummary>>> largeDeposits(
+            @RequestParam(required = false) BigDecimal threshold) {
+        if (threshold == null) threshold = new BigDecimal("1000000");
         return ResponseEntity.ok(ApiResponse.ok(service.getLargeDepositReport(threshold)));
     }
 

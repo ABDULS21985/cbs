@@ -19,6 +19,12 @@ public class Iso20022Controller {
 
     private final Iso20022Service iso20022Service;
 
+    @GetMapping("/messages")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Iso20022Message>>> listMessages() {
+        return ResponseEntity.ok(ApiResponse.ok(iso20022Service.getAllMessages()));
+    }
+
     @PostMapping("/messages")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Iso20022Message>> ingest(@RequestBody Iso20022Message message) {

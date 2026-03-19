@@ -38,6 +38,12 @@ public class ValuationController {
         return ResponseEntity.ok(ApiResponse.ok(service.getModelByCode(code)));
     }
 
+    @GetMapping("/runs")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ValuationRun>>> listRuns() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllRuns()));
+    }
+
     @PostMapping("/runs")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<ValuationRun>> runValuation(

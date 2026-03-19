@@ -42,6 +42,19 @@ public class ChequeController {
         return ResponseEntity.ok(ApiResponse.ok(chequeService.getActiveBooks(accountId)));
     }
 
+    @GetMapping("/present")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ChequeLeaf>>> listPresented(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<ChequeLeaf> result = chequeLeafRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        return ResponseEntity.ok(ApiResponse.ok(
+                result.getContent().stream()
+                        .filter(l -> l.getStatus() == ChequeStatus.PRESENTED || l.getStatus() == ChequeStatus.CLEARING)
+                        .toList()));
+    }
+
     @PostMapping("/present")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<ChequeLeaf>> present(@RequestParam Long accountId, @RequestParam String chequeNumber,
@@ -53,6 +66,19 @@ public class ChequeController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<ChequeLeaf>> clear(@PathVariable Long leafId) {
         return ResponseEntity.ok(ApiResponse.ok(chequeService.clearCheque(leafId)));
+    }
+
+    @GetMapping("/stop")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ChequeLeaf>>> listStopped(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<ChequeLeaf> result = chequeLeafRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        return ResponseEntity.ok(ApiResponse.ok(
+                result.getContent().stream()
+                        .filter(l -> l.getStatus() == ChequeStatus.STOPPED)
+                        .toList()));
     }
 
     @PostMapping("/stop")

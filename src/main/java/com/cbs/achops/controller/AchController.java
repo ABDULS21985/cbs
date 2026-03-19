@@ -23,6 +23,17 @@ public class AchController {
     @PostMapping("/batches/{id}/settle") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<AchBatch>> settle(@PathVariable String id) { return ResponseEntity.ok(ApiResponse.ok(service.settle(id))); }
     @GetMapping("/batches/{operator}/{status}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<AchBatch>>> byOperator(@PathVariable String operator, @PathVariable String status) { return ResponseEntity.ok(ApiResponse.ok(service.getByOperator(operator, status))); }
 
+    @GetMapping("/batches")
+    @Operation(summary = "List all ACH batches")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AchBatch>>> listBatches(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<AchBatch> result = achBatchRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "effectiveDate")));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @GetMapping("/inbound")
     @Operation(summary = "List inbound ACH batches")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

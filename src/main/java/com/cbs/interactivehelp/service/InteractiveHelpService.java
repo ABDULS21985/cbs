@@ -74,6 +74,9 @@ public class InteractiveHelpService {
         return articleRepository.save(article);
     }
 
+    public List<HelpArticle> getAllArticles() { return articleRepository.findAll(); }
+    public List<GuidedFlow> getAllFlows() { return flowRepository.findAll(); }
+
     public List<HelpArticle> searchArticles(String category, String productFamily) {
         if (productFamily != null && !productFamily.isEmpty()) {
             return articleRepository.findByCategoryAndProductFamilyAndStatusOrderByViewCountDesc(category, productFamily, "PUBLISHED");

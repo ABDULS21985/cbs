@@ -315,6 +315,7 @@ public class EsbService {
     }
 
     public long getDeadLetterCount() { return dlqRepository.countByStatus("PENDING"); }
+    public List<IntegrationMessage> getAllMessages() { return messageRepository.findAll(); }
 
     private String sha256(String input) {
         try {

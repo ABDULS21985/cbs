@@ -40,6 +40,12 @@ public class EclController {
                 loanAccountId, customerId, segment, productCode, outstandingBalance, offBalanceExposure, daysPastDue, significantDeterioration)));
     }
 
+    @GetMapping("/parameters")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<EclModelParameter>>> listParameters() {
+        return ResponseEntity.ok(ApiResponse.ok(eclService.getAllParameters()));
+    }
+
     @PostMapping("/parameters")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<EclModelParameter>> saveParam(@RequestBody EclModelParameter param) {

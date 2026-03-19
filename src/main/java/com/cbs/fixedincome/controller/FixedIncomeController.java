@@ -18,6 +18,12 @@ public class FixedIncomeController {
 
     private final FixedIncomeService fixedIncomeService;
 
+    @GetMapping("/holdings")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<SecurityHolding>>> listHoldings() {
+        return ResponseEntity.ok(ApiResponse.ok(fixedIncomeService.getAllHoldings()));
+    }
+
     @PostMapping("/holdings")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<SecurityHolding>> addHolding(@RequestBody SecurityHolding holding) {
@@ -41,6 +47,15 @@ public class FixedIncomeController {
     public ResponseEntity<ApiResponse<Map<String, BigDecimal>>> getFaceValue(@PathVariable String code) {
         return ResponseEntity.ok(ApiResponse.ok(Map.of("totalFaceValue", fixedIncomeService.getPortfolioFaceValue(code))));
     }
+
+    @GetMapping("/batch/accrual") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getAccrualStatus() { return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "IDLE"))); }
+    @GetMapping("/batch/coupons") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getCouponsStatus() { return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "IDLE"))); }
+    @GetMapping("/batch/maturity") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getMaturityStatus() { return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "IDLE"))); }
+    @GetMapping("/batch/mtm") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getMtmStatus() { return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "IDLE"))); }
 
     @PostMapping("/batch/accrual")
     @PreAuthorize("hasRole('CBS_ADMIN')")

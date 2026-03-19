@@ -106,6 +106,13 @@ public class ReconciliationController {
         )));
     }
 
+    @GetMapping("/upload-statement")
+    @Operation(summary = "Get upload statement status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getUploadStatementStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "READY")));
+    }
+
     @PostMapping("/upload-statement")
     @Operation(summary = "Upload bank statement for matching")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

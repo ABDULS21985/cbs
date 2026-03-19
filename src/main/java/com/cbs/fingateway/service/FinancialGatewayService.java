@@ -99,6 +99,7 @@ public class FinancialGatewayService {
     }
 
     public List<FinancialGateway> getByType(String type) { return gatewayRepository.findByGatewayTypeAndIsActiveTrueOrderByGatewayNameAsc(type); }
+    public List<GatewayMessage> getAllMessages() { return messageRepository.findAll(); }
 
     private GatewayMessage getMessage(String ref) {
         return messageRepository.findByMessageRef(ref)

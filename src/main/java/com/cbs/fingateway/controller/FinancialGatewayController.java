@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*; import java.util.List;
 public class FinancialGatewayController {
     private final FinancialGatewayService service;
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<FinancialGateway>> register(@RequestBody FinancialGateway gw) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.registerGateway(gw))); }
+    @GetMapping("/messages") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<GatewayMessage>>> listMessages() { return ResponseEntity.ok(ApiResponse.ok(service.getAllMessages())); }
     @PostMapping("/messages") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<GatewayMessage>> send(@RequestBody GatewayMessage msg) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.sendMessage(msg))); }
     @PostMapping("/messages/{ref}/ack") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<GatewayMessage>> ack(@PathVariable String ref, @RequestParam String ackReference) { return ResponseEntity.ok(ApiResponse.ok(service.acknowledgeMessage(ref, ackReference))); }
     @PostMapping("/messages/{ref}/nack") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<GatewayMessage>> nack(@PathVariable String ref, @RequestParam String reason) { return ResponseEntity.ok(ApiResponse.ok(service.nackMessage(ref, reason))); }

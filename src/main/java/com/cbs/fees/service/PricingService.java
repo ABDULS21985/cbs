@@ -82,4 +82,6 @@ public class PricingService {
     public List<SpecialPricingAgreement> getPricingComparison(Long customerId) {
         return specialPricingAgreementRepository.findByCustomerIdAndStatus(customerId, "ACTIVE");
     }
+
+    public List<SpecialPricingAgreement> getAllSpecialPricing() { return specialPricingAgreementRepository.findAll(); }
 }

@@ -196,12 +196,7 @@ public class AdminController {
     // BILLERS & PROVIDERS
     // ===========================
 
-    @GetMapping("/billers")
-    @Operation(summary = "List all billers")
-    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<Biller>>> getBillers() {
-        return ResponseEntity.ok(ApiResponse.ok(billerRepository.findByIsActiveTrueOrderByBillerNameAsc()));
-    }
+    // /billers endpoint delegated to BillerAdminController
 
     @GetMapping("/providers")
     @Operation(summary = "List all service providers")

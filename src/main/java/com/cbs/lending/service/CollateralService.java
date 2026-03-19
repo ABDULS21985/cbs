@@ -76,6 +76,10 @@ public class CollateralService {
         return collateralRepository.findByCustomerId(customerId, pageable).map(this::toDto);
     }
 
+    public Page<CollateralDto> getAllCollaterals(Pageable pageable) {
+        return collateralRepository.findAll(pageable).map(this::toDto);
+    }
+
     @Transactional
     public CollateralValuationDto addValuation(Long collateralId, CollateralValuationDto dto) {
         Collateral collateral = collateralRepository.findById(collateralId)

@@ -40,6 +40,8 @@ public class WorkbenchService {
         return sessionRepository.save(s);
     }
 
+    public List<StaffWorkbenchSession> getAllSessions() { return sessionRepository.findAll(); }
+
     public List<StaffWorkbenchSession> getActiveSessions(String staffUserId) {
         return sessionRepository.findByStaffUserIdAndSessionStatus(staffUserId, "ACTIVE");
     }

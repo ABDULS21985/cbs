@@ -12,12 +12,19 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @RestController @RequestMapping("/v1/integration/psd2") @RequiredArgsConstructor
 @Tag(name = "PSD2 / Open Banking Compliance", description = "TPP registration, eIDAS certificate validation, SCA session management, exemption handling")
 public class Psd2Controller {
 
     private final Psd2Service psd2Service;
+
+    @GetMapping("/tpp")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Psd2TppRegistration>>> listAllTpps() {
+        return ResponseEntity.ok(ApiResponse.ok(psd2Service.getAllTpps()));
+    }
 
     @PostMapping("/tpp")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -41,6 +48,12 @@ public class Psd2Controller {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<List<Psd2TppRegistration>>> getActiveTpps() {
         return ResponseEntity.ok(ApiResponse.ok(psd2Service.getActiveTpps()));
+    }
+
+    @GetMapping("/sca/initiate")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getScaInitiateInfo() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "READY", "methods", "OTP,PUSH,BIOMETRIC")));
     }
 
     @PostMapping("/sca/initiate")

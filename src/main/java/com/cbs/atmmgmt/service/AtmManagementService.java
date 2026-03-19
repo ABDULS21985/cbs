@@ -82,6 +82,10 @@ public class AtmManagementService {
 
     public AtmTerminal getTerminal(String terminalId) { return findTerminalOrThrow(terminalId); }
 
+    public Page<AtmTerminal> getAllTerminals(Pageable pageable) {
+        return terminalRepository.findAll(pageable);
+    }
+
     public Page<AtmJournalEntry> getTerminalJournal(String terminalId, Pageable pageable) {
         return journalRepository.findByTerminalIdOrderByCreatedAtDesc(terminalId, pageable);
     }

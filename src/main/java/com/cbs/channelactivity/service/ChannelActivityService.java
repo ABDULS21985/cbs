@@ -24,6 +24,9 @@ public class ChannelActivityService {
         return logRepository.save(entry);
     }
 
+    public List<ChannelActivityLog> getAllLogs() { return logRepository.findAll(); }
+    public List<ChannelActivitySummary> getAllSummaries() { return summaryRepository.findAll(); }
+
     public List<ChannelActivityLog> getCustomerActivity(Long customerId, String channel) {
         if (channel != null && !channel.isBlank()) {
             return logRepository.findByCustomerIdAndChannelOrderByCreatedAtDesc(customerId, channel);

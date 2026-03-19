@@ -128,6 +128,8 @@ public class ValuationService {
         return disclosure;
     }
 
+    public List<ValuationRun> getAllRuns() { return runRepository.findAll(); }
+
     public List<ValuationModel> getAllModels() {
         return modelRepository.findAll();
     }

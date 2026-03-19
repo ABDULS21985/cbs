@@ -15,6 +15,11 @@ import java.util.*;
 public class InternetBankingController {
     private final InternetBankingService service;
 
+    @GetMapping("/login")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getLoginInfo() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "READY", "methods", "PASSWORD,OTP,BIOMETRIC")));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<InternetBankingSession>> login(
             @RequestParam Long customerId, @RequestParam String loginMethod,
@@ -55,6 +60,12 @@ public class InternetBankingController {
             @PathVariable String sessionId, @PathVariable String featureCode) {
         boolean granted = service.canAccessFeature(sessionId, featureCode);
         return ResponseEntity.ok(ApiResponse.ok(Map.of("feature", featureCode, "granted", granted)));
+    }
+
+    @GetMapping("/sessions/expire-idle")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getExpireIdleStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("expired", 0)));
     }
 
     @PostMapping("/sessions/expire-idle")

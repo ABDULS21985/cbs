@@ -39,6 +39,10 @@ public class BankDraftController {
     public ResponseEntity<ApiResponse<Map<String, Integer>>> expireOverdue() {
         return ResponseEntity.ok(ApiResponse.ok(Map.of("expired", bankDraftService.expireOverdueDrafts())));
     }
+    @GetMapping("/expire-overdue") @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getExpireOverdueStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("expired", 0)));
+    }
     @GetMapping("/customer/{customerId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<BankDraft>>> byCustomer(@PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(bankDraftService.getByCustomer(customerId)));
