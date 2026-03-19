@@ -672,6 +672,58 @@ public class RiskOverviewController {
     }
 
     // ===========================
+    // OPERATIONAL RISK CRUD
+    // ===========================
+
+    @GetMapping("/operational/loss-events/{id}")
+    @Operation(summary = "Get loss event detail")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<OpRiskLossEvent>> getLossEvent(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(opRiskLossEventRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Loss event not found: " + id))));
+    }
+
+    @PostMapping("/operational/loss-events")
+    @Operation(summary = "Record a new loss event")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<OpRiskLossEvent>> createLossEvent(@RequestBody OpRiskLossEvent event) {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(ApiResponse.ok(opRiskLossEventRepository.save(event)));
+    }
+
+    @PutMapping("/operational/loss-events/{id}")
+    @Operation(summary = "Update a loss event")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<OpRiskLossEvent>> updateLossEvent(@PathVariable Long id, @RequestBody OpRiskLossEvent event) {
+        event.setId(id);
+        return ResponseEntity.ok(ApiResponse.ok(opRiskLossEventRepository.save(event)));
+    }
+
+    @GetMapping("/operational/kris/{id}")
+    @Operation(summary = "Get KRI detail")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<OpRiskKri>> getKri(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(opRiskKriRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("KRI not found: " + id))));
+    }
+
+    @GetMapping("/operational/rcsa/{id}")
+    @Operation(summary = "Get RCSA detail")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getRcsaDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id, "status", "ASSESSED")));
+    }
+
+    @PostMapping("/operational/incidents")
+    @Operation(summary = "Report a new incident")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<OpRiskLossEvent>> reportIncident(@RequestBody OpRiskLossEvent incident) {
+        incident.setStatus("REPORTED");
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(ApiResponse.ok(opRiskLossEventRepository.save(incident)));
+    }
+
+    // ===========================
     // RISK OVERVIEW SUB-ENDPOINTS
     // ===========================
 

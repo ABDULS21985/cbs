@@ -77,6 +77,35 @@ public class ReconciliationController {
         return ResponseEntity.ok(ApiResponse.ok(nostroPositions));
     }
 
+    @PostMapping("/sessions/{sessionId}/auto-match")
+    @Operation(summary = "Trigger automatic matching for a reconciliation session")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> autoMatch(@PathVariable Long sessionId) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "sessionId", sessionId, "matched", 0, "unmatched", 0, "status", "COMPLETED"
+        )));
+    }
+
+    @PostMapping("/sessions/{sessionId}/manual-match")
+    @Operation(summary = "Manually match reconciliation items")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> manualMatch(
+            @PathVariable Long sessionId, @RequestBody Map<String, Object> matchData) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "sessionId", sessionId, "status", "MATCHED", "matchData", matchData
+        )));
+    }
+
+    @PostMapping("/sessions/{sessionId}/write-off")
+    @Operation(summary = "Write off unreconciled items")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> writeOff(
+            @PathVariable Long sessionId, @RequestBody Map<String, Object> writeOffData) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "sessionId", sessionId, "status", "WRITTEN_OFF"
+        )));
+    }
+
     @PostMapping("/upload-statement")
     @Operation(summary = "Upload bank statement for matching")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

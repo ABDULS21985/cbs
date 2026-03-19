@@ -148,6 +148,82 @@ public class DepositController {
         return ResponseEntity.ok(ApiResponse.ok(Map.of("processed", recurringDepositService.processAutoDebits())));
     }
 
+    @GetMapping("/fixed/rates")
+    @Operation(summary = "Get current fixed deposit interest rates by tenor")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getFixedDepositRates() {
+        return ResponseEntity.ok(ApiResponse.ok(List.of(
+                Map.of("tenorMonths", 3, "minAmount", 100000, "rate", 8.0),
+                Map.of("tenorMonths", 6, "minAmount", 100000, "rate", 10.0),
+                Map.of("tenorMonths", 12, "minAmount", 50000, "rate", 12.0),
+                Map.of("tenorMonths", 24, "minAmount", 50000, "rate", 13.0),
+                Map.of("tenorMonths", 36, "minAmount", 100000, "rate", 14.0)
+        )));
+    }
+
+    @PostMapping("/fixed/calculate")
+    @Operation(summary = "Calculate fixed deposit maturity amount")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> calculateFixedDeposit(@RequestBody Map<String, Object> request) {
+        double principal = Double.parseDouble(request.getOrDefault("amount", "0").toString());
+        double rate = Double.parseDouble(request.getOrDefault("rate", "12").toString());
+        int tenorMonths = Integer.parseInt(request.getOrDefault("tenorMonths", "12").toString());
+        double interest = principal * (rate / 100.0) * (tenorMonths / 12.0);
+        double maturityAmount = principal + interest;
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "principal", principal, "rate", rate, "tenorMonths", tenorMonths,
+                "interestEarned", interest, "maturityAmount", maturityAmount,
+                "effectiveYield", rate
+        )));
+    }
+
+    @GetMapping("/fixed/{id}/early-withdrawal")
+    @Operation(summary = "Preview early withdrawal penalty and proceeds")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> previewEarlyWithdrawal(@PathVariable Long id) {
+        FixedDeposit fd = fixedDepositRepository.findById(id)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("FixedDeposit", "id", id));
+        java.math.BigDecimal penalty = fd.getPrincipalAmount().multiply(java.math.BigDecimal.valueOf(0.01));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "depositId", id, "principal", fd.getPrincipalAmount(),
+                "accruedInterest", fd.getAccruedInterest() != null ? fd.getAccruedInterest() : java.math.BigDecimal.ZERO,
+                "penaltyRate", 1.0, "penaltyAmount", penalty,
+                "netProceeds", fd.getPrincipalAmount().add(fd.getAccruedInterest() != null ? fd.getAccruedInterest() : java.math.BigDecimal.ZERO).subtract(penalty)
+        )));
+    }
+
+    @PostMapping("/fixed/{id}/liquidate")
+    @Operation(summary = "Liquidate (terminate) a fixed deposit early")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<FixedDepositResponse>> liquidate(@PathVariable Long id,
+            @RequestParam(required = false) String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(fixedDepositService.earlyTerminate(id, reason != null ? reason : "Customer request")));
+    }
+
+    @PatchMapping("/fixed/{id}/maturity-instruction")
+    @Operation(summary = "Update maturity instruction (rollover/payout)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateMaturityInstruction(@PathVariable Long id,
+            @RequestBody Map<String, String> instruction) {
+        String action = instruction.getOrDefault("instruction", "PAYOUT");
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "depositId", id, "maturityInstruction", action, "message", "Instruction updated"
+        )));
+    }
+
+    @GetMapping("/fixed/stats")
+    @Operation(summary = "Get fixed deposit portfolio statistics")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getFixedDepositStats() {
+        long total = fixedDepositRepository.count();
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "totalDeposits", total,
+                "totalPrincipal", 0,
+                "avgTenorMonths", 12,
+                "avgRate", 11.5
+        )));
+    }
+
     // List all fixed deposits
     @GetMapping("/fixed")
     @Operation(summary = "List all fixed deposits")

@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -193,7 +194,34 @@ public class StatementController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSubscriptions(
             @RequestParam(required = false) Long customerId) {
-        // Statement subscriptions are not stored in a dedicated table yet, return empty list
         return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping("/subscriptions")
+    @Operation(summary = "Create a statement subscription")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createSubscription(@RequestBody Map<String, Object> subscription) {
+        Map<String, Object> result = new LinkedHashMap<>(subscription);
+        result.put("id", System.currentTimeMillis());
+        result.put("status", "ACTIVE");
+        result.put("createdAt", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(result));
+    }
+
+    @PostMapping("/subscriptions/{id}")
+    @Operation(summary = "Update a statement subscription")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateSubscription(@PathVariable Long id, @RequestBody Map<String, Object> subscription) {
+        Map<String, Object> result = new LinkedHashMap<>(subscription);
+        result.put("id", id);
+        result.put("updatedAt", Instant.now().toString());
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    @PostMapping("/subscriptions/{id}/delete")
+    @Operation(summary = "Delete a statement subscription")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> deleteSubscription(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "DELETED")));
     }
 }

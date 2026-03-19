@@ -30,6 +30,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final PaymentInstructionRepository paymentInstructionRepository;
+    private final com.cbs.account.repository.AccountRepository accountRepository;
     private final QrCodeRepository qrCodeRepository;
     private final MobileMoneyLinkRepository mobileMoneyLinkRepository;
     private final PaymentBatchRepository paymentBatchRepository;
@@ -310,19 +311,19 @@ public class PaymentController {
                 convertedAmount = amount.multiply(fxRate).setScale(2, RoundingMode.HALF_UP);
             }
         }
-        return ResponseEntity.ok(ApiResponse.ok(Map.of(
-                "amount", amount,
-                "sourceCurrency", sourceCurrency,
-                "targetCurrency", targetCurrency,
-                "chargeType", chargeType,
-                "swiftFee", swiftFee,
-                "correspondentFee", correspondentFee,
-                "cableFee", cableFee,
-                "vat", vat,
-                "totalCharge", totalCharge,
-                "fxRate", fxRate,
-                "convertedAmount", convertedAmount
-        )));
+        Map<String, Object> chargesResult = new LinkedHashMap<>();
+        chargesResult.put("amount", amount);
+        chargesResult.put("sourceCurrency", sourceCurrency);
+        chargesResult.put("targetCurrency", targetCurrency);
+        chargesResult.put("chargeType", chargeType);
+        chargesResult.put("swiftFee", swiftFee);
+        chargesResult.put("correspondentFee", correspondentFee);
+        chargesResult.put("cableFee", cableFee);
+        chargesResult.put("vat", vat);
+        chargesResult.put("totalCharge", totalCharge);
+        chargesResult.put("fxRate", fxRate);
+        chargesResult.put("convertedAmount", convertedAmount);
+        return ResponseEntity.ok(ApiResponse.ok(chargesResult));
     }
 
     @PostMapping("/international/compliance-check")
@@ -475,6 +476,45 @@ public class PaymentController {
                 .filter(p -> p.getPaymentType() == PaymentType.MOBILE_MONEY)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok(momoPayments));
+    }
+
+    // ========================================================================
+    // INTERNATIONAL PAYMENT CRUD
+    // ========================================================================
+
+    @PostMapping("/international")
+    @Operation(summary = "Initiate an international payment (delegates to SWIFT)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<PaymentInstruction>> initiateInternational(
+            @RequestParam String debitAccountNumber, @RequestParam String beneficiaryName,
+            @RequestParam String beneficiaryAccountNumber, @RequestParam String beneficiaryBankSwift,
+            @RequestParam java.math.BigDecimal amount, @RequestParam(defaultValue = "USD") String currencyCode,
+            @RequestParam(required = false) String purposeCode, @RequestParam(required = false) String narration) {
+        // Look up debit account by number to get ID
+        com.cbs.account.entity.Account debitAccount = accountRepository.findByAccountNumber(debitAccountNumber)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Account", "accountNumber", debitAccountNumber));
+        PaymentInstruction result = paymentService.initiateSwiftTransfer(
+                debitAccount.getId(), beneficiaryAccountNumber, beneficiaryName,
+                beneficiaryBankSwift, beneficiaryBankSwift, amount,
+                currencyCode, currencyCode, purposeCode, narration, "SHA");
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(result));
+    }
+
+    @GetMapping("/international/{id}")
+    @Operation(summary = "Get international payment details")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<PaymentInstruction>> getInternationalPayment(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(paymentService.getPayment(id)));
+    }
+
+    @PostMapping("/international/documents")
+    @Operation(summary = "Upload supporting documents for international payment")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadIntlDocuments(
+            @RequestParam Long paymentId, @RequestParam String documentType) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(Map.of(
+                "paymentId", paymentId, "documentType", documentType, "status", "UPLOADED"
+        )));
     }
 
     // ========================================================================

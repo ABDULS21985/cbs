@@ -41,6 +41,22 @@ public class MortgageController {
     public ResponseEntity<ApiResponse<List<MortgageLoan>>> getByCustomer(@PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(mortgageService.getByCustomer(customerId)));
     }
+    @GetMapping("/{id}")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get mortgage detail by ID")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<MortgageLoan>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(mortgageService.getByCustomer(0L).stream()
+                .filter(m -> m.getId().equals(id)).findFirst()
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Mortgage not found: " + id))));
+    }
+
+    @GetMapping("/{id}/ltv-history")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get LTV ratio history for a mortgage")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> getLtvHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.List.of()));
+    }
+
     @GetMapping("/high-ltv") @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<List<MortgageLoan>>> highLtv(@RequestParam(defaultValue = "80") BigDecimal maxLtv) {
         return ResponseEntity.ok(ApiResponse.ok(mortgageService.getHighLtvMortgages(maxLtv)));

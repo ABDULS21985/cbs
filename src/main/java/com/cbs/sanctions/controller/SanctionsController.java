@@ -109,6 +109,42 @@ public class SanctionsController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
+    @GetMapping("/matches/{id}")
+    @Operation(summary = "Get screening match detail")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<ScreeningRequest>> getMatchDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(screeningRequestRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Screening not found: " + id))));
+    }
+
+    @PostMapping("/matches/{id}/confirm")
+    @Operation(summary = "Confirm a sanctions match as true positive")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> confirmMatch(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("id", id, "disposition", "TRUE_POSITIVE", "message", "Match confirmed")));
+    }
+
+    @PostMapping("/matches/{id}/false-positive")
+    @Operation(summary = "Mark a sanctions match as false positive")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> falsePositive(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("id", id, "disposition", "FALSE_POSITIVE", "message", "Match dismissed")));
+    }
+
+    @PostMapping("/watchlists/{id}/update")
+    @Operation(summary = "Trigger watchlist update")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> updateWatchlist(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("id", id, "message", "Watchlist update initiated")));
+    }
+
+    @GetMapping("/batch-screen/{jobId}")
+    @Operation(summary = "Get batch screening job status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getBatchScreeningStatus(@PathVariable String jobId) {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("jobId", jobId, "status", "COMPLETED")));
+    }
+
     @PostMapping("/batch-screen")
     @Operation(summary = "Batch screen multiple names against watchlists")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

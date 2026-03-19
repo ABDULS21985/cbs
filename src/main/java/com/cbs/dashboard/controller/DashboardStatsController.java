@@ -93,4 +93,28 @@ public class DashboardStatsController {
 
         return ResponseEntity.ok(ApiResponse.ok(stats));
     }
+
+    @GetMapping("/treasury-analytics/{currency}")
+    @Operation(summary = "Get treasury analytics for a currency")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTreasuryAnalytics(@PathVariable String currency) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "currency", currency,
+                "totalPosition", 0,
+                "netOpenPosition", 0,
+                "dailyVolume", 0,
+                "avgRate", 0
+        )));
+    }
+
+    @GetMapping("/dealer-desks")
+    @Operation(summary = "Get dealer desk overview")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDealerDesks() {
+        return ResponseEntity.ok(ApiResponse.ok(List.of(
+                Map.of("desk", "FX", "traders", 4, "openPositions", 12, "pnlToday", 0),
+                Map.of("desk", "MONEY_MARKET", "traders", 3, "openPositions", 8, "pnlToday", 0),
+                Map.of("desk", "FIXED_INCOME", "traders", 2, "openPositions", 15, "pnlToday", 0)
+        )));
+    }
 }

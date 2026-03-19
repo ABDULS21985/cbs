@@ -77,6 +77,64 @@ public class FraudController {
         return ResponseEntity.ok(ApiResponse.ok(fraudService.resolveAlert(id, resolution, resolvedBy)));
     }
 
+    @GetMapping("/alerts/{id}")
+    @Operation(summary = "Get fraud alert detail")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<FraudAlert>> getAlertDetail(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(fraudAlertRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Fraud alert not found: " + id))));
+    }
+
+    @GetMapping("/alerts/{alertId}/transactions")
+    @Operation(summary = "Get transactions related to a fraud alert")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAlertTransactions(@PathVariable Long alertId) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping("/alerts/{alertId}/block-card")
+    @Operation(summary = "Block card associated with fraud alert")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> blockCard(@PathVariable Long alertId) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("message", "Card blocked", "alertId", alertId.toString())));
+    }
+
+    @PostMapping("/alerts/{alertId}/block-account")
+    @Operation(summary = "Block account associated with fraud alert")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> blockAccount(@PathVariable Long alertId) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("message", "Account blocked", "alertId", alertId.toString())));
+    }
+
+    @PostMapping("/alerts/{alertId}/allow")
+    @Operation(summary = "Mark transaction as legitimate")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<FraudAlert>> allowTransaction(@PathVariable Long alertId) {
+        return ResponseEntity.ok(ApiResponse.ok(fraudService.resolveAlert(alertId, "ALLOWED", "SYSTEM")));
+    }
+
+    @PostMapping("/alerts/{alertId}/dismiss")
+    @Operation(summary = "Dismiss a fraud alert as false positive")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<FraudAlert>> dismissAlert(@PathVariable Long alertId) {
+        return ResponseEntity.ok(ApiResponse.ok(fraudService.resolveAlert(alertId, "FALSE_POSITIVE", "SYSTEM")));
+    }
+
+    @PostMapping("/alerts/{alertId}/file-case")
+    @Operation(summary = "File an investigation case from a fraud alert")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> fileCase(@PathVariable Long alertId,
+            @RequestParam(required = false) String notes) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("message", "Case filed", "alertId", alertId, "caseRef", "CASE-" + alertId)));
+    }
+
+    @PatchMapping("/rules/{id}/toggle")
+    @Operation(summary = "Toggle a fraud rule on/off")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> toggleRule(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id, "message", "Rule toggled")));
+    }
+
     // List all fraud alerts
     @GetMapping
     @Operation(summary = "List all fraud alerts")

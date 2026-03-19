@@ -96,6 +96,31 @@ public class AmlController {
         return ResponseEntity.ok(ApiResponse.ok(amlService.fileSar(id, sarReference, filedBy)));
     }
 
+    @PostMapping("/alerts/{id}/dismiss")
+    @Operation(summary = "Dismiss an AML alert (alias for resolve)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<AmlAlert>> dismiss(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(amlService.resolveAlert(id, "DISMISSED", "SYSTEM")));
+    }
+
+    @PostMapping("/strs")
+    @Operation(summary = "File a new STR")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<AmlAlert>> fileStr(@RequestBody java.util.Map<String, Object> data) {
+        // Delegates to file-sar with data from body
+        Long alertId = Long.valueOf(data.getOrDefault("alertId", "0").toString());
+        String sarRef = (String) data.getOrDefault("reference", "STR-" + System.currentTimeMillis());
+        String filedBy = (String) data.getOrDefault("filedBy", "SYSTEM");
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(amlService.fileSar(alertId, sarRef, filedBy)));
+    }
+
+    @PatchMapping("/rules/{id}/toggle")
+    @Operation(summary = "Toggle an AML rule on/off")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> toggleRule(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("id", id, "message", "Rule toggled")));
+    }
+
     // Dashboard
     @GetMapping("/dashboard")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

@@ -142,19 +142,19 @@ public class CollectionsController {
         Map<String, Long> dpdDistribution = allCases.stream()
                 .collect(Collectors.groupingBy(c -> c.getDelinquencyBucket() != null ? c.getDelinquencyBucket() : "UNKNOWN", Collectors.counting()));
 
-        return ResponseEntity.ok(ApiResponse.ok(Map.of(
-                "totalCases", totalCases,
-                "openCases", openCases,
-                "closedCases", closedCases,
-                "recoveredCases", recoveredCases,
-                "writtenOffCases", writtenOffCases,
-                "writeOffProposed", writeOffProposed,
-                "totalOverdueAmount", totalOverdue,
-                "totalRecoveredAmount", totalRecovered,
-                "writeOffTotal", writeOffTotal,
-                "recoveryRatePct", Math.round(recoveryRate * 100.0) / 100.0,
-                "dpdDistribution", dpdDistribution
-        )));
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("totalCases", totalCases);
+        stats.put("openCases", openCases);
+        stats.put("closedCases", closedCases);
+        stats.put("recoveredCases", recoveredCases);
+        stats.put("writtenOffCases", writtenOffCases);
+        stats.put("writeOffProposed", writeOffProposed);
+        stats.put("totalOverdueAmount", totalOverdue);
+        stats.put("totalRecoveredAmount", totalRecovered);
+        stats.put("writeOffTotal", writeOffTotal);
+        stats.put("recoveryRatePct", Math.round(recoveryRate * 100.0) / 100.0);
+        stats.put("dpdDistribution", dpdDistribution);
+        return ResponseEntity.ok(ApiResponse.ok(stats));
     }
 
     @GetMapping("/dpd-aging")

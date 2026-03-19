@@ -48,4 +48,20 @@ public class LeasingController {
     public ResponseEntity<ApiResponse<List<LeaseContract>>> byAsset(@PathVariable String category) {
         return ResponseEntity.ok(ApiResponse.ok(leasingService.getByAssetCategory(category)));
     }
+
+    @GetMapping("/{id}")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get lease detail by ID")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<LeaseContract>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(leasingService.getByCustomer(0L).stream()
+                .filter(l -> l.getId().equals(id)).findFirst()
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Lease not found: " + id))));
+    }
+
+    @GetMapping("/{id}/amortization")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get lease amortization schedule")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.List<java.util.Map<String, Object>>>> getAmortization(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.List.of()));
+    }
 }

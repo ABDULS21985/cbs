@@ -123,8 +123,13 @@ public class CardController {
             @RequestParam Long customerId, @RequestParam Long accountId,
             @RequestParam(required = false) String cardType,
             @RequestParam(required = false) String deliveryAddress) {
+        CardType type = cardType != null ? CardType.valueOf(cardType) : CardType.DEBIT;
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
-                cardService.issueCard(customerId, accountId, cardType)));
+                cardService.issueCard(accountId, type, CardScheme.VISA,
+                        "CLASSIC", "CARDHOLDER", java.time.LocalDate.now().plusYears(3),
+                        new java.math.BigDecimal("500000"), new java.math.BigDecimal("200000"),
+                        new java.math.BigDecimal("300000"), new java.math.BigDecimal("200000"),
+                        java.math.BigDecimal.ZERO)));
     }
 
     @GetMapping

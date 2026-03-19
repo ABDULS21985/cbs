@@ -143,7 +143,14 @@ public class ComplianceController {
                             r.getDueDate() != null && r.getDueDate().isBefore(LocalDate.now()));
                     return entry;
                 })
-                .sorted(Comparator.comparing(m -> (Comparable) m.get("dueDate")))
+                .sorted((a, b) -> {
+                    LocalDate da = (LocalDate) a.get("dueDate");
+                    LocalDate db = (LocalDate) b.get("dueDate");
+                    if (da == null && db == null) return 0;
+                    if (da == null) return 1;
+                    if (db == null) return -1;
+                    return da.compareTo(db);
+                })
                 .collect(Collectors.toList());
         return ResponseEntity.ok(ApiResponse.ok(calendar));
     }

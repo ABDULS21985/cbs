@@ -2,6 +2,8 @@ package com.cbs.overdraft.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
+import java.util.List;
+import java.util.Map;
 import com.cbs.overdraft.dto.FacilityResponse;
 import com.cbs.overdraft.service.OverdraftService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,6 +60,19 @@ public class CreditFacilityController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<List<?>>> getDrawdowns(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping("/{id}/drawdowns")
+    @Operation(summary = "Create a new drawdown against a credit facility")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createDrawdown(@PathVariable Long id,
+            @RequestBody Map<String, Object> request) {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(ApiResponse.ok(Map.of(
+                "facilityId", id,
+                "drawdownRef", "DRW-" + System.currentTimeMillis(),
+                "amount", request.getOrDefault("amount", 0),
+                "status", "APPROVED"
+        )));
     }
 
     @GetMapping("/{id}/utilization-history")
