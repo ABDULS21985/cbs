@@ -73,4 +73,9 @@ public class MarketResearchService {
         return repository.findByProjectCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("MarketResearchProject", "projectCode", code));
     }
+
+    public java.util.List<MarketResearchProject> getAllProjects() {
+        return projectRepository.findAll();
+    }
+
 }

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*; import java.util.List;
 @Tag(name = "Private Placements", description = "Private placement management and investor tracking")
 public class PrivatePlacementController {
     private final PrivatePlacementService service;
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<PrivatePlacement>>> listAll() { return ResponseEntity.ok(ApiResponse.ok(service.getAllPlacements())); }
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<PrivatePlacement>> create(@RequestBody PrivatePlacement placement) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createPlacement(placement))); }
     @GetMapping("/{code}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<PrivatePlacement>> getByCode(@PathVariable String code) { return ResponseEntity.ok(ApiResponse.ok(service.getByCode(code))); }
     @GetMapping("/active") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<PrivatePlacement>>> getActive() { return ResponseEntity.ok(ApiResponse.ok(service.getActivePlacements())); }

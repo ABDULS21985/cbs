@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*; import java.util.List;
 @Tag(name = "POS Terminals", description = "POS terminal administration — registration, heartbeat, status, merchant fleet")
 public class PosTerminalController {
     private final PosTerminalService service;
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<PosTerminal>>> listAll() { return ResponseEntity.ok(ApiResponse.ok(service.getAllTerminals())); }
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<PosTerminal>> register(@RequestBody PosTerminal terminal) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.register(terminal))); }
     @PostMapping("/{terminalId}/heartbeat") public ResponseEntity<ApiResponse<PosTerminal>> heartbeat(@PathVariable String terminalId) { return ResponseEntity.ok(ApiResponse.ok(service.heartbeat(terminalId))); }
     @PostMapping("/{terminalId}/status") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<PosTerminal>> updateStatus(@PathVariable String terminalId, @RequestParam String status) { return ResponseEntity.ok(ApiResponse.ok(service.updateStatus(terminalId, status))); }

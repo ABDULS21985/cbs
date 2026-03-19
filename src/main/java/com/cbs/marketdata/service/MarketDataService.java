@@ -18,4 +18,9 @@ public class MarketDataService {
     public List<MarketSignal> getSignals(String instrumentCode) { return signalRepository.findByInstrumentCodeAndStatusOrderBySignalDateDesc(instrumentCode, "ACTIVE"); }
     public List<ResearchPublication> getPublishedResearch() { return researchRepository.findByStatusOrderByPublishedAtDesc("PUBLISHED"); }
     public List<MarketDataFeed> getFeedStatus() { return feedRepository.findByStatusOrderByFeedNameAsc("ACTIVE"); }
+
+    public java.util.List<MarketPrice> getAllPrices() {
+        return priceRepository.findAll();
+    }
+
 }

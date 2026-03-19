@@ -107,4 +107,9 @@ public class InvestmentPortfolioService {
         InvestPortfolio portfolio = getByCode(portfolioCode);
         return holdingRepository.findByPortfolioIdOrderByWeightPctDesc(portfolio.getId());
     }
+
+    public java.util.List<InvestPortfolio> getAllPortfolios() {
+        return portfolioRepository.findAll();
+    }
+
 }

@@ -16,6 +16,11 @@ import java.util.List;
 public class MortgageController {
     private final MortgageService mortgageService;
 
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MortgageLoan>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(mortgageService.getAllMortgages()));
+    }
+
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<MortgageLoan>> originate(@RequestBody MortgageLoan mortgage) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(mortgageService.originate(mortgage)));

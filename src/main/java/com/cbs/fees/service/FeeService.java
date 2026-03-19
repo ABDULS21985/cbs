@@ -172,4 +172,9 @@ public class FeeService {
         }
         return true;
     }
+
+    public Page<FeeChargeLog> getAllCharges(org.springframework.data.domain.Pageable pageable) {
+        return chargeLogRepository.findAll(pageable);
+    }
+
 }

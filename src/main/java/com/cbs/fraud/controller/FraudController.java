@@ -54,8 +54,12 @@ public class FraudController {
 
     @GetMapping("/alerts")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<FraudAlert>>> getAlerts(@RequestParam String status,
+    public ResponseEntity<ApiResponse<List<FraudAlert>>> getAlerts(@RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        if (status == null) {
+            Page<FraudAlert> result = fraudAlertRepository.findAll(PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+            return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+        }
         Page<FraudAlert> result = fraudService.getAlertsByStatus(status, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }

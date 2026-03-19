@@ -15,6 +15,11 @@ import java.util.List;
 public class LeasingController {
     private final LeasingService leasingService;
 
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<LeaseContract>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(leasingService.getAllLeases()));
+    }
+
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<LeaseContract>> create(@RequestBody LeaseContract lease) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(leasingService.createLease(lease)));

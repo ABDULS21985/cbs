@@ -21,6 +21,11 @@ public class MaAdvisoryController {
 
     private final MaAdvisoryService service;
 
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MaEngagement>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllEngagements()));
+    }
+
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<MaEngagement>> create(@RequestBody MaEngagement engagement) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createEngagement(engagement)));
@@ -68,8 +73,10 @@ public class MaAdvisoryController {
 
     @GetMapping("/revenue") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<BigDecimal>> revenue(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        if (from == null) from = LocalDate.now().minusYears(1);
+        if (to == null) to = LocalDate.now();
         return ResponseEntity.ok(ApiResponse.ok(service.getFeeRevenue(from, to)));
     }
 

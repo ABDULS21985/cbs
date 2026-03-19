@@ -15,6 +15,12 @@ import java.util.List;
 public class CashFlowForecastController {
     private final CashFlowForecastService service;
 
+    @GetMapping("/forecast")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CashflowForecast>>> listForecasts() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllForecasts()));
+    }
+
     @PostMapping("/forecast")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CashflowForecast>> generate(

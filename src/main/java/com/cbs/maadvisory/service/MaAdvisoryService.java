@@ -119,4 +119,9 @@ public class MaAdvisoryService {
         return repository.findByEngagementCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("MaEngagement", "engagementCode", code));
     }
+
+    public java.util.List<MaEngagement> getAllEngagements() {
+        return engagementRepository.findAll();
+    }
+
 }

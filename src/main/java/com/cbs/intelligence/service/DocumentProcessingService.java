@@ -111,4 +111,9 @@ public class DocumentProcessingService {
     public List<DocumentProcessingJob> getPendingReview() {
         return jobRepository.findByVerificationStatusOrderByCreatedAtDesc("MANUAL_REVIEW");
     }
+
+    public java.util.List<DocumentProcessingJob> getAllJobs() {
+        return jobRepository.findAll();
+    }
+
 }

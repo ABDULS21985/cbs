@@ -84,4 +84,9 @@ public class OpenBankingService {
     }
 
     public record ApiClientRegistration(ApiClient client, String apiKey) {}
+
+    public java.util.List<ApiConsent> getAllConsents() {
+        return consentRepository.findAll();
+    }
+
 }

@@ -57,4 +57,9 @@ public class PrivatePlacementService {
     }
 
     public PrivatePlacement getByCode(String code) { return placementRepository.findByPlacementCode(code).orElseThrow(() -> new ResourceNotFoundException("PrivatePlacement", "placementCode", code)); }
+
+    public java.util.List<PrivatePlacement> getAllPlacements() {
+        return placementRepository.findAll();
+    }
+
 }

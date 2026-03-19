@@ -35,6 +35,12 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.ok(notificationService.sendEventNotification(eventType, customerId, email, phone, name, params)));
     }
 
+    @GetMapping("/templates")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<NotificationTemplate>>> listTemplates() {
+        return ResponseEntity.ok(ApiResponse.ok(notificationService.getAllTemplates()));
+    }
+
     @PostMapping("/templates")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<NotificationTemplate>> createTemplate(@RequestBody NotificationTemplate template) {

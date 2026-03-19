@@ -248,4 +248,9 @@ public class NotificationService {
             String status,
             Instant timestamp
     ) {}
+
+    public java.util.List<NotificationTemplate> getAllTemplates() {
+        return templateRepository.findAll();
+    }
+
 }

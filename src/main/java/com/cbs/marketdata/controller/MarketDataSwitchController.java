@@ -24,6 +24,12 @@ public class MarketDataSwitchController {
 
     private final MarketDataSwitchService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MarketDataSwitch>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getSwitchDashboard()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<MarketDataSwitch>> registerSwitch(@RequestBody MarketDataSwitch mds) {
@@ -40,6 +46,12 @@ public class MarketDataSwitchController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<MarketDataSwitch>> stopSwitch(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(service.stopSwitch(id)));
+    }
+
+    @GetMapping("/subscriptions")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MarketDataSubscription>>> listSubscriptions() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getSubscriptionHealth()));
     }
 
     @PostMapping("/subscriptions")
@@ -63,9 +75,14 @@ public class MarketDataSwitchController {
     @GetMapping("/feed-quality")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<FeedQualityMetric>>> getFeedQualityReport(
-            @RequestParam Long feedId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam(required = false) Long feedId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        if (feedId == null) {
+            return ResponseEntity.ok(ApiResponse.ok(java.util.Collections.emptyList()));
+        }
+        if (from == null) from = LocalDate.now().minusMonths(1);
+        if (to == null) to = LocalDate.now();
         return ResponseEntity.ok(ApiResponse.ok(service.getFeedQualityReport(feedId, from, to)));
     }
 }

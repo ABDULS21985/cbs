@@ -69,4 +69,9 @@ public class ProjectFinanceService {
         return facilityRepository.findByFacilityCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("ProjectFinanceFacility", "facilityCode", code));
     }
+
+    public java.util.List<ProjectFinanceFacility> getAllFacilities() {
+        return facilityRepository.findAll();
+    }
+
 }

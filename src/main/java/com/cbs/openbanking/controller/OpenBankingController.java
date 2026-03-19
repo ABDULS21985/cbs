@@ -30,6 +30,12 @@ public class OpenBankingController {
         return ResponseEntity.ok(ApiResponse.ok(openBankingService.getAllClients()));
     }
 
+    @GetMapping("/consents")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ApiConsent>>> listConsents() {
+        return ResponseEntity.ok(ApiResponse.ok(openBankingService.getAllConsents()));
+    }
+
     @PostMapping("/consents")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<ApiConsent>> createConsent(

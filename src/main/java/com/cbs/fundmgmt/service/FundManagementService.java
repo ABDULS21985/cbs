@@ -55,4 +55,9 @@ public class FundManagementService {
     public List<ManagedFund> getByAum() {
         return fundRepository.findByStatusOrderByTotalAumDesc("ACTIVE");
     }
+
+    public List<ManagedFund> getAllFunds() {
+        return fundRepository.findAll();
+    }
+
 }

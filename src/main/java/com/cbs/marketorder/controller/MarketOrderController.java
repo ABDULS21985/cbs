@@ -20,6 +20,12 @@ public class MarketOrderController {
 
     private final MarketOrderService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MarketOrder>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllOrders()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<MarketOrder>> submitOrder(@RequestBody MarketOrder order) {

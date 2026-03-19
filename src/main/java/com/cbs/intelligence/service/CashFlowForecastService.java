@@ -291,4 +291,9 @@ public class CashFlowForecastService {
         map.put("other", other);
         return map;
     }
+
+    public java.util.List<CashflowForecast> getAllForecasts() {
+        return forecastRepository.findAll();
+    }
+
 }

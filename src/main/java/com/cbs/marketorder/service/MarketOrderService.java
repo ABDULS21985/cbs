@@ -77,4 +77,9 @@ public class MarketOrderService {
         return repository.findByOrderRef(ref)
                 .orElseThrow(() -> new ResourceNotFoundException("MarketOrder", "orderRef", ref));
     }
+
+    public java.util.List<MarketOrder> getAllOrders() {
+        return orderRepository.findAll();
+    }
+
 }

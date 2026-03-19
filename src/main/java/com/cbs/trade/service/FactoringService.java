@@ -143,4 +143,13 @@ public class FactoringService {
         return transactionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("FactoringTransaction", "id", id));
     }
+
+    public java.util.List<FactoringFacility> getAllFacilities() {
+        return facilityRepository.findAll();
+    }
+
+    public java.util.List<FactoringTransaction> getAllTransactions() {
+        return transactionRepository.findAll();
+    }
+
 }

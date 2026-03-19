@@ -19,6 +19,12 @@ public class FundManagementController {
 
     private final FundManagementService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ManagedFund>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllFunds()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<ManagedFund>> create(@RequestBody ManagedFund fund) {

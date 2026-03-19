@@ -21,6 +21,12 @@ public class ProjectFinanceController {
 
     private final ProjectFinanceService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ProjectFinanceFacility>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllFacilities()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<ProjectFinanceFacility>> createFacility(@RequestBody ProjectFinanceFacility facility) {

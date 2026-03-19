@@ -136,4 +136,9 @@ public class MortgageService {
         double pmt = principal.doubleValue() * (r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
         return BigDecimal.valueOf(pmt).setScale(4, RoundingMode.HALF_UP);
     }
+
+    public java.util.List<MortgageLoan> getAllMortgages() {
+        return mortgageRepository.findAll();
+    }
+
 }

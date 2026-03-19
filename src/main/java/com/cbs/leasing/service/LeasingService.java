@@ -115,4 +115,9 @@ public class LeasingService {
         double pv = payment.doubleValue() * (1 - Math.pow(1 + r, -totalPeriods)) / r;
         return BigDecimal.valueOf(pv).setScale(4, RoundingMode.HALF_UP);
     }
+
+    public java.util.List<LeaseContract> getAllLeases() {
+        return leaseRepository.findAll();
+    }
+
 }

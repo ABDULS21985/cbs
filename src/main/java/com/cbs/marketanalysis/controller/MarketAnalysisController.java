@@ -20,6 +20,12 @@ public class MarketAnalysisController {
 
     private final MarketAnalysisService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MarketAnalysisReport>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllReports()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<MarketAnalysisReport>> create(@RequestBody MarketAnalysisReport report) {

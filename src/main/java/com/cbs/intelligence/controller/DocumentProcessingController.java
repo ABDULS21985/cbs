@@ -15,6 +15,12 @@ import java.util.List;
 public class DocumentProcessingController {
     private final DocumentProcessingService service;
 
+    @GetMapping("/process")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<DocumentProcessingJob>>> listJobs() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllJobs()));
+    }
+
     @PostMapping("/process")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<DocumentProcessingJob>> submit(@RequestBody DocumentProcessingJob job) {

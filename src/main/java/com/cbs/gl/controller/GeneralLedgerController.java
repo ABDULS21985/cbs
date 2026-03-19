@@ -80,8 +80,10 @@ public class GeneralLedgerController {
     @GetMapping("/journals")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<JournalEntry>>> getJournalsByDate(
-            @RequestParam LocalDate from, @RequestParam LocalDate to,
+            @RequestParam(required = false) LocalDate from, @RequestParam(required = false) LocalDate to,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        if (from == null) from = LocalDate.now().minusMonths(1);
+        if (to == null) to = LocalDate.now();
         Page<JournalEntry> result = glService.getJournalsByDate(from, to, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }

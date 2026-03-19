@@ -19,9 +19,19 @@ public class FactoringController {
 
     private final FactoringService service;
 
+    @GetMapping("/facility") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.List<FactoringFacility>>> listFacilities() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllFacilities()));
+    }
+
     @PostMapping("/facility") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<FactoringFacility>> createFacility(@RequestBody FactoringFacility facility) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createFacility(facility)));
+    }
+
+    @GetMapping("/invoice") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.List<FactoringTransaction>>> listInvoices() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllTransactions()));
     }
 
     @PostMapping("/invoice") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

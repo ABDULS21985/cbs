@@ -31,4 +31,9 @@ public class MerchantService {
     public List<MerchantProfile> getActive() { return merchantRepository.findByStatusOrderByMerchantNameAsc("ACTIVE"); }
     public List<MerchantProfile> getHighRisk() { return merchantRepository.findByRiskCategoryOrderByChargebackRateDesc("HIGH"); }
     private MerchantProfile getMerchant(String id) { return merchantRepository.findByMerchantId(id).orElseThrow(() -> new ResourceNotFoundException("MerchantProfile", "merchantId", id)); }
+
+    public java.util.List<MerchantProfile> getAllMerchants() {
+        return merchantRepository.findAll();
+    }
+
 }

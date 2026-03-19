@@ -48,6 +48,14 @@ public class FeeController {
         return ResponseEntity.ok(ApiResponse.ok(feeService.previewFee(feeCode, amount)));
     }
 
+    @GetMapping("/charge")
+    @Operation(summary = "List fee charge logs")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<com.cbs.fees.entity.FeeChargeLog>>> listCharges(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(feeService.getAllCharges(PageRequest.of(page, size)).getContent()));
+    }
+
     @PostMapping("/charge")
     @Operation(summary = "Charge a specific fee")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -55,6 +63,14 @@ public class FeeController {
             @RequestParam String feeCode, @RequestParam Long accountId,
             @RequestParam BigDecimal amount, @RequestParam(required = false) String triggerRef) {
         return ResponseEntity.ok(ApiResponse.ok(feeService.chargeFee(feeCode, accountId, amount, triggerRef)));
+    }
+
+    @GetMapping("/charge/event")
+    @Operation(summary = "List event-triggered fee charges")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<com.cbs.fees.entity.FeeChargeLog>>> listEventCharges(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(feeService.getAllCharges(PageRequest.of(page, size)).getContent()));
     }
 
     @PostMapping("/charge/event")

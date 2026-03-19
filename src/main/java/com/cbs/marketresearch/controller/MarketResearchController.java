@@ -21,6 +21,12 @@ public class MarketResearchController {
 
     private final MarketResearchService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MarketResearchProject>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllProjects()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<MarketResearchProject>> create(@RequestBody MarketResearchProject project) {
@@ -51,7 +57,10 @@ public class MarketResearchController {
 
     @GetMapping("/library")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<MarketResearchProject>>> getResearchLibrary(@RequestParam String type) {
+    public ResponseEntity<ApiResponse<List<MarketResearchProject>>> getResearchLibrary(@RequestParam(required = false) String type) {
+        if (type == null) {
+            return ResponseEntity.ok(ApiResponse.ok(service.getAllProjects()));
+        }
         return ResponseEntity.ok(ApiResponse.ok(service.getResearchLibrary(type)));
     }
 

@@ -50,4 +50,9 @@ public class MarketAnalysisService {
         return repository.findByReportCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("MarketAnalysisReport", "reportCode", code));
     }
+
+    public java.util.List<MarketAnalysisReport> getAllReports() {
+        return reportRepository.findAll();
+    }
+
 }
