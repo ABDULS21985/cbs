@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { DataTable, SummaryBar, EmptyState } from '@/components/shared';
+import { DataTable, SummaryBar } from '@/components/shared';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { useTransactions } from '../../hooks/useTransactions';
 import { TransactionFilters } from './TransactionFilters';
@@ -108,7 +108,7 @@ export function TransactionsTab({ accountId }: TransactionsTabProps) {
           columns={columns}
           data={transactions}
           isLoading={isLoading}
-          onRowClick={(row) => setSelectedTransaction(row)}
+          onRowClick={(row: Transaction) => setSelectedTransaction(row)}
           emptyMessage="No transactions match your filters"
           pageSize={15}
         />

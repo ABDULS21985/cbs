@@ -8,7 +8,46 @@ import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { SessionTimeoutModal } from '@/features/auth/components/SessionTimeoutModal';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
+import { FixedDepositListPage } from '@/features/deposits/pages/FixedDepositListPage';
+import { NewFixedDepositPage } from '@/features/deposits/pages/NewFixedDepositPage';
+import { FixedDepositDetailPage } from '@/features/deposits/pages/FixedDepositDetailPage';
+import { ReconciliationWorkbenchPage } from '@/features/reconciliation/pages/ReconciliationWorkbenchPage';
+import { VirtualAccountListPage } from '@/features/accounts/pages/VirtualAccountListPage';
+import { VirtualAccountDetailPage } from '@/features/accounts/pages/VirtualAccountDetailPage';
+import { CashPoolPage } from '@/features/accounts/pages/CashPoolPage';
+import { FeeScheduleListPage } from '@/features/fees/pages/FeeScheduleListPage';
+import { FeeDefinitionDetailPage } from '@/features/fees/pages/FeeDefinitionDetailPage';
+import { NewFeeDefinitionPage } from '@/features/fees/pages/NewFeeDefinitionPage';
+import { StatementGeneratorPage } from '@/features/statements/pages/StatementGeneratorPage';
 import { NotificationCenterPage } from '@/features/notifications/pages/NotificationCenterPage';
+import { TransactionSearchPage } from '@/features/transactions/pages/TransactionSearchPage';
+import { AccountMaintenancePage } from '@/features/accounts/pages/AccountMaintenancePage';
+import { AccountOpeningPage } from '@/features/accounts/pages/AccountOpeningPage';
+import { GoalListPage } from '@/features/goals/pages/GoalListPage';
+import { GoalDetailPage } from '@/features/goals/pages/GoalDetailPage';
+import { NewGoalPage } from '@/features/goals/pages/NewGoalPage';
+import { RecurringDepositListPage } from '@/features/goals/pages/RecurringDepositListPage';
+import { RecurringDepositDetailPage } from '@/features/goals/pages/RecurringDepositDetailPage';
+import { AgreementListPage } from '@/features/agreements/pages/AgreementListPage';
+import { AgreementDetailPage } from '@/features/agreements/pages/AgreementDetailPage';
+import { CommunicationCenterPage } from '@/features/communications/pages/CommunicationCenterPage';
+import { TemplateManagementPage } from '@/features/communications/pages/TemplateManagementPage';
+import { CaseListPage } from '@/features/cases/pages/CaseListPage';
+import { CaseDetailPage } from '@/features/cases/pages/CaseDetailPage';
+import { NewCasePage } from '@/features/cases/pages/NewCasePage';
+import { PortalLayout } from '@/features/portal/layout/PortalLayout';
+import { PortalDashboard } from '@/features/portal/pages/PortalDashboard';
+import { PortalProfilePage } from '@/features/portal/pages/PortalProfilePage';
+import { PortalAccountsPage } from '@/features/portal/pages/PortalAccountsPage';
+import { PortalTransferPage } from '@/features/portal/pages/PortalTransferPage';
+import { PortalBeneficiariesPage } from '@/features/portal/pages/PortalBeneficiariesPage';
+import { PortalCardControlsPage } from '@/features/portal/pages/PortalCardControlsPage';
+import { PortalServiceRequestsPage } from '@/features/portal/pages/PortalServiceRequestsPage';
+import CustomerListPage from '@/features/customers/pages/CustomerListPage';
+import Customer360Page from '@/features/customers/pages/Customer360Page';
+import OnboardingWizardPage from '@/features/customers/pages/OnboardingWizardPage';
+import KycDashboardPage from '@/features/customers/pages/KycDashboardPage';
+import SegmentationPage from '@/features/customers/pages/SegmentationPage';
 import { ForbiddenPage } from '@/pages/ForbiddenPage';
 import { NotFoundPage as NotFoundPageFull } from '@/pages/NotFoundPage';
 import { ServerErrorPage } from '@/pages/ServerErrorPage';
@@ -48,20 +87,32 @@ export function AppRouter() {
 
         {/* Customers */}
         <Route path="/customers" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Customer Search" subtitle="Find and manage customers" />} />
-          <Route path="onboarding" element={<PlaceholderPage title="Customer Onboarding" subtitle="New customer registration wizard" />} />
-          <Route path="kyc" element={<PlaceholderPage title="KYC Management" subtitle="Know Your Customer verification dashboard" />} />
-          <Route path="segments" element={<PlaceholderPage title="Customer Segments" subtitle="Segmentation rules and analysis" />} />
-          <Route path=":id" element={<PlaceholderPage title="Customer 360°" subtitle="Complete customer profile view" />} />
+          <Route index element={<CustomerListPage />} />
+          <Route path="onboarding" element={<OnboardingWizardPage />} />
+          <Route path="kyc" element={<KycDashboardPage />} />
+          <Route path="segments" element={<SegmentationPage />} />
+          <Route path=":id" element={<Customer360Page />} />
         </Route>
 
         {/* Accounts */}
         <Route path="/accounts" element={<Outlet />}>
           <Route index element={<PlaceholderPage title="All Accounts" subtitle="Account listing and management" />} />
-          <Route path="open" element={<PlaceholderPage title="Open Account" subtitle="New account opening" />} />
-          <Route path="fixed-deposits" element={<PlaceholderPage title="Fixed Deposits" subtitle="Term deposit management" />} />
-          <Route path="goals" element={<PlaceholderPage title="Savings Goals" subtitle="Goal-based savings tracking" />} />
+          <Route path="open" element={<AccountOpeningPage />} />
+          <Route path="fixed-deposits" element={<FixedDepositListPage />} />
+          <Route path="fixed-deposits/new" element={<NewFixedDepositPage />} />
+          <Route path="fixed-deposits/:id" element={<FixedDepositDetailPage />} />
+          <Route path="goals" element={<GoalListPage />} />
+          <Route path="goals/new" element={<NewGoalPage />} />
+          <Route path="goals/:id" element={<GoalDetailPage />} />
+          <Route path="recurring-deposits" element={<RecurringDepositListPage />} />
+          <Route path="recurring-deposits/:id" element={<RecurringDepositDetailPage />} />
           <Route path=":id" element={<PlaceholderPage title="Account Details" />} />
+          <Route path=":id/maintenance" element={<AccountMaintenancePage />} />
+          <Route path="reconciliation" element={<ReconciliationWorkbenchPage />} />
+          <Route path="virtual-accounts" element={<VirtualAccountListPage />} />
+          <Route path="virtual-accounts/:id" element={<VirtualAccountDetailPage />} />
+          <Route path="cash-pooling" element={<CashPoolPage />} />
+          <Route path="statements" element={<StatementGeneratorPage />} />
         </Route>
 
         {/* Lending */}
@@ -78,7 +129,7 @@ export function AppRouter() {
         <Route path="/payments" element={<Outlet />}>
           <Route index element={<PlaceholderPage title="Payments" />} />
           <Route path="new" element={<PlaceholderPage title="New Transfer" subtitle="Initiate a payment or transfer" />} />
-          <Route path="history" element={<PlaceholderPage title="Transaction History" />} />
+          <Route path="history" element={<TransactionSearchPage />} />
           <Route path="standing-orders" element={<PlaceholderPage title="Standing Orders" />} />
           <Route path="bills" element={<PlaceholderPage title="Bill Payments" />} />
           <Route path="bulk" element={<PlaceholderPage title="Bulk Payments" subtitle="Payroll and batch processing" />} />
@@ -141,7 +192,28 @@ export function AppRouter() {
           <Route path="users" element={<PlaceholderPage title="Users & Roles" />} />
           <Route path="parameters" element={<PlaceholderPage title="System Parameters" />} />
           <Route path="products" element={<PlaceholderPage title="Product Catalog" />} />
-          <Route path="fees" element={<PlaceholderPage title="Fees & Charges" />} />
+          <Route path="fees" element={<FeeScheduleListPage />} />
+          <Route path="fees/new" element={<NewFeeDefinitionPage />} />
+          <Route path="fees/:id" element={<FeeDefinitionDetailPage />} />
+        </Route>
+
+        {/* Agreements */}
+        <Route path="/agreements" element={<Outlet />}>
+          <Route index element={<AgreementListPage />} />
+          <Route path=":id" element={<AgreementDetailPage />} />
+        </Route>
+
+        {/* Communications */}
+        <Route path="/communications" element={<Outlet />}>
+          <Route index element={<CommunicationCenterPage />} />
+          <Route path="templates" element={<TemplateManagementPage />} />
+        </Route>
+
+        {/* Cases */}
+        <Route path="/cases" element={<Outlet />}>
+          <Route index element={<CaseListPage />} />
+          <Route path="new" element={<NewCasePage />} />
+          <Route path=":id" element={<CaseDetailPage />} />
         </Route>
 
         {/* Notifications */}
@@ -154,6 +226,17 @@ export function AppRouter() {
         {/* Catch-all */}
         <Route path="*" element={<NotFoundPageFull />} />
       </Route>
+        {/* Customer Self-Service Portal — separate layout, no sidebar */}
+        <Route path="/portal" element={<PortalLayout />}>
+          <Route index element={<Navigate to="/portal/dashboard" replace />} />
+          <Route path="dashboard" element={<PortalDashboard />} />
+          <Route path="profile" element={<PortalProfilePage />} />
+          <Route path="accounts" element={<PortalAccountsPage />} />
+          <Route path="transfer" element={<PortalTransferPage />} />
+          <Route path="beneficiaries" element={<PortalBeneficiariesPage />} />
+          <Route path="cards" element={<PortalCardControlsPage />} />
+          <Route path="requests" element={<PortalServiceRequestsPage />} />
+        </Route>
     </Routes>
     </>
   );

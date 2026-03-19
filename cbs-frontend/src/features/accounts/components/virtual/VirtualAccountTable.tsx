@@ -106,7 +106,7 @@ export function VirtualAccountTable({ accounts, onRowClick }: VirtualAccountTabl
       data={accounts}
       enableGlobalFilter
       enableColumnVisibility
-      onRowClick={(row) => onRowClick(row.id)}
+      onRowClick={(row: VirtualAccount) => onRowClick(row.id)}
       emptyMessage="No virtual accounts found"
     />
   );

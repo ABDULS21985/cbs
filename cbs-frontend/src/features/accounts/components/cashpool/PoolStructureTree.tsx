@@ -77,7 +77,7 @@ export function PoolStructureTree({ pool, onParticipantClick }: PoolStructureTre
                 gridTemplateColumns: `repeat(${Math.min(pool.participants.length, 3)}, 1fr)`,
               }}
             >
-              {pool.participants.map((participant, idx) => (
+              {pool.participants.map((participant) => (
                 <div key={participant.id} className="flex flex-col items-center">
                   {/* Vertical connector to branch */}
                   <div className="w-px h-6 bg-border" />

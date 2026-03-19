@@ -47,4 +47,27 @@ export const queryKeys = {
     journals: (filters?: Record<string, unknown>) => ['gl', 'journals', filters] as const,
     balances: (date?: string) => ['gl', 'balances', date] as const,
   },
+  agreements: {
+    all: ['agreements'] as const,
+    list: (filters?: Record<string, unknown>) => ['agreements', 'list', filters] as const,
+    detail: (id: number) => ['agreements', 'detail', id] as const,
+    byCustomer: (customerId: number) => ['agreements', 'customer', customerId] as const,
+    templates: ['agreements', 'templates'] as const,
+  },
+  communications: {
+    all: ['communications'] as const,
+    list: (filters?: Record<string, unknown>) => ['communications', 'list', filters] as const,
+    byCustomer: (customerId: number) => ['communications', 'customer', customerId] as const,
+    templates: ['communication-templates'] as const,
+    preferences: (customerId: number) => ['communications', 'preferences', customerId] as const,
+    stats: ['communications', 'stats'] as const,
+  },
+  cases: {
+    all: ['cases'] as const,
+    list: (filters?: Record<string, unknown>) => ['cases', 'list', filters] as const,
+    detail: (id: number) => ['cases', 'detail', id] as const,
+    stats: ['cases', 'stats'] as const,
+    my: ['cases', 'my'] as const,
+    unassigned: ['cases', 'unassigned'] as const,
+  },
 } as const;

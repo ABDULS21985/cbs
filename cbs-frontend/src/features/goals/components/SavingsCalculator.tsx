@@ -33,8 +33,8 @@ export function SavingsCalculator({ targetAmount, targetDate, onCalculated, read
     },
   });
 
-  const watchedAmount = watch('targetAmount');
-  const watchedDate = watch('targetDate');
+  watch('targetAmount');
+  watch('targetDate');
 
   // Auto-calculate when in readOnly mode (values passed from parent)
   useEffect(() => {

@@ -1,6 +1,7 @@
 import {
   LayoutDashboard, Users, Landmark, HandCoins, ArrowLeftRight, CreditCard,
   TrendingUp, ShieldAlert, Scale, Settings2, BarChart3, Shield,
+  FileText, MessageSquare, Headphones,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -71,6 +72,28 @@ export const navigationItems: NavSection[] = [
           { label: 'Card Management', path: '/cards' },
           { label: 'Transactions', path: '/cards/transactions' },
           { label: 'Disputes', path: '/cards/disputes' },
+        ],
+      },
+    ],
+  },
+  {
+    title: 'CUSTOMER SERVICE',
+    items: [
+      {
+        label: 'Cases', icon: Headphones, path: '/cases', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
+        children: [
+          { label: 'All Cases', path: '/cases' },
+          { label: 'New Case', path: '/cases/new' },
+        ],
+      },
+      {
+        label: 'Agreements', icon: FileText, path: '/agreements', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
+      },
+      {
+        label: 'Communications', icon: MessageSquare, path: '/communications', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
+        children: [
+          { label: 'Center', path: '/communications' },
+          { label: 'Templates', path: '/communications/templates' },
         ],
       },
     ],

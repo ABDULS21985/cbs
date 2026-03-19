@@ -31,6 +31,7 @@ export const STATUS_COLORS: Record<string, string> = {
   INACTIVE: 'default', CLOSED: 'default', EXPIRED: 'default', ARCHIVED: 'default',
   SUSPENDED: 'danger', BLOCKED: 'danger', FAILED: 'danger', REJECTED: 'danger',
   OVERDUE: 'danger', DEFAULTED: 'danger', CANCELLED: 'danger',
+  MATURED: 'warning', ROLLED_OVER: 'info', LIQUIDATED: 'default',
 };
 
 export type CurrencyCode = 'NGN' | 'USD' | 'EUR' | 'GBP' | 'XOF' | 'ZAR' | 'GHS' | 'KES';
