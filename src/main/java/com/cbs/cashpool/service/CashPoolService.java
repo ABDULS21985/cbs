@@ -116,6 +116,41 @@ public class CashPoolService {
         return poolRepository.findByIsActiveTrueOrderByPoolNameAsc();
     }
 
+    public CashPoolStructure getPoolByCode(String poolCode) {
+        return getPool(poolCode);
+    }
+
+    @Transactional
+    public CashPoolParticipant updateParticipant(String poolCode, Long participantId, CashPoolParticipant updates) {
+        CashPoolStructure pool = getPool(poolCode);
+        CashPoolParticipant existing = participantRepository.findById(participantId)
+                .orElseThrow(() -> new ResourceNotFoundException("CashPoolParticipant", "id", participantId));
+        if (!existing.getPoolId().equals(pool.getId())) {
+            throw new BusinessException("Participant does not belong to pool: " + poolCode);
+        }
+        if (updates.getSweepDirection() != null) existing.setSweepDirection(updates.getSweepDirection());
+        if (updates.getTargetBalance() != null) existing.setTargetBalance(updates.getTargetBalance());
+        if (updates.getPriority() != null) existing.setPriority(updates.getPriority());
+        if (updates.getParticipantName() != null) existing.setParticipantName(updates.getParticipantName());
+        if (updates.getParticipantRole() != null) existing.setParticipantRole(updates.getParticipantRole());
+        CashPoolParticipant saved = participantRepository.save(existing);
+        log.info("Pool participant updated: pool={}, participantId={}", poolCode, participantId);
+        return saved;
+    }
+
+    @Transactional
+    public void removeParticipant(String poolCode, Long participantId) {
+        CashPoolStructure pool = getPool(poolCode);
+        CashPoolParticipant existing = participantRepository.findById(participantId)
+                .orElseThrow(() -> new ResourceNotFoundException("CashPoolParticipant", "id", participantId));
+        if (!existing.getPoolId().equals(pool.getId())) {
+            throw new BusinessException("Participant does not belong to pool: " + poolCode);
+        }
+        existing.setIsActive(false);
+        participantRepository.save(existing);
+        log.info("Pool participant removed: pool={}, participantId={}", poolCode, participantId);
+    }
+
     private CashPoolStructure getPool(String code) {
         return poolRepository.findByPoolCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("CashPoolStructure", "poolCode", code));

@@ -3,7 +3,7 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared/DataTable';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatMoney } from '@/lib/formatters';
-import type { VirtualAccount } from '../../api/virtualAccountApi';
+import type { VirtualAccount } from '../../types/virtualAccountExt';
 
 interface VirtualAccountTableProps {
   accounts: VirtualAccount[];
@@ -14,37 +14,37 @@ export function VirtualAccountTable({ accounts, onRowClick }: VirtualAccountTabl
   const columns = useMemo<ColumnDef<VirtualAccount, unknown>[]>(
     () => [
       {
-        accessorKey: 'vaNumber',
+        accessorKey: 'virtualAccountNumber',
         header: 'VA #',
         cell: ({ row }) => (
           <span className="font-mono text-sm font-medium text-primary">
-            {row.original.vaNumber}
+            {row.original.virtualAccountNumber}
           </span>
         ),
       },
       {
-        accessorKey: 'parentAccountNumber',
-        header: 'Parent Account',
+        accessorKey: 'masterAccountId',
+        header: 'Physical Account',
         cell: ({ row }) => (
-          <span className="font-mono text-sm">{row.original.parentAccountNumber}</span>
+          <span className="font-mono text-sm">Master #{row.original.masterAccountId}</span>
         ),
       },
       {
-        accessorKey: 'customerName',
-        header: 'Customer',
+        accessorKey: 'accountName',
+        header: 'Account Name',
         cell: ({ row }) => (
           <div>
-            <div className="text-sm font-medium">{row.original.customerName}</div>
-            <div className="text-xs text-muted-foreground">{row.original.customerId}</div>
+            <div className="text-sm font-medium">{row.original.accountName}</div>
+            <div className="text-xs text-muted-foreground">Customer #{row.original.customerId}</div>
           </div>
         ),
       },
       {
-        accessorKey: 'pattern',
-        header: 'Pattern',
+        accessorKey: 'referencePattern',
+        header: 'Reference',
         cell: ({ row }) => (
           <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono max-w-[160px] block truncate">
-            {row.original.pattern}
+            {row.original.externalReference || row.original.referencePattern || '—'}
           </code>
         ),
       },
@@ -58,43 +58,27 @@ export function VirtualAccountTable({ accounts, onRowClick }: VirtualAccountTabl
         ),
       },
       {
-        accessorKey: 'balance',
+        accessorKey: 'virtualBalance',
         header: 'Balance',
         cell: ({ row }) => (
           <span className="font-mono text-sm font-medium tabular-nums">
-            {formatMoney(row.original.balance, row.original.currency)}
+            {formatMoney(row.original.virtualBalance, row.original.currency)}
           </span>
         ),
       },
       {
-        accessorKey: 'matchedMTD',
-        header: 'Matched (MTD)',
+        accessorKey: 'accountPurpose',
+        header: 'Purpose',
         cell: ({ row }) => (
-          <span className="text-sm tabular-nums">{row.original.matchedMTD.toLocaleString()}</span>
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+            {row.original.accountPurpose}
+          </span>
         ),
       },
       {
-        accessorKey: 'unmatchedCount',
-        header: 'Unmatched',
-        cell: ({ row }) => {
-          const count = row.original.unmatchedCount;
-          return (
-            <span
-              className={
-                count > 0
-                  ? 'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                  : 'text-sm text-muted-foreground'
-              }
-            >
-              {count}
-            </span>
-          );
-        },
-      },
-      {
-        accessorKey: 'status',
+        accessorKey: 'isActive',
         header: 'Status',
-        cell: ({ row }) => <StatusBadge status={row.original.status} dot />,
+        cell: ({ row }) => <StatusBadge status={row.original.isActive ? 'ACTIVE' : 'INACTIVE'} dot />,
       },
     ],
     [],
@@ -106,7 +90,7 @@ export function VirtualAccountTable({ accounts, onRowClick }: VirtualAccountTabl
       data={accounts}
       enableGlobalFilter
       enableColumnVisibility
-      onRowClick={(row: VirtualAccount) => onRowClick(row.id)}
+      onRowClick={(row: VirtualAccount) => onRowClick(String(row.id))}
       emptyMessage="No virtual accounts found"
     />
   );

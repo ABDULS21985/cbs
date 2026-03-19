@@ -1,48 +1,55 @@
 import { apiGet, apiPost, apiPatch } from '@/lib/api';
+import type { VirtualAccount } from '../types/virtualAccountExt';
 
-export interface VirtualAccount {
-  id: string;
-  vaNumber: string;
-  parentAccountId: string;
-  parentAccountNumber: string;
-  customerId: string;
-  customerName: string;
-  pattern: string;
-  currency: string;
-  balance: number;
-  matchedMTD: number;
-  unmatchedCount: number;
-  status: 'ACTIVE' | 'INACTIVE';
-  createdAt: string;
-}
+// Re-export entity type for convenience
+export type { VirtualAccount };
 
-export interface MatchingRule {
-  id: string;
-  vaId: string;
-  type: 'REFERENCE_PREFIX' | 'REGEX' | 'EXACT';
-  value: string;
-  priority: number;
-}
+// ── Transaction type (maps to va_transaction table) ─────────────────────────
 
 export interface VATransaction {
-  id: string;
-  vaId: string;
-  date: string;
+  id: number;
+  vaId: number;
+  transactionDate: string;
   reference: string;
   description: string;
   amount: number;
-  type: 'CREDIT' | 'DEBIT';
+  transactionType: 'CREDIT' | 'DEBIT' | 'SWEEP';
   matchStatus: 'MATCHED' | 'UNMATCHED' | 'PARTIAL';
   matchedRef?: string;
+  createdAt: string;
 }
 
-// ── API functions ─────────────────────────────────────────────────────────────
+// ── Matching Rule (maps to va_matching_rule table) ──────────────────────────
+
+export interface MatchingRule {
+  id: number;
+  vaId: number;
+  ruleType: 'REFERENCE_PREFIX' | 'REGEX' | 'EXACT';
+  ruleValue: string;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Sweep History (maps to va_sweep_history table) ──────────────────────────
+
+export interface VASweepHistory {
+  id: number;
+  vaId: number;
+  sweepAmount: number;
+  direction: string;
+  balanceBefore: number;
+  balanceAfter: number;
+  sweptAt: string;
+}
+
+// ── API functions ───────────────────────────────────────────────────────────
 
 export function getVirtualAccounts(): Promise<VirtualAccount[]> {
-  return apiGet<VirtualAccount[]>('/api/v1/virtual-accounts').catch(() => []);
+  return apiGet<VirtualAccount[]>('/api/v1/virtual-accounts');
 }
 
-export function getVirtualAccountById(id: string): Promise<VirtualAccount> {
+export function getVirtualAccountById(id: number | string): Promise<VirtualAccount> {
   return apiGet<VirtualAccount>(`/api/v1/virtual-accounts/${id}`);
 }
 
@@ -50,14 +57,70 @@ export function createVirtualAccount(data: Partial<VirtualAccount>): Promise<Vir
   return apiPost<VirtualAccount>('/api/v1/virtual-accounts', data);
 }
 
-export function getVATransactions(id: string): Promise<VATransaction[]> {
-  return apiGet<VATransaction[]>(`/api/v1/virtual-accounts/${id}/transactions`).catch(() => []);
+// ── Credit / Debit / Activate / Deactivate ──────────────────────────────────
+
+export function creditVirtualAccount(
+  vaNumber: string,
+  amount: number,
+  reference?: string,
+): Promise<VirtualAccount> {
+  const params = new URLSearchParams({ amount: String(amount) });
+  if (reference) params.set('reference', reference);
+  return apiPost<VirtualAccount>(`/api/v1/virtual-accounts/${vaNumber}/credit?${params}`);
 }
 
-export function getMatchingRules(vaId: string): Promise<MatchingRule[]> {
-  return apiGet<MatchingRule[]>(`/api/v1/virtual-accounts/${vaId}/rules`).catch(() => []);
+export function debitVirtualAccount(
+  vaNumber: string,
+  amount: number,
+): Promise<VirtualAccount> {
+  return apiPost<VirtualAccount>(`/api/v1/virtual-accounts/${vaNumber}/debit?amount=${amount}`);
 }
 
-export function updateMatchingRules(vaId: string, rules: MatchingRule[]): Promise<MatchingRule[]> {
+export function activateVirtualAccount(vaNumber: string): Promise<VirtualAccount> {
+  return apiPost<VirtualAccount>(`/api/v1/virtual-accounts/${vaNumber}/activate`);
+}
+
+export function deactivateVirtualAccount(vaNumber: string): Promise<VirtualAccount> {
+  return apiPost<VirtualAccount>(`/api/v1/virtual-accounts/${vaNumber}/deactivate`);
+}
+
+/** Manual sweep — move balance to physical account */
+export function sweepVirtualAccount(vaNumber: string): Promise<VASweepHistory> {
+  return apiPost<VASweepHistory>(`/api/v1/virtual-accounts/${vaNumber}/sweep`);
+}
+
+/** Bulk sweep all eligible accounts */
+export function bulkSweep(): Promise<{ swept: number }> {
+  return apiPost<{ swept: number }>('/api/v1/virtual-accounts/sweep');
+}
+
+// ── Transactions ────────────────────────────────────────────────────────────
+
+export function getVATransactions(vaId: number | string): Promise<VATransaction[]> {
+  return apiGet<VATransaction[]>(`/api/v1/virtual-accounts/${vaId}/transactions`);
+}
+
+export function manualMatchTransaction(
+  transactionId: number,
+  matchedRef: string,
+): Promise<VATransaction> {
+  return apiPost<VATransaction>(
+    `/api/v1/virtual-accounts/transactions/${transactionId}/match?matchedRef=${encodeURIComponent(matchedRef)}`,
+  );
+}
+
+// ── Matching Rules ──────────────────────────────────────────────────────────
+
+export function getMatchingRules(vaId: number | string): Promise<MatchingRule[]> {
+  return apiGet<MatchingRule[]>(`/api/v1/virtual-accounts/${vaId}/rules`);
+}
+
+export function updateMatchingRules(vaId: number | string, rules: MatchingRule[]): Promise<MatchingRule[]> {
   return apiPatch<MatchingRule[]>(`/api/v1/virtual-accounts/${vaId}/rules`, rules);
+}
+
+// ── Sweep History ───────────────────────────────────────────────────────────
+
+export function getSweepHistory(vaId: number | string): Promise<VASweepHistory[]> {
+  return apiGet<VASweepHistory[]>(`/api/v1/virtual-accounts/${vaId}/sweep-history`);
 }

@@ -15,6 +15,14 @@ import java.util.*;
 public class NotionalPoolController {
     private final NotionalPoolService notionalPoolService;
 
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<NotionalPool>>> list() {
+        return ResponseEntity.ok(ApiResponse.ok(notionalPoolService.listPools()));
+    }
+    @GetMapping("/{poolCode}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<NotionalPool>> getByCode(@PathVariable String poolCode) {
+        return ResponseEntity.ok(ApiResponse.ok(notionalPoolService.getPoolByCode(poolCode)));
+    }
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<NotionalPool>> create(@RequestBody NotionalPool pool) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(notionalPoolService.createPool(pool)));

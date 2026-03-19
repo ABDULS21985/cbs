@@ -14,3 +14,37 @@ export interface CurrencyWallet {
   version: number;
 }
 
+export interface WalletCreateRequest {
+  currencyCode: string;
+}
+
+export interface WalletCreditRequest {
+  walletId: number;
+  amount: number;
+  narration?: string;
+}
+
+export interface WalletDebitRequest {
+  walletId: number;
+  amount: number;
+  narration?: string;
+}
+
+export interface WalletConvertRequest {
+  sourceWalletId: number;
+  targetWalletId: number;
+  amount: number;
+  rate: number;
+}
+
+export interface WalletTransaction {
+  id: number;
+  walletId: number;
+  type: 'CREDIT' | 'DEBIT' | 'FX_BUY' | 'FX_SELL';
+  amount: number;
+  balanceAfter: number;
+  narration: string;
+  reference: string;
+  createdAt: string;
+}
+

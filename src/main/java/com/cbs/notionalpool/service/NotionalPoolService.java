@@ -87,6 +87,14 @@ public class NotionalPoolService {
                 "total_debit", totalDebit, "daily_interest_benefit", benefit, "members", members.size());
     }
 
+    public List<NotionalPool> listPools() {
+        return poolRepository.findByIsActiveTrueOrderByPoolNameAsc();
+    }
+
+    public NotionalPool getPoolByCode(String poolCode) {
+        return getPool(poolCode);
+    }
+
     public List<NotionalPoolMember> getMembers(String poolCode) {
         NotionalPool pool = getPool(poolCode);
         return memberRepository.findByPoolIdAndIsActiveTrueOrderByMemberNameAsc(pool.getId());

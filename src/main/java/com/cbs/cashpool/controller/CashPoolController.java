@@ -43,6 +43,21 @@ public class CashPoolController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(ApiResponse.ok(cashPoolService.getSweepHistory(poolCode, date)));
     }
+    @GetMapping("/{poolCode}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<CashPoolStructure>> getByCode(@PathVariable String poolCode) {
+        return ResponseEntity.ok(ApiResponse.ok(cashPoolService.getPoolByCode(poolCode)));
+    }
+    @PatchMapping("/{poolCode}/participants/{participantId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<CashPoolParticipant>> updateParticipant(
+            @PathVariable String poolCode, @PathVariable Long participantId, @RequestBody CashPoolParticipant updates) {
+        return ResponseEntity.ok(ApiResponse.ok(cashPoolService.updateParticipant(poolCode, participantId, updates)));
+    }
+    @DeleteMapping("/{poolCode}/participants/{participantId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Void>> removeParticipant(
+            @PathVariable String poolCode, @PathVariable Long participantId) {
+        cashPoolService.removeParticipant(poolCode, participantId);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
     @GetMapping("/customer/{customerId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CashPoolStructure>>> byCustomer(@PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(cashPoolService.getByCustomer(customerId)));

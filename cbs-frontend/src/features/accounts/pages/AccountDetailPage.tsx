@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { List, Info, Percent } from 'lucide-react';
+import { List, Info, Percent, ShieldCheck, Link2, Clock } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage } from '@/components/shared';
 import { useAccountDetail } from '../hooks/useAccountDetail';
@@ -7,6 +7,9 @@ import { AccountCardHeader } from '../components/detail/AccountCardHeader';
 import { TransactionsTab } from '../components/detail/TransactionsTab';
 import { AccountDetailsTab } from '../components/detail/AccountDetailsTab';
 import { InterestTab } from '../components/detail/InterestTab';
+import { HoldsTab } from '../components/detail/HoldsTab';
+import { LinkedProductsTab } from '../components/detail/LinkedProductsTab';
+import { MaintenanceHistoryTimeline } from '../components/maintenance/MaintenanceHistoryTimeline';
 
 export function AccountDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,22 +48,44 @@ export function AccountDetailPage() {
 
   const tabs = [
     {
+      id: 'overview',
+      label: 'Overview',
+      icon: Info,
+      content: <AccountDetailsTab account={account} />,
+    },
+    {
       id: 'transactions',
       label: 'Transactions',
       icon: List,
       content: <TransactionsTab accountId={accountId} />,
     },
     {
-      id: 'details',
-      label: 'Account Details',
-      icon: Info,
-      content: <AccountDetailsTab account={account} />,
-    },
-    {
       id: 'interest',
       label: 'Interest',
       icon: Percent,
       content: <InterestTab account={account} />,
+    },
+    {
+      id: 'holds',
+      label: 'Holds',
+      icon: ShieldCheck,
+      content: <HoldsTab accountId={accountId} />,
+    },
+    {
+      id: 'linked',
+      label: 'Linked Products',
+      icon: Link2,
+      content: <LinkedProductsTab accountId={accountId} />,
+    },
+    {
+      id: 'audit',
+      label: 'Audit',
+      icon: Clock,
+      content: (
+        <div className="p-6">
+          <MaintenanceHistoryTimeline accountId={accountId} />
+        </div>
+      ),
     },
   ];
 
@@ -77,7 +102,7 @@ export function AccountDetailPage() {
 
         {/* Tabs */}
         <div className="rounded-xl border bg-card overflow-hidden">
-          <TabsPage tabs={tabs} defaultTab="transactions" syncWithUrl />
+          <TabsPage tabs={tabs} defaultTab="overview" syncWithUrl />
         </div>
       </div>
     </>

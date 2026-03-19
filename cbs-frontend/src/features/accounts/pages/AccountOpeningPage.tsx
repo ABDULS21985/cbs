@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
-import { Check } from 'lucide-react';
+import { Check, FileWarning, X } from 'lucide-react';
 import { useAccountOpening } from '../hooks/useAccountOpening';
 import { CustomerSelectionStep } from '../components/opening/CustomerSelectionStep';
 import { ProductSelectionStep } from '../components/opening/ProductSelectionStep';
@@ -111,6 +111,8 @@ export function AccountOpeningPage() {
     submitAccount,
     isSubmitting,
     createdAccount,
+    hasDraft,
+    discardDraft,
   } = useAccountOpening();
   const preselectedCustomerId = searchParams.get('customerId');
 
@@ -189,6 +191,24 @@ export function AccountOpeningPage() {
         <div className="mb-8 p-6 rounded-xl border bg-card">
           <Stepper currentStep={currentStep} totalSteps={totalSteps} />
         </div>
+
+        {/* Draft Restore Banner */}
+        {hasDraft && currentStep > 1 && !createdAccount && (
+          <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-800/40 dark:bg-amber-900/10 px-4 py-3">
+            <FileWarning className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <p className="flex-1 text-sm text-amber-700 dark:text-amber-300">
+              Continuing from a saved draft. Your progress has been restored.
+            </p>
+            <button
+              type="button"
+              onClick={discardDraft}
+              className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 font-medium transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+              Discard
+            </button>
+          </div>
+        )}
 
         {/* Step Content */}
         <div className="rounded-xl border bg-card p-6 sm:p-8">

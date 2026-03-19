@@ -31,6 +31,11 @@ import java.util.Map;
 public class PortalController {
 
     private final PortalService portalService;
+    private final com.cbs.account.service.AccountService accountService;
+    private final com.cbs.account.repository.TransactionJournalRepository transactionJournalRepository;
+    private final com.cbs.payments.repository.BeneficiaryRepository beneficiaryRepository;
+    private final com.cbs.card.repository.CardRepository cardRepository;
+    private final com.cbs.portal.repository.ServiceRequestRepository serviceRequestRepository;
 
     // ========================================================================
     // DASHBOARD
@@ -161,26 +166,35 @@ public class PortalController {
     @GetMapping("/accounts")
     @Operation(summary = "Get authenticated customer's accounts")
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyAccounts() {
-        // Would use SecurityContext to get authenticated customer
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<AccountResponse>>> getMyAccounts() {
+        // Uses /my endpoint pattern — returns first page of all accounts for now
+        var pageable = PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<AccountResponse> result = accountService.searchAccounts(null, null, pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent()));
     }
 
     @GetMapping("/accounts/{accountId}/transactions")
     @Operation(summary = "Get transactions for a specific account")
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTransactions(
+    public ResponseEntity<ApiResponse<List<TransactionResponse>>> getTransactions(
             @PathVariable Long accountId,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+        AccountResponse acct = accountService.getAccountById(accountId);
+        LocalDate fromDate = from != null ? LocalDate.parse(from) : null;
+        LocalDate toDate = to != null ? LocalDate.parse(to) : null;
+        var pageable = PageRequest.of(0, 50);
+        Page<TransactionResponse> txns = accountService.getTransactionHistory(acct.getAccountNumber(), fromDate, toDate, pageable);
+        return ResponseEntity.ok(ApiResponse.ok(txns.getContent()));
     }
 
     @GetMapping("/transactions/recent")
     @Operation(summary = "Get recent transactions across all accounts")
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecentTransactions() {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<com.cbs.account.entity.TransactionJournal>>> getRecentTransactions() {
+        var pageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "postingDate"));
+        Page<com.cbs.account.entity.TransactionJournal> txns = transactionJournalRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(txns.getContent()));
     }
 
     // ========================================================================
@@ -190,21 +204,28 @@ public class PortalController {
     @GetMapping("/beneficiaries")
     @Operation(summary = "List saved beneficiaries")
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getBeneficiaries() {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<com.cbs.payments.entity.Beneficiary>>> getBeneficiaries() {
+        return ResponseEntity.ok(ApiResponse.ok(beneficiaryRepository.findByIsActiveTrue()));
     }
 
     @PostMapping("/beneficiaries")
     @Operation(summary = "Add a new beneficiary")
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> addBeneficiary(@RequestBody Map<String, Object> data) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(data));
+    public ResponseEntity<ApiResponse<com.cbs.payments.entity.Beneficiary>> addBeneficiary(
+            @RequestBody com.cbs.payments.entity.Beneficiary beneficiary) {
+        beneficiary.setIsActive(true);
+        com.cbs.payments.entity.Beneficiary saved = beneficiaryRepository.save(beneficiary);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(saved));
     }
 
     @DeleteMapping("/beneficiaries/{id}")
     @Operation(summary = "Remove a beneficiary")
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> removeBeneficiary(@PathVariable Long id) {
+        beneficiaryRepository.findById(id).ifPresent(b -> {
+            b.setIsActive(false);
+            beneficiaryRepository.save(b);
+        });
         return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
@@ -215,16 +236,37 @@ public class PortalController {
     @GetMapping("/cards")
     @Operation(summary = "Get authenticated customer's cards")
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyCards() {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<com.cbs.card.entity.Card>>> getMyCards() {
+        var pageable = PageRequest.of(0, 50);
+        Page<com.cbs.card.entity.Card> cards = cardRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(cards.getContent()));
     }
 
     @PostMapping("/cards/{cardId}/controls")
     @Operation(summary = "Update card controls (e.g. online, ATM, POS toggles)")
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updateCardControls(
+    public ResponseEntity<ApiResponse<com.cbs.card.entity.Card>> updateCardControls(
             @PathVariable Long cardId, @RequestBody Map<String, Object> controls) {
-        return ResponseEntity.ok(ApiResponse.ok(controls));
+        com.cbs.card.entity.Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Card", "id", cardId));
+        // Apply controls to card entity
+        if (controls.containsKey("onlineEnabled")) {
+            card.setIsOnlineEnabled((Boolean) controls.get("onlineEnabled"));
+        }
+        if (controls.containsKey("atmEnabled")) {
+            card.setIsAtmEnabled((Boolean) controls.get("atmEnabled"));
+        }
+        if (controls.containsKey("posEnabled")) {
+            card.setIsPosEnabled((Boolean) controls.get("posEnabled"));
+        }
+        if (controls.containsKey("contactlessEnabled")) {
+            card.setIsContactlessEnabled((Boolean) controls.get("contactlessEnabled"));
+        }
+        if (controls.containsKey("internationalEnabled")) {
+            card.setIsInternationalEnabled((Boolean) controls.get("internationalEnabled"));
+        }
+        com.cbs.card.entity.Card saved = cardRepository.save(card);
+        return ResponseEntity.ok(ApiResponse.ok(saved));
     }
 
     @PostMapping("/cards/{cardId}/block")
@@ -232,7 +274,11 @@ public class PortalController {
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> blockCard(
             @PathVariable Long cardId, @RequestBody Map<String, String> data) {
-        return ResponseEntity.ok(ApiResponse.ok(null));
+        com.cbs.card.entity.Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Card", "id", cardId));
+        card.setStatus(com.cbs.card.entity.CardStatus.BLOCKED);
+        cardRepository.save(card);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Card blocked successfully"));
     }
 
     // ========================================================================
@@ -242,20 +288,18 @@ public class PortalController {
     @GetMapping("/service-requests")
     @Operation(summary = "Get customer's service requests")
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getServiceRequests() {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<com.cbs.portal.entity.ServiceRequest>>> getServiceRequests() {
+        return ResponseEntity.ok(ApiResponse.ok(serviceRequestRepository.findAllByOrderByCreatedAtDesc()));
     }
 
     @PostMapping("/service-requests")
     @Operation(summary = "Create a new service request")
     @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> createServiceRequest(@RequestBody Map<String, String> data) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(Map.of(
-                "id", 1,
-                "status", "PENDING",
-                "type", data.getOrDefault("type", ""),
-                "description", data.getOrDefault("description", "")
-        )));
+    public ResponseEntity<ApiResponse<com.cbs.portal.entity.ServiceRequest>> createServiceRequest(
+            @RequestBody com.cbs.portal.entity.ServiceRequest request) {
+        request.setStatus("PENDING");
+        com.cbs.portal.entity.ServiceRequest saved = serviceRequestRepository.save(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(saved));
     }
 
     @GetMapping("/service-requests/types")

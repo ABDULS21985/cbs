@@ -40,6 +40,10 @@ export const CashPoolPage = lazyNamed(
   () => import('@/features/accounts/pages/CashPoolPage'),
   'CashPoolPage',
 );
+export const NotionalPoolPage = lazyNamed(
+  () => import('@/features/accounts/pages/NotionalPoolPage'),
+  'NotionalPoolPage',
+);
 export const StatementGeneratorPage = lazyNamed(
   () => import('@/features/statements/pages/StatementGeneratorPage'),
   'StatementGeneratorPage',
@@ -568,6 +572,10 @@ export const TradeFinanceHubPage = lazyNamed(
 export const AccountListPage = lazyNamed(
   () => import('@/features/accounts/pages/AccountListPage'),
   'AccountListPage',
+);
+export const WalletPage = lazyNamed(
+  () => import('@/features/accounts/pages/WalletPage'),
+  'WalletPage',
 );
 export const PaymentsDashboardPage = lazyNamed(
   () => import('@/features/payments/pages/PaymentsDashboardPage'),

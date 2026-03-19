@@ -1,7 +1,17 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, Settings, AlertCircle } from 'lucide-react';
+import {
+  Settings,
+  AlertCircle,
+  X,
+  ShieldAlert,
+  Users,
+  Percent,
+  ArrowUpDown,
+  UserCog,
+  FileSignature,
+} from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/shared';
 import { accountMaintenanceApi } from '../api/accountMaintenanceApi';
@@ -12,59 +22,63 @@ import { LimitChangeForm } from '../components/maintenance/LimitChangeForm';
 import { OfficerChangeForm } from '../components/maintenance/OfficerChangeForm';
 import { MaintenanceHistoryTimeline } from '../components/maintenance/MaintenanceHistoryTimeline';
 
-const SECTIONS = [
-  { id: 'status', label: 'Status Change', description: 'Activate, freeze, or close this account' },
-  { id: 'signatories', label: 'Signatory Management', description: 'Add or remove signatories and update signing rules' },
-  { id: 'interest', label: 'Interest Rate Override', description: 'Override the account interest rate temporarily' },
-  { id: 'limits', label: 'Transaction Limits', description: 'Adjust daily, per-transaction, and channel-specific limits' },
-  { id: 'officer', label: 'Account Officer', description: 'Reassign to a different relationship officer' },
+const ACTIONS = [
+  {
+    id: 'status',
+    label: 'Status Change',
+    description: 'Activate, freeze, or close this account',
+    icon: ShieldAlert,
+    color: 'text-orange-600 dark:text-orange-400',
+    bg: 'bg-orange-50 dark:bg-orange-900/20',
+  },
+  {
+    id: 'signatories',
+    label: 'Signatory Management',
+    description: 'Add or remove account signatories',
+    icon: Users,
+    color: 'text-blue-600 dark:text-blue-400',
+    bg: 'bg-blue-50 dark:bg-blue-900/20',
+  },
+  {
+    id: 'interest',
+    label: 'Interest Rate Override',
+    description: 'Override the account interest rate',
+    icon: Percent,
+    color: 'text-green-600 dark:text-green-400',
+    bg: 'bg-green-50 dark:bg-green-900/20',
+  },
+  {
+    id: 'limits',
+    label: 'Limit Change',
+    description: 'Adjust transaction and channel limits',
+    icon: ArrowUpDown,
+    color: 'text-purple-600 dark:text-purple-400',
+    bg: 'bg-purple-50 dark:bg-purple-900/20',
+  },
+  {
+    id: 'officer',
+    label: 'Officer Change',
+    description: 'Reassign relationship officer',
+    icon: UserCog,
+    color: 'text-indigo-600 dark:text-indigo-400',
+    bg: 'bg-indigo-50 dark:bg-indigo-900/20',
+  },
+  {
+    id: 'signing-rule',
+    label: 'Signing Rule Update',
+    description: 'Update account signing rules',
+    icon: FileSignature,
+    color: 'text-teal-600 dark:text-teal-400',
+    bg: 'bg-teal-50 dark:bg-teal-900/20',
+  },
 ] as const;
 
-type SectionId = (typeof SECTIONS)[number]['id'];
-
-function AccordionSection({
-  label,
-  description,
-  isOpen,
-  onToggle,
-  children,
-}: {
-  label: string;
-  description: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border bg-card overflow-hidden">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/50 transition-colors"
-      >
-        <div>
-          <h3 className="text-sm font-semibold">{label}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-        </div>
-        {isOpen ? (
-          <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        ) : (
-          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        )}
-      </button>
-      {isOpen && (
-        <div className="px-5 pb-5 pt-1 border-t">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
+type ActionId = (typeof ACTIONS)[number]['id'];
 
 export function AccountMaintenancePage() {
   const { id: accountId } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const [openSection, setOpenSection] = useState<SectionId | null>('status');
+  const [activeAction, setActiveAction] = useState<ActionId | null>(null);
 
   const { data: account, isLoading, isError, refetch } = useQuery({
     queryKey: ['account-basic-info', accountId],
@@ -73,14 +87,21 @@ export function AccountMaintenancePage() {
     staleTime: 60_000,
   });
 
-  const handleToggle = (sectionId: SectionId) => {
-    setOpenSection((prev) => (prev === sectionId ? null : sectionId));
-  };
-
-  const handleSuccess = () => {
+  const handleSuccess = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['account-basic-info', accountId] });
     queryClient.invalidateQueries({ queryKey: ['account-maintenance-history', accountId] });
-  };
+  }, [queryClient, accountId]);
+
+  const closePanel = useCallback(() => setActiveAction(null), []);
+
+  // Close slide-over on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closePanel();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [closePanel]);
 
   if (isLoading) {
     return (
@@ -94,12 +115,15 @@ export function AccountMaintenancePage() {
             <div className="h-5 w-48 bg-muted rounded mb-2" />
             <div className="h-4 w-32 bg-muted rounded" />
           </div>
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-xl border bg-card p-5 animate-pulse">
-              <div className="h-4 w-40 bg-muted rounded mb-1.5" />
-              <div className="h-3 w-64 bg-muted rounded" />
-            </div>
-          ))}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="rounded-xl border bg-card p-4 animate-pulse">
+                <div className="h-8 w-8 bg-muted rounded-lg mb-3" />
+                <div className="h-4 w-24 bg-muted rounded mb-1.5" />
+                <div className="h-3 w-32 bg-muted rounded" />
+              </div>
+            ))}
+          </div>
         </div>
       </>
     );
@@ -132,6 +156,8 @@ export function AccountMaintenancePage() {
       </>
     );
   }
+
+  const activeConfig = ACTIONS.find((a) => a.id === activeAction);
 
   return (
     <>
@@ -180,64 +206,32 @@ export function AccountMaintenancePage() {
           </div>
         </div>
 
-        {/* Accordion sections */}
-        <div className="space-y-3">
-          {SECTIONS.map((section) => (
-            <AccordionSection
-              key={section.id}
-              label={section.label}
-              description={section.description}
-              isOpen={openSection === section.id}
-              onToggle={() => handleToggle(section.id)}
-            >
-              {section.id === 'status' && (
-                <div className="pt-3">
-                  <StatusChangeForm
-                    accountId={accountId!}
-                    currentStatus={account.status}
-                    onSuccess={handleSuccess}
-                  />
+        {/* Action cards grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {ACTIONS.map((action) => {
+            const Icon = action.icon;
+            const isActive = activeAction === action.id;
+            return (
+              <button
+                key={action.id}
+                type="button"
+                onClick={() => setActiveAction(isActive ? null : action.id)}
+                className={`
+                  rounded-xl border p-4 text-left transition-all
+                  ${isActive
+                    ? 'border-primary ring-2 ring-primary/20 bg-card'
+                    : 'bg-card hover:bg-muted/50 hover:border-border/80'
+                  }
+                `}
+              >
+                <div className={`w-9 h-9 rounded-lg ${action.bg} flex items-center justify-center mb-3`}>
+                  <Icon className={`w-4.5 h-4.5 ${action.color}`} />
                 </div>
-              )}
-              {section.id === 'signatories' && (
-                <div className="pt-3">
-                  <SignatoryManager
-                    accountId={accountId!}
-                    signatories={account.signatories}
-                    currentSigningRule={account.signingRule}
-                    onSuccess={handleSuccess}
-                  />
-                </div>
-              )}
-              {section.id === 'interest' && (
-                <div className="pt-3">
-                  <InterestRateOverrideForm
-                    accountId={accountId!}
-                    currentRate={account.interestRate}
-                    onSuccess={handleSuccess}
-                  />
-                </div>
-              )}
-              {section.id === 'limits' && (
-                <div className="pt-3">
-                  <LimitChangeForm
-                    accountId={accountId!}
-                    currentLimits={account.limits}
-                    onSuccess={handleSuccess}
-                  />
-                </div>
-              )}
-              {section.id === 'officer' && (
-                <div className="pt-3">
-                  <OfficerChangeForm
-                    accountId={accountId!}
-                    currentOfficer={account.currentOfficer}
-                    onSuccess={handleSuccess}
-                  />
-                </div>
-              )}
-            </AccordionSection>
-          ))}
+                <h3 className="text-sm font-semibold leading-tight">{action.label}</h3>
+                <p className="text-xs text-muted-foreground mt-1">{action.description}</p>
+              </button>
+            );
+          })}
         </div>
 
         {/* Maintenance history */}
@@ -251,6 +245,88 @@ export function AccountMaintenancePage() {
           <MaintenanceHistoryTimeline accountId={accountId!} />
         </div>
       </div>
+
+      {/* Slide-over panel */}
+      {activeAction && activeConfig && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/30 z-40 transition-opacity"
+            onClick={closePanel}
+          />
+
+          {/* Panel */}
+          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-background border-l shadow-xl flex flex-col animate-in slide-in-from-right duration-200">
+            {/* Panel header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg ${activeConfig.bg} flex items-center justify-center`}>
+                  <activeConfig.icon className={`w-4 h-4 ${activeConfig.color}`} />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold">{activeConfig.label}</h2>
+                  <p className="text-xs text-muted-foreground">{activeConfig.description}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closePanel}
+                className="rounded-lg p-1.5 hover:bg-muted transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Panel body */}
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              {activeAction === 'status' && (
+                <StatusChangeForm
+                  accountId={accountId!}
+                  currentStatus={account.status}
+                  onSuccess={handleSuccess}
+                />
+              )}
+              {activeAction === 'signatories' && (
+                <SignatoryManager
+                  accountId={accountId!}
+                  signatories={account.signatories}
+                  currentSigningRule={account.signingRule}
+                  onSuccess={handleSuccess}
+                />
+              )}
+              {activeAction === 'interest' && (
+                <InterestRateOverrideForm
+                  accountId={accountId!}
+                  currentRate={account.interestRate}
+                  onSuccess={handleSuccess}
+                />
+              )}
+              {activeAction === 'limits' && (
+                <LimitChangeForm
+                  accountId={accountId!}
+                  currentLimits={account.limits}
+                  onSuccess={handleSuccess}
+                />
+              )}
+              {activeAction === 'officer' && (
+                <OfficerChangeForm
+                  accountId={accountId!}
+                  currentOfficer={account.currentOfficer}
+                  onSuccess={handleSuccess}
+                />
+              )}
+              {activeAction === 'signing-rule' && (
+                <SignatoryManager
+                  accountId={accountId!}
+                  signatories={account.signatories}
+                  currentSigningRule={account.signingRule}
+                  onSuccess={handleSuccess}
+                />
+              )}
+            </div>
+          </aside>
+        </>
+      )}
     </>
   );
 }

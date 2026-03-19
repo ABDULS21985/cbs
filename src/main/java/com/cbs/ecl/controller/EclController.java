@@ -162,8 +162,18 @@ public class EclController {
     @GetMapping("/run")
     @Operation(summary = "Get batch ECL run status")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> getRunStatus() {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "IDLE")));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getRunStatus() {
+        EclBatchRun latest = eclService.getLatestBatchRun();
+        if (latest == null) {
+            return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "IDLE")));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "status", latest.getStatus(),
+                "jobId", latest.getJobId(),
+                "runDate", latest.getRunDate().toString(),
+                "processedLoans", latest.getProcessedLoans(),
+                "totalLoans", latest.getTotalLoans()
+        )));
     }
 
     @PostMapping("/run")

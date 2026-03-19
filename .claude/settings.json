@@ -3,7 +3,8 @@
     "allow": [
       "Read(//Users/mac/Downloads/**)",
       "Bash(sort -t' ' -k2 -n)",
-      "Read(//Users/mac/codes/cba/**)"
+      "Read(//Users/mac/codes/cba/**)",
+      "Bash(find /Users/mac/codes/cba/src/main/java -type f -name \"*.java\" -exec grep -l \"record\\\\|@Data\\\\|@Getter.*@Setter\" {})"
     ]
   }
 }

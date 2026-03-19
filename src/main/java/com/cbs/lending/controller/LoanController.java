@@ -32,6 +32,7 @@ public class LoanController {
 
     private final LoanOriginationService loanService;
     private final LoanAccountRepository loanAccountRepository;
+    private final com.cbs.lending.engine.RepaymentScheduleGenerator scheduleGenerator;
 
     // Applications
     @PostMapping("/applications")
@@ -172,35 +173,48 @@ public class LoanController {
     @GetMapping("/{loanId}/schedule")
     @Operation(summary = "Get repayment schedule for a loan")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRepaymentSchedule(@PathVariable Long loanId) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<com.cbs.lending.dto.ScheduleEntryDto>>> getRepaymentSchedule(
+            @PathVariable Long loanId) {
+        return ResponseEntity.ok(ApiResponse.ok(loanService.getRepaymentSchedule(loanId)));
     }
 
     @PostMapping("/schedule-preview")
     @Operation(summary = "Preview amortization schedule without creating a loan")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> previewSchedule(@RequestBody Map<String, Object> data) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<com.cbs.lending.dto.ScheduleEntryDto>>> previewSchedule(
+            @Valid @RequestBody com.cbs.lending.dto.LoanApplicationRequest request) {
+        com.cbs.lending.entity.RepaymentScheduleType schedType = request.getRepaymentScheduleType() != null
+                ? request.getRepaymentScheduleType()
+                : com.cbs.lending.entity.RepaymentScheduleType.EQUAL_INSTALLMENT;
+        BigDecimal rate = request.getProposedRate() != null ? request.getProposedRate() : BigDecimal.valueOf(15);
+        java.time.LocalDate firstDue = java.time.LocalDate.now().plusMonths(1);
+        List<com.cbs.lending.entity.LoanRepaymentSchedule> schedule = scheduleGenerator.generate(
+                request.getRequestedAmount(), rate,
+                request.getRequestedTenureMonths(), schedType, firstDue);
+        List<com.cbs.lending.dto.ScheduleEntryDto> dtos = schedule.stream()
+                .map(s -> com.cbs.lending.dto.ScheduleEntryDto.builder()
+                        .installmentNumber(s.getInstallmentNumber()).dueDate(s.getDueDate())
+                        .principalDue(s.getPrincipalDue()).interestDue(s.getInterestDue())
+                        .totalDue(s.getTotalDue()).outstanding(s.getOutstanding())
+                        .principalPaid(BigDecimal.ZERO).interestPaid(BigDecimal.ZERO)
+                        .penaltyDue(BigDecimal.ZERO).penaltyPaid(BigDecimal.ZERO)
+                        .totalPaid(BigDecimal.ZERO).status(s.getStatus()).overdue(false).build())
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok(dtos));
     }
 
     @GetMapping("/{loanId}/settlement-calculation")
     @Operation(summary = "Calculate early settlement amount for a loan")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getSettlementCalculation(@PathVariable Long loanId) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of()));
-    }
-
-    @PostMapping("/{loanId}/restructure")
-    @Operation(summary = "Restructure a loan")
-    @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> restructureLoan(@PathVariable Long loanId, @RequestBody Map<String, Object> data) {
-        return ResponseEntity.ok(ApiResponse.ok(data));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getSettlementCalculation(
+            @PathVariable Long loanId) {
+        return ResponseEntity.ok(ApiResponse.ok(loanService.getSettlementCalculation(loanId)));
     }
 
     @GetMapping("/portfolio/stats")
     @Operation(summary = "Get portfolio-level loan statistics")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getPortfolioStats() {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of()));
+        return ResponseEntity.ok(ApiResponse.ok(loanService.getPortfolioStats()));
     }
 }

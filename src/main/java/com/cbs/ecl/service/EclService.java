@@ -25,6 +25,9 @@ public class EclService {
 
     private final EclModelParameterRepository paramRepository;
     private final EclCalculationRepository calcRepository;
+    private final EclBatchRunRepository batchRunRepository;
+    private final EclProvisionMovementRepository provisionMovementRepository;
+    private final EclPdTermStructureRepository pdTermStructureRepository;
 
     /**
      * Calculates ECL for a single loan using IFRS 9 methodology:
@@ -179,7 +182,16 @@ public class EclService {
     }
 
     public List<Map<String, Object>> getProvisionMovement() {
-        EclSummary s = getEclSummary(LocalDate.now());
+        LocalDate today = LocalDate.now();
+        List<EclProvisionMovement> rows = provisionMovementRepository.findByRunDateOrderByIdAsc(today);
+        if (!rows.isEmpty()) {
+            return rows.stream().map(r -> Map.<String, Object>of(
+                    "label", r.getLabel(), "stage1", r.getStage1(), "stage2", r.getStage2(),
+                    "stage3", r.getStage3(), "total", r.getTotal(), "isTotal", r.getIsTotalRow()
+            )).toList();
+        }
+        // Fallback: compute from current ECL summary if no provision movement rows exist yet
+        EclSummary s = getEclSummary(today);
         BigDecimal s1 = s.stage1() != null ? s.stage1() : BigDecimal.ZERO;
         BigDecimal s2 = s.stage2() != null ? s.stage2() : BigDecimal.ZERO;
         BigDecimal s3 = s.stage3() != null ? s.stage3() : BigDecimal.ZERO;
@@ -196,11 +208,21 @@ public class EclService {
     }
 
     public List<Map<String, Object>> getPdTermStructure() {
+        List<EclPdTermStructure> termStructures = pdTermStructureRepository.findByIsActiveTrueOrderByRatingGradeAsc();
+        if (!termStructures.isEmpty()) {
+            return termStructures.stream().map(ts -> Map.<String, Object>of(
+                    "ratingGrade", ts.getRatingGrade(),
+                    "tenor1y", ts.getTenor1y(),
+                    "tenor3y", ts.getTenor3y(),
+                    "tenor5y", ts.getTenor5y(),
+                    "tenor10y", ts.getTenor10y()
+            )).toList();
+        }
+        // Fallback: derive from ECL model parameters if no dedicated term structure rows exist
         List<EclModelParameter> params = paramRepository.findAll();
         Map<String, List<EclModelParameter>> bySegment = params.stream()
                 .filter(EclModelParameter::getIsActive)
                 .collect(Collectors.groupingBy(EclModelParameter::getSegment));
-
         return bySegment.entrySet().stream().map(e -> {
             EclModelParameter p = e.getValue().get(0);
             BigDecimal pd12 = p.getPd12Month() != null ? p.getPd12Month() : BigDecimal.ZERO;
@@ -275,8 +297,20 @@ public class EclService {
         return calcRepository.findByCurrentStage(stage, pageable);
     }
 
+    @Transactional
     public String triggerBatchRun() {
-        log.info("Batch ECL calculation triggered");
-        return "ecl-batch-" + System.currentTimeMillis();
+        String jobId = "ecl-batch-" + System.currentTimeMillis();
+        EclBatchRun run = EclBatchRun.builder()
+                .jobId(jobId)
+                .status("RUNNING")
+                .startedAt(java.time.Instant.now())
+                .build();
+        batchRunRepository.save(run);
+        log.info("Batch ECL calculation triggered: jobId={}", jobId);
+        return jobId;
+    }
+
+    public EclBatchRun getLatestBatchRun() {
+        return batchRunRepository.findTopByOrderByCreatedAtDesc().orElse(null);
     }
 }

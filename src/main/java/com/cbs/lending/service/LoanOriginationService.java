@@ -33,6 +33,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -466,6 +467,58 @@ public class LoanOriginationService {
 
     public List<LoanProductDto> getIslamicProducts() {
         return productRepository.findByIsIslamicTrueAndIsActiveTrue().stream().map(this::toLoanProductDto).toList();
+    }
+
+    // ========================================================================
+    // SCHEDULE & SETTLEMENT
+    // ========================================================================
+
+    public List<ScheduleEntryDto> getRepaymentSchedule(Long loanId) {
+        loanAccountRepository.findById(loanId)
+                .orElseThrow(() -> new ResourceNotFoundException("LoanAccount", "id", loanId));
+        return scheduleRepository.findByLoanAccountIdOrderByInstallmentNumberAsc(loanId)
+                .stream().map(this::toScheduleEntryDto).toList();
+    }
+
+    public Map<String, Object> getSettlementCalculation(Long loanId) {
+        LoanAccount loan = loanAccountRepository.findByIdWithDetails(loanId)
+                .orElseThrow(() -> new ResourceNotFoundException("LoanAccount", "id", loanId));
+        BigDecimal outstandingPrincipal = loan.getOutstandingPrincipal();
+        BigDecimal accruedInterest = loan.getAccruedInterest();
+        BigDecimal penalties = loan.getTotalPenalties() != null ? loan.getTotalPenalties() : BigDecimal.ZERO;
+        BigDecimal totalSettlement = outstandingPrincipal.add(accruedInterest).add(penalties);
+        return Map.of(
+                "loanId", loan.getId(),
+                "loanNumber", loan.getLoanNumber(),
+                "outstandingPrincipal", outstandingPrincipal,
+                "accruedInterest", accruedInterest,
+                "penalties", penalties,
+                "totalSettlementAmount", totalSettlement,
+                "currency", loan.getCurrencyCode(),
+                "settlementDate", LocalDate.now().toString()
+        );
+    }
+
+    public Map<String, Object> getPortfolioStats() {
+        List<LoanAccount> allLoans = loanAccountRepository.findAll();
+        long totalLoans = allLoans.size();
+        long activeLoans = allLoans.stream().filter(l -> l.getStatus() == LoanAccountStatus.ACTIVE).count();
+        long delinquentLoans = allLoans.stream().filter(l -> l.getStatus() == LoanAccountStatus.DELINQUENT).count();
+        long defaultedLoans = allLoans.stream().filter(l -> l.getStatus() == LoanAccountStatus.DEFAULT).count();
+        BigDecimal totalOutstanding = allLoans.stream()
+                .map(LoanAccount::getOutstandingPrincipal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalDisbursed = allLoans.stream()
+                .map(LoanAccount::getDisbursedAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return Map.of(
+                "totalLoans", totalLoans,
+                "activeLoans", activeLoans,
+                "delinquentLoans", delinquentLoans,
+                "defaultedLoans", defaultedLoans,
+                "totalOutstanding", totalOutstanding,
+                "totalDisbursed", totalDisbursed
+        );
     }
 
     // ========================================================================

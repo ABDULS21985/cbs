@@ -2,9 +2,11 @@ package com.cbs.overdraft.controller;
 
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
-import java.util.List;
-import java.util.Map;
 import com.cbs.overdraft.dto.FacilityResponse;
+import com.cbs.overdraft.entity.FacilityCovenant;
+import com.cbs.overdraft.entity.FacilityUtilizationLog;
+import com.cbs.overdraft.repository.FacilityCovenantRepository;
+import com.cbs.overdraft.repository.FacilityUtilizationLogRepository;
 import com.cbs.overdraft.service.OverdraftService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -29,6 +32,8 @@ import java.util.List;
 public class CreditFacilityController {
 
     private final OverdraftService overdraftService;
+    private final FacilityUtilizationLogRepository utilizationLogRepository;
+    private final FacilityCovenantRepository covenantRepository;
 
     @GetMapping
     @Operation(summary = "List all credit facilities")
@@ -51,41 +56,54 @@ public class CreditFacilityController {
     @GetMapping("/{id}/sub-limits")
     @Operation(summary = "Get sub-limits for a credit facility")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
-    public ResponseEntity<ApiResponse<List<?>>> getSubLimits(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<FacilityResponse>>> getSubLimits(@PathVariable Long id) {
+        // Sub-limits are child facilities of the same account — query by customer from parent
+        FacilityResponse parent = overdraftService.getFacility(id);
+        Page<FacilityResponse> children = overdraftService.getCustomerFacilities(
+                parent.getCustomerId(), PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt")));
+        List<FacilityResponse> subLimits = children.getContent().stream()
+                .filter(f -> !f.getId().equals(id))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok(subLimits));
     }
 
     @GetMapping("/{id}/drawdowns")
     @Operation(summary = "Get drawdowns for a credit facility")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
-    public ResponseEntity<ApiResponse<List<?>>> getDrawdowns(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<FacilityUtilizationLog>>> getDrawdowns(@PathVariable Long id) {
+        Page<FacilityUtilizationLog> logs = utilizationLogRepository.findByFacilityIdOrderByCreatedAtDesc(
+                id, PageRequest.of(0, 100));
+        return ResponseEntity.ok(ApiResponse.ok(logs.getContent()));
     }
 
     @PostMapping("/{id}/drawdowns")
     @Operation(summary = "Create a new drawdown against a credit facility")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> createDrawdown(@PathVariable Long id,
-            @RequestBody Map<String, Object> request) {
-        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(ApiResponse.ok(Map.of(
-                "facilityId", id,
-                "drawdownRef", "DRW-" + System.currentTimeMillis(),
-                "amount", request.getOrDefault("amount", 0),
-                "status", "APPROVED"
-        )));
+    public ResponseEntity<ApiResponse<FacilityResponse>> createDrawdown(
+            @PathVariable Long id,
+            @RequestParam BigDecimal amount,
+            @RequestParam(required = false) String narration) {
+        FacilityResponse result = overdraftService.drawdown(id, amount, narration);
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(ApiResponse.ok(result, "Drawdown processed"));
     }
 
     @GetMapping("/{id}/utilization-history")
     @Operation(summary = "Get utilization history for a credit facility")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
-    public ResponseEntity<ApiResponse<List<?>>> getUtilizationHistory(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<FacilityUtilizationLog>>> getUtilizationHistory(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        Page<FacilityUtilizationLog> logs = overdraftService.getUtilizationHistory(
+                id, PageRequest.of(page, Math.min(size, 100)));
+        return ResponseEntity.ok(ApiResponse.ok(logs.getContent(), PageMeta.from(logs)));
     }
 
     @GetMapping("/{id}/covenants")
     @Operation(summary = "Get covenants for a credit facility")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
-    public ResponseEntity<ApiResponse<List<?>>> getCovenants(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<FacilityCovenant>>> getCovenants(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(covenantRepository.findByFacilityIdOrderByNextTestDateAsc(id)));
     }
 }

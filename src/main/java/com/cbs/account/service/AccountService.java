@@ -5,6 +5,9 @@ import com.cbs.account.entity.*;
 import com.cbs.account.mapper.AccountMapper;
 import com.cbs.account.repository.*;
 import com.cbs.account.validation.AccountValidator;
+import com.cbs.card.entity.Card;
+import com.cbs.card.entity.CardStatus;
+import com.cbs.card.repository.CardRepository;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.DuplicateResourceException;
@@ -12,8 +15,13 @@ import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerStatus;
 import com.cbs.customer.repository.CustomerRepository;
+import com.cbs.overdraft.entity.CreditFacility;
+import com.cbs.overdraft.entity.FacilityStatus;
+import com.cbs.overdraft.repository.CreditFacilityRepository;
 import com.cbs.provider.interest.DayCountEngine;
 import com.cbs.provider.numbering.AccountNumberGenerator;
+import com.cbs.standing.entity.StandingInstruction;
+import com.cbs.standing.repository.StandingInstructionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -28,6 +36,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +50,12 @@ public class AccountService {
     private final AccountSignatoryRepository signatoryRepository;
     private final TransactionJournalRepository transactionRepository;
     private final CustomerRepository customerRepository;
+    private final AccountHoldRepository holdRepository;
+    private final AccountMaintenanceLogRepository maintenanceLogRepository;
+    private final InterestPostingHistoryRepository interestPostingHistoryRepository;
+    private final CardRepository cardRepository;
+    private final CreditFacilityRepository creditFacilityRepository;
+    private final StandingInstructionRepository standingInstructionRepository;
     private final AccountMapper accountMapper;
     private final AccountValidator accountValidator;
     private final AccountNumberGenerator numberGenerator;
@@ -459,5 +474,160 @@ public class AccountService {
 
     public long countByStatus(AccountStatus status) {
         return accountRepository.countByStatus(status);
+    }
+
+    // ========================================================================
+    // HOLDS
+    // ========================================================================
+
+    public List<AccountHold> getAccountHolds(String accountNumber) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
+        return holdRepository.findByAccountIdOrderByCreatedAtDesc(account.getId());
+    }
+
+    @Transactional
+    public void releaseHold(String accountNumber, Long holdId, String reason) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
+        AccountHold hold = holdRepository.findById(holdId)
+                .orElseThrow(() -> new ResourceNotFoundException("AccountHold", "id", holdId));
+        if (!hold.getAccount().getId().equals(account.getId())) {
+            throw new BusinessException("Hold does not belong to this account", "HOLD_ACCOUNT_MISMATCH");
+        }
+        hold.setStatus("RELEASED");
+        hold.setReleaseDate(LocalDate.now());
+        hold.setReleaseReason(reason);
+        holdRepository.save(hold);
+
+        // Reduce lien amount on account
+        account.setLienAmount(account.getLienAmount().subtract(hold.getAmount()).max(BigDecimal.ZERO));
+        accountRepository.save(account);
+
+        logMaintenance(account.getId(), "HOLD_RELEASED",
+                "Hold " + hold.getReference() + " released: " + reason, "SYSTEM");
+    }
+
+    // ========================================================================
+    // SIGNATORIES
+    // ========================================================================
+
+    public List<AccountSignatory> getSignatories(String accountNumber) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
+        return signatoryRepository.findByAccountIdWithCustomer(account.getId());
+    }
+
+    @Transactional
+    public AccountSignatory addSignatory(String accountNumber, Long customerId, String role) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
+        Customer sigCustomer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", customerId));
+        if (signatoryRepository.existsByAccountIdAndCustomerId(account.getId(), customerId)) {
+            throw new DuplicateResourceException("AccountSignatory", "customerId", customerId);
+        }
+        SignatoryType sigType;
+        try { sigType = SignatoryType.valueOf(role); }
+        catch (IllegalArgumentException e) { sigType = SignatoryType.AUTHORISED; }
+
+        AccountSignatory sig = AccountSignatory.builder()
+                .account(account).customer(sigCustomer)
+                .signatoryType(sigType).build();
+        AccountSignatory saved = signatoryRepository.save(sig);
+        logMaintenance(account.getId(), "SIGNATORY_ADDED",
+                "Signatory added: " + sigCustomer.getDisplayName() + " (" + role + ")", "SYSTEM");
+        return saved;
+    }
+
+    @Transactional
+    public void removeSignatory(String accountNumber, Long signatoryId, String reason) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
+        AccountSignatory sig = signatoryRepository.findById(signatoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("AccountSignatory", "id", signatoryId));
+        sig.setIsActive(false);
+        sig.setEffectiveTo(LocalDate.now());
+        signatoryRepository.save(sig);
+        logMaintenance(account.getId(), "SIGNATORY_REMOVED",
+                "Signatory removed (id=" + signatoryId + "): " + reason, "SYSTEM");
+    }
+
+    // ========================================================================
+    // MAINTENANCE HISTORY
+    // ========================================================================
+
+    public List<AccountMaintenanceLog> getMaintenanceHistory(String accountNumber) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
+        return maintenanceLogRepository.findByAccountIdOrderByCreatedAtDesc(account.getId());
+    }
+
+    @Transactional
+    public void logMaintenance(Long accountId, String action, String details, String performedBy) {
+        AccountMaintenanceLog entry = AccountMaintenanceLog.builder()
+                .accountId(accountId).action(action).details(details)
+                .performedBy(performedBy).build();
+        maintenanceLogRepository.save(entry);
+    }
+
+    // ========================================================================
+    // INTEREST HISTORY
+    // ========================================================================
+
+    public List<InterestPostingHistory> getInterestHistory(String accountNumber) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
+        return interestPostingHistoryRepository.findByAccountIdOrderByPostingDateDesc(account.getId());
+    }
+
+    // ========================================================================
+    // LINKED PRODUCTS
+    // ========================================================================
+
+    public Map<String, Object> getLinkedProducts(String accountNumber) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
+        Long accountId = account.getId();
+
+        // Cards
+        List<Card> cards = cardRepository.findByAccountIdAndStatus(accountId, CardStatus.ACTIVE);
+        Map<String, Object> debitCard = null;
+        if (!cards.isEmpty()) {
+            Card card = cards.get(0);
+            debitCard = Map.of(
+                    "maskedPan", card.getCardNumberMasked(),
+                    "status", card.getStatus().name(),
+                    "expiryDate", card.getExpiryDate() != null ? card.getExpiryDate().toString() : "");
+        }
+
+        // Overdraft facility
+        List<CreditFacility> facilities = creditFacilityRepository.findByAccountIdAndStatus(accountId, FacilityStatus.ACTIVE);
+        Map<String, Object> overdraftFacility = null;
+        if (!facilities.isEmpty()) {
+            CreditFacility f = facilities.get(0);
+            overdraftFacility = Map.of(
+                    "limit", f.getSanctionedLimit(),
+                    "utilized", f.getUtilizedAmount(),
+                    "expiryDate", f.getExpiryDate() != null ? f.getExpiryDate().toString() : "");
+        }
+
+        // Standing orders
+        Page<StandingInstruction> standingPage = standingInstructionRepository.findByDebitAccountId(
+                accountId, org.springframework.data.domain.PageRequest.of(0, 50));
+        List<Map<String, Object>> standingOrders = standingPage.getContent().stream().map(so -> Map.<String, Object>of(
+                "id", so.getId().toString(),
+                "beneficiary", so.getCreditAccountNumber(),
+                "amount", so.getAmount(),
+                "frequency", so.getFrequency(),
+                "nextExecution", so.getNextExecutionDate() != null ? so.getNextExecutionDate().toString() : ""
+        )).toList();
+
+        java.util.LinkedHashMap<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("debitCard", debitCard);
+        result.put("standingOrders", standingOrders);
+        result.put("directDebits", List.of());
+        result.put("overdraftFacility", overdraftFacility);
+        return result;
     }
 }

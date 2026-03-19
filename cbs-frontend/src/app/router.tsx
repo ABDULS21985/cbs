@@ -36,6 +36,7 @@ import {
   CaseDetailPage,
   CaseListPage,
   CashPoolPage,
+  NotionalPoolPage,
   ChannelAnalyticsPage,
   ChequeManagementPage,
   CollectionsPage,
@@ -157,6 +158,7 @@ import {
   MarketDataManagementPage,
   TradeFinanceHubPage,
   AccountListPage,
+  WalletPage,
   PaymentsDashboardPage,
   CardDisputePage,
   TreasuryPositionsPage,
@@ -226,6 +228,8 @@ export function AppRouter() {
           <Route path="virtual-accounts" element={<VirtualAccountListPage />} />
           <Route path="virtual-accounts/:id" element={<VirtualAccountDetailPage />} />
           <Route path="cash-pooling" element={<CashPoolPage />} />
+          <Route path="notional-pooling" element={<NotionalPoolPage />} />
+          <Route path="wallets" element={<WalletPage />} />
           <Route path="statements" element={<StatementGeneratorPage />} />
         </Route>
 

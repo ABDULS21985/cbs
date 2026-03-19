@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Link2, X } from 'lucide-react';
 import { DataTable } from '@/components/shared/DataTable';
-import { formatMoney } from '@/lib/formatters';
-import { formatDate } from '@/lib/formatters';
+import { formatMoney, formatDate } from '@/lib/formatters';
 import type { VATransaction } from '../../api/virtualAccountApi';
 
 interface UnmatchedItemsTableProps {
@@ -21,10 +20,10 @@ export function UnmatchedItemsTable({ transactions, onMatch, onWriteOff }: Unmat
   const columns = useMemo<ColumnDef<VATransaction, unknown>[]>(
     () => [
       {
-        accessorKey: 'date',
+        accessorKey: 'transactionDate',
         header: 'Date',
         cell: ({ row }) => (
-          <span className="text-sm whitespace-nowrap">{formatDate(row.original.date)}</span>
+          <span className="text-sm whitespace-nowrap">{formatDate(row.original.transactionDate)}</span>
         ),
       },
       {
@@ -39,7 +38,7 @@ export function UnmatchedItemsTable({ transactions, onMatch, onWriteOff }: Unmat
         header: 'Description',
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground max-w-[200px] block truncate">
-            {row.original.description}
+            {row.original.description || '—'}
           </span>
         ),
       },
@@ -50,11 +49,11 @@ export function UnmatchedItemsTable({ transactions, onMatch, onWriteOff }: Unmat
           <span
             className={[
               'font-mono text-sm font-medium tabular-nums',
-              row.original.type === 'CREDIT' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400',
+              row.original.transactionType === 'CREDIT' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400',
             ].join(' ')}
           >
-            {row.original.type === 'CREDIT' ? '+' : '-'}
-            {formatMoney(row.original.amount, 'NGN')}
+            {row.original.transactionType === 'CREDIT' ? '+' : '-'}
+            {formatMoney(row.original.amount)}
           </span>
         ),
       },

@@ -5,4 +5,5 @@ import java.util.List; import java.util.Optional;
 public interface NotionalPoolRepository extends JpaRepository<NotionalPool, Long> {
     Optional<NotionalPool> findByPoolCode(String code);
     List<NotionalPool> findByCustomerIdAndIsActiveTrueOrderByPoolNameAsc(Long customerId);
+    List<NotionalPool> findByIsActiveTrueOrderByPoolNameAsc();
 }

@@ -1,28 +1,33 @@
 import { Building2, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMoney, formatMoneyCompact } from '@/lib/formatters';
-import type { CashPool } from '../../api/cashPoolApi';
+import type { CashPool, CashPoolParticipant } from '../../api/cashPoolApi';
 
 interface PoolStructureTreeProps {
   pool: CashPool;
-  onParticipantClick?: (participantId: string) => void;
+  participants: CashPoolParticipant[];
+  onParticipantClick?: (participantId: number) => void;
 }
 
-const SWEEP_TYPE_LABELS: Record<string, string> = {
-  ZBA: 'Zero Balance',
-  THRESHOLD: 'Threshold',
-  TARGET_BALANCE: 'Target Balance',
+const SWEEP_DIR_LABELS: Record<string, string> = {
+  BIDIRECTIONAL: 'Bidirectional',
+  INWARD: 'Inward',
+  OUTWARD: 'Outward',
+  CONCENTRATE: 'Concentrate',
+  DISTRIBUTE: 'Distribute',
 };
 
-const SWEEP_TYPE_COLORS: Record<string, string> = {
-  ZBA: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  THRESHOLD: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  TARGET_BALANCE: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+const SWEEP_DIR_COLORS: Record<string, string> = {
+  BIDIRECTIONAL: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  INWARD: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  OUTWARD: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  CONCENTRATE: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  DISTRIBUTE: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
 };
 
-export function PoolStructureTree({ pool, onParticipantClick }: PoolStructureTreeProps) {
-  const activeParticipants = pool.participants.filter((p) => p.status === 'ACTIVE');
-  const inactiveParticipants = pool.participants.filter((p) => p.status === 'INACTIVE');
+export function PoolStructureTree({ pool, participants, onParticipantClick }: PoolStructureTreeProps) {
+  const activeParticipants = participants.filter((p) => p.isActive && p.participantRole !== 'HEADER');
+  const inactiveParticipants = participants.filter((p) => !p.isActive);
 
   return (
     <div className="space-y-0">
@@ -37,15 +42,13 @@ export function PoolStructureTree({ pool, onParticipantClick }: PoolStructureTre
               <div className="text-xs font-semibold uppercase tracking-wide text-primary mb-0.5">
                 Header Account
               </div>
-              <div className="text-sm font-semibold truncate">{pool.headerAccount.name}</div>
-              <div className="font-mono text-xs text-muted-foreground">{pool.headerAccount.number}</div>
+              <div className="text-sm font-semibold truncate">{pool.poolName}</div>
+              <div className="font-mono text-xs text-muted-foreground">ID: {pool.headerAccountId}</div>
             </div>
           </div>
           <div className="mt-3 pt-3 border-t border-primary/20">
-            <div className="text-xs text-muted-foreground">Balance</div>
-            <div className="text-lg font-semibold font-mono tabular-nums text-primary">
-              {formatMoney(pool.headerAccount.balance)}
-            </div>
+            <div className="text-xs text-muted-foreground">Pool Type</div>
+            <div className="text-sm font-semibold text-primary">{pool.poolType.replace(/_/g, ' ')}</div>
           </div>
         </div>
       </div>
@@ -56,16 +59,16 @@ export function PoolStructureTree({ pool, onParticipantClick }: PoolStructureTre
       </div>
 
       {/* Branch root */}
-      {pool.participants.length > 0 && (
+      {activeParticipants.length > 0 && (
         <div className="flex justify-center">
           <div className="relative w-full max-w-3xl">
             {/* Horizontal connector */}
-            {pool.participants.length > 1 && (
+            {activeParticipants.length > 1 && (
               <div
                 className="absolute top-0 left-1/4 right-1/4 h-px bg-border"
                 style={{
-                  left: `${100 / pool.participants.length / 2}%`,
-                  right: `${100 / pool.participants.length / 2}%`,
+                  left: `${100 / activeParticipants.length / 2}%`,
+                  right: `${100 / activeParticipants.length / 2}%`,
                 }}
               />
             )}
@@ -74,10 +77,10 @@ export function PoolStructureTree({ pool, onParticipantClick }: PoolStructureTre
             <div
               className="grid gap-3"
               style={{
-                gridTemplateColumns: `repeat(${Math.min(pool.participants.length, 3)}, 1fr)`,
+                gridTemplateColumns: `repeat(${Math.min(activeParticipants.length, 3)}, 1fr)`,
               }}
             >
-              {pool.participants.map((participant) => (
+              {activeParticipants.map((participant) => (
                 <div key={participant.id} className="flex flex-col items-center">
                   {/* Vertical connector to branch */}
                   <div className="w-px h-6 bg-border" />
@@ -88,7 +91,7 @@ export function PoolStructureTree({ pool, onParticipantClick }: PoolStructureTre
                     disabled={!onParticipantClick}
                     className={cn(
                       'w-full rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition-all',
-                      participant.status === 'INACTIVE' && 'opacity-50',
+                      !participant.isActive && 'opacity-50',
                       onParticipantClick &&
                         'hover:border-primary/50 hover:shadow-md hover:bg-primary/5 cursor-pointer',
                       !onParticipantClick && 'cursor-default',
@@ -102,46 +105,39 @@ export function PoolStructureTree({ pool, onParticipantClick }: PoolStructureTre
                         <span
                           className={cn(
                             'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium',
-                            SWEEP_TYPE_COLORS[participant.sweepType],
+                            SWEEP_DIR_COLORS[participant.sweepDirection] || 'bg-gray-100 text-gray-600',
                           )}
                         >
-                          {SWEEP_TYPE_LABELS[participant.sweepType]}
+                          {SWEEP_DIR_LABELS[participant.sweepDirection] || participant.sweepDirection}
                         </span>
                         <span
                           className={cn(
                             'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium',
-                            participant.status === 'ACTIVE'
+                            participant.isActive
                               ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                               : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
                           )}
                         >
-                          {participant.status}
+                          {participant.isActive ? 'ACTIVE' : 'INACTIVE'}
                         </span>
                       </div>
                     </div>
 
-                    <div className="text-sm font-medium truncate">{participant.accountName}</div>
+                    <div className="text-sm font-medium truncate">{participant.participantName}</div>
                     <div className="font-mono text-xs text-muted-foreground mt-0.5">
-                      {participant.accountNumber}
+                      Account: {participant.accountId}
                     </div>
 
                     <div className="mt-2 pt-2 border-t">
-                      <div className="text-xs text-muted-foreground">Balance</div>
+                      <div className="text-xs text-muted-foreground">Target Balance</div>
                       <div className="text-sm font-semibold font-mono tabular-nums">
-                        {formatMoneyCompact(participant.balance)}
+                        {formatMoneyCompact(participant.targetBalance)}
                       </div>
                     </div>
 
-                    {participant.sweepType === 'THRESHOLD' && participant.sweepThreshold !== undefined && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Threshold: {formatMoneyCompact(participant.sweepThreshold)}
-                      </div>
-                    )}
-                    {participant.sweepType === 'TARGET_BALANCE' && participant.targetBalance !== undefined && (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        Target: {formatMoneyCompact(participant.targetBalance)}
-                      </div>
-                    )}
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      Priority: {participant.priority}
+                    </div>
                   </button>
                 </div>
               ))}
@@ -153,16 +149,12 @@ export function PoolStructureTree({ pool, onParticipantClick }: PoolStructureTre
       {/* Summary footer */}
       <div className="mt-6 flex flex-wrap gap-4 pt-4 border-t">
         <div className="flex-1 min-w-[140px] rounded-lg bg-muted/50 px-4 py-3">
-          <div className="text-xs text-muted-foreground mb-1">Total Pool Balance</div>
-          <div className="text-base font-semibold font-mono tabular-nums">
-            {formatMoney(pool.totalBalance)}
-          </div>
+          <div className="text-xs text-muted-foreground mb-1">Pool Type</div>
+          <div className="text-base font-semibold">{pool.poolType.replace(/_/g, ' ')}</div>
         </div>
-        <div className="flex-1 min-w-[140px] rounded-lg bg-green-50 dark:bg-green-900/20 px-4 py-3">
-          <div className="text-xs text-green-700 dark:text-green-400 mb-1">Monthly Interest Benefit</div>
-          <div className="text-base font-semibold font-mono tabular-nums text-green-700 dark:text-green-400">
-            +{formatMoney(pool.interestBenefit)}
-          </div>
+        <div className="flex-1 min-w-[140px] rounded-lg bg-muted/50 px-4 py-3">
+          <div className="text-xs text-muted-foreground mb-1">Sweep Frequency</div>
+          <div className="text-base font-semibold">{pool.sweepFrequency.replace(/_/g, ' ')}</div>
         </div>
         <div className="flex-1 min-w-[140px] rounded-lg bg-muted/50 px-4 py-3">
           <div className="text-xs text-muted-foreground mb-1">Active Participants</div>

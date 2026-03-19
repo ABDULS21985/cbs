@@ -35,6 +35,8 @@ public class PaymentController {
     private final MobileMoneyLinkRepository mobileMoneyLinkRepository;
     private final PaymentBatchRepository paymentBatchRepository;
     private final FxRateRepository fxRateRepository;
+    private final BeneficiaryRepository beneficiaryRepository;
+    private final BankDirectoryRepository bankDirectoryRepository;
 
     @PostMapping("/transfer")
     @Operation(summary = "Internal book transfer between accounts")
@@ -153,7 +155,15 @@ public class PaymentController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkDuplicate(
             @RequestParam String beneficiaryAccount,
             @RequestParam BigDecimal amount) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("duplicate", false)));
+        // Check if a payment with same beneficiary and amount was made in last 5 minutes
+        Instant fiveMinutesAgo = Instant.now().minusSeconds(300);
+        boolean duplicate = paymentInstructionRepository.findAll(PageRequest.of(0, 10,
+                Sort.by(Sort.Direction.DESC, "createdAt")))
+                .getContent().stream()
+                .anyMatch(p -> beneficiaryAccount.equals(p.getCreditAccountNumber())
+                        && amount.compareTo(p.getAmount()) == 0
+                        && p.getCreatedAt() != null && p.getCreatedAt().isAfter(fiveMinutesAgo));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("duplicate", duplicate)));
     }
 
     @PostMapping("/name-enquiry")
@@ -187,15 +197,15 @@ public class PaymentController {
     @GetMapping("/beneficiaries")
     @Operation(summary = "List saved beneficiaries")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getBeneficiaries() {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<Beneficiary>>> getBeneficiaries() {
+        return ResponseEntity.ok(ApiResponse.ok(beneficiaryRepository.findByIsActiveTrue()));
     }
 
     @GetMapping("/banks")
     @Operation(summary = "List bank codes and names")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<List<Map<String, String>>>> getBanks() {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<BankDirectory>>> getBanks() {
+        return ResponseEntity.ok(ApiResponse.ok(bankDirectoryRepository.findByIsActiveTrueOrderByBankNameAsc()));
     }
 
     // Bulk payments delegated to BulkPaymentController at /v1/payments/bulk
