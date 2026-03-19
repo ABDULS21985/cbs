@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -50,6 +50,7 @@ type NewVAFormData = z.infer<typeof newVASchema>;
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function VirtualAccountListPage() {
+  useEffect(() => { document.title = 'Virtual Accounts | CBS'; }, []);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showDialog, setShowDialog] = useState(false);

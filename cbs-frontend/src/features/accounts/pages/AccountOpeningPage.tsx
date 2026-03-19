@@ -93,6 +93,7 @@ function Stepper({ currentStep, totalSteps }: StepperProps) {
 }
 
 export function AccountOpeningPage() {
+  useEffect(() => { document.title = 'Open Account | CBS'; }, []);
   const [searchParams] = useSearchParams();
   const {
     currentStep,

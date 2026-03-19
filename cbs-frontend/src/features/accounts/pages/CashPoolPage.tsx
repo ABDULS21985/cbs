@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus,
@@ -1164,6 +1164,7 @@ function PoolCard({ pool, participantCount, onClick }: PoolCardProps) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export function CashPoolPage() {
+  useEffect(() => { document.title = 'Cash Pooling | CBS'; }, []);
   const queryClient = useQueryClient();
   const [showWizard, setShowWizard] = useState(false);
   const [selectedPool, setSelectedPool] = useState<CashPool | null>(null);

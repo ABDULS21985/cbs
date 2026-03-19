@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { List, Info, Percent, ShieldCheck, Link2, Clock } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -15,7 +16,13 @@ export function AccountDetailPage() {
   const { id } = useParams<{ id: string }>();
   const accountId = id ?? '';
 
-  const { account, isLoading, error } = useAccountDetail(accountId);
+  const { account, isLoading, error, refetch } = useAccountDetail(accountId);
+
+  useEffect(() => {
+    document.title = account
+      ? `Account Detail - ${account.accountNumber} | CBS`
+      : 'Account Detail | CBS';
+  }, [account]);
 
   if (isLoading) {
     return (
@@ -31,15 +38,43 @@ export function AccountDetailPage() {
   }
 
   if (error || !account) {
+    const status = (error as any)?.response?.status ?? (error as any)?.status;
+    const is403 = status === 403;
+    const is404 = status === 404;
+
     return (
       <>
         <PageHeader title="Account Details" backTo="/accounts" />
         <div className="page-container">
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-lg font-medium text-muted-foreground">Account not found</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              The account <span className="font-mono">{accountId}</span> could not be loaded.
-            </p>
+            {is403 ? (
+              <>
+                <p className="text-lg font-medium text-muted-foreground">Access denied</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  You don't have permission to view this account.
+                </p>
+              </>
+            ) : is404 ? (
+              <>
+                <p className="text-lg font-medium text-muted-foreground">Account not found</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  The account <span className="font-mono">{accountId}</span> does not exist.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-medium text-muted-foreground">Failed to load account</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Unable to retrieve account <span className="font-mono">{accountId}</span>. Please check your connection.
+                </p>
+                <button
+                  onClick={() => refetch()}
+                  className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                >
+                  Retry
+                </button>
+              </>
+            )}
           </div>
         </div>
       </>

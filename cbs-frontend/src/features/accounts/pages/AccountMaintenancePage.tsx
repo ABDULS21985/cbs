@@ -80,12 +80,18 @@ export function AccountMaintenancePage() {
   const queryClient = useQueryClient();
   const [activeAction, setActiveAction] = useState<ActionId | null>(null);
 
-  const { data: account, isLoading, isError, refetch } = useQuery({
+  const { data: account, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ['account-basic-info', accountId],
     queryFn: () => accountMaintenanceApi.getAccountBasicInfo(accountId!),
     enabled: !!accountId,
     staleTime: 60_000,
   });
+
+  useEffect(() => {
+    document.title = account
+      ? `Maintenance - ${account.accountNumber} | CBS`
+      : 'Account Maintenance | CBS';
+  }, [account]);
 
   const handleSuccess = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['account-basic-info', accountId] });
@@ -130,6 +136,10 @@ export function AccountMaintenancePage() {
   }
 
   if (isError || !account) {
+    const status = (queryError as any)?.response?.status ?? (queryError as any)?.status;
+    const is403 = status === 403;
+    const is404 = status === 404;
+
     return (
       <>
         <PageHeader
@@ -137,21 +147,37 @@ export function AccountMaintenancePage() {
           backTo={`/accounts/${accountId}`}
         />
         <div className="page-container">
-          <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-red-700 dark:text-red-300">Failed to load account information</p>
-              <p className="text-sm text-red-600 dark:text-red-400 mt-1">
-                Unable to retrieve account details. Please check your connection and try again.
+          {is403 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <p className="text-lg font-medium text-muted-foreground">Access denied</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                You don't have permission to view this account.
               </p>
-              <button
-                onClick={() => refetch()}
-                className="mt-3 text-sm font-medium text-red-700 dark:text-red-300 underline hover:no-underline"
-              >
-                Retry
-              </button>
             </div>
-          </div>
+          ) : is404 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <p className="text-lg font-medium text-muted-foreground">Account not found</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                The account <span className="font-mono">{accountId}</span> does not exist.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-6 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-red-700 dark:text-red-300">Failed to load account information</p>
+                <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                  Unable to retrieve account details. Please check your connection and try again.
+                </p>
+                <button
+                  onClick={() => refetch()}
+                  className="mt-3 text-sm font-medium text-red-700 dark:text-red-300 underline hover:no-underline"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </>
     );

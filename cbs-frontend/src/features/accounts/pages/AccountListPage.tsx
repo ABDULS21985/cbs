@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
 import { useNavigate } from 'react-router-dom';
@@ -75,7 +76,21 @@ const columns: ColumnDef<AccountRow, unknown>[] = [
 export function AccountListPage() {
   const navigate = useNavigate();
 
-  const { data: accounts = [], isLoading } = useQuery({
+  useEffect(() => { document.title = 'All Accounts | CBS'; }, []);
+
+  // Ctrl+N → Open new account
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        navigate('/accounts/open');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
+
+  const { data: accounts = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['accounts', 'list'],
     queryFn: () => apiGet<AccountRow[]>('/api/v1/accounts'),
   });
@@ -84,6 +99,28 @@ export function AccountListPage() {
   const activeAccounts = accounts.filter((a) => a.status === 'ACTIVE').length;
   const totalBalance = accounts.reduce((sum, a) => sum + (a.availableBalance ?? 0), 0);
   const currencies = new Set(accounts.map((a) => a.currency ?? 'NGN'));
+
+  if (isError) {
+    return (
+      <>
+        <PageHeader title="All Accounts" subtitle="Account listing and management" />
+        <div className="page-container">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="text-lg font-medium text-muted-foreground">Failed to load accounts</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Unable to retrieve account data. Please check your connection.
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

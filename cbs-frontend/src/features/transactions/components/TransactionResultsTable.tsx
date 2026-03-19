@@ -73,9 +73,10 @@ export function TransactionResultsTable({ transactions, isLoading, onRowClick }:
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/accounts?q=${acct}`);
+                  navigate(`/accounts?q=${encodeURIComponent(acct)}`);
                 }}
                 className="font-mono text-xs text-primary hover:underline block"
+                title="View account details"
               >
                 {acct.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3')}
               </button>

@@ -1,10 +1,9 @@
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoGrid, StatusBadge, TabsPage, AuditTimeline } from '@/components/shared';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
 import { loanApi } from '../api/loanApi';
 import type { LoanPayment } from '../types/loan';
 
@@ -28,12 +27,34 @@ export function LoanDetailPage() {
   const payments: LoanPayment[] = [];
 
   if (isLoading || !loan) {
-    return <><PageHeader title="Loan Detail" /><div className="page-container flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></>;
+    return (
+      <>
+        <PageHeader title="Loan Detail" backTo="/lending/active" />
+        <div className="page-container space-y-4">
+          <div className="rounded-xl border bg-card p-6 animate-pulse">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-6 w-20 bg-muted rounded" />
+              <div className="h-6 w-24 bg-muted rounded" />
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-3 w-16 bg-muted rounded" />
+                  <div className="h-5 w-24 bg-muted rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="h-10 rounded-lg bg-muted/30 animate-pulse" />
+          <div className="h-64 rounded-lg bg-muted/30 animate-pulse" />
+        </div>
+      </>
+    );
   }
 
   return (
     <>
-      <PageHeader title={`Loan ${loan.loanNumber}`} subtitle={`${loan.productName} — ${loan.customerName}`} backTo="/lending"
+      <PageHeader title={`Loan ${loan.loanNumber}`} subtitle={`${loan.productName} — ${loan.customerName}`} backTo="/lending/active"
         actions={<div className="flex gap-2">
           <button className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">Record Payment</button>
           <button className="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted">Restructure</button>
@@ -45,6 +66,20 @@ export function LoanDetailPage() {
             <StatusBadge status={loan.status} size="md" dot />
             <StatusBadge status={loan.classification} size="md" />
             {(loan.daysPastDue || 0) > 0 && <span className="text-sm font-mono text-red-600">{loan.daysPastDue} DPD</span>}
+            <div className="ml-auto flex items-center gap-2">
+              <Link
+                to={`/customers/${loan.customerId}`}
+                className="text-xs text-primary hover:underline font-medium"
+              >
+                View Customer
+              </Link>
+              <Link
+                to={`/customers/${loan.customerId}?tab=accounts`}
+                className="text-xs text-primary hover:underline font-medium"
+              >
+                View Accounts
+              </Link>
+            </div>
           </div>
           <InfoGrid columns={4} items={[
             { label: 'Disbursed', value: loan.disbursedAmount, format: 'money' },

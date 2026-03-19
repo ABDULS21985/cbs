@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -58,6 +58,15 @@ function Modal({ open, onClose, title, icon, children }: {
   open: boolean; onClose: () => void; title: string;
   icon: React.ReactNode; children: React.ReactNode;
 }) {
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -501,6 +510,7 @@ function WalletCard({ wallet, accountId, wallets, onFund, onWithdraw, onConvert 
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export function WalletPage() {
+  useEffect(() => { document.title = 'Multi-Currency Wallets | CBS'; }, []);
   const [searchParams] = useSearchParams();
   const accountId = Number(searchParams.get('accountId') || 0);
 

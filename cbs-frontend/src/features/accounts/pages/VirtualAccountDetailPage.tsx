@@ -489,7 +489,7 @@ export function VirtualAccountDetailPage() {
   if (isLoading) {
     return (
       <div>
-        <PageHeader title="Loading..." backTo="/accounts/virtual-accounts" />
+        <PageHeader title="Virtual Account" backTo="/accounts/virtual-accounts" />
         <div className="page-container">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-pulse">
             {[1, 2, 3, 4].map((i) => (

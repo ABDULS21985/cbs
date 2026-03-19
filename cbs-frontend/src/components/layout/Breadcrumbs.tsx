@@ -37,6 +37,14 @@ const labelOverrides: Record<string, string> = {
   sanctions: 'Sanctions',
   open: 'Open Account',
   new: 'New Transfer',
+  'recurring-deposits': 'Recurring Deposits',
+  'virtual-accounts': 'Virtual Accounts',
+  'cash-pooling': 'Cash Pooling',
+  'notional-pooling': 'Notional Pooling',
+  wallets: 'Wallets',
+  statements: 'Statements',
+  reconciliation: 'Reconciliation',
+  maintenance: 'Maintenance',
 };
 
 function toLabel(segment: string): string {

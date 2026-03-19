@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -598,6 +598,7 @@ function PoolCard({ pool, onAddMember }: PoolCardProps) {
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export function NotionalPoolPage() {
+  useEffect(() => { document.title = 'Notional Pooling | CBS'; }, []);
   const [addMemberPoolCode, setAddMemberPoolCode] = useState<string | null>(null);
 
   const { data: pools = [], isLoading } = useNotionalPools();
