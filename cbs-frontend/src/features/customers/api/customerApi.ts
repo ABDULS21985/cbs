@@ -447,6 +447,25 @@ function mapSegment(item: BackendSegmentResponse): CustomerSegment {
 
 function buildOnboardingPayload(data: OnboardingFormData) {
   const country = normalizeCountryCode(data.country ?? data.nationality);
+  const contacts = [
+    data.phone
+      ? {
+          contactType: 'PHONE',
+          contactValue: data.phone,
+          label: 'PRIMARY_PHONE',
+          isPrimary: true,
+          isVerified: Boolean(data.bvnVerified),
+        }
+      : null,
+    data.email
+      ? {
+          contactType: 'EMAIL',
+          contactValue: data.email,
+          label: 'PRIMARY_EMAIL',
+          isPrimary: !data.phone,
+        }
+      : null,
+  ].filter((contact): contact is NonNullable<typeof contact> => contact !== null);
 
   return {
     customerType: data.customerType,
@@ -459,9 +478,15 @@ function buildOnboardingPayload(data: OnboardingFormData) {
     maritalStatus: data.maritalStatus,
     nationality: normalizeCountryCode(data.nationality),
     stateOfOrigin: data.stateOfOrigin,
+    lgaOfOrigin: data.lgaOfOrigin,
     motherMaidenName: data.motherMaidenName,
+    registeredName: data.registeredName,
+    tradingName: data.tradingName,
+    registrationNumber: data.registrationNumber,
+    registrationDate: data.registrationDate,
     email: data.email,
     phonePrimary: data.phone,
+    phoneSecondary: data.altPhone,
     branchCode: import.meta.env.VITE_DEFAULT_BRANCH_CODE || 'BR001',
     onboardedChannel: 'FRONTEND',
     addresses: data.residentialAddress
@@ -476,6 +501,7 @@ function buildOnboardingPayload(data: OnboardingFormData) {
           },
         ]
       : undefined,
+    contacts: contacts.length > 0 ? contacts : undefined,
     identifications: data.idType && data.idNumber
       ? [
           {

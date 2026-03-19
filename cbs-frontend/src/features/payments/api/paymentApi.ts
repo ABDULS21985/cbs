@@ -1,4 +1,5 @@
-import { apiGet, apiPost } from '@/lib/api';
+import api, { apiGet } from '@/lib/api';
+import type { ApiResponse } from '@/types/common';
 import type { Auditable } from '@/types/common';
 
 export interface Account {
@@ -20,19 +21,11 @@ export interface Beneficiary {
   isSaved: boolean;
 }
 
-export interface NameEnquiryResult {
-  accountNumber: string;
-  accountName: string;
-  bankCode: string;
-  bankName: string;
-  verified: boolean;
-}
-
-export interface FeePreview {
-  transferFee: number;
-  vat: number;
-  totalFee: number;
-  totalDebit: number;
+export interface FxRate {
+  sourceCurrency: string;
+  targetCurrency: string;
+  rate: number;
+  timestamp: string;
 }
 
 export interface TransferRequest {
@@ -41,62 +34,87 @@ export interface TransferRequest {
   beneficiaryAccountNumber: string;
   beneficiaryName: string;
   beneficiaryBankCode?: string;
+  beneficiaryBankName?: string;
   amount: number;
   currency: string;
   narration: string;
   saveBeneficiary?: boolean;
-  scheduleDate?: string;
 }
 
-export interface TransferResponse extends Auditable {
+export interface PaymentInstruction extends Auditable {
   id: number;
-  transactionRef: string;
-  status: 'PENDING' | 'PROCESSING' | 'SUCCESSFUL' | 'FAILED' | 'PENDING_APPROVAL' | 'SCHEDULED';
-  fromAccount: string;
-  fromAccountName: string;
-  toAccount: string;
-  toAccountName: string;
-  toBankName?: string;
+  instructionNumber: string;
+  status: string;
+  debitAccountId: number;
+  creditAccountNumber?: string;
+  beneficiaryName?: string;
   amount: number;
-  currency: string;
-  fee: number;
-  vat: number;
-  totalDebit: number;
-  narration: string;
-  scheduleDate?: string;
-  completedAt?: string;
+  currencyCode: string;
+  narration?: string;
   failureReason?: string;
-  requiresApproval: boolean;
 }
 
-export interface RecentTransfer {
-  id: number;
-  transactionRef: string;
-  beneficiaryName: string;
-  beneficiaryAccount: string;
-  bankName: string;
-  amount: number;
-  currency: string;
-  date: string;
+async function postWithParams<T>(url: string, params: Record<string, unknown>): Promise<T> {
+  const { data } = await api.post<ApiResponse<T>>(url, undefined, { params });
+  return data.data;
 }
 
 export const paymentApi = {
   getAccounts: () =>
-    apiGet<Account[]>('/api/v1/accounts/my'),
+    apiGet<Account[]>('/v1/accounts/my').catch(() => [] as Account[]),
+
   getBeneficiaries: (customerId?: number) =>
-    apiGet<Beneficiary[]>('/api/v1/beneficiaries', customerId ? { customerId } : undefined),
-  verifyName: (accountNumber: string, bankCode: string) =>
-    apiPost<NameEnquiryResult>('/api/v1/payments/name-enquiry', { accountNumber, bankCode }),
-  previewFee: (amount: number, transferType: string, currency?: string) =>
-    apiGet<FeePreview>('/api/v1/payments/fee-preview', { amount, transferType, currency }),
-  initiateTransfer: (data: TransferRequest) =>
-    apiPost<TransferResponse>('/api/v1/payments/transfer', data),
-  getTransfer: (id: number) =>
-    apiGet<TransferResponse>(`/api/v1/payments/transfer/${id}`),
-  getRecentTransfers: () =>
-    apiGet<RecentTransfer[]>('/api/v1/payments/recent'),
-  checkDuplicate: (beneficiaryAccount: string, amount: number) =>
-    apiGet<{ isDuplicate: boolean; existingRef?: string }>('/api/v1/payments/check-duplicate', { beneficiaryAccount, amount }),
-  getBanks: () =>
-    apiGet<{ code: string; name: string }[]>('/api/v1/banks'),
+    apiGet<Beneficiary[]>('/v1/beneficiaries', customerId ? { customerId } : undefined)
+      .catch(() => [] as Beneficiary[]),
+
+  initiateTransfer: (data: TransferRequest): Promise<PaymentInstruction> => {
+    if (data.transferType === 'OWN_ACCOUNT' || data.transferType === 'INTERNAL') {
+      // POST /v1/payments/transfer?debitAccountId=X&creditAccountId=Y&amount=Z&narration=...
+      return postWithParams<PaymentInstruction>('/v1/payments/transfer', {
+        debitAccountId: data.fromAccountId,
+        creditAccountId: data.beneficiaryAccountNumber,
+        amount: data.amount,
+        narration: data.narration,
+      });
+    }
+
+    if (data.transferType === 'NIP') {
+      // POST /v1/payments/domestic?debitAccountId=X&creditAccountNumber=Y&...
+      return postWithParams<PaymentInstruction>('/v1/payments/domestic', {
+        debitAccountId: data.fromAccountId,
+        creditAccountNumber: data.beneficiaryAccountNumber,
+        beneficiaryName: data.beneficiaryName,
+        beneficiaryBankCode: data.beneficiaryBankCode,
+        amount: data.amount,
+        currencyCode: data.currency,
+        narration: data.narration,
+      });
+    }
+
+    if (data.transferType === 'SWIFT') {
+      // POST /v1/payments/swift?debitAccountId=X&creditAccountNumber=Y&...
+      return postWithParams<PaymentInstruction>('/v1/payments/swift', {
+        debitAccountId: data.fromAccountId,
+        creditAccountNumber: data.beneficiaryAccountNumber,
+        beneficiaryName: data.beneficiaryName,
+        beneficiaryBankCode: data.beneficiaryBankCode ?? '',
+        beneficiaryBankName: data.beneficiaryBankName ?? '',
+        amount: data.amount,
+        sourceCurrency: data.currency,
+        targetCurrency: data.currency,
+        narration: data.narration,
+      });
+    }
+
+    return Promise.reject(new Error(`Unsupported transfer type: ${data.transferType}`));
+  },
+
+  getPayment: (id: number) =>
+    apiGet<PaymentInstruction>(`/v1/payments/${id}`),
+
+  getAccountPayments: (accountId: number) =>
+    apiGet<PaymentInstruction[]>(`/v1/payments/account/${accountId}`).catch(() => [] as PaymentInstruction[]),
+
+  getFxRate: (source: string, target: string) =>
+    apiGet<FxRate>(`/v1/payments/fx-rate/${source}/${target}`),
 };

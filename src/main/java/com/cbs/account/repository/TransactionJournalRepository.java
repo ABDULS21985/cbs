@@ -23,6 +23,15 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
 
     @Query("""
             SELECT t FROM TransactionJournal t
+            WHERE t.account.id IN :accountIds
+            ORDER BY t.createdAt DESC
+            """)
+    Page<TransactionJournal> findByAccountIdsOrderByCreatedAtDesc(
+            @Param("accountIds") List<Long> accountIds,
+            Pageable pageable);
+
+    @Query("""
+            SELECT t FROM TransactionJournal t
             WHERE t.account.id = :accountId
             AND t.postingDate BETWEEN :fromDate AND :toDate
             ORDER BY t.createdAt DESC

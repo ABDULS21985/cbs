@@ -9,6 +9,14 @@ interface CustomerOverviewTabProps {
 }
 
 export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
+  const contactCount = new Set(
+    [
+      customer.phone ?? null,
+      customer.email ?? null,
+      ...customer.contacts.map((contact) => contact.contactValue),
+    ].filter((value): value is string => Boolean(value)),
+  ).size;
+
   const personalItems = [
     { label: 'Date of Birth', value: customer.dateOfBirth || '—', format: 'date' as const },
     { label: 'Gender', value: customer.gender || '—' },
@@ -28,7 +36,7 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Addresses" value={customer.addresses.length} />
         <StatCard label="IDs on File" value={customer.identifications.length} />
-        <StatCard label="Contacts" value={customer.contacts.length} />
+        <StatCard label="Contacts" value={contactCount} />
         <StatCard label="Relationships" value={customer.relationships.length} />
       </div>
 

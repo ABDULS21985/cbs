@@ -12,11 +12,15 @@ import { CustomerDocumentsTab } from '../components/CustomerDocumentsTab';
 import { CustomerTransactionsTab } from '../components/CustomerTransactionsTab';
 import { CustomerCommunicationsTab } from '../components/CustomerCommunicationsTab';
 import { CustomerAuditTab } from '../components/CustomerAuditTab';
+import { usePermission } from '@/hooks/usePermission';
 
 export default function Customer360Page() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const customerId = Number(id);
+  const canViewCases = usePermission('cases', 'view');
+  const canViewCommunications = usePermission('communications', 'view');
+  const canViewAudit = usePermission('audit', 'view');
 
   const { data: customer, isLoading, error } = useCustomer(customerId);
 
@@ -43,11 +47,13 @@ export default function Customer360Page() {
     { id: 'accounts', label: 'Accounts', content: <CustomerAccountsTab customerId={customerId} /> },
     { id: 'loans', label: 'Loans', content: <CustomerLoansTab customerId={customerId} active /> },
     { id: 'cards', label: 'Cards', content: <CustomerCardsTab customerId={customerId} /> },
-    { id: 'cases', label: 'Cases', content: <CustomerCasesTab customerId={customerId} active /> },
     { id: 'documents', label: 'Documents', content: <CustomerDocumentsTab customerId={customerId} active /> },
     { id: 'transactions', label: 'Transactions', content: <CustomerTransactionsTab customerId={customerId} active /> },
-    { id: 'communications', label: 'Communications', content: <CustomerCommunicationsTab customerId={customerId} active /> },
-    { id: 'audit', label: 'Audit Trail', content: <CustomerAuditTab customerId={customerId} active /> },
+    ...(canViewCases ? [{ id: 'cases', label: 'Cases', content: <CustomerCasesTab customerId={customerId} active /> }] : []),
+    ...(canViewCommunications
+      ? [{ id: 'communications', label: 'Communications', content: <CustomerCommunicationsTab customerId={customerId} active /> }]
+      : []),
+    ...(canViewAudit ? [{ id: 'audit', label: 'Audit Trail', content: <CustomerAuditTab customerId={customerId} active /> }] : []),
   ];
 
   return (

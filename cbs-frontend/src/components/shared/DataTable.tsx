@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, getFilteredRowModel,
-  flexRender, type ColumnDef, type SortingState,
+  flexRender, type ColumnDef, type PaginationState, type SortingState,
 } from '@tanstack/react-table';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -25,20 +25,71 @@ interface DataTableProps<T> {
   bulkActions?: ReactNode;
   emptyMessage?: string;
   pageSize?: number;
+  manualPagination?: {
+    pageIndex: number;
+    pageSize: number;
+    pageCount: number;
+    rowCount: number;
+    onPageChange: (pageIndex: number) => void;
+    onPageSizeChange?: (pageSize: number) => void;
+  };
+  manualSorting?: {
+    sorting: SortingState;
+    onSortingChange: (sorting: SortingState) => void;
+  };
 }
 
 export function DataTable<T>({
   columns, data, isLoading, enableRowSelection, onRowSelectionChange, enableGlobalFilter, enableColumnVisibility, enableExport, exportFilename, onRowClick, bulkActions, emptyMessage, pageSize = 10,
+  manualPagination,
+  manualSorting,
 }: DataTableProps<T>) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [internalSorting, setInternalSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [rowSelection, setRowSelection] = useState({});
+  const [internalPagination, setInternalPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize,
+  });
+
+  const sorting = manualSorting?.sorting ?? internalSorting;
+  const pagination = useMemo<PaginationState>(
+    () =>
+      manualPagination
+        ? {
+            pageIndex: manualPagination.pageIndex,
+            pageSize: manualPagination.pageSize,
+          }
+        : internalPagination,
+    [internalPagination, manualPagination],
+  );
 
   const table = useReactTable({
     data,
     columns,
-    state: { sorting, globalFilter, rowSelection },
-    onSortingChange: setSorting,
+    state: { sorting, globalFilter, rowSelection, pagination },
+    onSortingChange: (updater) => {
+      const nextSorting = typeof updater === 'function' ? updater(sorting) : updater;
+      if (manualSorting) {
+        manualSorting.onSortingChange(nextSorting);
+        return;
+      }
+      setInternalSorting(nextSorting);
+    },
+    onPaginationChange: (updater) => {
+      if (manualPagination) {
+        const nextPagination = typeof updater === 'function' ? updater(pagination) : updater;
+        if (nextPagination.pageIndex !== pagination.pageIndex) {
+          manualPagination.onPageChange(nextPagination.pageIndex);
+        }
+        if (nextPagination.pageSize !== pagination.pageSize) {
+          manualPagination.onPageSizeChange?.(nextPagination.pageSize);
+        }
+        return;
+      }
+
+      setInternalPagination((current) => (typeof updater === 'function' ? updater(current) : updater));
+    },
     onGlobalFilterChange: setGlobalFilter,
     onRowSelectionChange: (updater) => {
       const next = typeof updater === 'function' ? updater(rowSelection) : updater;
@@ -49,11 +100,13 @@ export function DataTable<T>({
       }
     },
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    getSortedRowModel: manualSorting ? undefined : getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     enableRowSelection,
-    initialState: { pagination: { pageSize } },
+    manualPagination: Boolean(manualPagination),
+    manualSorting: Boolean(manualSorting),
+    pageCount: manualPagination?.pageCount,
   });
 
   const selectedCount = Object.keys(rowSelection).length;
@@ -121,7 +174,9 @@ export function DataTable<T>({
         )}
       </div>
 
-      {!isLoading && data.length > 0 && <DataTablePagination table={table} />}
+      {!isLoading && data.length > 0 && (
+        <DataTablePagination table={table} totalRows={manualPagination?.rowCount} />
+      )}
     </div>
   );
 }

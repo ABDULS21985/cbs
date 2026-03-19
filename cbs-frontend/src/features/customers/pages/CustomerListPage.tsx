@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Filter, Plus, X } from 'lucide-react';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef, SortingState } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared/DataTable';
 import { StatCard } from '@/components/shared/StatCard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -33,15 +33,21 @@ export default function CustomerListPage() {
     search: debouncedSearch || undefined,
   });
   const { data: counts } = useCustomerCounts();
+  const sorting = useMemo<SortingState>(() => {
+    const sort = filters.sort ?? 'createdAt';
+    return [{ id: sort, desc: (filters.direction ?? 'desc') !== 'asc' }];
+  }, [filters.direction, filters.sort]);
 
   const columns: ColumnDef<CustomerListItem>[] = [
     {
       accessorKey: 'customerNumber',
+      id: 'cifNumber',
       header: 'Customer #',
       cell: ({ row }) => <span className="font-mono text-xs text-blue-600 dark:text-blue-400">{row.original.customerNumber}</span>,
     },
     {
       accessorKey: 'fullName',
+      enableSorting: false,
       header: 'Name',
       cell: ({ row }) => {
         const initials = (row.original.fullName || '')
@@ -63,6 +69,7 @@ export default function CustomerListPage() {
     },
     {
       accessorKey: 'type',
+      id: 'customerType',
       header: 'Type',
       cell: ({ row }) => <span className="text-xs">{row.original.type}</span>,
     },
@@ -78,6 +85,7 @@ export default function CustomerListPage() {
     },
     {
       accessorKey: 'phone',
+      id: 'phonePrimary',
       header: 'Phone',
       cell: ({ row }) => <span className="text-xs text-gray-600 dark:text-gray-400">{row.original.phone ?? '—'}</span>,
     },
@@ -201,7 +209,25 @@ export default function CustomerListPage() {
         enableExport
         exportFilename="customers"
         onRowClick={(row) => navigate(`/customers/${row.id}`)}
-        pageSize={data?.page.size ?? filters.size ?? 25}
+        manualPagination={{
+          pageIndex: data?.page.page ?? filters.page ?? 0,
+          pageSize: data?.page.size ?? filters.size ?? 25,
+          pageCount: data?.page.totalPages ?? 0,
+          rowCount: data?.page.totalElements ?? 0,
+          onPageChange: (pageIndex) => setFilters({ page: pageIndex }),
+          onPageSizeChange: (nextSize) => setFilters({ size: nextSize, page: 0 }),
+        }}
+        manualSorting={{
+          sorting,
+          onSortingChange: (nextSorting) => {
+            const [next] = nextSorting;
+            setFilters({
+              sort: next?.id ?? 'createdAt',
+              direction: next?.desc ? 'desc' : 'asc',
+              page: 0,
+            });
+          },
+        }}
         emptyMessage="No customers match the current filters"
       />
     </div>

@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPatch } from '@/lib/api';
 import type { Card, CardTransaction, Merchant, PosTerminal } from '../types/card';
 
 export const cardApi = {
@@ -6,7 +6,8 @@ export const cardApi = {
   getCard: (id: number) => apiGet<Card>(`/api/v1/cards/${id}`),
   blockCard: (id: number, reason: string) => apiPost<void>(`/api/v1/cards/${id}/block`, { reason }),
   activateCard: (id: number) => apiPost<void>(`/api/v1/cards/${id}/activate`),
-  updateControls: (id: number, controls: Partial<Card['controls']>) => apiPost<void>(`/api/v1/cards/${id}/controls`, controls),
+  // Backend uses PATCH for controls update
+  updateControls: (id: number, controls: Partial<Card['controls']>) => apiPatch<void>(`/api/v1/cards/${id}/controls`, controls),
   requestCard: (data: Record<string, unknown>) => apiPost<Card>('/api/v1/cards/request', data),
 
   getTransactions: (filters?: Record<string, unknown>) => apiGet<CardTransaction[]>('/api/v1/card-switch', filters),

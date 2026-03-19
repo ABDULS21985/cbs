@@ -2,16 +2,13 @@ import { useNavigate } from 'react-router-dom';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, StatusBadge, MoneyDisplay } from '@/components/shared';
 import { formatDate } from '@/lib/formatters';
-import { usePermission } from '@/hooks/usePermission';
 import { useCustomerLoans } from '../hooks/useCustomers';
 import type { CustomerLoan } from '../types/customer';
-import { Plus } from 'lucide-react';
 
 const CLOSED_STATUSES = ['CLOSED', 'WRITTEN_OFF', 'SETTLED', 'LIQUIDATED'];
 
 export function CustomerLoansTab({ customerId, active }: { customerId: number; active: boolean }) {
   const navigate = useNavigate();
-  const canCreate = usePermission('lending', 'create');
   const { data: loans, isLoading } = useCustomerLoans(customerId, active);
 
   const activeLoans = loans?.filter(l => !CLOSED_STATUSES.includes(l.status)) ?? [];
@@ -37,16 +34,9 @@ export function CustomerLoansTab({ customerId, active }: { customerId: number; a
 
   return (
     <div className="space-y-6">
-      {canCreate && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => navigate(`/lending/applications/new?customerId=${customerId}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" /> New Loan Application
-          </button>
-        </div>
-      )}
+      <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+        Loan origination from the customer profile is temporarily disabled until the multi-step application workflow is fully aligned with the backend contract.
+      </div>
       <div>
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
           Active Loans ({activeLoans.length})

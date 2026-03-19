@@ -306,6 +306,23 @@ export const accountOpeningApi = {
     return accounts.map(mapCreatedAccount);
   },
 
+  getCustomerById: async (customerId: string): Promise<CustomerSearchResult> => {
+    const detail = await apiGet<BackendCustomerDetail>(`/api/v1/customers/${customerId}`);
+
+    return mapCustomer(
+      {
+        id: detail.id,
+        fullName: detail.fullName ?? detail.displayName,
+        type: detail.customerType,
+        customerType: detail.customerType,
+        email: detail.email,
+        phone: detail.phone,
+        phonePrimary: detail.phonePrimary,
+      },
+      detail,
+    );
+  },
+
   searchCustomers: async (query: string): Promise<CustomerSearchResult[]> => {
     const summaries = await apiGet<BackendCustomerSummary[]>('/api/v1/customers/quick-search', { q: query, size: 10 });
     const customers = await Promise.all(

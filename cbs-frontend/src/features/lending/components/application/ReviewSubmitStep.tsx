@@ -20,17 +20,21 @@ export function ReviewSubmitStep({ state, goToStep }: Props) {
   const submitting = submitMutation.isPending;
 
   const handleSubmit = async () => {
+    if (!state.customerId) {
+      toast.error('Customer is required to submit a loan application.');
+      return;
+    }
     submitMutation.mutate(
       {
-        productCode: state.productCode,
-        amount: state.amount,
-        purpose: state.purpose,
-        tenorMonths: state.tenorMonths,
-        interestRate: state.interestRate,
-        repaymentMethod: state.repaymentMethod,
-        monthlyIncome: state.monthlyIncome,
-        monthlyExpenses: state.monthlyExpenses,
-      } as any,
+        customerId: state.customerId,
+        loanProductCode: state.productCode,
+        requestedAmount: state.amount,
+        requestedTenureMonths: state.tenorMonths,
+        purpose: state.purpose || undefined,
+        proposedRate: state.interestRate || undefined,
+        repaymentScheduleType: state.repaymentMethod || undefined,
+        repaymentFrequency: state.repaymentFrequency || undefined,
+      },
       {
         onSuccess: (application) => {
           setApplicationRef(application.applicationRef ?? '');

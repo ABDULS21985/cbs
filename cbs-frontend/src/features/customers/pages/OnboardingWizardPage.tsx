@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, CheckCircle } from 'lucide-react';
 import { WizardStepper } from '../components/onboarding/WizardStepper';
 import { useOnboardingWizard } from '../hooks/useOnboardingWizard';
@@ -150,16 +150,25 @@ function ReviewSection({
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function OnboardingWizardPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const wizard = useOnboardingWizard();
+  const returnUrl = searchParams.get('returnUrl');
 
   useEffect(() => {
     if (wizard.isSubmitSuccess && wizard.submittedCustomer) {
+      if (returnUrl) {
+        const separator = returnUrl.includes('?') ? '&' : '?';
+        navigate(`${returnUrl}${separator}customerId=${wizard.submittedCustomer.id}`);
+        return;
+      }
+
       navigate(`/customers/${wizard.submittedCustomer.id}`);
     }
-  }, [wizard.isSubmitSuccess, wizard.submittedCustomer, navigate]);
+  }, [navigate, returnUrl, wizard.isSubmitSuccess, wizard.submittedCustomer]);
 
   const renderStep = () => {
     const { currentStep, formData, nextStep, prevStep, updateStep, goToStep, submit, saveDraft, isSubmitting } = wizard;
+    const isCorporateCustomer = formData.customerType === 'CORPORATE' || formData.customerType === 'SME';
 
     switch (currentStep) {
       // ── Step 1: Customer Type ──────────────────────────────────────────────
@@ -199,20 +208,32 @@ export default function OnboardingWizardPage() {
             }}
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
-            {[
-              { name: 'firstName', label: 'First Name *', type: 'text', required: true },
-              { name: 'lastName',  label: 'Last Name *',  type: 'text', required: true },
-              { name: 'middleName', label: 'Middle Name', type: 'text' },
-              { name: 'dateOfBirth', label: 'Date of Birth *', type: 'date', required: true },
-              { name: 'nationality', label: 'Nationality *', type: 'text', required: true },
-            ].map(f => (
+            {(isCorporateCustomer
+              ? [
+                  { name: 'registeredName', label: 'Registered Name *', type: 'text', required: true },
+                  { name: 'tradingName', label: 'Trading Name', type: 'text' },
+                  { name: 'registrationNumber', label: 'Registration Number', type: 'text' },
+                  { name: 'registrationDate', label: 'Registration Date', type: 'date' },
+                  { name: 'nationality', label: 'Country of Registration', type: 'text', required: true },
+                ]
+              : [
+                  { name: 'firstName', label: 'First Name *', type: 'text', required: true },
+                  { name: 'lastName', label: 'Last Name *', type: 'text', required: true },
+                  { name: 'middleName', label: 'Middle Name', type: 'text' },
+                  { name: 'dateOfBirth', label: 'Date of Birth *', type: 'date', required: true },
+                  { name: 'nationality', label: 'Nationality *', type: 'text', required: true },
+                ]).map((f) => (
               <div key={f.name} className="space-y-1">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{f.label}</label>
+                <label htmlFor={f.name} className="block text-sm font-medium text-gray-700 dark:text-gray-300">{f.label}</label>
                 <input
+                  id={f.name}
                   name={f.name}
                   type={f.type}
                   required={f.required}
-                  defaultValue={(formData as any)[f.name] ?? (f.name === 'nationality' ? 'NGA' : '')}
+                  defaultValue={
+                    (formData[f.name as keyof OnboardingFormData] as string | undefined) ??
+                    (f.name === 'nationality' ? 'NGA' : '')
+                  }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -240,18 +261,18 @@ export default function OnboardingWizardPage() {
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
             <div className="sm:col-span-2 space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Residential Address *</label>
-              <input name="residentialAddress" required defaultValue={formData.residentialAddress}
+              <label htmlFor="residentialAddress" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Residential Address *</label>
+              <input id="residentialAddress" name="residentialAddress" required defaultValue={formData.residentialAddress}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number *</label>
-              <input name="phone" type="tel" required placeholder="+234…" defaultValue={formData.phone}
+              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number *</label>
+              <input id="phone" name="phone" type="tel" required placeholder="+234…" defaultValue={formData.phone}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address *</label>
-              <input name="email" type="email" required defaultValue={formData.email}
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address *</label>
+              <input id="email" name="email" type="email" required defaultValue={formData.email}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="sm:col-span-2 flex justify-between pt-2">
@@ -277,23 +298,36 @@ export default function OnboardingWizardPage() {
             className="grid grid-cols-1 sm:grid-cols-2 gap-4"
           >
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ID Type *</label>
-              <select name="idType" required defaultValue={formData.idType ?? ''}
+              <label htmlFor="idType" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {isCorporateCustomer ? 'KYC Document Type' : 'ID Type *'}
+              </label>
+              <select id="idType" name="idType" required={!isCorporateCustomer} defaultValue={formData.idType ?? ''}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select ID type</option>
-                {['NIN', "Driver's License", 'International Passport', "Voter's Card"].map(t => (
+                <option value="">{isCorporateCustomer ? 'Select document type' : 'Select ID type'}</option>
+                {[
+                  'NIN',
+                  "Driver's License",
+                  'International Passport',
+                  "Voter's Card",
+                  'Certificate of Incorporation',
+                  'TIN Certificate',
+                ].map(t => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ID Number *</label>
-              <input name="idNumber" required defaultValue={formData.idNumber}
+              <label htmlFor="idNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {isCorporateCustomer ? 'Document Number' : 'ID Number *'}
+              </label>
+              <input id="idNumber" name="idNumber" required={!isCorporateCustomer} defaultValue={formData.idNumber}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">ID Expiry Date</label>
-              <input name="idExpiry" type="date" defaultValue={formData.idExpiry}
+              <label htmlFor="idExpiry" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {isCorporateCustomer ? 'Document Expiry Date' : 'ID Expiry Date'}
+              </label>
+              <input id="idExpiry" name="idExpiry" type="date" defaultValue={formData.idExpiry}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="sm:col-span-2 flex justify-between pt-2">
@@ -309,7 +343,29 @@ export default function OnboardingWizardPage() {
 
       // ── Step 5: BVN ───────────────────────────────────────────────────────
       case 5:
-        return (
+        return isCorporateCustomer ? (
+          <div className="space-y-5">
+            <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
+              BVN verification applies to individual customers only. Corporate KYC continues after supporting documents are reviewed.
+            </div>
+            <div className="flex justify-between pt-2">
+              <button
+                type="button"
+                onClick={prevStep}
+                className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+              <button
+                type="button"
+                onClick={() => nextStep({ bvn: undefined, bvnVerified: false })}
+                className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Next <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
           <BvnVerificationStep
             formData={formData}
             onNext={nextStep}
@@ -437,12 +493,18 @@ export default function OnboardingWizardPage() {
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Review Your Application</h3>
             <div className="grid sm:grid-cols-2 gap-3">
               <ReviewSection
-                title="Personal"
-                items={[
-                  { label: 'Full Name', value: `${formData.firstName ?? ''} ${formData.lastName ?? ''}`.trim() || '—' },
-                  { label: 'Date of Birth', value: formData.dateOfBirth ?? '—' },
-                  { label: 'Nationality', value: formData.nationality ?? '—' },
-                ]}
+                title={isCorporateCustomer ? 'Company' : 'Personal'}
+                items={isCorporateCustomer
+                  ? [
+                      { label: 'Registered Name', value: formData.registeredName ?? '—' },
+                      { label: 'Trading Name', value: formData.tradingName ?? '—' },
+                      { label: 'Registration Number', value: formData.registrationNumber ?? '—' },
+                    ]
+                  : [
+                      { label: 'Full Name', value: `${formData.firstName ?? ''} ${formData.lastName ?? ''}`.trim() || '—' },
+                      { label: 'Date of Birth', value: formData.dateOfBirth ?? '—' },
+                      { label: 'Nationality', value: formData.nationality ?? '—' },
+                    ]}
                 onEdit={() => goToStep(2)}
               />
               <ReviewSection
@@ -459,7 +521,7 @@ export default function OnboardingWizardPage() {
                 items={[
                   { label: 'ID Type', value: formData.idType ?? '—' },
                   { label: 'ID Number', value: formData.idNumber ?? '—' },
-                  { label: 'BVN Verified', value: formData.bvnVerified ? 'Yes' : 'No' },
+                  { label: isCorporateCustomer ? 'BVN Check' : 'BVN Verified', value: isCorporateCustomer ? 'Not applicable' : formData.bvnVerified ? 'Yes' : 'No' },
                 ]}
                 onEdit={() => goToStep(4)}
               />

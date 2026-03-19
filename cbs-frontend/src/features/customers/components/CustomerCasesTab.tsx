@@ -1,11 +1,8 @@
-import { useNavigate } from 'react-router-dom';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, StatusBadge } from '@/components/shared';
 import { formatDate } from '@/lib/formatters';
-import { usePermission } from '@/hooks/usePermission';
 import { useCustomerCases } from '../hooks/useCustomers';
 import type { CustomerCase } from '../types/customer';
-import { Plus } from 'lucide-react';
 
 const PRIORITY_CLASSES: Record<string, string> = {
   CRITICAL: 'text-red-700 bg-red-50 dark:bg-red-900/30 dark:text-red-400',
@@ -15,8 +12,6 @@ const PRIORITY_CLASSES: Record<string, string> = {
 };
 
 export function CustomerCasesTab({ customerId, active }: { customerId: number; active: boolean }) {
-  const navigate = useNavigate();
-  const canCreate = usePermission('cases', 'create');
   const { data: cases, isLoading } = useCustomerCases(customerId, active);
 
   const columns: ColumnDef<CustomerCase>[] = [
@@ -56,21 +51,13 @@ export function CustomerCasesTab({ customerId, active }: { customerId: number; a
 
   return (
     <div className="space-y-4">
-      {canCreate && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => navigate(`/cases/new?customerId=${customerId}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4" /> Create Case
-          </button>
-        </div>
-      )}
+      <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+        Case creation and drill-down are unavailable from the customer profile until the case-management module is aligned to the live backend contract.
+      </div>
       <DataTable
         columns={columns}
         data={cases ?? []}
         isLoading={isLoading}
-        onRowClick={row => navigate(`/cases/${row.id}`)}
         emptyMessage="No cases found for this customer"
       />
     </div>

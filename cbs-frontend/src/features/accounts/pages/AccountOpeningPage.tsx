@@ -1,3 +1,6 @@
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
@@ -8,6 +11,7 @@ import { AccountConfigStep } from '../components/opening/AccountConfigStep';
 import { ComplianceCheckStep } from '../components/opening/ComplianceCheckStep';
 import { ReviewSubmitStep } from '../components/opening/ReviewSubmitStep';
 import type { CustomerSearchResult, Product } from '../api/accountOpeningApi';
+import { accountOpeningApi } from '../api/accountOpeningApi';
 import type { AccountConfig } from '../components/opening/AccountConfigStep';
 import type { AccountOpeningFormData } from '../schemas/accountOpeningSchema';
 
@@ -89,6 +93,7 @@ function Stepper({ currentStep, totalSteps }: StepperProps) {
 }
 
 export function AccountOpeningPage() {
+  const [searchParams] = useSearchParams();
   const {
     currentStep,
     totalSteps,
@@ -107,6 +112,7 @@ export function AccountOpeningPage() {
     isSubmitting,
     createdAccount,
   } = useAccountOpening();
+  const preselectedCustomerId = searchParams.get('customerId');
 
   const handleCustomerSelected = (customer: CustomerSearchResult) => {
     setSelectedCustomer(customer);
@@ -122,6 +128,30 @@ export function AccountOpeningPage() {
     });
     nextStep();
   };
+
+  const { data: preselectedCustomer, isLoading: isLoadingPreselectedCustomer } = useQuery({
+    queryKey: ['accounts', 'opening', 'customer', preselectedCustomerId],
+    queryFn: () => accountOpeningApi.getCustomerById(preselectedCustomerId as string),
+    enabled: Boolean(preselectedCustomerId) && !selectedCustomer && currentStep === 1,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (preselectedCustomer && !selectedCustomer && currentStep === 1) {
+      setSelectedCustomer(preselectedCustomer);
+      updateFormData({
+        customerId: preselectedCustomer.id,
+        customerName: preselectedCustomer.fullName,
+        customerType: preselectedCustomer.type,
+        customerSegment: preselectedCustomer.segment,
+        customerKycStatus: preselectedCustomer.kycStatus,
+        customerPhone: preselectedCustomer.phone,
+        customerEmail: preselectedCustomer.email,
+        accountTitle: preselectedCustomer.fullName,
+      });
+      nextStep();
+    }
+  }, [currentStep, nextStep, preselectedCustomer, selectedCustomer, setSelectedCustomer, updateFormData]);
 
   const handleProductSelected = (product: Product, currency: string) => {
     setSelectedProduct(product);
@@ -216,6 +246,10 @@ export function AccountOpeningPage() {
             />
           )}
         </div>
+
+        {isLoadingPreselectedCustomer && currentStep === 1 && (
+          <p className="mt-3 text-sm text-muted-foreground">Loading selected customer profile…</p>
+        )}
       </div>
     </>
   );

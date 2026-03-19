@@ -18,7 +18,7 @@ interface BreakDetail {
 function BreakDrillDownModal({ row, date, onClose }: { row: SubLedgerRow; date: string; onClose: () => void }) {
   const { data: details = [], isLoading } = useQuery({
     queryKey: ['gl-reconciliation-break', row.module, date],
-    queryFn: () => apiGet<BreakDetail[]>('/v1/gl/reconciliation/break-details', { module: row.module, date }).catch(() => []),
+    queryFn: () => apiGet<BreakDetail[]>('/api/v1/gl/reconciliation/break-details', { module: row.module, date }).catch(() => []),
   });
 
   return (

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { FileText, Landmark, Shield } from 'lucide-react';
+import { Landmark } from 'lucide-react';
 import { usePermission } from '@/hooks/usePermission';
 
 interface CustomerQuickActionsProps {
@@ -9,8 +9,6 @@ interface CustomerQuickActionsProps {
 export function CustomerQuickActions({ customerId }: CustomerQuickActionsProps) {
   const navigate = useNavigate();
   const canCreateAccount = usePermission('accounts', 'create');
-  const canCreateLoan = usePermission('lending', 'create');
-  const canCreateCase = usePermission('cases', 'create');
 
   const actions = [
     {
@@ -18,18 +16,6 @@ export function CustomerQuickActions({ customerId }: CustomerQuickActionsProps) 
       icon: Landmark,
       show: canCreateAccount,
       onClick: () => navigate(`/accounts/open?customerId=${customerId}`),
-    },
-    {
-      label: 'New Loan',
-      icon: FileText,
-      show: canCreateLoan,
-      onClick: () => navigate(`/lending/applications/new?customerId=${customerId}`),
-    },
-    {
-      label: 'Create Case',
-      icon: Shield,
-      show: canCreateCase,
-      onClick: () => navigate(`/cases/new?customerId=${customerId}`),
     },
   ].filter(a => a.show);
 

@@ -1,39 +1,36 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
-import type { LoanApplication, LoanAccount, RepaymentScheduleItem, LoanPayment, LoanFilters } from '../types/loan';
+import type { LoanApplication, LoanAccount, RepaymentScheduleItem, LoanFilters } from '../types/loan';
 import { handleApiError } from '@/lib/errorHandler';
+import { loanApi, type LoanApplicationRequest } from '../api/loanApi';
 
 export function useLoanApplications(filters?: LoanFilters) {
-  const normalizedFilters = filters as Record<string, unknown> | undefined;
-
   return useQuery({
-    queryKey: queryKeys.loans.applications(normalizedFilters),
-    queryFn: () => apiGet<LoanApplication[]>('/api/v1/loans/applications', normalizedFilters).catch(() => []),
+    queryKey: queryKeys.loans.applications(filters as Record<string, unknown> | undefined),
+    queryFn: () => loanApi.getCustomerApplications(0).catch(() => [] as LoanApplication[]),
   });
 }
 
 export function useLoanApplication(id: number) {
   return useQuery({
     queryKey: ['loans', 'application', id],
-    queryFn: () => apiGet<LoanApplication>(`/api/v1/loans/applications/${id}`),
+    queryFn: () => loanApi.getApplication(id),
     enabled: !!id,
   });
 }
 
 export function useActiveLoans(filters?: LoanFilters) {
-  const normalizedFilters = filters as Record<string, unknown> | undefined;
-
   return useQuery({
-    queryKey: queryKeys.loans.list(normalizedFilters),
-    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans', normalizedFilters).catch(() => []),
+    queryKey: queryKeys.loans.list(filters as Record<string, unknown> | undefined),
+    queryFn: () => loanApi.getCustomerLoans(0).catch(() => [] as LoanAccount[]),
   });
 }
 
 export function useLoan(id: number | string) {
+  const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
   return useQuery({
-    queryKey: queryKeys.loans.detail(typeof id === 'string' ? parseInt(id) : id),
-    queryFn: () => apiGet<LoanAccount>(`/api/v1/loans/${id}`),
+    queryKey: queryKeys.loans.detail(numericId),
+    queryFn: () => loanApi.getLoan(numericId),
     enabled: !!id,
   });
 }
@@ -41,15 +38,7 @@ export function useLoan(id: number | string) {
 export function useLoanSchedule(loanId: number) {
   return useQuery({
     queryKey: queryKeys.loans.schedule(loanId),
-    queryFn: () => apiGet<RepaymentScheduleItem[]>(`/api/v1/loans/${loanId}/schedule`).catch(() => []),
-    enabled: !!loanId,
-  });
-}
-
-export function useLoanPayments(loanId: number) {
-  return useQuery({
-    queryKey: ['loans', loanId, 'payments'],
-    queryFn: () => apiGet<LoanPayment[]>(`/api/v1/loans/${loanId}/payments`).catch(() => []),
+    queryFn: () => loanApi.getSchedule(loanId).catch(() => [] as RepaymentScheduleItem[]),
     enabled: !!loanId,
   });
 }
@@ -57,7 +46,7 @@ export function useLoanPayments(loanId: number) {
 export function useSubmitLoanApplication() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<LoanApplication>) => apiPost<LoanApplication>('/api/v1/loans/apply', data),
+    mutationFn: (data: LoanApplicationRequest) => loanApi.submitApplication(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.loans.all }),
     onError: handleApiError,
   });
@@ -66,8 +55,7 @@ export function useSubmitLoanApplication() {
 export function useRecordPayment(loanId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { amount: number; sourceAccountId: number; type: string }) =>
-      apiPost<LoanPayment>(`/api/v1/loans/${loanId}/repay`, data),
+    mutationFn: (amount: number) => loanApi.recordPayment(loanId, amount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.loans.detail(loanId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.loans.schedule(loanId) });
@@ -79,7 +67,7 @@ export function useRecordPayment(loanId: number) {
 export function usePortfolioStats() {
   return useQuery({
     queryKey: ['loans', 'portfolio', 'stats'],
-    queryFn: () => apiGet<any>('/api/v1/loans/portfolio/stats').catch(() => null),
+    queryFn: () => Promise.resolve(null),
     staleTime: 60_000,
   });
 }

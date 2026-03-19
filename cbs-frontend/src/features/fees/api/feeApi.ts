@@ -1,4 +1,6 @@
 import { apiGet, apiPost } from '@/lib/api';
+import api from '@/lib/api';
+import type { ApiResponse } from '@/types/common';
 
 export type FeeCategory = 'ACCOUNT_MAINTENANCE' | 'TRANSACTION' | 'CARD' | 'LOAN' | 'TRADE' | 'OTHER';
 export type FeeCalcType = 'FLAT' | 'PERCENTAGE' | 'TIERED' | 'SLAB';
@@ -65,105 +67,55 @@ export interface FeeWaiver {
   createdAt: string;
 }
 
-export interface BulkFeeJob {
-  id: string;
-  feeId: string;
-  feeName: string;
-  affectedAccounts: number;
+export interface FeePreviewResult {
+  feeCode: string;
+  calculatedAmount: number;
+  vatAmount: number;
   totalAmount: number;
-  processedCount: number;
-  failedCount: number;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  scheduledDate: string;
-  createdAt: string;
+  breakdown: string;
 }
 
-export interface PreviewChargeResult {
-  customerId: string;
-  customerName: string;
-  eventType: string;
-  transactionAmount: number;
-  applicableFees: {
-    feeId: string;
-    feeName: string;
-    calculatedAmount: number;
-    vatAmount: number;
-    breakdown: string;
-  }[];
-  totalFees: number;
-  totalVat: number;
-  totalCharge: number;
-}
+// ── API Functions ─────────────────────────────────────────────────────────────
 
-export interface BulkFeePreview {
-  feeId: string;
-  feeName: string;
-  affectedAccounts: number;
-  totalAmount: number;
-  sampleAccounts: { accountNumber: string; customerName: string; amount: number }[];
-}
-
-// ─── API Functions ───────────────────────────────────────────────────────────
-
+// GET /v1/fees/definitions
 export function getFeeDefinitions(): Promise<FeeDefinition[]> {
-  return apiGet<FeeDefinition[]>('/api/v1/fees').catch(() => []);
+  return apiGet<FeeDefinition[]>('/v1/fees/definitions').catch(() => []);
 }
 
-export function getFeeById(id: string): Promise<FeeDefinition> {
-  return apiGet<FeeDefinition>(`/api/v1/fees/${id}`);
-}
-
+// POST /v1/fees/definitions
 export function createFeeDefinition(data: Omit<FeeDefinition, 'id' | 'createdAt'>): Promise<FeeDefinition> {
-  return apiPost<FeeDefinition>('/api/v1/fees', data);
+  return apiPost<FeeDefinition>('/v1/fees/definitions', data);
 }
 
-export function updateFeeDefinition(id: string, data: Partial<FeeDefinition>): Promise<FeeDefinition> {
-  return apiPost<FeeDefinition>(`/api/v1/fees/${id}`, data);
+// GET /v1/fees/preview/{feeCode}?amount=X
+export function previewFee(feeCode: string, amount: number): Promise<FeePreviewResult> {
+  return apiGet<FeePreviewResult>(`/v1/fees/preview/${encodeURIComponent(feeCode)}`, { amount });
 }
 
-export function getFeeChargeHistory(feeId?: string): Promise<FeeCharge[]> {
-  return apiGet<FeeCharge[]>('/api/v1/fees/charges', feeId ? { feeId } : undefined).catch(() => []);
-}
-
-export function createFeeWaiver(data: {
-  chargeId: string;
-  feeId: string;
-  accountId: string;
-  amount: number;
-  reason: string;
-  requestedBy: string;
-}): Promise<FeeWaiver> {
-  return apiPost<FeeWaiver>('/api/v1/fees/waivers', data);
-}
-
-export function getPendingWaivers(): Promise<FeeWaiver[]> {
-  return apiGet<FeeWaiver[]>('/api/v1/fees/waivers', { status: 'PENDING' }).catch(() => []);
-}
-
-export function approveWaiver(waiverId: string, authorizedBy: string): Promise<FeeWaiver> {
-  return apiPost<FeeWaiver>(`/api/v1/fees/waivers/${waiverId}/approve`, { authorizedBy });
-}
-
-export function rejectWaiver(waiverId: string, authorizedBy: string): Promise<FeeWaiver> {
-  return apiPost<FeeWaiver>(`/api/v1/fees/waivers/${waiverId}/reject`, { authorizedBy });
-}
-
-export function previewCharge(
-  customerId: string,
-  eventType: string,
+// POST /v1/fees/charge?feeCode=X&accountId=Y&amount=Z&triggerRef=...
+export async function chargeFee(
+  feeCode: string,
+  accountId: string,
   amount: number,
-): Promise<PreviewChargeResult> {
-  return apiPost<PreviewChargeResult>('/api/v1/fees/preview', { customerId, eventType, amount });
+  triggerRef?: string,
+): Promise<FeePreviewResult> {
+  const params: Record<string, unknown> = { feeCode, accountId, amount };
+  if (triggerRef) params.triggerRef = triggerRef;
+  const { data } = await api.post<ApiResponse<FeePreviewResult>>('/v1/fees/charge', undefined, { params });
+  return data.data;
 }
 
-export function createBulkFeeJob(feeId: string, scheduledDate: string): Promise<BulkFeeJob> {
-  return apiPost<BulkFeeJob>('/api/v1/fees/bulk-jobs', { feeId, scheduledDate });
+// POST /v1/fees/waive/{chargeLogId}?waivedBy=X&reason=Y
+export async function waiveFee(chargeLogId: string, waivedBy: string, reason: string): Promise<FeeCharge> {
+  const { data } = await api.post<ApiResponse<FeeCharge>>(
+    `/v1/fees/waive/${encodeURIComponent(chargeLogId)}`,
+    undefined,
+    { params: { waivedBy, reason } },
+  );
+  return data.data;
 }
 
-export function getBulkFeeJobs(): Promise<BulkFeeJob[]> {
-  return apiGet<BulkFeeJob[]>('/api/v1/fees/bulk-jobs').catch(() => []);
-}
-
-export function previewBulkFeeJob(feeId: string): Promise<BulkFeePreview> {
-  return apiGet<BulkFeePreview>(`/api/v1/fees/bulk-jobs/preview`, { feeId });
+// GET /v1/fees/history/account/{accountId}
+export function getAccountFeeHistory(accountId: string): Promise<FeeCharge[]> {
+  return apiGet<FeeCharge[]>(`/v1/fees/history/account/${accountId}`).catch(() => []);
 }

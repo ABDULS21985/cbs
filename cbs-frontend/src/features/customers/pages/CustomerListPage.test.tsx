@@ -52,19 +52,21 @@ function setupHandlers(options?: {
   customers?: typeof mockCustomers;
   counts?: typeof mockCounts;
   onCustomersRequest?: (params: URLSearchParams) => void;
+  totalElements?: number;
 }) {
-  const { customers = mockCustomers, counts = mockCounts, onCustomersRequest } = options ?? {};
+  const { customers = mockCustomers, counts = mockCounts, onCustomersRequest, totalElements } = options ?? {};
 
   server.use(
     http.get('/api/v1/customers', ({ request }) => {
       const url = new URL(request.url);
       onCustomersRequest?.(url.searchParams);
+      const size = Number(url.searchParams.get('size') ?? '25');
       return HttpResponse.json(
         wrap(customers, {
           page: Number(url.searchParams.get('page') ?? '0'),
-          size: Number(url.searchParams.get('size') ?? '25'),
-          totalElements: customers.length,
-          totalPages: customers.length ? 1 : 0,
+          size,
+          totalElements: totalElements ?? customers.length,
+          totalPages: totalElements ? Math.ceil(totalElements / size) : customers.length ? 1 : 0,
         }),
       );
     }),
@@ -174,5 +176,49 @@ describe('CustomerListPage', () => {
     await waitFor(() => {
       expect(lastRequest.get('search')).toBe('Amara');
     }, { timeout: 2000 });
+  });
+
+  it('sends server pagination params when the user changes pages', async () => {
+    let lastRequest = new URLSearchParams();
+    setupHandlers({
+      totalElements: 40,
+      onCustomersRequest: (params) => {
+        lastRequest = new URLSearchParams(params);
+      },
+    });
+
+    renderWithProviders(<CustomerListPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/page 1 of 2/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText(/next page/i));
+
+    await waitFor(() => {
+      expect(lastRequest.get('page')).toBe('1');
+    });
+  });
+
+  it('sends backend sort fields instead of frontend-only column keys', async () => {
+    let lastRequest = new URLSearchParams();
+    setupHandlers({
+      onCustomersRequest: (params) => {
+        lastRequest = new URLSearchParams(params);
+      },
+    });
+
+    renderWithProviders(<CustomerListPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Amara Okonkwo')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Type'));
+
+    await waitFor(() => {
+      expect(lastRequest.get('sort')).toBe('customerType');
+      expect(lastRequest.get('direction')).toBe('asc');
+    });
   });
 });

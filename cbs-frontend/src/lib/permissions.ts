@@ -1,4 +1,4 @@
-export type Role = 'CBS_ADMIN' | 'CBS_OFFICER' | 'BRANCH_MANAGER' | 'TELLER' | 'LOAN_OFFICER' |
+export type Role = 'CBS_ADMIN' | 'CBS_OFFICER' | 'CBS_VIEWER' | 'BRANCH_MANAGER' | 'TELLER' | 'LOAN_OFFICER' |
   'TREASURY' | 'RISK_OFFICER' | 'COMPLIANCE' | 'AUDITOR' | 'PORTAL_USER';
 
 export interface Permission {
@@ -13,11 +13,17 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     { module: 'customers', action: '*', scope: 'all' },
     { module: 'accounts', action: '*', scope: 'all' },
     { module: 'payments', action: '*', scope: 'all' },
+    { module: 'cases', action: '*', scope: 'all' },
+    { module: 'communications', action: 'view', scope: 'all' },
+    { module: 'audit', action: 'view', scope: 'all' },
     { module: 'cards', action: 'view', scope: 'all' },
     { module: 'lending', action: 'view', scope: 'all' },
     { module: 'lending', action: 'create', scope: 'all' },
     { module: 'reports', action: 'view', scope: 'all' },
     { module: 'reports', action: 'export', scope: 'all' },
+  ],
+  CBS_VIEWER: [
+    { module: '*', action: 'view', scope: 'all' },
   ],
   BRANCH_MANAGER: [
     { module: 'customers', action: '*', scope: 'own_branch' },
@@ -65,6 +71,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   PORTAL_USER: [
     { module: 'customers', action: 'view', scope: 'own_branch' },
     { module: 'accounts', action: 'view', scope: 'own_branch' },
+    { module: 'communications', action: 'view', scope: 'own_branch' },
   ],
 };
 
@@ -98,6 +105,8 @@ export const PATH_MODULE_MAP: Record<string, string> = {
   '/operations': 'operations',
   '/reports': 'reports',
   '/admin': 'admin',
+  '/cases': 'cases',
+  '/communications': 'communications',
 };
 
 export function canAccessPath(userRoles: string[], path: string): boolean {

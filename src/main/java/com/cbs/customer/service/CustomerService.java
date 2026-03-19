@@ -528,7 +528,7 @@ public class CustomerService {
      */
     public List<Account> getCustomerAccounts(Long customerId) {
         findCustomerOrThrow(customerId);
-        return accountRepository.findByCustomerIdAndStatus(customerId, AccountStatus.ACTIVE);
+        return accountRepository.findByCustomerId(customerId);
     }
 
     /**
@@ -543,26 +543,16 @@ public class CustomerService {
     /**
      * Get recent transactions across all customer accounts.
      */
-    public List<TransactionJournal> getCustomerTransactions(Long customerId, int page, int size) {
+    public Page<TransactionJournal> getCustomerTransactions(Long customerId, int page, int size) {
         findCustomerOrThrow(customerId);
         List<Account> accounts = accountRepository.findByCustomerId(customerId);
         if (accounts.isEmpty()) {
-            return List.of();
+            return Page.empty(PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
         }
 
-        List<TransactionJournal> allTransactions = new ArrayList<>();
-        Pageable pageable = PageRequest.of(0, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        for (Account account : accounts) {
-            Page<TransactionJournal> txPage = transactionJournalRepository
-                    .findByAccountIdOrderByCreatedAtDesc(account.getId(), pageable);
-            allTransactions.addAll(txPage.getContent());
-        }
-
-        // Sort combined list by createdAt descending and apply pagination
-        allTransactions.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
-        int fromIndex = Math.min(page * size, allTransactions.size());
-        int toIndex = Math.min(fromIndex + size, allTransactions.size());
-        return allTransactions.subList(fromIndex, toIndex);
+        List<Long> accountIds = accounts.stream().map(Account::getId).toList();
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return transactionJournalRepository.findByAccountIdsOrderByCreatedAtDesc(accountIds, pageable);
     }
 
     /**

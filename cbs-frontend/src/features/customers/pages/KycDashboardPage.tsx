@@ -16,8 +16,10 @@ const KYC_TABS = [
 
 export default function KycDashboardPage() {
   const [activeStatus, setActiveStatus] = useState('UNVERIFIED');
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(20);
   const { data: stats } = useKycStats();
-  const { data: kycData, isLoading } = useKycList({ status: activeStatus, page: 0, size: 50 });
+  const { data: kycData, isLoading } = useKycList({ status: activeStatus, page, size });
 
   const columns: ColumnDef<CustomerListItem>[] = [
     {
@@ -70,7 +72,10 @@ export default function KycDashboardPage() {
           <button
             key={tab.id}
             type="button"
-            onClick={() => setActiveStatus(tab.id)}
+            onClick={() => {
+              setActiveStatus(tab.id);
+              setPage(0);
+            }}
             className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               activeStatus === tab.id
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400'
@@ -90,7 +95,17 @@ export default function KycDashboardPage() {
         columns={columns}
         data={kycData?.items ?? []}
         isLoading={isLoading}
-        pageSize={kycData?.page.size ?? 20}
+        manualPagination={{
+          pageIndex: kycData?.page.page ?? page,
+          pageSize: kycData?.page.size ?? size,
+          pageCount: kycData?.page.totalPages ?? 0,
+          rowCount: kycData?.page.totalElements ?? 0,
+          onPageChange: setPage,
+          onPageSizeChange: (nextSize) => {
+            setSize(nextSize);
+            setPage(0);
+          },
+        }}
         emptyMessage="No customers match the selected KYC state"
       />
     </div>

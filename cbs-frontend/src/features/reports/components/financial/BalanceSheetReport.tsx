@@ -26,7 +26,7 @@ function DrillDownPanel({ item, onClose, currency }: DrillDownPanelProps) {
   const glIds = item.glAccountIds ?? [];
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['gl-drill-down', item.code, glIds],
-    queryFn: () => apiGet<GlAccountDetail[]>('/v1/gl/line-item-accounts', { glCodes: glIds.join(',') }).catch(() => []),
+    queryFn: () => apiGet<GlAccountDetail[]>('/api/v1/gl/line-item-accounts', { glCodes: glIds.join(',') }).catch(() => []),
     enabled: glIds.length > 0,
   });
 

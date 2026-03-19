@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { toast } from 'sonner';
 import { customerApi } from '../api/customerApi';
 import type { OnboardingFormData } from '../types/customer';
@@ -18,8 +19,13 @@ export function useOnboardingWizard() {
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
       toast.success('Customer created successfully');
     },
-    onError: () => {
-      toast.error('Failed to submit customer application');
+    onError: (error) => {
+      const message = axios.isAxiosError(error)
+        ? (error.response?.data?.message as string | undefined)
+        : error instanceof Error
+          ? error.message
+          : undefined;
+      toast.error(message || 'Failed to submit customer application');
     },
   });
 

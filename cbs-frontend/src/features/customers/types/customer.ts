@@ -297,7 +297,12 @@ export interface OnboardingFormData {
   maritalStatus?: string;
   nationality?: string;
   stateOfOrigin?: string;
+  lgaOfOrigin?: string;
   motherMaidenName?: string;
+  registeredName?: string;
+  tradingName?: string;
+  registrationNumber?: string;
+  registrationDate?: string;
   residentialAddress?: string;
   city?: string;
   state?: string;

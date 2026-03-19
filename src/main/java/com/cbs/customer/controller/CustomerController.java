@@ -347,8 +347,8 @@ public class CustomerController {
             @PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<TransactionJournal> transactions = customerService.getCustomerTransactions(customerId, page, Math.min(size, 100));
-        return ResponseEntity.ok(ApiResponse.ok(transactions));
+        Page<TransactionJournal> transactions = customerService.getCustomerTransactions(customerId, page, Math.min(size, 100));
+        return ResponseEntity.ok(ApiResponse.ok(transactions.getContent(), PageMeta.from(transactions)));
     }
 
     @GetMapping("/kyc")
