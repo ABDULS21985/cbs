@@ -366,9 +366,9 @@ export function ComplianceReportsPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <StatCard label="Total Reports" value={totalReports} loading={isLoading} />
-          <StatCard label="Overdue" value={overdueCount} variant={overdueCount > 0 ? 'danger' : 'default'} />
-          <StatCard label="Due This Week" value={dueThisWeekCount} variant={dueThisWeekCount > 0 ? 'warning' : 'default'} />
-          <StatCard label="Submitted This Month" value={submittedThisMonth} variant="success" />
+          <StatCard label="Overdue" value={overdueCount} />
+          <StatCard label="Due This Week" value={dueThisWeekCount} />
+          <StatCard label="Submitted This Month" value={submittedThisMonth} />
         </div>
 
         {/* Filters */}

@@ -460,13 +460,6 @@ export function MarketMakingPage() {
                 enableGlobalFilter
                 enableExport
                 exportFilename="market-making-compliance"
-                getRowClassName={(row: ObligationCompliance) =>
-                  row.status === 'BREACH'
-                    ? 'bg-red-50 dark:bg-red-900/10'
-                    : row.status === 'WARNING'
-                    ? 'bg-amber-50 dark:bg-amber-900/10'
-                    : ''
-                }
               />
               {!complianceLoading && compliance.length === 0 && (
                 <EmptyState

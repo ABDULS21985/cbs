@@ -295,9 +295,6 @@ function TraderPositionsTab() {
         enableGlobalFilter
         enableExport
         exportFilename="trader-positions"
-        getRowClassName={(row: TraderPosition) =>
-          row.breachFlag ? 'bg-red-50 dark:bg-red-900/10' : ''
-        }
       />
     </div>
   );

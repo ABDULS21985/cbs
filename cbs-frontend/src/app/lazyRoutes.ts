@@ -452,3 +452,23 @@ export const ContactCenterPage = lazyNamed(
   () => import('@/features/contactcenter/pages/ContactCenterPage'),
   'ContactCenterPage',
 );
+
+export const ComplianceReportsPage = lazyNamed(
+  () => import('@/features/compliance/pages/ComplianceReportsPage'),
+  'ComplianceReportsPage',
+);
+
+export const ApprovalQueuePage = lazyNamed(
+  () => import('@/features/operations/pages/ApprovalQueuePage'),
+  'ApprovalQueuePage',
+);
+
+export const OperationsHomePage = lazyNamed(
+  () => import('@/features/operations/pages/OperationsHomePage'),
+  'OperationsHomePage',
+);
+
+export const TreasuryHomePage = lazyNamed(
+  () => import('@/features/treasury/pages/TreasuryHomePage'),
+  'TreasuryHomePage',
+);

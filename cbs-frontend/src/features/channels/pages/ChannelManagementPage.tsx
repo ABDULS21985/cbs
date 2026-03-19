@@ -330,7 +330,6 @@ function ChannelConfigTab() {
             <tbody className="divide-y divide-border">
               {configs.map((cfg) => {
                 const isEditing = editingId === cfg.id;
-                const values = isEditing ? editValues : cfg;
                 const meta = CHANNEL_META[cfg.channelType as keyof typeof CHANNEL_META];
                 const Icon = meta?.icon ?? Settings;
                 const color = meta?.color ?? '';

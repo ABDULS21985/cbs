@@ -132,6 +132,10 @@ import {
   CommunicationCenterPage,
   CollateralRegisterPage,
   CollateralDetailPage,
+  ComplianceReportsPage,
+  ApprovalQueuePage,
+  OperationsHomePage,
+  TreasuryHomePage,
 } from './lazyRoutes';
 
 // Placeholder page — used for all unimplemented modules
@@ -246,7 +250,7 @@ export function AppRouter() {
 
         {/* Treasury */}
         <Route path="/treasury" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Treasury Dashboard" />} />
+          <Route index element={<TreasuryHomePage />} />
           <Route path="deals" element={<PlaceholderPage title="Treasury Deals" />} />
           <Route path="positions" element={<PlaceholderPage title="Positions" />} />
           <Route path="fx" element={<PlaceholderPage title="FX Rates" />} />
@@ -275,16 +279,17 @@ export function AppRouter() {
           <Route path="returns" element={<RegulatoryReturnsPage />} />
           <Route path="returns/:id" element={<ReturnDetailPage />} />
           <Route path="assessments" element={<PlaceholderPage title="Assessments" />} />
+          <Route path="reports" element={<ComplianceReportsPage />} />
           <Route path="audit" element={<AuditTrailPage />} />
         </Route>
 
         {/* Operations */}
         <Route path="/operations" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Operations" />} />
+          <Route index element={<OperationsHomePage />} />
           <Route path="eod" element={<EodConsolePage />} />
           <Route path="gl" element={<GeneralLedgerPage />} />
           <Route path="branches" element={<BranchOpsPage />} />
-          <Route path="approvals" element={<PlaceholderPage title="Approvals Queue" />} />
+          <Route path="approvals" element={<ApprovalQueuePage />} />
           <Route path="gateway" element={<GatewayConsolePage />} />
           <Route path="ach" element={<AchOperationsPage />} />
           <Route path="documents" element={<DocumentManagementPage />} />

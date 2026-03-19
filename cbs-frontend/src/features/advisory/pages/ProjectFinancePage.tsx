@@ -13,7 +13,6 @@ import {
 import type {
   ProjectFacility,
   ProjectFinanceStatus,
-  ProjectMilestone,
 } from '../api/advisoryApi';
 
 // ─── Expanded milestone rows ──────────────────────────────────────────────────

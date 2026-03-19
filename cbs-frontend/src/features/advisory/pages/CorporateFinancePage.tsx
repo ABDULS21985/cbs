@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
 import { Plus, ChevronRight, DollarSign, Briefcase, CheckCircle, BarChart2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge } from '@/components/shared';
-import { formatMoney, formatDate } from '@/lib/formatters';
+import { formatMoney } from '@/lib/formatters';
 import {
   useCorporateFinanceMandates,
   useCreateEngagement,

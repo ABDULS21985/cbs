@@ -15,7 +15,7 @@ import type {
   ProjectFacility,
   TaxEngagement,
 } from '../api/advisoryApi';
-import { formatMoney, formatDate } from '@/lib/formatters';
+import { formatMoney } from '@/lib/formatters';
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 

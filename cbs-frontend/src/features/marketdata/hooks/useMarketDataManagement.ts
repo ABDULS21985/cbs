@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { marketDataManagementApi } from '../api/marketDataManagementApi';
-import type { AnalysisType, FeedType, Recommendation, ResearchProjectType } from '../api/marketDataManagementApi';
+import type { AnalysisType, FeedType, Recommendation } from '../api/marketDataManagementApi';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
