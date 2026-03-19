@@ -99,6 +99,8 @@ import { QrPaymentPage } from '@/features/payments/pages/QrPaymentPage';
 import { MobileMoneyPage } from '@/features/payments/pages/MobileMoneyPage';
 import AchOperationsPage from '@/features/payments/pages/AchOperationsPage';
 import { PaymentAnalyticsPage } from '@/features/reports/pages/PaymentAnalyticsPage';
+import { ServiceProviderPage } from '@/features/admin/pages/ServiceProviderPage';
+import { ProviderDetailPage } from '@/features/admin/pages/ProviderDetailPage';
 
 // Placeholder page — used for all unimplemented modules
 function PlaceholderPage({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -272,6 +274,8 @@ export function AppRouter() {
           <Route path="fees" element={<FeeScheduleListPage />} />
           <Route path="fees/new" element={<NewFeeDefinitionPage />} />
           <Route path="fees/:id" element={<FeeDefinitionDetailPage />} />
+          <Route path="providers" element={<ServiceProviderPage />} />
+          <Route path="providers/:id" element={<ProviderDetailPage />} />
         </Route>
 
         {/* Agreements */}

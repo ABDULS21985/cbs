@@ -767,7 +767,6 @@ function delay(ms = 300): Promise<void> {
 }
 
 const MY_ASSIGNEE = 'Ngozi Adeyemi';
-const TEAM_BRANCH = 'Lagos Island Branch';
 
 export async function getMyQueue(): Promise<ApprovalRequest[]> {
   await delay(300);

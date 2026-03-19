@@ -1,5 +1,5 @@
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Legend,
+  ResponsiveContainer, XAxis, YAxis, Tooltip, Legend,
   ReferenceLine, Area, ComposedChart,
 } from 'recharts';
 import { formatPercent } from '@/lib/formatters';

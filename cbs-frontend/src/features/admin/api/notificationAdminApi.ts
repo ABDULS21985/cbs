@@ -703,7 +703,7 @@ export async function updateChannelConfig(channel: NotificationChannel, data: Pa
   return { ...MOCK_CHANNEL_CONFIGS[idx] };
 }
 
-export async function testChannelSend(channel: NotificationChannel, recipient: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+export async function testChannelSend(_channel: NotificationChannel, recipient: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
   await delay(1200);
   // Simulate occasional failure for demo
   if (recipient.includes('fail') || recipient === '000') {
