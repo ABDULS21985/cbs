@@ -3,7 +3,11 @@ package com.cbs.sanctions.controller;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.sanctions.entity.*;
+import com.cbs.sanctions.repository.ScreeningRequestRepository;
 import com.cbs.sanctions.service.SanctionsScreeningService;
+import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,6 +24,7 @@ import java.util.List;
 public class SanctionsController {
 
     private final SanctionsScreeningService screeningService;
+    private final ScreeningRequestRepository screeningRequestRepository;
 
     @PostMapping("/screen")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -46,5 +51,27 @@ public class SanctionsController {
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         Page<ScreeningRequest> result = screeningService.getPendingReview(PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    // List all screening requests
+    @GetMapping
+    @Operation(summary = "List all sanctions screening requests")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ScreeningRequest>>> listScreenings(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<ScreeningRequest> result = screeningRequestRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/stats")
+    @Operation(summary = "Get sanctions screening statistics")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Long>>> getStats() {
+        long total = screeningRequestRepository.count();
+        long pending = screeningService.getPendingReview(PageRequest.of(0, 1)).getTotalElements();
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("total", total, "pending", pending)));
     }
 }

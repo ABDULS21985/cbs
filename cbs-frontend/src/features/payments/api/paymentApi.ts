@@ -145,15 +145,15 @@ async function postWithParams<T>(url: string, params: Record<string, unknown>): 
 
 export const paymentApi = {
   getAccounts: () =>
-    apiGet<Account[]>('/v1/accounts/my').catch(() => [] as Account[]),
+    apiGet<Account[]>('/api/v1/accounts/my').catch(() => [] as Account[]),
 
   getBeneficiaries: (customerId?: number) =>
-    apiGet<Beneficiary[]>('/v1/beneficiaries', customerId ? { customerId } : undefined)
+    apiGet<Beneficiary[]>('/api/v1/beneficiaries', customerId ? { customerId } : undefined)
       .catch(() => [] as Beneficiary[]),
 
   initiateTransfer: (data: TransferRequest): Promise<TransferResponse> => {
     if (data.transferType === 'OWN_ACCOUNT' || data.transferType === 'INTERNAL') {
-      return postWithParams<BackendPaymentInstruction>('/v1/payments/transfer', {
+      return postWithParams<BackendPaymentInstruction>('/api/v1/payments/transfer', {
         debitAccountId: data.fromAccountId,
         creditAccountId: data.beneficiaryAccountNumber,
         amount: data.amount,
@@ -162,7 +162,7 @@ export const paymentApi = {
     }
 
     if (data.transferType === 'NIP') {
-      return postWithParams<BackendPaymentInstruction>('/v1/payments/domestic', {
+      return postWithParams<BackendPaymentInstruction>('/api/v1/payments/domestic', {
         debitAccountId: data.fromAccountId,
         creditAccountNumber: data.beneficiaryAccountNumber,
         beneficiaryName: data.beneficiaryName,
@@ -174,7 +174,7 @@ export const paymentApi = {
     }
 
     if (data.transferType === 'SWIFT') {
-      return postWithParams<BackendPaymentInstruction>('/v1/payments/swift', {
+      return postWithParams<BackendPaymentInstruction>('/api/v1/payments/swift', {
         debitAccountId: data.fromAccountId,
         creditAccountNumber: data.beneficiaryAccountNumber,
         beneficiaryName: data.beneficiaryName,
@@ -191,13 +191,13 @@ export const paymentApi = {
   },
 
   getPayment: (id: number) =>
-    apiGet<BackendPaymentInstruction>(`/v1/payments/${id}`).then(mapPaymentInstruction),
+    apiGet<BackendPaymentInstruction>(`/api/v1/payments/${id}`).then(mapPaymentInstruction),
 
   getAccountPayments: (accountId: number) =>
-    apiGet<BackendPaymentInstruction[]>(`/v1/payments/account/${accountId}`)
+    apiGet<BackendPaymentInstruction[]>(`/api/v1/payments/account/${accountId}`)
       .then((list) => list.map(mapPaymentInstruction))
       .catch(() => [] as TransferResponse[]),
 
   getFxRate: (source: string, target: string) =>
-    apiGet<FxRate>(`/v1/payments/fx-rate/${source}/${target}`),
+    apiGet<FxRate>(`/api/v1/payments/fx-rate/${source}/${target}`),
 };

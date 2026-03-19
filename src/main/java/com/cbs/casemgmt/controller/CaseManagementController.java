@@ -23,23 +23,22 @@ public class CaseManagementController {
 
     @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CustomerCase>>> listCases() {
-        return ResponseEntity.ok(ApiResponse.ok(caseService.getAllOpenCases()));
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getOpenCases()));
     }
 
     @GetMapping("/{caseNumber}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CustomerCase>> getCase(@PathVariable String caseNumber) {
-        return ResponseEntity.ok(ApiResponse.ok(caseService.getByCaseNumber(caseNumber)));
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getCase(caseNumber)));
     }
 
     @GetMapping("/stats") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> stats() {
-        List<CustomerCase> all = caseService.getAllOpenCases();
+        List<CustomerCase> all = caseService.getOpenCases();
         int slaBreached = caseService.checkSlaBreaches();
-        long resolvedToday = all.stream().filter(c -> "RESOLVED".equals(c.getStatus())).count();
         Map<String, Object> stats = Map.of(
             "openCases", all.stream().filter(c -> !"RESOLVED".equals(c.getStatus()) && !"CLOSED".equals(c.getStatus())).count(),
             "slaBreached", slaBreached,
-            "resolvedToday", resolvedToday,
+            "resolvedToday", all.stream().filter(c -> "RESOLVED".equals(c.getStatus())).count(),
             "avgResolutionHours", 4.2
         );
         return ResponseEntity.ok(ApiResponse.ok(stats));
@@ -47,13 +46,12 @@ public class CaseManagementController {
 
     @GetMapping("/my") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CustomerCase>>> myCases() {
-        // In production, extract current user from SecurityContext
-        return ResponseEntity.ok(ApiResponse.ok(caseService.getAllOpenCases()));
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getOpenCases()));
     }
 
     @GetMapping("/unassigned") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CustomerCase>>> unassigned() {
-        List<CustomerCase> unassigned = caseService.getAllOpenCases().stream()
+        List<CustomerCase> unassigned = caseService.getOpenCases().stream()
             .filter(c -> c.getAssignedTo() == null || c.getAssignedTo().isBlank())
             .toList();
         return ResponseEntity.ok(ApiResponse.ok(unassigned));

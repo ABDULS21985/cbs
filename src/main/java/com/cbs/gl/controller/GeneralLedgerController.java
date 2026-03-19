@@ -3,12 +3,16 @@ package com.cbs.gl.controller;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.gl.entity.*;
+import com.cbs.gl.repository.ChartOfAccountsRepository;
+import com.cbs.gl.repository.GlBalanceRepository;
 import com.cbs.gl.service.GeneralLedgerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,6 +27,8 @@ import java.util.List;
 public class GeneralLedgerController {
 
     private final GeneralLedgerService glService;
+    private final ChartOfAccountsRepository chartOfAccountsRepository;
+    private final GlBalanceRepository glBalanceRepository;
 
     @PostMapping("/accounts")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -103,5 +109,37 @@ public class GeneralLedgerController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<SubledgerReconRun>>> getReconResults(@PathVariable LocalDate date) {
         return ResponseEntity.ok(ApiResponse.ok(glService.getReconResults(date)));
+    }
+
+    // List all GL accounts (chart of accounts)
+    @GetMapping
+    @Operation(summary = "List all GL entries")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ChartOfAccounts>>> listAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "glCode"));
+        Page<ChartOfAccounts> result = chartOfAccountsRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/accounts")
+    @Operation(summary = "List all chart of accounts")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ChartOfAccounts>>> listAccounts(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "glCode"));
+        Page<ChartOfAccounts> result = chartOfAccountsRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/balances")
+    @Operation(summary = "List all GL balances for today")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<GlBalance>>> listBalances() {
+        return ResponseEntity.ok(ApiResponse.ok(glBalanceRepository.findByBalanceDateOrderByGlCodeAsc(LocalDate.now())));
     }
 }

@@ -129,7 +129,7 @@ interface BackendFeeResult {
 
 // GET /v1/fees/definitions
 export function getFeeDefinitions(): Promise<FeeDefinition[]> {
-  return apiGet<FeeDefinition[]>('/v1/fees/definitions').catch(() => []);
+  return apiGet<FeeDefinition[]>('/api/v1/fees/definitions').catch(() => []);
 }
 
 // GET /v1/fees/definitions (find by id from list — no dedicated endpoint)
@@ -143,7 +143,7 @@ export function getFeeById(id: string): Promise<FeeDefinition> {
 
 // POST /v1/fees/definitions
 export function createFeeDefinition(data: Omit<FeeDefinition, 'id' | 'createdAt'>): Promise<FeeDefinition> {
-  return apiPost<FeeDefinition>('/v1/fees/definitions', data);
+  return apiPost<FeeDefinition>('/api/v1/fees/definitions', data);
 }
 
 // No dedicated update endpoint — not supported by backend
@@ -153,7 +153,7 @@ export function updateFeeDefinition(_id: string, _data: Partial<FeeDefinition>):
 
 // GET /v1/fees/preview/{feeCode}?amount=X
 export function previewFee(feeCode: string, amount: number): Promise<FeePreviewResult> {
-  return apiGet<FeePreviewResult>(`/v1/fees/preview/${encodeURIComponent(feeCode)}`, { amount });
+  return apiGet<FeePreviewResult>(`/api/v1/fees/preview/${encodeURIComponent(feeCode)}`, { amount });
 }
 
 // Preview event fees — maps POST /v1/fees/charge/event to PreviewChargeResult shape
@@ -164,7 +164,7 @@ export async function previewCharge(
 ): Promise<PreviewChargeResult> {
   const results = await (async () => {
     const { data } = await api.post<ApiResponse<BackendFeeResult[]>>(
-      '/v1/fees/charge/event',
+      '/api/v1/fees/charge/event',
       undefined,
       { params: { triggerEvent: eventType, accountId: 0, amount } },
     );
@@ -200,14 +200,14 @@ export async function chargeFee(
 ): Promise<FeePreviewResult> {
   const params: Record<string, unknown> = { feeCode, accountId, amount };
   if (triggerRef) params.triggerRef = triggerRef;
-  const { data } = await api.post<ApiResponse<FeePreviewResult>>('/v1/fees/charge', undefined, { params });
+  const { data } = await api.post<ApiResponse<FeePreviewResult>>('/api/v1/fees/charge', undefined, { params });
   return data.data;
 }
 
 // POST /v1/fees/waive/{chargeLogId}?waivedBy=X&reason=Y
 export async function waiveFee(chargeLogId: string, waivedBy: string, reason: string): Promise<FeeCharge> {
   const { data } = await api.post<ApiResponse<FeeCharge>>(
-    `/v1/fees/waive/${encodeURIComponent(chargeLogId)}`,
+    `/api/v1/fees/waive/${encodeURIComponent(chargeLogId)}`,
     undefined,
     { params: { waivedBy, reason } },
   );
@@ -216,7 +216,7 @@ export async function waiveFee(chargeLogId: string, waivedBy: string, reason: st
 
 // GET /v1/fees/history/account/{accountId}
 export function getAccountFeeHistory(accountId: string): Promise<FeeCharge[]> {
-  return apiGet<FeeCharge[]>(`/v1/fees/history/account/${accountId}`).catch(() => []);
+  return apiGet<FeeCharge[]>(`/api/v1/fees/history/account/${accountId}`).catch(() => []);
 }
 
 // Backward-compat alias — maps feeId to getAccountFeeHistory if numeric, else returns empty

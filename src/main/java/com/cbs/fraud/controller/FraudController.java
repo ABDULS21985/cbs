@@ -3,7 +3,11 @@ package com.cbs.fraud.controller;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.fraud.entity.*;
+import com.cbs.fraud.repository.FraudAlertRepository;
 import com.cbs.fraud.service.FraudDetectionService;
+import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -21,6 +25,7 @@ import java.util.Map;
 public class FraudController {
 
     private final FraudDetectionService fraudService;
+    private final FraudAlertRepository fraudAlertRepository;
 
     @PostMapping("/score")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -66,5 +71,18 @@ public class FraudController {
     public ResponseEntity<ApiResponse<FraudAlert>> resolve(@PathVariable Long id,
             @RequestParam String resolution, @RequestParam String resolvedBy) {
         return ResponseEntity.ok(ApiResponse.ok(fraudService.resolveAlert(id, resolution, resolvedBy)));
+    }
+
+    // List all fraud alerts
+    @GetMapping
+    @Operation(summary = "List all fraud alerts")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<FraudAlert>>> listAlerts(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<FraudAlert> result = fraudAlertRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

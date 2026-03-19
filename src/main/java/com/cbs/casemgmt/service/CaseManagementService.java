@@ -90,7 +90,7 @@ public class CaseManagementService {
     public List<CustomerCase> getOpenCases() { return caseRepository.findByStatusOrderByPriorityAscSlaDueAtAsc("OPEN"); }
     public List<CaseNote> getCaseNotes(String caseNumber) { CustomerCase c = getCase(caseNumber); return noteRepository.findByCaseIdOrderByCreatedAtDesc(c.getId()); }
 
-    private CustomerCase getCase(String number) {
+    public CustomerCase getCase(String number) {
         return caseRepository.findByCaseNumber(number)
                 .orElseThrow(() -> new ResourceNotFoundException("CustomerCase", "caseNumber", number));
     }

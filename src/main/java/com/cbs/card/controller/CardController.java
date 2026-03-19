@@ -1,6 +1,7 @@
 package com.cbs.card.controller;
 
 import com.cbs.card.entity.*;
+import com.cbs.card.repository.CardRepository;
 import com.cbs.card.service.CardService;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +28,7 @@ import java.util.List;
 public class CardController {
 
     private final CardService cardService;
+    private final CardRepository cardRepository;
 
     @PostMapping
     @Operation(summary = "Issue a new card")
@@ -109,6 +112,19 @@ public class CardController {
     public ResponseEntity<ApiResponse<List<CardTransaction>>> getTransactions(@PathVariable Long cardId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         Page<CardTransaction> result = cardService.getCardTransactions(cardId, PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    // List all cards
+    @GetMapping
+    @Operation(summary = "List all cards")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Card>>> listCards(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Card> result = cardRepository.findAll(pageable);
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

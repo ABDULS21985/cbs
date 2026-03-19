@@ -3,12 +3,15 @@ package com.cbs.standing.controller;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.standing.entity.*;
+import com.cbs.standing.repository.StandingInstructionRepository;
 import com.cbs.standing.service.StandingOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,6 +29,7 @@ import java.util.Map;
 public class StandingOrderController {
 
     private final StandingOrderService standingOrderService;
+    private final StandingInstructionRepository standingInstructionRepository;
 
     @PostMapping
     @Operation(summary = "Create a standing order or direct debit instruction")
@@ -98,6 +102,19 @@ public class StandingOrderController {
             @PathVariable Long id,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         Page<StandingExecutionLog> result = standingOrderService.getExecutionHistory(id, PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    // List all standing instructions
+    @GetMapping
+    @Operation(summary = "List all standing orders and direct debits")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<StandingInstruction>>> listAll(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<StandingInstruction> result = standingInstructionRepository.findAll(pageable);
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

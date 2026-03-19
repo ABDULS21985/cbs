@@ -3,6 +3,8 @@ package com.cbs.deposit.controller;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.deposit.dto.*;
+import com.cbs.deposit.entity.FixedDeposit;
+import com.cbs.deposit.repository.FixedDepositRepository;
 import com.cbs.deposit.service.FixedDepositService;
 import com.cbs.deposit.service.RecurringDepositService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +32,7 @@ public class DepositController {
 
     private final FixedDepositService fixedDepositService;
     private final RecurringDepositService recurringDepositService;
+    private final FixedDepositRepository fixedDepositRepository;
 
     // ========================================================================
     // FIXED DEPOSITS
@@ -142,5 +146,18 @@ public class DepositController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Integer>>> processAutoDebits() {
         return ResponseEntity.ok(ApiResponse.ok(Map.of("processed", recurringDepositService.processAutoDebits())));
+    }
+
+    // List all fixed deposits
+    @GetMapping("/fixed")
+    @Operation(summary = "List all fixed deposits")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<FixedDeposit>>> listFixedDeposits(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<FixedDeposit> result = fixedDepositRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

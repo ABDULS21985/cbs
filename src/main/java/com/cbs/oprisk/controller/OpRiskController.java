@@ -3,7 +3,11 @@ package com.cbs.oprisk.controller;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.oprisk.entity.*;
+import com.cbs.oprisk.repository.OpRiskLossEventRepository;
 import com.cbs.oprisk.service.OpRiskService;
+import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -22,6 +26,7 @@ import java.util.Map;
 public class OpRiskController {
 
     private final OpRiskService opRiskService;
+    private final OpRiskLossEventRepository opRiskLossEventRepository;
 
     @PostMapping("/loss-events")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -72,5 +77,18 @@ public class OpRiskController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<OpRiskKriReading>>> getDashboard(@PathVariable LocalDate date) {
         return ResponseEntity.ok(ApiResponse.ok(opRiskService.getDashboard(date)));
+    }
+
+    // List all operational risk loss events with stats
+    @GetMapping
+    @Operation(summary = "List all operational risk loss events")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<OpRiskLossEvent>>> listLossEvents(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "eventDate"));
+        Page<OpRiskLossEvent> result = opRiskLossEventRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

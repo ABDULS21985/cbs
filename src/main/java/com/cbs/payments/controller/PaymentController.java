@@ -3,12 +3,14 @@ package com.cbs.payments.controller;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.payments.entity.*;
+import com.cbs.payments.repository.PaymentInstructionRepository;
 import com.cbs.payments.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +27,7 @@ import java.util.List;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final PaymentInstructionRepository paymentInstructionRepository;
 
     @PostMapping("/transfer")
     @Operation(summary = "Internal book transfer between accounts")
@@ -109,5 +112,18 @@ public class PaymentController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<FxRate>> getFxRate(@PathVariable String source, @PathVariable String target) {
         return ResponseEntity.ok(ApiResponse.ok(paymentService.getLatestRate(source, target)));
+    }
+
+    // List all payments
+    @GetMapping
+    @Operation(summary = "List all payments")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<PaymentInstruction>>> listPayments(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<PaymentInstruction> result = paymentInstructionRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }
