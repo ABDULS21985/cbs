@@ -121,6 +121,8 @@ export const navigationItems: NavSection[] = [
         label: 'Risk', icon: ShieldAlert, path: '/risk', roles: ['CBS_ADMIN', 'RISK_OFFICER'],
         children: [
           { label: 'Overview', path: '/risk' },
+          { label: 'Market & Liquidity', path: '/risk/market-liquidity' },
+          { label: 'Operational Risk', path: '/risk/operational' },
           { label: 'AML Alerts', path: '/risk/aml' },
           { label: 'Fraud Alerts', path: '/risk/fraud' },
           { label: 'Sanctions', path: '/risk/sanctions' },
@@ -130,6 +132,7 @@ export const navigationItems: NavSection[] = [
       {
         label: 'Compliance', icon: Scale, path: '/compliance', roles: ['CBS_ADMIN', 'COMPLIANCE'],
         children: [
+          { label: 'Dashboard', path: '/compliance' },
           { label: 'Regulatory Returns', path: '/compliance/returns' },
           { label: 'Assessments', path: '/compliance/assessments' },
           { label: 'Audit Trail', path: '/compliance/audit' },

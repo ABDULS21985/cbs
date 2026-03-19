@@ -17,7 +17,7 @@ interface EodErrorPanelProps {
 
 export function EodErrorPanel({
   step,
-  runId,
+  runId: _runId,
   onRetry,
   onSkip,
   onRollback,
