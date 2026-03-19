@@ -22,7 +22,6 @@ type TabId = typeof TABS[number]['id'];
 
 export function UserAdminPage() {
   const [activeTab, setActiveTab] = useState<TabId>('users');
-  const [newUserOpen, setNewUserOpen] = useState(false);
 
   const { data: roles = [] } = useQuery({
     queryKey: ['admin', 'roles'],
@@ -45,7 +44,7 @@ export function UserAdminPage() {
           </p>
         </div>
         <button
-          onClick={() => { setActiveTab('users'); setNewUserOpen(true); }}
+          onClick={() => setActiveTab('users')}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />

@@ -4,7 +4,6 @@ import { format } from 'date-fns';
 import { FileDown, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { glApi } from '../../api/glApi';
-import type { GlBalance } from '../../api/glApi';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/formatters';
 
