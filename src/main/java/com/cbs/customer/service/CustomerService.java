@@ -1,5 +1,10 @@
 package com.cbs.customer.service;
 
+import com.cbs.account.entity.Account;
+import com.cbs.account.entity.AccountStatus;
+import com.cbs.account.entity.TransactionJournal;
+import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.repository.TransactionJournalRepository;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.DuplicateResourceException;
@@ -9,19 +14,29 @@ import com.cbs.customer.entity.*;
 import com.cbs.customer.mapper.CustomerMapper;
 import com.cbs.customer.repository.*;
 import com.cbs.customer.validation.CustomerValidator;
+import com.cbs.lending.entity.LoanAccount;
+import com.cbs.lending.repository.LoanAccountRepository;
 import com.cbs.provider.kyc.KycProvider;
 import com.cbs.provider.numbering.AccountNumberGenerator;
+import com.cbs.segmentation.entity.Segment;
+import com.cbs.segmentation.repository.SegmentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -42,6 +57,10 @@ public class CustomerService {
     private final KycProvider kycProvider;
     private final AccountNumberGenerator numberGenerator;
     private final CbsProperties cbsProperties;
+    private final AccountRepository accountRepository;
+    private final LoanAccountRepository loanAccountRepository;
+    private final TransactionJournalRepository transactionJournalRepository;
+    private final SegmentRepository segmentRepository;
 
     // ========================================================================
     // CAPABILITY 1: 360° Customer View
@@ -458,4 +477,182 @@ public class CustomerService {
     public record BvnProviderResponse(String bvn, String firstName, String middleName, String lastName) { }
 
     public record BvnVerificationResult(String status, List<String> mismatchFields) { }
+
+    // ========================================================================
+    // FRONTEND-FACING: List, Count, Cross-module, KYC, Segments
+    // ========================================================================
+
+    /**
+     * Simplified customer list/search used by the frontend grid.
+     * Delegates to the specification-based search with minimal params.
+     */
+    public Page<CustomerSummaryResponse> listCustomers(String search, String status, String customerType, Pageable pageable) {
+        CustomerSearchCriteria.CustomerSearchCriteriaBuilder builder = CustomerSearchCriteria.builder();
+
+        if (StringUtils.hasText(search)) {
+            builder.searchTerm(search);
+        }
+        if (StringUtils.hasText(status)) {
+            builder.status(CustomerStatus.valueOf(status.toUpperCase(Locale.ROOT)));
+        }
+        if (StringUtils.hasText(customerType)) {
+            builder.customerType(CustomerType.valueOf(customerType.toUpperCase(Locale.ROOT)));
+        }
+
+        return customerRepository.findAll(CustomerSpecifications.fromCriteria(builder.build()), pageable)
+                .map(customerMapper::toSummaryResponse);
+    }
+
+    /**
+     * Customer counts by status (total, active, dormant, new-this-month).
+     */
+    public Map<String, Long> getCustomerCounts() {
+        long totalCount = customerRepository.count();
+        long activeCount = customerRepository.countByStatus(CustomerStatus.ACTIVE);
+        long dormantCount = customerRepository.countByStatus(CustomerStatus.DORMANT);
+
+        YearMonth currentMonth = YearMonth.now();
+        Instant monthStart = currentMonth.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        long newMtdCount = customerRepository.countByCreatedAtAfter(monthStart);
+
+        Map<String, Long> counts = new LinkedHashMap<>();
+        counts.put("total", totalCount);
+        counts.put("active", activeCount);
+        counts.put("dormant", dormantCount);
+        counts.put("newMtd", newMtdCount);
+        return counts;
+    }
+
+    /**
+     * Get accounts belonging to a customer.
+     */
+    public List<Account> getCustomerAccounts(Long customerId) {
+        findCustomerOrThrow(customerId);
+        return accountRepository.findByCustomerIdAndStatus(customerId, AccountStatus.ACTIVE);
+    }
+
+    /**
+     * Get loan accounts belonging to a customer.
+     */
+    public List<LoanAccount> getCustomerLoans(Long customerId) {
+        findCustomerOrThrow(customerId);
+        return loanAccountRepository.findByCustomerId(customerId,
+                PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createdAt"))).getContent();
+    }
+
+    /**
+     * Get recent transactions across all customer accounts.
+     */
+    public List<TransactionJournal> getCustomerTransactions(Long customerId, int page, int size) {
+        findCustomerOrThrow(customerId);
+        List<Account> accounts = accountRepository.findByCustomerId(customerId);
+        if (accounts.isEmpty()) {
+            return List.of();
+        }
+
+        List<TransactionJournal> allTransactions = new ArrayList<>();
+        Pageable pageable = PageRequest.of(0, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        for (Account account : accounts) {
+            Page<TransactionJournal> txPage = transactionJournalRepository
+                    .findByAccountIdOrderByCreatedAtDesc(account.getId(), pageable);
+            allTransactions.addAll(txPage.getContent());
+        }
+
+        // Sort combined list by createdAt descending and apply pagination
+        allTransactions.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+        int fromIndex = Math.min(page * size, allTransactions.size());
+        int toIndex = Math.min(fromIndex + size, allTransactions.size());
+        return allTransactions.subList(fromIndex, toIndex);
+    }
+
+    /**
+     * KYC customer list: customers with pending/expired identifications.
+     */
+    public Page<CustomerSummaryResponse> getKycCustomerList(String kycStatus, Pageable pageable) {
+        if ("EXPIRED".equalsIgnoreCase(kycStatus)) {
+            // Customers who have at least one expired identification
+            return customerRepository.findCustomersWithExpiredIdentifications(LocalDate.now(), pageable)
+                    .map(customerMapper::toSummaryResponse);
+        } else if ("UNVERIFIED".equalsIgnoreCase(kycStatus)) {
+            return customerRepository.findCustomersWithUnverifiedIdentifications(pageable)
+                    .map(customerMapper::toSummaryResponse);
+        } else if ("VERIFIED".equalsIgnoreCase(kycStatus)) {
+            return customerRepository.findCustomersWithAllVerifiedIdentifications(pageable)
+                    .map(customerMapper::toSummaryResponse);
+        }
+        // Default: all active customers for KYC review
+        return customerRepository.findByStatus(CustomerStatus.ACTIVE, pageable)
+                .map(customerMapper::toSummaryResponse);
+    }
+
+    /**
+     * KYC statistics: counts by verification status.
+     */
+    public Map<String, Long> getKycStats() {
+        long totalCustomers = customerRepository.countByStatus(CustomerStatus.ACTIVE);
+        long verifiedCount = customerRepository.countCustomersFullyVerified();
+        long expiredCount = customerRepository.countCustomersWithExpiredIds(LocalDate.now());
+        long pendingCount = totalCustomers - verifiedCount - expiredCount;
+        if (pendingCount < 0) pendingCount = 0;
+
+        Map<String, Long> stats = new LinkedHashMap<>();
+        stats.put("total", totalCustomers);
+        stats.put("verified", verifiedCount);
+        stats.put("expired", expiredCount);
+        stats.put("pending", pendingCount);
+        return stats;
+    }
+
+    /**
+     * Get distinct active segments from the segment table.
+     */
+    public List<Segment> getDistinctSegments() {
+        return segmentRepository.findByIsActiveTrueOrderByPriorityAsc();
+    }
+
+    /**
+     * BVN verification: delegates to the existing KYC verify flow with idType=BVN.
+     */
+    @Transactional
+    public KycVerificationResponse verifyBvnIdentification(BvnVerificationRequest request) {
+        if (!isValidBvn(request.getBvn())) {
+            throw new BusinessException("Invalid BVN format. BVN must be 11 digits.", "INVALID_BVN");
+        }
+
+        if (request.getCustomerId() == null) {
+            KycProvider.KycResult result = kycProvider.verify(KycProvider.KycVerifyCommand.builder()
+                    .idType("BVN")
+                    .idNumber(request.getBvn())
+                    .firstName(request.getFirstName())
+                    .lastName(request.getLastName())
+                    .dateOfBirth(request.getDateOfBirth())
+                    .country(cbsProperties.getDeployment().getCountryCode())
+                    .build());
+
+            return KycVerificationResponse.builder()
+                    .customerId(null)
+                    .cifNumber(null)
+                    .idType("BVN")
+                    .idNumber(request.getBvn())
+                    .status(result.isVerified()
+                            ? KycVerificationResponse.VerificationStatus.VERIFIED
+                            : KycVerificationResponse.VerificationStatus.FAILED)
+                    .verificationProvider(result.getProviderName())
+                    .verificationReference(result.getProviderReference())
+                    .failureReason(result.getFailureReason())
+                    .verifiedAt(result.getVerifiedAt())
+                    .build();
+        }
+
+        KycVerificationRequest kycRequest = KycVerificationRequest.builder()
+                .customerId(request.getCustomerId())
+                .idType("BVN")
+                .idNumber(request.getBvn())
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .dateOfBirth(request.getDateOfBirth())
+                .build();
+
+        return verifyIdentification(kycRequest);
+    }
 }

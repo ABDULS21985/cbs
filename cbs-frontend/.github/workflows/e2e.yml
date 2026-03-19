@@ -1,0 +1,277 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, dev, staging]
+  pull_request:
+    branches: [main, dev]
+  schedule:
+    - cron: '0 2 * * *'  # Nightly at 2am UTC
+  workflow_dispatch:
+    inputs:
+      test_filter:
+        description: 'Playwright grep filter (e.g. @smoke)'
+        required: false
+        default: ''
+      browser:
+        description: 'Browser to test'
+        required: false
+        default: 'chromium'
+
+env:
+  NODE_VERSION: '20'
+  JAVA_VERSION: '21'
+  POSTGRES_DB: cbs_db
+  POSTGRES_USER: cbs_user
+  POSTGRES_PASSWORD: cbs_pass
+
+jobs:
+  e2e:
+    name: E2E Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium]
+        shard: [1, 2, 3]
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: cbs-frontend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('cbs-backend/**/*.gradle*', 'cbs-backend/**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Install frontend dependencies
+        working-directory: cbs-frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: cbs-frontend
+        run: npx playwright install --with-deps ${{ github.event.inputs.browser || 'chromium' }}
+
+      - name: Run database migrations
+        working-directory: cbs-backend
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/${{ env.POSTGRES_DB }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+        run: ./gradlew flywayMigrate -q --no-daemon
+
+      - name: Seed test data
+        working-directory: cbs-frontend
+        env:
+          TEST_DATABASE_URL: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
+        run: psql "$TEST_DATABASE_URL" -f e2e/scripts/seed.sql
+
+      - name: Start CBS backend
+        working-directory: cbs-backend
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/${{ env.POSTGRES_DB }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          SERVER_PORT: 8081
+        run: ./gradlew bootRun -q --no-daemon &
+
+      - name: Wait for backend
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8081/actuator/health; then
+              echo "Backend is ready"
+              break
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 5
+          done
+
+      - name: Build frontend
+        working-directory: cbs-frontend
+        run: npm run build
+
+      - name: Start frontend
+        working-directory: cbs-frontend
+        run: npx serve -s dist -l 3000 &
+
+      - name: Wait for frontend
+        run: |
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost:3000; then
+              echo "Frontend is ready"
+              break
+            fi
+            sleep 5
+          done
+
+      - name: Run Playwright tests
+        working-directory: cbs-frontend
+        env:
+          BASE_URL: http://localhost:3000
+          API_URL: http://localhost:8081
+          TEST_DATABASE_URL: postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@localhost:5432/${{ env.POSTGRES_DB }}
+          TEST_USER_OFFICER: testuser
+          TEST_USER_OFFICER_PASS: TestPass123!
+          TEST_USER_MANAGER: testmanager
+          TEST_USER_MANAGER_PASS: TestPass123!
+          TEST_USER_COMPLIANCE: testcompliance
+          TEST_USER_COMPLIANCE_PASS: TestPass123!
+          TEST_USER_TREASURY: testtreasury
+          TEST_USER_TREASURY_PASS: TestPass123!
+          TEST_USER_ADMIN: testadmin
+          TEST_USER_ADMIN_PASS: TestPass123!
+          CI: true
+        run: |
+          npx playwright test \
+            --project=${{ matrix.browser }} \
+            --shard=${{ matrix.shard }}/3 \
+            ${{ github.event.inputs.test_filter && format('--grep "{0}"', github.event.inputs.test_filter) || '' }} \
+            --reporter=html,junit,list
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-${{ matrix.browser }}-shard${{ matrix.shard }}
+          path: |
+            cbs-frontend/playwright-report/
+            cbs-frontend/playwright-results/
+          retention-days: 30
+
+      - name: Upload test artifacts on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-artifacts-${{ matrix.browser }}-shard${{ matrix.shard }}
+          path: |
+            cbs-frontend/playwright-results/
+          retention-days: 7
+
+  merge-reports:
+    name: Merge Test Reports
+    runs-on: ubuntu-latest
+    needs: e2e
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download all reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: playwright-results-*
+          merge-multiple: true
+          path: merged-reports/
+
+      - name: Install Playwright
+        working-directory: cbs-frontend
+        run: npm ci && npx playwright install --with-deps chromium
+
+      - name: Merge HTML reports
+        working-directory: cbs-frontend
+        run: npx playwright merge-reports ../merged-reports --reporter html,junit
+        continue-on-error: true
+
+      - name: Upload merged report
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-merged
+          path: cbs-frontend/playwright-report/
+          retention-days: 90
+
+  smoke-test:
+    name: Smoke Tests (PR Quick Check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'pull_request'
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: cbs_db
+          POSTGRES_USER: cbs_user
+          POSTGRES_PASSWORD: cbs_pass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: cbs-frontend/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Install & setup
+        working-directory: cbs-frontend
+        run: npm ci && npx playwright install --with-deps chromium
+
+      - name: Seed & start services
+        run: |
+          psql "postgresql://cbs_user:cbs_pass@localhost:5432/cbs_db" -f cbs-frontend/e2e/scripts/seed.sql || true
+          cd cbs-backend && ./gradlew bootRun --args="--spring.profiles.active=test" -q &
+          cd cbs-frontend && npm run build && npx serve -s dist -l 3000 &
+          sleep 30
+
+      - name: Run smoke tests only
+        working-directory: cbs-frontend
+        env:
+          BASE_URL: http://localhost:3000
+          CI: true
+        run: npx playwright test --grep @smoke --project=chromium
+
+      - name: Upload smoke results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-results
+          path: cbs-frontend/playwright-report/
+          retention-days: 7

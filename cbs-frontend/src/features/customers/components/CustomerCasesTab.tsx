@@ -51,7 +51,7 @@ export function CustomerCasesTab({ customerId, active }: { customerId: number; a
       header: 'Assigned To',
       cell: ({ row }) => <span className="text-xs">{row.original.assignedTo ?? '—'}</span>,
     },
-    { accessorKey: 'openedAt', header: 'Opened', cell: ({ row }) => <span className="text-xs">{formatDate(row.original.openedAt)}</span> },
+    { accessorKey: 'openedAt', header: 'Opened', cell: ({ row }) => <span className="text-xs">{row.original.openedAt ? formatDate(row.original.openedAt) : '—'}</span> },
   ];
 
   return (

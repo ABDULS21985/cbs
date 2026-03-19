@@ -1,0 +1,231 @@
+name: CBS Frontend Tests
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'cbs-frontend/**'
+      - '.github/workflows/frontend-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cbs-frontend/**'
+
+defaults:
+  run:
+    working-directory: cbs-frontend
+
+jobs:
+  # ─── Unit & Integration Tests ───────────────────────────────────────
+  unit-integration:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: cbs-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Build project
+        run: npm run build
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: cbs-frontend/coverage/
+          retention-days: 14
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: cbs-frontend/dist/
+          retention-days: 7
+
+  # ─── Cross-Cutting Unit Tests ───────────────────────────────────────
+  cross-cutting-unit:
+    name: Cross-Cutting Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: cbs-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run cross-cutting tests
+        run: npx vitest run src/test/cross-cutting/ --reporter=verbose
+
+  # ─── E2E Tests ──────────────────────────────────────────────────────
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: unit-integration
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: cbs_test
+          POSTGRES_USER: cbs
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: cbs-frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start backend server
+        run: cd ../cbs-backend && ./gradlew bootRun --args="--spring.profiles.active=test" -q &
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/cbs_test
+          SPRING_DATASOURCE_USERNAME: cbs
+          SPRING_DATASOURCE_PASSWORD: test
+
+      - name: Start frontend dev server
+        run: npm run dev &
+
+      - name: Wait for servers
+        run: |
+          npx wait-on http://localhost:8081/actuator/health http://localhost:3000 --timeout 120000
+
+      - name: Run E2E tests
+        run: npx playwright test --project=chromium
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: cbs-frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results
+          path: cbs-frontend/playwright-results/
+          retention-days: 7
+
+  # ─── Cross-Cutting E2E Tests ────────────────────────────────────────
+  e2e-cross-cutting:
+    name: Cross-Cutting E2E Tests
+    runs-on: ubuntu-latest
+    needs: unit-integration
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: cbs_test
+          POSTGRES_USER: cbs
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: cbs-frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start backend server
+        run: cd ../cbs-backend && ./gradlew bootRun --args="--spring.profiles.active=test" -q &
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/cbs_test
+          SPRING_DATASOURCE_USERNAME: cbs
+          SPRING_DATASOURCE_PASSWORD: test
+
+      - name: Start frontend dev server
+        run: npm run dev &
+
+      - name: Wait for servers
+        run: |
+          npx wait-on http://localhost:8081/actuator/health http://localhost:3000 --timeout 120000
+
+      - name: Run responsive design tests (3 viewports)
+        run: npx playwright test --project=cross-cutting e2e/cross-cutting/responsive.spec.ts
+
+      - name: Run dark mode tests
+        run: npx playwright test --project=cross-cutting e2e/cross-cutting/dark-mode.spec.ts
+
+      - name: Run accessibility tests (axe-core)
+        run: npx playwright test --project=cross-cutting e2e/cross-cutting/accessibility.spec.ts
+
+      - name: Run error handling tests
+        run: npx playwright test --project=cross-cutting e2e/cross-cutting/error-handling.spec.ts
+
+      - name: Run offline behavior tests
+        run: npx playwright test --project=cross-cutting e2e/cross-cutting/offline.spec.ts
+
+      - name: Run performance tests
+        run: npx playwright test --project=cross-cutting e2e/cross-cutting/performance.spec.ts
+
+      - name: Run print tests
+        run: npx playwright test --project=cross-cutting e2e/cross-cutting/print.spec.ts
+
+      - name: Upload cross-cutting report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-cutting-report
+          path: cbs-frontend/playwright-report/
+          retention-days: 14

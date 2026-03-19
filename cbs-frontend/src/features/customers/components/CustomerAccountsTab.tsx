@@ -22,6 +22,7 @@ export function CustomerAccountsTab({ customerId }: { customerId: number }) {
         <span className="font-mono text-xs">{row.original.accountNumber}</span>
       ),
     },
+    { accessorKey: 'accountName', header: 'Name' },
     { accessorKey: 'accountType', header: 'Type' },
     {
       accessorKey: 'status',
@@ -46,7 +47,7 @@ export function CustomerAccountsTab({ customerId }: { customerId: number }) {
     {
       accessorKey: 'dateOpened',
       header: 'Opened',
-      cell: ({ row }) => <span className="text-xs">{formatDate(row.original.dateOpened)}</span>,
+      cell: ({ row }) => <span className="text-xs">{row.original.dateOpened ? formatDate(row.original.dateOpened) : '—'}</span>,
     },
   ];
 
@@ -67,7 +68,7 @@ export function CustomerAccountsTab({ customerId }: { customerId: number }) {
         columns={columns}
         data={accounts ?? []}
         isLoading={isLoading}
-        onRowClick={row => navigate(`/accounts/${row.id}`)}
+        onRowClick={row => navigate(`/accounts/${row.accountNumber}`)}
         emptyMessage="No accounts found for this customer"
       />
     </div>

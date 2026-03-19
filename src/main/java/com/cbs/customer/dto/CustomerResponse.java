@@ -74,4 +74,24 @@ public class CustomerResponse {
     public String getPhoneNumber() {
         return phonePrimary;
     }
+
+    @JsonProperty("customerNumber")
+    public String getCustomerNumber() {
+        return cifNumber;
+    }
+
+    @JsonProperty("fullName")
+    public String getFullName() {
+        return displayName;
+    }
+
+    @JsonProperty("type")
+    public CustomerType getType() {
+        return customerType;
+    }
+
+    @JsonProperty("phone")
+    public String getPhone() {
+        return phonePrimary;
+    }
 }

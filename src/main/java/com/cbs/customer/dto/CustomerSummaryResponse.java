@@ -3,6 +3,7 @@ package com.cbs.customer.dto;
 import com.cbs.customer.entity.CustomerStatus;
 import com.cbs.customer.entity.CustomerType;
 import com.cbs.customer.entity.RiskRating;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.time.Instant;
@@ -24,4 +25,24 @@ public class CustomerSummaryResponse {
     private String phonePrimary;
     private String branchCode;
     private Instant createdAt;
+
+    @JsonProperty("customerNumber")
+    public String getCustomerNumber() {
+        return cifNumber;
+    }
+
+    @JsonProperty("fullName")
+    public String getFullName() {
+        return displayName;
+    }
+
+    @JsonProperty("type")
+    public CustomerType getType() {
+        return customerType;
+    }
+
+    @JsonProperty("phone")
+    public String getPhone() {
+        return phonePrimary;
+    }
 }

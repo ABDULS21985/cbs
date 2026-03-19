@@ -16,17 +16,11 @@ export function useOnboardingWizard() {
     mutationFn: (data: OnboardingFormData) => customerApi.submitOnboarding(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
-      toast.success('Customer created successfully — pending KYC approval');
+      toast.success('Customer created successfully');
     },
     onError: () => {
       toast.error('Failed to submit customer application');
     },
-  });
-
-  const saveDraftMutation = useMutation({
-    mutationFn: (data: Partial<OnboardingFormData>) => customerApi.saveDraft(data),
-    onSuccess: () => toast.success('Draft saved'),
-    onError: () => toast.error('Failed to save draft'),
   });
 
   const updateStep = useCallback((data: Partial<OnboardingFormData>) => {
@@ -51,8 +45,8 @@ export function useOnboardingWizard() {
   }, [formData, submitMutation]);
 
   const saveDraft = useCallback(() => {
-    saveDraftMutation.mutate(formData);
-  }, [formData, saveDraftMutation]);
+    toast.error('Draft save is unavailable until the backend exposes a live endpoint.');
+  }, []);
 
   return {
     currentStep,
@@ -66,6 +60,6 @@ export function useOnboardingWizard() {
     saveDraft,
     isSubmitting: submitMutation.isPending,
     isSubmitSuccess: submitMutation.isSuccess,
-    submittedCustomer: submitMutation.data?.data.data,
+    submittedCustomer: submitMutation.data,
   };
 }

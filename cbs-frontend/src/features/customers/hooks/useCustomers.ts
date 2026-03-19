@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
 import { useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { queryKeys } from '@/lib/queryKeys';
 import { customerApi } from '../api/customerApi';
 import type { CustomerFilters } from '../types/customer';
@@ -8,7 +8,7 @@ import type { CustomerFilters } from '../types/customer';
 export function useCustomers(filters: CustomerFilters) {
   return useQuery({
     queryKey: queryKeys.customers.list(filters as Record<string, unknown>),
-    queryFn: () => customerApi.list(filters).then(r => r.data.data),
+    queryFn: () => customerApi.list(filters),
     staleTime: 30_000,
   });
 }
@@ -16,7 +16,7 @@ export function useCustomers(filters: CustomerFilters) {
 export function useCustomerCounts() {
   return useQuery({
     queryKey: [...queryKeys.customers.all, 'counts'],
-    queryFn: () => customerApi.counts().then(r => r.data.data),
+    queryFn: () => customerApi.counts(),
     staleTime: 60_000,
   });
 }
@@ -24,7 +24,7 @@ export function useCustomerCounts() {
 export function useCustomer(id: number) {
   return useQuery({
     queryKey: queryKeys.customers.detail(id),
-    queryFn: () => customerApi.getById(id).then(r => r.data.data),
+    queryFn: () => customerApi.getById(id),
     enabled: !!id,
   });
 }
@@ -32,7 +32,7 @@ export function useCustomer(id: number) {
 export function useCustomerAccounts(id: number) {
   return useQuery({
     queryKey: queryKeys.customers.accounts(id),
-    queryFn: () => customerApi.getAccounts(id).then(r => r.data.data),
+    queryFn: () => customerApi.getAccounts(id),
     enabled: !!id,
   });
 }
@@ -40,7 +40,7 @@ export function useCustomerAccounts(id: number) {
 export function useCustomerLoans(id: number, enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.customers.detail(id), 'loans'],
-    queryFn: () => customerApi.getLoans(id).then(r => r.data.data),
+    queryFn: () => customerApi.getLoans(id),
     enabled: !!id && enabled,
   });
 }
@@ -48,7 +48,7 @@ export function useCustomerLoans(id: number, enabled = true) {
 export function useCustomerCards(id: number, enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.customers.detail(id), 'cards'],
-    queryFn: () => customerApi.getCards(id).then(r => r.data.data),
+    queryFn: () => customerApi.getCards(id),
     enabled: !!id && enabled,
   });
 }
@@ -56,7 +56,7 @@ export function useCustomerCards(id: number, enabled = true) {
 export function useCustomerCases(id: number, enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.customers.detail(id), 'cases'],
-    queryFn: () => customerApi.getCases(id).then(r => r.data.data),
+    queryFn: () => customerApi.getCases(id),
     enabled: !!id && enabled,
   });
 }
@@ -64,7 +64,7 @@ export function useCustomerCases(id: number, enabled = true) {
 export function useCustomerDocuments(id: number, enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.customers.detail(id), 'documents'],
-    queryFn: () => customerApi.getDocuments(id).then(r => r.data.data),
+    queryFn: () => customerApi.getDocuments(id),
     enabled: !!id && enabled,
   });
 }
@@ -72,7 +72,7 @@ export function useCustomerDocuments(id: number, enabled = true) {
 export function useCustomerTransactions(id: number, params: Record<string, unknown> = {}, enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.customers.detail(id), 'transactions', params],
-    queryFn: () => customerApi.getTransactions(id, params as { page?: number; size?: number; sort?: string; direction?: 'ASC' | 'DESC'; accountId?: number }).then(r => r.data.data),
+    queryFn: () => customerApi.getTransactions(id, params as { page?: number; size?: number; sort?: string; direction?: 'ASC' | 'DESC' }),
     enabled: !!id && enabled,
   });
 }
@@ -80,7 +80,7 @@ export function useCustomerTransactions(id: number, params: Record<string, unkno
 export function useCustomerCommunications(id: number, enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.customers.detail(id), 'communications'],
-    queryFn: () => customerApi.getCommunications(id).then(r => r.data.data),
+    queryFn: () => customerApi.getCommunications(id),
     enabled: !!id && enabled,
   });
 }
@@ -88,7 +88,7 @@ export function useCustomerCommunications(id: number, enabled = true) {
 export function useCustomerAudit(id: number, enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.customers.detail(id), 'audit'],
-    queryFn: () => customerApi.getAuditTrail(id).then(r => r.data.data),
+    queryFn: () => customerApi.getAuditTrail(id),
     enabled: !!id && enabled,
   });
 }
@@ -96,7 +96,7 @@ export function useCustomerAudit(id: number, enabled = true) {
 export function useKycStats() {
   return useQuery({
     queryKey: ['kyc', 'stats'],
-    queryFn: () => customerApi.kycStats().then(r => r.data.data),
+    queryFn: () => customerApi.kycStats(),
     staleTime: 60_000,
   });
 }
@@ -104,7 +104,7 @@ export function useKycStats() {
 export function useKycList(params: { status?: string; page?: number; size?: number }) {
   return useQuery({
     queryKey: ['kyc', 'list', params],
-    queryFn: () => customerApi.kycList(params).then(r => r.data.data),
+    queryFn: () => customerApi.kycList(params),
     staleTime: 30_000,
   });
 }
@@ -112,7 +112,7 @@ export function useKycList(params: { status?: string; page?: number; size?: numb
 export function useCustomerSegments() {
   return useQuery({
     queryKey: ['customers', 'segments'],
-    queryFn: () => customerApi.getSegments().then(r => r.data.data),
+    queryFn: () => customerApi.getSegments(),
     staleTime: 5 * 60_000,
   });
 }
@@ -133,24 +133,27 @@ export function useCustomerFiltersFromUrl() {
 
   const filters = useMemo<CustomerFilters>(() => ({
     search: searchParams.get('search') || undefined,
-    type: searchParams.get('type') || undefined,
-    status: searchParams.get('status') || undefined,
-    segment: searchParams.get('segment') || undefined,
-    branchId: searchParams.get('branchId') ? Number(searchParams.get('branchId')) : undefined,
-    dateFrom: searchParams.get('dateFrom') || undefined,
-    dateTo: searchParams.get('dateTo') || undefined,
+    type: (searchParams.get('type') as CustomerFilters['type']) || undefined,
+    status: (searchParams.get('status') as CustomerFilters['status']) || undefined,
     page: searchParams.get('page') ? Number(searchParams.get('page')) : 0,
     size: searchParams.get('size') ? Number(searchParams.get('size')) : 25,
+    sort: searchParams.get('sort') || undefined,
+    direction: (searchParams.get('direction') as CustomerFilters['direction']) || undefined,
   }), [searchParams]);
 
   const setFilters = (updates: Partial<CustomerFilters>) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      Object.entries(updates).forEach(([k, v]) => {
-        if (v === undefined || v === '') next.delete(k);
-        else next.set(k, String(v));
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value === undefined || value === '') {
+          next.delete(key);
+        } else {
+          next.set(key, String(value));
+        }
       });
-      if (!('page' in updates)) next.set('page', '0');
+      if (!('page' in updates)) {
+        next.set('page', '0');
+      }
       return next;
     });
   };

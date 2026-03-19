@@ -12,6 +12,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -73,5 +75,61 @@ public interface CustomerRepository extends JpaRepository<Customer, Long>, JpaSp
     @Query("SELECT COUNT(c) FROM Customer c WHERE c.customerType = :type")
     long countByCustomerType(@Param("type") CustomerType type);
 
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.createdAt >= :from")
+    long countCreatedSince(@Param("from") Instant from);
+
     List<Customer> findByRelationshipManager(String relationshipManager);
+
+    // ========================================================================
+    // Frontend-facing count & KYC queries
+    // ========================================================================
+
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.createdAt >= :since")
+    long countByCreatedAtAfter(@Param("since") Instant since);
+
+    @Query("""
+            SELECT DISTINCT c FROM Customer c JOIN c.identifications i
+            WHERE i.expiryDate IS NOT NULL AND i.expiryDate < :today
+            """)
+    Page<Customer> findCustomersWithExpiredIdentifications(@Param("today") LocalDate today, Pageable pageable);
+
+    @Query("""
+            SELECT DISTINCT c FROM Customer c JOIN c.identifications i
+            WHERE i.isVerified = false
+            """)
+    Page<Customer> findCustomersWithUnverifiedIdentifications(Pageable pageable);
+
+    @Query("""
+            SELECT c FROM Customer c
+            WHERE c.status = 'ACTIVE'
+            AND NOT EXISTS (
+                SELECT i FROM CustomerIdentification i
+                WHERE i.customer = c AND i.isVerified = false
+            )
+            AND EXISTS (
+                SELECT i2 FROM CustomerIdentification i2
+                WHERE i2.customer = c
+            )
+            """)
+    Page<Customer> findCustomersWithAllVerifiedIdentifications(Pageable pageable);
+
+    @Query("""
+            SELECT COUNT(DISTINCT c) FROM Customer c
+            WHERE c.status = 'ACTIVE'
+            AND NOT EXISTS (
+                SELECT i FROM CustomerIdentification i
+                WHERE i.customer = c AND i.isVerified = false
+            )
+            AND EXISTS (
+                SELECT i2 FROM CustomerIdentification i2
+                WHERE i2.customer = c
+            )
+            """)
+    long countCustomersFullyVerified();
+
+    @Query("""
+            SELECT COUNT(DISTINCT c) FROM Customer c JOIN c.identifications i
+            WHERE i.expiryDate IS NOT NULL AND i.expiryDate < :today
+            """)
+    long countCustomersWithExpiredIds(@Param("today") LocalDate today);
 }

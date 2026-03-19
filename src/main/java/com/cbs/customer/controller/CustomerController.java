@@ -1,5 +1,9 @@
 package com.cbs.customer.controller;
 
+import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionJournal;
+import com.cbs.card.entity.Card;
+import com.cbs.card.service.CardService;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.customer.dto.*;
@@ -7,6 +11,8 @@ import com.cbs.customer.entity.CustomerStatus;
 import com.cbs.customer.entity.CustomerType;
 import com.cbs.customer.entity.RiskRating;
 import com.cbs.customer.service.CustomerService;
+import com.cbs.lending.entity.LoanAccount;
+import com.cbs.segmentation.entity.Segment;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -22,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/customers")
@@ -30,6 +37,7 @@ import java.util.List;
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final CardService cardService;
 
     // ========================================================================
     // CAPABILITY 1: 360° Customer View
@@ -275,5 +283,111 @@ public class CustomerController {
             @Valid @RequestBody RelationshipDto request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok(customerService.addRelationship(customerId, request)));
+    }
+
+    // ========================================================================
+    // FRONTEND-FACING ENDPOINTS: List, Counts, Cross-module, KYC, Segments, BVN
+    // ========================================================================
+
+    @GetMapping
+    @Operation(summary = "List/search customers with pagination")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<CustomerSummaryResponse>>> listCustomers(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String customerType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction) {
+
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100),
+                Sort.by(direction.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC, sort));
+
+        Page<CustomerSummaryResponse> result = customerService.listCustomers(search, status, customerType, pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/count")
+    @Operation(summary = "Get customer counts by status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getCustomerCounts() {
+        return ResponseEntity.ok(ApiResponse.ok(customerService.getCustomerCounts()));
+    }
+
+    @GetMapping("/{customerId}/accounts")
+    @Operation(summary = "Get customer accounts")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Account>>> getCustomerAccounts(@PathVariable Long customerId) {
+        return ResponseEntity.ok(ApiResponse.ok(customerService.getCustomerAccounts(customerId)));
+    }
+
+    @GetMapping("/{customerId}/loans")
+    @Operation(summary = "Get customer loans")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<LoanAccount>>> getCustomerLoans(@PathVariable Long customerId) {
+        return ResponseEntity.ok(ApiResponse.ok(customerService.getCustomerLoans(customerId)));
+    }
+
+    @GetMapping("/{customerId}/cards")
+    @Operation(summary = "Get customer cards")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Card>>> getCustomerCards(
+            @PathVariable Long customerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                cardService.getCustomerCards(customerId, PageRequest.of(page, Math.min(size, 100))).getContent()));
+    }
+
+    @GetMapping("/{customerId}/transactions")
+    @Operation(summary = "Get recent transactions for all customer accounts")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<TransactionJournal>>> getCustomerTransactions(
+            @PathVariable Long customerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<TransactionJournal> transactions = customerService.getCustomerTransactions(customerId, page, Math.min(size, 100));
+        return ResponseEntity.ok(ApiResponse.ok(transactions));
+    }
+
+    @GetMapping("/kyc")
+    @Operation(summary = "KYC customer list filtered by verification status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CustomerSummaryResponse>>> getKycCustomerList(
+            @RequestParam(required = false) String kycStatus,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction) {
+
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100),
+                Sort.by(direction.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC, sort));
+
+        Page<CustomerSummaryResponse> result = customerService.getKycCustomerList(kycStatus, pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/kyc/stats")
+    @Operation(summary = "KYC statistics by verification status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getKycStats() {
+        return ResponseEntity.ok(ApiResponse.ok(customerService.getKycStats()));
+    }
+
+    @GetMapping("/segments")
+    @Operation(summary = "Get distinct active customer segments")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Segment>>> getSegments() {
+        return ResponseEntity.ok(ApiResponse.ok(customerService.getDistinctSegments()));
+    }
+
+    @PostMapping("/verify-bvn")
+    @Operation(summary = "BVN verification (delegates to KYC verify with idType=BVN)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<KycVerificationResponse>> verifyBvn(
+            @Valid @RequestBody BvnVerificationRequest request) {
+        KycVerificationResponse response = customerService.verifyBvnIdentification(request);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }

@@ -19,17 +19,30 @@ function BvnVerificationStep({
   onBack: () => void;
 }) {
   const [bvn, setBvn] = useState(formData.bvn ?? '');
-  const [result, setResult] = useState<{ matched: boolean; score: number; firstName?: string; lastName?: string } | null>(null);
+  const [result, setResult] = useState<{ matched: boolean; status?: string; failureReason?: string | null; verificationProvider?: string | null } | null>(null);
   const [verifying, setVerifying] = useState(false);
 
   const handleVerify = async () => {
     if (bvn.length !== 11) return;
     setVerifying(true);
     try {
-      const res = await customerApi.verifyBvn(bvn);
-      setResult(res.data.data);
-    } catch {
-      setResult({ matched: false, score: 0 });
+      const data = await customerApi.verifyBvn(bvn, undefined, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        dateOfBirth: formData.dateOfBirth,
+      });
+      setResult({
+        matched: data.status === 'VERIFIED',
+        status: data.status,
+        failureReason: data.failureReason ?? null,
+        verificationProvider: data.verificationProvider ?? null,
+      });
+    } catch (error) {
+      setResult({
+        matched: false,
+        status: 'FAILED',
+        failureReason: error instanceof Error ? error.message : 'BVN verification failed',
+      });
     } finally {
       setVerifying(false);
     }
@@ -72,16 +85,12 @@ function BvnVerificationStep({
           {result.matched ? (
             <div>
               <div className="font-semibold mb-1 flex items-center gap-1.5">
-                <CheckCircle className="h-4 w-4" /> BVN Match Confirmed (Score: {result.score})
+                <CheckCircle className="h-4 w-4" /> BVN Verified Successfully
               </div>
-              {result.firstName && (
-                <div>
-                  Name: {result.firstName} {result.lastName}
-                </div>
-              )}
+              {result.verificationProvider && <div>Provider: {result.verificationProvider}</div>}
             </div>
           ) : (
-            <div>✗ BVN verification failed — details do not match</div>
+            <div>{result.failureReason || `BVN verification failed${result.status ? ` (${result.status})` : ''}`}</div>
           )}
         </div>
       )}
@@ -157,7 +166,7 @@ export default function OnboardingWizardPage() {
       case 1:
         return (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {(['INDIVIDUAL', 'CORPORATE', 'JOINT'] as const).map(type => (
+            {(['INDIVIDUAL', 'CORPORATE', 'SME'] as const).map(type => (
               <button
                 key={type}
                 type="button"
@@ -172,7 +181,7 @@ export default function OnboardingWizardPage() {
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   {type === 'INDIVIDUAL' ? 'Personal banking for individuals' :
                    type === 'CORPORATE' ? 'Business accounts for companies' :
-                   'Shared account for multiple holders'}
+                   'Small & medium enterprise accounts'}
                 </div>
               </button>
             ))}
@@ -203,7 +212,7 @@ export default function OnboardingWizardPage() {
                   name={f.name}
                   type={f.type}
                   required={f.required}
-                  defaultValue={(formData as any)[f.name] ?? (f.name === 'nationality' ? 'Nigerian' : '')}
+                  defaultValue={(formData as any)[f.name] ?? (f.name === 'nationality' ? 'NGA' : '')}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -450,7 +459,7 @@ export default function OnboardingWizardPage() {
                 items={[
                   { label: 'ID Type', value: formData.idType ?? '—' },
                   { label: 'ID Number', value: formData.idNumber ?? '—' },
-                  { label: 'BVN Verified', value: formData.bvnVerified ? '✓ Yes' : '✗ No' },
+                  { label: 'BVN Verified', value: formData.bvnVerified ? 'Yes' : 'No' },
                 ]}
                 onEdit={() => goToStep(4)}
               />
@@ -472,6 +481,7 @@ export default function OnboardingWizardPage() {
                 <button
                   type="button"
                   onClick={saveDraft}
+                  disabled
                   className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <Save className="h-4 w-4" /> Save Draft
@@ -486,6 +496,9 @@ export default function OnboardingWizardPage() {
                 </button>
               </div>
             </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Draft save is unavailable until the backend exposes a live draft endpoint.
+            </p>
           </div>
         );
 

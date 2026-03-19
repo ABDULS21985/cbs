@@ -64,7 +64,7 @@ export function CustomerTransactionsTab({ customerId, active }: { customerId: nu
   return (
     <DataTable
       columns={columns}
-      data={data?.items ?? []}
+      data={data ?? []}
       isLoading={isLoading}
       enableExport
       exportFilename={`customer-${customerId}-transactions`}

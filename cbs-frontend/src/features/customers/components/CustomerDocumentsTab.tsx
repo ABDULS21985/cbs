@@ -6,6 +6,7 @@ import { useCustomerDocuments } from '../hooks/useCustomers';
 const STATUS_ICONS = {
   VERIFIED: <CheckCircle className="h-4 w-4 text-green-500" />,
   PENDING: <Clock className="h-4 w-4 text-amber-500" />,
+  EXPIRED: <Clock className="h-4 w-4 text-red-500" />,
   REJECTED: <XCircle className="h-4 w-4 text-red-500" />,
 };
 
@@ -51,7 +52,7 @@ export function CustomerDocumentsTab({ customerId, active }: { customerId: numbe
                   <span className="text-sm font-medium truncate">{doc.documentName}</span>
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">{doc.documentType}</div>
-                <div className="text-xs text-gray-400 mt-1">Uploaded {formatDate(doc.uploadedAt)}</div>
+                <div className="text-xs text-gray-400 mt-1">Uploaded {doc.uploadedAt ? formatDate(doc.uploadedAt) : '—'}</div>
                 {doc.expiryDate && (
                   <div className="text-xs text-gray-400">Expires {formatDate(doc.expiryDate)}</div>
                 )}

@@ -7,9 +7,13 @@ import com.cbs.customer.repository.*;
 import com.cbs.customer.service.CustomerService;
 import com.cbs.customer.validation.CustomerValidator;
 import com.cbs.customer.entity.Customer;
+import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.lending.repository.LoanAccountRepository;
 import com.cbs.provider.kyc.InternalKycProvider;
 import com.cbs.provider.kyc.KycProvider;
 import com.cbs.provider.numbering.AccountNumberGenerator;
+import com.cbs.segmentation.repository.SegmentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,6 +40,10 @@ class BvnNinProviderTest {
     @Mock private KycProvider kycProvider;
     @Mock private AccountNumberGenerator numberGenerator;
     @Mock private CbsProperties cbsProperties;
+    @Mock private AccountRepository accountRepository;
+    @Mock private LoanAccountRepository loanAccountRepository;
+    @Mock private TransactionJournalRepository transactionJournalRepository;
+    @Mock private SegmentRepository segmentRepository;
 
     private CustomerService customerService;
 
@@ -53,7 +61,11 @@ class BvnNinProviderTest {
                 customerValidator,
                 kycProvider,
                 numberGenerator,
-                cbsProperties
+                cbsProperties,
+                accountRepository,
+                loanAccountRepository,
+                transactionJournalRepository,
+                segmentRepository
         );
 
     }

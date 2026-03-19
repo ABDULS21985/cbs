@@ -32,7 +32,7 @@ export function CustomerLoansTab({ customerId, active }: { customerId: number; a
       ),
     },
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} size="sm" dot /> },
-    { accessorKey: 'maturityDate', header: 'Maturity', cell: ({ row }) => <span className="text-xs">{formatDate(row.original.maturityDate)}</span> },
+    { accessorKey: 'maturityDate', header: 'Maturity', cell: ({ row }) => <span className="text-xs">{row.original.maturityDate ? formatDate(row.original.maturityDate) : '—'}</span> },
   ];
 
   return (
@@ -40,7 +40,7 @@ export function CustomerLoansTab({ customerId, active }: { customerId: number; a
       {canCreate && (
         <div className="flex justify-end">
           <button
-            onClick={() => navigate(`/loans/applications/new?customerId=${customerId}`)}
+            onClick={() => navigate(`/lending/applications/new?customerId=${customerId}`)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="h-4 w-4" /> New Loan Application
@@ -55,7 +55,7 @@ export function CustomerLoansTab({ customerId, active }: { customerId: number; a
           columns={columns}
           data={activeLoans}
           isLoading={isLoading}
-          onRowClick={row => navigate(`/loans/${row.id}`)}
+          onRowClick={row => navigate(`/lending/${row.id}`)}
           emptyMessage="No active loans"
         />
       </div>
