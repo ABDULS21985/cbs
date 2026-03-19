@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { MoneyInput } from '@/components/shared';
-import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/formatters';
 import type { GlAccount } from '../../api/glApi';
 

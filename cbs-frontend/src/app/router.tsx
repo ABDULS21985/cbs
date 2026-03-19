@@ -18,6 +18,9 @@ import { CashPoolPage } from '@/features/accounts/pages/CashPoolPage';
 import { FeeScheduleListPage } from '@/features/fees/pages/FeeScheduleListPage';
 import { FeeDefinitionDetailPage } from '@/features/fees/pages/FeeDefinitionDetailPage';
 import { NewFeeDefinitionPage } from '@/features/fees/pages/NewFeeDefinitionPage';
+import { ProductFactoryPage } from '@/features/admin/pages/ProductFactoryPage';
+import { ProductCreatePage } from '@/features/admin/pages/ProductCreatePage';
+import { ProductDetailPage } from '@/features/admin/pages/ProductDetailPage';
 import { StatementGeneratorPage } from '@/features/statements/pages/StatementGeneratorPage';
 import { NotificationCenterPage } from '@/features/notifications/pages/NotificationCenterPage';
 import { TransactionSearchPage } from '@/features/transactions/pages/TransactionSearchPage';
@@ -56,6 +59,11 @@ import { BillPaymentPage } from '@/features/payments/pages/BillPaymentPage';
 import { InternationalTransferPage } from '@/features/payments/pages/InternationalTransferPage';
 import { MarketLiquidityRiskPage } from '@/features/risk/pages/MarketLiquidityRiskPage';
 import { OperationalRiskPage } from '@/features/risk/pages/OperationalRiskPage';
+import { RiskDashboardPage } from '@/features/risk/pages/RiskDashboardPage';
+import { AmlMonitoringPage } from '@/features/risk/pages/AmlMonitoringPage';
+import { SanctionsScreeningPage } from '@/features/risk/pages/SanctionsScreeningPage';
+import { FraudManagementPage } from '@/features/risk/pages/FraudManagementPage';
+import { CreditRiskPage } from '@/features/risk/pages/CreditRiskPage';
 import { RegulatoryReturnsPage } from '@/features/compliance/pages/RegulatoryReturnsPage';
 import { ReturnDetailPage } from '@/features/compliance/pages/ReturnDetailPage';
 import { ComplianceDashboardPage } from '@/features/compliance/pages/ComplianceDashboardPage';
@@ -214,11 +222,11 @@ export function AppRouter() {
 
         {/* Risk */}
         <Route path="/risk" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Risk Overview" />} />
-          <Route path="aml" element={<PlaceholderPage title="AML Alerts" />} />
-          <Route path="fraud" element={<PlaceholderPage title="Fraud Alerts" />} />
-          <Route path="sanctions" element={<PlaceholderPage title="Sanctions Screening" />} />
-          <Route path="credit" element={<PlaceholderPage title="Credit Risk" />} />
+          <Route index element={<RiskDashboardPage />} />
+          <Route path="aml" element={<AmlMonitoringPage />} />
+          <Route path="fraud" element={<FraudManagementPage />} />
+          <Route path="sanctions" element={<SanctionsScreeningPage />} />
+          <Route path="credit" element={<CreditRiskPage />} />
           <Route path="market-liquidity" element={<MarketLiquidityRiskPage />} />
           <Route path="operational" element={<OperationalRiskPage />} />
         </Route>
@@ -258,7 +266,9 @@ export function AppRouter() {
           <Route index element={<PlaceholderPage title="Administration" />} />
           <Route path="users" element={<PlaceholderPage title="Users & Roles" />} />
           <Route path="parameters" element={<PlaceholderPage title="System Parameters" />} />
-          <Route path="products" element={<PlaceholderPage title="Product Catalog" />} />
+          <Route path="products" element={<ProductFactoryPage />} />
+          <Route path="products/new" element={<ProductCreatePage />} />
+          <Route path="products/:id" element={<ProductDetailPage />} />
           <Route path="fees" element={<FeeScheduleListPage />} />
           <Route path="fees/new" element={<NewFeeDefinitionPage />} />
           <Route path="fees/:id" element={<FeeDefinitionDetailPage />} />
