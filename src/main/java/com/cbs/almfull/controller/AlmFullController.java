@@ -6,6 +6,7 @@ import org.springframework.http.*; import org.springframework.security.access.pr
 @Tag(name = "ALM (Full)", description = "Asset-liability gap analysis by time bucket, duration gap, NII/EVE sensitivity")
 public class AlmFullController {
     private final AlmFullService service;
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<AlmPosition>>> listAll() { return ResponseEntity.ok(ApiResponse.ok(service.getAllPositions())); }
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<AlmPosition>> calc(@RequestBody AlmPosition pos) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.calculatePosition(pos))); }
     @GetMapping("/{date}/{currency}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<AlmPosition>>> get(@PathVariable LocalDate date, @PathVariable String currency) { return ResponseEntity.ok(ApiResponse.ok(service.getPositions(date, currency))); }
 }

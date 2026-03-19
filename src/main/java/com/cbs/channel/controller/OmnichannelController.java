@@ -18,6 +18,13 @@ public class OmnichannelController {
 
     private final OmnichannelService omnichannelService;
 
+    @GetMapping("/sessions")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ChannelSession>>> listSessions(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(omnichannelService.getAllActiveSessions()));
+    }
+
     @PostMapping("/sessions")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<ChannelSession>> createSession(
@@ -49,6 +56,12 @@ public class OmnichannelController {
     public ResponseEntity<ApiResponse<Void>> end(@PathVariable String sessionId) {
         omnichannelService.endSession(sessionId);
         return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    @GetMapping("/sessions/cleanup")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> getCleanupInfo() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("expired", 0)));
     }
 
     @PostMapping("/sessions/cleanup")

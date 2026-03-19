@@ -18,6 +18,12 @@ public class CustodyController {
 
     private final CustodyService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CustodyAccount>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllAccounts()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<CustodyAccount>> open(@RequestBody CustodyAccount account) {

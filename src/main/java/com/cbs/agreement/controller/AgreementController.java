@@ -15,6 +15,11 @@ import java.util.List;
 public class AgreementController {
     private final AgreementService agreementService;
 
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CustomerAgreement>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(agreementService.getAll()));
+    }
+
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CustomerAgreement>> create(@RequestBody CustomerAgreement agreement) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(agreementService.create(agreement)));

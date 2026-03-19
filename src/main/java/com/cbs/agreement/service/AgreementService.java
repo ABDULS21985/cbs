@@ -29,4 +29,5 @@ public class AgreementService {
         return agreementRepository.save(a);
     }
     public List<CustomerAgreement> getByCustomer(Long customerId) { return agreementRepository.findByCustomerIdOrderByCreatedAtDesc(customerId); }
+    public List<CustomerAgreement> getAll() { return agreementRepository.findAll(); }
 }

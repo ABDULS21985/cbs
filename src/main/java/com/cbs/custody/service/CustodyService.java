@@ -41,4 +41,8 @@ public class CustodyService {
     public List<CustodyAccount> getAll() {
         return custodyRepository.findAll();
     }
+
+    public List<CustodyAccount> getAllAccounts() {
+        return custodyAccountRepository.findAll();
+    }
 }

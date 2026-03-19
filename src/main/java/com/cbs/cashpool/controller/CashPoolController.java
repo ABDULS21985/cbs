@@ -17,6 +17,11 @@ import java.util.List;
 public class CashPoolController {
     private final CashPoolService cashPoolService;
 
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CashPoolStructure>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(cashPoolService.getAllPools()));
+    }
+
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CashPoolStructure>> create(@RequestBody CashPoolStructure pool) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(cashPoolService.createPool(pool)));

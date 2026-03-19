@@ -21,6 +21,11 @@ public class CorporateFinanceController {
 
     private final CorporateFinanceService service;
 
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CorporateFinanceEngagement>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllEngagements()));
+    }
+
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CorporateFinanceEngagement>> create(@RequestBody CorporateFinanceEngagement engagement) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createEngagement(engagement)));
@@ -70,8 +75,10 @@ public class CorporateFinanceController {
 
     @GetMapping("/revenue") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<BigDecimal>> revenue(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        if (from == null) from = LocalDate.now().minusYears(1);
+        if (to == null) to = LocalDate.now();
         return ResponseEntity.ok(ApiResponse.ok(service.getFeeRevenue(from, to)));
     }
 

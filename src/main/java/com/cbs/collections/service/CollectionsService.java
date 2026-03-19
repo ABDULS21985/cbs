@@ -232,4 +232,8 @@ public class CollectionsService {
                 .nextActionDate(a.getNextActionDate()).nextActionType(a.getNextActionType())
                 .performedBy(a.getPerformedBy()).actionDate(a.getActionDate()).build();
     }
+
+    public Page<CollectionCaseResponse> getAllCases(Pageable pageable) {
+        return collectionCaseRepository.findAll(pageable).map(this::toResponse);
+    }
 }

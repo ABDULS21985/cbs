@@ -74,4 +74,8 @@ public class DocumentService {
         log.info("Document rejected: ref={}, reason={}", doc.getDocumentRef(), reason);
         return documentRepository.save(doc);
     }
+
+    public Page<Document> getAllDocuments(org.springframework.data.domain.Pageable pageable) {
+        return documentRepository.findAll(pageable);
+    }
 }

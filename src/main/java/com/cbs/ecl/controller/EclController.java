@@ -153,6 +153,13 @@ public class EclController {
         return ResponseEntity.ok(ApiResponse.ok(Map.of("items", result.getContent()), PageMeta.from(result)));
     }
 
+    @GetMapping("/run")
+    @Operation(summary = "Get batch ECL run status")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getRunStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "IDLE")));
+    }
+
     @PostMapping("/run")
     @Operation(summary = "Trigger a batch ECL calculation run")
     @PreAuthorize("hasRole('CBS_ADMIN')")

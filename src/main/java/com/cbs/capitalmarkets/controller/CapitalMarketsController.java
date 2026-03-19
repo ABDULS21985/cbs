@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*; import java.math.BigDecimal; i
 @Tag(name = "Capital Markets", description = "ECM/DCM deal tracking, investor management, allotment")
 public class CapitalMarketsController {
     private final CapitalMarketsService service;
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<CapitalMarketDeal>>> listAll() { return ResponseEntity.ok(ApiResponse.ok(service.getAllDeals())); }
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<CapitalMarketDeal>> create(@RequestBody CapitalMarketDeal deal) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createDeal(deal))); }
     @GetMapping("/{code}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<CapitalMarketDeal>> getByCode(@PathVariable String code) { return ResponseEntity.ok(ApiResponse.ok(service.getByCode(code))); }
     @GetMapping("/pipeline") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<CapitalMarketDeal>>> getPipeline() { return ResponseEntity.ok(ApiResponse.ok(service.getDealPipeline())); }

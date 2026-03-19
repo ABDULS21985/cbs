@@ -11,7 +11,11 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +24,12 @@ import java.util.Map;
 public class AcquiringController {
 
     private final AcquiringService service;
+
+    @GetMapping("/facilities")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AcquiringFacility>>> listFacilities() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllFacilities()));
+    }
 
     @PostMapping("/facilities")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -39,6 +49,12 @@ public class AcquiringController {
         return ResponseEntity.ok(ApiResponse.ok(service.getFacilitiesByMerchant(merchantId)));
     }
 
+    @GetMapping("/settlements/process")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MerchantSettlement>>> listSettlements() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllSettlements()));
+    }
+
     @PostMapping("/settlements/process")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<MerchantSettlement>> processSettlement(
@@ -51,6 +67,12 @@ public class AcquiringController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<MerchantSettlement>>> getSettlementHistory(@PathVariable Long merchantId) {
         return ResponseEntity.ok(ApiResponse.ok(service.getSettlementHistory(merchantId)));
+    }
+
+    @GetMapping("/chargebacks")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<MerchantChargeback>>> listChargebacks() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllChargebacks()));
     }
 
     @PostMapping("/chargebacks")

@@ -112,6 +112,10 @@ public class CashPoolService {
         return poolRepository.findByCustomerIdAndIsActiveTrueOrderByPoolNameAsc(customerId);
     }
 
+    public List<CashPoolStructure> getAllPools() {
+        return poolRepository.findByIsActiveTrueOrderByPoolNameAsc();
+    }
+
     private CashPoolStructure getPool(String code) {
         return poolRepository.findByPoolCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("CashPoolStructure", "poolCode", code));

@@ -22,6 +22,13 @@ public class AlmController {
 
     private final AlmService almService;
 
+    @GetMapping("/gap-report")
+    @Operation(summary = "List all ALM gap reports")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AlmGapReport>>> listGapReports() {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getAllGapReports()));
+    }
+
     @PostMapping("/gap-report")
     @Operation(summary = "Generate ALM gap report with NII/EVE simulation")
     @PreAuthorize("hasRole('CBS_ADMIN')")

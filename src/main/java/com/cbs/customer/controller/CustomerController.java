@@ -104,10 +104,13 @@ public class CustomerController {
     @Operation(summary = "Quick search by name, CIF, email, or phone")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<List<CustomerSummaryResponse>>> quickSearch(
-            @RequestParam String q,
+            @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
+        if (q == null || q.isBlank()) {
+            return ResponseEntity.ok(ApiResponse.ok(java.util.Collections.emptyList()));
+        }
         Page<CustomerSummaryResponse> result = customerService.quickSearch(q,
                 PageRequest.of(page, Math.min(size, 100), Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));

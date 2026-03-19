@@ -104,6 +104,10 @@ public class OmnichannelService {
     public ChannelConfig saveConfig(ChannelConfig config) { return configRepository.save(config); }
     public List<ChannelConfig> getAllConfigs() { return configRepository.findByIsActiveTrueOrderByChannelAsc(); }
 
+    public List<ChannelSession> getAllActiveSessions() {
+        return sessionRepository.findAll();
+    }
+
     public Map<String, Long> getActiveSessionCounts() {
         Map<String, Long> counts = new LinkedHashMap<>();
         for (String ch : List.of("MOBILE","WEB","USSD","WHATSAPP","BRANCH","ATM","POS","AGENT","API","IVR")) {

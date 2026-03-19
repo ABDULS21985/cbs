@@ -123,4 +123,16 @@ public class AcquiringService {
     public List<AcquiringFacility> getFacilitiesByMerchant(Long merchantId) {
         return facilityRepository.findByMerchantId(merchantId);
     }
+
+    public List<AcquiringFacility> getAllFacilities() {
+        return facilityRepository.findAll();
+    }
+
+    public List<MerchantChargeback> getAllChargebacks() {
+        return chargebackRepository.findAll();
+    }
+
+    public List<MerchantSettlement> getAllSettlements() {
+        return settlementRepository.findAll();
+    }
 }

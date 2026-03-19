@@ -96,6 +96,10 @@ public class AlmService {
         return gapReportRepository.findByReportDateOrderByCurrencyCodeAsc(date);
     }
 
+    public List<AlmGapReport> getAllGapReports() {
+        return gapReportRepository.findAll();
+    }
+
     // Scenario management
     @Transactional
     public AlmScenario createScenario(AlmScenario scenario) { return scenarioRepository.save(scenario); }

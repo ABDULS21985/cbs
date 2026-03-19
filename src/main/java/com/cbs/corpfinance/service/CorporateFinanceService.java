@@ -106,4 +106,8 @@ public class CorporateFinanceService {
         return repository.findByEngagementCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("CorporateFinanceEngagement", "engagementCode", code));
     }
+
+    public List<CorporateFinanceEngagement> getAllEngagements() {
+        return engagementRepository.findAll();
+    }
 }

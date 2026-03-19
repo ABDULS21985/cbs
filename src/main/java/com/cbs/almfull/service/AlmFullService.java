@@ -23,4 +23,5 @@ public class AlmFullService {
         return saved;
     }
     public List<AlmPosition> getPositions(LocalDate date, String currency) { return positionRepository.findByPositionDateAndCurrencyOrderByTimeBucketAsc(date, currency); }
+    public List<AlmPosition> getAllPositions() { return positionRepository.findAll(); }
 }

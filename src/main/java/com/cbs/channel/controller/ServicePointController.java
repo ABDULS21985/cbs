@@ -22,6 +22,12 @@ public class ServicePointController {
 
     private final ServicePointService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ServicePoint>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllServicePoints()));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<ServicePoint>> register(@RequestBody ServicePoint servicePoint) {
@@ -48,13 +54,13 @@ public class ServicePointController {
 
     @GetMapping("/metrics")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getServicePointMetrics(@RequestParam Long servicePointId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getServicePointMetrics(@RequestParam(required = false) Long servicePointId) {
         return ResponseEntity.ok(ApiResponse.ok(service.getServicePointMetrics(servicePointId)));
     }
 
     @GetMapping("/available")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<ServicePoint>>> getAvailableServicePoints(@RequestParam String type) {
+    public ResponseEntity<ApiResponse<List<ServicePoint>>> getAvailableServicePoints(@RequestParam(required = false) String type) {
         return ResponseEntity.ok(ApiResponse.ok(service.getAvailableServicePoints(type)));
     }
 }

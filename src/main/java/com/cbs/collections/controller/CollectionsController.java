@@ -55,8 +55,13 @@ public class CollectionsController {
     @Operation(summary = "Get cases by status")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CollectionCaseResponse>>> getCasesByStatus(
-            @RequestParam CollectionCaseStatus status,
+            @RequestParam(required = false) CollectionCaseStatus status,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        if (status == null) {
+            Page<CollectionCaseResponse> result = collectionsService.getAllCases(
+                    PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+            return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+        }
         Page<CollectionCaseResponse> result = collectionsService.getCasesByStatus(status,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));

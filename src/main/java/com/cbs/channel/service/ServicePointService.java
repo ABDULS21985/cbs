@@ -62,6 +62,10 @@ public class ServicePointService {
     }
 
     public Map<String, Object> getServicePointMetrics(Long servicePointId) {
+        if (servicePointId == null) {
+            return Map.of("servicePointCode", "", "avgDurationSeconds", 0.0, "avgSatisfaction", 0.0,
+                    "utilizationPct", 0.0, "activeInteractions", 0L, "totalInteractions", 0);
+        }
         ServicePoint sp = servicePointRepository.findById(servicePointId)
                 .orElseThrow(() -> new ResourceNotFoundException("ServicePoint", "id", servicePointId));
         List<ServicePointInteraction> interactions = interactionRepository.findByServicePointIdOrderByStartedAtDesc(servicePointId);
@@ -93,7 +97,14 @@ public class ServicePointService {
         );
     }
 
+    public List<ServicePoint> getAllServicePoints() {
+        return servicePointRepository.findAll();
+    }
+
     public List<ServicePoint> getAvailableServicePoints(String type) {
+        if (type == null) {
+            return servicePointRepository.findByStatusOrderByServicePointNameAsc("ONLINE");
+        }
         return servicePointRepository.findByServicePointTypeAndStatusOrderByServicePointNameAsc(type, "ONLINE");
     }
 }

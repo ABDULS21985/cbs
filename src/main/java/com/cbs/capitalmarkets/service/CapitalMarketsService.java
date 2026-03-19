@@ -72,6 +72,8 @@ public class CapitalMarketsService {
 
     public CapitalMarketDeal getByCode(String dealCode) { return dealRepository.findByDealCode(dealCode).orElseThrow(() -> new ResourceNotFoundException("CapitalMarketDeal", "dealCode", dealCode)); }
 
+    public List<CapitalMarketDeal> getAllDeals() { return dealRepository.findAll(); }
+
     private void recalculateSubscription(CapitalMarketDeal deal) {
         List<DealInvestor> investors = investorRepository.findByDealIdOrderByBidAmountDesc(deal.getId());
         BigDecimal totalBids = investors.stream().map(DealInvestor::getBidAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
