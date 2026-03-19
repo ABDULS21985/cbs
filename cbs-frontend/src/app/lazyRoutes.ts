@@ -472,3 +472,95 @@ export const TreasuryHomePage = lazyNamed(
   () => import('@/features/treasury/pages/TreasuryHomePage'),
   'TreasuryHomePage',
 );
+
+export const TreasuryDashboardPage = lazyNamed(
+  () => import('@/features/treasury/pages/TreasuryDashboardPage'),
+  'TreasuryDashboardPage',
+);
+export const TreasuryDealsPage = lazyNamed(
+  () => import('@/features/treasury/pages/TreasuryDealsPage'),
+  'TreasuryDealsPage',
+);
+export const TradingDeskPage = lazyNamed(
+  () => import('@/features/treasury/pages/TradingDeskPage'),
+  'TradingDeskPage',
+);
+export const MarketMakingPage = lazyNamed(
+  () => import('@/features/treasury/pages/MarketMakingPage'),
+  'MarketMakingPage',
+);
+
+export const CapitalMarketsDashboardPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/CapitalMarketsDashboardPage'),
+  'CapitalMarketsDashboardPage',
+);
+export const CapitalMarketsDealDetailPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/DealDetailPage'),
+  'DealDetailPage',
+);
+
+export const InvestmentPortfolioPage = lazyNamed(
+  () => import('@/features/investments/pages/InvestmentPortfolioPage'),
+  'InvestmentPortfolioPage',
+);
+export const FundManagementPage = lazyNamed(
+  () => import('@/features/investments/pages/FundManagementPage'),
+  'FundManagementPage',
+);
+
+export const AdvisoryDashboardPage = lazyNamed(
+  () => import('@/features/advisory/pages/AdvisoryDashboardPage'),
+  'AdvisoryDashboardPage',
+);
+export const CorporateFinancePage = lazyNamed(
+  () => import('@/features/advisory/pages/CorporateFinancePage'),
+  'CorporateFinancePage',
+);
+export const ProjectFinancePage = lazyNamed(
+  () => import('@/features/advisory/pages/ProjectFinancePage'),
+  'ProjectFinancePage',
+);
+export const SuitabilityPage = lazyNamed(
+  () => import('@/features/advisory/pages/SuitabilityPage'),
+  'SuitabilityPage',
+);
+
+export const IntelligencePage = lazyNamed(
+  () => import('@/features/intelligence/pages/IntelligencePage'),
+  'IntelligencePage',
+);
+
+export const AlmDashboardPage = lazyNamed(
+  () => import('@/features/alm/pages/AlmDashboardPage'),
+  'AlmDashboardPage',
+);
+
+export const CustodySettlementPage = lazyNamed(
+  () => import('@/features/custody/pages/CustodySettlementPage'),
+  'CustodySettlementPage',
+);
+
+export const ChannelManagementPage = lazyNamed(
+  () => import('@/features/channels/pages/ChannelManagementPage'),
+  'ChannelManagementPage',
+);
+
+export const OpenBankingPage = lazyNamed(
+  () => import('@/features/openbanking/pages/OpenBankingPage'),
+  'OpenBankingPage',
+);
+
+export const MerchantAcquiringPage = lazyNamed(
+  () => import('@/features/acquiring/pages/MerchantAcquiringPage'),
+  'MerchantAcquiringPage',
+);
+
+export const MarketDataManagementPage = lazyNamed(
+  () => import('@/features/marketdata/pages/MarketDataManagementPage'),
+  'MarketDataManagementPage',
+);
+
+export const TradeFinanceHubPage = lazyNamed(
+  () => import('@/features/tradefinance/pages/TradeFinanceHubPage'),
+  'TradeFinanceHubPage',
+);

@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController @RequestMapping("/v1/ecl") @RequiredArgsConstructor
 @Tag(name = "IFRS 9 ECL", description = "Expected Credit Loss staging, calculation, scenario weighting")
@@ -78,5 +79,85 @@ public class EclController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<EclService.EclSummary>> getSummaryToday() {
         return ResponseEntity.ok(ApiResponse.ok(eclService.getEclSummary(LocalDate.now())));
+    }
+
+    // ========================================================================
+    // ECL DASHBOARD ENDPOINTS (aggregated views for the frontend)
+    // ========================================================================
+
+    @GetMapping("/stage-distribution")
+    @Operation(summary = "ECL stage distribution (count and amount per stage)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getStageDistribution() {
+        return ResponseEntity.ok(ApiResponse.ok(eclService.getStageDistribution()));
+    }
+
+    @GetMapping("/stage-migration")
+    @Operation(summary = "Stage migration matrix (from→to movements)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getStageMigration() {
+        return ResponseEntity.ok(ApiResponse.ok(eclService.getStageMigration()));
+    }
+
+    @GetMapping("/provision-movement")
+    @Operation(summary = "Provision movement breakdown by stage")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getProvisionMovement() {
+        return ResponseEntity.ok(ApiResponse.ok(eclService.getProvisionMovement()));
+    }
+
+    @GetMapping("/pd-term-structure")
+    @Operation(summary = "PD term structure by rating grade")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getPdTermStructure() {
+        return ResponseEntity.ok(ApiResponse.ok(eclService.getPdTermStructure()));
+    }
+
+    @GetMapping("/lgd-by-collateral")
+    @Operation(summary = "LGD rates by collateral type")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getLgdByCollateral() {
+        return ResponseEntity.ok(ApiResponse.ok(eclService.getLgdByCollateral()));
+    }
+
+    @GetMapping("/ead-by-product")
+    @Operation(summary = "EAD breakdown by product")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getEadByProduct() {
+        return ResponseEntity.ok(ApiResponse.ok(eclService.getEadByProduct()));
+    }
+
+    @GetMapping("/macro-scenarios")
+    @Operation(summary = "Macro-economic scenario weights and ECL impact")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMacroScenarios() {
+        return ResponseEntity.ok(ApiResponse.ok(eclService.getMacroScenarios()));
+    }
+
+    @GetMapping("/gl-reconciliation")
+    @Operation(summary = "GL reconciliation between CBS ECL and provision balance")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getGlReconciliation() {
+        return ResponseEntity.ok(ApiResponse.ok(eclService.getGlReconciliation()));
+    }
+
+    @GetMapping("/loans")
+    @Operation(summary = "Loans by ECL stage")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getLoansByStage(
+            @RequestParam(defaultValue = "1") int stage,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "eclWeighted"));
+        Page<EclCalculation> result = eclService.getLoansByStage(stage, pageable);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("items", result.getContent()), PageMeta.from(result)));
+    }
+
+    @PostMapping("/run")
+    @Operation(summary = "Trigger a batch ECL calculation run")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> runCalculation() {
+        String jobId = eclService.triggerBatchRun();
+        return ResponseEntity.accepted().body(ApiResponse.ok(Map.of("jobId", jobId)));
     }
 }

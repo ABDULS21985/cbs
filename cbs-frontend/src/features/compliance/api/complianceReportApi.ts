@@ -58,17 +58,17 @@ export interface SubmitToRegulatorPayload {
 
 export const complianceReportApi = {
   getByRegulator: (regulator: Regulator, params?: { page?: number; size?: number }) =>
-    apiGet<ComplianceReportPage>(`/v1/compliance-reports/regulator/${regulator}`, params as Record<string, unknown>),
+    apiGet<ComplianceReportPage>(`/api/v1/compliance-reports/regulator/${regulator}`, params as Record<string, unknown>),
 
   getOverdue: () =>
-    apiGet<ComplianceReport[]>('/v1/compliance-reports/overdue').catch(() => [] as ComplianceReport[]),
+    apiGet<ComplianceReport[]>('/api/v1/compliance-reports/overdue').catch(() => [] as ComplianceReport[]),
 
   create: (payload: CreateReportPayload) =>
-    apiPost<ComplianceReport>('/v1/compliance-reports', payload),
+    apiPost<ComplianceReport>('/api/v1/compliance-reports', payload),
 
   submitForReview: (code: string, payload: SubmitForReviewPayload) =>
-    apiPost<ComplianceReport>(`/v1/compliance-reports/${code}/review`, payload),
+    apiPost<ComplianceReport>(`/api/v1/compliance-reports/${code}/review`, payload),
 
   submitToRegulator: (code: string, payload: SubmitToRegulatorPayload) =>
-    apiPost<ComplianceReport>(`/v1/compliance-reports/${code}/submit`, payload),
+    apiPost<ComplianceReport>(`/api/v1/compliance-reports/${code}/submit`, payload),
 };

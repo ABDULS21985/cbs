@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatCard, StatusBadge, DataTable, EmptyState, TabsPage } from '@/components/shared';
+import { StatCard, StatusBadge, DataTable, TabsPage } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
 import {
   TrendingUp,

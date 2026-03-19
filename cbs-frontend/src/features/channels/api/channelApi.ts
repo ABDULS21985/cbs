@@ -72,34 +72,34 @@ export type InteractionOutcome = 'SUCCESS' | 'FAILURE' | 'ESCALATED';
 export const channelApi = {
   // Session counts
   getActiveSessionCounts: () =>
-    apiGet<ChannelSessionCounts>('/v1/channels/sessions/active-counts'),
+    apiGet<ChannelSessionCounts>('/api/v1/channels/sessions/active-counts'),
 
   // Channel config
   getChannelConfigs: () =>
-    apiGet<ChannelConfig[]>('/v1/channels/config'),
+    apiGet<ChannelConfig[]>('/api/v1/channels/config'),
 
   saveChannelConfig: (config: Omit<ChannelConfig, 'id'> & { id?: number }) =>
-    apiPost<ChannelConfig>('/v1/channels/config', config),
+    apiPost<ChannelConfig>('/api/v1/channels/config', config),
 
   // Sessions
   createSession: (payload: { customerId: number; channel: ChannelType; deviceId?: string }) =>
-    apiPost<ChannelSession>('/v1/channels/sessions', payload),
+    apiPost<ChannelSession>('/api/v1/channels/sessions', payload),
 
   endSession: (sessionId: string) =>
-    apiPost<void>(`/v1/channels/sessions/${sessionId}/end`),
+    apiPost<void>(`/api/v1/channels/sessions/${sessionId}/end`),
 
   cleanupExpiredSessions: () =>
-    apiPost<{ cleaned: number }>('/v1/channels/sessions/cleanup'),
+    apiPost<{ cleaned: number }>('/api/v1/channels/sessions/cleanup'),
 
   // Service points
   getServicePointStatus: () =>
-    apiGet<ServicePoint[]>('/v1/service-points/status'),
+    apiGet<ServicePoint[]>('/api/v1/service-points/status'),
 
   getServicePointMetrics: () =>
-    apiGet<ServicePointMetrics[]>('/v1/service-points/metrics'),
+    apiGet<ServicePointMetrics[]>('/api/v1/service-points/metrics'),
 
   getAvailableServicePoints: (type?: ServicePointType) =>
-    apiGet<ServicePoint[]>('/v1/service-points/available', type ? { type } : undefined),
+    apiGet<ServicePoint[]>('/api/v1/service-points/available', type ? { type } : undefined),
 
   registerServicePoint: (payload: {
     name: string;
@@ -108,13 +108,13 @@ export const channelApi = {
     lat: number;
     lng: number;
     maxCapacity: number;
-  }) => apiPost<ServicePoint>('/v1/service-points', payload),
+  }) => apiPost<ServicePoint>('/api/v1/service-points', payload),
 
   startInteraction: (servicePointId: number) =>
-    apiPost<{ interactionId: string }>(`/v1/service-points/${servicePointId}/interaction/start`),
+    apiPost<{ interactionId: string }>(`/api/v1/service-points/${servicePointId}/interaction/start`),
 
   endInteraction: (
     servicePointId: number,
     payload: { outcome: InteractionOutcome; satisfaction?: number },
-  ) => apiPost<void>(`/v1/service-points/${servicePointId}/interaction/end`, payload),
+  ) => apiPost<void>(`/api/v1/service-points/${servicePointId}/interaction/end`, payload),
 };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, EmptyState, ConfirmDialog } from '@/components/shared';
-import { Plus, CheckCircle, Loader2, FileText } from 'lucide-react';
+import { Plus, Loader2, FileText } from 'lucide-react';
 import { formatMoney, formatPercent, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {

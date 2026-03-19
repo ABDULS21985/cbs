@@ -70,39 +70,39 @@ export interface DurationMetrics {
 export const almApi = {
   // Gap Reports
   getGapReport: (date: string) =>
-    apiGet<AlmGapReport>(`/v1/alm/gap-report/${date}`),
+    apiGet<AlmGapReport>(`/api/v1/alm/gap-report/${date}`),
 
   generateGapReport: (payload: {
     asOfDate: string;
     currency: string;
     shockScenario: ShockScenario;
-  }) => apiPost<AlmGapReport>('/v1/alm/gap-report', payload),
+  }) => apiPost<AlmGapReport>('/api/v1/alm/gap-report', payload),
 
   approveGapReport: (id: number) =>
-    apiPost<AlmGapReport>(`/v1/alm/gap-report/${id}/approve`),
+    apiPost<AlmGapReport>(`/api/v1/alm/gap-report/${id}/approve`),
 
   // Duration
   getPortfolioDuration: (portfolioCode: string) =>
-    apiGet<DurationMetrics>(`/v1/alm/duration/${portfolioCode}`),
+    apiGet<DurationMetrics>(`/api/v1/alm/duration/${portfolioCode}`),
 
   // Scenarios
   getScenarios: () =>
-    apiGet<AlmScenario[]>('/v1/alm/scenarios'),
+    apiGet<AlmScenario[]>('/api/v1/alm/scenarios'),
 
   getRegulatoryScenarios: () =>
-    apiGet<AlmScenario[]>('/v1/alm/scenarios/regulatory'),
+    apiGet<AlmScenario[]>('/api/v1/alm/scenarios/regulatory'),
 
   createScenario: (payload: {
     name: string;
     type: string;
     shockBps: number;
     description: string;
-  }) => apiPost<AlmScenario>('/v1/alm/scenarios', payload),
+  }) => apiPost<AlmScenario>('/api/v1/alm/scenarios', payload),
 
   // Full ALM Positions
   getAlmPositions: (date: string, currency: string) =>
-    apiGet<AlmPosition>(`/v1/alm-full/${date}/${currency}`),
+    apiGet<AlmPosition>(`/api/v1/alm-full/${date}/${currency}`),
 
   calculateAlmPosition: (payload: { asOfDate: string; currency: string }) =>
-    apiPost<AlmPosition>('/v1/alm-full', payload),
+    apiPost<AlmPosition>('/api/v1/alm-full', payload),
 };

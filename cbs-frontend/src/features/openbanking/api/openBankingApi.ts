@@ -37,29 +37,29 @@ export interface ApiConsent {
 export const openBankingApi = {
   // TPP Clients
   getTppClients: () =>
-    apiGet<TppClient[]>('/v1/openbanking/clients'),
+    apiGet<TppClient[]>('/api/v1/openbanking/clients'),
 
   registerTppClient: (payload: {
     name: string;
     redirectUri: string;
     scopes: string[];
     clientType: TppClientType;
-  }) => apiPost<TppClient>('/v1/openbanking/clients', payload),
+  }) => apiPost<TppClient>('/api/v1/openbanking/clients', payload),
 
   // Consents
   getCustomerConsents: (customerId: string | number) =>
-    apiGet<ApiConsent[]>(`/v1/openbanking/consents/customer/${customerId}`),
+    apiGet<ApiConsent[]>(`/api/v1/openbanking/consents/customer/${customerId}`),
 
   createConsent: (payload: {
     tppClientId: number;
     customerId: number;
     scopes: string[];
     expiresAt: string;
-  }) => apiPost<ApiConsent>('/v1/openbanking/consents', payload),
+  }) => apiPost<ApiConsent>('/api/v1/openbanking/consents', payload),
 
   authoriseConsent: (consentId: string | number, customerId: number) =>
-    apiPost<ApiConsent>(`/v1/openbanking/consents/${consentId}/authorise`, { customerId }),
+    apiPost<ApiConsent>(`/api/v1/openbanking/consents/${consentId}/authorise`, { customerId }),
 
   revokeConsent: (consentId: string | number, reason?: string) =>
-    apiPost<void>(`/v1/openbanking/consents/${consentId}/revoke`, reason ? { reason } : undefined),
+    apiPost<void>(`/api/v1/openbanking/consents/${consentId}/revoke`, reason ? { reason } : undefined),
 };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, DataTable, EmptyState, TabsPage } from '@/components/shared';
-import { formatMoney, formatPercent } from '@/lib/formatters';
+import { formatMoney } from '@/lib/formatters';
 import {
   BarChart3,
   TrendingUp,
@@ -23,7 +23,6 @@ import {
 } from '../../capitalmarkets/hooks/useCapitalMarkets';
 import type {
   InvestmentPortfolio,
-  Holding,
   CreatePortfolioInput,
   PortfolioType,
   Fund,

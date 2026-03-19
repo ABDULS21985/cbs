@@ -295,81 +295,81 @@ export interface AcknowledgeDisclosurePayload {
 export const advisoryApi = {
   // Corporate Finance
   getCorporateFinanceActive: () =>
-    apiGet<CorporateFinanceEngagement[]>('/v1/corporate-finance/active').catch(() => []),
+    apiGet<CorporateFinanceEngagement[]>('/api/v1/corporate-finance/active').catch(() => []),
   getCorporateFinancePipeline: () =>
-    apiGet<CorporateFinancePipelineItem[]>('/v1/corporate-finance/pipeline').catch(() => []),
+    apiGet<CorporateFinancePipelineItem[]>('/api/v1/corporate-finance/pipeline').catch(() => []),
   getCorporateFinanceRevenue: (from: string, to: string) =>
-    apiGet<CorporateFinanceRevenueItem[]>('/v1/corporate-finance/revenue', { from, to }).catch(() => []),
+    apiGet<CorporateFinanceRevenueItem[]>('/api/v1/corporate-finance/revenue', { from, to }).catch(() => []),
   getCorporateFinanceCapacity: () =>
-    apiGet<CorporateFinanceCapacity[]>('/v1/corporate-finance/capacity').catch(() => []),
+    apiGet<CorporateFinanceCapacity[]>('/api/v1/corporate-finance/capacity').catch(() => []),
   createCorporateFinanceEngagement: (payload: CreateEngagementPayload) =>
-    apiPost<CorporateFinanceEngagement>('/v1/corporate-finance', payload),
+    apiPost<CorporateFinanceEngagement>('/api/v1/corporate-finance', payload),
   deliverDraft: (code: string, payload: DeliverDraftPayload) =>
-    apiPost<CorporateFinanceEngagement>(`/v1/corporate-finance/${code}/draft`, payload),
+    apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/draft`, payload),
   finalizeDelivery: (code: string) =>
-    apiPost<CorporateFinanceEngagement>(`/v1/corporate-finance/${code}/finalize`),
+    apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/finalize`),
   recordFeeInvoice: (code: string, payload: InvoicePayload) =>
-    apiPost<CorporateFinanceEngagement>(`/v1/corporate-finance/${code}/invoice`, payload),
+    apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/invoice`, payload),
   recordPayment: (code: string, payload: RecordPaymentPayload) =>
-    apiPost<CorporateFinanceEngagement>(`/v1/corporate-finance/${code}/payment`, payload),
+    apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/payment`, payload),
   closeCorporateFinanceEngagement: (code: string) =>
-    apiPost<CorporateFinanceEngagement>(`/v1/corporate-finance/${code}/close`),
+    apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/close`),
 
   // Project Finance
   getProjectFacilities: (status?: ProjectFinanceStatus) =>
-    apiGet<ProjectFacility[]>(`/v1/project-finance/status/${status ?? 'ACTIVE'}`).catch(() => []),
+    apiGet<ProjectFacility[]>(`/api/v1/project-finance/status/${status ?? 'ACTIVE'}`).catch(() => []),
   getFacilityMilestones: (code: string) =>
-    apiGet<ProjectMilestone[]>(`/v1/project-finance/${code}/milestones`).catch(() => []),
+    apiGet<ProjectMilestone[]>(`/api/v1/project-finance/${code}/milestones`).catch(() => []),
   createProjectFacility: (payload: CreateProjectFacilityPayload) =>
-    apiPost<ProjectFacility>('/v1/project-finance', payload),
+    apiPost<ProjectFacility>('/api/v1/project-finance', payload),
   addMilestone: (code: string, payload: AddMilestonePayload) =>
-    apiPost<ProjectMilestone>(`/v1/project-finance/${code}/milestones`, payload),
+    apiPost<ProjectMilestone>(`/api/v1/project-finance/${code}/milestones`, payload),
   completeMilestone: (milestoneCode: string, payload: CompleteMilestonePayload) =>
-    apiPost<ProjectMilestone>(`/v1/project-finance/milestones/${milestoneCode}/complete`, payload),
+    apiPost<ProjectMilestone>(`/api/v1/project-finance/milestones/${milestoneCode}/complete`, payload),
 
   // M&A Advisory
   getMaAdvisoryActive: () =>
-    apiGet<MaEngagement[]>('/v1/ma-advisory/active').catch(() => []),
+    apiGet<MaEngagement[]>('/api/v1/ma-advisory/active').catch(() => []),
   getMaAdvisoryPipeline: () =>
-    apiGet<MaPipelineStage[]>('/v1/ma-advisory/pipeline').catch(() => []),
+    apiGet<MaPipelineStage[]>('/api/v1/ma-advisory/pipeline').catch(() => []),
   getMaAdvisoryRevenue: (from: string, to: string) =>
-    apiGet<MaRevenueItem[]>('/v1/ma-advisory/revenue', { from, to }).catch(() => []),
+    apiGet<MaRevenueItem[]>('/api/v1/ma-advisory/revenue', { from, to }).catch(() => []),
   getMaAdvisoryWorkload: () =>
-    apiGet<MaWorkloadItem[]>('/v1/ma-advisory/workload').catch(() => []),
+    apiGet<MaWorkloadItem[]>('/api/v1/ma-advisory/workload').catch(() => []),
   createMaEngagement: (payload: CreateMaEngagementPayload) =>
-    apiPost<MaEngagement>('/v1/ma-advisory', payload),
+    apiPost<MaEngagement>('/api/v1/ma-advisory', payload),
   updateMaMilestone: (code: string, payload: UpdateMaMilestonePayload) =>
-    apiPatch<MaEngagement>(`/v1/ma-advisory/${code}/milestone`, payload),
+    apiPatch<MaEngagement>(`/api/v1/ma-advisory/${code}/milestone`, payload),
   recordMaFee: (code: string, payload: RecordMaFeePayload) =>
-    apiPost<MaEngagement>(`/v1/ma-advisory/${code}/fee`, payload),
+    apiPost<MaEngagement>(`/api/v1/ma-advisory/${code}/fee`, payload),
   closeMaEngagement: (code: string, payload: CloseMaEngagementPayload) =>
-    apiPost<MaEngagement>(`/v1/ma-advisory/${code}/close`, payload),
+    apiPost<MaEngagement>(`/api/v1/ma-advisory/${code}/close`, payload),
 
   // Tax Advisory
   getTaxAdvisoryActive: () =>
-    apiGet<TaxEngagement[]>('/v1/tax-advisory/active').catch(() => []),
+    apiGet<TaxEngagement[]>('/api/v1/tax-advisory/active').catch(() => []),
   getTaxAdvisoryByJurisdiction: (country: string) =>
-    apiGet<TaxEngagement[]>(`/v1/tax-advisory/jurisdiction/${country}`).catch(() => []),
+    apiGet<TaxEngagement[]>(`/api/v1/tax-advisory/jurisdiction/${country}`).catch(() => []),
   getTaxAdvisoryRevenue: (from: string, to: string) =>
-    apiGet<TaxRevenueItem[]>('/v1/tax-advisory/revenue', { from, to }).catch(() => []),
+    apiGet<TaxRevenueItem[]>('/api/v1/tax-advisory/revenue', { from, to }).catch(() => []),
   createTaxEngagement: (payload: CreateTaxEngagementPayload) =>
-    apiPost<TaxEngagement>('/v1/tax-advisory', payload),
+    apiPost<TaxEngagement>('/api/v1/tax-advisory', payload),
   deliverOpinion: (code: string, payload: DeliverOpinionPayload) =>
-    apiPost<TaxEngagement>(`/v1/tax-advisory/${code}/opinion`, payload),
+    apiPost<TaxEngagement>(`/api/v1/tax-advisory/${code}/opinion`, payload),
   closeTaxEngagement: (code: string) =>
-    apiPost<TaxEngagement>(`/v1/tax-advisory/${code}/close`),
+    apiPost<TaxEngagement>(`/api/v1/tax-advisory/${code}/close`),
 
   // Suitability
   getSuitabilityProfile: (customerId: number) =>
-    apiGet<SuitabilityProfile>(`/v1/suitability/profiles/customer/${customerId}`),
+    apiGet<SuitabilityProfile>(`/api/v1/suitability/profiles/customer/${customerId}`),
   getExpiredProfiles: () =>
-    apiGet<SuitabilityProfile[]>('/v1/suitability/profiles/expired').catch(() => []),
+    apiGet<SuitabilityProfile[]>('/api/v1/suitability/profiles/expired').catch(() => []),
   createSuitabilityProfile: (payload: CreateSuitabilityProfilePayload) =>
-    apiPost<SuitabilityProfile>('/v1/suitability/profiles', payload),
+    apiPost<SuitabilityProfile>('/api/v1/suitability/profiles', payload),
   updateSuitabilityProfile: (code: string, payload: UpdateSuitabilityProfilePayload) =>
-    apiPut<SuitabilityProfile>(`/v1/suitability/profiles/${code}`, payload),
+    apiPut<SuitabilityProfile>(`/api/v1/suitability/profiles/${code}`, payload),
   performSuitabilityCheck: (payload: PerformSuitabilityCheckPayload) =>
-    apiPost<SuitabilityCheck>('/v1/suitability/checks', payload),
+    apiPost<SuitabilityCheck>('/api/v1/suitability/checks', payload),
   acknowledgeDisclosure: (ref: string, payload: AcknowledgeDisclosurePayload) =>
-    apiPost<SuitabilityCheck>(`/v1/suitability/checks/${ref}/acknowledge`, payload),
+    apiPost<SuitabilityCheck>(`/api/v1/suitability/checks/${ref}/acknowledge`, payload),
 };

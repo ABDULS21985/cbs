@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, EmptyState, TabsPage } from '@/components/shared';
-import { formatMoney, formatPercent } from '@/lib/formatters';
+import { formatMoney } from '@/lib/formatters';
 import {
   TrendingUp,
   TrendingDown,
-  BarChart3,
   Layers,
   Star,
   Plus,
@@ -405,7 +404,7 @@ function AumByTypeChart({ funds }: { funds: Fund[] }) {
 export function FundManagementPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [navFund, setNavFund] = useState<Fund | null>(null);
-  const [activeType, setActiveType] = useState<FundType | undefined>(undefined);
+  const [activeType, _setActiveType] = useState<FundType | undefined>(undefined);
 
   const { data: allFunds = [], isLoading: allLoading } = useFundsByAum();
   const { data: shariaFunds = [], isLoading: shariaLoading } = useShariaFunds();

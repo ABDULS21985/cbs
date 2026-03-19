@@ -331,81 +331,81 @@ export interface TradingModel {
 export const tradingApi = {
   // Deals
   listDeals: (params?: TreasuryDealsParams) =>
-    apiGet<TreasuryDeal[]>('/v1/treasury/deals', params as Record<string, unknown>),
+    apiGet<TreasuryDeal[]>('/api/v1/treasury/deals', params as Record<string, unknown>),
   getDeal: (id: string) =>
-    apiGet<TreasuryDeal>(`/v1/treasury/deals/${id}`),
+    apiGet<TreasuryDeal>(`/api/v1/treasury/deals/${id}`),
   bookDeal: (data: BookDealRequest) =>
-    apiPost<TreasuryDeal>('/v1/treasury/deals', data),
+    apiPost<TreasuryDeal>('/api/v1/treasury/deals', data),
   confirmDeal: (id: string) =>
-    apiPost<TreasuryDeal>(`/v1/treasury/deals/${id}/confirm`),
+    apiPost<TreasuryDeal>(`/api/v1/treasury/deals/${id}/confirm`),
   settleDeal: (id: string) =>
-    apiPost<TreasuryDeal>(`/v1/treasury/deals/${id}/settle`),
+    apiPost<TreasuryDeal>(`/api/v1/treasury/deals/${id}/settle`),
 
   // Analytics
   recordAnalytics: (data: RecordAnalyticsRequest) =>
-    apiPost<TreasuryAnalyticsRecord>('/v1/treasury-analytics', data),
+    apiPost<TreasuryAnalyticsRecord>('/api/v1/treasury-analytics', data),
   getAnalyticsByCurrency: (currency: string) =>
-    apiGet<TreasuryAnalyticsRecord[]>(`/v1/treasury-analytics/${currency}`),
+    apiGet<TreasuryAnalyticsRecord[]>(`/api/v1/treasury-analytics/${currency}`),
 
   // Dealer Desks
   listDealerDesks: () =>
-    apiGet<DealerDesk[]>('/v1/dealer-desks'),
+    apiGet<DealerDesk[]>('/api/v1/dealer-desks'),
   getDeskDashboard: (id: string) =>
-    apiGet<DeskDashboard>(`/v1/dealer-desks/${id}/dashboard`),
+    apiGet<DeskDashboard>(`/api/v1/dealer-desks/${id}/dashboard`),
   recordDeskPnl: (id: string, data: RecordPnlRequest) =>
-    apiPost<void>(`/v1/dealer-desks/${id}/pnl`, data),
+    apiPost<void>(`/api/v1/dealer-desks/${id}/pnl`, data),
 
   // Trader Positions
   getPositionsByDealer: (dealerId: string) =>
-    apiGet<TraderPosition[]>(`/v1/trader-positions/dealer/${dealerId}`),
+    apiGet<TraderPosition[]>(`/api/v1/trader-positions/dealer/${dealerId}`),
   getPositionBreaches: (params: PositionBreachParams) =>
-    apiGet<TraderPosition[]>('/v1/trader-positions/breaches', params as Record<string, unknown>),
+    apiGet<TraderPosition[]>('/api/v1/trader-positions/breaches', params as unknown as Record<string, unknown>),
   getOvernightPositions: (deskId: string) =>
-    apiGet<OvernightPosition[]>(`/v1/trader-positions/overnight/${deskId}`),
+    apiGet<OvernightPosition[]>(`/api/v1/trader-positions/overnight/${deskId}`),
 
   // Trading Books
   listTradingBooks: () =>
-    apiGet<TradingBook[]>('/v1/trading-books'),
+    apiGet<TradingBook[]>('/api/v1/trading-books'),
   getTradingBookDashboard: (id: string) =>
-    apiGet<TradingBookDashboard>(`/v1/trading-books/${id}/dashboard`),
+    apiGet<TradingBookDashboard>(`/api/v1/trading-books/${id}/dashboard`),
   getTradingBookCapital: (id: string) =>
-    apiGet<BookCapital>(`/v1/trading-books/${id}/capital`),
+    apiGet<BookCapital>(`/api/v1/trading-books/${id}/capital`),
   snapshotTradingBook: (id: string) =>
-    apiPost<void>(`/v1/trading-books/${id}/snapshot`),
+    apiPost<void>(`/api/v1/trading-books/${id}/snapshot`),
 
   // Market Making
   getActiveMarketMaking: () =>
-    apiGet<MarketMakingMandate[]>('/v1/market-making/active'),
+    apiGet<MarketMakingMandate[]>('/api/v1/market-making/active'),
   getObligationCompliance: () =>
-    apiGet<ObligationCompliance[]>('/v1/market-making/obligation-compliance'),
+    apiGet<ObligationCompliance[]>('/api/v1/market-making/obligation-compliance'),
   getMandatePerformance: (code: string) =>
-    apiGet<MandatePerformance>(`/v1/market-making/${code}/performance`),
+    apiGet<MandatePerformance>(`/api/v1/market-making/${code}/performance`),
 
   // Market Orders
   getOpenMarketOrders: () =>
-    apiGet<TradingMarketOrder[]>('/v1/market-orders/open'),
+    apiGet<TradingMarketOrder[]>('/api/v1/market-orders/open'),
   getMarketOrder: (ref: string) =>
-    apiGet<TradingMarketOrder>(`/v1/market-orders/${ref}`),
+    apiGet<TradingMarketOrder>(`/api/v1/market-orders/${ref}`),
   submitMarketOrder: (data: SubmitOrderRequest) =>
-    apiPost<TradingMarketOrder>('/v1/market-orders', data),
+    apiPost<TradingMarketOrder>('/api/v1/market-orders', data),
   cancelMarketOrder: (ref: string) =>
-    apiPost<void>(`/v1/market-orders/${ref}/cancel`),
+    apiPost<void>(`/api/v1/market-orders/${ref}/cancel`),
 
   // Order Executions
   getExecutionsByOrder: (orderId: string) =>
-    apiGet<OrderExecution[]>(`/v1/order-executions/order/${orderId}`),
+    apiGet<OrderExecution[]>(`/api/v1/order-executions/order/${orderId}`),
 
   // Program Trading
   getActiveProgramExecutions: () =>
-    apiGet<ProgramExecution[]>('/v1/program-trading/executions/active'),
+    apiGet<ProgramExecution[]>('/api/v1/program-trading/executions/active'),
 
   // Quotes
   getActiveDeskQuotes: (deskId: string) =>
-    apiGet<ActiveQuote[]>(`/v1/quotes/active/${deskId}`),
+    apiGet<ActiveQuote[]>(`/api/v1/quotes/active/${deskId}`),
 
   // Trading Models
   listTradingModels: () =>
-    apiGet<TradingModel[]>('/v1/trading-models'),
+    apiGet<TradingModel[]>('/api/v1/trading-models'),
   getModelsDueForReview: () =>
-    apiGet<TradingModel[]>('/v1/trading-models/due-for-review'),
+    apiGet<TradingModel[]>('/api/v1/trading-models/due-for-review'),
 };

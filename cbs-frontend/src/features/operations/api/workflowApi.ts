@@ -60,13 +60,13 @@ export interface CompleteTaskPayload {
 
 export const workflowApi = {
   getTasks: (filters?: WorkflowTaskFilters) =>
-    apiGet<WorkflowTaskPage>('/v1/workflow/tasks', filters as Record<string, unknown>).catch(
+    apiGet<WorkflowTaskPage>('/api/v1/workflow/tasks', filters as Record<string, unknown>).catch(
       () => ({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 } as WorkflowTaskPage)
     ),
 
   getTask: (id: string) =>
-    apiGet<WorkflowTask>(`/v1/workflow/tasks/${id}`),
+    apiGet<WorkflowTask>(`/api/v1/workflow/tasks/${id}`),
 
   completeTask: (id: string, payload: CompleteTaskPayload) =>
-    apiPost<WorkflowTask>(`/v1/workflow/tasks/${id}/complete`, payload),
+    apiPost<WorkflowTask>(`/api/v1/workflow/tasks/${id}/complete`, payload),
 };

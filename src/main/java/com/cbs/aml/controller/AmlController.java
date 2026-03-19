@@ -111,4 +111,39 @@ public class AmlController {
         Page<AmlAlert> result = amlAlertRepository.findAll(pageable);
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
+
+    @GetMapping("/stats")
+    @Operation(summary = "Get AML alert statistics")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getStats() {
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of(
+                "total", amlAlertRepository.count(),
+                "new", amlAlertRepository.countByStatus(AmlAlertStatus.NEW),
+                "underReview", amlAlertRepository.countByStatus(AmlAlertStatus.UNDER_REVIEW),
+                "escalated", amlAlertRepository.countByStatus(AmlAlertStatus.ESCALATED),
+                "sarFiled", amlAlertRepository.countByStatus(AmlAlertStatus.SAR_FILED)
+        )));
+    }
+
+    @GetMapping("/strs")
+    @Operation(summary = "List Suspicious Transaction Reports (SARs/STRs)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AmlAlert>>> getStrs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<AmlAlert> result = amlAlertRepository.findByStatusOrderByCreatedAtDesc(
+                AmlAlertStatus.SAR_FILED, PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/ctrs")
+    @Operation(summary = "List Currency Transaction Reports (CTRs)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AmlAlert>>> getCtrs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<AmlAlert> result = amlAlertRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
 }

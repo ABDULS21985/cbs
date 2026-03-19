@@ -5,7 +5,6 @@ import type {
   BookDealRequest,
   RecordAnalyticsRequest,
   RecordPnlRequest,
-  PositionBreachParams,
   SubmitOrderRequest,
 } from '../api/tradingApi';
 

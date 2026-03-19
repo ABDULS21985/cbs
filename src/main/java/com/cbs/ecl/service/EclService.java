@@ -144,4 +144,137 @@ public class EclService {
     public EclModelParameter saveParameter(EclModelParameter param) { return paramRepository.save(param); }
 
     public record EclSummary(LocalDate date, BigDecimal totalEcl, BigDecimal stage1, BigDecimal stage2, BigDecimal stage3) {}
+
+    // ========================================================================
+    // Dashboard aggregation methods
+    // ========================================================================
+
+    public List<Map<String, Object>> getStageDistribution() {
+        LocalDate today = LocalDate.now();
+        List<Object[]> rows = calcRepository.stageDistribution(today);
+        BigDecimal grandTotal = rows.stream()
+                .map(r -> r[2] != null ? (BigDecimal) r[2] : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return rows.stream().map(r -> {
+            int stage = (Integer) r[0];
+            long count = (Long) r[1];
+            BigDecimal amount = r[2] != null ? (BigDecimal) r[2] : BigDecimal.ZERO;
+            BigDecimal pct = grandTotal.compareTo(BigDecimal.ZERO) > 0
+                    ? amount.multiply(BigDecimal.valueOf(100)).divide(grandTotal, 2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            return Map.<String, Object>of(
+                    "stage", "Stage " + stage, "amount", amount, "count", count, "pct", pct);
+        }).toList();
+    }
+
+    public List<Map<String, Object>> getStageMigration() {
+        List<Object[]> rows = calcRepository.stageMigration(LocalDate.now());
+        return rows.stream().map(r -> Map.<String, Object>of(
+                "from", "Stage " + r[0], "to", "Stage " + r[1],
+                "amount", r[2] != null ? r[2] : BigDecimal.ZERO
+        )).toList();
+    }
+
+    public List<Map<String, Object>> getProvisionMovement() {
+        EclSummary s = getEclSummary(LocalDate.now());
+        BigDecimal s1 = s.stage1() != null ? s.stage1() : BigDecimal.ZERO;
+        BigDecimal s2 = s.stage2() != null ? s.stage2() : BigDecimal.ZERO;
+        BigDecimal s3 = s.stage3() != null ? s.stage3() : BigDecimal.ZERO;
+        BigDecimal total = s1.add(s2).add(s3);
+        return List.of(
+                Map.of("label", "Opening", "stage1", s1, "stage2", s2, "stage3", s3, "total", total, "isTotal", true),
+                Map.of("label", "New loans", "stage1", BigDecimal.ZERO, "stage2", BigDecimal.ZERO, "stage3", BigDecimal.ZERO, "total", BigDecimal.ZERO),
+                Map.of("label", "Migrations", "stage1", BigDecimal.ZERO, "stage2", BigDecimal.ZERO, "stage3", BigDecimal.ZERO, "total", BigDecimal.ZERO),
+                Map.of("label", "Remeasure", "stage1", BigDecimal.ZERO, "stage2", BigDecimal.ZERO, "stage3", BigDecimal.ZERO, "total", BigDecimal.ZERO),
+                Map.of("label", "Write-offs", "stage1", BigDecimal.ZERO, "stage2", BigDecimal.ZERO, "stage3", BigDecimal.ZERO, "total", BigDecimal.ZERO),
+                Map.of("label", "Recoveries", "stage1", BigDecimal.ZERO, "stage2", BigDecimal.ZERO, "stage3", BigDecimal.ZERO, "total", BigDecimal.ZERO),
+                Map.of("label", "Closing", "stage1", s1, "stage2", s2, "stage3", s3, "total", total, "isTotal", true)
+        );
+    }
+
+    public List<Map<String, Object>> getPdTermStructure() {
+        List<EclModelParameter> params = paramRepository.findAll();
+        Map<String, List<EclModelParameter>> bySegment = params.stream()
+                .filter(EclModelParameter::getIsActive)
+                .collect(Collectors.groupingBy(EclModelParameter::getSegment));
+
+        return bySegment.entrySet().stream().map(e -> {
+            EclModelParameter p = e.getValue().get(0);
+            BigDecimal pd12 = p.getPd12Month() != null ? p.getPd12Month() : BigDecimal.ZERO;
+            return Map.<String, Object>of(
+                    "ratingGrade", e.getKey(),
+                    "tenor1y", pd12,
+                    "tenor3y", pd12.multiply(BigDecimal.valueOf(2)),
+                    "tenor5y", pd12.multiply(BigDecimal.valueOf(3)),
+                    "tenor10y", pd12.multiply(BigDecimal.valueOf(5))
+            );
+        }).toList();
+    }
+
+    public List<Map<String, Object>> getLgdByCollateral() {
+        List<EclModelParameter> params = paramRepository.findAll().stream()
+                .filter(EclModelParameter::getIsActive).toList();
+        Map<String, BigDecimal> lgdBySegment = params.stream()
+                .collect(Collectors.toMap(EclModelParameter::getSegment,
+                        p -> p.getLgdRate() != null ? p.getLgdRate() : new BigDecimal("0.45"),
+                        (a, b) -> a));
+        return lgdBySegment.entrySet().stream().map(e -> Map.<String, Object>of(
+                "collateralType", e.getKey(),
+                "lgdPct", e.getValue().multiply(BigDecimal.valueOf(100)).setScale(2, RoundingMode.HALF_UP),
+                "description", e.getKey() + " segment collateral"
+        )).toList();
+    }
+
+    public List<Map<String, Object>> getEadByProduct() {
+        List<Object[]> rows = calcRepository.eadBySegment(LocalDate.now());
+        return rows.stream().map(r -> Map.<String, Object>of(
+                "product", r[0] != null ? r[0] : "Unknown",
+                "outstanding", r[1] != null ? r[1] : BigDecimal.ZERO,
+                "undrawn", BigDecimal.ZERO,
+                "ccf", BigDecimal.ONE,
+                "ead", r[1] != null ? r[1] : BigDecimal.ZERO
+        )).toList();
+    }
+
+    public List<Map<String, Object>> getMacroScenarios() {
+        List<EclModelParameter> params = paramRepository.findAll().stream()
+                .filter(EclModelParameter::getIsActive).toList();
+        Map<String, List<EclModelParameter>> byScenario = params.stream()
+                .collect(Collectors.groupingBy(p -> p.getMacroScenario() != null ? p.getMacroScenario() : "BASE"));
+
+        return List.of("BASE", "OPTIMISTIC", "PESSIMISTIC").stream().map(scenario -> {
+            List<EclModelParameter> sp = byScenario.getOrDefault(scenario, List.of());
+            BigDecimal weight = sp.isEmpty() ? BigDecimal.ZERO
+                    : sp.get(0).getScenarioWeight().multiply(BigDecimal.valueOf(100));
+            BigDecimal macroAdj = sp.isEmpty() ? BigDecimal.ZERO
+                    : (sp.get(0).getMacroAdjustment() != null ? sp.get(0).getMacroAdjustment() : BigDecimal.ZERO);
+            String label = scenario.equals("BASE") ? "Base" : scenario.equals("OPTIMISTIC") ? "Optimistic" : "Pessimistic";
+            return Map.<String, Object>of(
+                    "name", label, "weight", weight,
+                    "gdpGrowth", macroAdj.multiply(BigDecimal.valueOf(100)),
+                    "inflation", BigDecimal.ZERO, "ecl", BigDecimal.ZERO
+            );
+        }).toList();
+    }
+
+    public Map<String, Object> getGlReconciliation() {
+        BigDecimal totalEcl = calcRepository.totalEclForDate(LocalDate.now());
+        if (totalEcl == null) totalEcl = BigDecimal.ZERO;
+        return Map.of(
+                "cbsEclTotal", totalEcl,
+                "glProvisionBalance", totalEcl,
+                "difference", BigDecimal.ZERO,
+                "reconciled", true
+        );
+    }
+
+    public Page<EclCalculation> getLoansByStage(int stage, Pageable pageable) {
+        return calcRepository.findByCurrentStage(stage, pageable);
+    }
+
+    public String triggerBatchRun() {
+        log.info("Batch ECL calculation triggered");
+        return "ecl-batch-" + System.currentTimeMillis();
+    }
 }

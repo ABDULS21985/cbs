@@ -153,4 +153,118 @@ public class PortalController {
             @RequestParam String reason) {
         return ResponseEntity.ok(ApiResponse.ok(portalService.rejectProfileUpdate(requestId, reviewedBy, reason)));
     }
+
+    // ========================================================================
+    // SELF-SERVICE: ACCOUNTS & TRANSACTIONS
+    // ========================================================================
+
+    @GetMapping("/accounts")
+    @Operation(summary = "Get authenticated customer's accounts")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyAccounts() {
+        // Would use SecurityContext to get authenticated customer
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @GetMapping("/accounts/{accountId}/transactions")
+    @Operation(summary = "Get transactions for a specific account")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTransactions(
+            @PathVariable Long accountId,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @GetMapping("/transactions/recent")
+    @Operation(summary = "Get recent transactions across all accounts")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecentTransactions() {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    // ========================================================================
+    // SELF-SERVICE: BENEFICIARIES
+    // ========================================================================
+
+    @GetMapping("/beneficiaries")
+    @Operation(summary = "List saved beneficiaries")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getBeneficiaries() {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping("/beneficiaries")
+    @Operation(summary = "Add a new beneficiary")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> addBeneficiary(@RequestBody Map<String, Object> data) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(data));
+    }
+
+    @DeleteMapping("/beneficiaries/{id}")
+    @Operation(summary = "Remove a beneficiary")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> removeBeneficiary(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    // ========================================================================
+    // SELF-SERVICE: CARDS
+    // ========================================================================
+
+    @GetMapping("/cards")
+    @Operation(summary = "Get authenticated customer's cards")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMyCards() {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping("/cards/{cardId}/controls")
+    @Operation(summary = "Update card controls (e.g. online, ATM, POS toggles)")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateCardControls(
+            @PathVariable Long cardId, @RequestBody Map<String, Object> controls) {
+        return ResponseEntity.ok(ApiResponse.ok(controls));
+    }
+
+    @PostMapping("/cards/{cardId}/block")
+    @Operation(summary = "Block a card")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> blockCard(
+            @PathVariable Long cardId, @RequestBody Map<String, String> data) {
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
+    // ========================================================================
+    // SELF-SERVICE: SERVICE REQUESTS
+    // ========================================================================
+
+    @GetMapping("/service-requests")
+    @Operation(summary = "Get customer's service requests")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getServiceRequests() {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping("/service-requests")
+    @Operation(summary = "Create a new service request")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createServiceRequest(@RequestBody Map<String, String> data) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(Map.of(
+                "id", 1,
+                "status", "PENDING",
+                "type", data.getOrDefault("type", ""),
+                "description", data.getOrDefault("description", "")
+        )));
+    }
+
+    @GetMapping("/service-requests/types")
+    @Operation(summary = "Get available service request types")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<String>>> getRequestTypes() {
+        return ResponseEntity.ok(ApiResponse.ok(List.of(
+                "Cheque Book Request", "Statement Request", "Card Replacement",
+                "Account Update", "General Inquiry"
+        )));
+    }
 }

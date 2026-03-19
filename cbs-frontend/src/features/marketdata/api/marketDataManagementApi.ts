@@ -135,18 +135,18 @@ export interface MarketDataSwitch {
 export const marketDataManagementApi = {
   // ── Data Feeds ──────────────────────────────────────────────────────────────
   getFeedStatus: () =>
-    apiGet<DataFeed[]>('/v1/market-data/feeds/status'),
+    apiGet<DataFeed[]>('/api/v1/market-data/feeds/status'),
 
   registerFeed: (input: {
     provider: string;
     assetClass: string;
     feedType: FeedType;
     instruments: string[];
-  }) => apiPost<DataFeed>('/v1/market-data/feeds', input),
+  }) => apiPost<DataFeed>('/api/v1/market-data/feeds', input),
 
   // ── Prices ──────────────────────────────────────────────────────────────────
   getInstrumentPrices: (instrumentCode: string) =>
-    apiGet<MarketPrice>(`/v1/market-data/prices/${instrumentCode}`),
+    apiGet<MarketPrice>(`/api/v1/market-data/prices/${instrumentCode}`),
 
   recordPrice: (input: {
     instrumentCode: string;
@@ -155,11 +155,11 @@ export const marketDataManagementApi = {
     last: number;
     volume: number;
     source: string;
-  }) => apiPost<MarketPrice>('/v1/market-data/prices', input),
+  }) => apiPost<MarketPrice>('/api/v1/market-data/prices', input),
 
   // ── Signals ─────────────────────────────────────────────────────────────────
   getMarketSignals: (instrumentCode: string) =>
-    apiGet<MarketSignal[]>(`/v1/market-data/signals/${instrumentCode}`),
+    apiGet<MarketSignal[]>(`/api/v1/market-data/signals/${instrumentCode}`),
 
   // ── Research ─────────────────────────────────────────────────────────────────
   publishResearch: (input: {
@@ -170,40 +170,40 @@ export const marketDataManagementApi = {
     targetPrice: number;
     summary: string;
     reportUrl?: string;
-  }) => apiPost<ResearchReport>('/v1/market-data/research', input),
+  }) => apiPost<ResearchReport>('/api/v1/market-data/research', input),
 
   getPublishedResearch: () =>
-    apiGet<ResearchReport[]>('/v1/market-data/research/published'),
+    apiGet<ResearchReport[]>('/api/v1/market-data/research/published'),
 
   // ── Switch Dashboard ─────────────────────────────────────────────────────────
   getSwitchDashboard: () =>
-    apiGet<SwitchDashboard>('/v1/market-data-switch/dashboard'),
+    apiGet<SwitchDashboard>('/api/v1/market-data-switch/dashboard'),
 
   getSubscriptionHealth: () =>
-    apiGet<SubscriptionHealth[]>('/v1/market-data-switch/subscriptions/health'),
+    apiGet<SubscriptionHealth[]>('/api/v1/market-data-switch/subscriptions/health'),
 
   getFeedQualityMetrics: () =>
-    apiGet<FeedQualityMetric[]>('/v1/market-data-switch/feed-quality'),
+    apiGet<FeedQualityMetric[]>('/api/v1/market-data-switch/feed-quality'),
 
   registerSwitch: (input: { name: string; type: string }) =>
-    apiPost<MarketDataSwitch>('/v1/market-data-switch', input),
+    apiPost<MarketDataSwitch>('/api/v1/market-data-switch', input),
 
   startSwitch: (id: string) =>
-    apiPost<MarketDataSwitch>(`/v1/market-data-switch/${id}/start`),
+    apiPost<MarketDataSwitch>(`/api/v1/market-data-switch/${id}/start`),
 
   stopSwitch: (id: string) =>
-    apiPost<MarketDataSwitch>(`/v1/market-data-switch/${id}/stop`),
+    apiPost<MarketDataSwitch>(`/api/v1/market-data-switch/${id}/stop`),
 
   addSubscription: (input: {
     switchId: string;
     provider: string;
     instrument: string;
     priority: number;
-  }) => apiPost<SubscriptionHealth>('/v1/market-data-switch/subscriptions', input),
+  }) => apiPost<SubscriptionHealth>('/api/v1/market-data-switch/subscriptions', input),
 
   // ── Market Analysis ──────────────────────────────────────────────────────────
   getAnalysisByType: (type: AnalysisType) =>
-    apiGet<MarketAnalysis[]>(`/v1/market-analysis/type/${type}`),
+    apiGet<MarketAnalysis[]>(`/api/v1/market-analysis/type/${type}`),
 
   createAnalysis: (input: {
     title: string;
@@ -211,32 +211,32 @@ export const marketDataManagementApi = {
     instrument?: string;
     sector?: string;
     summary: string;
-  }) => apiPost<MarketAnalysis>('/v1/market-analysis', input),
+  }) => apiPost<MarketAnalysis>('/api/v1/market-analysis', input),
 
   publishAnalysis: (code: string) =>
-    apiPost<MarketAnalysis>(`/v1/market-analysis/${code}/publish`),
+    apiPost<MarketAnalysis>(`/api/v1/market-analysis/${code}/publish`),
 
   // ── Market Research Projects ─────────────────────────────────────────────────
   getActiveResearchProjects: () =>
-    apiGet<MarketResearchProject[]>('/v1/market-research/active'),
+    apiGet<MarketResearchProject[]>('/api/v1/market-research/active'),
 
   getResearchLibrary: (type?: ResearchProjectType) =>
-    apiGet<MarketResearchProject[]>('/v1/market-research/library', type ? { type } : undefined),
+    apiGet<MarketResearchProject[]>('/api/v1/market-research/library', type ? { type } : undefined),
 
   getResearchInsights: () =>
     apiGet<{ totalProjects: number; completedThisMonth: number; keyThemes: string[]; recommendations: string[] }>(
-      '/v1/market-research/insights'
+      '/api/v1/market-research/insights'
     ),
 
   createResearchProject: (input: {
     title: string;
     type: ResearchProjectType;
     description: string;
-  }) => apiPost<MarketResearchProject>('/v1/market-research', input),
+  }) => apiPost<MarketResearchProject>('/api/v1/market-research', input),
 
   completeResearchProject: (code: string, input: {
     findings: string;
     keyInsights: string[];
     actionItems: string[];
-  }) => apiPost<MarketResearchProject>(`/v1/market-research/${code}/complete`, input),
+  }) => apiPost<MarketResearchProject>(`/api/v1/market-research/${code}/complete`, input),
 };

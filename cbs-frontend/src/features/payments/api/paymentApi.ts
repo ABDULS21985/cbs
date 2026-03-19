@@ -145,10 +145,10 @@ async function postWithParams<T>(url: string, params: Record<string, unknown>): 
 
 export const paymentApi = {
   getAccounts: () =>
-    apiGet<Account[]>('/api/v1/accounts/my').catch(() => [] as Account[]),
+    apiGet<Account[]>('/api/v1/accounts', { page: 0, size: 50 }).catch(() => [] as Account[]),
 
   getBeneficiaries: (customerId?: number) =>
-    apiGet<Beneficiary[]>('/api/v1/beneficiaries', customerId ? { customerId } : undefined)
+    apiGet<Beneficiary[]>('/api/v1/payments/beneficiaries', customerId ? { customerId } : undefined)
       .catch(() => [] as Beneficiary[]),
 
   initiateTransfer: (data: TransferRequest): Promise<TransferResponse> => {

@@ -238,69 +238,69 @@ export interface NavUpdateInput {
 export const capitalMarketsApi = {
   // Capital Markets Deals
   getPipeline: () =>
-    apiGet<CapitalMarketsDeal[]>('/v1/capital-markets/pipeline'),
+    apiGet<CapitalMarketsDeal[]>('/api/v1/capital-markets/pipeline'),
   getDeal: (code: string) =>
-    apiGet<CapitalMarketsDeal>(`/v1/capital-markets/${code}`),
+    apiGet<CapitalMarketsDeal>(`/api/v1/capital-markets/${code}`),
   createDeal: (input: CreateDealInput) =>
-    apiPost<CapitalMarketsDeal>('/v1/capital-markets', input),
+    apiPost<CapitalMarketsDeal>('/api/v1/capital-markets', input),
   priceDeal: (code: string, input: PricingInput) =>
-    apiPost<CapitalMarketsDeal>(`/v1/capital-markets/${code}/pricing`, input),
+    apiPost<CapitalMarketsDeal>(`/api/v1/capital-markets/${code}/pricing`, input),
   allotDeal: (code: string) =>
-    apiPost<CapitalMarketsDeal>(`/v1/capital-markets/${code}/allotment`),
+    apiPost<CapitalMarketsDeal>(`/api/v1/capital-markets/${code}/allotment`),
   settleDeal: (code: string) =>
-    apiPost<CapitalMarketsDeal>(`/v1/capital-markets/${code}/settle`),
+    apiPost<CapitalMarketsDeal>(`/api/v1/capital-markets/${code}/settle`),
   addInvestor: (dealId: number, input: InvestorInput) =>
-    apiPost<Investor>(`/v1/capital-markets/${dealId}/investors`, input),
+    apiPost<Investor>(`/api/v1/capital-markets/${dealId}/investors`, input),
   getInvestorBook: (dealId: number) =>
-    apiGet<Investor[]>(`/v1/capital-markets/${dealId}/investors`),
+    apiGet<Investor[]>(`/api/v1/capital-markets/${dealId}/investors`),
 
   // Private Placements
   getActivePlacements: () =>
-    apiGet<PrivatePlacement[]>('/v1/private-placements/active'),
+    apiGet<PrivatePlacement[]>('/api/v1/private-placements/active'),
   getPlacement: (code: string) =>
-    apiGet<PrivatePlacement>(`/v1/private-placements/${code}`),
+    apiGet<PrivatePlacement>(`/api/v1/private-placements/${code}`),
   createPlacement: (input: CreatePlacementInput) =>
-    apiPost<PrivatePlacement>('/v1/private-placements', input),
+    apiPost<PrivatePlacement>('/api/v1/private-placements', input),
   addPlacementInvestor: (code: string, input: InvestorInput) =>
-    apiPost<PlacementInvestor>(`/v1/private-placements/${code}/investors`, input),
+    apiPost<PlacementInvestor>(`/api/v1/private-placements/${code}/investors`, input),
   recordFunding: (code: string, investorId: number, input: FundingInput) =>
-    apiPost<PlacementInvestor>(`/v1/private-placements/${code}/investors/${investorId}/fund`, input),
+    apiPost<PlacementInvestor>(`/api/v1/private-placements/${code}/investors/${investorId}/fund`, input),
   closePlacement: (code: string) =>
-    apiPost<PrivatePlacement>(`/v1/private-placements/${code}/close`),
+    apiPost<PrivatePlacement>(`/api/v1/private-placements/${code}/close`),
 
   // Public Offerings
   getOffering: (id: number) =>
-    apiGet<PublicOffering>(`/v1/public-offerings/${id}`),
+    apiGet<PublicOffering>(`/api/v1/public-offerings/${id}`),
   createOffering: (dealId: number, input: Partial<PublicOffering>) =>
-    apiPost<PublicOffering>(`/v1/public-offerings/${dealId}`, input),
+    apiPost<PublicOffering>(`/api/v1/public-offerings/${dealId}`, input),
   openOffering: (id: number) =>
-    apiPost<PublicOffering>(`/v1/public-offerings/${id}/open`),
+    apiPost<PublicOffering>(`/api/v1/public-offerings/${id}/open`),
   closeOffering: (id: number) =>
-    apiPost<PublicOffering>(`/v1/public-offerings/${id}/close`),
+    apiPost<PublicOffering>(`/api/v1/public-offerings/${id}/close`),
 
   // Investment Portfolios
   getPortfoliosByCustomer: (customerId: number) =>
-    apiGet<InvestmentPortfolio[]>(`/v1/investment-portfolios/customer/${customerId}`),
+    apiGet<InvestmentPortfolio[]>(`/api/v1/investment-portfolios/customer/${customerId}`),
   getPortfolio: (code: string) =>
-    apiGet<InvestmentPortfolio>(`/v1/investment-portfolios/${code}`),
+    apiGet<InvestmentPortfolio>(`/api/v1/investment-portfolios/${code}`),
   getHoldings: (code: string) =>
-    apiGet<Holding[]>(`/v1/investment-portfolios/${code}/holdings`),
+    apiGet<Holding[]>(`/api/v1/investment-portfolios/${code}/holdings`),
   createPortfolio: (input: CreatePortfolioInput) =>
-    apiPost<InvestmentPortfolio>('/v1/investment-portfolios', input),
+    apiPost<InvestmentPortfolio>('/api/v1/investment-portfolios', input),
   addHolding: (code: string, input: AddHoldingInput) =>
-    apiPost<Holding>(`/v1/investment-portfolios/${code}/holdings`, input),
+    apiPost<Holding>(`/api/v1/investment-portfolios/${code}/holdings`, input),
   valuate: (code: string) =>
-    apiPost<ValuationResult>(`/v1/investment-portfolios/${code}/valuate`),
+    apiPost<ValuationResult>(`/api/v1/investment-portfolios/${code}/valuate`),
 
   // Funds
   getFundsByType: (type: FundType) =>
-    apiGet<Fund[]>(`/v1/funds/type/${type}`),
+    apiGet<Fund[]>(`/api/v1/funds/type/${type}`),
   getFundsByAum: () =>
-    apiGet<Fund[]>('/v1/funds/by-aum'),
+    apiGet<Fund[]>('/api/v1/funds/by-aum'),
   getSharia: () =>
-    apiGet<Fund[]>('/v1/funds/sharia-compliant'),
+    apiGet<Fund[]>('/api/v1/funds/sharia-compliant'),
   createFund: (input: CreateFundInput) =>
-    apiPost<Fund>('/v1/funds', input),
+    apiPost<Fund>('/api/v1/funds', input),
   updateNav: (code: string, input: NavUpdateInput) =>
-    apiPost<Fund>(`/v1/funds/${code}/nav`, input),
+    apiPost<Fund>(`/api/v1/funds/${code}/nav`, input),
 };

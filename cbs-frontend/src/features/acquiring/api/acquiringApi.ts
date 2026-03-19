@@ -87,10 +87,10 @@ export interface PciComplianceReport {
 export const acquiringApi = {
   // Merchants
   getActiveMerchants: () =>
-    apiGet<Merchant[]>('/v1/merchants/active'),
+    apiGet<Merchant[]>('/api/v1/merchants/active'),
 
   getHighRiskMerchants: () =>
-    apiGet<Merchant[]>('/v1/merchants/high-risk'),
+    apiGet<Merchant[]>('/api/v1/merchants/high-risk'),
 
   onboardMerchant: (payload: {
     businessName: string;
@@ -99,50 +99,50 @@ export const acquiringApi = {
     contactEmail: string;
     bankAccountId: number;
     riskCategory: RiskCategory;
-  }) => apiPost<Merchant>('/v1/merchants', payload),
+  }) => apiPost<Merchant>('/api/v1/merchants', payload),
 
   activateMerchant: (id: number) =>
-    apiPost<Merchant>(`/v1/merchants/${id}/activate`),
+    apiPost<Merchant>(`/api/v1/merchants/${id}/activate`),
 
   suspendMerchant: (id: number, reason: string) =>
-    apiPost<Merchant>(`/v1/merchants/${id}/suspend`, { reason }),
+    apiPost<Merchant>(`/api/v1/merchants/${id}/suspend`, { reason }),
 
   // Facilities
   getMerchantFacilities: (merchantId: number) =>
-    apiGet<AcquiringFacility[]>(`/v1/acquiring/facilities/merchant/${merchantId}`),
+    apiGet<AcquiringFacility[]>(`/api/v1/acquiring/facilities/merchant/${merchantId}`),
 
   setupFacility: (payload: {
     merchantId: number;
     settlementFrequency: SettlementFrequency;
     discountRate: number;
     terminalCount: number;
-  }) => apiPost<AcquiringFacility>('/v1/acquiring/facilities', payload),
+  }) => apiPost<AcquiringFacility>('/api/v1/acquiring/facilities', payload),
 
   activateFacility: (id: number) =>
-    apiPut<AcquiringFacility>(`/v1/acquiring/facilities/${id}/activate`),
+    apiPut<AcquiringFacility>(`/api/v1/acquiring/facilities/${id}/activate`),
 
   // Settlements
   getMerchantSettlements: (merchantId: number) =>
-    apiGet<MerchantSettlement[]>(`/v1/acquiring/settlements/merchant/${merchantId}`),
+    apiGet<MerchantSettlement[]>(`/api/v1/acquiring/settlements/merchant/${merchantId}`),
 
   processSettlement: (payload: { merchantId: number; fromDate: string; toDate: string }) =>
-    apiPost<MerchantSettlement>('/v1/acquiring/settlements/process', payload),
+    apiPost<MerchantSettlement>('/api/v1/acquiring/settlements/process', payload),
 
   // Chargebacks
   getChargebacks: () =>
-    apiGet<Chargeback[]>('/v1/acquiring/chargebacks'),
+    apiGet<Chargeback[]>('/api/v1/acquiring/chargebacks'),
 
   recordChargeback: (payload: {
     merchantId: number;
     transactionRef: string;
     amount: number;
     reason: string;
-  }) => apiPost<Chargeback>('/v1/acquiring/chargebacks', payload),
+  }) => apiPost<Chargeback>('/api/v1/acquiring/chargebacks', payload),
 
   submitRepresentment: (id: number, payload: { evidence: string; amount: number }) =>
-    apiPost<Chargeback>(`/v1/acquiring/chargebacks/${id}/representment`, payload),
+    apiPost<Chargeback>(`/api/v1/acquiring/chargebacks/${id}/representment`, payload),
 
   // PCI Compliance
   getPciComplianceReport: () =>
-    apiGet<PciComplianceReport>('/v1/acquiring/compliance/pci'),
+    apiGet<PciComplianceReport>('/api/v1/acquiring/compliance/pci'),
 };

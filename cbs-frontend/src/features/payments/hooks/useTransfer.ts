@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiGet, apiPost } from '@/lib/api';
 import {
   paymentApi,
   type BankOption,
@@ -23,37 +24,33 @@ export function useBeneficiaries() {
   });
 }
 
-// No backend endpoint — returns empty list
 export function useBanks() {
   return useQuery<BankOption[]>({
     queryKey: ['payments', 'banks'],
-    queryFn: () => Promise.resolve([] as BankOption[]),
+    queryFn: () => apiGet<BankOption[]>('/api/v1/payments/banks'),
     staleTime: 5 * 60 * 1000,
   });
 }
 
-// No backend endpoint — returns empty list
 export function useRecentTransfers() {
   return useQuery<RecentTransfer[]>({
     queryKey: ['payments', 'recent'],
-    queryFn: () => Promise.resolve([] as RecentTransfer[]),
+    queryFn: () => apiGet<RecentTransfer[]>('/api/v1/payments/recent'),
   });
 }
 
-// No backend endpoint — mutation always rejects
 export function useNameEnquiry() {
   return useMutation<NameEnquiryResult, Error, { accountNumber: string; bankCode: string }>({
-    mutationFn: (_: { accountNumber: string; bankCode: string }) =>
-      Promise.reject(new Error('Name enquiry not available')),
+    mutationFn: (data) =>
+      apiPost<NameEnquiryResult>('/api/v1/payments/name-enquiry', data),
   });
 }
 
-// No backend endpoint — disabled query
-export function useFeePreview(_amount: number, _transferType: string, _currency?: string) {
+export function useFeePreview(amount: number, transferType: string, currency?: string) {
   return useQuery<FeePreview | null>({
-    queryKey: ['payments', 'fee-preview'],
-    queryFn: () => Promise.resolve(null),
-    enabled: false,
+    queryKey: ['payments', 'fee-preview', amount, transferType, currency],
+    queryFn: () => apiGet<FeePreview>('/api/v1/payments/fee-preview', { amount, transferType, currency }),
+    enabled: amount > 0 && !!transferType,
   });
 }
 
@@ -63,10 +60,9 @@ export function useInitiateTransfer() {
   });
 }
 
-// No backend endpoint — mutation always rejects
 export function useDuplicateCheck() {
   return useMutation<DuplicateCheckResult, Error, { account: string; amount: number }>({
-    mutationFn: (_: { account: string; amount: number }) =>
-      Promise.reject(new Error('Duplicate check not available')),
+    mutationFn: (data) =>
+      apiGet<DuplicateCheckResult>('/api/v1/payments/check-duplicate', { beneficiaryAccount: data.account, amount: data.amount }),
   });
 }

@@ -5,6 +5,8 @@ import com.cbs.common.dto.PageMeta;
 import com.cbs.gl.entity.*;
 import com.cbs.gl.repository.ChartOfAccountsRepository;
 import com.cbs.gl.repository.GlBalanceRepository;
+import com.cbs.gl.repository.JournalEntryRepository;
+import com.cbs.gl.repository.SubledgerReconRunRepository;
 import com.cbs.gl.service.GeneralLedgerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,6 +31,8 @@ public class GeneralLedgerController {
     private final GeneralLedgerService glService;
     private final ChartOfAccountsRepository chartOfAccountsRepository;
     private final GlBalanceRepository glBalanceRepository;
+    private final JournalEntryRepository journalEntryRepository;
+    private final SubledgerReconRunRepository subledgerReconRunRepository;
 
     @PostMapping("/accounts")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -141,5 +145,34 @@ public class GeneralLedgerController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<GlBalance>>> listBalances() {
         return ResponseEntity.ok(ApiResponse.ok(glBalanceRepository.findByBalanceDateOrderByGlCodeAsc(LocalDate.now())));
+    }
+
+    @GetMapping("/journals/list")
+    @Operation(summary = "List all journal entries with pagination")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<JournalEntry>>> listJournals(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<JournalEntry> result = journalEntryRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/trial-balance")
+    @Operation(summary = "Get trial balance for today")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<GlBalance>>> getTrialBalanceToday() {
+        return ResponseEntity.ok(ApiResponse.ok(glService.getTrialBalance(LocalDate.now())));
+    }
+
+    @GetMapping("/reconciliation")
+    @Operation(summary = "List all reconciliation runs")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<SubledgerReconRun>>> listReconciliation(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<SubledgerReconRun> result = subledgerReconRunRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "reconDate")));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

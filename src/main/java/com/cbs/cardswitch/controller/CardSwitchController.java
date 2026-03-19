@@ -1,10 +1,16 @@
 package com.cbs.cardswitch.controller;
 
 import com.cbs.common.dto.ApiResponse;
+import com.cbs.common.dto.PageMeta;
 import com.cbs.cardswitch.entity.CardSwitchTransaction;
+import com.cbs.cardswitch.repository.CardSwitchTransactionRepository;
 import com.cbs.cardswitch.service.CardSwitchService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,6 +24,7 @@ import java.util.Map;
 @Tag(name = "Card Transaction Switch", description = "Authorization, clearing, settlement message routing")
 public class CardSwitchController {
     private final CardSwitchService service;
+    private final CardSwitchTransactionRepository cardSwitchTransactionRepository;
 
     @PostMapping("/process") @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<CardSwitchTransaction>> process(@RequestBody CardSwitchTransaction txn) {
@@ -38,5 +45,16 @@ public class CardSwitchController {
     @GetMapping("/scheme/{scheme}/stats/{date}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStats(@PathVariable String scheme, @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(ApiResponse.ok(service.getStatsByScheme(scheme, date)));
+    }
+
+    @GetMapping
+    @Operation(summary = "List all card switch transactions")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CardSwitchTransaction>>> listAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<CardSwitchTransaction> result = cardSwitchTransactionRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "processedAt")));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

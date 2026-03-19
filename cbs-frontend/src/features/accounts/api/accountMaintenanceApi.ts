@@ -81,7 +81,8 @@ export const accountMaintenanceApi = {
   },
 
   changeStatus: async (accountId: string, data: StatusChangeRequest): Promise<void> => {
-    return apiPatch<void>(`/api/v1/accounts/${accountId}/status`, data);
+    // Backend expects @RequestParam newStatus + reason, not JSON body
+    return apiPatch<void>(`/api/v1/accounts/${accountId}/status?newStatus=${encodeURIComponent(data.newStatus)}&reason=${encodeURIComponent(data.reason)}`, undefined);
   },
 
   addSignatory: async (accountId: string, data: AddSignatoryRequest): Promise<void> => {

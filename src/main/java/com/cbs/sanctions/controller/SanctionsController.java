@@ -4,6 +4,7 @@ import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.sanctions.entity.*;
 import com.cbs.sanctions.repository.ScreeningRequestRepository;
+import com.cbs.sanctions.repository.WatchlistRepository;
 import com.cbs.sanctions.service.SanctionsScreeningService;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +26,7 @@ public class SanctionsController {
 
     private final SanctionsScreeningService screeningService;
     private final ScreeningRequestRepository screeningRequestRepository;
+    private final WatchlistRepository watchlistRepository;
 
     @PostMapping("/screen")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -73,5 +75,44 @@ public class SanctionsController {
         long total = screeningRequestRepository.count();
         long pending = screeningService.getPendingReview(PageRequest.of(0, 1)).getTotalElements();
         return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("total", total, "pending", pending)));
+    }
+
+    @GetMapping("/matches")
+    @Operation(summary = "List screening requests with matches")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ScreeningRequest>>> getMatches(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<ScreeningRequest> result = screeningRequestRepository.findByStatusOrderByCreatedAtDesc(
+                "POTENTIAL_MATCH", PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/watchlists")
+    @Operation(summary = "List all active watchlists")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Watchlist>>> getWatchlists(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<Watchlist> result = watchlistRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "listName")));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @PostMapping("/batch-screen")
+    @Operation(summary = "Batch screen multiple names against watchlists")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ScreeningRequest>>> batchScreen(
+            @RequestBody List<java.util.Map<String, String>> subjects) {
+        List<ScreeningRequest> results = new java.util.ArrayList<>();
+        for (java.util.Map<String, String> subject : subjects) {
+            ScreeningRequest result = screeningService.screenName(
+                    subject.getOrDefault("screeningType", "ONBOARDING"),
+                    subject.get("subjectName"),
+                    subject.getOrDefault("subjectType", "INDIVIDUAL"),
+                    null, null, null, null, null, null, null);
+            results.add(result);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(results));
     }
 }

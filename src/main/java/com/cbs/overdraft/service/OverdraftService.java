@@ -84,6 +84,10 @@ public class OverdraftService {
         return facilityRepository.findByCustomerId(customerId, pageable).map(this::toResponse);
     }
 
+    public Page<FacilityResponse> listAllFacilities(Pageable pageable) {
+        return facilityRepository.findAll(pageable).map(this::toResponse);
+    }
+
     @Transactional
     public FacilityResponse drawdown(Long facilityId, BigDecimal amount, String narration) {
         CreditFacility facility = facilityRepository.findByIdWithDetails(facilityId)

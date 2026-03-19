@@ -85,4 +85,46 @@ public class FraudController {
         Page<FraudAlert> result = fraudAlertRepository.findAll(pageable);
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
+
+    @GetMapping("/stats")
+    @Operation(summary = "Get fraud alert statistics")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "total", fraudAlertRepository.count(),
+                "new", fraudAlertRepository.countByStatus("NEW"),
+                "investigating", fraudAlertRepository.countByStatus("INVESTIGATING"),
+                "resolved", fraudAlertRepository.countByStatus("RESOLVED")
+        )));
+    }
+
+    @GetMapping("/trend")
+    @Operation(summary = "Get fraud alert trend data")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTrend(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<FraudAlert> result = fraudAlertRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "total", fraudAlertRepository.count(),
+                "recentAlerts", result.getContent()
+        )));
+    }
+
+    @GetMapping("/model-performance")
+    @Operation(summary = "Get fraud model performance metrics")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getModelPerformance() {
+        long total = fraudAlertRepository.count();
+        long resolved = fraudAlertRepository.countByStatus("RESOLVED");
+        long falsePositives = fraudAlertRepository.countByStatus("FALSE_POSITIVE");
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "totalAlerts", total,
+                "resolvedAlerts", resolved,
+                "falsePositives", falsePositives,
+                "detectionRate", total > 0 ? (double) resolved / total : 0.0,
+                "falsePositiveRate", total > 0 ? (double) falsePositives / total : 0.0
+        )));
+    }
 }

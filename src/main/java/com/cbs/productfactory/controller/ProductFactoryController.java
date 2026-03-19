@@ -1,11 +1,16 @@
 package com.cbs.productfactory.controller;
 
 import com.cbs.common.dto.ApiResponse;
+import com.cbs.common.dto.PageMeta;
 import com.cbs.productfactory.entity.ProductTemplate;
+import com.cbs.productfactory.repository.ProductTemplateRepository;
 import com.cbs.productfactory.service.ProductFactoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +22,7 @@ import java.util.List;
 public class ProductFactoryController {
 
     private final ProductFactoryService productFactoryService;
+    private final ProductTemplateRepository productTemplateRepository;
 
     @PostMapping("/templates")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -59,5 +65,27 @@ public class ProductFactoryController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<ProductTemplate>>> getByCategory(@PathVariable String category) {
         return ResponseEntity.ok(ApiResponse.ok(productFactoryService.getByCategory(category)));
+    }
+
+    @GetMapping
+    @Operation(summary = "List all product templates")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ProductTemplate>>> listAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<ProductTemplate> result = productTemplateRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "templateName")));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/templates")
+    @Operation(summary = "List all product templates (all statuses)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ProductTemplate>>> listTemplates(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<ProductTemplate> result = productTemplateRepository.findAll(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "templateName")));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

@@ -56,17 +56,17 @@ export interface DocumentJob {
 export const intelligenceApi = {
   // Behaviour — Recommendations
   getRecommendations: (customerId: string) =>
-    apiGet<Recommendation[]>(`/v1/intelligence/behaviour/recommendations/${customerId}`),
+    apiGet<Recommendation[]>(`/api/v1/intelligence/behaviour/recommendations/${customerId}`),
 
   generateRecommendations: (customerId: string) =>
-    apiPost<Recommendation[]>(`/v1/intelligence/behaviour/recommendations/${customerId}/generate`),
+    apiPost<Recommendation[]>(`/api/v1/intelligence/behaviour/recommendations/${customerId}/generate`),
 
   respondToRecommendation: (id: number, action: 'ACCEPT' | 'DECLINE', reason?: string) =>
-    apiPost<Recommendation>(`/v1/intelligence/behaviour/recommendations/${id}/respond`, { action, reason }),
+    apiPost<Recommendation>(`/api/v1/intelligence/behaviour/recommendations/${id}/respond`, { action, reason }),
 
   // Behaviour — Churn
   getChurnScore: (customerId: string) =>
-    apiGet<ChurnScore>(`/v1/intelligence/behaviour/churn-score/${customerId}`),
+    apiGet<ChurnScore>(`/api/v1/intelligence/behaviour/churn-score/${customerId}`),
 
   // Cash Flow Forecasting
   generateForecast: (payload: {
@@ -74,17 +74,17 @@ export const intelligenceApi = {
     entityId: string;
     horizonDays: number;
     currency: string;
-  }) => apiPost<CashFlowForecast>('/v1/intelligence/cashflow/forecast', payload),
+  }) => apiPost<CashFlowForecast>('/api/v1/intelligence/cashflow/forecast', payload),
 
   getForecastHistory: (entityType: string, entityId: string) =>
-    apiGet<CashFlowForecast[]>(`/v1/intelligence/cashflow/${entityType}/${entityId}`),
+    apiGet<CashFlowForecast[]>(`/api/v1/intelligence/cashflow/${entityType}/${entityId}`),
 
   approveForecast: (forecastId: number) =>
-    apiPost<CashFlowForecast>(`/v1/intelligence/cashflow/${forecastId}/approve`),
+    apiPost<CashFlowForecast>(`/api/v1/intelligence/cashflow/${forecastId}/approve`),
 
   // Document Intelligence
   getPendingDocuments: () =>
-    apiGet<DocumentJob[]>('/v1/intelligence/documents/pending-review'),
+    apiGet<DocumentJob[]>('/api/v1/intelligence/documents/pending-review'),
 
   submitDocument: (payload: { file?: File; documentRef?: string; documentType: string }) => {
     if (payload.file) {
@@ -95,12 +95,12 @@ export const intelligenceApi = {
         headers: { 'Content-Type': 'multipart/form-data' },
       }).then((r) => r.data.data);
     }
-    return apiPost<DocumentJob>('/v1/intelligence/documents/process', {
+    return apiPost<DocumentJob>('/api/v1/intelligence/documents/process', {
       documentRef: payload.documentRef,
       documentType: payload.documentType,
     });
   },
 
   reviewDocument: (jobId: string, action: 'APPROVE' | 'REJECT', notes?: string) =>
-    apiPost<DocumentJob>(`/v1/intelligence/documents/${jobId}/review`, { action, notes }),
+    apiPost<DocumentJob>(`/api/v1/intelligence/documents/${jobId}/review`, { action, notes }),
 };

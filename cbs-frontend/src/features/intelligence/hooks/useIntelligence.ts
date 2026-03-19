@@ -42,7 +42,7 @@ export function useRespondToRecommendation() {
   return useMutation({
     mutationFn: ({
       id,
-      customerId,
+      customerId: _customerId,
       action,
       reason,
     }: {

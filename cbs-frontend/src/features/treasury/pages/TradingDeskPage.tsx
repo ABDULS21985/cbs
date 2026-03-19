@@ -11,7 +11,7 @@ import {
   AlertTriangle,
   XCircle,
 } from 'lucide-react';
-import { formatMoney, formatPercent, formatDateTime } from '@/lib/formatters';
+import { formatMoney, formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
   useDealerDesks,
@@ -22,7 +22,7 @@ import {
   usePositionBreaches,
 } from '../hooks/useTreasury';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { DealerDesk, TradingBook, TradingMarketOrder, TraderPosition } from '../api/tradingApi';
+import type { TradingBook, TradingMarketOrder, TraderPosition } from '../api/tradingApi';
 
 // ─── Utilization Bar ───────────────────────────────────────────────────────────
 

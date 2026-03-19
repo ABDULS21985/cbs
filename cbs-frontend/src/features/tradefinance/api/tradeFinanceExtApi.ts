@@ -134,7 +134,7 @@ export interface FactoredInvoice {
 export const tradeFinanceExtApi = {
   // ── Letters of Credit ────────────────────────────────────────────────────────
   getCustomerLcs: (customerId: number, params?: { page?: number; size?: number }) =>
-    apiGet<LetterOfCredit[]>(`/v1/trade/lc/customer/${customerId}`, params as Record<string, unknown>),
+    apiGet<LetterOfCredit[]>(`/api/v1/trade/lc/customer/${customerId}`, params as Record<string, unknown>),
 
   issueLc: (input: {
     applicant: string;
@@ -144,20 +144,20 @@ export const tradeFinanceExtApi = {
     expiryDate: string;
     paymentTerms: LcPaymentTerms;
     tenor?: number;
-  }) => apiPost<LetterOfCredit>('/v1/trade/lc', input),
+  }) => apiPost<LetterOfCredit>('/api/v1/trade/lc', input),
 
   getLc: (id: number) =>
-    apiGet<LetterOfCredit>(`/v1/trade/lc/${id}`),
+    apiGet<LetterOfCredit>(`/api/v1/trade/lc/${id}`),
 
   settleLc: (id: number, input: {
     presentationDate: string;
     presentedDocuments: string[];
     discrepancies?: string;
-  }) => apiPost<LetterOfCredit>(`/v1/trade/lc/${id}/settle`, input),
+  }) => apiPost<LetterOfCredit>(`/api/v1/trade/lc/${id}/settle`, input),
 
   // ── Bank Guarantees ──────────────────────────────────────────────────────────
   getCustomerGuarantees: (customerId: number, params?: { page?: number; size?: number }) =>
-    apiGet<BankGuarantee[]>(`/v1/trade/guarantees/customer/${customerId}`, params as Record<string, unknown>),
+    apiGet<BankGuarantee[]>(`/api/v1/trade/guarantees/customer/${customerId}`, params as Record<string, unknown>),
 
   issueGuarantee: (input: {
     applicant: string;
@@ -166,16 +166,16 @@ export const tradeFinanceExtApi = {
     currency: string;
     amount: number;
     expiryDate: string;
-  }) => apiPost<BankGuarantee>('/v1/trade/guarantees', input),
+  }) => apiPost<BankGuarantee>('/api/v1/trade/guarantees', input),
 
   getGuarantee: (id: number) =>
-    apiGet<BankGuarantee>(`/v1/trade/guarantees/${id}`),
+    apiGet<BankGuarantee>(`/api/v1/trade/guarantees/${id}`),
 
   claimGuarantee: (id: number, input: {
     claimAmount: number;
     claimRef: string;
     claimDate: string;
-  }) => apiPost<BankGuarantee>(`/v1/trade/guarantees/${id}/claim`, input),
+  }) => apiPost<BankGuarantee>(`/api/v1/trade/guarantees/${id}/claim`, input),
 
   // ── Documentary Collections ──────────────────────────────────────────────────
   createCollection: (input: {
@@ -185,12 +185,12 @@ export const tradeFinanceExtApi = {
     amount: number;
     type: CollectionType;
     documents: string[];
-  }) => apiPost<DocumentaryCollection>('/v1/trade/collections', input),
+  }) => apiPost<DocumentaryCollection>('/api/v1/trade/collections', input),
 
   settleCollection: (id: number, input: {
     settlementDate: string;
     amount: number;
-  }) => apiPost<DocumentaryCollection>(`/v1/trade/collections/${id}/settle`, input),
+  }) => apiPost<DocumentaryCollection>(`/api/v1/trade/collections/${id}/settle`, input),
 
   // ── Supply Chain Finance ─────────────────────────────────────────────────────
   createScfProgramme: (input: {
@@ -198,7 +198,7 @@ export const tradeFinanceExtApi = {
     currency: string;
     discountRate: number;
     limitAmount: number;
-  }) => apiPost<ScfProgramme>('/v1/trade/scf/programmes', input),
+  }) => apiPost<ScfProgramme>('/api/v1/trade/scf/programmes', input),
 
   financeInvoice: (input: {
     programmeId: number;
@@ -207,26 +207,26 @@ export const tradeFinanceExtApi = {
     amount: number;
     invoiceDate: string;
     maturityDate: string;
-  }) => apiPost<FactoredInvoice>('/v1/trade/scf/invoices', input),
+  }) => apiPost<FactoredInvoice>('/api/v1/trade/scf/invoices', input),
 
   // ── Trade Documents ──────────────────────────────────────────────────────────
   uploadDocument: (input: {
     documentType: DocumentType;
     lcId?: number;
-  }) => apiPost<TradeDocument>('/v1/trade/documents', input),
+  }) => apiPost<TradeDocument>('/api/v1/trade/documents', input),
 
   verifyDocument: (id: number, input: {
     status: DocumentComplianceStatus;
     discrepancies?: string[];
-  }) => apiPost<TradeDocument>(`/v1/trade/documents/${id}/verify`, input),
+  }) => apiPost<TradeDocument>(`/api/v1/trade/documents/${id}/verify`, input),
 
   getLcDocuments: (lcId: number) =>
-    apiGet<TradeDocument[]>(`/v1/trade/documents/lc/${lcId}`),
+    apiGet<TradeDocument[]>(`/api/v1/trade/documents/lc/${lcId}`),
 
   // ── Factoring ────────────────────────────────────────────────────────────────
   getFacilityConcentration: (code: string) =>
     apiGet<{ facilityCode: string; concentrations: Array<{ buyer: string; amount: number; pct: number }> }>(
-      `/v1/factoring/facility/${code}/concentration`
+      `/api/v1/factoring/facility/${code}/concentration`
     ),
 
   createFactoringFacility: (input: {
@@ -235,7 +235,7 @@ export const tradeFinanceExtApi = {
     currency: string;
     recourse: FactoringRecourse;
     discountRate: number;
-  }) => apiPost<FactoringFacility>('/v1/factoring/facility', input),
+  }) => apiPost<FactoringFacility>('/api/v1/factoring/facility', input),
 
   submitInvoice: (input: {
     facilityCode: string;
@@ -244,13 +244,13 @@ export const tradeFinanceExtApi = {
     amount: number;
     invoiceDate: string;
     dueDate: string;
-  }) => apiPost<FactoredInvoice>('/v1/factoring/invoice', input),
+  }) => apiPost<FactoredInvoice>('/api/v1/factoring/invoice', input),
 
   fundInvoice: (id: number) =>
-    apiPost<FactoredInvoice>(`/v1/factoring/invoice/${id}/fund`),
+    apiPost<FactoredInvoice>(`/api/v1/factoring/invoice/${id}/fund`),
 
   recordCollection: (id: number, input: {
     amount: number;
     collectionDate: string;
-  }) => apiPost<FactoredInvoice>(`/v1/factoring/invoice/${id}/collect`, input),
+  }) => apiPost<FactoredInvoice>(`/api/v1/factoring/invoice/${id}/collect`, input),
 };

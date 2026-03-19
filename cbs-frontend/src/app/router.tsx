@@ -136,6 +136,26 @@ import {
   ApprovalQueuePage,
   OperationsHomePage,
   TreasuryHomePage,
+  TreasuryDashboardPage,
+  TreasuryDealsPage,
+  TradingDeskPage,
+  MarketMakingPage,
+  CapitalMarketsDashboardPage,
+  CapitalMarketsDealDetailPage,
+  InvestmentPortfolioPage,
+  FundManagementPage,
+  AdvisoryDashboardPage,
+  CorporateFinancePage,
+  ProjectFinancePage,
+  SuitabilityPage,
+  IntelligencePage,
+  AlmDashboardPage,
+  CustodySettlementPage,
+  ChannelManagementPage,
+  OpenBankingPage,
+  MerchantAcquiringPage,
+  MarketDataManagementPage,
+  TradeFinanceHubPage,
 } from './lazyRoutes';
 
 // Placeholder page — used for all unimplemented modules
@@ -251,15 +271,72 @@ export function AppRouter() {
         {/* Treasury */}
         <Route path="/treasury" element={<Outlet />}>
           <Route index element={<TreasuryHomePage />} />
-          <Route path="deals" element={<PlaceholderPage title="Treasury Deals" />} />
+          <Route path="overview" element={<TreasuryDashboardPage />} />
+          <Route path="deals" element={<TreasuryDealsPage />} />
+          <Route path="trading-desk" element={<TradingDeskPage />} />
+          <Route path="market-making" element={<MarketMakingPage />} />
           <Route path="positions" element={<PlaceholderPage title="Positions" />} />
           <Route path="fx" element={<PlaceholderPage title="FX Rates" />} />
-          <Route path="investments" element={<PlaceholderPage title="Investments" />} />
           <Route path="fixed-income" element={<FixedIncomePage />} />
           <Route path="market-data" element={<MarketDataPage />} />
           <Route path="orders" element={<OrderManagementPage />} />
           <Route path="trade-ops" element={<TradeOpsPage />} />
           <Route path="capital-markets" element={<CapitalMarketsPage />} />
+        </Route>
+
+        {/* Capital Markets */}
+        <Route path="/capital-markets" element={<Outlet />}>
+          <Route index element={<CapitalMarketsDashboardPage />} />
+          <Route path=":id" element={<CapitalMarketsDealDetailPage />} />
+        </Route>
+
+        {/* Investments */}
+        <Route path="/investments" element={<Outlet />}>
+          <Route index element={<InvestmentPortfolioPage />} />
+          <Route path="funds" element={<FundManagementPage />} />
+        </Route>
+
+        {/* Advisory */}
+        <Route path="/advisory" element={<Outlet />}>
+          <Route index element={<AdvisoryDashboardPage />} />
+          <Route path="corporate-finance" element={<CorporateFinancePage />} />
+          <Route path="project-finance" element={<ProjectFinancePage />} />
+          <Route path="suitability" element={<SuitabilityPage />} />
+        </Route>
+
+        {/* Intelligence */}
+        <Route path="/intelligence" element={<Outlet />}>
+          <Route index element={<IntelligencePage />} />
+        </Route>
+
+        {/* ALM */}
+        <Route path="/alm" element={<Outlet />}>
+          <Route index element={<AlmDashboardPage />} />
+        </Route>
+
+        {/* Custody */}
+        <Route path="/custody" element={<Outlet />}>
+          <Route index element={<CustodySettlementPage />} />
+        </Route>
+
+        {/* Channels */}
+        <Route path="/channels" element={<Outlet />}>
+          <Route index element={<ChannelManagementPage />} />
+        </Route>
+
+        {/* Open Banking */}
+        <Route path="/open-banking" element={<Outlet />}>
+          <Route index element={<OpenBankingPage />} />
+        </Route>
+
+        {/* Acquiring */}
+        <Route path="/acquiring" element={<Outlet />}>
+          <Route index element={<MerchantAcquiringPage />} />
+        </Route>
+
+        {/* Market Data Management */}
+        <Route path="/market-data-mgmt" element={<Outlet />}>
+          <Route index element={<MarketDataManagementPage />} />
         </Route>
 
         {/* Risk */}
@@ -355,7 +432,8 @@ export function AppRouter() {
 
         {/* Trade Finance */}
         <Route path="/trade-finance" element={<Outlet />}>
-          <Route index element={<TradeFinancePage />} />
+          <Route index element={<TradeFinanceHubPage />} />
+          <Route path="legacy" element={<TradeFinancePage />} />
         </Route>
 
         {/* Syndication */}
