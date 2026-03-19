@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, Upload, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { FolderTree } from './FolderTree';
 import { FileListTable } from './FileListTable';
 import { DocumentPreview } from './DocumentPreview';

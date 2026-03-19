@@ -150,6 +150,7 @@ export const navigationItems: NavSection[] = [
           { label: 'General Ledger', path: '/operations/gl' },
           { label: 'Branch Ops', path: '/operations/branches' },
           { label: 'Approvals', path: '/operations/approvals' },
+          { label: 'Documents', path: '/operations/documents' },
         ],
       },
       {

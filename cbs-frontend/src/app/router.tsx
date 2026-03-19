@@ -76,6 +76,12 @@ import { LoanApplicationListPage } from '@/features/lending/pages/LoanApplicatio
 import { LoanApplicationPage } from '@/features/lending/pages/LoanApplicationPage';
 import { ActiveLoansPage } from '@/features/lending/pages/ActiveLoansPage';
 import { LoanDetailPage } from '@/features/lending/pages/LoanDetailPage';
+import { CardListPage } from '@/features/cards/pages/CardListPage';
+import { CardDetailPage } from '@/features/cards/pages/CardDetailPage';
+import { CardTransactionsPage } from '@/features/cards/pages/CardTransactionsPage';
+import { MerchantListPage } from '@/features/cards/pages/MerchantListPage';
+import { PosTerminalPage } from '@/features/cards/pages/PosTerminalPage';
+import { CardClearingPage } from '@/features/cards/pages/CardClearingPage';
 import { FixedIncomePage } from '@/features/treasury/pages/FixedIncomePage';
 import { MarketDataPage } from '@/features/treasury/pages/MarketDataPage';
 import { OrderManagementPage } from '@/features/treasury/pages/OrderManagementPage';
@@ -94,6 +100,12 @@ import MortgageDetailPage from '@/features/lending/pages/MortgageDetailPage';
 import LeaseListPage from '@/features/lending/pages/LeaseListPage';
 import LeaseDetailPage from '@/features/lending/pages/LeaseDetailPage';
 import { GatewayConsolePage } from '@/features/gateway/pages/GatewayConsolePage';
+import { EodConsolePage } from '@/features/operations/pages/EodConsolePage';
+import { GeneralLedgerPage } from '@/features/operations/pages/GeneralLedgerPage';
+import { BranchOpsPage } from '@/features/operations/pages/BranchOpsPage';
+import { DocumentManagementPage } from '@/features/operations/pages/DocumentManagementPage';
+import { UserAdminPage } from '@/features/admin/pages/UserAdminPage';
+import { SystemParametersPage } from '@/features/admin/pages/SystemParametersPage';
 import { ChequeManagementPage } from '@/features/payments/pages/ChequeManagementPage';
 import { QrPaymentPage } from '@/features/payments/pages/QrPaymentPage';
 import { MobileMoneyPage } from '@/features/payments/pages/MobileMoneyPage';
@@ -203,8 +215,12 @@ export function AppRouter() {
 
         {/* Cards */}
         <Route path="/cards" element={<Outlet />}>
-          <Route index element={<PlaceholderPage title="Card Management" />} />
-          <Route path="transactions" element={<PlaceholderPage title="Card Transactions" />} />
+          <Route index element={<CardListPage />} />
+          <Route path=":id" element={<CardDetailPage />} />
+          <Route path="transactions" element={<CardTransactionsPage />} />
+          <Route path="merchants" element={<MerchantListPage />} />
+          <Route path="pos" element={<PosTerminalPage />} />
+          <Route path="clearing" element={<CardClearingPage />} />
           <Route path="disputes" element={<PlaceholderPage title="Disputes & Chargebacks" />} />
         </Route>
 
@@ -245,12 +261,13 @@ export function AppRouter() {
         {/* Operations */}
         <Route path="/operations" element={<Outlet />}>
           <Route index element={<PlaceholderPage title="Operations" />} />
-          <Route path="eod" element={<PlaceholderPage title="End of Day" />} />
-          <Route path="gl" element={<PlaceholderPage title="General Ledger" />} />
-          <Route path="branches" element={<PlaceholderPage title="Branch Operations" />} />
+          <Route path="eod" element={<EodConsolePage />} />
+          <Route path="gl" element={<GeneralLedgerPage />} />
+          <Route path="branches" element={<BranchOpsPage />} />
           <Route path="approvals" element={<PlaceholderPage title="Approvals Queue" />} />
           <Route path="gateway" element={<GatewayConsolePage />} />
           <Route path="ach" element={<AchOperationsPage />} />
+          <Route path="documents" element={<DocumentManagementPage />} />
         </Route>
 
         {/* Reports */}
@@ -266,8 +283,8 @@ export function AppRouter() {
         {/* Admin */}
         <Route path="/admin" element={<Outlet />}>
           <Route index element={<PlaceholderPage title="Administration" />} />
-          <Route path="users" element={<PlaceholderPage title="Users & Roles" />} />
-          <Route path="parameters" element={<PlaceholderPage title="System Parameters" />} />
+          <Route path="users" element={<UserAdminPage />} />
+          <Route path="parameters" element={<SystemParametersPage />} />
           <Route path="products" element={<ProductFactoryPage />} />
           <Route path="products/new" element={<ProductCreatePage />} />
           <Route path="products/:id" element={<ProductDetailPage />} />

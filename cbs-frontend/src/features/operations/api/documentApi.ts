@@ -716,7 +716,7 @@ export async function getDocumentTemplates(): Promise<DocumentTemplate[]> {
 export async function generateFromTemplate(
   templateId: string,
   entityId: string,
-  entityType: string,
+  _entityType: string,
 ): Promise<{ downloadUrl: string; documentId: string }> {
   await delay(1200);
   return {

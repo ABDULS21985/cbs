@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, Plus, Save, Link, Tag, ShieldCheck, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/formatters';
-import type { DocumentFile, RetentionClass, DocumentFolder } from '../../api/documentApi';
+import type { DocumentFile, RetentionClass } from '../../api/documentApi';
 
 interface MetadataPanelProps {
   document: DocumentFile;
