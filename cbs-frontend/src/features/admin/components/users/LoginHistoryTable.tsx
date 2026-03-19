@@ -1,16 +1,23 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { type ColumnDef as TableColumnDef } from '@tanstack/react-table';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Download } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { DataTable, StatusBadge, DateRangePicker } from '@/components/shared';
 import { userAdminApi, type LoginEvent } from '../../api/userAdminApi';
 import { formatDateTime } from '@/lib/formatters';
-import { subHours, format, parseISO } from 'date-fns';
+import { subHours, subDays, format, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface DateRange { from?: Date; to?: Date; }
+
+const DATE_PRESETS = [
+  { label: 'Last 24h', fn: () => ({ from: subDays(new Date(), 1) }) },
+  { label: 'Last 7d', fn: () => ({ from: subDays(new Date(), 7) }) },
+  { label: 'Last 30d', fn: () => ({ from: subDays(new Date(), 30) }) },
+];
 
 export function LoginHistoryTable() {
   const [userSearch, setUserSearch] = useState('');
@@ -33,12 +40,16 @@ export function LoginHistoryTable() {
       results = results.filter(e => e.outcome === outcomeFilter);
     }
     if (dateRange.from) {
-      results = results.filter(e => parseISO(e.timestamp) >= dateRange.from!);
+      results = results.filter(e => {
+        try { return parseISO(e.timestamp) >= dateRange.from!; } catch { return true; }
+      });
     }
     if (dateRange.to) {
       const toEnd = new Date(dateRange.to!);
       toEnd.setHours(23, 59, 59, 999);
-      results = results.filter(e => parseISO(e.timestamp) <= toEnd);
+      results = results.filter(e => {
+        try { return parseISO(e.timestamp) <= toEnd; } catch { return true; }
+      });
     }
     return results;
   }, [events, userSearch, outcomeFilter, dateRange]);
@@ -51,9 +62,13 @@ export function LoginHistoryTable() {
       const hourStart = subHours(now, i + 1);
       const hourEnd = subHours(now, i);
       const label = format(hourEnd, 'HH:mm');
-      const failures = events.filter(
-        e => e.outcome === 'FAILED' && parseISO(e.timestamp) >= hourStart && parseISO(e.timestamp) < hourEnd,
-      ).length;
+      const failures = events.filter(e => {
+        if (e.outcome !== 'FAILED') return false;
+        try {
+          const t = parseISO(e.timestamp);
+          return t >= hourStart && t < hourEnd;
+        } catch { return false; }
+      }).length;
       hours.push({ hour: label, failures });
     }
     return hours;
@@ -64,12 +79,38 @@ export function LoginHistoryTable() {
     const oneHourAgo = subHours(new Date(), 1);
     const ipMap: Record<string, number> = {};
     events.forEach(e => {
-      if (e.outcome === 'FAILED' && parseISO(e.timestamp) >= oneHourAgo) {
-        ipMap[e.ip] = (ipMap[e.ip] || 0) + 1;
+      if (e.outcome === 'FAILED') {
+        try {
+          if (parseISO(e.timestamp) >= oneHourAgo) {
+            ipMap[e.ip] = (ipMap[e.ip] || 0) + 1;
+          }
+        } catch { /* ignore */ }
       }
     });
     return Object.entries(ipMap).filter(([, count]) => count > 5).map(([ip, count]) => ({ ip, count }));
   }, [events]);
+
+  // CSV export
+  const exportCsv = () => {
+    const headers = ['Timestamp', 'Username', 'User ID', 'IP Address', 'Browser', 'Outcome', 'Failure Reason'];
+    const rows = filtered.map(e => [
+      e.timestamp,
+      e.username,
+      e.userId,
+      e.ip,
+      e.browser,
+      e.outcome,
+      e.failureReason || '',
+    ]);
+    const csvContent = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `login-history-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const columns: TableColumnDef<LoginEvent>[] = [
     {
@@ -102,12 +143,16 @@ export function LoginHistoryTable() {
     },
     {
       accessorKey: 'browser',
-      header: 'Browser',
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.browser}</span>,
+      header: 'User Agent',
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground max-w-[180px] truncate block" title={row.original.browser}>
+          {row.original.browser}
+        </span>
+      ),
     },
     {
       accessorKey: 'outcome',
-      header: 'Outcome',
+      header: 'Result',
       cell: ({ row }) => (
         <StatusBadge status={row.original.outcome === 'SUCCESS' ? 'ACTIVE' : 'FAILED'} dot />
       ),
@@ -181,6 +226,21 @@ export function LoginHistoryTable() {
           className="rounded-lg border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-52"
         />
         <DateRangePicker value={dateRange} onChange={setDateRange} />
+        {/* Quick date presets */}
+        <div className="flex items-center gap-1">
+          {DATE_PRESETS.map(preset => (
+            <button
+              key={preset.label}
+              onClick={() => setDateRange(preset.fn())}
+              className={cn(
+                'px-2 py-1 rounded text-xs font-medium border transition-colors',
+                'hover:bg-muted',
+              )}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
         <select
           value={outcomeFilter}
           onChange={e => setOutcomeFilter(e.target.value)}
@@ -190,10 +250,20 @@ export function LoginHistoryTable() {
           <option value="SUCCESS">Success only</option>
           <option value="FAILED">Failed only</option>
         </select>
-        <button onClick={() => refetch()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm hover:bg-muted transition-colors ml-auto">
-          <RefreshCw className="w-3.5 h-3.5" />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={exportCsv}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Export CSV
+          </button>
+          <button onClick={() => refetch()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm hover:bg-muted transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <DataTable

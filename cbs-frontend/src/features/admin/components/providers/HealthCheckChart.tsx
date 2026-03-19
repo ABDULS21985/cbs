@@ -1,13 +1,6 @@
 import {
-  ComposedChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ReferenceLine,
-  ResponsiveContainer,
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ReferenceLine, ResponsiveContainer,
 } from 'recharts';
 import { format } from 'date-fns';
 import type { ProviderHealthLog } from '../../api/providerApi';
@@ -28,7 +21,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
           <span className="text-muted-foreground">{entry.name}:</span>
           <span className="font-semibold">
-            {entry.name === 'Uptime %' ? `${entry.value.toFixed(3)}%` : `${entry.value}ms`}
+            {entry.name.includes('Response') ? `${entry.value}ms` : `${entry.value}`}
           </span>
         </div>
       ))}
@@ -38,121 +31,42 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 
 export function HealthCheckChart({ logs, slaUptime = 99.9, slaResponse = 300 }: HealthCheckChartProps) {
   const data = logs.map(log => ({
-    date: format(new Date(log.timestamp), 'MMM dd'),
-    uptime: log.uptime,
-    latency: log.avgLatencyMs,
-    calls: log.callCount,
+    date: format(new Date(log.checkTimestamp), 'MMM dd HH:mm'),
+    responseTime: log.responseTimeMs,
+    healthy: log.isHealthy ? 1 : 0,
+    requests: log.requestCount,
     errors: log.errorCount,
-  }));
-
-  const minUptime = Math.min(...data.map(d => d.uptime), slaUptime) - 1;
-  const uptimeDomain: [number, number] = [Math.max(90, Math.floor(minUptime * 10) / 10), 100];
+    errorRate: log.errorRatePct,
+  })).reverse();
 
   return (
     <div className="w-full">
       <ResponsiveContainer width="100%" height={320}>
         <ComposedChart data={data} margin={{ top: 8, right: 60, left: 8, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-          <XAxis
-            dataKey="date"
-            tick={{ fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            interval={Math.floor(data.length / 8)}
-            className="fill-muted-foreground"
-          />
-          {/* Left Y: Uptime */}
-          <YAxis
-            yAxisId="uptime"
-            orientation="left"
-            domain={uptimeDomain}
-            tick={{ fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={v => `${v}%`}
-            className="fill-muted-foreground"
-          />
-          {/* Right Y: Latency */}
-          <YAxis
-            yAxisId="latency"
-            orientation="right"
-            tick={{ fontSize: 11 }}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={v => `${v}ms`}
-            className="fill-muted-foreground"
-          />
+          <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false}
+            interval={Math.max(0, Math.floor(data.length / 8))} className="fill-muted-foreground" />
+          <YAxis yAxisId="response" orientation="left" tick={{ fontSize: 11 }} tickLine={false}
+            axisLine={false} tickFormatter={v => `${v}ms`} className="fill-muted-foreground" />
+          <YAxis yAxisId="errorRate" orientation="right" tick={{ fontSize: 11 }} tickLine={false}
+            axisLine={false} tickFormatter={v => `${v}%`} className="fill-muted-foreground" />
           <Tooltip content={<CustomTooltip />} />
-          <Legend
-            wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-            iconType="circle"
-            iconSize={8}
-          />
-
-          {/* SLA reference lines */}
-          <ReferenceLine
-            yAxisId="uptime"
-            y={slaUptime}
-            stroke="#3b82f6"
-            strokeDasharray="6 4"
-            strokeOpacity={0.7}
-            label={{ value: `SLA ${slaUptime}%`, position: 'insideTopLeft', fontSize: 10, fill: '#3b82f6' }}
-          />
-          <ReferenceLine
-            yAxisId="latency"
-            y={slaResponse}
-            stroke="#f59e0b"
-            strokeDasharray="6 4"
-            strokeOpacity={0.7}
-            label={{ value: `SLA ${slaResponse}ms`, position: 'insideTopRight', fontSize: 10, fill: '#f59e0b' }}
-          />
-
-          <Line
-            yAxisId="uptime"
-            type="monotone"
-            dataKey="uptime"
-            name="Uptime %"
-            stroke="#3b82f6"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-          <Line
-            yAxisId="latency"
-            type="monotone"
-            dataKey="latency"
-            name="Avg Latency (ms)"
-            stroke="#f97316"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
+          <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} iconType="circle" iconSize={8} />
+          <ReferenceLine yAxisId="response" y={slaResponse} stroke="#f59e0b" strokeDasharray="6 4" strokeOpacity={0.7}
+            label={{ value: `SLA ${slaResponse}ms`, position: 'insideTopRight', fontSize: 10, fill: '#f59e0b' }} />
+          <Line yAxisId="response" type="monotone" dataKey="responseTime" name="Response Time (ms)"
+            stroke="#3b82f6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+          <Line yAxisId="errorRate" type="monotone" dataKey="errorRate" name="Error Rate (%)"
+            stroke="#ef4444" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Summary below chart */}
       {data.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground px-2">
-          <span>
-            Avg Uptime: <strong className="text-foreground">
-              {(data.reduce((s, d) => s + d.uptime, 0) / data.length).toFixed(3)}%
-            </strong>
-          </span>
-          <span>
-            Avg Latency: <strong className="text-foreground">
-              {Math.round(data.reduce((s, d) => s + d.latency, 0) / data.length)}ms
-            </strong>
-          </span>
-          <span>
-            Total Calls: <strong className="text-foreground">
-              {logs.reduce((s, l) => s + l.callCount, 0).toLocaleString()}
-            </strong>
-          </span>
-          <span>
-            Total Errors: <strong className="text-foreground">
-              {logs.reduce((s, l) => s + l.errorCount, 0).toLocaleString()}
-            </strong>
-          </span>
+          <span>Avg Response: <strong className="text-foreground">{Math.round(data.reduce((s, d) => s + d.responseTime, 0) / data.length)}ms</strong></span>
+          <span>Total Requests: <strong className="text-foreground">{logs.reduce((s, l) => s + l.requestCount, 0).toLocaleString()}</strong></span>
+          <span>Total Errors: <strong className="text-foreground">{logs.reduce((s, l) => s + l.errorCount, 0).toLocaleString()}</strong></span>
+          <span>Health Checks: <strong className="text-foreground">{logs.length}</strong></span>
         </div>
       )}
     </div>

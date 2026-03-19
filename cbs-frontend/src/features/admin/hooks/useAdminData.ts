@@ -37,9 +37,10 @@ import type {
 } from '../api/notificationAdminApi';
 import { parameterApi } from '../api/parameterApi';
 import type {
+  RateTier,
   RateTableUpdateRequest,
   CreateLookupRequest,
-  LookupCode,
+  SystemParameter,
 } from '../api/parameterApi';
 import { pricingApi } from '../api/pricingApi';
 import { productAnalyticsApi } from '../api/productAnalyticsApi';
@@ -302,6 +303,7 @@ export const KEYS = {
     sessions: ['users', 'sessions'] as const,
     loginHistory: (params?: { userId?: string; dateFrom?: string; dateTo?: string; outcome?: string }) =>
       ['users', 'loginHistory', params] as const,
+    dashboardStats: ['users', 'dashboardStats'] as const,
   },
 } as const;
 
@@ -879,9 +881,9 @@ export function useRateTables() {
   });
 }
 
-export function useRateTable(id: string) {
+export function useRateTable(id: number) {
   return useQuery({
-    queryKey: KEYS.parameters.rateTable(id),
+    queryKey: KEYS.parameters.rateTable(String(id)),
     queryFn: () => parameterApi.getRateTable(id),
     staleTime: 60_000,
     enabled: !!id,
@@ -901,6 +903,7 @@ export function useSystemInfo() {
     queryKey: KEYS.parameters.systemInfo,
     queryFn: () => parameterApi.getSystemInfo(),
     staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 }
 
@@ -926,10 +929,21 @@ export function useToggleFeatureFlag() {
   });
 }
 
+export function useCreateRateTable() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name: string; type?: string; tiers?: RateTier[] }) =>
+      parameterApi.createRateTable(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.parameters.rateTables });
+    },
+  });
+}
+
 export function useUpdateRateTable() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: RateTableUpdateRequest }) =>
+    mutationFn: ({ id, data }: { id: number; data: RateTableUpdateRequest }) =>
       parameterApi.updateRateTable(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.parameters.rateTables });
@@ -950,7 +964,7 @@ export function useCreateLookupCode() {
 export function useUpdateLookupCode() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<LookupCode> }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<SystemParameter & { code: string; status: string }> }) =>
       parameterApi.updateLookupCode(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.parameters.all });
@@ -1906,6 +1920,14 @@ export function useLoginHistory(params: { userId?: string; dateFrom?: string; da
   return useQuery({
     queryKey: KEYS.users.loginHistory(params),
     queryFn: () => userAdminApi.getLoginHistory(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useDashboardStats() {
+  return useQuery({
+    queryKey: KEYS.users.dashboardStats,
+    queryFn: () => userAdminApi.getDashboardStats(),
     staleTime: 30_000,
   });
 }

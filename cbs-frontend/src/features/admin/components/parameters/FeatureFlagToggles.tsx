@@ -1,43 +1,38 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { Search, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters';
-
 import { parameterApi } from '../../api/parameterApi';
-import type { FeatureFlag } from '../../api/parameterApi';
-
-const TAG_STYLES: Record<string, string> = {
-  Beta: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  'Coming Soon': 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  'Not Approved': 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-};
+import type { SystemParameter } from '../../api/parameterApi';
 
 interface FlagCardProps {
-  flag: FeatureFlag;
-  onToggle: (flag: FeatureFlag) => void;
+  flag: SystemParameter;
+  onToggle: (flag: SystemParameter) => void;
   isLoading: boolean;
 }
 
 function FlagCard({ flag, onToggle, isLoading }: FlagCardProps) {
+  const enabled = flag.paramValue === 'true';
+  const isExperimental = flag.paramKey.toLowerCase().includes('experimental');
+
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-3 hover:border-primary/30 transition-colors">
+    <div
+      className={cn(
+        'rounded-xl border bg-card p-5 space-y-3 hover:border-primary/30 transition-colors',
+        isExperimental && 'border-amber-300 dark:border-amber-700',
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-semibold truncate">{flag.name}</h3>
-            {flag.tag && (
-              <span
-                className={cn(
-                  'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0',
-                  TAG_STYLES[flag.tag] ?? 'bg-gray-100 text-gray-600',
-                )}
-              >
-                {flag.tag}
-              </span>
-            )}
+            {isExperimental && <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+            <h3 className="text-sm font-semibold truncate">{flag.paramKey}</h3>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{flag.description}</p>
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+            {flag.description ?? 'No description'}
+          </p>
         </div>
         <button
           type="button"
@@ -45,34 +40,27 @@ function FlagCard({ flag, onToggle, isLoading }: FlagCardProps) {
           onClick={() => onToggle(flag)}
           className={cn(
             'relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed',
-            flag.enabled ? 'bg-primary' : 'bg-muted-foreground/30',
+            enabled ? 'bg-primary' : 'bg-muted-foreground/30',
           )}
-          aria-label={flag.enabled ? 'Disable feature' : 'Enable feature'}
+          aria-label={enabled ? 'Disable feature' : 'Enable feature'}
         >
           <span
             className={cn(
               'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-              flag.enabled ? 'translate-x-6' : 'translate-x-1',
+              enabled ? 'translate-x-6' : 'translate-x-1',
             )}
           />
         </button>
       </div>
-      {(flag.lastChangedAt || flag.lastChangedBy) && (
+      {flag.lastModifiedBy && (
         <p className="text-xs text-muted-foreground">
-          Last changed{flag.lastChangedAt ? `: ${formatDateTime(flag.lastChangedAt)}` : ''}{' '}
-          {flag.lastChangedBy ? `by ${flag.lastChangedBy}` : ''}
+          Last changed{flag.updatedAt ? `: ${formatDateTime(flag.updatedAt)}` : ''}{' '}
+          by {flag.lastModifiedBy}
         </p>
       )}
       <div className="flex items-center gap-1.5">
-        <span
-          className={cn(
-            'w-2 h-2 rounded-full',
-            flag.enabled ? 'bg-green-500' : 'bg-gray-300',
-          )}
-        />
-        <span className="text-xs font-medium">
-          {flag.enabled ? 'Enabled' : 'Disabled'}
-        </span>
+        <span className={cn('w-2 h-2 rounded-full', enabled ? 'bg-green-500' : 'bg-gray-300')} />
+        <span className="text-xs font-medium">{enabled ? 'Enabled' : 'Disabled'}</span>
       </div>
     </div>
   );
@@ -80,7 +68,7 @@ function FlagCard({ flag, onToggle, isLoading }: FlagCardProps) {
 
 interface ReasonDialogProps {
   open: boolean;
-  flag: FeatureFlag | null;
+  flag: SystemParameter | null;
   reason: string;
   onReasonChange: (v: string) => void;
   onConfirm: () => void;
@@ -90,8 +78,7 @@ interface ReasonDialogProps {
 
 function ReasonDialog({ open, flag, reason, onReasonChange, onConfirm, onClose, isLoading }: ReasonDialogProps) {
   if (!open || !flag) return null;
-
-  const isDisabling = flag.enabled;
+  const isDisabling = flag.paramValue === 'true';
 
   return (
     <>
@@ -101,12 +88,12 @@ function ReasonDialog({ open, flag, reason, onReasonChange, onConfirm, onClose, 
           <div className="flex items-start gap-3">
             {isDisabling && (
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                <span className="text-red-600 text-lg">⚠</span>
+                <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
             )}
             <div>
               <h3 className="text-base font-semibold">
-                {isDisabling ? 'Disable' : 'Enable'} {flag.name}?
+                {isDisabling ? 'Disable' : 'Enable'} {flag.paramKey}?
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
                 {isDisabling
@@ -158,8 +145,9 @@ function ReasonDialog({ open, flag, reason, onReasonChange, onConfirm, onClose, 
 }
 
 export function FeatureFlagToggles() {
-  const [targetFlag, setTargetFlag] = useState<FeatureFlag | null>(null);
+  const [targetFlag, setTargetFlag] = useState<SystemParameter | null>(null);
   const [reason, setReason] = useState('');
+  const [search, setSearch] = useState('');
   const queryClient = useQueryClient();
 
   const { data: flags = [], isLoading } = useQuery({
@@ -170,18 +158,30 @@ export function FeatureFlagToggles() {
   const mutation = useMutation({
     mutationFn: ({ code, enabled, reason }: { code: string; enabled: boolean; reason: string }) =>
       parameterApi.toggleFeatureFlag(code, enabled, reason),
-    onSuccess: (updated) => {
-      toast.success(`"${updated.name}" has been ${updated.enabled ? 'enabled' : 'disabled'}`);
+    onMutate: async ({ code, enabled }) => {
+      // Optimistic update
+      await queryClient.cancelQueries({ queryKey: ['feature-flags'] });
+      const previous = queryClient.getQueryData<SystemParameter[]>(['feature-flags']);
+      queryClient.setQueryData<SystemParameter[]>(['feature-flags'], (old) =>
+        old?.map((f) => (f.paramKey === code ? { ...f, paramValue: String(enabled) } : f)) ?? [],
+      );
+      return { previous };
+    },
+    onSuccess: () => {
+      toast.success('Feature flag updated');
       queryClient.invalidateQueries({ queryKey: ['feature-flags'] });
       setTargetFlag(null);
       setReason('');
     },
-    onError: () => {
+    onError: (_err, _vars, context) => {
       toast.error('Failed to toggle feature flag');
+      if (context?.previous) {
+        queryClient.setQueryData(['feature-flags'], context.previous);
+      }
     },
   });
 
-  const handleToggleClick = (flag: FeatureFlag) => {
+  const handleToggleClick = (flag: SystemParameter) => {
     setTargetFlag(flag);
     setReason('');
   };
@@ -189,11 +189,17 @@ export function FeatureFlagToggles() {
   const handleConfirm = () => {
     if (!targetFlag) return;
     mutation.mutate({
-      code: targetFlag.code,
-      enabled: !targetFlag.enabled,
+      code: targetFlag.paramKey,
+      enabled: targetFlag.paramValue !== 'true',
       reason,
     });
   };
+
+  const filtered = flags.filter((f) => {
+    if (!search) return true;
+    const lower = search.toLowerCase();
+    return f.paramKey.toLowerCase().includes(lower) || (f.description?.toLowerCase().includes(lower) ?? false);
+  });
 
   if (isLoading) {
     return (
@@ -212,24 +218,38 @@ export function FeatureFlagToggles() {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-sm font-semibold">Feature Flags</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {flags.filter((f) => f.enabled).length} of {flags.length} features enabled
+              {flags.filter((f) => f.paramValue === 'true').length} of {flags.length} features enabled
             </p>
           </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {flags.map((flag) => (
-            <FlagCard
-              key={flag.code}
-              flag={flag}
-              onToggle={handleToggleClick}
-              isLoading={mutation.isPending && targetFlag?.code === flag.code}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search flags…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-52"
             />
-          ))}
+          </div>
         </div>
+        {filtered.length === 0 ? (
+          <div className="p-12 text-center text-sm text-muted-foreground">No feature flags found.</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((flag) => (
+              <FlagCard
+                key={flag.id}
+                flag={flag}
+                onToggle={handleToggleClick}
+                isLoading={mutation.isPending && targetFlag?.paramKey === flag.paramKey}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <ReasonDialog

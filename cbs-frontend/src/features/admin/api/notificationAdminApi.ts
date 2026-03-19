@@ -1,72 +1,76 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPut } from '@/lib/api';
 
-export type NotificationChannel = 'EMAIL' | 'SMS' | 'PUSH' | 'IN_APP';
+// ─── Types (aligned with backend NotificationTemplate entity) ───────────────
+
+export type NotificationChannel = 'EMAIL' | 'SMS' | 'PUSH' | 'IN_APP' | 'WEBHOOK';
 export type NotificationCategory = 'TRANSACTION' | 'ACCOUNT' | 'LOAN' | 'CARD' | 'SECURITY' | 'MARKETING' | 'SYSTEM';
 export type TemplateStatus = 'ACTIVE' | 'DRAFT' | 'ARCHIVED';
 
 export interface NotificationTemplate {
-  id: string;
-  code: string;
-  name: string;
+  id: number;
+  templateCode: string;
+  templateName: string;
   channel: NotificationChannel;
-  category: NotificationCategory;
+  eventType: string;
   subject?: string;
-  body: string;
-  language: 'EN' | 'YO' | 'HA' | 'IG';
-  usageMTD: number;
-  status: TemplateStatus;
-  version: number;
-  lastEditedBy: string;
-  updatedAt: string;
+  bodyTemplate: string;
+  isHtml: boolean;
+  locale: string;
+  isActive: boolean;
   createdAt: string;
-}
-
-export interface TemplateVersion {
+  updatedAt: string;
+  createdBy?: string;
   version: number;
-  editedBy: string;
-  editedAt: string;
-  subject?: string;
-  body: string;
-  changeNote: string;
 }
 
 export interface ChannelConfig {
   channel: NotificationChannel;
+  enabled: boolean;
   provider: string;
-  fromAddress?: string;
-  fromName?: string;
-  senderId?: string;
-  dailyLimit: number;
-  sentToday: number;
-  status: 'ACTIVE' | 'INACTIVE' | 'DEGRADED';
-  costPerUnit?: number;
+  config?: Record<string, unknown>;
 }
 
 export interface DeliveryStats {
-  date: string;
-  channel: NotificationChannel;
+  total: number;
   sent: number;
   delivered: number;
   failed: number;
-  bounced: number;
-  cost?: number;
+  pending: number;
+  deliveryRatePct: number;
+  failureRatePct: number;
+}
+
+export interface DeliveryTrendEntry {
+  date: string;
+  delivered: number;
+  failed: number;
+  pending: number;
+}
+
+export interface DeliveryByChannelEntry {
+  channel: string;
+  sent: number;
+  delivered: number;
+  failed: number;
 }
 
 export interface FailureRecord {
+  id: number;
   templateCode: string;
-  templateName: string;
   channel: NotificationChannel;
-  failures: number;
-  commonError: string;
-  lastFailure: string;
+  recipientAddress: string;
+  failureReason: string;
+  createdAt: string;
+  status: string;
 }
 
 export interface ScheduledNotification {
-  id: string;
+  id: number;
   name: string;
   templateCode: string;
   templateName: string;
   channel: NotificationChannel;
+  cronExpression?: string;
   frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
   nextRun: string;
   lastRun?: string;
@@ -74,18 +78,20 @@ export interface ScheduledNotification {
   status: 'ACTIVE' | 'PAUSED';
 }
 
-// ─── API Functions ────────────────────────────────────────────────────────────
-
-export function getTemplates(params?: {
-  channel?: NotificationChannel;
-  category?: NotificationCategory;
-  status?: TemplateStatus;
-  search?: string;
-}): Promise<NotificationTemplate[]> {
-  return apiGet<NotificationTemplate[]>('/api/v1/notifications/templates', params as Record<string, unknown>).catch(() => []);
+export interface TemplatePreview {
+  subject: string;
+  body: string;
+  channel: string;
+  isHtml: boolean;
 }
 
-export function getTemplateById(id: string): Promise<NotificationTemplate> {
+// ─── API Functions ────────────────────────────────────────────────────────────
+
+export function getTemplates(): Promise<NotificationTemplate[]> {
+  return apiGet<NotificationTemplate[]>('/api/v1/notifications/templates');
+}
+
+export function getTemplateById(id: number | string): Promise<NotificationTemplate> {
   return apiGet<NotificationTemplate>(`/api/v1/notifications/templates/${id}`);
 }
 
@@ -93,50 +99,70 @@ export function createTemplate(data: Partial<NotificationTemplate>): Promise<Not
   return apiPost<NotificationTemplate>('/api/v1/notifications/templates', data);
 }
 
-export function updateTemplate(id: string, data: Partial<NotificationTemplate>): Promise<NotificationTemplate> {
-  return apiPost<NotificationTemplate>(`/api/v1/notifications/templates/${id}`, data);
+export function updateTemplate(id: number | string, data: Partial<NotificationTemplate>): Promise<NotificationTemplate> {
+  return apiPut<NotificationTemplate>(`/api/v1/notifications/templates/${id}`, data);
 }
 
-export function publishTemplate(id: string): Promise<NotificationTemplate> {
+export function publishTemplate(id: number | string): Promise<NotificationTemplate> {
   return apiPost<NotificationTemplate>(`/api/v1/notifications/templates/${id}/publish`);
 }
 
-export function archiveTemplate(id: string): Promise<NotificationTemplate> {
+export function archiveTemplate(id: number | string): Promise<NotificationTemplate> {
   return apiPost<NotificationTemplate>(`/api/v1/notifications/templates/${id}/archive`);
 }
 
-export function getTemplateVersions(id: string): Promise<TemplateVersion[]> {
-  return apiGet<TemplateVersion[]>(`/api/v1/notifications/templates/${id}/versions`).catch(() => []);
+export function testSendTemplate(id: number | string, recipient: string): Promise<{ success: boolean; recipient: string; subject: string; body: string }> {
+  return apiPost(`/api/v1/notifications/templates/${id}/test`, { recipient });
 }
 
+export function previewTemplate(id: number | string): Promise<TemplatePreview> {
+  return apiGet<TemplatePreview>(`/api/v1/notifications/templates/${id}/preview`);
+}
+
+// ─── Channels ─────────────────────────────────────────────────────────────────
+
 export function getChannelConfigs(): Promise<ChannelConfig[]> {
-  return apiGet<ChannelConfig[]>('/api/v1/notifications/channels').catch(() => []);
+  return apiGet<ChannelConfig[]>('/api/v1/notifications/channels');
 }
 
 export function updateChannelConfig(channel: NotificationChannel, data: Partial<ChannelConfig>): Promise<ChannelConfig> {
-  return apiPost<ChannelConfig>(`/api/v1/notifications/channels/${channel}`, data);
+  return apiPut<ChannelConfig>(`/api/v1/notifications/channels/${channel}`, data);
 }
 
 export function testChannelSend(channel: NotificationChannel, recipient: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  return apiPost<{ success: boolean; messageId?: string; error?: string }>(`/api/v1/notifications/channels/${channel}/test`, { recipient });
+  return apiPost(`/api/v1/notifications/channels/${channel}/test`, { recipient });
 }
 
-export function getDeliveryStats(days = 30): Promise<DeliveryStats[]> {
-  return apiGet<DeliveryStats[]>('/api/v1/notifications/delivery-stats', { days }).catch(() => []);
+// ─── Delivery Stats ───────────────────────────────────────────────────────────
+
+export function getDeliveryStats(): Promise<DeliveryStats> {
+  return apiGet<DeliveryStats>('/api/v1/notifications/delivery-stats');
 }
 
-export function getFailureRecords(): Promise<FailureRecord[]> {
-  return apiGet<FailureRecord[]>('/api/v1/notifications/failures').catch(() => []);
+export function getDeliveryTrend(): Promise<DeliveryTrendEntry[]> {
+  return apiGet<DeliveryTrendEntry[]>('/api/v1/notifications/delivery-stats/trend');
 }
+
+export function getDeliveryByChannel(): Promise<DeliveryByChannelEntry[]> {
+  return apiGet<DeliveryByChannelEntry[]>('/api/v1/notifications/delivery-stats/by-channel');
+}
+
+export function getDeliveryFailures(): Promise<FailureRecord[]> {
+  return apiGet<FailureRecord[]>('/api/v1/notifications/delivery-stats/failures');
+}
+
+// ─── Schedules ────────────────────────────────────────────────────────────────
 
 export function getScheduledNotifications(): Promise<ScheduledNotification[]> {
-  return apiGet<ScheduledNotification[]>('/api/v1/notifications/scheduled').catch(() => []);
+  return apiGet<ScheduledNotification[]>('/api/v1/notifications/scheduled');
 }
 
-export function createScheduledNotification(data: Partial<ScheduledNotification>): Promise<ScheduledNotification> {
-  return apiPost<ScheduledNotification>('/api/v1/notifications/scheduled', data);
+export function toggleSchedule(id: number | string): Promise<ScheduledNotification> {
+  return apiPut<ScheduledNotification>(`/api/v1/notifications/scheduled/${id}/toggle`);
 }
 
-export function toggleSchedule(id: string): Promise<ScheduledNotification> {
-  return apiPost<ScheduledNotification>(`/api/v1/notifications/scheduled/${id}/toggle`);
+// ─── Send ─────────────────────────────────────────────────────────────────────
+
+export function sendNotification(data: { templateId: number; recipients: string[]; mergeData: Record<string, string> }): Promise<unknown> {
+  return apiPost('/api/v1/notifications/send', data);
 }

@@ -2,6 +2,14 @@ import { apiGet, apiPost } from '@/lib/api';
 import type { LoyaltyAccount, LoyaltyProgram, LoyaltyTransaction } from '../types/loyalty';
 
 export const loyaltyApi = {
+  /** GET /v1/loyalty/programs — list all programs */
+  getPrograms: () =>
+    apiGet<LoyaltyProgram[]>('/api/v1/loyalty/programs'),
+
+  /** GET /v1/loyalty/enroll — list all accounts */
+  getAccounts: () =>
+    apiGet<LoyaltyAccount[]>('/api/v1/loyalty/enroll'),
+
   /** POST /v1/loyalty/programs */
   createProgram: (data: Partial<LoyaltyProgram>) =>
     apiPost<LoyaltyProgram>('/api/v1/loyalty/programs', data),

@@ -2,6 +2,10 @@ import { apiGet, apiPost } from '@/lib/api';
 import type { CommissionAgreement, CommissionPayout } from '../types/commission';
 
 export const commissionsApi = {
+  /** GET /v1/commissions/agreements — list all */
+  getAllAgreements: () =>
+    apiGet<CommissionAgreement[]>('/api/v1/commissions/agreements'),
+
   /** POST /v1/commissions/agreements */
   createAgreement: (data: Partial<CommissionAgreement>) =>
     apiPost<CommissionAgreement>('/api/v1/commissions/agreements', data),

@@ -3,37 +3,34 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/formatters';
+import { formatDateTime } from '@/lib/formatters';
 import { parameterApi } from '../../api/parameterApi';
 import { RateTierEditor } from './RateTierEditor';
-import type { RateTable } from '../../api/parameterApi';
-
-const STATUS_STYLES: Record<RateTable['status'], string> = {
-  ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  DRAFT: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  SUPERSEDED: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
-};
-
-const TYPE_STYLES: Record<RateTable['type'], string> = {
-  SAVINGS: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  FD: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  LENDING: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  PENALTY: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-};
+import type { SystemParameter, RateTier } from '../../api/parameterApi';
 
 interface RateTableEditorProps {
-  rateTables: RateTable[];
+  rateTables: SystemParameter[];
 }
 
 interface NewRateTableForm {
   name: string;
-  type: RateTable['type'];
+  type: string;
   effectiveDate: string;
 }
 
+function parseTiers(param: SystemParameter): RateTier[] {
+  try {
+    const parsed = JSON.parse(param.paramValue);
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
 export function RateTableEditor({ rateTables }: RateTableEditorProps) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [loadedTables, setLoadedTables] = useState<Record<string, RateTable>>({});
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [editedTiers, setEditedTiers] = useState<Record<number, RateTier[]>>({});
   const [showNewForm, setShowNewForm] = useState(false);
   const [newForm, setNewForm] = useState<NewRateTableForm>({
     name: '',
@@ -44,8 +41,8 @@ export function RateTableEditor({ rateTables }: RateTableEditorProps) {
   const queryClient = useQueryClient();
 
   const saveMutation = useMutation({
-    mutationFn: ({ id, table }: { id: string; table: RateTable }) =>
-      parameterApi.updateRateTable(id, { tiers: table.tiers, effectiveDate: table.effectiveDate }),
+    mutationFn: ({ id, tiers }: { id: number; tiers: RateTier[] }) =>
+      parameterApi.updateRateTable(id, { tiers }),
     onSuccess: () => {
       toast.success('Rate table saved successfully');
       queryClient.invalidateQueries({ queryKey: ['rate-tables'] });
@@ -55,26 +52,43 @@ export function RateTableEditor({ rateTables }: RateTableEditorProps) {
     },
   });
 
-  const handleExpand = async (id: string) => {
+  const createMutation = useMutation({
+    mutationFn: (data: { name: string; type?: string; tiers?: RateTier[] }) =>
+      parameterApi.createRateTable(data),
+    onSuccess: () => {
+      toast.success('Rate table created');
+      queryClient.invalidateQueries({ queryKey: ['rate-tables'] });
+      setShowNewForm(false);
+      setNewForm({ name: '', type: 'SAVINGS', effectiveDate: new Date().toISOString().split('T')[0] });
+    },
+    onError: () => {
+      toast.error('Failed to create rate table');
+    },
+  });
+
+  const handleExpand = (id: number) => {
     if (expandedId === id) {
       setExpandedId(null);
       return;
     }
     setExpandedId(id);
-    if (!loadedTables[id]) {
-      const full = await parameterApi.getRateTable(id);
-      setLoadedTables((prev) => ({ ...prev, [id]: full }));
+    // Load tiers from paramValue if not already edited
+    if (!editedTiers[id]) {
+      const rt = rateTables.find((r) => r.id === id);
+      if (rt) {
+        setEditedTiers((prev) => ({ ...prev, [id]: parseTiers(rt) }));
+      }
     }
   };
 
-  const handleTableChange = (id: string, updated: RateTable) => {
-    setLoadedTables((prev) => ({ ...prev, [id]: updated }));
+  const handleTiersChange = (id: number, tiers: RateTier[]) => {
+    setEditedTiers((prev) => ({ ...prev, [id]: tiers }));
   };
 
-  const handleSave = (id: string) => {
-    const table = loadedTables[id];
-    if (!table) return;
-    saveMutation.mutate({ id, table });
+  const handleSave = (id: number) => {
+    const tiers = editedTiers[id];
+    if (!tiers) return;
+    saveMutation.mutate({ id, tiers });
   };
 
   const handleCreateTable = () => {
@@ -82,9 +96,11 @@ export function RateTableEditor({ rateTables }: RateTableEditorProps) {
       toast.error('Please enter a table name');
       return;
     }
-    toast.success('Rate table created (demo mode — not persisted)');
-    setShowNewForm(false);
-    setNewForm({ name: '', type: 'SAVINGS', effectiveDate: new Date().toISOString().split('T')[0] });
+    createMutation.mutate({
+      name: newForm.name,
+      type: newForm.type,
+      tiers: [{ id: `tier-${Date.now()}`, minValue: 0, rate: 0 }],
+    });
   };
 
   return (
@@ -113,7 +129,7 @@ export function RateTableEditor({ rateTables }: RateTableEditorProps) {
                 type="text"
                 value={newForm.name}
                 onChange={(e) => setNewForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Premium Savings Rates Q2 2025"
+                placeholder="e.g. Premium Savings Rates Q2"
                 className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
@@ -121,7 +137,7 @@ export function RateTableEditor({ rateTables }: RateTableEditorProps) {
               <label className="text-xs font-medium uppercase tracking-wide">Type</label>
               <select
                 value={newForm.type}
-                onChange={(e) => setNewForm((f) => ({ ...f, type: e.target.value as RateTable['type'] }))}
+                onChange={(e) => setNewForm((f) => ({ ...f, type: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               >
                 <option value="SAVINGS">Savings</option>
@@ -149,77 +165,88 @@ export function RateTableEditor({ rateTables }: RateTableEditorProps) {
             </button>
             <button
               onClick={handleCreateTable}
-              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              disabled={createMutation.isPending}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              Create Table
+              {createMutation.isPending ? (
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+              ) : (
+                'Create Table'
+              )}
             </button>
           </div>
         </div>
       )}
 
-      <div className="space-y-3">
-        {rateTables.map((rt) => {
-          const isExpanded = expandedId === rt.id;
-          const loaded = loadedTables[rt.id];
+      {rateTables.length === 0 ? (
+        <div className="p-12 text-center text-sm text-muted-foreground rounded-xl border border-dashed">
+          No rate tables configured. Create one to get started.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {rateTables.map((rt) => {
+            const isExpanded = expandedId === rt.id;
+            const tiers = editedTiers[rt.id] ?? parseTiers(rt);
 
-          return (
-            <div key={rt.id} className="rounded-xl border bg-card overflow-hidden">
-              <button
-                type="button"
-                onClick={() => handleExpand(rt.id)}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/30 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  {isExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  )}
-                  <div className="text-left">
-                    <p className="text-sm font-semibold">{rt.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Effective: {formatDate(rt.effectiveDate)}
-                    </p>
+            return (
+              <div key={rt.id} className="rounded-xl border bg-card overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => handleExpand(rt.id)}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/30 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    {isExpanded ? (
+                      <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <div className="text-left">
+                      <p className="text-sm font-semibold">{rt.paramKey}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {tiers.length} tier{tiers.length !== 1 ? 's' : ''} &middot; Last updated: {formatDateTime(rt.updatedAt)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-                      TYPE_STYLES[rt.type],
-                    )}
-                  >
-                    {rt.type}
-                  </span>
-                  <span
-                    className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                      STATUS_STYLES[rt.status],
-                    )}
-                  >
-                    {rt.status}
-                  </span>
-                </div>
-              </button>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                        rt.paramCategory === 'RATE_TABLE'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                          : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+                      )}
+                    >
+                      {rt.paramCategory.replace(/_/g, ' ')}
+                    </span>
+                    <span
+                      className={cn(
+                        'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                        rt.isActive
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+                      )}
+                    >
+                      {rt.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    </span>
+                  </div>
+                </button>
 
-              {isExpanded && (
-                <div className="px-5 pb-5 border-t pt-4">
-                  {!loaded ? (
-                    <div className="py-6 text-center text-sm text-muted-foreground">Loading rate tiers…</div>
-                  ) : (
+                {isExpanded && (
+                  <div className="px-5 pb-5 border-t pt-4">
                     <RateTierEditor
-                      rateTable={loaded}
-                      onChange={(updated) => handleTableChange(rt.id, updated)}
+                      tiers={tiers}
+                      onChange={(updated) => handleTiersChange(rt.id, updated)}
                       onSave={() => handleSave(rt.id)}
                       isSaving={saveMutation.isPending}
                     />
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

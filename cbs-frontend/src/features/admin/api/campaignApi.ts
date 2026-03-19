@@ -2,6 +2,10 @@ import { apiGet, apiPost } from '@/lib/api';
 import type { MarketingCampaign } from '../types/campaign';
 
 export const campaignsApi = {
+  /** POST /v1/campaigns — create new campaign */
+  createCampaign: (data: Partial<MarketingCampaign>) =>
+    apiPost<MarketingCampaign>('/api/v1/campaigns', data),
+
   /** POST /v1/campaigns/{code}/approve */
   create: (code: string, data: Partial<MarketingCampaign>) =>
     apiPost<MarketingCampaign>(`/api/v1/campaigns/${code}/approve`, data),
@@ -19,6 +23,10 @@ export const campaignsApi = {
     apiGet<Record<string, unknown>>(`/api/v1/campaigns/${code}/performance`),
 
   /** GET /v1/campaigns/active */
+  getActive: (params?: Record<string, unknown>) =>
+    apiGet<MarketingCampaign[]>('/api/v1/campaigns/active', params),
+
+  /** Alias */
   performance2: (params?: Record<string, unknown>) =>
     apiGet<Record<string, unknown>>('/api/v1/campaigns/active', params),
 

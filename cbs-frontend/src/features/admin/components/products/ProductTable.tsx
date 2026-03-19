@@ -1,3 +1,4 @@
+import type React from 'react';
 import { cn } from '@/lib/utils';
 import type { BankingProduct, ProductType, ProductCategory, ProductStatus } from '../../api/productApi';
 
@@ -55,9 +56,10 @@ function formatRate(product: BankingProduct): string {
 interface ProductTableProps {
   products: BankingProduct[];
   onRowClick: (id: string) => void;
+  renderActions?: (product: BankingProduct) => React.ReactNode;
 }
 
-export function ProductTable({ products, onRowClick }: ProductTableProps) {
+export function ProductTable({ products, onRowClick, renderActions }: ProductTableProps) {
   if (products.length === 0) {
     return (
       <div className="bg-card rounded-lg border border-border p-12 text-center text-muted-foreground">
@@ -81,6 +83,7 @@ export function ProductTable({ products, onRowClick }: ProductTableProps) {
             <th className="px-4 py-3 text-right font-medium text-muted-foreground">Accounts</th>
             <th className="px-4 py-3 text-right font-medium text-muted-foreground">Revenue MTD</th>
             <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
+            {renderActions && <th className="px-4 py-3 w-12" />}
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -141,6 +144,11 @@ export function ProductTable({ products, onRowClick }: ProductTableProps) {
                   {product.status}
                 </span>
               </td>
+              {renderActions && (
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  {renderActions(product)}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api';
-import { Edit2, Send, Archive, AlertTriangle } from 'lucide-react';
+import { Edit2, Send, Archive, AlertTriangle, Copy, Check, X, Save } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 import { ProductPerformanceTab } from '../components/products/ProductPerformanceTab';
@@ -16,6 +16,7 @@ import {
   getProductVersions,
   publishProduct,
   retireProduct,
+  updateProduct,
   type BankingProduct,
   type ProductStatus,
   type ProductType,
@@ -23,48 +24,132 @@ import {
 
 type DetailTab = 'configuration' | 'performance' | 'accounts' | 'amendments';
 
-// Product accounts are loaded via API in the AccountsTab component.
-
 const TYPE_LABELS: Record<ProductType, string> = {
-  SAVINGS: 'Savings',
-  CURRENT: 'Current',
-  FIXED_DEPOSIT: 'Fixed Deposit',
-  LOAN: 'Loan',
-  CARD: 'Card',
-  INVESTMENT: 'Investment',
+  SAVINGS: 'Savings', CURRENT: 'Current', FIXED_DEPOSIT: 'Fixed Deposit',
+  LOAN: 'Loan', CARD: 'Card', INVESTMENT: 'Investment',
 };
 
 const TYPE_COLORS: Record<ProductType, string> = {
-  SAVINGS: 'bg-blue-100 text-blue-800',
-  CURRENT: 'bg-indigo-100 text-indigo-800',
-  FIXED_DEPOSIT: 'bg-purple-100 text-purple-800',
-  LOAN: 'bg-orange-100 text-orange-800',
-  CARD: 'bg-pink-100 text-pink-800',
-  INVESTMENT: 'bg-teal-100 text-teal-800',
+  SAVINGS: 'bg-blue-100 text-blue-800', CURRENT: 'bg-indigo-100 text-indigo-800',
+  FIXED_DEPOSIT: 'bg-purple-100 text-purple-800', LOAN: 'bg-orange-100 text-orange-800',
+  CARD: 'bg-pink-100 text-pink-800', INVESTMENT: 'bg-teal-100 text-teal-800',
 };
 
 const STATUS_COLORS: Record<ProductStatus, string> = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  DRAFT: 'bg-amber-100 text-amber-800',
+  ACTIVE: 'bg-green-100 text-green-800', DRAFT: 'bg-amber-100 text-amber-800',
   RETIRED: 'bg-gray-100 text-gray-600',
 };
 
-// ─── Configuration Tab ────────────────────────────────────────────────────────
+// ── Inline Edit Section ──────────────────────────────────────────────────────
 
-function ConfigurationTab({ product }: { product: BankingProduct }) {
+function EditableSection({
+  title,
+  isEditing,
+  onEdit,
+  onSave,
+  onCancel,
+  isSaving,
+  children,
+  editContent,
+}: {
+  title: string;
+  isEditing: boolean;
+  onEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+  isSaving?: boolean;
+  children: React.ReactNode;
+  editContent: React.ReactNode;
+}) {
+  return (
+    <div className="bg-card rounded-lg border border-border p-5">
+      <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {isEditing ? (
+          <div className="flex items-center gap-2">
+            <button onClick={onCancel} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors">
+              <X className="w-3.5 h-3.5" /> Cancel
+            </button>
+            <button onClick={onSave} disabled={isSaving} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {isSaving ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Save className="w-3.5 h-3.5" />}
+              Save
+            </button>
+          </div>
+        ) : (
+          <button onClick={onEdit} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors">
+            <Edit2 className="w-3.5 h-3.5" /> Edit
+          </button>
+        )}
+      </div>
+      {isEditing ? editContent : children}
+    </div>
+  );
+}
+
+// ── Configuration Tab ────────────────────────────────────────────────────────
+
+function ConfigurationTab({ product, onUpdate }: { product: BankingProduct; onUpdate: (data: Partial<BankingProduct>) => void }) {
+  const [editSection, setEditSection] = useState<string | null>(null);
+  const [editData, setEditData] = useState<Partial<BankingProduct>>({});
+  const [isSaving, setIsSaving] = useState(false);
+
+  const qc = useQueryClient();
+  const updateMut = useMutation({
+    mutationFn: (data: Partial<BankingProduct>) => updateProduct(product.id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['product', product.id] });
+      setEditSection(null);
+      setIsSaving(false);
+    },
+    onError: () => setIsSaving(false),
+  });
+
+  const startEdit = (section: string) => {
+    setEditData({ ...product });
+    setEditSection(section);
+  };
+
+  const saveEdit = () => {
+    setIsSaving(true);
+    updateMut.mutate(editData);
+  };
+
+  const inputCls = 'w-full px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-colors';
+
   const interestTypeLabel: Record<string, string> = {
-    FLAT: 'Flat Rate',
-    REDUCING_BALANCE: 'Reducing Balance',
-    COMPOUND: 'Compound',
-    TIERED: 'Tiered',
-    NONE: 'Non-interest',
+    FLAT: 'Flat Rate', REDUCING_BALANCE: 'Reducing Balance',
+    COMPOUND: 'Compound', TIERED: 'Tiered', NONE: 'Non-interest',
   };
 
   return (
     <div className="space-y-6">
       {/* Basic Info */}
-      <div className="bg-card rounded-lg border border-border p-5">
-        <h3 className="text-sm font-semibold mb-4 pb-2 border-b border-border">Basic Information</h3>
+      <EditableSection
+        title="Basic Information"
+        isEditing={editSection === 'basic'}
+        onEdit={() => startEdit('basic')}
+        onSave={saveEdit}
+        onCancel={() => setEditSection(null)}
+        isSaving={isSaving}
+        editContent={
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium mb-1">Product Name</label>
+                <input value={editData.name ?? ''} onChange={(e) => setEditData({ ...editData, name: e.target.value })} className={inputCls} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Short Description</label>
+                <input value={editData.shortDescription ?? ''} onChange={(e) => setEditData({ ...editData, shortDescription: e.target.value })} className={inputCls} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Long Description</label>
+              <textarea rows={3} value={editData.longDescription ?? ''} onChange={(e) => setEditData({ ...editData, longDescription: e.target.value })} className={cn(inputCls, 'resize-none')} />
+            </div>
+          </div>
+        }
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
           {[
             { label: 'Product Code', value: <span className="font-mono text-xs">{product.code}</span> },
@@ -80,21 +165,41 @@ function ConfigurationTab({ product }: { product: BankingProduct }) {
             </div>
           ))}
         </div>
-        <div className="mt-4 pt-4 border-t border-border">
-          <p className="text-xs text-muted-foreground mb-1">Short Description</p>
-          <p className="text-sm">{product.shortDescription}</p>
-        </div>
+        {product.shortDescription && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground mb-1">Short Description</p>
+            <p className="text-sm">{product.shortDescription}</p>
+          </div>
+        )}
         {product.longDescription && (
           <div className="mt-3">
             <p className="text-xs text-muted-foreground mb-1">Full Description</p>
             <p className="text-sm text-muted-foreground">{product.longDescription}</p>
           </div>
         )}
-      </div>
+      </EditableSection>
 
       {/* Interest/Rate Config */}
-      <div className="bg-card rounded-lg border border-border p-5">
-        <h3 className="text-sm font-semibold mb-4 pb-2 border-b border-border">Interest & Rate</h3>
+      <EditableSection
+        title="Interest & Rate"
+        isEditing={editSection === 'interest'}
+        onEdit={() => startEdit('interest')}
+        onSave={saveEdit}
+        onCancel={() => setEditSection(null)}
+        isSaving={isSaving}
+        editContent={
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium mb-1">Interest Rate (% p.a.)</label>
+              <input type="number" step="0.01" value={editData.interestRate ?? 0} onChange={(e) => setEditData({ ...editData, interestRate: Number(e.target.value) })} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1">Penalty Rate (%)</label>
+              <input type="number" step="0.01" value={editData.penaltyRate ?? ''} onChange={(e) => setEditData({ ...editData, penaltyRate: e.target.value ? Number(e.target.value) : undefined })} className={inputCls} />
+            </div>
+          </div>
+        }
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4 text-sm">
           <div>
             <p className="text-xs text-muted-foreground mb-0.5">Interest Type</p>
@@ -116,7 +221,7 @@ function ConfigurationTab({ product }: { product: BankingProduct }) {
         {product.interestType === 'TIERED' && product.rateTiers && (
           <RateTierEditor tiers={product.rateTiers} onChange={() => {}} readOnly />
         )}
-      </div>
+      </EditableSection>
 
       {/* Fee Linkage */}
       <div className="bg-card rounded-lg border border-border p-5">
@@ -139,7 +244,7 @@ function ConfigurationTab({ product }: { product: BankingProduct }) {
   );
 }
 
-// ─── Accounts Tab ─────────────────────────────────────────────────────────────
+// ── Accounts Tab ─────────────────────────────────────────────────────────────
 
 interface ProductAccount {
   id: string;
@@ -151,6 +256,7 @@ interface ProductAccount {
 }
 
 function AccountsTab({ product }: { product: BankingProduct }) {
+  const navigate = useNavigate();
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['product-accounts', product.id],
     queryFn: () => apiGet<ProductAccount[]>(`/api/v1/products/${product.id}/accounts`).catch(() => []),
@@ -167,7 +273,7 @@ function AccountsTab({ product }: { product: BankingProduct }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Showing {accounts.length} accounts (of {product.activeAccounts.toLocaleString()} total)
+          Showing {accounts.length} accounts (of {(product.activeAccounts || 0).toLocaleString()} total)
         </p>
       </div>
       <div className="bg-card rounded-lg border border-border overflow-hidden">
@@ -187,7 +293,11 @@ function AccountsTab({ product }: { product: BankingProduct }) {
             ) : accounts.length === 0 ? (
               <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No accounts found for this product.</td></tr>
             ) : accounts.map((acc) => (
-              <tr key={acc.id} className="hover:bg-muted/20 transition-colors">
+              <tr
+                key={acc.id}
+                onClick={() => navigate(`/accounts/${acc.number}`)}
+                className="hover:bg-muted/20 cursor-pointer transition-colors"
+              >
                 <td className="px-4 py-3">
                   <span className="font-mono text-xs font-medium">{acc.number}</span>
                 </td>
@@ -196,12 +306,10 @@ function AccountsTab({ product }: { product: BankingProduct }) {
                   ₦{acc.balance.toLocaleString()}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={cn(
-                      'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-                      accountStatusColors[acc.status] ?? 'bg-gray-100 text-gray-600',
-                    )}
-                  >
+                  <span className={cn(
+                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                    accountStatusColors[acc.status] ?? 'bg-gray-100 text-gray-600',
+                  )}>
                     {acc.status}
                   </span>
                 </td>
@@ -215,7 +323,7 @@ function AccountsTab({ product }: { product: BankingProduct }) {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ── Main Page ────────────────────────────────────────────────────────────────
 
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -264,9 +372,9 @@ export function ProductDetailPage() {
   if (isLoading) {
     return (
       <>
-        <PageHeader title="Loading…" backTo="/admin/products" />
+        <PageHeader title="Loading..." backTo="/admin/products" />
         <div className="page-container flex items-center justify-center py-20 text-muted-foreground">
-          <p className="text-sm">Loading product details…</p>
+          <p className="text-sm">Loading product details...</p>
         </div>
       </>
     );
@@ -295,11 +403,11 @@ export function ProductDetailPage() {
         actions={
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate(`/admin/products/${id}/edit`)}
+              onClick={() => navigate(`/admin/products/new?clone=${id}`)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/40 transition-colors"
             >
-              <Edit2 className="w-4 h-4" />
-              Edit
+              <Copy className="w-4 h-4" />
+              Clone
             </button>
             {product.status === 'DRAFT' && (
               <button
@@ -326,20 +434,10 @@ export function ProductDetailPage() {
       <div className="page-container space-y-4">
         {/* Status badges */}
         <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              'inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold',
-              TYPE_COLORS[product.type],
-            )}
-          >
+          <span className={cn('inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold', TYPE_COLORS[product.type])}>
             {TYPE_LABELS[product.type]}
           </span>
-          <span
-            className={cn(
-              'inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold',
-              STATUS_COLORS[product.status],
-            )}
-          >
+          <span className={cn('inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold', STATUS_COLORS[product.status])}>
             {product.status}
           </span>
           <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold bg-muted text-muted-foreground font-mono">
@@ -369,7 +467,12 @@ export function ProductDetailPage() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'configuration' && <ConfigurationTab product={product} />}
+        {activeTab === 'configuration' && (
+          <ConfigurationTab
+            product={product}
+            onUpdate={(data) => queryClient.invalidateQueries({ queryKey: ['product', id] })}
+          />
+        )}
         {activeTab === 'performance' && <ProductPerformanceTab product={product} />}
         {activeTab === 'accounts' && <AccountsTab product={product} />}
         {activeTab === 'amendments' && <ProductVersionDiff versions={versions} />}
@@ -380,12 +483,10 @@ export function ProductDetailPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-card rounded-xl border border-border w-full max-w-sm shadow-xl p-6 space-y-4">
             <div className="flex items-start gap-3">
-              <div
-                className={cn(
-                  'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
-                  confirmAction === 'publish' ? 'bg-green-100' : 'bg-amber-100',
-                )}
-              >
+              <div className={cn(
+                'w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0',
+                confirmAction === 'publish' ? 'bg-green-100' : 'bg-amber-100',
+              )}>
                 {confirmAction === 'publish' ? (
                   <Send className="w-5 h-5 text-green-700" />
                 ) : (
@@ -399,7 +500,7 @@ export function ProductDetailPage() {
                 <p className="text-sm text-muted-foreground mt-1">
                   {confirmAction === 'publish'
                     ? `"${product.name}" will be published and available for new account openings.`
-                    : `"${product.name}" will be retired and no longer available for new accounts. Existing accounts are not affected.`}
+                    : `"${product.name}" will be retired. ${product.activeAccounts ? `${product.activeAccounts} existing accounts are not affected.` : 'No existing accounts affected.'}`}
                 </p>
               </div>
             </div>
@@ -425,7 +526,7 @@ export function ProductDetailPage() {
                 )}
               >
                 {publishMutation.isPending || retireMutation.isPending
-                  ? 'Processing…'
+                  ? 'Processing...'
                   : confirmAction === 'publish'
                   ? 'Yes, Publish'
                   : 'Yes, Retire'}

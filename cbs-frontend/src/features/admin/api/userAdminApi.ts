@@ -90,6 +90,14 @@ export interface LoginEvent {
   sessionId?: string;
 }
 
+export interface DashboardStats {
+  totalUsers: number;
+  activeUsers: number;
+  lockedUsers: number;
+  activeProducts: number;
+  healthyProviders: number;
+}
+
 // ─── API ──────────────────────────────────────────────────────────────────
 
 export const userAdminApi = {
@@ -127,4 +135,6 @@ export const userAdminApi = {
     apiDelete<void>(`/api/v1/admin/sessions/${sessionId}`),
   getLoginHistory: (params: { userId?: string; dateFrom?: string; dateTo?: string; outcome?: string }) =>
     apiGet<LoginEvent[]>('/api/v1/admin/login-history', params as Record<string, unknown>),
+  getDashboardStats: () =>
+    apiGet<DashboardStats>('/api/v1/admin/dashboard/stats'),
 };

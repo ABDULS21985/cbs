@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters';
 import { parameterApi } from '../../api/parameterApi';
 import { ParameterEditForm } from './ParameterEditForm';
-import type { SystemParameter, ParameterCategory, ParameterType } from '../../api/parameterApi';
+import type { SystemParameter } from '../../api/parameterApi';
 
 const CATEGORIES: { label: string; value: string }[] = [
   { label: 'All', value: 'ALL' },
@@ -19,7 +19,7 @@ const CATEGORIES: { label: string; value: string }[] = [
   { label: 'Notification', value: 'NOTIFICATION' },
 ];
 
-const CATEGORY_COLORS: Record<ParameterCategory, string> = {
+const CATEGORY_COLORS: Record<string, string> = {
   GENERAL: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
   LIMITS: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
   FEES: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -30,44 +30,36 @@ const CATEGORY_COLORS: Record<ParameterCategory, string> = {
   NOTIFICATION: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
 };
 
-const TYPE_COLORS: Record<ParameterType, string> = {
+const TYPE_COLORS: Record<string, string> = {
   STRING: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-  NUMBER: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400',
+  INTEGER: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400',
+  DECIMAL: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400',
   BOOLEAN: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400',
   JSON: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  DATE: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
-  TIME: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
 };
 
 function ValueCell({ param }: { param: SystemParameter }) {
-  if (param.type === 'BOOLEAN') {
+  if (param.valueType === 'BOOLEAN') {
+    const isTrue = param.paramValue === 'true';
     return (
       <span
         className={cn(
           'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium',
-          param.value === 'true'
+          isTrue
             ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
             : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
         )}
       >
-        <span
-          className={cn(
-            'w-1.5 h-1.5 rounded-full',
-            param.value === 'true' ? 'bg-green-500' : 'bg-gray-400',
-          )}
-        />
-        {param.value === 'true' ? 'true' : 'false'}
+        <span className={cn('w-1.5 h-1.5 rounded-full', isTrue ? 'bg-green-500' : 'bg-gray-400')} />
+        {isTrue ? 'true' : 'false'}
       </span>
     );
   }
 
-  if (param.type === 'JSON') {
-    const truncated = param.value.length > 50 ? `${param.value.slice(0, 50)}…` : param.value;
+  if (param.valueType === 'JSON') {
+    const truncated = param.paramValue.length > 50 ? `${param.paramValue.slice(0, 50)}…` : param.paramValue;
     return (
-      <span
-        className="font-mono text-xs text-muted-foreground cursor-help"
-        title={param.value}
-      >
+      <span className="font-mono text-xs text-muted-foreground cursor-help" title={param.paramValue}>
         {truncated}
       </span>
     );
@@ -75,10 +67,10 @@ function ValueCell({ param }: { param: SystemParameter }) {
 
   return (
     <span className="text-sm font-mono">
-      {param.value.length > 40 ? (
-        <span title={param.value}>{param.value.slice(0, 40)}…</span>
+      {param.paramValue.length > 40 ? (
+        <span title={param.paramValue}>{param.paramValue.slice(0, 40)}…</span>
       ) : (
-        param.value
+        param.paramValue
       )}
     </span>
   );
@@ -132,7 +124,7 @@ export function ParameterTable() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search parameters…"
+            placeholder="Search by key or description…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 pr-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 w-64"
@@ -150,11 +142,11 @@ export function ParameterTable() {
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/30">
                 <tr>
-                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Code</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Name</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Category</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Current Value</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Key</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Value</th>
                   <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Type</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Category</th>
+                  <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Description</th>
                   <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Last Modified</th>
                   <th className="px-4 py-2.5 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Modified By</th>
                 </tr>
@@ -162,30 +154,15 @@ export function ParameterTable() {
               <tbody className="divide-y divide-border">
                 {parameters.map((param) => (
                   <tr
-                    key={param.code}
+                    key={param.id}
                     onClick={() => handleRowClick(param)}
                     className="hover:bg-muted/30 cursor-pointer transition-colors"
                   >
                     <td className="px-4 py-3">
-                      <code className="text-xs font-mono font-medium text-muted-foreground">{param.code}</code>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div>
-                        <p className="font-medium text-foreground">{param.name}</p>
-                        {param.requiresApproval && (
-                          <span className="text-xs text-amber-600 dark:text-amber-400">Requires approval</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-                          CATEGORY_COLORS[param.category],
-                        )}
-                      >
-                        {param.category}
-                      </span>
+                      <code className="text-xs font-mono font-medium text-muted-foreground">{param.paramKey}</code>
+                      {param.approvalStatus === 'PENDING_APPROVAL' && (
+                        <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">Pending</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 max-w-[200px]">
                       <ValueCell param={param} />
@@ -194,17 +171,32 @@ export function ParameterTable() {
                       <span
                         className={cn(
                           'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
-                          TYPE_COLORS[param.type],
+                          TYPE_COLORS[param.valueType] ?? TYPE_COLORS.STRING,
                         )}
                       >
-                        {param.type}
+                        {param.valueType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={cn(
+                          'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                          CATEGORY_COLORS[param.paramCategory] ?? CATEGORY_COLORS.GENERAL,
+                        )}
+                      >
+                        {param.paramCategory}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 max-w-[200px]">
+                      <span className="text-xs text-muted-foreground truncate block">
+                        {param.description ?? '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {formatDateTime(param.lastModifiedAt)}
+                      {param.updatedAt ? formatDateTime(param.updatedAt) : '—'}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {param.lastModifiedBy}
+                      {param.lastModifiedBy ?? '—'}
                     </td>
                   </tr>
                 ))}

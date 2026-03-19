@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*; import java.util.List;
 @Tag(name = "Sales Lead & Opportunity", description = "Lead lifecycle, pipeline management, scoring, assignment")
 public class SalesLeadController {
     private final SalesLeadService service;
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<SalesLead>>> listAll() { return ResponseEntity.ok(ApiResponse.ok(service.getAllLeads())); }
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<SalesLead>> create(@RequestBody SalesLead lead) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createLead(lead))); }
     @PostMapping("/{number}/advance") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<SalesLead>> advance(@PathVariable String number, @RequestParam String stage, @RequestParam(required = false) String reason) { return ResponseEntity.ok(ApiResponse.ok(service.advanceStage(number, stage, reason))); }
     @PostMapping("/{number}/assign") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<SalesLead>> assign(@PathVariable String number, @RequestParam String assignedTo) { return ResponseEntity.ok(ApiResponse.ok(service.assign(number, assignedTo))); }

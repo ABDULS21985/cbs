@@ -5,30 +5,28 @@ import { Plus, Upload, Download, Pencil, Check, X, ChevronUp, ChevronDown, Toggl
 import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/shared';
 import { parameterApi } from '../../api/parameterApi';
-import type { LookupCode, CreateLookupRequest } from '../../api/parameterApi';
+import type { SystemParameter } from '../../api/parameterApi';
 
 const CATEGORIES = ['ALL', 'GENDER', 'MARITAL_STATUS', 'ID_TYPE', 'OCCUPATION', 'NEXT_OF_KIN_RELATIONSHIP', 'ACCOUNT_CLOSURE_REASON'];
 
 interface InlineEditState {
-  id: string;
+  id: number;
   code: string;
   description: string;
-  displayOrder: number;
 }
 
 interface NewCodeState {
   code: string;
   description: string;
   category: string;
-  displayOrder: number;
 }
 
 export function LookupCodeManager() {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [editState, setEditState] = useState<InlineEditState | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<LookupCode | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SystemParameter | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newCode, setNewCode] = useState<NewCodeState>({ code: '', description: '', category: 'GENDER', displayOrder: 99 });
+  const [newCode, setNewCode] = useState<NewCodeState>({ code: '', description: '', category: 'GENDER' });
 
   const queryClient = useQueryClient();
 
@@ -41,7 +39,7 @@ export function LookupCodeManager() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<LookupCode> }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<{ code: string; description: string; status: string }> }) =>
       parameterApi.updateLookupCode(id, data),
     onSuccess: () => {
       toast.success('Lookup code updated');
@@ -52,12 +50,13 @@ export function LookupCodeManager() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: CreateLookupRequest) => parameterApi.createLookupCode(data),
+    mutationFn: (data: { code: string; description: string; category: string }) =>
+      parameterApi.createLookupCode(data),
     onSuccess: () => {
       toast.success('Lookup code created');
       queryClient.invalidateQueries({ queryKey: ['lookup-codes'] });
       setShowAddForm(false);
-      setNewCode({ code: '', description: '', category: 'GENDER', displayOrder: 99 });
+      setNewCode({ code: '', description: '', category: 'GENDER' });
     },
     onError: () => toast.error('Failed to create lookup code'),
   });
@@ -66,14 +65,14 @@ export function LookupCodeManager() {
     if (!editState) return;
     updateMutation.mutate({
       id: editState.id,
-      data: { code: editState.code, description: editState.description, displayOrder: editState.displayOrder },
+      data: { code: editState.code, description: editState.description },
     });
   };
 
-  const handleToggleStatus = (lc: LookupCode) => {
+  const handleToggleStatus = (lc: SystemParameter) => {
     updateMutation.mutate({
       id: lc.id,
-      data: { status: lc.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' },
+      data: { status: lc.isActive ? 'INACTIVE' : 'ACTIVE' },
     });
   };
 
@@ -81,13 +80,6 @@ export function LookupCodeManager() {
     if (!deleteTarget) return;
     updateMutation.mutate({ id: deleteTarget.id, data: { status: 'INACTIVE' } });
     setDeleteTarget(null);
-    toast.success('Lookup code deactivated');
-  };
-
-  const handleMoveOrder = (lc: LookupCode, direction: 'up' | 'down') => {
-    const newOrder = direction === 'up' ? lc.displayOrder - 1 : lc.displayOrder + 1;
-    if (newOrder < 1) return;
-    updateMutation.mutate({ id: lc.id, data: { displayOrder: newOrder } });
   };
 
   const handleCreate = () => {
@@ -99,26 +91,13 @@ export function LookupCodeManager() {
       code: newCode.code.trim().toUpperCase(),
       description: newCode.description.trim(),
       category: newCode.category,
-      displayOrder: newCode.displayOrder,
     });
   };
 
-  const handleImportCSV = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv';
-    input.onchange = () => {
-      if (input.files?.[0]) {
-        toast.success('CSV upload initiated — file queued for processing');
-      }
-    };
-    input.click();
-  };
-
   const handleExport = () => {
-    const headers = 'id,code,description,category,status,displayOrder\n';
+    const headers = 'id,key,category,value,description\n';
     const rows = codes
-      .map((c) => `${c.id},${c.code},"${c.description}",${c.category},${c.status},${c.displayOrder}`)
+      .map((c) => `${c.id},"${c.paramKey}","${c.paramCategory}","${c.paramValue}","${c.description ?? ''}"`)
       .join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const link = document.createElement('a');
@@ -150,13 +129,6 @@ export function LookupCodeManager() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleImportCSV}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
-          >
-            <Upload className="w-4 h-4" />
-            Import CSV
-          </button>
-          <button
             onClick={handleExport}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
           >
@@ -176,7 +148,7 @@ export function LookupCodeManager() {
       {showAddForm && (
         <div className="rounded-xl border bg-card p-5 space-y-4">
           <h4 className="text-sm font-semibold">New Lookup Code</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium uppercase tracking-wide">Code</label>
               <input
@@ -187,7 +159,7 @@ export function LookupCodeManager() {
                 className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
-            <div className="space-y-1 sm:col-span-2">
+            <div className="space-y-1">
               <label className="text-xs font-medium uppercase tracking-wide">Description</label>
               <input
                 type="text"
@@ -239,10 +211,9 @@ export function LookupCodeManager() {
               <thead className="border-b bg-muted/30">
                 <tr>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Code</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Label</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Category</th>
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-medium text-muted-foreground uppercase tracking-wide">Order</th>
                   <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
@@ -260,7 +231,7 @@ export function LookupCodeManager() {
                             className="px-2 py-1 rounded border bg-background text-sm font-mono w-40 focus:outline-none focus:ring-2 focus:ring-primary/50"
                           />
                         ) : (
-                          <code className="text-xs font-mono font-medium">{lc.code}</code>
+                          <code className="text-xs font-mono font-medium">{lc.paramKey}</code>
                         )}
                       </td>
                       <td className="px-4 py-2.5">
@@ -272,51 +243,24 @@ export function LookupCodeManager() {
                             className="px-2 py-1 rounded border bg-background text-sm w-52 focus:outline-none focus:ring-2 focus:ring-primary/50"
                           />
                         ) : (
-                          <span>{lc.description}</span>
+                          <span>{lc.description ?? lc.paramValue}</span>
                         )}
                       </td>
                       <td className="px-4 py-2.5">
-                        <span className="text-xs text-muted-foreground">{lc.category.replace(/_/g, ' ')}</span>
+                        <span className="text-xs text-muted-foreground">{lc.paramCategory.replace(/_/g, ' ')}</span>
                       </td>
                       <td className="px-4 py-2.5">
                         <span
                           className={cn(
                             'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium',
-                            lc.status === 'ACTIVE'
+                            lc.isActive
                               ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                               : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
                           )}
                         >
-                          <span className={cn('w-1.5 h-1.5 rounded-full', lc.status === 'ACTIVE' ? 'bg-green-500' : 'bg-gray-400')} />
-                          {lc.status}
+                          <span className={cn('w-1.5 h-1.5 rounded-full', lc.isActive ? 'bg-green-500' : 'bg-gray-400')} />
+                          {lc.isActive ? 'ACTIVE' : 'INACTIVE'}
                         </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {isEditing ? (
-                          <input
-                            type="number"
-                            value={editState.displayOrder}
-                            onChange={(e) => setEditState((s) => s ? { ...s, displayOrder: Number(e.target.value) } : s)}
-                            className="px-2 py-1 rounded border bg-background text-sm w-16 text-center focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => handleMoveOrder(lc, 'up')}
-                              className="p-0.5 rounded hover:bg-muted transition-colors disabled:opacity-30"
-                              disabled={lc.displayOrder <= 1}
-                            >
-                              <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
-                            </button>
-                            <span className="text-sm w-6 text-center">{lc.displayOrder}</span>
-                            <button
-                              onClick={() => handleMoveOrder(lc, 'down')}
-                              className="p-0.5 rounded hover:bg-muted transition-colors"
-                            >
-                              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-                            </button>
-                          </div>
-                        )}
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center justify-end gap-1">
@@ -344,9 +288,8 @@ export function LookupCodeManager() {
                                 onClick={() =>
                                   setEditState({
                                     id: lc.id,
-                                    code: lc.code,
-                                    description: lc.description,
-                                    displayOrder: lc.displayOrder,
+                                    code: lc.paramKey,
+                                    description: lc.description ?? lc.paramValue,
                                   })
                                 }
                                 className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
@@ -358,13 +301,13 @@ export function LookupCodeManager() {
                                 onClick={() => handleToggleStatus(lc)}
                                 className={cn(
                                   'p-1.5 rounded-lg transition-colors',
-                                  lc.status === 'ACTIVE'
+                                  lc.isActive
                                     ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
                                     : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20',
                                 )}
-                                title={lc.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                                title={lc.isActive ? 'Deactivate' : 'Activate'}
                               >
-                                {lc.status === 'ACTIVE' ? (
+                                {lc.isActive ? (
                                   <ToggleRight className="w-4 h-4" />
                                 ) : (
                                   <ToggleLeft className="w-4 h-4" />
@@ -394,9 +337,9 @@ export function LookupCodeManager() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Delete Lookup Code"
-        description={`Are you sure you want to delete "${deleteTarget?.description}" (${deleteTarget?.code})? This will deactivate the code.`}
-        confirmLabel="Delete"
+        title="Deactivate Lookup Code"
+        description={`Are you sure you want to deactivate "${deleteTarget?.paramKey}"? This will not delete the record — other records may still reference it.`}
+        confirmLabel="Deactivate"
         variant="destructive"
         isLoading={updateMutation.isPending}
       />

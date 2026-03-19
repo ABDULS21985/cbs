@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { X, Info, AlertTriangle } from 'lucide-react';
+import { X, Info, AlertTriangle, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog, FormSection } from '@/components/shared';
 import { parameterApi } from '../../api/parameterApi';
@@ -31,18 +31,18 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
   const queryClient = useQueryClient();
 
   const { data: history = [] } = useQuery({
-    queryKey: ['parameter-history', parameter?.code],
-    queryFn: () => parameterApi.getParameterHistory(parameter!.code),
-    enabled: !!parameter?.code && open,
+    queryKey: ['parameter-history', parameter?.paramKey],
+    queryFn: () => parameterApi.getParameterHistory(parameter!.paramKey),
+    enabled: !!parameter?.paramKey && open,
   });
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
-      parameterApi.updateParameter(parameter!.code, values),
+      parameterApi.updateParameter(parameter!.paramKey, values),
     onSuccess: () => {
       toast.success('Parameter updated successfully');
       queryClient.invalidateQueries({ queryKey: ['parameters'] });
-      queryClient.invalidateQueries({ queryKey: ['parameter-history', parameter?.code] });
+      queryClient.invalidateQueries({ queryKey: ['parameter-history', parameter?.paramKey] });
       onSuccess();
     },
     onError: () => {
@@ -59,16 +59,18 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { value: parameter?.value ?? '', reason: '' },
+    defaultValues: { value: parameter?.paramValue ?? '', reason: '' },
   });
 
   useEffect(() => {
     if (parameter) {
-      reset({ value: parameter.value, reason: '' });
+      reset({ value: parameter.paramValue, reason: '' });
     }
   }, [parameter, reset]);
 
   if (!open || !parameter) return null;
+
+  const requiresApproval = parameter.approvalStatus === 'PENDING_APPROVAL';
 
   const onSubmit = (values: FormValues) => {
     setPendingValues(values);
@@ -84,9 +86,10 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
   };
 
   const currentValue = watch('value');
+  const hasChanged = currentValue !== parameter.paramValue;
 
   const renderValueEditor = () => {
-    switch (parameter.type) {
+    switch (parameter.valueType) {
       case 'BOOLEAN':
         return (
           <div className="flex items-center gap-3">
@@ -110,24 +113,15 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
           </div>
         );
 
-      case 'NUMBER':
+      case 'INTEGER':
+      case 'DECIMAL':
         return (
-          <div className="space-y-1">
-            <input
-              type="number"
-              {...register('value')}
-              min={parameter.minValue}
-              max={parameter.maxValue}
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-            {(parameter.minValue !== undefined || parameter.maxValue !== undefined) && (
-              <p className="text-xs text-muted-foreground">
-                Range:{' '}
-                {parameter.minValue !== undefined ? parameter.minValue.toLocaleString() : '—'} to{' '}
-                {parameter.maxValue !== undefined ? parameter.maxValue.toLocaleString() : 'unlimited'}
-              </p>
-            )}
-          </div>
+          <input
+            type="number"
+            step={parameter.valueType === 'DECIMAL' ? '0.01' : '1'}
+            {...register('value')}
+            className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
         );
 
       case 'JSON':
@@ -142,42 +136,13 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
           </div>
         );
 
-      case 'DATE':
+      default:
         return (
           <input
-            type="date"
+            type="text"
             {...register('value')}
             className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
-        );
-
-      case 'TIME':
-        return (
-          <div className="space-y-1">
-            <input
-              type="time"
-              {...register('value')}
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-            <p className="text-xs text-muted-foreground">Format: HH:MM (24-hour)</p>
-          </div>
-        );
-
-      default:
-        return (
-          <div className="space-y-1">
-            <input
-              type="text"
-              {...register('value')}
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
-            {parameter.regexPattern && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Info className="w-3 h-3" />
-                Pattern: <code className="font-mono text-xs">{parameter.regexPattern}</code>
-              </p>
-            )}
-          </div>
         );
     }
   };
@@ -190,7 +155,7 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <div>
               <h2 className="text-base font-semibold">Edit System Parameter</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Changes take effect immediately unless approval is required</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Changes are persisted to the database immediately</p>
             </div>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
               <X className="w-4 h-4" />
@@ -201,40 +166,47 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
             <div className="px-6 py-5 space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Code</label>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Key</label>
                   <div className="px-3 py-2 rounded-lg border bg-muted/30 text-sm font-mono text-muted-foreground">
-                    {parameter.code}
+                    {parameter.paramKey}
                   </div>
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</label>
                   <div className="px-3 py-2 rounded-lg border bg-muted/30 text-sm font-mono text-muted-foreground">
-                    {parameter.type}
+                    {parameter.valueType}
                   </div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</label>
-                <div className="px-3 py-2 rounded-lg border bg-muted/30 text-sm text-muted-foreground">
-                  {parameter.name}
                 </div>
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
                 <div className="px-3 py-2 rounded-lg border bg-muted/30 text-sm text-muted-foreground">
-                  {parameter.description}
+                  {parameter.description ?? 'No description'}
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium uppercase tracking-wide">Current Value</label>
                 {renderValueEditor()}
-                {errors.value && (
-                  <p className="text-xs text-red-500">{errors.value.message}</p>
-                )}
+                {errors.value && <p className="text-xs text-red-500">{errors.value.message}</p>}
               </div>
+
+              {/* Diff preview */}
+              {hasChanged && (
+                <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Preview Change</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-mono bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded line-through max-w-[200px] truncate">
+                      {parameter.paramValue}
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    <span className="text-xs font-mono bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded max-w-[200px] truncate">
+                      {currentValue}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium uppercase tracking-wide">
@@ -246,18 +218,16 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
                   placeholder="Describe the reason for this change (required for audit trail)"
                   className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
                 />
-                {errors.reason && (
-                  <p className="text-xs text-red-500">{errors.reason.message}</p>
-                )}
+                {errors.reason && <p className="text-xs text-red-500">{errors.reason.message}</p>}
               </div>
 
-              {parameter.requiresApproval && (
+              {requiresApproval && (
                 <div className="flex items-start gap-2.5 p-3.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
                   <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Maker-Checker Required</p>
                     <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                      This parameter requires a second approval before the change is applied. Your submission will be queued for review.
+                      This parameter requires a second approval before the change is applied.
                     </p>
                   </div>
                 </div>
@@ -274,9 +244,10 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                disabled={!hasChanged}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                {parameter.requiresApproval ? 'Submit for Approval' : 'Save Changes'}
+                Save Changes
               </button>
             </div>
           </form>
@@ -295,13 +266,9 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleConfirm}
-        title={parameter.requiresApproval ? 'Submit Parameter Change for Approval?' : 'Confirm Parameter Update'}
-        description={
-          parameter.requiresApproval
-            ? `You are submitting a change to "${parameter.name}". This will be sent for approval before taking effect.`
-            : `You are about to change "${parameter.name}". This change will take effect immediately.`
-        }
-        confirmLabel={parameter.requiresApproval ? 'Submit for Approval' : 'Confirm Update'}
+        title="Confirm Parameter Update"
+        description={`You are about to change "${parameter.paramKey}". This change will be persisted to the database.`}
+        confirmLabel="Confirm Update"
         isLoading={mutation.isPending}
       />
     </>

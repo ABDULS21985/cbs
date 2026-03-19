@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as Tabs from '@radix-ui/react-tabs';
 import { Settings2, ToggleLeft, BarChart3, List, Server } from 'lucide-react';
@@ -21,6 +21,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 export function SystemParametersPage() {
+  useEffect(() => { document.title = 'System Parameters | CBS'; }, []);
   const [activeTab, setActiveTab] = useState<TabId>('parameters');
 
   const { data: rateTables = [] } = useQuery({

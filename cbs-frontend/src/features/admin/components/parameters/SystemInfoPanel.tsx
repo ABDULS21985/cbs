@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import { RefreshCw, Cpu, HardDrive, MemoryStick, Database, Clock, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDateTime } from '@/lib/formatters';
 import { parameterApi } from '../../api/parameterApi';
 
 function formatUptime(seconds: number): string {
@@ -9,91 +8,49 @@ function formatUptime(seconds: number): string {
   const hours = Math.floor((seconds % 86400) / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   const parts: string[] = [];
-  if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
-  if (hours > 0) parts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
-  if (parts.length === 0) parts.push(`${mins} min${mins !== 1 ? 's' : ''}`);
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0) parts.push(`${hours}h`);
+  parts.push(`${mins}m`);
   return parts.join(' ');
 }
 
-interface ProgressBarProps {
+function formatBytes(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} MB`;
+  return `${(bytes / 1e3).toFixed(0)} KB`;
+}
+
+interface GaugeProps {
   value: number;
   label: string;
+  detail: string;
+  icon: React.ReactNode;
 }
 
-function ProgressBar({ value, label }: ProgressBarProps) {
+function Gauge({ value, label, detail, icon }: GaugeProps) {
+  const pct = Math.min(Math.max(value, 0), 100);
   const colorClass =
-    value >= 90
-      ? 'bg-red-500'
-      : value >= 70
-      ? 'bg-amber-500'
-      : 'bg-green-500';
-
-  const textColorClass =
-    value >= 90
-      ? 'text-red-600 dark:text-red-400'
-      : value >= 70
-      ? 'text-amber-600 dark:text-amber-400'
-      : 'text-green-600 dark:text-green-400';
+    pct >= 90 ? 'text-red-600 dark:text-red-400' :
+    pct >= 70 ? 'text-amber-600 dark:text-amber-400' :
+    'text-green-600 dark:text-green-400';
+  const barColor =
+    pct >= 90 ? 'bg-red-500' :
+    pct >= 70 ? 'bg-amber-500' :
+    'bg-green-500';
 
   return (
-    <div className="space-y-1.5">
+    <div className="rounded-xl border bg-card p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{label}</span>
-        <span className={cn('text-sm font-semibold tabular-nums', textColorClass)}>{value}%</span>
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-muted">{icon}</div>
+          <span className="text-sm font-medium">{label}</span>
+        </div>
+        <span className={cn('text-lg font-bold tabular-nums', colorClass)}>{pct.toFixed(0)}%</span>
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
-        <div
-          className={cn('h-full rounded-full transition-all', colorClass)}
-          style={{ width: `${Math.min(value, 100)}%` }}
-        />
+        <div className={cn('h-full rounded-full transition-all', barColor)} style={{ width: `${pct}%` }} />
       </div>
-      <p className="text-xs text-muted-foreground">
-        {value >= 90 ? 'Critical — immediate action required' : value >= 70 ? 'Warning — monitor closely' : 'Healthy'}
-      </p>
-    </div>
-  );
-}
-
-function StatusRow({ label, healthy, detail }: { label: string; healthy: boolean; detail?: string }) {
-  return (
-    <div className="flex items-center justify-between py-2">
-      <div className="flex items-center gap-2">
-        {healthy ? (
-          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-        ) : (
-          <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-        )}
-        <span className="text-sm font-medium">{label}</span>
-      </div>
-      {detail && <span className="text-xs text-muted-foreground">{detail}</span>}
-    </div>
-  );
-}
-
-function ProviderRow({ total, healthy }: { total: number; healthy: number }) {
-  const pct = total > 0 ? Math.round((healthy / total) * 100) : 0;
-  const allHealthy = healthy === total;
-  return (
-    <div className="flex items-center justify-between py-2">
-      <div className="flex items-center gap-2">
-        {allHealthy ? (
-          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
-        ) : (
-          <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-        )}
-        <span className="text-sm font-medium">External Providers</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">
-          {healthy}/{total} healthy
-        </span>
-        <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
-          <div
-            className={cn('h-full rounded-full', allHealthy ? 'bg-green-500' : 'bg-red-500')}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground">{detail}</p>
     </div>
   );
 }
@@ -103,20 +60,17 @@ export function SystemInfoPanel() {
     queryKey: ['system-info'],
     queryFn: () => parameterApi.getSystemInfo(),
     staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {[1, 2].map((i) => (
-          <div key={i} className="rounded-xl border bg-card p-6 space-y-4 animate-pulse">
-            <div className="h-5 bg-muted rounded w-1/3" />
-            {[1, 2, 3, 4].map((j) => (
-              <div key={j} className="flex justify-between">
-                <div className="h-4 bg-muted rounded w-1/3" />
-                <div className="h-4 bg-muted rounded w-1/4" />
-              </div>
-            ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="rounded-xl border bg-card p-4 space-y-3 animate-pulse">
+            <div className="h-5 bg-muted rounded w-1/2" />
+            <div className="h-2 bg-muted rounded w-full" />
+            <div className="h-4 bg-muted rounded w-1/3" />
           </div>
         ))}
       </div>
@@ -125,12 +79,16 @@ export function SystemInfoPanel() {
 
   if (!info) return null;
 
+  const memoryPct = info.memoryTotal > 0 ? (info.memoryUsed / info.memoryTotal) * 100 : 0;
+  const diskPct = info.diskTotal > 0 ? ((info.diskTotal - info.diskUsed) / info.diskTotal) * 100 : 0;
+  const cpuPct = Math.min(Math.max(info.cpuUsage * 10, 0), 100);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold">System Information</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Live system health and version details</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Live system health — auto-refreshes every 60s</p>
         </div>
         <button
           onClick={() => refetch()}
@@ -138,21 +96,57 @@ export function SystemInfoPanel() {
           className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
         >
           <RefreshCw className={cn('w-4 h-4', isFetching && 'animate-spin')} />
-          Refresh Health
+          Refresh
         </button>
       </div>
 
+      {/* Gauges */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Gauge
+          value={cpuPct}
+          label="CPU Usage"
+          detail={`Load avg: ${info.cpuUsage}`}
+          icon={<Cpu className="w-4 h-4 text-muted-foreground" />}
+        />
+        <Gauge
+          value={memoryPct}
+          label="Memory"
+          detail={`${formatBytes(info.memoryUsed)} / ${formatBytes(info.memoryTotal)}`}
+          icon={<MemoryStick className="w-4 h-4 text-muted-foreground" />}
+        />
+        <Gauge
+          value={diskPct}
+          label="Disk Usage"
+          detail={`${formatBytes(info.diskTotal - info.diskUsed)} used of ${formatBytes(info.diskTotal)}`}
+          icon={<HardDrive className="w-4 h-4 text-muted-foreground" />}
+        />
+        <div className="rounded-xl border bg-card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-muted">
+                <Database className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <span className="text-sm font-medium">DB Connections</span>
+            </div>
+            <span className="text-lg font-bold tabular-nums text-primary">{info.activeConnections}</span>
+          </div>
+          <p className="text-xs text-muted-foreground">Active database connections</p>
+        </div>
+      </div>
+
+      {/* Application Info + Uptime */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="rounded-xl border bg-card p-6">
-          <h4 className="text-sm font-semibold mb-4">Application Info</h4>
+          <div className="flex items-center gap-2 mb-4">
+            <Info className="w-4 h-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold">Application Info</h4>
+          </div>
           <div className="space-y-0 divide-y divide-border">
             {[
               { label: 'App Version', value: `v${info.appVersion}` },
-              { label: 'Database', value: info.dbVersion },
               { label: 'Java Runtime', value: info.javaVersion },
               { label: 'Spring Boot', value: `v${info.springBootVersion}` },
-              { label: 'Last Deployment', value: formatDateTime(info.lastDeployment) },
-              { label: 'Uptime', value: formatUptime(info.uptimeSeconds) },
+              { label: 'Database', value: info.dbVersion },
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between py-2.5">
                 <span className="text-sm text-muted-foreground">{label}</span>
@@ -163,19 +157,19 @@ export function SystemInfoPanel() {
         </div>
 
         <div className="rounded-xl border bg-card p-6">
-          <h4 className="text-sm font-semibold mb-4">Health Checks</h4>
-          <div className="divide-y divide-border mb-4">
-            <StatusRow label="Database" healthy={info.health.database} detail="PostgreSQL 16" />
-            <StatusRow label="Redis Cache" healthy={info.health.redis} detail="Connected" />
-            <StatusRow label="Message Queue" healthy={info.health.messageQueue} detail="Connected" />
-            <ProviderRow
-              total={info.health.externalProviders.total}
-              healthy={info.health.externalProviders.healthy}
-            />
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-4 h-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold">Uptime</h4>
           </div>
-          <div className="space-y-4 pt-2">
-            <ProgressBar value={info.health.diskUsagePct} label="Disk Space" />
-            <ProgressBar value={info.health.memoryUsagePct} label="Memory" />
+          <div className="flex items-center gap-4">
+            <div className="text-3xl font-bold tabular-nums text-primary">
+              {formatUptime(info.uptime)}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              <p>{Math.floor(info.uptime / 86400)} days</p>
+              <p>{Math.floor((info.uptime % 86400) / 3600)} hours</p>
+              <p>{Math.floor((info.uptime % 3600) / 60)} minutes</p>
+            </div>
           </div>
         </div>
       </div>

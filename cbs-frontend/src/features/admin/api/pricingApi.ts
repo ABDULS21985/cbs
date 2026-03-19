@@ -2,6 +2,14 @@ import { apiGet, apiPost, apiPut } from '@/lib/api';
 import type { DiscountScheme, SpecialPricingAgreement } from '../types/pricing';
 
 export const pricingApi = {
+  /** GET /v1/pricing/discounts — list all */
+  getAllDiscounts: () =>
+    apiGet<DiscountScheme[]>('/api/v1/pricing/discounts'),
+
+  /** GET /v1/pricing/special-pricing — list all */
+  getAllSpecialPricing: () =>
+    apiGet<SpecialPricingAgreement[]>('/api/v1/pricing/special-pricing'),
+
   /** POST /v1/pricing/discounts */
   createDiscount: (data: Partial<DiscountScheme>) =>
     apiPost<DiscountScheme>('/api/v1/pricing/discounts', data),

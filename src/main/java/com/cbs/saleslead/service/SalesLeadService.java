@@ -39,6 +39,7 @@ public class SalesLeadService {
     public SalesLead assign(String leadNumber, String assignedTo) {
         SalesLead l = getLead(leadNumber); l.setAssignedTo(assignedTo); l.setUpdatedAt(Instant.now()); return leadRepository.save(l);
     }
+    public List<SalesLead> getAllLeads() { return leadRepository.findAll(); }
     public List<SalesLead> getByAssignee(String assignedTo) {
         return leadRepository.findByAssignedToAndStageInOrderByLeadScoreDesc(assignedTo, List.of("NEW","CONTACTED","QUALIFIED","PROPOSAL","NEGOTIATION"));
     }

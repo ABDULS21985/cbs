@@ -10,7 +10,12 @@ import com.cbs.governance.entity.SystemParameter;
 import com.cbs.governance.repository.SystemParameterRepository;
 import com.cbs.lending.repository.LoanAccountRepository;
 import com.cbs.provider.entity.ServiceProvider;
+import com.cbs.provider.entity.ProviderHealthLog;
+import com.cbs.provider.entity.ProviderTransactionLog;
 import com.cbs.provider.repository.ServiceProviderRepository;
+import com.cbs.provider.repository.ProviderHealthLogRepository;
+import com.cbs.provider.repository.ProviderTransactionLogRepository;
+import com.cbs.provider.service.ProviderManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +42,9 @@ public class AdminController {
     private final SystemParameterRepository systemParameterRepository;
     private final BillerRepository billerRepository;
     private final ServiceProviderRepository serviceProviderRepository;
+    private final ProviderHealthLogRepository providerHealthLogRepository;
+    private final ProviderTransactionLogRepository providerTransactionLogRepository;
+    private final ProviderManagementService providerManagementService;
     private final ChannelSessionRepository channelSessionRepository;
     private final AccountRepository accountRepository;
     private final CustomerRepository customerRepository;
@@ -500,43 +508,56 @@ public class AdminController {
     @PostMapping("/providers/{id}/health-check")
     @Operation(summary = "Trigger health check for a provider")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> healthCheck(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("providerId", id, "status", "HEALTHY", "responseTimeMs", 150)));
+    public ResponseEntity<ApiResponse<ProviderHealthLog>> healthCheck(@PathVariable Long id) {
+        ServiceProvider provider = serviceProviderRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Provider not found: " + id));
+        ProviderHealthLog log = providerManagementService.healthCheck(provider.getProviderCode());
+        return ResponseEntity.ok(ApiResponse.ok(log));
     }
 
     @PostMapping("/providers/{id}/failover")
     @Operation(summary = "Trigger failover for a provider")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> failover(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("providerId", id.toString(), "message", "Failover initiated")));
+    public ResponseEntity<ApiResponse<ServiceProvider>> failover(@PathVariable Long id) {
+        ServiceProvider provider = serviceProviderRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Provider not found: " + id));
+        return ResponseEntity.ok(ApiResponse.ok(providerManagementService.triggerFailover(provider.getProviderCode())));
     }
 
     @PostMapping("/providers/{id}/suspend")
     @Operation(summary = "Suspend a service provider")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> suspendProvider(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("providerId", id.toString(), "status", "SUSPENDED")));
+    public ResponseEntity<ApiResponse<ServiceProvider>> suspendProvider(@PathVariable Long id) {
+        ServiceProvider provider = serviceProviderRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Provider not found: " + id));
+        provider.setStatus("SUSPENDED");
+        provider.setHealthStatus("DOWN");
+        return ResponseEntity.ok(ApiResponse.ok(serviceProviderRepository.save(provider)));
     }
 
     @PutMapping("/providers/{id}/failover")
     @Operation(summary = "Configure failover settings for a provider")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> configureFailover(@PathVariable Long id, @RequestBody Map<String, Object> config) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("providerId", id, "config", config)));
+    public ResponseEntity<ApiResponse<ServiceProvider>> configureFailover(@PathVariable Long id, @RequestBody Map<String, Object> config) {
+        ServiceProvider provider = serviceProviderRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Provider not found: " + id));
+        if (config.containsKey("failoverProviderId")) provider.setFailoverProviderId(Long.valueOf(config.get("failoverProviderId").toString()));
+        if (config.containsKey("autoFailover")) provider.setStatus(Boolean.TRUE.equals(config.get("autoFailover")) ? "ACTIVE" : provider.getStatus());
+        return ResponseEntity.ok(ApiResponse.ok(serviceProviderRepository.save(provider)));
     }
 
     @GetMapping("/providers/{id}/health-logs")
     @Operation(summary = "Get provider health check history")
-    @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getHealthLogs(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ProviderHealthLog>>> getHealthLogs(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(providerHealthLogRepository.findByProviderIdOrderByCheckTimestampDesc(id)));
     }
 
     @GetMapping("/providers/{id}/transactions")
     @Operation(summary = "Get provider transaction log")
-    @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getProviderTransactions(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ProviderTransactionLog>>> getProviderTransactions(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(providerTransactionLogRepository.findByProviderIdOrderByRequestTimestampDesc(id)));
     }
 
     // Helper

@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import type { ParameterHistory } from '../../api/parameterApi';
+import type { ParameterAudit } from '../../api/parameterApi';
 
 interface ParameterAuditTrailProps {
-  history: ParameterHistory[];
+  history: ParameterAudit[];
 }
 
 export function ParameterAuditTrail({ history }: ParameterAuditTrailProps) {
@@ -30,19 +30,25 @@ export function ParameterAuditTrail({ history }: ParameterAuditTrailProps) {
           </div>
           <div className={cn('pb-4 flex-1 min-w-0', i === visible.length - 1 && 'pb-0')}>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-mono bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded line-through">
-                {item.oldValue.length > 40 ? `${item.oldValue.slice(0, 40)}…` : item.oldValue}
-              </span>
-              <span className="text-xs text-muted-foreground">→</span>
+              {item.oldValue && (
+                <>
+                  <span className="text-xs font-mono bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded line-through">
+                    {item.oldValue.length > 40 ? `${item.oldValue.slice(0, 40)}…` : item.oldValue}
+                  </span>
+                  <span className="text-xs text-muted-foreground">→</span>
+                </>
+              )}
               <span className="text-xs font-mono bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-1.5 py-0.5 rounded">
                 {item.newValue.length > 40 ? `${item.newValue.slice(0, 40)}…` : item.newValue}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate" title={item.reason}>
-              {item.reason}
-            </p>
+            {item.changeReason && (
+              <p className="text-xs text-muted-foreground mt-0.5 truncate" title={item.changeReason}>
+                {item.changeReason}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground mt-0.5">
-              {item.changedBy} · {formatDateTime(item.changedAt)}
+              {item.changedBy} · {formatDateTime(item.createdAt)}
             </p>
           </div>
         </div>

@@ -22,6 +22,7 @@ type TabId = typeof TABS[number]['id'];
 
 export function UserAdminPage() {
   const [activeTab, setActiveTab] = useState<TabId>('users');
+  const [openNewUser, setOpenNewUser] = useState(false);
 
   const { data: roles = [] } = useQuery({
     queryKey: ['admin', 'roles'],
@@ -32,6 +33,17 @@ export function UserAdminPage() {
     queryKey: ['admin', 'permissions'],
     queryFn: () => userAdminApi.getPermissions(),
   });
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ['admin', 'sessions'],
+    queryFn: () => userAdminApi.getActiveSessions(),
+    refetchInterval: 30000,
+  });
+
+  const handleNewUser = () => {
+    setActiveTab('users');
+    setOpenNewUser(true);
+  };
 
   return (
     <div className="flex flex-col min-h-0 h-full">
@@ -44,7 +56,7 @@ export function UserAdminPage() {
           </p>
         </div>
         <button
-          onClick={() => setActiveTab('users')}
+          onClick={handleNewUser}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -71,6 +83,11 @@ export function UserAdminPage() {
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
+                {tab.id === 'sessions' && sessions.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold tabular-nums">
+                    {sessions.length}
+                  </span>
+                )}
               </Tabs.Trigger>
             );
           })}
@@ -78,7 +95,7 @@ export function UserAdminPage() {
 
         <div className="flex-1 overflow-y-auto">
           <Tabs.Content value="users" className="p-6 focus:outline-none">
-            <UserTable />
+            <UserTable externalOpenNewUser={openNewUser} onExternalNewUserHandled={() => setOpenNewUser(false)} />
           </Tabs.Content>
 
           <Tabs.Content value="roles" className="p-6 focus:outline-none">

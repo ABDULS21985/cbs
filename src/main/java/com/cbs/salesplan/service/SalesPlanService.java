@@ -35,6 +35,7 @@ public class SalesPlanService {
         if (t.getAchievementPct().compareTo(new BigDecimal("100")) >= 0) t.setStatus("ACHIEVED");
         return targetRepository.save(t);
     }
+    public List<SalesPlan> getAllPlans() { return planRepository.findAll(); }
     public List<SalesPlan> getByRegion(String region) { return planRepository.findByRegionAndStatusOrderByPeriodStartDesc(region, "ACTIVE"); }
     public List<SalesTarget> getTargetsByOfficer(String officerId) { return targetRepository.findByOfficerIdAndStatusOrderByPeriodStartDesc(officerId, "ACTIVE"); }
     public SalesPlan getPlanByCode(String code) {

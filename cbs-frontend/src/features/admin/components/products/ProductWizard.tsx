@@ -428,12 +428,13 @@ function InterestConfigStep({
 interface ProductWizardProps {
   onComplete: (product: Partial<BankingProduct>) => void;
   onCancel: () => void;
+  initialData?: Partial<BankingProduct>;
 }
 
-export function ProductWizard({ onComplete, onCancel }: ProductWizardProps) {
+export function ProductWizard({ onComplete, onCancel, initialData }: ProductWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
-  const [product, setProduct] = useState<Partial<BankingProduct>>(DEFAULT_PRODUCT);
+  const [product, setProduct] = useState<Partial<BankingProduct>>(initialData ?? DEFAULT_PRODUCT);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const markComplete = (step: number) => {

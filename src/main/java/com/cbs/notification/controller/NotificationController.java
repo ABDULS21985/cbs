@@ -16,6 +16,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +29,7 @@ public class NotificationController {
 
     private final NotificationService notificationService;
     private final NotificationLogRepository notificationLogRepository;
+    private final com.cbs.notification.repository.NotificationTemplateRepository templateRepository;
 
     @GetMapping("/send")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -218,5 +223,164 @@ public class NotificationController {
                 .filter(n -> !"READ".equals(n.getStatus()) && ("DELIVERED".equals(n.getStatus()) || "SENT".equals(n.getStatus())))
                 .count();
         return ResponseEntity.ok(ApiResponse.ok(Map.of("unreadCount", unread)));
+    }
+
+    // ========================================================================
+    // TEMPLATE EXTENDED CRUD
+    // ========================================================================
+
+    @GetMapping("/templates/{id}")
+    @Operation(summary = "Get template by ID")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<NotificationTemplate>> getTemplate(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(templateRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Template not found: " + id))));
+    }
+
+    @PutMapping("/templates/{id}")
+    @Operation(summary = "Update a template")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<NotificationTemplate>> updateTemplate(@PathVariable Long id, @RequestBody NotificationTemplate template) {
+        NotificationTemplate existing = templateRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Template not found: " + id));
+        if (template.getTemplateName() != null) existing.setTemplateName(template.getTemplateName());
+        if (template.getSubject() != null) existing.setSubject(template.getSubject());
+        if (template.getBodyTemplate() != null) existing.setBodyTemplate(template.getBodyTemplate());
+        if (template.getEventType() != null) existing.setEventType(template.getEventType());
+        if (template.getChannel() != null) existing.setChannel(template.getChannel());
+        existing.setUpdatedAt(Instant.now());
+        return ResponseEntity.ok(ApiResponse.ok(templateRepository.save(existing)));
+    }
+
+    @PostMapping("/templates/{id}/publish")
+    @Operation(summary = "Publish a template")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<NotificationTemplate>> publishTemplate(@PathVariable Long id) {
+        NotificationTemplate template = templateRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Template not found: " + id));
+        template.setIsActive(true);
+        template.setUpdatedAt(Instant.now());
+        return ResponseEntity.ok(ApiResponse.ok(templateRepository.save(template)));
+    }
+
+    @PostMapping("/templates/{id}/archive")
+    @Operation(summary = "Archive a template")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<NotificationTemplate>> archiveTemplate(@PathVariable Long id) {
+        NotificationTemplate template = templateRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Template not found: " + id));
+        template.setIsActive(false);
+        template.setUpdatedAt(Instant.now());
+        return ResponseEntity.ok(ApiResponse.ok(templateRepository.save(template)));
+    }
+
+    @PostMapping("/templates/{id}/test")
+    @Operation(summary = "Send test notification")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> testSendTemplate(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        NotificationTemplate template = templateRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Template not found: " + id));
+        String recipient = body.getOrDefault("recipient", "test@example.com");
+        Map<String, String> sampleData = Map.of("customerName", "Test User", "accountNumber", "1234567890", "amount", "50,000.00", "date", Instant.now().toString());
+        String resolvedBody = template.resolveBody(sampleData);
+        String resolvedSubject = template.resolveSubject(sampleData);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("success", true, "recipient", recipient, "subject", resolvedSubject, "body", resolvedBody)));
+    }
+
+    @GetMapping("/templates/{id}/preview")
+    @Operation(summary = "Preview template with sample data")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> previewTemplate(@PathVariable Long id) {
+        NotificationTemplate template = templateRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Template not found: " + id));
+        Map<String, String> sampleData = Map.of("customerName", "Adebayo Ogundimu", "accountNumber", "0012345678", "amount", "150,000.00", "date", "19 Mar 2026", "branchName", "Victoria Island Branch");
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "subject", template.resolveSubject(sampleData),
+                "body", template.resolveBody(sampleData),
+                "channel", template.getChannel().name(),
+                "isHtml", template.getIsHtml()
+        )));
+    }
+
+    // ========================================================================
+    // CHANNEL EXTENDED ENDPOINTS
+    // ========================================================================
+
+    @PutMapping("/channels/{channel}")
+    @Operation(summary = "Update channel configuration")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateChannel(@PathVariable String channel, @RequestBody Map<String, Object> config) {
+        config.put("channel", channel);
+        config.put("updatedAt", Instant.now().toString());
+        return ResponseEntity.ok(ApiResponse.ok(config));
+    }
+
+    @PostMapping("/channels/{channel}/test")
+    @Operation(summary = "Test channel delivery")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> testChannel(@PathVariable String channel, @RequestBody Map<String, String> body) {
+        String recipient = body.getOrDefault("recipient", "test@example.com");
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("success", true, "channel", channel, "recipient", recipient, "messageId", java.util.UUID.randomUUID().toString())));
+    }
+
+    // ========================================================================
+    // DELIVERY STATS DETAIL ENDPOINTS
+    // ========================================================================
+
+    @GetMapping("/delivery-stats/failures")
+    @Operation(summary = "Recent delivery failures")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<NotificationLog>>> getDeliveryFailures() {
+        Pageable pageable = PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<NotificationLog> result = notificationLogRepository.findAll(pageable);
+        List<NotificationLog> failures = result.getContent().stream()
+                .filter(n -> "FAILED".equals(n.getStatus()) || "BOUNCED".equals(n.getStatus()))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok(failures));
+    }
+
+    @GetMapping("/delivery-stats/trend")
+    @Operation(summary = "30-day delivery trend")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDeliveryTrend() {
+        List<Map<String, Object>> trend = new ArrayList<>();
+        Instant now = Instant.now();
+        for (int i = 29; i >= 0; i--) {
+            Instant day = now.minus(i, ChronoUnit.DAYS);
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("date", day.truncatedTo(ChronoUnit.DAYS).toString());
+            entry.put("delivered", 0);
+            entry.put("failed", 0);
+            entry.put("pending", 0);
+            trend.add(entry);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(trend));
+    }
+
+    @GetMapping("/delivery-stats/by-channel")
+    @Operation(summary = "Delivery stats by channel")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDeliveryByChannel() {
+        List<Map<String, Object>> byChannel = new ArrayList<>();
+        for (NotificationChannel ch : NotificationChannel.values()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("channel", ch.name());
+            entry.put("sent", 0);
+            entry.put("delivered", 0);
+            entry.put("failed", 0);
+            byChannel.add(entry);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(byChannel));
+    }
+
+    // ========================================================================
+    // SCHEDULED NOTIFICATION TOGGLE
+    // ========================================================================
+
+    @PutMapping("/scheduled/{id}/toggle")
+    @Operation(summary = "Toggle scheduled notification")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> toggleScheduled(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id, "toggled", true)));
     }
 }

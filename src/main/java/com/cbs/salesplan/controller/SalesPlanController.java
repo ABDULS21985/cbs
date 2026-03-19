@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*; import java.math.BigDecimal; i
 @Tag(name = "Sales Planning", description = "Sales targets, territory planning, performance tracking")
 public class SalesPlanController {
     private final SalesPlanService service;
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<SalesPlan>>> listAll() { return ResponseEntity.ok(ApiResponse.ok(service.getAllPlans())); }
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<SalesPlan>> create(@RequestBody SalesPlan plan) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createPlan(plan))); }
     @PostMapping("/{code}/targets") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<SalesTarget>> addTarget(@PathVariable String code, @RequestBody SalesTarget target) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.addTarget(code, target))); }
     @PostMapping("/targets/{code}/record") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<SalesTarget>> recordActual(@PathVariable String code, @RequestParam BigDecimal value) { return ResponseEntity.ok(ApiResponse.ok(service.recordActual(code, value))); }

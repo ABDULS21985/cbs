@@ -1,125 +1,83 @@
 import { apiGet, apiPost, apiPut } from '@/lib/api';
+import type {
+  ServiceProvider as BackendServiceProvider,
+  ProviderHealthLog as BackendHealthLog,
+  ProviderTransactionLog as BackendTransactionLog,
+} from '../types/providerExt';
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+// ─── Re-export backend entity types ─────────────────────────────────────────
+export type ServiceProvider = BackendServiceProvider;
+export type ProviderHealthLog = BackendHealthLog;
+export type ProviderTransaction = BackendTransactionLog;
 
-export type ProviderStatus = 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'MAINTENANCE';
-export type ProviderType = 'IDENTITY' | 'PAYMENT_SWITCH' | 'CREDIT_BUREAU' | 'SMS' | 'EMAIL' | 'PUSH' | 'INSURANCE' | 'REMITTANCE' | 'USSD' | 'CARD_SCHEME';
-export type IntegrationType = 'REST' | 'SOAP' | 'ISO8583' | 'SFTP' | 'SDK';
-export type CostModel = 'PER_CALL' | 'MONTHLY_FLAT' | 'TIERED' | 'REVENUE_SHARE';
+// ─── Derived types ──────────────────────────────────────────────────────────
 
-export interface ServiceProvider {
-  id: string;
-  code: string;
-  name: string;
-  type: ProviderType;
-  integration: IntegrationType;
-  description: string;
-  baseUrl: string;
-  uptime: number;
-  avgLatencyMs: number;
-  monthlyVolume: number;
-  todayCalls: number;
-  todayErrors: number;
-  costModel: CostModel;
-  monthlyCost: number;
-  budget: number;
-  status: ProviderStatus;
-  failoverProviderId?: string;
-  failoverTrigger?: string;
-  lastHealthCheck: string;
-  registeredAt: string;
-}
-
-export interface ProviderHealthLog {
-  timestamp: string;
-  uptime: number;
-  avgLatencyMs: number;
-  callCount: number;
-  errorCount: number;
-  status: ProviderStatus;
-}
-
-export interface ProviderTransaction {
-  id: string;
-  providerId: string;
-  timestamp: string;
-  endpoint: string;
-  method: string;
-  responseCode: string;
-  latencyMs: number;
-  status: 'SUCCESS' | 'ERROR' | 'TIMEOUT';
-  errorMessage?: string;
-}
+export type ProviderStatus = 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN';
 
 export interface SlaRecord {
-  month: string;
-  provider: string;
+  providerCode: string;
   providerName: string;
-  slaUptimeTarget: number;
-  actualUptime: number;
-  slaResponseTarget: number;
-  actualResponse: number;
-  uptimeMet: boolean;
-  responseMet: boolean;
-  penaltyAmount?: number;
+  slaResponseTimeMs: number;
+  slaUptimePct: number;
+  actualAvgResponseTimeMs: number;
+  actualUptimePct: number;
+  healthStatus: string;
+  slaMet: boolean;
 }
 
 export interface CostRecord {
-  month: string;
-  providerId: string;
+  providerCode: string;
   providerName: string;
-  costModel: CostModel;
-  unitCost: number;
-  volume: number;
-  totalCost: number;
-  budget: number;
-  variance: number;
+  costModel: string;
+  costPerCall: number;
+  monthlyCost: number;
+  currentMonthVolume: number;
+  monthlyVolumeLimit: number;
+  estimatedMonthlyCost: number;
 }
 
 export interface ProviderFailoverConfig {
-  failoverProviderId: string;
-  triggerCondition: string;
-  monitoringWindow: string;
+  failoverProviderId: number;
   autoFailover: boolean;
-  notifyOnFailover: boolean;
+  maxRetries: number;
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────
 
-export type RegisterProviderRequest = Omit<ServiceProvider, 'id' | 'uptime' | 'avgLatencyMs' | 'monthlyVolume' | 'todayCalls' | 'todayErrors' | 'monthlyCost' | 'status' | 'lastHealthCheck' | 'registeredAt'> & {
-  slaUptimeTarget?: number;
-  slaResponseTarget?: number;
-};
-
-export type UpdateProviderRequest = Partial<RegisterProviderRequest>;
-
 export const providerApi = {
   getProviders: () =>
     apiGet<ServiceProvider[]>('/api/v1/admin/providers'),
-  getProviderById: (id: string) =>
+
+  getProviderById: (id: string | number) =>
     apiGet<ServiceProvider>(`/api/v1/admin/providers/${id}`),
-  registerProvider: (data: RegisterProviderRequest) =>
+
+  registerProvider: (data: Partial<ServiceProvider>) =>
     apiPost<ServiceProvider>('/api/v1/admin/providers', data),
-  updateProvider: (id: string, data: UpdateProviderRequest) =>
+
+  updateProvider: (id: string | number, data: Partial<ServiceProvider>) =>
     apiPut<ServiceProvider>(`/api/v1/admin/providers/${id}`, data),
-  healthCheckNow: (id: string) =>
-    apiPost<ServiceProvider>(`/api/v1/admin/providers/${id}/health-check`),
-  triggerFailover: (id: string) =>
-    apiPost<{ success: boolean; message: string }>(`/api/v1/admin/providers/${id}/failover`),
-  suspendProvider: (id: string) =>
+
+  healthCheckNow: (id: string | number) =>
+    apiPost<ProviderHealthLog>(`/api/v1/admin/providers/${id}/health-check`),
+
+  triggerFailover: (id: string | number) =>
+    apiPost<ServiceProvider>(`/api/v1/admin/providers/${id}/failover`),
+
+  suspendProvider: (id: string | number) =>
     apiPost<ServiceProvider>(`/api/v1/admin/providers/${id}/suspend`),
-  saveFailoverConfig: (id: string, config: ProviderFailoverConfig) =>
+
+  saveFailoverConfig: (id: string | number, config: ProviderFailoverConfig) =>
     apiPut<ServiceProvider>(`/api/v1/admin/providers/${id}/failover`, config),
-  getHealthLogs: (id: string, days?: number) =>
-    apiGet<ProviderHealthLog[]>(`/api/v1/admin/providers/${id}/health-logs`, { days }),
-  getHealthLog: (id: string, days?: number) =>
-    apiGet<ProviderHealthLog[]>(`/api/v1/admin/providers/${id}/health-logs`, { days }),
-  getTransactionLogs: (id: string, params?: Record<string, unknown>) =>
-    apiGet<ProviderTransaction[]>(`/api/v1/admin/providers/${id}/transactions`, params),
-  getTransactionLog: (id: string, params?: Record<string, unknown>) =>
-    apiGet<ProviderTransaction[]>(`/api/v1/admin/providers/${id}/transactions`, params),
-  getSlaRecords: (params?: Record<string, unknown>) =>
-    apiGet<SlaRecord[]>('/api/v1/admin/providers/sla', params),
-  getCostRecords: (params?: Record<string, unknown>) =>
-    apiGet<CostRecord[]>('/api/v1/admin/providers/costs', params),
+
+  getHealthLogs: (id: string | number) =>
+    apiGet<ProviderHealthLog[]>(`/api/v1/admin/providers/${id}/health-logs`),
+
+  getTransactionLogs: (id: string | number) =>
+    apiGet<ProviderTransaction[]>(`/api/v1/admin/providers/${id}/transactions`),
+
+  getSlaRecords: () =>
+    apiGet<SlaRecord[]>('/api/v1/admin/providers/sla'),
+
+  getCostRecords: () =>
+    apiGet<CostRecord[]>('/api/v1/admin/providers/costs'),
 };
