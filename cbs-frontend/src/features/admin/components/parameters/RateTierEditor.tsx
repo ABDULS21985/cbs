@@ -1,6 +1,4 @@
-import { useState } from 'react';
 import { Plus, Trash2, Save } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { RateTable, RateTier } from '../../api/parameterApi';
 
 interface RateTierEditorProps {
@@ -47,7 +45,7 @@ function SavingsTierEditor({
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Rate (%)</span>
         <span />
       </div>
-      {tiers.map((tier, i) => (
+      {tiers.map((tier) => (
         <div key={tier.id} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
           <input
             type="number"

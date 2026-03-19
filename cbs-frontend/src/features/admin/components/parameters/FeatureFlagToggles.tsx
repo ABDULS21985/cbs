@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters';
-import { ConfirmDialog } from '@/components/shared';
+
 import { parameterApi } from '../../api/parameterApi';
 import type { FeatureFlag } from '../../api/parameterApi';
 

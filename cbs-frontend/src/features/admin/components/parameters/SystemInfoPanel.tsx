@@ -3,7 +3,6 @@ import { RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters';
 import { parameterApi } from '../../api/parameterApi';
-import type { SystemInfo } from '../../api/parameterApi';
 
 function formatUptime(seconds: number): string {
   const days = Math.floor(seconds / 86400);

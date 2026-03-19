@@ -48,7 +48,7 @@ export interface MobileTransaction {
   status: string;
 }
 
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.DEV;
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
 const mockQrTransactions: QrTransaction[] = [
   { id: 'qt-001', qrRef: 'QR-20240315-001', date: '2024-03-15T10:30:00Z', payerName: 'Aminu Bello', amount: 15000, currency: 'NGN', status: 'COMPLETED', settlement: '2024-03-15T10:31:00Z' },

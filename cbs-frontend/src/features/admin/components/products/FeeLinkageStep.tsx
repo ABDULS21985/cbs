@@ -32,9 +32,6 @@ function occurrenceLabel(o: ProductFeeLink['occurrence']): string {
   return labels[o];
 }
 
-function feeAmountDisplay(fee: AvailableFee): string {
-  return `₦${fee.amount.toLocaleString()}${occurrenceLabel(fee.occurrence)}`;
-}
 
 interface FeeLinkageStepProps {
   linkedFees: ProductFeeLink[];

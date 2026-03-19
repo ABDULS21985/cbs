@@ -72,7 +72,7 @@ export const ACH_RETURN_CODES: Record<string, string> = {
   R29: 'Corporate Customer Advises Not Authorized',
 };
 
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' || true;
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
 function generateMockBatches(type: 'OUTBOUND' | 'INBOUND'): AchBatch[] {
   const statuses: AchBatch['status'][] = ['CREATED', 'VALIDATED', 'SUBMITTED', 'ACCEPTED', 'SETTLED', 'RETURNED', 'FAILED'];
