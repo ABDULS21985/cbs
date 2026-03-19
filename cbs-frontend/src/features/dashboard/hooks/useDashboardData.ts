@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
+import { dashboardApi } from '../api/dashboardApi';
 
 // Dashboard stats from various CBS endpoints
 export function useDashboardStats() {
@@ -31,6 +32,48 @@ export function useRecentTransactions() {
   return useQuery({
     queryKey: queryKeys.dashboard.recentTransactions,
     queryFn: () => apiGet<any[]>('/api/v1/payments', { page: 0, size: 10, sort: 'createdAt', direction: 'DESC' }).catch(() => []),
+    staleTime: 30_000,
+  });
+}
+
+// ─── New wired dashboard hooks ────────────────────────────────────────────────
+
+export function useBankCashFlow() {
+  return useQuery({
+    queryKey: ['dashboard', 'bank-cashflow'],
+    queryFn: () => dashboardApi.getBankCashFlow(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useTreasuryMetrics(currency = 'NGN') {
+  return useQuery({
+    queryKey: ['dashboard', 'treasury-metrics', currency],
+    queryFn: () => dashboardApi.getTreasuryMetrics(currency),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useComplianceAlerts() {
+  return useQuery({
+    queryKey: ['dashboard', 'compliance-alerts'],
+    queryFn: () => dashboardApi.getOverdueComplianceReports(),
+    staleTime: 60_000,
+  });
+}
+
+export function usePendingDocuments() {
+  return useQuery({
+    queryKey: ['dashboard', 'pending-documents'],
+    queryFn: () => dashboardApi.getPendingDocuments(),
+    staleTime: 60_000,
+  });
+}
+
+export function useDashboardDealerDesks() {
+  return useQuery({
+    queryKey: ['dashboard', 'dealer-desks'],
+    queryFn: () => dashboardApi.getDealerDesks(),
     staleTime: 30_000,
   });
 }
