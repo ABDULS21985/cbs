@@ -1,5 +1,13 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { paymentApi, type TransferRequest } from '../api/paymentApi';
+import {
+  paymentApi,
+  type BankOption,
+  type DuplicateCheckResult,
+  type FeePreview,
+  type NameEnquiryResult,
+  type RecentTransfer,
+  type TransferRequest,
+} from '../api/paymentApi';
 
 export function useAccounts() {
   return useQuery({
@@ -15,33 +23,37 @@ export function useBeneficiaries() {
   });
 }
 
+// No backend endpoint — returns empty list
 export function useBanks() {
-  return useQuery({
+  return useQuery<BankOption[]>({
     queryKey: ['payments', 'banks'],
-    queryFn: () => paymentApi.getBanks(),
+    queryFn: () => Promise.resolve([] as BankOption[]),
     staleTime: 5 * 60 * 1000,
   });
 }
 
+// No backend endpoint — returns empty list
 export function useRecentTransfers() {
-  return useQuery({
+  return useQuery<RecentTransfer[]>({
     queryKey: ['payments', 'recent'],
-    queryFn: () => paymentApi.getRecentTransfers(),
+    queryFn: () => Promise.resolve([] as RecentTransfer[]),
   });
 }
 
+// No backend endpoint — mutation always rejects
 export function useNameEnquiry() {
-  return useMutation({
-    mutationFn: ({ accountNumber, bankCode }: { accountNumber: string; bankCode: string }) =>
-      paymentApi.verifyName(accountNumber, bankCode),
+  return useMutation<NameEnquiryResult, Error, { accountNumber: string; bankCode: string }>({
+    mutationFn: (_: { accountNumber: string; bankCode: string }) =>
+      Promise.reject(new Error('Name enquiry not available')),
   });
 }
 
-export function useFeePreview(amount: number, transferType: string, currency?: string) {
-  return useQuery({
-    queryKey: ['payments', 'fee-preview', amount, transferType, currency],
-    queryFn: () => paymentApi.previewFee(amount, transferType, currency),
-    enabled: amount > 0 && !!transferType,
+// No backend endpoint — disabled query
+export function useFeePreview(_amount: number, _transferType: string, _currency?: string) {
+  return useQuery<FeePreview | null>({
+    queryKey: ['payments', 'fee-preview'],
+    queryFn: () => Promise.resolve(null),
+    enabled: false,
   });
 }
 
@@ -51,9 +63,10 @@ export function useInitiateTransfer() {
   });
 }
 
+// No backend endpoint — mutation always rejects
 export function useDuplicateCheck() {
-  return useMutation({
-    mutationFn: ({ account, amount }: { account: string; amount: number }) =>
-      paymentApi.checkDuplicate(account, amount),
+  return useMutation<DuplicateCheckResult, Error, { account: string; amount: number }>({
+    mutationFn: (_: { account: string; amount: number }) =>
+      Promise.reject(new Error('Duplicate check not available')),
   });
 }

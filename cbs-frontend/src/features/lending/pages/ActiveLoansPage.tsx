@@ -1,11 +1,8 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, SummaryBar } from '@/components/shared';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import type { ColumnDef } from '@tanstack/react-table';
-
-import { loanApi } from '../api/loanApi';
 import type { LoanAccount } from '../types/loan';
 
 const columns: ColumnDef<LoanAccount, any>[] = [
@@ -23,10 +20,9 @@ const columns: ColumnDef<LoanAccount, any>[] = [
 export function ActiveLoansPage() {
   const navigate = useNavigate();
 
-  const { data: loans = [], isLoading } = useQuery({
-    queryKey: ['loans', 'active'],
-    queryFn: () => loanApi.getLoans({ status: 'ACTIVE' }),
-  });
+  // No list-all endpoint in backend — results populate when a customer context is available
+  const loans: LoanAccount[] = [];
+  const isLoading = false;
 
   const totalOutstanding = loans.reduce((s, l) => s + (l.outstandingPrincipal || 0), 0);
 

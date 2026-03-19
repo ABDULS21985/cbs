@@ -17,12 +17,12 @@ export function CaseInfoPanel({ caseData }: Props) {
   const [showResolve, setShowResolve] = useState(false);
 
   const statusMutation = useMutation({
-    mutationFn: ({ status }: { status: string }) => caseApi.update(caseData.id, { status: status as CustomerCase['status'] }),
+    mutationFn: ({ status }: { status: string }) => caseApi.update(caseData.caseNumber, { status: status as CustomerCase['status'] }),
     onSuccess: () => { toast.success('Status updated'); queryClient.invalidateQueries({ queryKey: ['cases'] }); },
   });
 
   const resolveMutation = useMutation({
-    mutationFn: () => caseApi.resolve(caseData.id, resolution, rootCause),
+    mutationFn: () => caseApi.resolve(caseData.caseNumber, resolution, rootCause),
     onSuccess: () => { toast.success('Case resolved'); queryClient.invalidateQueries({ queryKey: ['cases'] }); setShowResolve(false); },
   });
 

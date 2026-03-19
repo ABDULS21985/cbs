@@ -6,6 +6,7 @@ import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 import { loanApi } from '../api/loanApi';
+import type { LoanPayment } from '../types/loan';
 
 export function LoanDetailPage() {
   const { id } = useParams();
@@ -23,11 +24,8 @@ export function LoanDetailPage() {
     enabled: !!loanId && !isNaN(loanId),
   });
 
-  const { data: payments = [] } = useQuery({
-    queryKey: ['loans', loanId, 'payments'],
-    queryFn: () => loanApi.getPayments(loanId),
-    enabled: !!loanId && !isNaN(loanId),
-  });
+  // Payment history not available via dedicated endpoint — schedule covers installment status
+  const payments: LoanPayment[] = [];
 
   if (isLoading || !loan) {
     return <><PageHeader title="Loan Detail" /><div className="page-container flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></>;

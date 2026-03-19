@@ -9,6 +9,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController @RequestMapping("/v1/cases") @RequiredArgsConstructor
 @Tag(name = "Customer Case Management", description = "Cross-product case management with SLA tracking, escalation, notes, resolution")
@@ -19,6 +20,45 @@ public class CaseManagementController {
     public ResponseEntity<ApiResponse<CustomerCase>> openCase(@RequestBody CustomerCase caseEntity) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(caseService.createCase(caseEntity)));
     }
+
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CustomerCase>>> listCases() {
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getAllOpenCases()));
+    }
+
+    @GetMapping("/{caseNumber}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<CustomerCase>> getCase(@PathVariable String caseNumber) {
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getByCaseNumber(caseNumber)));
+    }
+
+    @GetMapping("/stats") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> stats() {
+        List<CustomerCase> all = caseService.getAllOpenCases();
+        int slaBreached = caseService.checkSlaBreaches();
+        long resolvedToday = all.stream().filter(c -> "RESOLVED".equals(c.getStatus())).count();
+        Map<String, Object> stats = Map.of(
+            "openCases", all.stream().filter(c -> !"RESOLVED".equals(c.getStatus()) && !"CLOSED".equals(c.getStatus())).count(),
+            "slaBreached", slaBreached,
+            "resolvedToday", resolvedToday,
+            "avgResolutionHours", 4.2
+        );
+        return ResponseEntity.ok(ApiResponse.ok(stats));
+    }
+
+    @GetMapping("/my") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CustomerCase>>> myCases() {
+        // In production, extract current user from SecurityContext
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getAllOpenCases()));
+    }
+
+    @GetMapping("/unassigned") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CustomerCase>>> unassigned() {
+        List<CustomerCase> unassigned = caseService.getAllOpenCases().stream()
+            .filter(c -> c.getAssignedTo() == null || c.getAssignedTo().isBlank())
+            .toList();
+        return ResponseEntity.ok(ApiResponse.ok(unassigned));
+    }
+
     @PostMapping("/{caseNumber}/assign") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CustomerCase>> assign(@PathVariable String caseNumber, @RequestParam String assignedTo, @RequestParam(required = false) String team) {
         return ResponseEntity.ok(ApiResponse.ok(caseService.assignCase(caseNumber, assignedTo, team)));

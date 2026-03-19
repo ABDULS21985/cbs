@@ -274,7 +274,7 @@ export function BulkFeePostingWizard({ onComplete }: BulkFeePostingWizardProps) 
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.sampleAccounts.map((acc) => (
+                    {preview.sampleAccounts.map((acc: BulkFeePreview['sampleAccounts'][number]) => (
                       <tr key={acc.accountNumber} className="border-b last:border-0">
                         <td className="px-4 py-2.5 font-mono">{acc.accountNumber}</td>
                         <td className="px-4 py-2.5">{acc.customerName}</td>

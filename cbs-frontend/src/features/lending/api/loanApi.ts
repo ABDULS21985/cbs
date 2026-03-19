@@ -162,6 +162,7 @@ function mapLoanApplication(a: BackendLoanApplicationResponse): LoanApplication 
     rejectionReason: a.declineReason ?? undefined,
     createdAt: a.createdAt ?? new Date().toISOString(),
     updatedAt: a.createdAt ?? new Date().toISOString(),
+    version: 0,
   };
 }
 
@@ -219,6 +220,7 @@ function mapLoanAccount(a: BackendLoanAccountResponse): LoanAccount {
     status: mapAccountStatus(a.status),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    version: 0,
   };
 }
 

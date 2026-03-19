@@ -5,11 +5,9 @@ import { BarChartWidget } from '@/features/dashboard/widgets/BarChartWidget';
 import { PieChartWidget } from '@/features/dashboard/widgets/PieChartWidget';
 import { Plus, Landmark, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
 import { formatMoney } from '@/lib/formatters';
-import { loanApi } from '../api/loanApi';
-import type { LoanAccount } from '../types/loan';
+import type { LoanAccount, PortfolioStats } from '../types/loan';
 
 const columns: ColumnDef<LoanAccount, any>[] = [
   { accessorKey: 'loanNumber', header: 'Loan #', cell: ({ row }) => <span className="font-mono text-sm text-primary">{row.original.loanNumber}</span> },
@@ -24,15 +22,22 @@ const columns: ColumnDef<LoanAccount, any>[] = [
 export function LoanDashboardPage() {
   const navigate = useNavigate();
 
-  const { data: stats } = useQuery({
-    queryKey: ['loans', 'portfolio', 'stats'],
-    queryFn: () => loanApi.getPortfolioStats(),
-  });
+  // Portfolio stats not available via dedicated endpoint
+  const stats: PortfolioStats = {
+    totalOutstanding: 0,
+    activeLoansCount: 0,
+    activeLoans: 0,
+    nplRatio: 0,
+    disbursedMtd: 0,
+    collectionsMtd: 0,
+    dpdDistribution: [],
+    classificationBreakdown: [],
+    sectorConcentration: [],
+  };
 
-  const { data: watchList = [], isLoading: watchLoading } = useQuery({
-    queryKey: ['loans', 'watchlist'],
-    queryFn: () => loanApi.getLoans({ classification: 'WATCH,SUBSTANDARD' }),
-  });
+  // Watchlist not available without a customerId — no list-all endpoint in backend
+  const watchList: LoanAccount[] = [];
+  const watchLoading = false;
 
   return (
     <>
@@ -43,11 +48,11 @@ export function LoanDashboardPage() {
       } />
       <div className="page-container space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard label="Total Outstanding" value={stats?.totalOutstanding ?? 0} format="money" compact icon={Landmark} />
-          <StatCard label="Active Loans" value={stats?.activeLoansCount ?? 0} format="number" />
-          <StatCard label="NPL Ratio" value={stats?.nplRatio ?? 0} format="percent" icon={AlertTriangle} />
-          <StatCard label="Disbursed MTD" value={stats?.disbursedMtd ?? 0} format="money" compact icon={TrendingUp} />
-          <StatCard label="Collections MTD" value={stats?.collectionsMtd ?? 0} format="money" compact icon={TrendingDown} />
+          <StatCard label="Total Outstanding" value={stats.totalOutstanding} format="money" compact icon={Landmark} />
+          <StatCard label="Active Loans" value={stats.activeLoansCount} format="number" />
+          <StatCard label="NPL Ratio" value={stats.nplRatio} format="percent" icon={AlertTriangle} />
+          <StatCard label="Disbursed MTD" value={stats.disbursedMtd} format="money" compact icon={TrendingUp} />
+          <StatCard label="Collections MTD" value={stats.collectionsMtd} format="money" compact icon={TrendingDown} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

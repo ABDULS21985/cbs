@@ -5,20 +5,20 @@ import { toast } from 'sonner';
 import { caseApi } from '../api/caseApi';
 
 interface Props {
-  caseId: number;
+  caseNumber: string;
 }
 
-export function CaseNoteForm({ caseId }: Props) {
+export function CaseNoteForm({ caseNumber }: Props) {
   const queryClient = useQueryClient();
   const [note, setNote] = useState('');
 
   const addNoteMutation = useMutation({
-    mutationFn: (content: string) => caseApi.addNote(caseId, content),
+    mutationFn: (content: string) => caseApi.addNote(caseNumber, content),
     onSuccess: () => { toast.success('Note added'); setNote(''); queryClient.invalidateQueries({ queryKey: ['cases'] }); },
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => caseApi.addAttachment(caseId, file),
+    mutationFn: (file: File) => caseApi.addAttachment(caseNumber, file),
     onSuccess: () => { toast.success('Attachment uploaded'); queryClient.invalidateQueries({ queryKey: ['cases'] }); },
   });
 

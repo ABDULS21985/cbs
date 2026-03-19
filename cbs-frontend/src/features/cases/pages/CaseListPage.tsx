@@ -73,7 +73,7 @@ export function CaseListPage() {
         <CaseTable
           data={currentTab.data}
           isLoading={currentTab.loading}
-          onRowClick={(row) => navigate(`/cases/${row.id}`)}
+          onRowClick={(row) => navigate(`/cases/${row.caseNumber}`)}
         />
       </div>
     </>

@@ -75,7 +75,6 @@ export function NewTransferPage() {
       currency: selectedAccount?.currency || 'NGN',
       narration: form.narration,
       saveBeneficiary: form.saveBeneficiary,
-      scheduleDate: form.scheduleType === 'scheduled' ? form.scheduleDate : undefined,
     }, {
       onSuccess: (result) => {
         setCompletedTransfer(result);

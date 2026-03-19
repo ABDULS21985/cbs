@@ -152,7 +152,7 @@ export function FeeDefinitionDetailPage() {
     enabled: !!id,
   });
 
-  const { data: waivers = [] } = useQuery({
+  const { data: waivers = [] } = useQuery<FeeWaiver[]>({
     queryKey: ['pending-waivers'],
     queryFn: getPendingWaivers,
   });
@@ -240,7 +240,7 @@ export function FeeDefinitionDetailPage() {
     },
   ];
 
-  const statusColors = {
+  const statusColors: Record<FeeDefinition['status'], string> = {
     ACTIVE: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400',
     INACTIVE: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
   };

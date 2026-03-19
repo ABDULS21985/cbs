@@ -2,11 +2,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, DateRangePicker } from '@/components/shared';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useState } from 'react';
-import { loanApi } from '../api/loanApi';
 import type { LoanApplication } from '../types/loan';
 
 const columns: ColumnDef<LoanApplication, any>[] = [
@@ -23,11 +21,8 @@ const columns: ColumnDef<LoanApplication, any>[] = [
 export function LoanApplicationListPage() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-
-  const { data: applications = [], isLoading } = useQuery({
-    queryKey: ['loans', 'applications', dateRange],
-    queryFn: () => loanApi.getApplications(dateRange.from ? { search: `from:${dateRange.from.toISOString()}${dateRange.to ? `,to:${dateRange.to.toISOString()}` : ''}` } : undefined),
-  });
+  const applications: LoanApplication[] = [];
+  const isLoading = false;
 
   return (
     <>

@@ -161,7 +161,7 @@ export function FeePreviewCalculator({ accountId }: FeePreviewCalculatorProps) {
                     No applicable fees for this event type
                   </p>
                 ) : (
-                  result.applicableFees.map((fee) => (
+                  result.applicableFees.map((fee: PreviewChargeResult['applicableFees'][number]) => (
                     <div key={fee.feeId} className="rounded-lg border bg-muted/30 p-4 space-y-2">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-medium">{fee.feeName}</p>

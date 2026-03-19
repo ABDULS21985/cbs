@@ -15,8 +15,8 @@ export function CaseDetailPage() {
   const navigate = useNavigate();
 
   const { data: caseData, isLoading } = useQuery({
-    queryKey: ['cases', 'detail', Number(id)],
-    queryFn: () => caseApi.getById(Number(id)),
+    queryKey: ['cases', 'detail', id],
+    queryFn: () => caseApi.getById(id!),
     enabled: !!id,
   });
 
@@ -64,7 +64,7 @@ export function CaseDetailPage() {
 
             <FormSection title="Activity">
               <CaseActivityFeed activities={caseData.activities || []} />
-              <CaseNoteForm caseId={caseData.id} />
+              <CaseNoteForm caseNumber={caseData.caseNumber} />
             </FormSection>
           </div>
 

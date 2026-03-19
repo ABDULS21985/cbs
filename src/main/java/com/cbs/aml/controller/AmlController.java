@@ -1,6 +1,7 @@
 package com.cbs.aml.controller;
 
 import com.cbs.aml.entity.*;
+import com.cbs.aml.repository.AmlAlertRepository;
 import com.cbs.aml.service.AmlService;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
@@ -9,6 +10,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,6 +26,7 @@ import java.util.List;
 public class AmlController {
 
     private final AmlService amlService;
+    private final AmlAlertRepository amlAlertRepository;
 
     // Rules
     @PostMapping("/rules")
@@ -93,5 +97,18 @@ public class AmlController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<AmlService.AmlDashboard>> getDashboard() {
         return ResponseEntity.ok(ApiResponse.ok(amlService.getDashboard()));
+    }
+
+    // List all AML alerts
+    @GetMapping
+    @Operation(summary = "List all AML alerts")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AmlAlert>>> listAlerts(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<AmlAlert> result = amlAlertRepository.findAll(pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

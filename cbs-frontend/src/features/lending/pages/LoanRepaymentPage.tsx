@@ -1,13 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { MoneyInput, MoneyDisplay, InfoGrid } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { Loader2, CheckCircle, Printer } from 'lucide-react';
 import { useLoan, useRecordPayment } from '../hooks/useLoanData';
-import { loanApi } from '../api/loanApi';
 
 type PaymentType = 'REGULAR' | 'PARTIAL' | 'MULTIPLE' | 'SETTLEMENT';
 
@@ -20,26 +18,22 @@ export function LoanRepaymentPage() {
   const [receipt, setReceipt] = useState<{ ref: string; amount: number } | null>(null);
 
   const { data: loan } = useLoan(loanId);
-  const { data: settlement } = useQuery({
-    queryKey: ['loans', loanId, 'settlement'],
-    queryFn: () => loanApi.calculateSettlement(loanId),
-    enabled: !!loanId,
-  });
 
   const paymentMutation = useRecordPayment(loanId);
 
   const outstanding = loan?.totalOutstanding ?? 0;
   const nextDue = loan?.nextPaymentAmount ?? 0;
-  const settlementAmount = settlement?.totalSettlementAmount ?? 0;
+  // Settlement = full outstanding balance (outstandingPrincipal + accruedInterest)
+  const settlementAmount = loan?.totalOutstanding ?? 0;
 
   const displayAmount = paymentType === 'REGULAR' ? nextDue : paymentType === 'SETTLEMENT' ? settlementAmount : amount;
 
   const handleSubmit = async () => {
     paymentMutation.mutate(
-      { amount: displayAmount, sourceAccountId: 0, type: paymentType },
+      displayAmount,
       {
-        onSuccess: (payment) => {
-          setReceipt({ ref: payment.paymentRef ?? `PMT-${Date.now().toString(36).toUpperCase()}`, amount: displayAmount });
+        onSuccess: () => {
+          setReceipt({ ref: `PMT-${Date.now().toString(36).toUpperCase()}`, amount: displayAmount });
           toast.success('Payment recorded successfully');
         },
         onError: () => {
@@ -91,9 +85,8 @@ export function LoanRepaymentPage() {
           <div className="rounded-lg border p-5 space-y-3">
             <h4 className="text-sm font-semibold">Settlement Calculation</h4>
             <InfoGrid columns={2} items={[
-              { label: 'Outstanding Principal', value: settlement?.outstandingPrincipal ?? 0, format: 'money' },
-              { label: 'Accrued Interest', value: settlement?.accruedInterest ?? 0, format: 'money' },
-              { label: 'Early Settlement Penalty', value: settlement?.earlySettlementPenalty ?? 0, format: 'money' },
+              { label: 'Outstanding Principal', value: loan?.outstandingPrincipal ?? 0, format: 'money' },
+              { label: 'Accrued Interest', value: loan?.outstandingInterest ?? 0, format: 'money' },
               { label: 'Total Settlement', value: settlementAmount, format: 'money' },
             ]} />
           </div>
