@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { glApi } from '../../api/glApi';
 import type { GlAccount } from '../../api/glApi';
-import { FormSection } from '@/components/shared';
 import { cn } from '@/lib/utils';
 
 const schema = z.object({
@@ -54,7 +53,7 @@ export function GlAccountForm({ open, onClose, onSuccess, parentAccount }: GlAcc
   const flatAccounts = flattenAccounts(allAccounts);
   const headerAccounts = flatAccounts.filter((a) => a.type === 'HEADER');
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       code: '',

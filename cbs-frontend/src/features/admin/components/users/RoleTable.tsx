@@ -6,7 +6,6 @@ import { DataTable, StatusBadge, AuditTimeline } from '@/components/shared';
 import { userAdminApi, type Role } from '../../api/userAdminApi';
 import { cn } from '@/lib/utils';
 import { RoleForm } from './RoleForm';
-import { formatDate } from '@/lib/formatters';
 
 export function RoleTable() {
   const [formOpen, setFormOpen] = useState(false);
@@ -33,7 +32,7 @@ export function RoleTable() {
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           {row.original.isSystem && (
-            <Lock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" title="System role — cannot be deleted" />
+            <Lock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" aria-label="System role — cannot be deleted" />
           )}
           <div>
             <div className="text-sm font-medium">{row.original.displayName}</div>

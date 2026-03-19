@@ -4,8 +4,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { GlAccount } from '../../api/glApi';
 import { GlAccountForm } from './GlAccountForm';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { glApi } from '../../api/glApi';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ChartOfAccountsTreeProps {
   accounts: GlAccount[];

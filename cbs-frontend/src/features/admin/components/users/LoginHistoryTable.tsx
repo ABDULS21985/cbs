@@ -95,7 +95,7 @@ export function LoginHistoryTable() {
         return (
           <div className="flex items-center gap-1.5">
             <span className="font-mono text-sm">{row.original.ip}</span>
-            {isSuspicious && <AlertTriangle className="w-3.5 h-3.5 text-red-500" title="Suspicious IP" />}
+            {isSuspicious && <AlertTriangle className="w-3.5 h-3.5 text-red-500" aria-label="Suspicious IP" />}
           </div>
         );
       },

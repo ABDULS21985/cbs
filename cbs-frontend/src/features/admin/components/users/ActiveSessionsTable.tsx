@@ -7,7 +7,7 @@ import { DataTable, ConfirmDialog } from '@/components/shared';
 import { userAdminApi, type ActiveSession } from '../../api/userAdminApi';
 import { formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { differenceInMinutes, differenceInHours, parseISO } from 'date-fns';
+import { differenceInMinutes, parseISO } from 'date-fns';
 
 function useLiveDuration(loginTime: string): string {
   const [now, setNow] = useState(new Date());
