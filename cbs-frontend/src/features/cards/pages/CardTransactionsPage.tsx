@@ -1,7 +1,8 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, SummaryBar, DateRangePicker } from '@/components/shared';
 import { formatMoney, formatDate } from '@/lib/formatters';
-import { mockCardTransactions } from '../api/mockCardData';
+import { cardApi } from '../api/cardApi';
+import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { CardTransaction } from '../types/card';
 import { cn } from '@/lib/utils';
@@ -30,8 +31,10 @@ const columns: ColumnDef<CardTransaction, any>[] = [
 
 export function CardTransactionsPage() {
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  const approved = mockCardTransactions.filter((t) => t.status === 'APPROVED');
-  const declined = mockCardTransactions.filter((t) => t.status === 'DECLINED');
+  const { data: transactions = [] } = useQuery({ queryKey: ['card-transactions'], queryFn: () => cardApi.getTransactions() });
+
+  const approved = transactions.filter((t) => t.status === 'APPROVED');
+  const declined = transactions.filter((t) => t.status === 'DECLINED');
   const totalValue = approved.reduce((s, t) => s + t.amount, 0);
 
   return (
@@ -41,13 +44,13 @@ export function CardTransactionsPage() {
       />
       <div className="page-container">
         <SummaryBar items={[
-          { label: 'Total', value: mockCardTransactions.length, format: 'number' },
+          { label: 'Total', value: transactions.length, format: 'number' },
           { label: 'Approved', value: approved.length, format: 'number', color: 'success' },
           { label: 'Declined', value: declined.length, format: 'number', color: 'danger' },
           { label: 'Total Value', value: totalValue, format: 'money' },
         ]} />
         <div className="mt-2">
-          <DataTable columns={columns} data={mockCardTransactions} enableGlobalFilter enableExport exportFilename="card-transactions" />
+          <DataTable columns={columns} data={transactions} enableGlobalFilter enableExport exportFilename="card-transactions" />
         </div>
       </div>
     </>

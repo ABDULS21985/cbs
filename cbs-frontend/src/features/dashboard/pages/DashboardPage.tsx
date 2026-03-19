@@ -7,18 +7,49 @@ import { PieChartWidget } from '../widgets/PieChartWidget';
 import { RecentTransactionsWidget } from '../widgets/RecentTransactionsWidget';
 import { PendingApprovalsWidget } from '../widgets/PendingApprovalsWidget';
 import { Wallet, Landmark, AlertTriangle, TrendingUp } from 'lucide-react';
+import { useDashboardStats, useRecentTransactions } from '../hooks/useDashboardData';
 
 export function DashboardPage() {
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: recentTransactions, isLoading: txLoading } = useRecentTransactions();
+
   return (
     <>
       <PageHeader title="Dashboard" subtitle="Welcome back. Here's your banking overview." />
       <div className="page-container space-y-4">
         {/* Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Deposits" value={45_200_000_000} format="money" compact change={5.2} changePeriod="vs last month" trend="up" icon={Wallet} />
-          <StatCard label="Active Loans" value={18_700_000_000} format="money" compact change={1.8} changePeriod="vs last month" trend="up" icon={Landmark} />
-          <StatCard label="NPL Ratio" value={3.8} format="percent" change={-0.3} changePeriod="vs last month" trend="down" icon={AlertTriangle} />
-          <StatCard label="Revenue MTD" value={2_100_000_000} format="money" compact change={12.3} changePeriod="vs last month" trend="up" icon={TrendingUp} />
+          <StatCard
+            label="Total Deposits"
+            value={stats?.totalDeposits ?? 0}
+            format="money"
+            compact
+            loading={statsLoading}
+            icon={Wallet}
+          />
+          <StatCard
+            label="Active Loans"
+            value={stats?.activeLoans ?? 0}
+            format="money"
+            compact
+            loading={statsLoading}
+            icon={Landmark}
+          />
+          <StatCard
+            label="NPL Ratio"
+            value={stats?.nplRatio ?? 0}
+            format="percent"
+            loading={statsLoading}
+            icon={AlertTriangle}
+          />
+          <StatCard
+            label="Revenue MTD"
+            value={stats?.revenueMtd ?? 0}
+            format="money"
+            compact
+            loading={statsLoading}
+            icon={TrendingUp}
+          />
         </div>
 
         {/* Charts Row */}
@@ -34,7 +65,7 @@ export function DashboardPage() {
         {/* Data Row */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           <WidgetCard title="Recent Transactions" colSpan={8}>
-            <RecentTransactionsWidget />
+            <RecentTransactionsWidget transactions={recentTransactions} isLoading={txLoading} />
           </WidgetCard>
           <WidgetCard title="Pending Approvals" colSpan={4}>
             <PendingApprovalsWidget />

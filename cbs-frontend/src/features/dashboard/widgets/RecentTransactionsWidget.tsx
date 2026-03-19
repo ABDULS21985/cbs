@@ -1,36 +1,89 @@
 import { formatMoney, formatRelative } from '@/lib/formatters';
-import { StatusBadge } from '@/components/shared';
-import { ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { StatusBadge, EmptyState } from '@/components/shared';
+import { ArrowUpRight, ArrowDownLeft, Receipt } from 'lucide-react';
 
-const mockTransactions = [
-  { id: 1, ref: 'TXN-2026031801', type: 'CREDIT', description: 'Salary Payment - Dangote Plc', amount: 450000, currency: 'NGN', status: 'COMPLETED', time: new Date(Date.now() - 15 * 60000).toISOString() },
-  { id: 2, ref: 'TXN-2026031802', type: 'DEBIT', description: 'SWIFT Transfer - USD Account', amount: 25000, currency: 'USD', status: 'PROCESSING', time: new Date(Date.now() - 45 * 60000).toISOString() },
-  { id: 3, ref: 'TXN-2026031803', type: 'DEBIT', description: 'Bill Payment - EKEDC', amount: 35000, currency: 'NGN', status: 'COMPLETED', time: new Date(Date.now() - 2 * 3600000).toISOString() },
-  { id: 4, ref: 'TXN-2026031804', type: 'CREDIT', description: 'POS Collection - Store #42', amount: 89000, currency: 'NGN', status: 'COMPLETED', time: new Date(Date.now() - 3 * 3600000).toISOString() },
-  { id: 5, ref: 'TXN-2026031805', type: 'DEBIT', description: 'Loan Repayment - LN00234', amount: 125000, currency: 'NGN', status: 'COMPLETED', time: new Date(Date.now() - 5 * 3600000).toISOString() },
-];
+interface Transaction {
+  id: number | string;
+  ref?: string;
+  referenceNumber?: string;
+  type: string;
+  description: string;
+  amount: number;
+  currency?: string;
+  status: string;
+  time?: string;
+  createdAt?: string;
+}
 
-export function RecentTransactionsWidget() {
+interface RecentTransactionsWidgetProps {
+  transactions?: Transaction[];
+  isLoading?: boolean;
+}
+
+function TransactionSkeleton() {
   return (
     <div className="divide-y">
-      {mockTransactions.map((txn) => (
-        <div key={txn.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-muted/30 transition-colors">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${txn.type === 'CREDIT' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-            {txn.type === 'CREDIT' ? <ArrowDownLeft className="w-4 h-4 text-green-600" /> : <ArrowUpRight className="w-4 h-4 text-red-600" />}
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 py-2.5 px-1 animate-pulse">
+          <div className="w-8 h-8 rounded-full bg-muted" />
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="h-4 w-48 bg-muted rounded" />
+            <div className="h-3 w-28 bg-muted rounded" />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm truncate">{txn.description}</p>
-            <p className="text-xs text-muted-foreground font-mono">{txn.ref}</p>
+          <div className="text-right space-y-2">
+            <div className="h-4 w-20 bg-muted rounded ml-auto" />
+            <div className="h-3 w-16 bg-muted rounded ml-auto" />
           </div>
-          <div className="text-right">
-            <p className={`text-sm font-mono font-medium ${txn.type === 'CREDIT' ? 'text-green-600' : 'text-foreground'}`}>
-              {txn.type === 'CREDIT' ? '+' : '-'}{formatMoney(txn.amount, txn.currency)}
-            </p>
-            <p className="text-xs text-muted-foreground">{formatRelative(txn.time)}</p>
-          </div>
-          <StatusBadge status={txn.status} size="sm" />
+          <div className="h-5 w-16 bg-muted rounded-full" />
         </div>
       ))}
+    </div>
+  );
+}
+
+export function RecentTransactionsWidget({ transactions, isLoading }: RecentTransactionsWidgetProps) {
+  if (isLoading) {
+    return <TransactionSkeleton />;
+  }
+
+  if (!transactions || transactions.length === 0) {
+    return (
+      <EmptyState
+        icon={Receipt}
+        title="No recent transactions"
+        description="Transactions will appear here once activity begins."
+        className="py-10"
+      />
+    );
+  }
+
+  return (
+    <div className="divide-y">
+      {transactions.map((txn) => {
+        const ref = txn.ref ?? txn.referenceNumber ?? '';
+        const time = txn.time ?? txn.createdAt ?? '';
+        const currency = txn.currency ?? 'NGN';
+        const txnType = txn.type?.toUpperCase();
+
+        return (
+          <div key={txn.id} className="flex items-center gap-3 py-2.5 px-1 hover:bg-muted/30 transition-colors">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${txnType === 'CREDIT' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+              {txnType === 'CREDIT' ? <ArrowDownLeft className="w-4 h-4 text-green-600" /> : <ArrowUpRight className="w-4 h-4 text-red-600" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm truncate">{txn.description}</p>
+              {ref && <p className="text-xs text-muted-foreground font-mono">{ref}</p>}
+            </div>
+            <div className="text-right">
+              <p className={`text-sm font-mono font-medium ${txnType === 'CREDIT' ? 'text-green-600' : 'text-foreground'}`}>
+                {txnType === 'CREDIT' ? '+' : '-'}{formatMoney(txn.amount, currency)}
+              </p>
+              {time && <p className="text-xs text-muted-foreground">{formatRelative(time)}</p>}
+            </div>
+            <StatusBadge status={txn.status} size="sm" />
+          </div>
+        );
+      })}
     </div>
   );
 }

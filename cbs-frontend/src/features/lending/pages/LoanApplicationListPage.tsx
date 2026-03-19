@@ -4,32 +4,30 @@ import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useLoanApplications } from '../hooks/useLoanData';
+import type { LoanApplication } from '../types/loan';
 
-interface AppRow { id: number; ref: string; customer: string; product: string; amount: number; tenor: number; status: string; submittedDate: string; officer: string; }
-
-const mockApps: AppRow[] = [
-  { id: 1, ref: 'LA-2026-A1B2C3', customer: 'Amaka Nwosu', product: 'Personal Loan', amount: 2500000, tenor: 24, status: 'PENDING_APPROVAL', submittedDate: '2026-03-17', officer: 'J. Obi' },
-  { id: 2, ref: 'LA-2026-D4E5F6', customer: 'Oluwaseun Adeleke', product: 'SME Working Capital', amount: 15000000, tenor: 12, status: 'SCORING', submittedDate: '2026-03-16', officer: 'N. Eze' },
-  { id: 3, ref: 'LA-2026-G7H8I9', customer: 'Ibrahim Musa Trading', product: 'SME Asset Finance', amount: 35000000, tenor: 36, status: 'APPROVED', submittedDate: '2026-03-14', officer: 'A. Musa' },
-  { id: 4, ref: 'LA-2026-J0K1L2', customer: 'Grace Udo', product: 'Personal Loan', amount: 1000000, tenor: 12, status: 'DISBURSED', submittedDate: '2026-03-10', officer: 'J. Obi' },
-  { id: 5, ref: 'LA-2026-M3N4O5', customer: 'Kemi Ogundimu', product: 'Mortgage', amount: 45000000, tenor: 240, status: 'REJECTED', submittedDate: '2026-03-08', officer: 'B. Taiwo' },
-];
-
-const columns: ColumnDef<AppRow, any>[] = [
-  { accessorKey: 'ref', header: 'Reference', cell: ({ row }) => <span className="font-mono text-sm text-primary">{row.original.ref}</span> },
-  { accessorKey: 'customer', header: 'Customer' },
-  { accessorKey: 'product', header: 'Product' },
-  { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.amount)}</span> },
-  { accessorKey: 'tenor', header: 'Tenor', cell: ({ row }) => `${row.original.tenor} mo` },
+const columns: ColumnDef<LoanApplication, any>[] = [
+  { accessorKey: 'applicationRef', header: 'Reference', cell: ({ row }) => <span className="font-mono text-sm text-primary">{row.original.applicationRef}</span> },
+  { accessorKey: 'customerName', header: 'Customer' },
+  { accessorKey: 'productName', header: 'Product' },
+  { accessorKey: 'requestedAmount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.requestedAmount)}</span> },
+  { accessorKey: 'tenorMonths', header: 'Tenor', cell: ({ row }) => `${row.original.tenorMonths} mo` },
   { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} /> },
-  { accessorKey: 'submittedDate', header: 'Submitted', cell: ({ row }) => formatDate(row.original.submittedDate) },
-  { accessorKey: 'officer', header: 'Officer' },
+  { accessorKey: 'createdAt', header: 'Submitted', cell: ({ row }) => formatDate(row.original.createdAt) },
 ];
 
 export function LoanApplicationListPage() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+
+  const filters = useMemo(() => ({
+    ...(dateRange.from ? { from: dateRange.from.toISOString().slice(0, 10) } : {}),
+    ...(dateRange.to ? { to: dateRange.to.toISOString().slice(0, 10) } : {}),
+  }), [dateRange.from, dateRange.to]);
+
+  const { data: applications = [], isLoading } = useLoanApplications(filters);
 
   return (
     <>
@@ -42,7 +40,7 @@ export function LoanApplicationListPage() {
         </div>
       } />
       <div className="page-container">
-        <DataTable columns={columns} data={mockApps} enableGlobalFilter enableExport exportFilename="loan-applications" onRowClick={(row) => navigate(`/lending/applications/${row.id}`)} />
+        <DataTable columns={columns} data={applications} isLoading={isLoading} enableGlobalFilter enableExport exportFilename="loan-applications" onRowClick={(row) => navigate(`/lending/applications/${row.id}`)} emptyMessage="No loan applications found" />
       </div>
     </>
   );

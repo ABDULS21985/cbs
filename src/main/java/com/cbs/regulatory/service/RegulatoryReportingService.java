@@ -52,10 +52,10 @@ public class RegulatoryReportingService {
                 .status("GENERATING").generatedBy(generatedBy).generatedAt(Instant.now()).build();
 
         try {
-            // In production: execute data_query, populate template, generate file
-            // Simulated generation
-            int recordCount = (int)(Math.random() * 10000) + 100;
-            long fileSize = recordCount * 256L;
+            // TODO: execute reportDefinition.getDataQuery() via EntityManager and populate actual record count
+            // TODO: render output template and write to file store; populate filePath with real path
+            int recordCount = 0; // TODO: set to actual result size from data_query execution
+            long fileSize = 0L;  // TODO: set to actual file size after rendering
             String filePath = String.format("/reports/%s/%s_%s_%s.%s",
                     def.getRegulator(), reportCode, periodStart, periodEnd,
                     def.getOutputFormat().toLowerCase());

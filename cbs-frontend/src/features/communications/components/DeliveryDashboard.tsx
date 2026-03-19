@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { communicationApi, type DeliveryStats } from '../api/communicationApi';
+import { communicationApi } from '../api/communicationApi';
 
 const COLORS = ['#22c55e', '#ef4444', '#f59e0b', '#3b82f6'];
 

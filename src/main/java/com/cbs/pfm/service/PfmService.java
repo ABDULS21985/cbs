@@ -13,12 +13,15 @@ public class PfmService {
     private final PfmSpendingCategoryRepository categoryRepository;
     @Transactional
     public PfmSnapshot generateSnapshot(Long customerId, String snapshotType) {
-        BigDecimal income = BigDecimal.valueOf(50000 + Math.random() * 200000).setScale(4, RoundingMode.HALF_UP);
-        BigDecimal expenses = BigDecimal.valueOf(20000 + Math.random() * 100000).setScale(4, RoundingMode.HALF_UP);
+        // TODO: aggregate real CREDIT (income) and DEBIT (expense) transactions for the customer
+        // over the snapshot period from a transaction/journal repository when available.
+        BigDecimal income = BigDecimal.ZERO;
+        BigDecimal expenses = BigDecimal.ZERO;
         BigDecimal savings = income.subtract(expenses);
         BigDecimal savingsRate = income.signum() != 0 ? savings.divide(income, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")) : BigDecimal.ZERO;
         int healthScore = Math.min(100, Math.max(0, (int)(savingsRate.doubleValue() * 2 + 30)));
-        Map<String, Object> breakdown = Map.of("housing", 15000, "food", 8000, "transport", 5000, "utilities", 3000, "other", expenses.intValue() - 31000);
+        // TODO: populate expense breakdown from real transaction category aggregates
+        Map<String, Object> breakdown = null;
         Map<String, Object> insights = new LinkedHashMap<>();
         if (savingsRate.doubleValue() < 10) insights.put("warning", "Savings rate below 10% - consider reducing discretionary spending");
         if (savingsRate.doubleValue() > 30) insights.put("positive", "Excellent savings rate - consider investing surplus");

@@ -1,41 +1,61 @@
 import { useState } from 'react';
-import { CreditCard, Lock, Globe, ShoppingCart, Banknote, AlertTriangle } from 'lucide-react';
+import { CreditCard, Lock, Globe, ShoppingCart, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatMoney } from '@/lib/formatters';
-
-interface CardData {
-  id: number;
-  type: 'DEBIT' | 'CREDIT';
-  maskedPan: string;
-  expiry: string;
-  status: 'ACTIVE' | 'BLOCKED';
-  onlineEnabled: boolean;
-  internationalEnabled: boolean;
-  dailyPosLimit: number;
-  dailyAtmLimit: number;
-  dailyOnlineLimit: number;
-}
-
-const mockCards: CardData[] = [
-  { id: 1, type: 'DEBIT', maskedPan: '**** **** **** 4523', expiry: '12/28', status: 'ACTIVE', onlineEnabled: true, internationalEnabled: false, dailyPosLimit: 500000, dailyAtmLimit: 200000, dailyOnlineLimit: 300000 },
-  { id: 2, type: 'CREDIT', maskedPan: '**** **** **** 8891', expiry: '06/27', status: 'ACTIVE', onlineEnabled: true, internationalEnabled: true, dailyPosLimit: 1000000, dailyAtmLimit: 500000, dailyOnlineLimit: 750000 },
-];
+import { cardApi } from '@/features/cards/api/cardApi';
+import { useQuery } from '@tanstack/react-query';
 
 export function PortalCardControlsPage() {
-  const [cards, setCards] = useState(mockCards);
-  const [selectedCard, setSelectedCard] = useState(cards[0]);
+  const { data: apiCards = [] } = useQuery({ queryKey: ['portal-cards'], queryFn: () => cardApi.getCards() });
+
+  // Map API cards to the shape needed for controls display
+  const cards = apiCards.map((c) => ({
+    id: c.id,
+    type: c.cardType as 'DEBIT' | 'CREDIT',
+    maskedPan: c.cardNumberMasked,
+    expiry: c.expiryDate,
+    status: c.status as 'ACTIVE' | 'BLOCKED',
+    onlineEnabled: c.controls?.onlineEnabled ?? false,
+    internationalEnabled: c.controls?.internationalEnabled ?? false,
+    dailyPosLimit: 500000,
+    dailyAtmLimit: 200000,
+    dailyOnlineLimit: 300000,
+  }));
+
+  const [selectedCardId, setSelectedCardId] = useState<number | null>(null);
+  const [localControls, setLocalControls] = useState<Record<number, { onlineEnabled: boolean; internationalEnabled: boolean; status: string }>>({});
+
+  const selectedCard = cards.find((c) => c.id === (selectedCardId ?? cards[0]?.id)) ?? cards[0];
+
+  const getCardState = (card: typeof cards[0]) => ({
+    ...card,
+    ...(localControls[card.id] ?? {}),
+  });
 
   const toggleFeature = (feature: 'onlineEnabled' | 'internationalEnabled') => {
-    setCards((prev) => prev.map((c) => c.id === selectedCard.id ? { ...c, [feature]: !c[feature] } : c));
-    setSelectedCard((prev) => ({ ...prev, [feature]: !prev[feature] }));
-    toast.success(`${feature === 'onlineEnabled' ? 'Online transactions' : 'International transactions'} ${selectedCard[feature] ? 'disabled' : 'enabled'}`);
+    if (!selectedCard) return;
+    const current = getCardState(selectedCard);
+    setLocalControls((prev) => ({
+      ...prev,
+      [selectedCard.id]: { ...getCardState(selectedCard), [feature]: !current[feature] },
+    }));
+    toast.success(`${feature === 'onlineEnabled' ? 'Online transactions' : 'International transactions'} ${current[feature] ? 'disabled' : 'enabled'}`);
   };
 
   const blockCard = () => {
-    setCards((prev) => prev.map((c) => c.id === selectedCard.id ? { ...c, status: 'BLOCKED' as const } : c));
-    setSelectedCard((prev) => ({ ...prev, status: 'BLOCKED' as const }));
+    if (!selectedCard) return;
+    setLocalControls((prev) => ({
+      ...prev,
+      [selectedCard.id]: { ...getCardState(selectedCard), status: 'BLOCKED' },
+    }));
     toast.success('Card blocked successfully');
   };
+
+  if (!selectedCard) {
+    return <div className="max-w-2xl mx-auto py-12 text-center text-muted-foreground">No cards found.</div>;
+  }
+
+  const activeCard = getCardState(selectedCard);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -43,21 +63,24 @@ export function PortalCardControlsPage() {
 
       {/* Card selector */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {cards.map((card) => (
-          <button
-            key={card.id}
-            onClick={() => setSelectedCard(card)}
-            className={`text-left rounded-xl p-5 transition-colors ${selectedCard.id === card.id ? 'bg-gradient-to-br from-gray-900 to-gray-700 text-white' : 'border bg-card hover:bg-muted/50'}`}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <CreditCard className="w-5 h-5" />
-              <span className="text-xs font-medium">{card.type} Card</span>
-              {card.status === 'BLOCKED' && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">BLOCKED</span>}
-            </div>
-            <p className="font-mono text-sm tracking-wider">{card.maskedPan}</p>
-            <p className="text-xs mt-1 opacity-70">Expires {card.expiry}</p>
-          </button>
-        ))}
+        {cards.map((card) => {
+          const state = getCardState(card);
+          return (
+            <button
+              key={card.id}
+              onClick={() => setSelectedCardId(card.id)}
+              className={`text-left rounded-xl p-5 transition-colors ${activeCard.id === card.id ? 'bg-gradient-to-br from-gray-900 to-gray-700 text-white' : 'border bg-card hover:bg-muted/50'}`}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <CreditCard className="w-5 h-5" />
+                <span className="text-xs font-medium">{card.type} Card</span>
+                {state.status === 'BLOCKED' && <span className="text-xs bg-red-500 text-white px-1.5 py-0.5 rounded">BLOCKED</span>}
+              </div>
+              <p className="font-mono text-sm tracking-wider">{card.maskedPan}</p>
+              <p className="text-xs mt-1 opacity-70">Expires {card.expiry}</p>
+            </button>
+          );
+        })}
       </div>
 
       {/* Controls */}
@@ -70,8 +93,8 @@ export function PortalCardControlsPage() {
               <p className="text-xs text-muted-foreground">Enable/disable online purchases</p>
             </div>
           </div>
-          <button onClick={() => toggleFeature('onlineEnabled')} className={`w-12 h-6 rounded-full transition-colors relative ${selectedCard.onlineEnabled ? 'bg-primary' : 'bg-gray-300'}`}>
-            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform shadow ${selectedCard.onlineEnabled ? 'left-6' : 'left-0.5'}`} />
+          <button onClick={() => toggleFeature('onlineEnabled')} className={`w-12 h-6 rounded-full transition-colors relative ${activeCard.onlineEnabled ? 'bg-primary' : 'bg-gray-300'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform shadow ${activeCard.onlineEnabled ? 'left-6' : 'left-0.5'}`} />
           </button>
         </div>
         <div className="px-5 py-4 flex items-center justify-between">
@@ -82,8 +105,8 @@ export function PortalCardControlsPage() {
               <p className="text-xs text-muted-foreground">Allow transactions outside Nigeria</p>
             </div>
           </div>
-          <button onClick={() => toggleFeature('internationalEnabled')} className={`w-12 h-6 rounded-full transition-colors relative ${selectedCard.internationalEnabled ? 'bg-primary' : 'bg-gray-300'}`}>
-            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform shadow ${selectedCard.internationalEnabled ? 'left-6' : 'left-0.5'}`} />
+          <button onClick={() => toggleFeature('internationalEnabled')} className={`w-12 h-6 rounded-full transition-colors relative ${activeCard.internationalEnabled ? 'bg-primary' : 'bg-gray-300'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform shadow ${activeCard.internationalEnabled ? 'left-6' : 'left-0.5'}`} />
           </button>
         </div>
       </div>
@@ -93,9 +116,9 @@ export function PortalCardControlsPage() {
         <h3 className="text-sm font-semibold mb-4">Transaction Limits</h3>
         <div className="space-y-3">
           {[
-            { icon: ShoppingCart, label: 'Daily POS Limit', value: selectedCard.dailyPosLimit },
-            { icon: Banknote, label: 'Daily ATM Limit', value: selectedCard.dailyAtmLimit },
-            { icon: Globe, label: 'Daily Online Limit', value: selectedCard.dailyOnlineLimit },
+            { icon: ShoppingCart, label: 'Daily POS Limit', value: activeCard.dailyPosLimit },
+            { icon: Banknote, label: 'Daily ATM Limit', value: activeCard.dailyAtmLimit },
+            { icon: Globe, label: 'Daily Online Limit', value: activeCard.dailyOnlineLimit },
           ].map((limit) => (
             <div key={limit.label} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -109,7 +132,7 @@ export function PortalCardControlsPage() {
       </div>
 
       {/* Block card */}
-      {selectedCard.status !== 'BLOCKED' && (
+      {activeCard.status !== 'BLOCKED' && (
         <button onClick={blockCard} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">
           <Lock className="w-4 h-4" /> Block Card Immediately
         </button>

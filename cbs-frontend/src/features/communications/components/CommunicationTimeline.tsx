@@ -18,7 +18,7 @@ export function CommunicationTimeline({ communications, onItemClick }: Props) {
 
   return (
     <div className="space-y-3">
-      {communications.map((comm, idx) => {
+      {communications.map((comm) => {
         const ChannelIcon = channelIcons[comm.channel] || Mail;
         const StatusIcon = statusIcons[comm.deliveryStatus] || Clock;
         const statusColor = statusColors[comm.deliveryStatus] || 'text-gray-400';

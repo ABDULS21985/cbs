@@ -12,7 +12,7 @@ export function CommunicationCenterPage() {
   const [selectedComm, setSelectedComm] = useState<Communication | null>(null);
   const [activeTab, setActiveTab] = useState<'history' | 'compose' | 'dashboard'>('history');
 
-  const { data: communications = [], isLoading } = useQuery({
+  const { data: communications = [] } = useQuery({
     queryKey: ['communications', 'list'],
     queryFn: () => communicationApi.getAll(),
   });

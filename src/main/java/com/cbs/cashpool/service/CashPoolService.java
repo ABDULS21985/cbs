@@ -1,5 +1,7 @@
 package com.cbs.cashpool.service;
 
+import com.cbs.account.entity.Account;
+import com.cbs.account.repository.AccountRepository;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.cashpool.entity.*;
@@ -20,6 +22,7 @@ public class CashPoolService {
     private final CashPoolStructureRepository poolRepository;
     private final CashPoolParticipantRepository participantRepository;
     private final CashPoolSweepLogRepository sweepLogRepository;
+    private final AccountRepository accountRepository;
 
     @Transactional
     public CashPoolStructure createPool(CashPoolStructure pool) {
@@ -53,20 +56,25 @@ public class CashPoolService {
             BigDecimal sweepAmount = BigDecimal.ZERO;
             String direction;
 
+            // Fetch real account balance for this participant
+            BigDecimal currentBalance = accountRepository.findById(p.getAccountId())
+                    .map(Account::getAvailableBalance)
+                    .orElse(BigDecimal.ZERO);
+
             switch (pool.getPoolType()) {
                 case "ZERO_BALANCE" -> {
-                    // Sweep entire balance to/from header
-                    sweepAmount = p.getTargetBalance().negate(); // simulated: participant balance → header
+                    // Sweep entire balance to header
+                    sweepAmount = currentBalance;
                     direction = sweepAmount.signum() >= 0 ? "CONCENTRATE" : "DISTRIBUTE";
                 }
                 case "TARGET_BALANCE" -> {
                     BigDecimal target = p.getTargetBalance();
-                    sweepAmount = BigDecimal.valueOf(Math.random() * 100000 - 50000); // simulated current excess/deficit
+                    sweepAmount = currentBalance.subtract(target);
                     direction = sweepAmount.signum() >= 0 ? "CONCENTRATE" : "DISTRIBUTE";
                 }
                 default -> {
-                    sweepAmount = BigDecimal.valueOf(Math.random() * 50000);
-                    direction = "CONCENTRATE";
+                    sweepAmount = currentBalance.subtract(p.getTargetBalance());
+                    direction = sweepAmount.signum() >= 0 ? "CONCENTRATE" : "DISTRIBUTE";
                 }
             }
 

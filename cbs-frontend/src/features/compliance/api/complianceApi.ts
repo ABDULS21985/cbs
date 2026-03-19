@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
 
 export interface ComplianceStats {
   activeAssessments: number;

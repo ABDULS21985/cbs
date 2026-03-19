@@ -2,7 +2,8 @@ import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoGrid, StatusBadge, TabsPage, DataTable, AuditTimeline } from '@/components/shared';
 import { formatMoney, formatDate } from '@/lib/formatters';
-import { mockCards, mockCardTransactions } from '../api/mockCardData';
+import { cardApi } from '../api/cardApi';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -24,12 +25,24 @@ const txnCols: ColumnDef<CardTransaction, any>[] = [
 
 export function CardDetailPage() {
   const { id } = useParams();
-  const card = mockCards.find((c) => c.id === parseInt(id || '0')) || mockCards[0];
-  const [controls, setControls] = useState(card.controls);
+  const cardId = parseInt(id || '0');
+  const { data: card } = useQuery({ queryKey: ['card', cardId], queryFn: () => cardApi.getCard(cardId), enabled: !!cardId });
+  const { data: transactions = [] } = useQuery({ queryKey: ['card-transactions'], queryFn: () => cardApi.getTransactions() });
+
+  const [controls, setControls] = useState(card?.controls ?? {
+    posEnabled: false, atmEnabled: false, onlineEnabled: false,
+    internationalEnabled: false, contactlessEnabled: false, recurringEnabled: false,
+  });
 
   const toggleControl = (key: keyof typeof controls) => {
     setControls((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+
+  if (!card) {
+    return <div className="page-container flex items-center justify-center h-64 text-muted-foreground">Loading card details…</div>;
+  }
+
+  const cardTxns = transactions.filter((t) => t.cardMasked === card.cardNumberMasked.slice(-8));
 
   return (
     <>
@@ -68,7 +81,7 @@ export function CardDetailPage() {
 
         <TabsPage syncWithUrl tabs={[
           { id: 'transactions', label: 'Transactions', content: (
-            <div className="p-4"><DataTable columns={txnCols} data={mockCardTransactions.filter((t) => t.cardMasked === card.cardNumberMasked.slice(-8))} enableGlobalFilter /></div>
+            <div className="p-4"><DataTable columns={txnCols} data={cardTxns} enableGlobalFilter /></div>
           )},
           { id: 'controls', label: 'Controls', content: (
             <div className="p-6 max-w-lg space-y-4">

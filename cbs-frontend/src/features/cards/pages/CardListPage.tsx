@@ -3,7 +3,8 @@ import { StatCard, DataTable, StatusBadge, TabsPage } from '@/components/shared'
 import { Plus, CreditCard, ShieldCheck, ShieldX, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { formatDate } from '@/lib/formatters';
-import { mockCards } from '../api/mockCardData';
+import { cardApi } from '../api/cardApi';
+import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Card } from '../types/card';
 import { cn } from '@/lib/utils';
@@ -26,10 +27,12 @@ const columns: ColumnDef<Card, any>[] = [
 
 export function CardListPage() {
   const navigate = useNavigate();
-  const active = mockCards.filter((c) => c.status === 'ACTIVE').length;
-  const blocked = mockCards.filter((c) => c.status === 'BLOCKED').length;
-  const pending = mockCards.filter((c) => c.status === 'PENDING_ACTIVATION').length;
-  const expired = mockCards.filter((c) => c.status === 'EXPIRED').length;
+  const { data: cards = [] } = useQuery({ queryKey: ['cards'], queryFn: () => cardApi.getCards() });
+
+  const active = cards.filter((c) => c.status === 'ACTIVE').length;
+  const blocked = cards.filter((c) => c.status === 'BLOCKED').length;
+  const pending = cards.filter((c) => c.status === 'PENDING_ACTIVATION').length;
+  const expired = cards.filter((c) => c.status === 'EXPIRED').length;
 
   return (
     <>
@@ -40,7 +43,7 @@ export function CardListPage() {
       } />
       <div className="page-container space-y-4">
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard label="Total Cards" value={mockCards.length} format="number" icon={CreditCard} />
+          <StatCard label="Total Cards" value={cards.length} format="number" icon={CreditCard} />
           <StatCard label="Active" value={active} format="number" icon={ShieldCheck} />
           <StatCard label="Blocked" value={blocked} format="number" icon={ShieldX} />
           <StatCard label="Pending Activation" value={pending} format="number" icon={Clock} />
@@ -48,9 +51,9 @@ export function CardListPage() {
         </div>
 
         <TabsPage syncWithUrl tabs={[
-          { id: 'all', label: 'All Cards', badge: mockCards.length, content: <div className="p-4"><DataTable columns={columns} data={mockCards} enableGlobalFilter enableExport exportFilename="cards" onRowClick={(row) => navigate(`/cards/${row.id}`)} /></div> },
-          { id: 'pending', label: 'Pending Activation', badge: pending, content: <div className="p-4"><DataTable columns={columns} data={mockCards.filter((c) => c.status === 'PENDING_ACTIVATION')} /></div> },
-          { id: 'blocked', label: 'Blocked', badge: blocked, content: <div className="p-4"><DataTable columns={columns} data={mockCards.filter((c) => c.status === 'BLOCKED')} /></div> },
+          { id: 'all', label: 'All Cards', badge: cards.length, content: <div className="p-4"><DataTable columns={columns} data={cards} enableGlobalFilter enableExport exportFilename="cards" onRowClick={(row) => navigate(`/cards/${row.id}`)} /></div> },
+          { id: 'pending', label: 'Pending Activation', badge: pending, content: <div className="p-4"><DataTable columns={columns} data={cards.filter((c) => c.status === 'PENDING_ACTIVATION')} /></div> },
+          { id: 'blocked', label: 'Blocked', badge: blocked, content: <div className="p-4"><DataTable columns={columns} data={cards.filter((c) => c.status === 'BLOCKED')} /></div> },
         ]} />
       </div>
     </>

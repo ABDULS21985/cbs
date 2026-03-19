@@ -2,8 +2,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge } from '@/components/shared';
 import { Plus, Store, TrendingUp, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { formatMoney, formatPercent, formatDate } from '@/lib/formatters';
-import { mockMerchants } from '../api/mockCardData';
+import { formatMoney, formatPercent } from '@/lib/formatters';
+import { cardApi } from '../api/cardApi';
+import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Merchant } from '../types/card';
 import { cn } from '@/lib/utils';
@@ -24,8 +25,10 @@ const columns: ColumnDef<Merchant, any>[] = [
 
 export function MerchantListPage() {
   const navigate = useNavigate();
-  const totalVolume = mockMerchants.reduce((s, m) => s + m.monthlyVolume, 0);
-  const mdrRevenue = mockMerchants.reduce((s, m) => s + m.monthlyVolume * m.mdrRate / 100, 0);
+  const { data: merchants = [] } = useQuery({ queryKey: ['merchants'], queryFn: () => cardApi.getMerchants() });
+
+  const totalVolume = merchants.reduce((s, m) => s + m.monthlyVolume, 0);
+  const mdrRevenue = merchants.reduce((s, m) => s + m.monthlyVolume * m.mdrRate / 100, 0);
 
   return (
     <>
@@ -36,12 +39,12 @@ export function MerchantListPage() {
       } />
       <div className="page-container space-y-4">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Active Merchants" value={mockMerchants.filter((m) => m.status === 'ACTIVE').length} format="number" icon={Store} />
+          <StatCard label="Active Merchants" value={merchants.filter((m) => m.status === 'ACTIVE').length} format="number" icon={Store} />
           <StatCard label="Monthly Volume" value={totalVolume} format="money" compact icon={TrendingUp} />
           <StatCard label="MDR Revenue" value={mdrRevenue} format="money" compact />
-          <StatCard label="High Risk" value={mockMerchants.filter((m) => m.riskCategory === 'HIGH').length} format="number" icon={AlertTriangle} />
+          <StatCard label="High Risk" value={merchants.filter((m) => m.riskCategory === 'HIGH').length} format="number" icon={AlertTriangle} />
         </div>
-        <DataTable columns={columns} data={mockMerchants} enableGlobalFilter enableExport exportFilename="merchants" onRowClick={(row) => navigate(`/cards/merchants/${row.id}`)} />
+        <DataTable columns={columns} data={merchants} enableGlobalFilter enableExport exportFilename="merchants" onRowClick={(row) => navigate(`/cards/merchants/${row.id}`)} />
       </div>
     </>
   );

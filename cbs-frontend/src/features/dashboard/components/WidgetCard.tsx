@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
-import { RefreshCw, Maximize2, Loader2 } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { RefreshCw, Loader2 } from 'lucide-react';
+import { type ReactNode } from 'react';
 
 interface WidgetCardProps {
   title: string;

@@ -1,8 +1,9 @@
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatCard, DataTable, StatusBadge } from '@/components/shared';
+import { StatCard, DataTable } from '@/components/shared';
 import { Plus, Monitor, Wifi, WifiOff, Clock } from 'lucide-react';
 import { formatDate, formatRelative } from '@/lib/formatters';
-import { mockTerminals } from '../api/mockCardData';
+import { cardApi } from '../api/cardApi';
+import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { PosTerminal } from '../types/card';
 import { cn } from '@/lib/utils';
@@ -27,9 +28,11 @@ const columns: ColumnDef<PosTerminal, any>[] = [
 ];
 
 export function PosTerminalPage() {
-  const online = mockTerminals.filter((t) => t.onlineStatus === 'ONLINE').length;
-  const idle = mockTerminals.filter((t) => t.onlineStatus === 'IDLE').length;
-  const offline = mockTerminals.filter((t) => t.onlineStatus === 'OFFLINE').length;
+  const { data: terminals = [] } = useQuery({ queryKey: ['pos-terminals'], queryFn: () => cardApi.getTerminals() });
+
+  const online = terminals.filter((t) => t.onlineStatus === 'ONLINE').length;
+  const idle = terminals.filter((t) => t.onlineStatus === 'IDLE').length;
+  const offline = terminals.filter((t) => t.onlineStatus === 'OFFLINE').length;
 
   return (
     <>
@@ -40,12 +43,12 @@ export function PosTerminalPage() {
       } />
       <div className="page-container space-y-4">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Terminals" value={mockTerminals.length} format="number" icon={Monitor} />
+          <StatCard label="Total Terminals" value={terminals.length} format="number" icon={Monitor} />
           <StatCard label="Online" value={online} format="number" icon={Wifi} />
           <StatCard label="Idle" value={idle} format="number" icon={Clock} />
           <StatCard label="Offline" value={offline} format="number" icon={WifiOff} />
         </div>
-        <DataTable columns={columns} data={mockTerminals} enableGlobalFilter enableExport exportFilename="pos-terminals" />
+        <DataTable columns={columns} data={terminals} enableGlobalFilter enableExport exportFilename="pos-terminals" />
       </div>
     </>
   );
