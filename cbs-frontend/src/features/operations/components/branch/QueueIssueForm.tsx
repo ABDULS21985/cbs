@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { X, Printer, Loader2 } from 'lucide-react';
@@ -36,10 +36,12 @@ type FormValues = z.infer<typeof schema>;
 export function QueueIssueForm({ branchId, open, onClose, onSuccess }: QueueIssueFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { serviceType: '', priority: 'NORMAL', customerName: '' },
   });
+
+  const watchedPriority = useWatch({ control, name: 'priority' });
 
   if (!open) return null;
 
@@ -118,18 +120,25 @@ export function QueueIssueForm({ branchId, open, onClose, onSuccess }: QueueIssu
                     Priority
                   </label>
                   <div className="flex gap-2">
-                    {(['NORMAL', 'PRIORITY', 'VIP'] as const).map((p) => (
-                      <label key={p} className="flex-1 cursor-pointer">
-                        <input {...register('priority')} type="radio" value={p} className="sr-only" />
-                        <span className={`block text-center py-2 rounded-lg border text-xs font-medium transition-colors ${
-                          p === 'NORMAL' ? 'has-[:checked]:bg-gray-100 has-[:checked]:border-gray-400 has-[:checked]:text-gray-700' :
-                          p === 'PRIORITY' ? 'has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400 has-[:checked]:text-blue-700' :
-                          'has-[:checked]:bg-amber-50 has-[:checked]:border-amber-400 has-[:checked]:text-amber-700'
-                        } hover:bg-muted`}>
-                          {p}
-                        </span>
-                      </label>
-                    ))}
+                    {(['NORMAL', 'PRIORITY', 'VIP'] as const).map((p) => {
+                      const isSelected = watchedPriority === p;
+                      const activeStyle = p === 'NORMAL'
+                        ? 'bg-gray-100 border-gray-400 text-gray-700'
+                        : p === 'PRIORITY'
+                          ? 'bg-blue-50 border-blue-400 text-blue-700'
+                          : 'bg-amber-50 border-amber-400 text-amber-700';
+                      return (
+                        <label key={p} className="flex-1 cursor-pointer">
+                          <input {...register('priority')} type="radio" value={p} className="sr-only" />
+                          <span className={cn(
+                            'block text-center py-2 rounded-lg border text-xs font-medium transition-colors hover:bg-muted',
+                            isSelected ? activeStyle : 'border-border',
+                          )}>
+                            {p}
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
 

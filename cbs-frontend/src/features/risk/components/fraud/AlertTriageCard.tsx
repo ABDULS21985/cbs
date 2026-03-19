@@ -1,5 +1,4 @@
-import { formatRelative } from 'date-fns';
-import { parseISO } from 'date-fns';
+import { formatDistanceToNow, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/formatters';
 import { Search, CreditCard, CheckCircle, XCircle } from 'lucide-react';
@@ -44,7 +43,7 @@ export function AlertTriageCard({ alert, onInvestigate }: Props) {
   const allowTransaction = useAllowTransaction();
   const dismissAlert = useDismissAlert();
 
-  const timeAgo = formatRelative(parseISO(alert.createdAt), new Date());
+  const timeAgo = formatDistanceToNow(parseISO(alert.createdAt), { addSuffix: true });
 
   return (
     <div className={cn('rounded-lg border bg-card overflow-hidden', config.border, config.bg)}>
