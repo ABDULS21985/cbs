@@ -9,6 +9,7 @@ import { ProviderDetailCard } from '../components/providers/ProviderDetailCard';
 import { HealthCheckChart } from '../components/providers/HealthCheckChart';
 import { TransactionLogTable } from '../components/providers/TransactionLogTable';
 import { SlaScorecard } from '../components/providers/SlaScorecard';
+import { CostReportChart } from '../components/providers/CostReportChart';
 import { CostComparisonTable } from '../components/providers/CostComparisonTable';
 import { FailoverConfigForm } from '../components/providers/FailoverConfigForm';
 
@@ -18,11 +19,12 @@ const STATUS_BADGE: Record<string, string> = {
   HEALTHY: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   DEGRADED: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   DOWN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  MAINTENANCE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  UNKNOWN: 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400',
 };
 
 export function ProviderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  useEffect(() => { document.title = 'Provider Detail | CBS'; }, []);
   const [tab, setTab] = useState<Tab>('health');
 
   const [provider, setProvider] = useState<ServiceProvider | null>(null);
@@ -41,67 +43,54 @@ export function ProviderDetailPage() {
   const [costRecords, setCostRecords] = useState<CostRecord[]>([]);
   const [costLoading, setCostLoading] = useState(false);
 
-  // Load provider + all providers
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    Promise.all([
-      providerApi.getProviderById(id),
-      providerApi.getProviders(),
-    ]).then(([p, all]) => {
-      setProvider(p);
-      setAllProviders(all);
-    }).finally(() => setLoading(false));
+    Promise.all([providerApi.getProviderById(id), providerApi.getProviders()])
+      .then(([p, all]) => { setProvider(p); setAllProviders(all); })
+      .finally(() => setLoading(false));
   }, [id]);
 
-  // Load health logs on mount and when health tab selected
   useEffect(() => {
     if (!id) return;
     setHealthLoading(true);
-    providerApi.getHealthLog(id, 30)
-      .then(setHealthLogs)
-      .finally(() => setHealthLoading(false));
+    providerApi.getHealthLogs(id).then(setHealthLogs).finally(() => setHealthLoading(false));
   }, [id]);
 
-  // Load transactions when tab selected
   useEffect(() => {
     if (tab === 'transactions' && id) {
       setTxLoading(true);
-      providerApi.getTransactionLog(id, { limit: 50 })
-        .then(setTransactions)
-        .finally(() => setTxLoading(false));
+      providerApi.getTransactionLogs(id).then(setTransactions).finally(() => setTxLoading(false));
     }
   }, [tab, id]);
 
-  // Load SLA when tab selected
   useEffect(() => {
     if (tab === 'sla' && id) {
       setSlaLoading(true);
-      providerApi.getSlaRecords({ providerId: id })
-        .then(setSlaRecords)
-        .finally(() => setSlaLoading(false));
+      providerApi.getSlaRecords().then(r => setSlaRecords(r.filter(s => String(s.providerCode) === provider?.providerCode))).finally(() => setSlaLoading(false));
     }
-  }, [tab, id]);
+  }, [tab, id, provider?.providerCode]);
 
-  // Load cost when tab selected
   useEffect(() => {
     if (tab === 'costs' && id) {
       setCostLoading(true);
-      providerApi.getCostRecords({ providerId: id })
-        .then(setCostRecords)
-        .finally(() => setCostLoading(false));
+      providerApi.getCostRecords().then(r => setCostRecords(r.filter(c => String(c.providerCode) === provider?.providerCode))).finally(() => setCostLoading(false));
     }
-  }, [tab, id]);
+  }, [tab, id, provider?.providerCode]);
 
   const handleHealthCheck = async () => {
     if (!id) return;
-    const updated = await providerApi.healthCheckNow(id);
+    await providerApi.healthCheckNow(id);
+    const updated = await providerApi.getProviderById(id);
     setProvider(updated);
+    const logs = await providerApi.getHealthLogs(id);
+    setHealthLogs(logs);
   };
 
   const handleFailover = async () => {
     if (!id) return;
-    await providerApi.triggerFailover(id);
+    const updated = await providerApi.triggerFailover(id);
+    setProvider(updated);
   };
 
   const handleSuspend = async () => {
@@ -112,7 +101,6 @@ export function ProviderDetailPage() {
 
   const handleDecommission = async () => {
     if (!id) return;
-    // In demo: same as suspend
     const updated = await providerApi.suspendProvider(id);
     setProvider(updated);
   };
@@ -135,9 +123,7 @@ export function ProviderDetailPage() {
     return (
       <>
         <PageHeader title="Service Provider" backTo="/admin/providers" />
-        <div className="page-container flex items-center justify-center py-24">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-        </div>
+        <div className="page-container flex items-center justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
       </>
     );
   }
@@ -146,136 +132,82 @@ export function ProviderDetailPage() {
     return (
       <>
         <PageHeader title="Provider Not Found" backTo="/admin/providers" />
-        <div className="page-container">
-          <div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">
-            The requested service provider could not be found.
-          </div>
-        </div>
+        <div className="page-container"><div className="bg-card rounded-lg border border-border p-8 text-center text-muted-foreground">The requested service provider could not be found.</div></div>
       </>
     );
   }
 
+  const hs = provider.healthStatus || 'UNKNOWN';
+
   return (
     <>
-      <PageHeader
-        title={provider.name}
-        backTo="/admin/providers"
-        actions={
-          <span className={cn('inline-flex items-center px-3 py-1 rounded-full text-sm font-medium', STATUS_BADGE[provider.status])}>
-            {provider.status}
-          </span>
-        }
-      />
+      <PageHeader title={provider.providerName} backTo="/admin/providers"
+        actions={<span className={cn('inline-flex items-center px-3 py-1 rounded-full text-sm font-medium', STATUS_BADGE[hs] || STATUS_BADGE.UNKNOWN)}>{hs}</span>} />
 
       <div className="page-container space-y-6">
-        {/* Detail Card */}
         <div className="bg-card rounded-lg border border-border p-6">
-          <ProviderDetailCard
-            provider={provider}
-            onHealthCheck={handleHealthCheck}
-            onFailover={handleFailover}
-            onSuspend={handleSuspend}
-            onDecommission={handleDecommission}
-          />
+          <ProviderDetailCard provider={provider} onHealthCheck={handleHealthCheck} onFailover={handleFailover} onSuspend={handleSuspend} onDecommission={handleDecommission} />
         </div>
 
-        {/* Tabs */}
         <div>
           <div className="border-b border-border mb-6">
             <nav className="-mb-px flex gap-6">
               {tabs.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={cn(
-                    'py-2 text-sm font-medium transition-colors whitespace-nowrap',
-                    tab === t.id
-                      ? 'border-b-2 border-primary text-primary'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className={cn('py-2 text-sm font-medium transition-colors whitespace-nowrap',
+                    tab === t.id ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground')}>
                   {t.label}
                 </button>
               ))}
             </nav>
           </div>
 
-          {/* Health Chart tab */}
           {tab === 'health' && (
             <div className="bg-card rounded-lg border border-border p-6">
-              <h3 className="text-sm font-semibold mb-4">30-Day Health Trend</h3>
-              {healthLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <HealthCheckChart
-                  logs={healthLogs}
-                  slaUptime={99.9}
-                  slaResponse={provider.type === 'PAYMENT_SWITCH' ? 150 : 300}
-                />
-              )}
+              <h3 className="text-sm font-semibold mb-4">Health Trend</h3>
+              {healthLoading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+                : <HealthCheckChart logs={healthLogs} slaUptime={Number(provider.slaUptimePct ?? 99.9)} slaResponse={provider.slaResponseTimeMs ?? 300} />}
             </div>
           )}
 
-          {/* Transactions tab */}
           {tab === 'transactions' && (
             <div className="bg-card rounded-lg border border-border">
               <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Recent Transactions (last 50)</h3>
+                <h3 className="text-sm font-semibold">Transaction Log</h3>
                 <span className="text-xs text-muted-foreground">{transactions.length} records</span>
               </div>
-              {txLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <TransactionLogTable transactions={transactions} pageSize={20} />
-              )}
+              {txLoading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+                : <TransactionLogTable transactions={transactions} pageSize={20} />}
             </div>
           )}
 
-          {/* SLA tab */}
           {tab === 'sla' && (
             <div className="bg-card rounded-lg border border-border">
-              <div className="px-6 py-4 border-b border-border">
-                <h3 className="text-sm font-semibold">SLA Scorecard — {provider.name}</h3>
-              </div>
-              {slaLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <SlaScorecard records={slaRecords} />
-              )}
+              <div className="px-6 py-4 border-b border-border"><h3 className="text-sm font-semibold">SLA Scorecard — {provider.providerName}</h3></div>
+              {slaLoading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+                : <SlaScorecard records={slaRecords} />}
             </div>
           )}
 
-          {/* Costs tab */}
           {tab === 'costs' && (
-            <div className="bg-card rounded-lg border border-border">
-              <div className="px-6 py-4 border-b border-border">
-                <h3 className="text-sm font-semibold">Cost History — {provider.name}</h3>
+            <div className="space-y-6">
+              <div className="bg-card rounded-lg border border-border p-6">
+                <h3 className="text-sm font-semibold mb-4">Cost Overview — {provider.providerName}</h3>
+                {costLoading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+                  : <CostReportChart records={costRecords} />}
               </div>
-              {costLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <CostComparisonTable records={costRecords} />
-              )}
+              <div className="bg-card rounded-lg border border-border">
+                <div className="px-6 py-4 border-b border-border"><h3 className="text-sm font-semibold">Cost Details</h3></div>
+                {costLoading ? <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+                  : <CostComparisonTable records={costRecords} />}
+              </div>
             </div>
           )}
 
-          {/* Failover tab */}
           {tab === 'failover' && (
             <div className="bg-card rounded-lg border border-border p-6">
               <h3 className="text-sm font-semibold mb-6">Failover Configuration</h3>
-              <FailoverConfigForm
-                provider={provider}
-                allProviders={allProviders}
-                onSave={handleSaveFailover}
-              />
+              <FailoverConfigForm provider={provider} allProviders={allProviders} onSave={handleSaveFailover} />
             </div>
           )}
         </div>

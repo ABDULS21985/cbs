@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Package, Plug, Settings, CreditCard, Shield, Activity,
-  Lock, Bell, ArrowRight,
+  Lock, Bell, ArrowRight, Megaphone, Banknote, Gift, Tag, Target,
+  ClipboardList, Scale,
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
@@ -22,6 +23,13 @@ const adminModules = [
   { label: 'Fee Management', description: 'Configure fee schedules and definitions', icon: CreditCard, path: '/admin/fees' },
   { label: 'Service Providers', description: 'Monitor integrations and third-party services', icon: Plug, path: '/admin/providers' },
   { label: 'Notifications', description: 'Manage notification templates and delivery', icon: Bell, path: '/admin/notifications' },
+  { label: 'Campaigns', description: 'Create and track marketing campaigns', icon: Megaphone, path: '/admin/campaigns' },
+  { label: 'Commissions', description: 'Commission agreements and payout management', icon: Banknote, path: '/admin/commissions' },
+  { label: 'Loyalty Programs', description: 'Points, tiers, and rewards management', icon: Gift, path: '/admin/loyalty' },
+  { label: 'Pricing', description: 'Discount schemes and special pricing', icon: Tag, path: '/admin/pricing' },
+  { label: 'Sales', description: 'Leads, plans, and sales collateral', icon: Target, path: '/admin/sales' },
+  { label: 'Surveys', description: 'Customer surveys and feedback analysis', icon: ClipboardList, path: '/admin/surveys' },
+  { label: 'Governance', description: 'Audit trail, change management, approvals', icon: Scale, path: '/admin/governance' },
 ];
 
 const ROLE_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316', '#06b6d4'];

@@ -605,3 +605,35 @@ export const AdminHomePage = lazyNamed(
   () => import('@/features/admin/pages/AdminHomePage'),
   'AdminHomePage',
 );
+export const CampaignManagementPage = lazyNamed(
+  () => import('@/features/admin/pages/CampaignManagementPage'),
+  'CampaignManagementPage',
+);
+export const CommissionManagementPage = lazyNamed(
+  () => import('@/features/admin/pages/CommissionManagementPage'),
+  'CommissionManagementPage',
+);
+export const LoyaltyProgramPage = lazyNamed(
+  () => import('@/features/admin/pages/LoyaltyProgramPage'),
+  'LoyaltyProgramPage',
+);
+export const PricingManagementPage = lazyNamed(
+  () => import('@/features/admin/pages/PricingManagementPage'),
+  'PricingManagementPage',
+);
+export const SalesManagementPage = lazyNamed(
+  () => import('@/features/admin/pages/SalesManagementPage'),
+  'SalesManagementPage',
+);
+export const SurveyManagementPage = lazyNamed(
+  () => import('@/features/admin/pages/SurveyManagementPage'),
+  'SurveyManagementPage',
+);
+export const GovernancePage = lazyNamed(
+  () => import('@/features/admin/pages/GovernancePage'),
+  'GovernancePage',
+);
+export const NotificationManagementPage = lazyNamed(
+  () => import('@/features/admin/pages/NotificationManagementPage'),
+  'NotificationManagementPage',
+);

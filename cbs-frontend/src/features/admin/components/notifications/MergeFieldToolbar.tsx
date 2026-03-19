@@ -4,65 +4,27 @@ interface MergeFieldToolbarProps {
   onInsert: (field: string) => void;
 }
 
-const FIELD_GROUPS = [
-  {
-    label: 'Customer',
-    fields: [
-      { key: '{{customerName}}', label: 'Customer Name' },
-      { key: '{{accountNumber}}', label: 'Account No.' },
-      { key: '{{email}}', label: 'Email' },
-    ],
-  },
-  {
-    label: 'Transaction',
-    fields: [
-      { key: '{{amount}}', label: 'Amount' },
-      { key: '{{currency}}', label: 'Currency' },
-      { key: '{{transactionRef}}', label: 'Txn Ref' },
-      { key: '{{transactionDate}}', label: 'Txn Date' },
-      { key: '{{balance}}', label: 'Balance' },
-      { key: '{{narration}}', label: 'Narration' },
-    ],
-  },
-  {
-    label: 'Bank',
-    fields: [
-      { key: '{{branchName}}', label: 'Branch' },
-      { key: '{{supportPhone}}', label: 'Support Phone' },
-      { key: '{{bankName}}', label: 'Bank Name' },
-    ],
-  },
+const MERGE_FIELDS = [
+  { group: 'Customer', fields: ['customerName', 'accountNumber', 'email', 'phone'] },
+  { group: 'Transaction', fields: ['amount', 'date', 'reference', 'balance'] },
+  { group: 'Bank', fields: ['branchName', 'bankName', 'supportPhone'] },
 ];
 
 export function MergeFieldToolbar({ onInsert }: MergeFieldToolbarProps) {
   return (
-    <div className="border border-border rounded-md bg-muted/20 p-2 space-y-2">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        <Tag className="w-3.5 h-3.5" />
-        <span>Merge Fields</span>
-      </div>
-      <div className="flex flex-wrap gap-3">
-        {FIELD_GROUPS.map((group) => (
-          <div key={group.label} className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70 px-0.5">
-              {group.label}
-            </span>
-            <div className="flex flex-wrap gap-1">
-              {group.fields.map((field) => (
-                <button
-                  key={field.key}
-                  type="button"
-                  onClick={() => onInsert(field.key)}
-                  className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-mono bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
-                  title={`Insert ${field.key}`}
-                >
-                  {field.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+    <div className="flex flex-wrap gap-1 p-2 rounded-md border bg-muted/30">
+      <span className="flex items-center gap-1 text-xs text-muted-foreground mr-1"><Tag className="w-3 h-3" /> Fields:</span>
+      {MERGE_FIELDS.map(group => (
+        <span key={group.group} className="flex items-center gap-1">
+          {group.fields.map(f => (
+            <button key={f} type="button" onClick={() => onInsert(f)}
+              className="px-2 py-0.5 rounded text-xs font-mono bg-background border hover:bg-primary/10 hover:text-primary transition-colors">
+              {`{{${f}}}`}
+            </button>
+          ))}
+          <span className="w-px h-4 bg-border mx-1" />
+        </span>
+      ))}
     </div>
   );
 }

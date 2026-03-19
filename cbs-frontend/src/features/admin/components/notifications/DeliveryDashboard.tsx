@@ -1,174 +1,65 @@
-import { Send, CheckCircle, XCircle, ArrowDownLeft, DollarSign } from 'lucide-react';
+import { Send, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
 import { DeliveryByChannelChart } from './DeliveryByChannelChart';
-import type { DeliveryStats, NotificationChannel } from '../../api/notificationAdminApi';
+import type { DeliveryStats, DeliveryTrendEntry, DeliveryByChannelEntry } from '../../api/notificationAdminApi';
 
 interface DeliveryDashboardProps {
-  stats: DeliveryStats[];
+  stats: DeliveryStats;
+  trend: DeliveryTrendEntry[];
+  byChannel: DeliveryByChannelEntry[];
 }
 
-const CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS', 'PUSH', 'IN_APP'];
-const CHANNEL_LABELS: Record<NotificationChannel, string> = {
-  EMAIL: 'Email',
-  SMS: 'SMS',
-  PUSH: 'Push',
-  IN_APP: 'In-App',
-};
-
-function getTodayStats(stats: DeliveryStats[]) {
-  const today = new Date().toISOString().split('T')[0];
-  return stats.filter((s) => s.date === today);
-}
-
-function sumField(stats: DeliveryStats[], field: keyof DeliveryStats): number {
-  return stats.reduce((acc, s) => acc + (Number(s[field]) || 0), 0);
-}
-
-interface MiniStatProps {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  iconClass: string;
-  subValue?: string;
-}
-
-function MiniStat({ label, value, icon: Icon, iconClass, subValue }: MiniStatProps) {
+function StatMini({ label, value, icon: Icon, colorClass }: { label: string; value: number; icon: React.ElementType; colorClass?: string }) {
   return (
-    <div className="bg-card rounded-lg border border-border p-4">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <span className={cn('p-1.5 rounded-md', iconClass)}>
-          <Icon className="w-3.5 h-3.5" />
-        </span>
+    <div className="stat-card">
+      <div className="flex items-center justify-between">
+        <div className="stat-label">{label}</div>
+        <Icon className={cn('w-5 h-5 text-muted-foreground/50', colorClass)} />
       </div>
-      <p className="text-xl font-semibold tabular-nums">{value}</p>
-      {subValue && <p className="text-xs text-muted-foreground mt-0.5">{subValue}</p>}
+      <div className="stat-value">{value.toLocaleString()}</div>
     </div>
   );
 }
 
-export function DeliveryDashboard({ stats }: DeliveryDashboardProps) {
-  const todayStats = getTodayStats(stats);
-  const totalSent = sumField(todayStats, 'sent');
-  const totalDelivered = sumField(todayStats, 'delivered');
-  const totalFailed = sumField(todayStats, 'failed');
-  const totalBounced = sumField(todayStats, 'bounced');
-  const totalCost = sumField(todayStats, 'cost');
-  const overallRate = totalSent > 0 ? ((totalDelivered / totalSent) * 100).toFixed(1) : '0';
-
-  // Per-channel aggregation over all loaded stats (for table)
-  const channelAgg: Record<string, { sent: number; delivered: number; failed: number }> = {};
-  CHANNELS.forEach((ch) => { channelAgg[ch] = { sent: 0, delivered: 0, failed: 0 }; });
-  stats.forEach((s) => {
-    if (channelAgg[s.channel]) {
-      channelAgg[s.channel].sent += s.sent;
-      channelAgg[s.channel].delivered += s.delivered;
-      channelAgg[s.channel].failed += s.failed;
-    }
-  });
-
+export function DeliveryDashboard({ stats, trend, byChannel }: DeliveryDashboardProps) {
   return (
     <div className="space-y-6">
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <MiniStat
-          label="Sent Today"
-          value={totalSent.toLocaleString()}
-          icon={Send}
-          iconClass="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-          subValue="All channels"
-        />
-        <MiniStat
-          label="Delivered"
-          value={totalDelivered.toLocaleString()}
-          icon={CheckCircle}
-          iconClass="bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-          subValue={`${overallRate}% rate`}
-        />
-        <MiniStat
-          label="Failed"
-          value={totalFailed.toLocaleString()}
-          icon={XCircle}
-          iconClass="bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-          subValue={`${totalSent > 0 ? ((totalFailed / totalSent) * 100).toFixed(1) : 0}% of sent`}
-        />
-        <MiniStat
-          label="Bounced"
-          value={totalBounced.toLocaleString()}
-          icon={ArrowDownLeft}
-          iconClass="bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
-          subValue="Email / SMS"
-        />
-        <MiniStat
-          label="Cost Today"
-          value={`₦${totalCost.toLocaleString('en-NG', { maximumFractionDigits: 0 })}`}
-          icon={DollarSign}
-          iconClass="bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
-          subValue="SMS cost only"
-        />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatMini label="Total Sent" value={stats.total} icon={Send} />
+        <StatMini label="Delivered" value={stats.delivered} icon={CheckCircle} colorClass="text-green-500" />
+        <StatMini label="Failed" value={stats.failed} icon={XCircle} colorClass="text-red-500" />
+        <StatMini label="Pending" value={stats.pending} icon={Clock} colorClass="text-amber-500" />
       </div>
 
-      {/* Grouped bar chart */}
-      <div className="bg-card rounded-lg border border-border p-5">
-        <h3 className="font-semibold text-sm mb-4">Delivery by Channel (Last 30 Days – Aggregated)</h3>
-        <DeliveryByChannelChart stats={stats} />
-      </div>
-
-      {/* Per-channel breakdown table */}
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
-        <div className="px-5 py-4 border-b border-border">
-          <h3 className="font-semibold text-sm">Per-Channel Breakdown (Last 30 Days)</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Trend chart */}
+        <div className="bg-card rounded-lg border p-6">
+          <h3 className="text-sm font-semibold mb-4">30-Day Delivery Trend</h3>
+          {trend.length > 0 ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={trend} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false}
+                  tickFormatter={v => new Date(v).toLocaleDateString('en', { day: '2-digit', month: 'short' })} className="fill-muted-foreground" />
+                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} className="fill-muted-foreground" />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={6} />
+                <Area type="monotone" dataKey="delivered" name="Delivered" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
+                <Area type="monotone" dataKey="failed" name="Failed" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.3} />
+                <Area type="monotone" dataKey="pending" name="Pending" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.3} />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-sm text-muted-foreground text-center py-12">No trend data available.</div>
+          )}
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/30">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Channel</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Total Sent</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Delivered</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Failed</th>
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Delivery Rate</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {CHANNELS.map((ch) => {
-                const agg = channelAgg[ch];
-                const rate = agg.sent > 0 ? ((agg.delivered / agg.sent) * 100).toFixed(1) : '0';
-                const rateNum = parseFloat(rate);
-                return (
-                  <tr key={ch} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3 font-medium">{CHANNEL_LABELS[ch]}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{agg.sent.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-green-600 dark:text-green-400">
-                      {agg.delivered.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-red-600 dark:text-red-400">
-                      {agg.failed.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={cn(
-                              'h-full rounded-full',
-                              rateNum >= 95 ? 'bg-green-500' : rateNum >= 85 ? 'bg-amber-500' : 'bg-red-500',
-                            )}
-                            style={{ width: `${rate}%` }}
-                          />
-                        </div>
-                        <span className={cn(
-                          'font-medium tabular-nums text-xs',
-                          rateNum >= 95 ? 'text-green-600 dark:text-green-400' : rateNum >= 85 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400',
-                        )}>
-                          {rate}%
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+
+        {/* By channel */}
+        <div className="bg-card rounded-lg border p-6">
+          <h3 className="text-sm font-semibold mb-4">Delivery by Channel</h3>
+          <DeliveryByChannelChart data={byChannel} />
         </div>
       </div>
     </div>

@@ -166,6 +166,14 @@ import {
   ComplianceAssessmentsPage,
   ReportsHomePage,
   AdminHomePage,
+  CampaignManagementPage,
+  CommissionManagementPage,
+  LoyaltyProgramPage,
+  PricingManagementPage,
+  SalesManagementPage,
+  SurveyManagementPage,
+  GovernancePage,
+  NotificationManagementPage,
 } from './lazyRoutes';
 
 // Placeholder page — used for all unimplemented modules
@@ -415,6 +423,14 @@ export function AppRouter() {
           <Route path="fees/:id" element={<FeeDefinitionDetailPage />} />
           <Route path="providers" element={<ServiceProviderPage />} />
           <Route path="providers/:id" element={<ProviderDetailPage />} />
+          <Route path="notifications" element={<NotificationManagementPage />} />
+          <Route path="campaigns" element={<CampaignManagementPage />} />
+          <Route path="commissions" element={<CommissionManagementPage />} />
+          <Route path="loyalty" element={<LoyaltyProgramPage />} />
+          <Route path="pricing" element={<PricingManagementPage />} />
+          <Route path="sales" element={<SalesManagementPage />} />
+          <Route path="surveys" element={<SurveyManagementPage />} />
+          <Route path="governance" element={<GovernancePage />} />
         </Route>
 
         {/* Agreements */}
