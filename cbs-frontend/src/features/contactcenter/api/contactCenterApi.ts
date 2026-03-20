@@ -30,14 +30,25 @@ export interface CallDisposition {
 }
 
 export const contactCenterApi = {
-  getAgentStates: () => apiGet<AgentState[]>('/api/v1/contact-center/agents').catch(() => []),
+  // Agent & Queue — no .catch() so React Query exposes isError properly
+  getAgentStates: () => apiGet<AgentState[]>('/api/v1/contact-center/agents'),
   updateAgentState: (agentId: string, state: string) => apiPost<void>(`/api/v1/contact-center/agents/${agentId}/state`, { state }),
-
-  getQueueStatus: () => apiGet<QueueStatus[]>('/api/v1/contact-center/queues').catch(() => []),
+  getQueueStatus: () => apiGet<QueueStatus[]>('/api/v1/contact-center/queues'),
 
   getCustomerProfile: (customerId: number) => apiGet<CustomerMiniProfile>(`/api/v1/customers/${customerId}/mini-profile`),
   getCustomerByPhone: (phone: string) => apiGet<CustomerMiniProfile>(`/api/v1/customers/lookup`, { phone }),
-
   saveDisposition: (interactionId: string, data: CallDisposition) => apiPost<void>(`/api/v1/contact-center/interactions/${interactionId}/dispose`, data),
   scheduleCallback: (data: { customerId: number; phone: string; preferredTime: string; reason: string }) => apiPost<void>('/api/v1/contact-center/callbacks', data),
+
+  // Interactions (consolidated from contactCenterExtApi.ts — renamed from assign2/byCustomer2)
+  createInteraction: (data: Record<string, unknown>) =>
+    apiPost<Record<string, unknown>>('/api/v1/contact-center/interactions', data),
+  assignInteraction: (id: number) =>
+    apiPost<Record<string, unknown>>(`/api/v1/contact-center/interactions/${id}/assign`),
+  completeInteraction: (id: number) =>
+    apiPost<Record<string, unknown>>(`/api/v1/contact-center/interactions/${id}/complete`),
+  getInteractionsByCustomer: (customerId: number) =>
+    apiGet<Record<string, unknown>[]>(`/api/v1/contact-center/interactions/customer/${customerId}`),
+  getInteractionsByAgent: (agentId: number) =>
+    apiGet<Record<string, unknown>[]>(`/api/v1/contact-center/interactions/agent/${agentId}`),
 };

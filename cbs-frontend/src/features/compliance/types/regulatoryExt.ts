@@ -1,5 +1,17 @@
 // Auto-generated from backend entities
 
+export type ReportCategory =
+  | 'PRUDENTIAL'
+  | 'STATISTICAL'
+  | 'AML_CFT'
+  | 'RISK'
+  | 'LIQUIDITY'
+  | 'CAPITAL_ADEQUACY'
+  | 'CREDIT'
+  | 'MARKET_RISK'
+  | 'OPERATIONAL_RISK'
+  | 'OTHER';
+
 export interface RegulatoryReportDefinition {
   id: number;
   reportCode: string;

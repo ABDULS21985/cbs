@@ -56,6 +56,7 @@ const BLANK_STATE = {
   refreshTokenValue: null,
   isAuthenticated: false,
   isLoading: false,
+  hasInitialized: false,
   mfaRequired: false,
   mfaSessionToken: null,
   tokenExpiresAt: null,
@@ -69,6 +70,8 @@ function getState() {
 }
 
 function resetStore() {
+  sessionStorage.clear();
+  localStorage.clear();
   useAuthStore.setState(BLANK_STATE);
 }
 
@@ -423,21 +426,46 @@ describe('authStore', () => {
   // initialize()
   // -------------------------------------------------------------------------
   describe('initialize()', () => {
-    it('restores session if valid tokens exist in storage', async () => {
-      // Simulate tokens already in store (persisted)
-      useAuthStore.setState({
-        ...BLANK_STATE,
+    it('restores a valid session from sessionStorage', async () => {
+      sessionStorage.setItem('cbs-auth-session', JSON.stringify({
         accessToken: 'persisted-token',
         refreshTokenValue: 'persisted-refresh',
+        tokenExpiresAt: Date.now() + 5 * 60 * 1000,
         user: MOCK_USER,
+      }));
+
+      await act(async () => {
+        await getState().initialize();
+      });
+
+      expect(getState().accessToken).toBe('persisted-token');
+      expect(getState().refreshTokenValue).toBe('persisted-refresh');
+      expect(getState().isAuthenticated).toBe(true);
+      expect(getState().hasInitialized).toBe(true);
+    });
+
+    it('refreshes an expired persisted session during initialize', async () => {
+      sessionStorage.setItem('cbs-auth-session', JSON.stringify({
+        accessToken: 'expired-token',
+        refreshTokenValue: 'persisted-refresh',
+        tokenExpiresAt: Date.now() - 1_000,
+        user: MOCK_USER,
+      }));
+
+      mockAuthApi.refresh.mockResolvedValue({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+        expiresIn: 3600,
       });
 
       await act(async () => {
         await getState().initialize();
       });
 
-      // After initialize with existing tokens, user should remain or be re-fetched
-      expect(getState().accessToken).toBeTruthy();
+      expect(mockAuthApi.refresh).toHaveBeenCalledWith('persisted-refresh');
+      expect(getState().accessToken).toBe('new-access-token');
+      expect(getState().refreshTokenValue).toBe('new-refresh-token');
+      expect(getState().isAuthenticated).toBe(true);
     });
 
     it('completes without throwing when no persisted session exists', async () => {

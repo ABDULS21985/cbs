@@ -55,6 +55,9 @@ export interface SettlementBatch {
 
 export const custodyApi = {
   // Custody Accounts
+  getAllCustodyAccounts: () =>
+    apiGet<CustodyAccount[]>('/api/v1/custody').catch(() => []),
+
   openCustodyAccount: (payload: {
     customerId: string;
     custodyType: CustodyType;
@@ -73,12 +76,15 @@ export const custodyApi = {
     apiGet<SettlementDashboard>('/api/v1/settlements/dashboard'),
 
   // Settlement Instructions
+  getInstructions: () =>
+    apiGet<SettlementInstruction[]>('/api/v1/settlements/instructions').catch(() => []),
+
   getSettlementInstruction: (ref: string) =>
     apiGet<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}`),
 
   createSettlementInstruction: (payload: {
-    from: string;
-    to: string;
+    fromAccount: string;
+    toAccount: string;
     amount: number;
     currency: string;
     settlementDate: string;
@@ -91,17 +97,17 @@ export const custodyApi = {
   submitSettlement: (ref: string) =>
     apiPost<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/submit`),
 
-  recordSettlementResult: (ref: string, status: 'SETTLED' | 'FAILED', failureReason?: string) =>
-    apiPost<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/result`, {
-      status,
-      failureReason,
-    }),
+  recordSettlementResult: (ref: string, settled: boolean, reason?: string) =>
+    apiPost<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/result`, { settled, reason }),
 
   // Failed Settlements
   getFailedSettlements: () =>
-    apiGet<SettlementInstruction[]>('/api/v1/settlements/failed'),
+    apiGet<SettlementInstruction[]>('/api/v1/settlements/failed').catch(() => []),
 
   // Batches
-  createSettlementBatch: (instructions: string[]) =>
-    apiPost<SettlementBatch>('/api/v1/settlements/batches', { instructions }),
+  getBatches: () =>
+    apiGet<SettlementBatch[]>('/api/v1/settlements/batches').catch(() => []),
+
+  createSettlementBatch: (instructionRefs: string[]) =>
+    apiPost<SettlementBatch>('/api/v1/settlements/batches', { instructionRefs }),
 };

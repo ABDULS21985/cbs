@@ -524,6 +524,34 @@ export const ContactCenterPage = lazyNamed(
   () => import('@/features/contactcenter/pages/ContactCenterPage'),
   'ContactCenterPage',
 );
+export const AgentWorkbenchPage = lazyNamed(
+  () => import('@/features/contactcenter/pages/AgentWorkbenchPage'),
+  'AgentWorkbenchPage',
+);
+export const AgentDetailPage = lazyNamed(
+  () => import('@/features/contactcenter/pages/AgentDetailPage'),
+  'AgentDetailPage',
+);
+export const QueueDashboardPage = lazyNamed(
+  () => import('@/features/contactcenter/pages/QueueDashboardPage'),
+  'QueueDashboardPage',
+);
+export const CallbackPage = lazyNamed(
+  () => import('@/features/contactcenter/pages/CallbackPage'),
+  'CallbackPage',
+);
+export const IvrManagerPage = lazyNamed(
+  () => import('@/features/contactcenter/pages/IvrManagerPage'),
+  'IvrManagerPage',
+);
+export const KnowledgeBasePage = lazyNamed(
+  () => import('@/features/contactcenter/pages/KnowledgeBasePage'),
+  'KnowledgeBasePage',
+);
+export const ChatSessionsPage = lazyNamed(
+  () => import('@/features/contactcenter/pages/ChatSessionsPage'),
+  'ChatSessionsPage',
+);
 
 export const ComplianceReportsPage = lazyNamed(
   () => import('@/features/compliance/pages/ComplianceReportsPage'),
@@ -683,6 +711,14 @@ export const CustodySettlementPage = lazyNamed(
   () => import('@/features/custody/pages/CustodySettlementPage'),
   'CustodySettlementPage',
 );
+export const SecuritiesPositionPage = lazyNamed(
+  () => import('@/features/custody/pages/SecuritiesPositionPage'),
+  'SecuritiesPositionPage',
+);
+export const PositionDetailPage = lazyNamed(
+  () => import('@/features/custody/pages/PositionDetailPage'),
+  'PositionDetailPage',
+);
 
 export const ChannelManagementPage = lazyNamed(
   () => import('@/features/channels/pages/ChannelManagementPage'),
@@ -776,6 +812,18 @@ export const AmlAlertDetailPage = lazyNamed(
 export const ScreeningDetailPage = lazyNamed(
   () => import('@/features/compliance/pages/ScreeningDetailPage'),
   'ScreeningDetailPage',
+);
+export const ComplianceHubPage = lazyNamed(
+  () => import('@/features/compliance/pages/ComplianceHubPage'),
+  'ComplianceHubPage',
+);
+export const GapAnalysisPage = lazyNamed(
+  () => import('@/features/compliance/pages/GapAnalysisPage'),
+  'GapAnalysisPage',
+);
+export const RegulatoryDefinitionsPage = lazyNamed(
+  () => import('@/features/compliance/pages/RegulatoryDefinitionsPage'),
+  'RegulatoryDefinitionsPage',
 );
 export const ReportsHomePage = lazyNamed(
   () => import('@/features/reports/pages/ReportsHomePage'),

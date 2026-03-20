@@ -55,3 +55,15 @@ const localStorageMock: Storage = {
 };
 Object.defineProperty(window, 'localStorage', { value: localStorageMock, writable: true });
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
+
+const sessionStorageStore: Record<string, string> = {};
+const sessionStorageMock: Storage = {
+  getItem: (key: string) => sessionStorageStore[key] ?? null,
+  setItem: (key: string, value: string) => { sessionStorageStore[key] = value; },
+  removeItem: (key: string) => { delete sessionStorageStore[key]; },
+  clear: () => { Object.keys(sessionStorageStore).forEach((k) => delete sessionStorageStore[k]); },
+  key: (index: number) => Object.keys(sessionStorageStore)[index] ?? null,
+  get length() { return Object.keys(sessionStorageStore).length; },
+};
+Object.defineProperty(window, 'sessionStorage', { value: sessionStorageMock, writable: true });
+Object.defineProperty(globalThis, 'sessionStorage', { value: sessionStorageMock, writable: true });

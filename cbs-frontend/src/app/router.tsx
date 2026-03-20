@@ -146,6 +146,13 @@ import {
   CommunicationCenterPage,
   TemplateDetailPage,
   AgentDashboardPage,
+  AgentWorkbenchPage,
+  AgentDetailPage,
+  QueueDashboardPage,
+  CallbackPage,
+  IvrManagerPage,
+  KnowledgeBasePage,
+  ChatSessionsPage,
   RoutingRulesPage,
   ChannelConfigPage,
   CommsPreferencesPage,
@@ -209,6 +216,9 @@ import {
   ComplianceAssessmentsPage,
   ComplianceSanctionsPage,
   ScreeningDetailPage,
+  ComplianceHubPage,
+  GapAnalysisPage,
+  RegulatoryDefinitionsPage,
   ReportsHomePage,
   AdminHomePage,
   CampaignManagementPage,
@@ -441,18 +451,21 @@ export function AppRouter() {
 
         {/* Compliance */}
         <Route path="/compliance" element={<Outlet />}>
-          <Route index element={<ComplianceDashboardPage />} />
-          <Route path="returns" element={<RegulatoryReturnsPage />} />
-          <Route path="returns/:id" element={<ReturnDetailPage />} />
-          <Route path="assessments" element={<ComplianceAssessmentsPage />} />
-          <Route path="sanctions" element={<ComplianceSanctionsPage />} />
-          <Route path="sanctions/screenings/:id" element={<ScreeningDetailPage />} />
-          <Route path="reports" element={<ComplianceReportsPage />} />
-          <Route path="audit" element={<AuditTrailPage />} />
+          <Route index element={<ComplianceHubPage />} />
+          <Route path="dashboard" element={<ComplianceDashboardPage />} />
           <Route path="aml" element={<AmlDashboardPage />} />
           <Route path="aml/alerts/:id" element={<AmlAlertDetailPage />} />
+          <Route path="sanctions" element={<ComplianceSanctionsPage />} />
+          <Route path="sanctions/screenings/:id" element={<ScreeningDetailPage />} />
           <Route path="fraud" element={<FraudDashboardPage />} />
           <Route path="fraud/alerts/:id" element={<FraudAlertDetailPage />} />
+          <Route path="returns" element={<RegulatoryReturnsPage />} />
+          <Route path="returns/:id" element={<ReturnDetailPage />} />
+          <Route path="reports" element={<ComplianceReportsPage />} />
+          <Route path="assessments" element={<ComplianceAssessmentsPage />} />
+          <Route path="gaps" element={<GapAnalysisPage />} />
+          <Route path="definitions" element={<RegulatoryDefinitionsPage />} />
+          <Route path="audit" element={<AuditTrailPage />} />
         </Route>
 
         {/* Operations */}
@@ -530,6 +543,8 @@ export function AppRouter() {
           <Route path="templates/:id" element={<TemplateDetailPage />} />
           <Route path="contact-center" element={<ContactCenterPage />} />
           <Route path="contact-center/agent" element={<AgentDashboardPage />} />
+          <Route path="contact-center/agent/:agentId" element={<AgentDetailPage />} />
+          <Route path="contact-center/agent-console" element={<AgentWorkbenchPage />} />
           <Route path="routing" element={<RoutingRulesPage />} />
           <Route path="channels" element={<ChannelConfigPage />} />
           <Route path="preferences" element={<CommsPreferencesPage />} />
@@ -557,7 +572,19 @@ export function AppRouter() {
         {/* Syndication */}
         <Route path="/lending/syndication" element={<SyndicationPage />} />
 
-        {/* Contact Center */}
+        {/* Contact Center (top-level) */}
+        <Route path="/contact-center" element={<Outlet />}>
+          <Route index element={<ContactCenterPage />} />
+          <Route path="agent" element={<AgentDashboardPage />} />
+          <Route path="agent/:id" element={<AgentWorkbenchPage />} />
+          <Route path="queues" element={<QueueDashboardPage />} />
+          <Route path="callbacks" element={<CallbackPage />} />
+          <Route path="ivr" element={<IvrManagerPage />} />
+          <Route path="help" element={<KnowledgeBasePage />} />
+          <Route path="chat" element={<ChatSessionsPage />} />
+        </Route>
+
+        {/* Contact Center legacy alias */}
         <Route path="/operations/contact-center" element={<ContactCenterPage />} />
 
         {/* Notifications */}

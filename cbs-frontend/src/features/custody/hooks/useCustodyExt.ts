@@ -224,10 +224,22 @@ export function usePendingKycCounterparties(params?: Record<string, unknown>) {
   });
 }
 
+export function useCreateCounterparty() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof counterpartiesApi.create>[0]) =>
+      counterpartiesApi.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.counterparties.all });
+    },
+  });
+}
+
 export function useUpdateCounterpartyExposure() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => counterpartiesApi.updateExposure(code),
+    mutationFn: ({ code, currentExposure }: { code: string; currentExposure: number }) =>
+      counterpartiesApi.updateExposure(code, currentExposure),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.counterparties.all });
     },
@@ -237,7 +249,8 @@ export function useUpdateCounterpartyExposure() {
 export function useVerifyCounterpartyKyc() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => counterpartiesApi.verifyKyc(code),
+    mutationFn: ({ code, ...data }: { code: string; reviewedBy: string; kycStatus: string; reviewDate: string }) =>
+      counterpartiesApi.verifyKyc(code, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.counterparties.all });
     },

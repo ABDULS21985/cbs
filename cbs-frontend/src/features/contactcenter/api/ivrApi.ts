@@ -7,15 +7,15 @@ export const ivrApi = {
     apiPost<IvrMenu>('/api/v1/ivr/menus', data),
 
   /** GET /v1/ivr/menus */
-  createMenu2: (params?: Record<string, unknown>) =>
-    apiGet<IvrMenu>('/api/v1/ivr/menus', params),
+  listMenus: (params?: Record<string, unknown>) =>
+    apiGet<IvrMenu[]>('/api/v1/ivr/menus', params),
 
   /** POST /v1/ivr/sessions */
   startSession: () =>
     apiPost<IvrSession>('/api/v1/ivr/sessions'),
 
   /** POST /v1/ivr/sessions/{sessionId}/navigate */
-  startSession2: (sessionId: number) =>
+  navigateSession: (sessionId: number) =>
     apiPost<IvrSession>(`/api/v1/ivr/sessions/${sessionId}/navigate`),
 
   /** POST /v1/ivr/sessions/{sessionId}/transfer */

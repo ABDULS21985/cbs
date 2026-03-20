@@ -90,6 +90,25 @@ export function useCreateRegulatoryDefinition() {
 
 // ─── Gap Analysis ─────────────────────────────────────────────────────────────
 
+export function useGapAnalysisList(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: [...KEYS.gapAnalysis.all, 'list', params],
+    queryFn: () => gapAnalysisApi.list(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useIdentifyGap() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<import('../types/gapAnalysis').ComplianceGapAnalysis>) =>
+      gapAnalysisApi.identify(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.gapAnalysis.all });
+    },
+  });
+}
+
 export function useGapAnalysisDashboard(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: KEYS.gapAnalysis.dashboard(params),

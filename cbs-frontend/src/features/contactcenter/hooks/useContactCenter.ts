@@ -1,10 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { contactCenterApi } from '../api/contactCenterExtApi';
+import { contactCenterApi } from '../api/contactCenterApi';
 import { contactRoutingApi } from '../api/contactRoutingApi';
 import { ivrApi } from '../api/ivrApi';
 import { helpApi } from '../api/helpApi';
 import { dialogueApi } from '../api/dialogueApi';
-import type { ContactCenter } from '../types/contactCenterExt';
 import type { RoutingRule, CallbackRequest } from '../types/contactRouting';
 import type { IvrMenu } from '../types/ivr';
 import type { HelpArticle, GuidedFlow } from '../types/help';
@@ -48,7 +47,7 @@ export const CONTACT_CENTER_KEYS = {
 export function useCustomerInteractions(customerId: number) {
   return useQuery({
     queryKey: CONTACT_CENTER_KEYS.interactionsByCustomer(customerId),
-    queryFn: () => contactCenterApi.byCustomer(customerId),
+    queryFn: () => contactCenterApi.getInteractionsByCustomer(customerId),
     enabled: !!customerId,
     staleTime: 15_000,
   });
@@ -57,7 +56,7 @@ export function useCustomerInteractions(customerId: number) {
 export function useAgentInteractions(agentId: number) {
   return useQuery({
     queryKey: CONTACT_CENTER_KEYS.interactionsByAgent(agentId),
-    queryFn: () => contactCenterApi.byCustomer2(agentId),
+    queryFn: () => contactCenterApi.getInteractionsByAgent(agentId),
     enabled: !!agentId,
     staleTime: 15_000,
   });
@@ -66,7 +65,7 @@ export function useAgentInteractions(agentId: number) {
 export function useCreateInteraction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<ContactCenter>) => contactCenterApi.create(data),
+    mutationFn: (data: Record<string, unknown>) => contactCenterApi.createInteraction(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.interactions });
     },
@@ -76,7 +75,7 @@ export function useCreateInteraction() {
 export function useAssignInteraction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => contactCenterApi.assign(id),
+    mutationFn: (id: number) => contactCenterApi.assignInteraction(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.interactions });
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.routing });
@@ -87,7 +86,7 @@ export function useAssignInteraction() {
 export function useCompleteInteraction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => contactCenterApi.assign2(id),
+    mutationFn: (id: number) => contactCenterApi.completeInteraction(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.interactions });
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.routing });
@@ -179,7 +178,7 @@ export function useQueueDashboard(centerId: number) {
 export function useIvrMenus(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: [...CONTACT_CENTER_KEYS.ivrMenus(), params],
-    queryFn: () => ivrApi.createMenu2(params),
+    queryFn: () => ivrApi.listMenus(params),
     staleTime: 60_000,
   });
 }
@@ -202,7 +201,7 @@ export function useStartIvrSession() {
 
 export function useNavigateIvrSession() {
   return useMutation({
-    mutationFn: (sessionId: number) => ivrApi.startSession2(sessionId),
+    mutationFn: (sessionId: number) => ivrApi.navigateSession(sessionId),
   });
 }
 

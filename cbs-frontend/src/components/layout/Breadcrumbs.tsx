@@ -50,6 +50,12 @@ const labelOverrides: Record<string, string> = {
   clearing: 'Clearing & Settlement',
   disputes: 'Disputes',
   transactions: 'Transactions',
+  'contact-center': 'Contact Center',
+  queues: 'Queue Dashboard',
+  callbacks: 'Callbacks',
+  ivr: 'IVR Manager',
+  help: 'Knowledge Base',
+  chat: 'Chat Sessions',
 };
 
 function toLabel(segment: string): string {

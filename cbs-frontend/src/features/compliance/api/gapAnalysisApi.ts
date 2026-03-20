@@ -2,6 +2,14 @@ import { apiGet, apiPost } from '@/lib/api';
 import type { ComplianceGapAnalysis } from '../types/gapAnalysis';
 
 export const gapAnalysisApi = {
+  /** GET /v1/gap-analysis */
+  list: (params?: Record<string, unknown>) =>
+    apiGet<ComplianceGapAnalysis[]>('/api/v1/gap-analysis', params),
+
+  /** POST /v1/gap-analysis */
+  identify: (data: Partial<ComplianceGapAnalysis>) =>
+    apiPost<ComplianceGapAnalysis>('/api/v1/gap-analysis', data),
+
   /** POST /v1/gap-analysis/{code}/plan */
   plan: (code: string) =>
     apiPost<ComplianceGapAnalysis>(`/api/v1/gap-analysis/${code}/plan`),
