@@ -1,11 +1,13 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { TabsPage } from '@/components/shared';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useCustomer, useCustomerAccounts, useCustomerLoans, useCustomerCards, useCustomerCases } from '../hooks/useCustomers';
+import { useRecommendations } from '../hooks/useCustomerIntelligence';
 import { CustomerHeader } from '../components/CustomerHeader';
+import { ComposeMessageDialog } from '../components/ComposeMessageDialog';
 import { CustomerOverviewTab } from '../components/CustomerOverviewTab';
 import { CustomerAccountsTab } from '../components/CustomerAccountsTab';
 import { CustomerLoansTab } from '../components/CustomerLoansTab';
@@ -15,9 +17,10 @@ import { CustomerDocumentsTab } from '../components/CustomerDocumentsTab';
 import { CustomerTransactionsTab } from '../components/CustomerTransactionsTab';
 import { CustomerCommunicationsTab } from '../components/CustomerCommunicationsTab';
 import { CustomerAuditTab } from '../components/CustomerAuditTab';
+import { CustomerTimeline } from '../components/CustomerTimeline';
 import { usePermission } from '@/hooks/usePermission';
 
-// Portfolio components (previously unused — now wired)
+// Portfolio components
 import { RelationshipSummary } from '../components/portfolio/RelationshipSummary';
 import { BalanceTrendChart } from '../components/portfolio/BalanceTrendChart';
 import { RevenueBreakdownChart } from '../components/portfolio/RevenueBreakdownChart';
@@ -27,16 +30,16 @@ import { ProfitabilityAnalysis } from '../components/portfolio/ProfitabilityAnal
 
 // ── Portfolio Tab ────────────────────────────────────────────────────────────
 
-function PortfolioTab({ customerId }: { customerId: number }) {
+function PortfolioTab({ customerId, customerName }: { customerId: number; customerName: string }) {
   const { data: accounts = [] } = useCustomerAccounts(customerId);
   const { data: loans = [] } = useCustomerLoans(customerId, true);
   const { data: cards = [] } = useCustomerCards(customerId, true);
+  const { data: apiRecommendations = [] } = useRecommendations(customerId);
 
   const totalBalance = accounts.reduce((s, a) => s + (a.availableBalance ?? a.ledgerBalance ?? 0), 0);
   const loanOutstanding = loans.reduce((s, l) => s + (l.outstandingBalance ?? 0), 0);
   const productsHeld = accounts.length + loans.length + cards.length;
 
-  // Build holdings grid from real data
   const holdings = [
     {
       category: 'Deposits',
@@ -64,7 +67,6 @@ function PortfolioTab({ customerId }: { customerId: number }) {
     },
   ].filter((h) => h.items.length > 0);
 
-  // Revenue estimates from products
   const revenueData = [
     { name: 'Deposit Interest', value: totalBalance * 0.001 },
     { name: 'Loan Interest', value: loanOutstanding * 0.015 },
@@ -74,7 +76,6 @@ function PortfolioTab({ customerId }: { customerId: number }) {
 
   const totalRevenue = revenueData.reduce((s, r) => s + r.value, 0);
 
-  // Balance trend (current snapshot — derive 12 months of simulated growth from current balance)
   const now = new Date();
   const trendData = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
@@ -82,13 +83,15 @@ function PortfolioTab({ customerId }: { customerId: number }) {
     return { month: d.toLocaleDateString('en-US', { month: 'short' }), balance: totalBalance * factor };
   });
 
-  // Cross-sell recommendations
-  const recommendations = [
+  // Fallback to client-side recommendations if API returns empty
+  const fallbackRecommendations = [
     ...(loans.length === 0 ? [{ product: 'Personal Loan', reason: 'No lending products — pre-qualified based on deposit history' }] : []),
     ...(cards.length === 0 ? [{ product: 'Debit Card', reason: 'No cards linked — enhance transaction convenience' }] : []),
     ...(accounts.length < 2 ? [{ product: 'Savings Account', reason: 'Single account holder — opportunity for goal-based savings' }] : []),
     ...(totalBalance > 1000000 ? [{ product: 'Fixed Deposit', reason: 'High balance customer — optimize idle funds' }] : []),
   ];
+
+  const recommendations = apiRecommendations.length > 0 ? apiRecommendations : fallbackRecommendations;
 
   return (
     <div className="p-4 space-y-6">
@@ -121,10 +124,7 @@ function PortfolioTab({ customerId }: { customerId: number }) {
           netProfit={totalRevenue * 0.4}
           roc={totalBalance > 0 ? (totalRevenue * 0.4) / totalBalance * 100 : 0}
         />
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="text-sm font-semibold mb-3">Cross-Sell Opportunities</h3>
-          <CrossSellRecommendations recommendations={recommendations} />
-        </div>
+        <CrossSellRecommendations recommendations={recommendations} customerName={customerName} />
       </div>
     </div>
   );
@@ -178,6 +178,8 @@ export default function Customer360Page() {
   const canViewCommunications = usePermission('communications', 'view');
   const canViewAudit = usePermission('audit', 'view');
 
+  const [showCompose, setShowCompose] = useState(false);
+
   const { data: customer, isLoading, error } = useCustomer(customerId);
   const { data: accounts = [] } = useCustomerAccounts(customerId);
   const { data: loans = [] } = useCustomerLoans(customerId, true);
@@ -214,7 +216,8 @@ export default function Customer360Page() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', content: <CustomerOverviewTab customer={customer} /> },
-    { id: 'portfolio', label: 'Portfolio', content: <PortfolioTab customerId={customerId} /> },
+    { id: 'portfolio', label: 'Portfolio', content: <PortfolioTab customerId={customerId} customerName={customer.fullName} /> },
+    { id: 'timeline', label: 'Timeline', content: <CustomerTimeline customerId={customerId} /> },
     { id: 'accounts', label: 'Accounts', badge: accounts.length || undefined, content: <CustomerAccountsTab customerId={customerId} /> },
     { id: 'loans', label: 'Loans', badge: loans.length || undefined, content: <CustomerLoansTab customerId={customerId} active /> },
     { id: 'cards', label: 'Cards', badge: cards.length || undefined, content: <CustomerCardsTab customerId={customerId} /> },
@@ -232,7 +235,8 @@ export default function Customer360Page() {
         <ArrowLeft className="h-4 w-4" /> Back to Customers
       </button>
 
-      <CustomerHeader customer={customer} accountCount={accounts.length} loanCount={loans.length} cardCount={cards.length} />
+      <CustomerHeader customer={customer} accountCount={accounts.length} loanCount={loans.length} cardCount={cards.length} onContactCustomer={() => setShowCompose(true)} />
+      {showCompose && <ComposeMessageDialog customer={customer} onClose={() => setShowCompose(false)} />}
 
       <RelationshipStrip customerId={customerId} customer={customer} />
 

@@ -182,6 +182,14 @@ export const notificationApi = {
       body,
     ),
 
+  // Direct send (custom message without template)
+  sendDirect: (data: { channel: string; recipientAddress: string; recipientName: string; subject: string; body: string; customerId?: number; eventType?: string }) =>
+    apiPost<NotificationLog>('/api/v1/notifications/send-direct', data),
+
+  // Bulk send
+  sendBulk: (data: { channel: string; subject: string; body: string; eventType?: string; recipients: { address: string; name: string; customerId?: number }[] }) =>
+    apiPost<{ sent: number; failed: number; total: number }>('/api/v1/notifications/send-bulk', data),
+
   // Customer
   getCustomerNotifications: (customerId: number, page = 0, size = 20) =>
     apiGet<NotificationLog[]>(`/api/v1/notifications/customer/${customerId}`, { page, size } as Record<string, unknown>).catch(() => []),

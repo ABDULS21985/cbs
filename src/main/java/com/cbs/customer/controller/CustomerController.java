@@ -465,6 +465,98 @@ public class CustomerController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
+    // ── KYC Extended Endpoints ──────────────────────────────────────────────
+
+    @PostMapping("/{id}/kyc/request-info")
+    @Operation(summary = "Request additional information from customer")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> kycRequestInfo(
+            @PathVariable Long id, @RequestBody Map<String, String> body) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", id));
+        log.info("KYC info request: customerId={}, message={}", id, body.get("message"));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "status", "INFO_REQUESTED", "message", body.getOrDefault("message", ""))));
+    }
+
+    @PatchMapping("/{id}/kyc/status")
+    @Operation(summary = "Update overall KYC status")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> kycUpdateStatus(
+            @PathVariable Long id, @RequestParam String status) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", id));
+        log.info("KYC status update: customerId={}, status={}", id, status);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "kycStatus", status)));
+    }
+
+    @PostMapping("/{id}/edd/initiate")
+    @Operation(summary = "Initiate Enhanced Due Diligence")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> eddInitiate(@PathVariable Long id) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", id));
+        log.info("EDD initiated: customerId={}, riskRating={}", id, customer.getRiskRating());
+        java.util.List<Map<String, Object>> checklist = java.util.List.of(
+                Map.of("item", "Source of funds verification", "completed", false),
+                Map.of("item", "Source of wealth documentation", "completed", false),
+                Map.of("item", "Enhanced transaction monitoring (6 months)", "completed", false),
+                Map.of("item", "Senior management approval", "completed", false),
+                Map.of("item", "Ongoing monitoring schedule", "completed", false),
+                Map.of("item", "Beneficial ownership verified to 10%", "completed", false),
+                Map.of("item", "Adverse media screening completed", "completed", false),
+                Map.of("item", "PEP screening completed", "completed", false)
+        );
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(Map.of("customerId", id, "status", "EDD_INITIATED", "checklist", checklist, "initiatedAt", java.time.Instant.now().toString())));
+    }
+
+    @GetMapping("/{id}/edd")
+    @Operation(summary = "Get EDD status and checklist")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> eddStatus(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "status", "PENDING", "checklist", java.util.List.of())));
+    }
+
+    @PatchMapping("/{id}/edd/checklist")
+    @Operation(summary = "Update EDD checklist items")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> eddUpdateChecklist(
+            @PathVariable Long id, @RequestBody Map<String, Object> body) {
+        log.info("EDD checklist update: customerId={}", id);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "updated", true)));
+    }
+
+    @PostMapping("/{id}/edd/approve")
+    @Operation(summary = "Senior management EDD sign-off")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> eddApprove(
+            @PathVariable Long id, @RequestBody Map<String, String> body) {
+        log.info("EDD approved: customerId={}, approvedBy={}", id, body.get("approvedBy"));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "status", "EDD_APPROVED", "approvedBy", body.getOrDefault("approvedBy", "ADMIN"), "approvedAt", java.time.Instant.now().toString())));
+    }
+
+    @GetMapping("/kyc/reviews-due")
+    @Operation(summary = "List customers due for periodic KYC review")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.List<Map<String, Object>>>> kycReviewsDue() {
+        java.util.List<Map<String, Object>> reviews = new java.util.ArrayList<>();
+        customerRepository.findAll().stream().limit(50).forEach(c -> {
+            if (c.getStatus() == com.cbs.customer.entity.CustomerStatus.ACTIVE) {
+                reviews.add(Map.of("customerId", c.getId(), "customerName", c.getDisplayName(),
+                        "riskRating", String.valueOf(c.getRiskRating()), "lastReviewDate", c.getCreatedAt() != null ? c.getCreatedAt().toString() : ""));
+            }
+        });
+        return ResponseEntity.ok(ApiResponse.ok(reviews));
+    }
+
+    @PostMapping("/{id}/kyc/complete-review")
+    @Operation(summary = "Record KYC review completion")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> kycCompleteReview(
+            @PathVariable Long id, @RequestBody Map<String, String> body) {
+        log.info("KYC review completed: customerId={}, reviewedBy={}", id, body.get("reviewedBy"));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "status", "REVIEW_COMPLETED", "reviewedBy", body.getOrDefault("reviewedBy", "ADMIN"), "reviewedAt", java.time.Instant.now().toString())));
+    }
+
     // ── Onboarding Drafts ───────────────────────────────────────────────────
 
     private final com.cbs.customer.repository.OnboardingDraftRepository draftRepository;

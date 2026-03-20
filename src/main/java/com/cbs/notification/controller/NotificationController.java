@@ -46,6 +46,46 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.ok(notificationService.sendEventNotification(eventType, customerId, email, phone, name, params)));
     }
 
+    @PostMapping("/send-direct")
+    @Operation(summary = "Send a custom message directly without template lookup")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<NotificationLog>> sendDirect(@RequestBody Map<String, Object> body) {
+        String channel = String.valueOf(body.getOrDefault("channel", "EMAIL"));
+        String recipientAddress = String.valueOf(body.getOrDefault("recipientAddress", ""));
+        String recipientName = String.valueOf(body.getOrDefault("recipientName", ""));
+        String subject = String.valueOf(body.getOrDefault("subject", ""));
+        String msgBody = String.valueOf(body.getOrDefault("body", ""));
+        Long customerId = body.get("customerId") instanceof Number ? ((Number) body.get("customerId")).longValue() : null;
+        String eventType = String.valueOf(body.getOrDefault("eventType", "DIRECT"));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                .body(ApiResponse.ok(notificationService.sendDirect(
+                        com.cbs.notification.entity.NotificationChannel.valueOf(channel),
+                        recipientAddress, recipientName, subject, msgBody, customerId, eventType)));
+    }
+
+    @PostMapping("/send-bulk")
+    @Operation(summary = "Send message to multiple customers")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendBulk(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        java.util.List<Map<String, Object>> recipients = (java.util.List<Map<String, Object>>) body.getOrDefault("recipients", java.util.Collections.emptyList());
+        String channel = String.valueOf(body.getOrDefault("channel", "EMAIL"));
+        String subject = String.valueOf(body.getOrDefault("subject", ""));
+        String msgBody = String.valueOf(body.getOrDefault("body", ""));
+        String eventType = String.valueOf(body.getOrDefault("eventType", "BULK"));
+        int sent = 0, failed = 0;
+        for (Map<String, Object> r : recipients) {
+            try {
+                String addr = String.valueOf(r.getOrDefault("address", ""));
+                String name = String.valueOf(r.getOrDefault("name", ""));
+                Long custId = r.get("customerId") instanceof Number ? ((Number) r.get("customerId")).longValue() : null;
+                notificationService.sendDirect(com.cbs.notification.entity.NotificationChannel.valueOf(channel), addr, name, subject, msgBody, custId, eventType);
+                sent++;
+            } catch (Exception e) { failed++; }
+        }
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("sent", sent, "failed", failed, "total", recipients.size())));
+    }
+
     @GetMapping("/templates")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<NotificationTemplate>>> listTemplates() {

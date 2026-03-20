@@ -135,6 +135,30 @@ export function useMarkAllRead() {
   });
 }
 
+export function useSendDirect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { channel: string; recipientAddress: string; recipientName: string; subject: string; body: string; customerId?: number; eventType?: string }) =>
+      notificationApi.sendDirect(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.notifications });
+      qc.invalidateQueries({ queryKey: KEYS.stats });
+    },
+  });
+}
+
+export function useSendBulk() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { channel: string; subject: string; body: string; eventType?: string; recipients: { address: string; name: string; customerId?: number }[] }) =>
+      notificationApi.sendBulk(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.notifications });
+      qc.invalidateQueries({ queryKey: KEYS.stats });
+    },
+  });
+}
+
 // Legacy communications hooks
 export function useCommunications(filters?: Record<string, unknown>) {
   return useQuery({

@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 
+const callbackExchangeCache = new Map<string, Promise<string>>();
+
 export function AuthCallbackPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,14 +29,18 @@ export function AuthCallbackPage() {
     }
 
     let cancelled = false;
+    const callbackKey = `${state}:${code}`;
 
     void (async () => {
       try {
-        const returnTo = await completeLogin({ code, state });
+        const loginPromise = callbackExchangeCache.get(callbackKey) ?? completeLogin({ code, state });
+        callbackExchangeCache.set(callbackKey, loginPromise);
+        const returnTo = await loginPromise;
         if (!cancelled) {
           navigate(returnTo, { replace: true });
         }
       } catch (err) {
+        callbackExchangeCache.delete(callbackKey);
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Secure sign-in failed. Start again.');
         }

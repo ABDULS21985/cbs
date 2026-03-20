@@ -1,4 +1,4 @@
-import api, { apiGet, apiPost, apiPut, apiUpload } from '@/lib/api';
+import api, { apiGet, apiPost, apiPatch, apiPut, apiUpload } from '@/lib/api';
 import type { ApiResponse, PageMeta, PaginationParams } from '@/types/common';
 import type {
   BvnVerifyResult,
@@ -697,5 +697,31 @@ export const customerApi = {
 
   updateSegment(code: string, data: Partial<import('../types/customer').CreateSegmentPayload>) {
     return apiPut<CustomerSegment>(`/api/v1/customers/segments/${code}`, data);
+  },
+
+  // ── Customer 360 Intelligence ───────────────────────────────────────────
+
+  patchCustomer(id: number, data: Record<string, unknown>) {
+    return apiPatch<Customer>(`/api/v1/customers/${id}`, data);
+  },
+
+  getHealthScore(id: number) {
+    return apiGet<import('../types/customer').HealthScore>(`/api/v1/customers/${id}/health-score`);
+  },
+
+  getRecommendations(id: number) {
+    return apiGet<import('../types/customer').ProductRecommendation[]>(`/api/v1/customers/${id}/recommendations`).catch(() => []);
+  },
+
+  getTimeline(id: number, params?: { page?: number; size?: number; eventType?: string }) {
+    return apiGet<import('../types/customer').TimelineEvent[]>(`/api/v1/customers/${id}/timeline`, params as Record<string, unknown>).catch(() => []);
+  },
+
+  uploadPhoto(id: number, file: File) {
+    return apiUpload<{ url: string }>(`/api/v1/customers/${id}/photo`, file, 'photo');
+  },
+
+  getRelationshipGraph(id: number) {
+    return apiGet<import('../types/customer').RelationshipGraphData>(`/api/v1/customers/${id}/relationships/graph`);
   },
 };

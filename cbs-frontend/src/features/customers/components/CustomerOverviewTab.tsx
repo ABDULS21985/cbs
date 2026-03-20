@@ -3,21 +3,32 @@ import { StatCard } from '@/components/shared/StatCard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { FormSection } from '@/components/shared/FormSection';
 import { CustomerQuickActions } from './CustomerQuickActions';
+import { EditableSection } from './CustomerEditMode';
+import { RelationshipGraph } from './RelationshipGraph';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/formatters';
 import { MapPin, Shield, FileText, Users, Pin } from 'lucide-react';
 import type { Customer } from '../types/customer';
+import { usePatchCustomer } from '../hooks/useCustomerIntelligence';
+import { useRelationshipGraph } from '../hooks/useCustomerIntelligence';
 
 interface CustomerOverviewTabProps {
   customer: Customer;
 }
 
 export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
+  const patchCustomer = usePatchCustomer();
+  const { data: graphData, isLoading: graphLoading } = useRelationshipGraph(customer.id);
+
   const contactCount = new Set(
     [customer.phone, customer.email, ...customer.contacts.map((c) => c.contactValue)].filter(Boolean),
   ).size;
 
   const isIndividual = customer.type === 'INDIVIDUAL' || customer.type === 'SOLE_PROPRIETOR';
+
+  const handleSave = async (sectionId: string, data: Record<string, unknown>) => {
+    await patchCustomer.mutateAsync({ id: customer.id, data });
+  };
 
   const personalItems = isIndividual
     ? [
@@ -25,11 +36,11 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
         { label: 'Gender', value: customer.gender || '—' },
         { label: 'Nationality', value: customer.nationality || '—' },
         { label: 'State of Origin', value: customer.stateOfOrigin || '—' },
+        { label: 'Marital Status', value: customer.maritalStatus || '—' },
         { label: 'Tax ID (TIN)', value: customer.taxId || '—', mono: true },
         { label: 'BVN', value: customer.bvn || '—', mono: true },
         { label: 'Preferred Language', value: customer.preferredLanguage || '—' },
         { label: 'Preferred Channel', value: customer.preferredChannel || '—' },
-        { label: 'Onboarded Channel', value: customer.onboardedChannel || '—' },
       ]
     : [
         { label: 'Registered Name', value: customer.fullName },
@@ -42,6 +53,19 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
         { label: 'Onboarded Channel', value: customer.onboardedChannel || '—' },
         { label: 'Relationship Manager', value: customer.relationshipManager || '—' },
       ];
+
+  const contactItems = [
+    { label: 'Email', value: customer.email || '—' },
+    { label: 'Phone', value: customer.phone || '—' },
+    { label: 'Secondary Phone', value: customer.phoneSecondary || '—' },
+    { label: 'Preferred Language', value: customer.preferredLanguage || '—' },
+    { label: 'Preferred Channel', value: customer.preferredChannel || '—' },
+  ];
+
+  const employmentItems = [
+    { label: 'Employer', value: customer.employerName || '—' },
+    { label: 'Occupation', value: customer.occupation || '—' },
+  ];
 
   const kycDaysLeft = customer.kycExpiryDate
     ? Math.ceil((new Date(customer.kycExpiryDate).getTime() - Date.now()) / 86400000)
@@ -60,12 +84,51 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
 
       {/* Two-column: Personal Info + KYC/Risk */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-4">
+          {/* Personal Info — Editable */}
           <FormSection title={isIndividual ? 'Personal Information' : 'Corporate Information'}>
-            <InfoGrid items={personalItems} columns={3} />
+            <EditableSection
+              sectionId="personal"
+              title={isIndividual ? 'Personal Info' : 'Corporate Info'}
+              customer={customer}
+              onSave={handleSave}
+              isSaving={patchCustomer.isPending}
+            >
+              <InfoGrid items={personalItems} columns={3} />
+            </EditableSection>
           </FormSection>
+
+          {/* Contact — Editable */}
+          <FormSection title="Contact Details">
+            <EditableSection
+              sectionId="contact"
+              title="Contact"
+              customer={customer}
+              onSave={handleSave}
+              isSaving={patchCustomer.isPending}
+            >
+              <InfoGrid items={contactItems} columns={3} />
+            </EditableSection>
+          </FormSection>
+
+          {/* Employment — Editable */}
+          {isIndividual && (customer.employerName || customer.occupation) && (
+            <FormSection title="Employment">
+              <EditableSection
+                sectionId="employment"
+                title="Employment"
+                customer={customer}
+                onSave={handleSave}
+                isSaving={patchCustomer.isPending}
+              >
+                <InfoGrid items={employmentItems} columns={2} />
+              </EditableSection>
+            </FormSection>
+          )}
         </div>
+
         <div className="space-y-4">
+          {/* KYC Status */}
           <div className="rounded-lg border p-4 space-y-3">
             <h3 className="text-sm font-semibold">KYC Status</h3>
             <div className="flex items-center justify-between">
@@ -83,17 +146,70 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
               )}
             </div>
           </div>
+
+          {/* Risk Profile — Editable */}
           <div className="rounded-lg border p-4 space-y-3">
             <h3 className="text-sm font-semibold">Risk Profile</h3>
-            <div className="flex items-center justify-between">
-              <StatusBadge status={customer.riskRating ?? 'MEDIUM'} size="sm" />
-              <span className="text-xs text-muted-foreground">
-                {customer.status === 'ACTIVE' ? 'Lifecycle Active' : `Lifecycle ${customer.status}`}
-              </span>
-            </div>
+            <EditableSection
+              sectionId="risk"
+              title="Risk Rating"
+              customer={customer}
+              onSave={handleSave}
+              isSaving={patchCustomer.isPending}
+            >
+              <div className="flex items-center justify-between">
+                <StatusBadge status={customer.riskRating ?? 'MEDIUM'} size="sm" />
+                <span className="text-xs text-muted-foreground">
+                  {customer.status === 'ACTIVE' ? 'Lifecycle Active' : `Lifecycle ${customer.status}`}
+                </span>
+              </div>
+            </EditableSection>
+          </div>
+
+          {/* RM Assignment — Editable */}
+          <div className="rounded-lg border p-4 space-y-3">
+            <h3 className="text-sm font-semibold">Relationship Manager</h3>
+            <EditableSection
+              sectionId="rm"
+              title="RM"
+              customer={customer}
+              onSave={handleSave}
+              isSaving={patchCustomer.isPending}
+            >
+              <p className="text-sm font-medium">{customer.relationshipManager || 'Not assigned'}</p>
+            </EditableSection>
           </div>
         </div>
       </div>
+
+      {/* Relationship Graph (replaces flat list) */}
+      {customer.relationships.length > 0 && (
+        <RelationshipGraph
+          data={graphData}
+          centralCustomerId={customer.id}
+          centralCustomerName={customer.fullName}
+          isLoading={graphLoading}
+        />
+      )}
+
+      {/* Fallback: flat relationship list if no graph data */}
+      {customer.relationships.length > 0 && !graphData && !graphLoading && (
+        <FormSection title="Relationships" collapsible defaultOpen={false}>
+          <div className="space-y-2">
+            {customer.relationships.map((rel, i) => (
+              <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
+                <div>
+                  <p className="text-sm font-medium">{rel.relatedCustomerDisplayName}</p>
+                  <p className="text-xs text-muted-foreground">{rel.relationshipType}</p>
+                </div>
+                {rel.ownershipPercentage != null && (
+                  <span className="text-sm font-mono font-medium">{rel.ownershipPercentage}%</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </FormSection>
+      )}
 
       {/* Identifications */}
       {customer.identifications.length > 0 && (
@@ -102,15 +218,15 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
             {customer.identifications.map((id) => (
               <div key={id.id} className="flex items-center justify-between py-2 border-b last:border-0">
                 <div>
-                  <p className="text-sm font-medium">{id.identificationType}</p>
+                  <p className="text-sm font-medium">{id.idType}</p>
                   <p className="text-xs text-muted-foreground font-mono">
-                    {id.identificationNumber.length > 6
-                      ? `${id.identificationNumber.slice(0, 3)}****${id.identificationNumber.slice(-3)}`
-                      : id.identificationNumber}
+                    {id.idNumber.length > 6
+                      ? `${id.idNumber.slice(0, 3)}****${id.idNumber.slice(-3)}`
+                      : id.idNumber}
                   </p>
                 </div>
                 <div className="text-right">
-                  <StatusBadge status={id.verificationStatus ?? 'PENDING'} size="sm" />
+                  <StatusBadge status={id.isVerified ? 'VERIFIED' : 'PENDING'} size="sm" />
                   {id.expiryDate && <p className="text-[10px] text-muted-foreground mt-0.5">Exp: {formatDate(id.expiryDate)}</p>}
                 </div>
               </div>
@@ -149,25 +265,6 @@ export function CustomerOverviewTab({ customer }: CustomerOverviewTabProps) {
                   {c.isPrimary && <span className="text-[10px] font-bold text-primary">PRIMARY</span>}
                 </div>
                 <StatusBadge status={c.isVerified ? 'VERIFIED' : 'UNVERIFIED'} size="sm" />
-              </div>
-            ))}
-          </div>
-        </FormSection>
-      )}
-
-      {/* Relationships */}
-      {customer.relationships.length > 0 && (
-        <FormSection title="Relationships" collapsible defaultOpen={false}>
-          <div className="space-y-2">
-            {customer.relationships.map((rel, i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-                <div>
-                  <p className="text-sm font-medium">{rel.relatedCustomerName}</p>
-                  <p className="text-xs text-muted-foreground">{rel.relationshipType}</p>
-                </div>
-                {rel.ownershipPercentage != null && (
-                  <span className="text-sm font-mono font-medium">{rel.ownershipPercentage}%</span>
-                )}
               </div>
             ))}
           </div>

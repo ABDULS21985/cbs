@@ -15,6 +15,7 @@ import { AccountDetailPage } from '@/features/accounts/pages/AccountDetailPage';
 import { PortalLayout } from '@/features/portal/layout/PortalLayout';
 import CustomerListPage from '@/features/customers/pages/CustomerListPage';
 import Customer360Page from '@/features/customers/pages/Customer360Page';
+import { CustomerAnalyticsPage as CustomerProfitabilityPage } from '@/features/customers/pages/CustomerAnalyticsPage';
 import OnboardingWizardPage from '@/features/customers/pages/OnboardingWizardPage';
 import KycDashboardPage from '@/features/customers/pages/KycDashboardPage';
 import { KycReviewPage } from '@/features/customers/pages/KycReviewPage';
@@ -287,6 +288,7 @@ export function AppRouter() {
           <Route path="segments" element={<SegmentationPage />} />
           <Route path="segments/:code" element={<SegmentDetailPage />} />
           <Route path=":id" element={<Customer360Page />} />
+          <Route path=":id/analytics" element={<CustomerProfitabilityPage />} />
         </Route>
 
         {/* Accounts */}

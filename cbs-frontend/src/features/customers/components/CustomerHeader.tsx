@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { formatDate } from '@/lib/formatters';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { cn } from '@/lib/utils';
-import { Copy, Check, Phone, Mail, Building2 } from 'lucide-react';
+import { Copy, Check, Phone, Mail, Building2, Camera, MessageSquare } from 'lucide-react';
 import type { Customer } from '../types/customer';
+import { CustomerHealthGauge } from './CustomerHealthGauge';
+import { PhotoUploadDialog } from './PhotoUploadDialog';
+import { useHealthScore } from '../hooks/useCustomerIntelligence';
 
 const RISK_COLORS: Record<string, string> = {
   LOW: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -29,10 +32,13 @@ interface CustomerHeaderProps {
   accountCount?: number;
   loanCount?: number;
   cardCount?: number;
+  onContactCustomer?: () => void;
 }
 
-export function CustomerHeader({ customer, accountCount, loanCount, cardCount }: CustomerHeaderProps) {
+export function CustomerHeader({ customer, accountCount, loanCount, cardCount, onContactCustomer }: CustomerHeaderProps) {
   const [copied, setCopied] = useState(false);
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const { data: healthScore, isLoading: healthLoading } = useHealthScore(customer.id);
 
   const initials = customer.fullName
     .split(' ')
@@ -54,12 +60,29 @@ export function CustomerHeader({ customer, accountCount, loanCount, cardCount }:
   return (
     <div className="rounded-xl border bg-card p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        {/* Avatar */}
-        <div className={cn(
-          'flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl font-bold text-white',
-          TYPE_AVATAR_COLORS[customer.type] ?? TYPE_AVATAR_COLORS.INDIVIDUAL,
-        )}>
-          {initials || '--'}
+        {/* Avatar with photo upload */}
+        <div className="relative group">
+          {customer.profilePhotoUrl ? (
+            <img
+              src={customer.profilePhotoUrl}
+              alt={customer.fullName}
+              className="h-16 w-16 shrink-0 rounded-xl object-cover"
+            />
+          ) : (
+            <div className={cn(
+              'flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl font-bold text-white',
+              TYPE_AVATAR_COLORS[customer.type] ?? TYPE_AVATAR_COLORS.INDIVIDUAL,
+            )}>
+              {initials || '--'}
+            </div>
+          )}
+          <button
+            onClick={() => setShowPhotoUpload(true)}
+            className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            title="Upload photo"
+          >
+            <Camera className="w-5 h-5 text-white" />
+          </button>
         </div>
 
         {/* Main info */}
@@ -116,14 +139,25 @@ export function CustomerHeader({ customer, accountCount, loanCount, cardCount }:
           </div>
         </div>
 
-        {/* Right */}
-        <div className="shrink-0 text-right">
-          <div className="text-xs text-muted-foreground">Customer Since</div>
-          <div className="text-base font-semibold tabular-nums">
-            {customer.customerSince ? formatDate(customer.customerSince) : customer.createdAt ? formatDate(customer.createdAt) : '—'}
+        {/* Right: Actions + Health Gauge + Customer Since */}
+        <div className="shrink-0 flex items-center gap-4">
+          {onContactCustomer && (
+            <button onClick={onContactCustomer}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+              <MessageSquare className="w-4 h-4" /> Contact
+            </button>
+          )}
+          <CustomerHealthGauge healthScore={healthScore} isLoading={healthLoading} size="md" />
+          <div className="text-right">
+            <div className="text-xs text-muted-foreground">Customer Since</div>
+            <div className="text-base font-semibold tabular-nums">
+              {customer.customerSince ? formatDate(customer.customerSince) : customer.createdAt ? formatDate(customer.createdAt) : '—'}
+            </div>
           </div>
         </div>
       </div>
+
+      {showPhotoUpload && <PhotoUploadDialog customerId={customer.id} onClose={() => setShowPhotoUpload(false)} />}
     </div>
   );
 }
