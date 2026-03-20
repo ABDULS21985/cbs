@@ -1,4 +1,5 @@
 import { Search, RotateCcw, Loader2 } from 'lucide-react';
+import { parseISO } from 'date-fns';
 import { FormSection, MoneyInput, DateRangePicker } from '@/components/shared';
 import { cn } from '@/lib/utils';
 import type { TransactionFilters } from '../hooks/useTransactionSearch';
@@ -53,21 +54,46 @@ const selectClass = cn(
   'focus:outline-none focus:ring-2 focus:ring-ring',
 );
 
+export function getTransactionSearchValidationErrors(filters: TransactionFilters) {
+  const dateError =
+    filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo
+      ? 'Start date must be before end date'
+      : '';
+  const amountError =
+    filters.amountFrom > 0 && filters.amountTo > 0 && filters.amountFrom > filters.amountTo
+      ? 'Minimum amount must be less than maximum'
+      : '';
+
+  return {
+    dateError,
+    amountError,
+    hasErrors: Boolean(dateError || amountError),
+  };
+}
+
+function toLocalDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function TransactionSearchForm({ filters, onChange, onSearch, onReset, isLoading }: TransactionSearchFormProps) {
+  const { dateError, amountError, hasErrors } = getTransactionSearchValidationErrors(filters);
   const dateRangeValue = {
-    from: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
-    to: filters.dateTo ? new Date(filters.dateTo) : undefined,
+    from: filters.dateFrom ? parseISO(filters.dateFrom) : undefined,
+    to: filters.dateTo ? parseISO(filters.dateTo) : undefined,
   };
 
   const handleDateRangeChange = (range: { from?: Date; to?: Date }) => {
     onChange({
-      dateFrom: range.from ? range.from.toISOString().split('T')[0] : '',
-      dateTo: range.to ? range.to.toISOString().split('T')[0] : '',
+      dateFrom: range.from ? toLocalDateInputValue(range.from) : '',
+      dateTo: range.to ? toLocalDateInputValue(range.to) : '',
     });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') onSearch();
+    if (e.key === 'Enter' && !hasErrors) onSearch();
   };
 
   return (
@@ -87,7 +113,7 @@ export function TransactionSearchForm({ filters, onChange, onSearch, onReset, is
         </div>
         <button
           onClick={onSearch}
-          disabled={isLoading}
+          disabled={isLoading || hasErrors}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
         >
           {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
@@ -136,6 +162,7 @@ export function TransactionSearchForm({ filters, onChange, onSearch, onReset, is
           <div>
             <label className="block text-sm font-medium mb-1.5">Date Range</label>
             <DateRangePicker value={dateRangeValue} onChange={handleDateRangeChange} />
+            {dateError && <p className="mt-1 text-xs text-red-500">{dateError}</p>}
           </div>
 
           {/* Amount From */}
@@ -145,6 +172,7 @@ export function TransactionSearchForm({ filters, onChange, onSearch, onReset, is
               value={filters.amountFrom}
               onChange={(v) => onChange({ amountFrom: v })}
               placeholder="Min amount"
+              error={amountError}
             />
           </div>
 
@@ -155,6 +183,7 @@ export function TransactionSearchForm({ filters, onChange, onSearch, onReset, is
               value={filters.amountTo}
               onChange={(v) => onChange({ amountTo: v })}
               placeholder="Max amount"
+              error={amountError}
             />
           </div>
 

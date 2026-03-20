@@ -31,7 +31,6 @@ export function TransactionReceipt({ transaction }: TransactionReceiptProps) {
             color: '#111',
           }}
         >
-          {/* Bank logo placeholder */}
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <div
               style={{
@@ -48,10 +47,10 @@ export function TransactionReceipt({ transaction }: TransactionReceiptProps) {
                 marginBottom: '8px',
               }}
             >
-              CB
+              CBS
             </div>
             <div style={{ fontSize: '18px', fontWeight: 'bold', letterSpacing: '0.05em' }}>
-              CENTRAL BANK
+              CBS BANK
             </div>
             <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>
               Transaction Receipt
@@ -137,7 +136,6 @@ export function TransactionReceipt({ transaction }: TransactionReceiptProps) {
 
           <div style={{ borderTop: '1px dashed #d1d5db', marginTop: '16px', marginBottom: '16px' }} />
 
-          {/* Barcode placeholder */}
           <div style={{ textAlign: 'center' }}>
             <div
               style={{

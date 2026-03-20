@@ -10,6 +10,11 @@ interface TransactionResultsTableProps {
   transactions: Transaction[];
   isLoading: boolean;
   onRowClick: (t: Transaction) => void;
+  pageIndex: number;
+  pageSize: number;
+  totalRows: number;
+  onPageChange: (pageIndex: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
 }
 
 function ChannelBadge({ channel }: { channel: string }) {
@@ -29,7 +34,16 @@ function ChannelBadge({ channel }: { channel: string }) {
   );
 }
 
-export function TransactionResultsTable({ transactions, isLoading, onRowClick }: TransactionResultsTableProps) {
+export function TransactionResultsTable({
+  transactions,
+  isLoading,
+  onRowClick,
+  pageIndex,
+  pageSize,
+  totalRows,
+  onPageChange,
+  onPageSizeChange,
+}: TransactionResultsTableProps) {
   const navigate = useNavigate();
 
   const columns = useMemo<ColumnDef<Transaction, any>[]>(
@@ -151,7 +165,14 @@ export function TransactionResultsTable({ transactions, isLoading, onRowClick }:
       enableExport
       exportFilename="transactions"
       emptyMessage="No transactions found"
-      pageSize={20}
+      manualPagination={{
+        pageIndex,
+        pageSize,
+        pageCount: Math.max(Math.ceil(totalRows / pageSize), 1),
+        rowCount: totalRows,
+        onPageChange,
+        onPageSizeChange,
+      }}
     />
   );
 }

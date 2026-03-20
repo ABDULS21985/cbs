@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
-import { format, subDays, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
+import { format, parseISO, subDays, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface DateRange { from?: Date; to?: Date; }
@@ -60,11 +60,11 @@ export function DateRangePicker({ value, onChange, disabled }: DateRangePickerPr
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="text-xs text-muted-foreground">From</label>
-                <input type="date" value={value.from ? format(value.from, 'yyyy-MM-dd') : ''} onChange={(e) => onChange({ ...value, from: e.target.value ? new Date(e.target.value) : undefined })} className="w-full mt-0.5 text-xs rounded border px-2 py-1 bg-background" />
+                <input type="date" value={value.from ? format(value.from, 'yyyy-MM-dd') : ''} onChange={(e) => onChange({ ...value, from: e.target.value ? parseISO(e.target.value) : undefined })} className="w-full mt-0.5 text-xs rounded border px-2 py-1 bg-background" />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground">To</label>
-                <input type="date" value={value.to ? format(value.to, 'yyyy-MM-dd') : ''} onChange={(e) => { onChange({ ...value, to: e.target.value ? new Date(e.target.value) : undefined }); setOpen(false); }} className="w-full mt-0.5 text-xs rounded border px-2 py-1 bg-background" />
+                <input type="date" value={value.to ? format(value.to, 'yyyy-MM-dd') : ''} onChange={(e) => { onChange({ ...value, to: e.target.value ? parseISO(e.target.value) : undefined }); setOpen(false); }} className="w-full mt-0.5 text-xs rounded border px-2 py-1 bg-background" />
               </div>
             </div>
           </div>
