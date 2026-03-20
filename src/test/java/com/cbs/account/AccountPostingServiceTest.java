@@ -1,16 +1,19 @@
 package com.cbs.account;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.CurrencyWallet;
 import com.cbs.account.entity.Product;
 import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.repository.CurrencyWalletRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.account.validation.AccountValidator;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
+import com.cbs.customer.entity.Customer;
 import com.cbs.gl.entity.ChartOfAccounts;
 import com.cbs.gl.entity.JournalEntry;
 import com.cbs.gl.entity.NormalBalance;
@@ -38,6 +41,7 @@ import static org.mockito.Mockito.when;
 class AccountPostingServiceTest {
 
     @Mock private AccountRepository accountRepository;
+    @Mock private CurrencyWalletRepository walletRepository;
     @Mock private TransactionJournalRepository transactionRepository;
     @Mock private AccountValidator accountValidator;
     @Mock private AccountNumberGenerator numberGenerator;
@@ -49,6 +53,7 @@ class AccountPostingServiceTest {
     @InjectMocks private AccountPostingService postingService;
 
     private Account account;
+    private CurrencyWallet wallet;
     private ChartOfAccounts controlGl;
 
     @BeforeEach
@@ -57,11 +62,19 @@ class AccountPostingServiceTest {
                 .id(1L)
                 .accountNumber("1000000001")
                 .currencyCode("NGN")
+                .customer(Customer.builder().id(1L).build())
                 .product(Product.builder().id(1L).code("CA-STD").glAccountCode("2001").build())
                 .bookBalance(new BigDecimal("50000.00"))
                 .availableBalance(new BigDecimal("50000.00"))
                 .lienAmount(BigDecimal.ZERO)
                 .overdraftLimit(BigDecimal.ZERO)
+                .build();
+        wallet = CurrencyWallet.builder()
+                .id(10L)
+                .account(account)
+                .currencyCode("EUR")
+                .bookBalance(new BigDecimal("100.00"))
+                .availableBalance(new BigDecimal("100.00"))
                 .build();
         controlGl = ChartOfAccounts.builder()
                 .glCode("2001")
@@ -70,6 +83,7 @@ class AccountPostingServiceTest {
                 .build();
 
         when(accountRepository.save(any(Account.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(walletRepository.save(any(CurrencyWallet.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(transactionRepository.save(any(TransactionJournal.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(currentActorProvider.getCurrentActor()).thenReturn("tester");
         when(chartOfAccountsRepository.findByGlCode("2001")).thenReturn(java.util.Optional.of(controlGl));
@@ -122,5 +136,23 @@ class AccountPostingServiceTest {
         assertThat(account.getBookBalance()).isEqualByComparingTo(new BigDecimal("42500.00"));
         assertThat(journal.getRunningBalance()).isEqualByComparingTo(new BigDecimal("42500.00"));
         verify(accountValidator).validateDebit(account, new BigDecimal("7500.00"));
+    }
+
+    @Test
+    @DisplayName("Wallet credit updates wallet balance and posts a journal")
+    void postWalletCreditAgainstGl_UpdatesWalletBalance() {
+        AccountPostingService.WalletPostingResult result = postingService.postWalletCreditAgainstGl(
+                wallet,
+                new BigDecimal("25.00"),
+                "Wallet funding",
+                null,
+                "2100",
+                "WALLET",
+                "WALLET:10"
+        );
+
+        assertThat(wallet.getBookBalance()).isEqualByComparingTo(new BigDecimal("125.00"));
+        assertThat(result.balanceAfter()).isEqualByComparingTo(new BigDecimal("125.00"));
+        verify(walletRepository).save(wallet);
     }
 }

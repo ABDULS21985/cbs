@@ -105,6 +105,10 @@ public class CbsProperties {
         private String openingBalanceContraGlCode = "";
         /** Clearing GL for domestic/outbound payments that leave the bank. */
         private String externalClearingGlCode = "";
+        /** Suspense/settlement GL used when manually funding or withdrawing wallet balances. */
+        private String walletSettlementGlCode = "";
+        /** Clearing GL used for cross-border remittance principal settlement. */
+        private String remittanceSettlementGlCode = "";
         /** Control GL for fixed deposit liabilities. */
         private String fixedDepositControlGlCode = "";
         /** Control GL for recurring deposit liabilities. */

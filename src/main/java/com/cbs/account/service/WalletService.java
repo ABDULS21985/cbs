@@ -7,6 +7,7 @@ import com.cbs.account.entity.WalletTransaction;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.CurrencyWalletRepository;
 import com.cbs.account.repository.WalletTransactionRepository;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,8 @@ public class WalletService {
     private final CurrencyWalletRepository walletRepository;
     private final WalletTransactionRepository walletTxnRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+    private final CbsProperties cbsProperties;
 
     // ========================================================================
     // QUERIES
@@ -94,14 +97,19 @@ public class WalletService {
             throw new BusinessException("Wallet is not active", "WALLET_NOT_ACTIVE");
         }
 
-        wallet.credit(request.getAmount());
-        wallet.setUpdatedAt(Instant.now());
-        wallet = walletRepository.save(wallet);
-
         String narration = request.getNarration() != null ? request.getNarration()
                 : "Credit to " + wallet.getCurrencyCode() + " wallet";
+        AccountPostingService.WalletPostingResult posting = accountPostingService.postWalletCreditAgainstGl(
+                wallet,
+                request.getAmount(),
+                narration,
+                null,
+                requiredWalletSettlementGl(),
+                "WALLET",
+                "WALLET:" + wallet.getId()
+        );
 
-        recordTransaction(wallet, "CREDIT", request.getAmount(), narration, null, null);
+        recordTransaction(wallet, "CREDIT", request.getAmount(), narration, posting.postingGroupRef(), null, null);
 
         log.info("Wallet credited: id={}, amount={}, currency={}", wallet.getId(), request.getAmount(), wallet.getCurrencyCode());
         return toResponse(wallet);
@@ -128,14 +136,19 @@ public class WalletService {
                     "INSUFFICIENT_BALANCE");
         }
 
-        wallet.debit(request.getAmount());
-        wallet.setUpdatedAt(Instant.now());
-        wallet = walletRepository.save(wallet);
-
         String narration = request.getNarration() != null ? request.getNarration()
                 : "Debit from " + wallet.getCurrencyCode() + " wallet";
+        AccountPostingService.WalletPostingResult posting = accountPostingService.postWalletDebitAgainstGl(
+                wallet,
+                request.getAmount(),
+                narration,
+                null,
+                requiredWalletSettlementGl(),
+                "WALLET",
+                "WALLET:" + wallet.getId()
+        );
 
-        recordTransaction(wallet, "DEBIT", request.getAmount(), narration, null, null);
+        recordTransaction(wallet, "DEBIT", request.getAmount(), narration, posting.postingGroupRef(), null, null);
 
         log.info("Wallet debited: id={}, amount={}, currency={}", wallet.getId(), request.getAmount(), wallet.getCurrencyCode());
         return toResponse(wallet);
@@ -170,23 +183,28 @@ public class WalletService {
         BigDecimal rate = request.getRate();
         BigDecimal convertedAmount = request.getAmount().multiply(rate).setScale(2, RoundingMode.HALF_UP);
 
-        // Debit source
-        source.debit(request.getAmount());
-        source.setUpdatedAt(Instant.now());
-        walletRepository.save(source);
-
-        // Credit target
-        target.credit(convertedAmount);
-        target.setUpdatedAt(Instant.now());
-        walletRepository.save(target);
-
         String sellNarration = String.format("FX Sell %s %s -> %s @ %s",
                 request.getAmount(), source.getCurrencyCode(), target.getCurrencyCode(), rate);
         String buyNarration = String.format("FX Buy %s %s <- %s @ %s",
                 convertedAmount, target.getCurrencyCode(), source.getCurrencyCode(), rate);
+        AccountPostingService.WalletTransferPosting posting = accountPostingService.postWalletTransfer(
+                source,
+                target,
+                request.getAmount(),
+                convertedAmount,
+                sellNarration,
+                buyNarration,
+                null,
+                rate,
+                BigDecimal.ONE,
+                "WALLET",
+                "WALLET:" + source.getId() + "->" + target.getId()
+        );
 
-        recordTransaction(source, "FX_SELL", request.getAmount(), sellNarration, target, rate);
-        recordTransaction(target, "FX_BUY", convertedAmount, buyNarration, source, rate);
+        recordTransaction(source, "FX_SELL", request.getAmount(), sellNarration,
+                posting.postingGroupRef() + ":SELL", target, rate);
+        recordTransaction(target, "FX_BUY", convertedAmount, buyNarration,
+                posting.postingGroupRef() + ":BUY", source, rate);
 
         log.info("FX conversion: {} {} -> {} {} @ rate={}, account={}",
                 request.getAmount(), source.getCurrencyCode(),
@@ -201,19 +219,30 @@ public class WalletService {
     // ========================================================================
 
     private void recordTransaction(CurrencyWallet wallet, String type, BigDecimal amount,
-                                     String narration, CurrencyWallet contraWallet, BigDecimal fxRate) {
+                                     String narration, String reference, CurrencyWallet contraWallet, BigDecimal fxRate) {
         WalletTransaction txn = WalletTransaction.builder()
                 .wallet(wallet)
                 .transactionType(type)
                 .amount(amount)
                 .balanceAfter(wallet.getBookBalance())
                 .narration(narration)
-                .reference("WTX-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase())
+                .reference(reference != null ? reference : "WTX-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase())
                 .contraWallet(contraWallet)
                 .fxRate(fxRate)
                 .createdAt(Instant.now())
                 .build();
         walletTxnRepository.save(txn);
+    }
+
+    private String requiredWalletSettlementGl() {
+        String glCode = cbsProperties.getLedger().getWalletSettlementGlCode();
+        if (!org.springframework.util.StringUtils.hasText(glCode)) {
+            glCode = cbsProperties.getLedger().getExternalClearingGlCode();
+        }
+        if (!org.springframework.util.StringUtils.hasText(glCode)) {
+            throw new BusinessException("Wallet settlement GL code must be configured", "MISSING_WALLET_SETTLEMENT_GL");
+        }
+        return glCode;
     }
 
     private WalletResponse toResponse(CurrencyWallet w) {

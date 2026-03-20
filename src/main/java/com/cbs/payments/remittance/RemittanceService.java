@@ -1,7 +1,10 @@
 package com.cbs.payments.remittance;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.FxRate;
@@ -31,6 +34,8 @@ public class RemittanceService {
     private final AccountRepository accountRepository;
     private final FxRateRepository fxRateRepository;
     private final PaymentOrchestrationService orchestrationService;
+    private final AccountPostingService accountPostingService;
+    private final CbsProperties cbsProperties;
 
     // ========================================================================
     // CORRIDOR MANAGEMENT
@@ -132,18 +137,32 @@ public class RemittanceService {
         // Quote
         RemittanceQuote quote = getQuote(sourceCountry, destinationCountry, sourceAmount);
 
+        Long seq = txnRepository.getNextRemittanceSequence();
+        String ref = String.format("RMT%012d", seq);
+
         // Debit sender
         Account senderAccount = accountRepository.findById(senderAccountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", senderAccountId));
+        if (senderAccount.getCustomer() == null || !senderCustomerId.equals(senderAccount.getCustomer().getId())) {
+            throw new BusinessException("Sender account does not belong to the stated customer", "SENDER_ACCOUNT_MISMATCH");
+        }
+        if (!corridor.getSourceCurrency().equalsIgnoreCase(senderAccount.getCurrencyCode())) {
+            throw new BusinessException("Sender account currency must match remittance source currency", "ACCOUNT_CURRENCY_MISMATCH");
+        }
         if (senderAccount.getAvailableBalance().compareTo(quote.totalDebit()) < 0) {
             throw new BusinessException("Insufficient balance for remittance", "INSUFFICIENT_BALANCE");
         }
-        senderAccount.debit(quote.totalDebit());
-        accountRepository.save(senderAccount);
-
-        // Route through orchestration
-        Long seq = txnRepository.getNextRemittanceSequence();
-        String ref = String.format("RMT%012d", seq);
+        accountPostingService.postDebitAgainstGl(
+                senderAccount,
+                com.cbs.account.entity.TransactionType.DEBIT,
+                quote.totalDebit(),
+                "Remittance " + ref + " to " + destinationCountry,
+                TransactionChannel.API,
+                ref,
+                remittancePostingLegs(senderAccount, quote),
+                "REMITTANCE",
+                ref
+        );
 
         var routingDecision = orchestrationService.routePayment(ref, sourceCountry, destinationCountry,
                 corridor.getSourceCurrency(), sourceAmount, "REMITTANCE");
@@ -189,6 +208,54 @@ public class RemittanceService {
 
     public Page<RemittanceTransaction> getCustomerRemittances(Long customerId, Pageable pageable) {
         return txnRepository.findBySenderCustomerIdOrderByCreatedAtDesc(customerId, pageable);
+    }
+
+    private List<AccountPostingService.GlPostingLeg> remittancePostingLegs(Account senderAccount, RemittanceQuote quote) {
+        List<AccountPostingService.GlPostingLeg> legs = new java.util.ArrayList<>();
+        legs.add(new AccountPostingService.GlPostingLeg(
+                requiredRemittanceSettlementGl(),
+                AccountPostingService.EntrySide.CREDIT,
+                quote.sourceAmount(),
+                quote.sourceCurrency(),
+                BigDecimal.ONE,
+                "Remittance principal settlement",
+                senderAccount.getId(),
+                senderAccount.getCustomer() != null ? senderAccount.getCustomer().getId() : null,
+                senderAccount.getBranchCode()
+        ));
+        if (quote.totalFee().compareTo(BigDecimal.ZERO) > 0) {
+            legs.add(new AccountPostingService.GlPostingLeg(
+                    requiredFeeIncomeGl(senderAccount),
+                    AccountPostingService.EntrySide.CREDIT,
+                    quote.totalFee(),
+                    quote.sourceCurrency(),
+                    BigDecimal.ONE,
+                    "Remittance fee income",
+                    senderAccount.getId(),
+                    senderAccount.getCustomer() != null ? senderAccount.getCustomer().getId() : null,
+                    senderAccount.getBranchCode()
+            ));
+        }
+        return legs;
+    }
+
+    private String requiredRemittanceSettlementGl() {
+        String glCode = cbsProperties.getLedger().getRemittanceSettlementGlCode();
+        if (!org.springframework.util.StringUtils.hasText(glCode)) {
+            glCode = cbsProperties.getLedger().getExternalClearingGlCode();
+        }
+        if (!org.springframework.util.StringUtils.hasText(glCode)) {
+            throw new BusinessException("Remittance settlement GL code must be configured", "MISSING_REMITTANCE_SETTLEMENT_GL");
+        }
+        return glCode;
+    }
+
+    private String requiredFeeIncomeGl(Account account) {
+        if (account.getProduct() == null || !org.springframework.util.StringUtils.hasText(account.getProduct().getGlFeeIncomeCode())) {
+            throw new BusinessException("Fee income GL must be configured for remittance source account product",
+                    "MISSING_REMITTANCE_FEE_GL");
+        }
+        return account.getProduct().getGlFeeIncomeCode();
     }
 
     public record RemittanceQuote(String corridorCode, String sourceCurrency, String destinationCurrency,

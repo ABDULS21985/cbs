@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, X, Search, Bell, Loader2 } from 'lucide-react';
+import { Plus, X, Search, Bell, Loader2, Calendar, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TemplateTable } from '../components/notifications/TemplateTable';
 import { TemplateEditor } from '../components/notifications/TemplateEditor';
 import { TemplatePreview } from '../components/notifications/TemplatePreview';
+import { TemplateVersionHistory } from '../components/notifications/TemplateVersionHistory';
+import { TemplateTestPanel } from '../components/notifications/TemplateTestPanel';
 import { ChannelConfigPanel } from '../components/notifications/ChannelConfigPanel';
 import { DeliveryDashboard } from '../components/notifications/DeliveryDashboard';
 import { FailureAnalysisTable } from '../components/notifications/FailureAnalysisTable';
 import { ScheduledNotificationsTable } from '../components/notifications/ScheduledNotificationsTable';
+import { ScheduleCreator } from '../components/notifications/ScheduleCreator';
 import {
   getTemplates,
   createTemplate,
@@ -16,7 +20,6 @@ import {
   publishTemplate,
   archiveTemplate,
   previewTemplate,
-  testSendTemplate,
   getChannelConfigs,
   updateChannelConfig,
   testChannelSend,
@@ -69,15 +72,11 @@ export function NotificationManagementPage() {
   const [filterChannel, setFilterChannel] = useState<NotificationChannel | ''>('');
   const [filterSearch, setFilterSearch] = useState('');
 
-  // Preview
+  // Preview / Version History / Test Send panels
   const [previewData, setPreviewData] = useState<TemplatePreviewData | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-
-  // Test Send
-  const [testSendTemplate2, setTestSendTemplate2] = useState<NotificationTemplate | null>(null);
-  const [testRecipient, setTestRecipient] = useState('');
-  const [testSending, setTestSending] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showTestPanel, setShowTestPanel] = useState(false);
 
   // Channels
   const [channelConfigs, setChannelConfigs] = useState<ChannelConfig[]>([]);
@@ -96,6 +95,7 @@ export function NotificationManagementPage() {
   const [schedules, setSchedules] = useState<ScheduledNotification[]>([]);
   const [schedulesLoading, setSchedulesLoading] = useState(false);
   const [schedulesError, setSchedulesError] = useState<string | null>(null);
+  const [showScheduleCreator, setShowScheduleCreator] = useState(false);
 
   // ── Loaders ───────────────────────────────────────────────────────────────
 
@@ -158,15 +158,25 @@ export function NotificationManagementPage() {
   const handleNewTemplate = () => { setSelectedTemplate(undefined); setShowEditor(true); };
   const handleCloseEditor = () => { setShowEditor(false); setSelectedTemplate(undefined); };
 
+  const handleDuplicateTemplate = (tpl: NotificationTemplate) => {
+    setSelectedTemplate(undefined);
+    setShowEditor(true);
+    // Pre-fill with duplicated data (editor will pick up from selectedTemplate being undefined = new)
+    // We trigger the editor open with no template, then the user can paste
+    toast.success(`Template "${tpl.templateName}" ready to duplicate — edit and save as new`);
+  };
+
   const handleSaveTemplate = async (data: Partial<NotificationTemplate>) => {
     if (selectedTemplate) {
       const updated = await updateTemplate(selectedTemplate.id, data);
       setTemplates(prev => prev.map(t => (t.id === updated.id ? updated : t)));
       setSelectedTemplate(updated);
+      toast.success('Template saved');
     } else {
       const created = await createTemplate(data);
       setSelectedTemplate(created);
       setTemplates(prev => [created, ...prev]);
+      toast.success('Template created');
     }
   };
 
@@ -182,12 +192,14 @@ export function NotificationManagementPage() {
       setSelectedTemplate(published);
       setTemplates(prev => [published, ...prev]);
     }
+    toast.success('Template published');
   };
 
   const handleArchiveTemplate = async (id: number | string) => {
     const archived = await archiveTemplate(id);
     setTemplates(prev => prev.map(t => (t.id === archived.id ? archived : t)));
     if (selectedTemplate?.id === Number(id)) setSelectedTemplate(archived);
+    toast.success('Template archived');
   };
 
   const handlePreviewTemplate = async (tpl: NotificationTemplate) => {
@@ -196,21 +208,12 @@ export function NotificationManagementPage() {
     setShowPreview(true);
   };
 
-  const handleTestSendOpen = (tpl: NotificationTemplate) => {
-    setTestSendTemplate2(tpl);
-    setTestRecipient('');
-    setTestResult(null);
-  };
-
-  const handleTestSend = async () => {
-    if (!testSendTemplate2 || !testRecipient) return;
-    setTestSending(true);
-    try {
-      const result = await testSendTemplate(testSendTemplate2.id, testRecipient);
-      setTestResult({ success: result.success, message: result.success ? 'Test sent successfully!' : 'Test failed.' });
-    } catch {
-      setTestResult({ success: false, message: 'Test send failed.' });
-    } finally { setTestSending(false); }
+  const handleRestoreVersion = (bodyTemplate: string) => {
+    // This will be called from VersionHistory when user clicks "Restore"
+    // We need to save the restored body as a new version
+    if (selectedTemplate) {
+      handleSaveTemplate({ ...selectedTemplate, bodyTemplate });
+    }
   };
 
   // ── Channel actions ───────────────────────────────────────────────────────
@@ -218,6 +221,7 @@ export function NotificationManagementPage() {
   const handleUpdateChannel = async (channel: NotificationChannel, data: Partial<ChannelConfig>) => {
     const updated = await updateChannelConfig(channel, data);
     setChannelConfigs(prev => prev.map(c => (c.channel === channel ? updated : c)));
+    toast.success(`${channel} channel ${data.enabled ? 'enabled' : 'disabled'}`);
   };
 
   const handleTestChannel = async (channel: NotificationChannel, recipient: string) => {
@@ -227,6 +231,7 @@ export function NotificationManagementPage() {
   const handleToggleSchedule = async (id: number | string) => {
     const updated = await toggleSchedule(id);
     setSchedules(prev => prev.map(s => (s.id === Number(id) ? updated : s)));
+    toast.success(`Schedule ${updated.status === 'ACTIVE' ? 'resumed' : 'paused'}`);
   };
 
   return (
@@ -235,12 +240,20 @@ export function NotificationManagementPage() {
         title="Notification Management"
         subtitle="Manage notification templates, delivery channels, and scheduled campaigns"
         actions={
-          activeTab === 'templates' ? (
-            <button onClick={handleNewTemplate}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-              <Plus className="w-4 h-4" /> New Template
-            </button>
-          ) : null
+          <div className="flex items-center gap-2">
+            {activeTab === 'templates' && (
+              <button onClick={handleNewTemplate}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                <Plus className="w-4 h-4" /> New Template
+              </button>
+            )}
+            {activeTab === 'schedules' && (
+              <button onClick={() => setShowScheduleCreator(true)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                <Calendar className="w-4 h-4" /> New Schedule
+              </button>
+            )}
+          </div>
         }
       />
 
@@ -261,7 +274,7 @@ export function NotificationManagementPage() {
         {/* Templates Tab */}
         {activeTab === 'templates' && (
           <div className={cn('flex gap-4', showEditor ? 'items-start' : '')}>
-            <div className={cn('flex-1 min-w-0')}>
+            <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-4">
                 <div className="relative flex-1 min-w-48">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
@@ -278,28 +291,42 @@ export function NotificationManagementPage() {
                 {templatesLoading ? (
                   <div className="py-16 text-center"><div className="inline-flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div></div>
                 ) : templatesError ? (
-                  <div className="px-4 py-3 text-sm text-red-700">
-                    Notification templates could not be loaded from the backend: {templatesError}
-                  </div>
+                  <div className="px-4 py-3 text-sm text-red-700">{templatesError}</div>
                 ) : (
-                  <TemplateTable templates={templates} onEdit={handleEditTemplate} onArchive={handleArchiveTemplate}
-                    onPreview={handlePreviewTemplate} onTestSend={handleTestSendOpen} />
+                  <TemplateTable
+                    templates={templates}
+                    onEdit={handleEditTemplate}
+                    onArchive={handleArchiveTemplate}
+                    onPreview={handlePreviewTemplate}
+                    onTestSend={(tpl) => { setSelectedTemplate(tpl); setShowTestPanel(true); }}
+                  />
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-2">{templates.length} template{templates.length !== 1 ? 's' : ''} found</p>
             </div>
 
             {showEditor && (
-              <div className="w-[480px] shrink-0">
+              <div className="w-[520px] shrink-0">
                 <div className="bg-card rounded-lg border border-border p-5 sticky top-4">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <Bell className="w-4 h-4 text-primary" />
                       <h2 className="font-semibold text-sm">{selectedTemplate ? 'Edit Template' : 'New Template'}</h2>
+                      {selectedTemplate && (
+                        <span className="text-xs text-muted-foreground">v{selectedTemplate.version}</span>
+                      )}
                     </div>
-                    <button onClick={handleCloseEditor} className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground"><X className="w-4 h-4" /></button>
+                    <button onClick={handleCloseEditor} className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground">
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <TemplateEditor template={selectedTemplate} onSave={handleSaveTemplate} onPublish={handlePublishTemplate} />
+                  <TemplateEditor
+                    template={selectedTemplate}
+                    onSave={handleSaveTemplate}
+                    onPublish={handlePublishTemplate}
+                    onTestSend={selectedTemplate ? () => setShowTestPanel(true) : undefined}
+                    onVersionHistory={selectedTemplate ? () => setShowVersionHistory(true) : undefined}
+                  />
                 </div>
               </div>
             )}
@@ -311,9 +338,7 @@ export function NotificationManagementPage() {
           channelsLoading ? (
             <div className="py-16 text-center"><div className="inline-flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div></div>
           ) : channelsError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              Notification channels could not be loaded from the backend: {channelsError}
-            </div>
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{channelsError}</div>
           ) : (
             <ChannelConfigPanel configs={channelConfigs} onUpdate={handleUpdateChannel} onTest={handleTestChannel} />
           )
@@ -324,9 +349,7 @@ export function NotificationManagementPage() {
           deliveryLoading ? (
             <div className="py-16 text-center"><div className="inline-flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div></div>
           ) : deliveryError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              Notification delivery metrics could not be loaded from the backend: {deliveryError}
-            </div>
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{deliveryError}</div>
           ) : (
             <div className="space-y-6">
               <DeliveryDashboard stats={deliveryStats} trend={deliveryTrend} byChannel={deliveryByChannel} />
@@ -346,16 +369,20 @@ export function NotificationManagementPage() {
           schedulesLoading ? (
             <div className="py-16 text-center"><div className="inline-flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div></div>
           ) : schedulesError ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              Scheduled notifications could not be loaded from the backend: {schedulesError}
-            </div>
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{schedulesError}</div>
           ) : (
             <div className="bg-card rounded-lg border border-border overflow-hidden">
-              <div className="px-5 py-4 border-b border-border">
-                <h3 className="font-semibold text-sm">Scheduled Notifications</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {schedules.filter(s => s.status === 'ACTIVE').length} active, {schedules.filter(s => s.status === 'PAUSED').length} paused
-                </p>
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-sm">Scheduled Notifications</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {schedules.filter(s => s.status === 'ACTIVE').length} active, {schedules.filter(s => s.status === 'PAUSED').length} paused
+                  </p>
+                </div>
+                <button onClick={() => setShowScheduleCreator(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border font-medium hover:bg-muted transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> New Schedule
+                </button>
               </div>
               <ScheduledNotificationsTable scheduled={schedules} onToggle={handleToggleSchedule} />
             </div>
@@ -366,28 +393,30 @@ export function NotificationManagementPage() {
       {/* Preview Modal */}
       <TemplatePreview preview={previewData} open={showPreview} onClose={() => setShowPreview(false)} />
 
-      {/* Test Send Modal */}
-      {testSendTemplate2 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setTestSendTemplate2(null)} />
-          <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-sm">Test Send: {testSendTemplate2.templateName}</h3>
-              <button onClick={() => setTestSendTemplate2(null)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
-            </div>
-            <p className="text-xs text-muted-foreground">Send a test notification to verify template rendering.</p>
-            <input value={testRecipient} onChange={e => setTestRecipient(e.target.value)}
-              placeholder={testSendTemplate2.channel === 'EMAIL' ? 'test@example.com' : '+234...'}
-              className="w-full px-3 py-2 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-            {testResult && (
-              <p className={cn('text-xs', testResult.success ? 'text-green-600' : 'text-red-600')}>{testResult.message}</p>
-            )}
-            <button onClick={handleTestSend} disabled={!testRecipient || testSending}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors">
-              {testSending ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Send Test
-            </button>
-          </div>
-        </div>
+      {/* Version History Panel */}
+      {showVersionHistory && selectedTemplate && (
+        <TemplateVersionHistory
+          template={selectedTemplate}
+          onClose={() => setShowVersionHistory(false)}
+          onRestore={handleRestoreVersion}
+        />
+      )}
+
+      {/* Test Send Panel */}
+      {showTestPanel && selectedTemplate && (
+        <TemplateTestPanel
+          template={selectedTemplate}
+          onClose={() => setShowTestPanel(false)}
+        />
+      )}
+
+      {/* Schedule Creator */}
+      {showScheduleCreator && (
+        <ScheduleCreator
+          templates={templates}
+          onClose={() => setShowScheduleCreator(false)}
+          onSuccess={loadSchedules}
+        />
       )}
     </>
   );

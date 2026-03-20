@@ -1,10 +1,12 @@
 package com.cbs.account.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.CurrencyWallet;
 import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.repository.CurrencyWalletRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
 import com.cbs.account.validation.AccountValidator;
 import com.cbs.common.audit.CurrentActorProvider;
@@ -24,6 +26,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -40,6 +43,7 @@ public class AccountPostingService {
     private static final DateTimeFormatter TXN_DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     private final AccountRepository accountRepository;
+    private final CurrencyWalletRepository walletRepository;
     private final TransactionJournalRepository transactionRepository;
     private final AccountValidator accountValidator;
     private final AccountNumberGenerator numberGenerator;
@@ -226,6 +230,105 @@ public class AccountPostingService {
     }
 
     @Transactional
+    public WalletPostingResult postWalletDebitAgainstGl(CurrencyWallet wallet, BigDecimal amount,
+                                                        String narration, String externalRef,
+                                                        String contraGlCode, String sourceModule, String sourceRef) {
+        return postSingleWalletMovement(
+                wallet,
+                PostingDirection.DEBIT,
+                amount,
+                narration,
+                externalRef,
+                List.of(new GlPostingLeg(
+                        contraGlCode,
+                        EntrySide.CREDIT,
+                        amount,
+                        wallet.getCurrencyCode(),
+                        BigDecimal.ONE,
+                        narration,
+                        walletAccountId(wallet),
+                        walletCustomerId(wallet),
+                        walletBranchCode(wallet))),
+                sourceModule,
+                sourceRef
+        );
+    }
+
+    @Transactional
+    public WalletPostingResult postWalletCreditAgainstGl(CurrencyWallet wallet, BigDecimal amount,
+                                                         String narration, String externalRef,
+                                                         String contraGlCode, String sourceModule, String sourceRef) {
+        return postSingleWalletMovement(
+                wallet,
+                PostingDirection.CREDIT,
+                amount,
+                narration,
+                externalRef,
+                List.of(new GlPostingLeg(
+                        contraGlCode,
+                        EntrySide.DEBIT,
+                        amount,
+                        wallet.getCurrencyCode(),
+                        BigDecimal.ONE,
+                        narration,
+                        walletAccountId(wallet),
+                        walletCustomerId(wallet),
+                        walletBranchCode(wallet))),
+                sourceModule,
+                sourceRef
+        );
+    }
+
+    @Transactional
+    public WalletTransferPosting postWalletTransfer(CurrencyWallet debitWallet, CurrencyWallet creditWallet,
+                                                    BigDecimal debitAmount, BigDecimal creditAmount,
+                                                    String debitNarration, String creditNarration,
+                                                    String externalRefBase,
+                                                    BigDecimal debitFxRate, BigDecimal creditFxRate,
+                                                    String sourceModule, String sourceRef) {
+        validateAmount(debitAmount);
+        validateAmount(creditAmount);
+        if (debitWallet.getId() != null && debitWallet.getId().equals(creditWallet.getId())) {
+            throw new BusinessException("Cannot transfer to the same wallet", "SAME_WALLET");
+        }
+        if (debitWallet.getAvailableBalance().compareTo(debitAmount) < 0) {
+            throw new BusinessException("Insufficient wallet balance", "INSUFFICIENT_WALLET_BALANCE");
+        }
+
+        String groupRef = generatePostingGroupRef();
+        String resolvedSourceRef = resolveSourceRef(sourceRef, externalRefBase, groupRef);
+
+        debitWallet.debit(debitAmount);
+        debitWallet.setUpdatedAt(Instant.now());
+        creditWallet.credit(creditAmount);
+        creditWallet.setUpdatedAt(Instant.now());
+        walletRepository.save(debitWallet);
+        walletRepository.save(creditWallet);
+
+        List<GeneralLedgerService.JournalLineRequest> journalLines = List.of(
+                walletControlLine(debitWallet, PostingDirection.DEBIT, debitAmount, debitFxRate,
+                        nonBlank(debitNarration, "Wallet transfer out")),
+                walletControlLine(creditWallet, PostingDirection.CREDIT, creditAmount, creditFxRate,
+                        nonBlank(creditNarration, "Wallet transfer in"))
+        );
+        validateBalanced(journalLines);
+
+        JournalEntry journal = generalLedgerService.postJournal(
+                "SYSTEM",
+                nonBlank(debitNarration, "Wallet transfer"),
+                sourceModule,
+                resolvedSourceRef,
+                LocalDate.now(),
+                currentActorProvider.getCurrentActor(),
+                journalLines
+        );
+
+        log.info("Wallet transfer posted: groupRef={}, debitWallet={}, creditWallet={}, debitAmount={}, creditAmount={}",
+                groupRef, debitWallet.getId(), creditWallet.getId(), debitAmount, creditAmount);
+        return new WalletTransferPosting(groupRef, journal, debitWallet.getBookBalance(), creditWallet.getBookBalance());
+    }
+
+    @Transactional
     public ReversalResult reverseTransaction(Long transactionId, String reason) {
         TransactionJournal target = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new BusinessException("Transaction not found: " + transactionId, "TRANSACTION_NOT_FOUND"));
@@ -366,6 +469,48 @@ public class AccountPostingService {
         );
     }
 
+    private WalletPostingResult postSingleWalletMovement(CurrencyWallet wallet, PostingDirection direction,
+                                                         BigDecimal amount, String narration, String externalRef,
+                                                         List<GlPostingLeg> counterpartyLegs,
+                                                         String sourceModule, String sourceRef) {
+        validateAmount(amount);
+        if (direction == PostingDirection.DEBIT && wallet.getAvailableBalance().compareTo(amount) < 0) {
+            throw new BusinessException("Insufficient wallet balance", "INSUFFICIENT_WALLET_BALANCE");
+        }
+
+        if (direction == PostingDirection.DEBIT) {
+            wallet.debit(amount);
+        } else {
+            wallet.credit(amount);
+        }
+        wallet.setUpdatedAt(Instant.now());
+        walletRepository.save(wallet);
+
+        String groupRef = generatePostingGroupRef();
+        String resolvedSourceRef = resolveSourceRef(sourceRef, externalRef, groupRef);
+
+        List<GeneralLedgerService.JournalLineRequest> journalLines = new ArrayList<>();
+        journalLines.add(walletControlLine(wallet, direction, amount, BigDecimal.ONE, nonBlank(narration, "Wallet posting")));
+        for (GlPostingLeg leg : counterpartyLegs) {
+            journalLines.add(toJournalLine(leg));
+        }
+        validateBalanced(journalLines);
+
+        JournalEntry journal = generalLedgerService.postJournal(
+                "SYSTEM",
+                nonBlank(narration, "Wallet posting"),
+                sourceModule,
+                resolvedSourceRef,
+                LocalDate.now(),
+                currentActorProvider.getCurrentActor(),
+                journalLines
+        );
+
+        log.info("Wallet posting posted: groupRef={}, walletId={}, direction={}, amount={}",
+                groupRef, wallet.getId(), direction, amount);
+        return new WalletPostingResult(groupRef, journal, wallet.getBookBalance());
+    }
+
     private GeneralLedgerService.JournalLineRequest accountControlLine(Account account, PostingDirection direction,
                                                                        BigDecimal amount, BigDecimal fxRate,
                                                                        String narration) {
@@ -392,6 +537,35 @@ public class AccountPostingService {
                 resolveBranchCode(account.getBranchCode()),
                 account.getId(),
                 account.getCustomer() != null ? account.getCustomer().getId() : null
+        );
+    }
+
+    private GeneralLedgerService.JournalLineRequest walletControlLine(CurrencyWallet wallet, PostingDirection direction,
+                                                                      BigDecimal amount, BigDecimal fxRate,
+                                                                      String narration) {
+        String glCode = resolveProductGl(wallet.getAccount());
+        ChartOfAccounts controlGl = chartOfAccountsRepository.findByGlCode(glCode)
+                .orElseThrow(() -> new BusinessException("GL code not found: " + glCode, "INVALID_GL_CODE"));
+
+        BigDecimal debitAmount = BigDecimal.ZERO;
+        BigDecimal creditAmount = BigDecimal.ZERO;
+        if (postsToDebit(controlGl.getNormalBalance(), direction == PostingDirection.CREDIT)) {
+            debitAmount = amount;
+        } else {
+            creditAmount = amount;
+        }
+
+        return new GeneralLedgerService.JournalLineRequest(
+                glCode,
+                debitAmount,
+                creditAmount,
+                wallet.getCurrencyCode(),
+                defaultFxRate(fxRate),
+                narration,
+                null,
+                walletBranchCode(wallet),
+                walletAccountId(wallet),
+                walletCustomerId(wallet)
         );
     }
 
@@ -469,6 +643,20 @@ public class AccountPostingService {
                     "MISSING_PRODUCT_GL");
         }
         return account.getProduct().getGlAccountCode();
+    }
+
+    private Long walletAccountId(CurrencyWallet wallet) {
+        return wallet.getAccount() != null ? wallet.getAccount().getId() : null;
+    }
+
+    private Long walletCustomerId(CurrencyWallet wallet) {
+        return wallet.getAccount() != null && wallet.getAccount().getCustomer() != null
+                ? wallet.getAccount().getCustomer().getId()
+                : null;
+    }
+
+    private String walletBranchCode(CurrencyWallet wallet) {
+        return wallet.getAccount() != null ? resolveBranchCode(wallet.getAccount().getBranchCode()) : defaultBranchCode();
     }
 
     private boolean postsToDebit(NormalBalance normalBalance, boolean increase) {
@@ -550,6 +738,13 @@ public class AccountPostingService {
 
     public record TransferPosting(TransactionJournal debitTransaction, TransactionJournal creditTransaction,
                                   JournalEntry journalEntry) {
+    }
+
+    public record WalletPostingResult(String postingGroupRef, JournalEntry journalEntry, BigDecimal balanceAfter) {
+    }
+
+    public record WalletTransferPosting(String postingGroupRef, JournalEntry journalEntry,
+                                        BigDecimal debitBalanceAfter, BigDecimal creditBalanceAfter) {
     }
 
     public record ReversalResult(String reversalGroupRef, List<TransactionJournal> reversalTransactions) {
