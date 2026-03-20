@@ -11,7 +11,7 @@ export interface SecuritizationVehicle {
   numberOfAssets: number;
   weightedAvgCoupon: number;
   weightedAvgMaturity: number;
-  tranches: Map<String, Object[];
+  tranches: Record<string, unknown[]> | null;
   totalIssued: number;
   creditEnhancementPct: number;
   delinquency30dPct: number;

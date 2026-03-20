@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Landmark, HandCoins, ArrowLeftRight, CreditCard,
   TrendingUp, ShieldAlert, Scale, Settings2, BarChart3, Shield,
-  FileText, MessageSquare, Headphones, Activity,
+  FileText, MessageSquare, Headphones, Activity, Building2,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -128,9 +128,23 @@ export const navigationItems: NavSection[] = [
         ],
       },
       {
+        label: 'Capital Markets', icon: Building2, path: '/capital-markets', roles: ['CBS_ADMIN', 'TREASURY'],
+        children: [
+          { label: 'Deal Pipeline', path: '/capital-markets' },
+          { label: 'Trade Ops', path: '/capital-markets/trade-ops' },
+          { label: 'Settlement', path: '/capital-markets/settlement' },
+          { label: 'Custody', path: '/capital-markets/custody' },
+          { label: 'Positions', path: '/capital-markets/positions' },
+          { label: 'Models', path: '/capital-markets/models' },
+          { label: 'Quotes', path: '/capital-markets/quotes' },
+          { label: 'Valuation', path: '/capital-markets/valuation' },
+        ],
+      },
+      {
         label: 'ALM', icon: Activity, path: '/alm', roles: ['CBS_ADMIN', 'TREASURY', 'RISK_OFFICER'],
         children: [
           { label: 'Dashboard', path: '/alm' },
+          { label: 'Stress Testing', path: '/alm/stress-testing' },
           { label: 'ALCO Report', path: '/alm/alco-report' },
           { label: 'Regulatory', path: '/alm/regulatory' },
         ],

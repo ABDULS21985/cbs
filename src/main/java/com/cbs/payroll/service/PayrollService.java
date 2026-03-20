@@ -1,9 +1,15 @@
 package com.cbs.payroll.service;
 
+import com.cbs.account.dto.PostTransactionRequest;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
+import com.cbs.account.service.AccountService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payroll.entity.*;
 import com.cbs.payroll.repository.*;
+import com.cbs.payments.entity.PaymentInstruction;
+import com.cbs.payments.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,6 +24,8 @@ public class PayrollService {
 
     private final PayrollBatchRepository batchRepository;
     private final PayrollItemRepository itemRepository;
+    private final PaymentService paymentService;
+    private final AccountService accountService;
 
     @Transactional
     public PayrollBatch createBatch(PayrollBatch batch, List<PayrollItem> items) {
@@ -83,19 +91,42 @@ public class PayrollService {
         batch.setStatus("PROCESSING");
         List<PayrollItem> items = itemRepository.findByBatchIdOrderByEmployeeNameAsc(batch.getId());
         int failed = 0;
+        String sourceAccountNumber = null;
 
         for (PayrollItem item : items) {
             try {
-                // TODO: inject PaymentService / AccountService and call:
-                //   1. debit batch.getSourceAccountId() by item.getNetAmount()
-                //   2. credit item.getCreditAccountNumber() by item.getNetAmount()
-                //   3. post a journal entry for the tax deduction
-                // Only mark PAID after the posting succeeds; on exception, mark FAILED.
-                // Example (when PaymentService is wired):
-                //   paymentService.postPayrollEntry(batch.getSourceAccountId(),
-                //       item.getCreditAccountNumber(), item.getNetAmount(), batch.getCurrencyCode());
+                String paymentNarration = item.getNarration() != null && !item.getNarration().isBlank()
+                        ? item.getNarration()
+                        : "Payroll payment for " + item.getEmployeeName() + " (" + batch.getBatchId() + ")";
+
+                PaymentInstruction payment = paymentService.initiateDomesticPayment(
+                        batch.getDebitAccountId(),
+                        item.getCreditAccountNumber(),
+                        item.getEmployeeName(),
+                        item.getCreditBankCode(),
+                        item.getNetAmount(),
+                        batch.getCurrency(),
+                        paymentNarration,
+                        true
+                );
+
+                if (item.getTaxAmount() != null && item.getTaxAmount().signum() > 0) {
+                    if (sourceAccountNumber == null) {
+                        sourceAccountNumber = accountService.getAccountById(batch.getDebitAccountId()).getAccountNumber();
+                    }
+                    accountService.postDebit(PostTransactionRequest.builder()
+                            .accountNumber(sourceAccountNumber)
+                            .transactionType(TransactionType.DEBIT)
+                            .amount(item.getTaxAmount())
+                            .narration("Payroll tax deduction for " + item.getEmployeeName() + " (" + batch.getBatchId() + ")")
+                            .channel(TransactionChannel.SYSTEM)
+                            .externalRef(payment.getInstructionRef() + "-TAX")
+                            .build());
+                }
+
                 item.setStatus("PAID");
-                item.setPaymentReference("PMT-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+                item.setFailureReason(null);
+                item.setPaymentReference(payment.getInstructionRef());
             } catch (Exception e) {
                 item.setStatus("FAILED");
                 item.setFailureReason(e.getMessage());

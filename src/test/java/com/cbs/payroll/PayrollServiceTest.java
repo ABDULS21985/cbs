@@ -1,9 +1,12 @@
 package com.cbs.payroll;
 
+import com.cbs.account.service.AccountService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.payroll.entity.*;
 import com.cbs.payroll.repository.*;
 import com.cbs.payroll.service.PayrollService;
+import com.cbs.payments.entity.PaymentInstruction;
+import com.cbs.payments.service.PaymentService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +27,8 @@ class PayrollServiceTest {
 
     @Mock private PayrollBatchRepository batchRepository;
     @Mock private PayrollItemRepository itemRepository;
+    @Mock private PaymentService paymentService;
+    @Mock private AccountService accountService;
     @InjectMocks private PayrollService payrollService;
 
     @Test @DisplayName("Batch must be VALIDATED before approval")
@@ -37,12 +42,33 @@ class PayrollServiceTest {
 
     @Test @DisplayName("Approved batch processes all items to PAID")
     void processAllItems() {
-        PayrollBatch batch = PayrollBatch.builder().id(1L).batchId("PAY-PROC").status("APPROVED").build();
+        PayrollBatch batch = PayrollBatch.builder()
+                .id(1L)
+                .batchId("PAY-PROC")
+                .debitAccountId(100L)
+                .currency("NGN")
+                .status("APPROVED")
+                .build();
         when(batchRepository.findByBatchId("PAY-PROC")).thenReturn(Optional.of(batch));
 
-        PayrollItem item1 = PayrollItem.builder().id(1L).batchId(1L).employeeName("Alice").netAmount(new BigDecimal("5000")).build();
-        PayrollItem item2 = PayrollItem.builder().id(2L).batchId(1L).employeeName("Bob").netAmount(new BigDecimal("6000")).build();
+        PayrollItem item1 = PayrollItem.builder()
+                .id(1L)
+                .batchId(1L)
+                .employeeName("Alice")
+                .creditAccountNumber("1001")
+                .netAmount(new BigDecimal("5000"))
+                .build();
+        PayrollItem item2 = PayrollItem.builder()
+                .id(2L)
+                .batchId(1L)
+                .employeeName("Bob")
+                .creditAccountNumber("1002")
+                .netAmount(new BigDecimal("6000"))
+                .build();
         when(itemRepository.findByBatchIdOrderByEmployeeNameAsc(1L)).thenReturn(List.of(item1, item2));
+        when(paymentService.initiateDomesticPayment(anyLong(), anyString(), anyString(), nullable(String.class),
+                any(BigDecimal.class), anyString(), anyString(), eq(true)))
+                .thenReturn(PaymentInstruction.builder().instructionRef("PAY000000000001").build());
         when(itemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(batchRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 

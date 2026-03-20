@@ -390,3 +390,157 @@ export function useExpireStaleQuotes() {
     },
   });
 }
+
+// ─── Fixed Income Hooks ──────────────────────────────────────────────────────
+
+import { fixedIncomeApi } from '@/features/treasury/api/fixedIncomeApi';
+import type { SecurityHolding as FISecurityHolding } from '@/features/treasury/types/fixedIncome';
+
+const FI_KEYS = {
+  holdings: ['fixed-income', 'holdings'] as const,
+  holding: (id: number) => ['fixed-income', 'holding', id] as const,
+  portfolio: (code: string) => ['fixed-income', 'portfolio', code] as const,
+  batchAccrual: ['fixed-income', 'batch', 'accrual'] as const,
+  batchMtm: ['fixed-income', 'batch', 'mtm'] as const,
+  batchMaturity: ['fixed-income', 'batch', 'maturity'] as const,
+  batchCoupons: ['fixed-income', 'batch', 'coupons'] as const,
+};
+
+export function useFixedIncomeHolding(id: number) {
+  return useQuery({
+    queryKey: FI_KEYS.holding(id),
+    queryFn: () => fixedIncomeApi.getHolding(id),
+    enabled: id > 0,
+    staleTime: 30_000,
+  });
+}
+
+export function useFixedIncomePortfolio(code: string) {
+  return useQuery({
+    queryKey: FI_KEYS.portfolio(code),
+    queryFn: () => fixedIncomeApi.getPortfolio(code),
+    enabled: !!code,
+    staleTime: 30_000,
+  });
+}
+
+export function useAddFixedIncomeHolding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<FISecurityHolding>) => fixedIncomeApi.addHolding(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: FI_KEYS.holdings });
+    },
+  });
+}
+
+export function useRunBatchAccrual() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => fixedIncomeApi.batchAccrual(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: FI_KEYS.holdings });
+    },
+  });
+}
+
+export function useRunBatchMtm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => fixedIncomeApi.batchMtm({}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: FI_KEYS.holdings });
+    },
+  });
+}
+
+export function useRunBatchMaturity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => fixedIncomeApi.batchMaturity(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: FI_KEYS.holdings });
+    },
+  });
+}
+
+export function useRunBatchCoupons() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => fixedIncomeApi.batchCoupons(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: FI_KEYS.holdings });
+    },
+  });
+}
+
+// ─── Valuation Hooks ────────────────────────────────────────────────────────
+
+import { valuationApi } from '../api/valuationApi';
+import type { ValuationModel, ValuationRun } from '../api/valuationApi';
+
+const VAL_KEYS = {
+  models: ['valuation', 'models'] as const,
+  runs: ['valuation', 'runs'] as const,
+  runSummary: (ref: string) => ['valuation', 'run', ref] as const,
+  exceptions: (ref: string) => ['valuation', 'exceptions', ref] as const,
+};
+
+export function useValuationModels() {
+  return useQuery({
+    queryKey: VAL_KEYS.models,
+    queryFn: () => valuationApi.getModels(),
+    staleTime: 60_000,
+  });
+}
+
+export function useValuationRuns() {
+  return useQuery({
+    queryKey: VAL_KEYS.runs,
+    queryFn: () => valuationApi.getRuns(),
+    staleTime: 30_000,
+  });
+}
+
+export function useValuationRunSummary(ref: string) {
+  return useQuery({
+    queryKey: VAL_KEYS.runSummary(ref),
+    queryFn: () => valuationApi.getRunSummary(ref),
+    enabled: !!ref,
+    staleTime: 30_000,
+  });
+}
+
+export function useValuationExceptions(ref: string) {
+  return useQuery({
+    queryKey: VAL_KEYS.exceptions(ref),
+    queryFn: () => valuationApi.getExceptions(ref),
+    enabled: !!ref,
+    staleTime: 30_000,
+  });
+}
+
+export function useDefineValuationModel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<ValuationModel>) => valuationApi.defineModel(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: VAL_KEYS.models }); },
+  });
+}
+
+export function useRunValuation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ modelId, date, runType }: { modelId: number; date: string; runType: string }) =>
+      valuationApi.runValuation(modelId, date, runType),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: VAL_KEYS.runs }); },
+  });
+}
+
+export function useCompleteValuationRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ref: string) => valuationApi.completeRun(ref),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: VAL_KEYS.runs }); },
+  });
+}

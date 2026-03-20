@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPatch } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
-import type { Card, CardTransaction, Merchant, PosTerminal } from '../types/card';
+import type { Card, CardTransaction, Merchant, PosTerminal, CardControls } from '../types/card';
 import { handleApiError } from '@/lib/errorHandler';
+import { cardApi } from '../api/cardApi';
 
 export function useCards(filters?: Record<string, unknown>) {
   return useQuery({
@@ -36,7 +37,7 @@ export function useMerchants(filters?: Record<string, unknown>) {
 export function usePosTerminals() {
   return useQuery({
     queryKey: ['pos-terminals'],
-    queryFn: () => apiGet<PosTerminal[]>('/api/v1/atm-terminals').catch(() => []),
+    queryFn: () => cardApi.getTerminals(),
   });
 }
 

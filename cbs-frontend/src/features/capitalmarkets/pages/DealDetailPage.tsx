@@ -1,397 +1,64 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatCard, StatusBadge, DataTable, EmptyState, AuditTimeline } from '@/components/shared';
-import { formatMoney, formatDate } from '@/lib/formatters';
+import { StatCard, EmptyState } from '@/components/shared';
+import { formatMoney } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import {
-  Users,
-  DollarSign,
-  TrendingUp,
-  BarChart3,
-  Plus,
-  CheckCircle2,
-  ChevronRight,
-  X,
+  Users, DollarSign, TrendingUp, BarChart3, Plus, CheckCircle2,
+  ArrowRight, Ban,
 } from 'lucide-react';
-import type { ColumnDef } from '@tanstack/react-table';
 import {
   useCapitalMarketsDeal,
   useInvestorBook,
-  useAddInvestor,
-  usePriceDeal,
   useAllotDeal,
   useSettleDeal,
 } from '../hooks/useCapitalMarkets';
-import type {
-  CapitalMarketsDeal,
-  Investor,
-  InvestorInput,
-  PricingInput,
-  DealStatus,
-} from '../api/capitalMarketsApi';
+import type { DealStatus } from '../api/capitalMarketsApi';
+import { DealHeader } from '../components/deal/DealHeader';
+import { DealStageProgress } from '../components/deal/DealStageProgress';
+import { InvestorBookTable } from '../components/deal/InvestorBookTable';
+import { InvestorBidForm } from '../components/deal/InvestorBidForm';
+import { PricingWorkflow } from '../components/deal/PricingWorkflow';
+import { AllotmentWorkflow } from '../components/deal/AllotmentWorkflow';
+import { SettlementPanel } from '../components/deal/SettlementPanel';
+import { DealTimeline } from '../components/deal/DealTimeline';
+import { PublicOfferingPanel } from '../components/deal/PublicOfferingPanel';
+import { DealAnalyticsTab } from '../components/deal/DealAnalyticsTab';
 
-// ─── Deal Status Timeline ─────────────────────────────────────────────────────
+type TabKey = 'investors' | 'pricing' | 'offering' | 'timeline' | 'analytics';
 
-const ALL_STAGES: DealStatus[] = [
-  'ORIGINATION',
-  'STRUCTURING',
-  'MARKETING',
-  'PRICING',
-  'ALLOTMENT',
-  'SETTLED',
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'investors', label: 'Investor Book' },
+  { key: 'pricing', label: 'Pricing & Allotment' },
+  { key: 'offering', label: 'Public Offering' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'analytics', label: 'Analytics' },
 ];
-
-function StatusTimeline({ status }: { status: DealStatus }) {
-  const currentIdx = ALL_STAGES.indexOf(status);
-
-  return (
-    <div className="flex items-center gap-1 flex-wrap">
-      {ALL_STAGES.map((stage, i) => {
-        const done = i < currentIdx;
-        const active = i === currentIdx;
-        return (
-          <div key={stage} className="flex items-center gap-1">
-            <span
-              className={`px-2 py-0.5 rounded text-xs font-medium ${
-                active
-                  ? 'bg-primary text-primary-foreground'
-                  : done
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                  : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              {stage}
-            </span>
-            {i < ALL_STAGES.length - 1 && (
-              <ChevronRight className="w-3 h-3 text-muted-foreground/50" />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── Add Investor Form ────────────────────────────────────────────────────────
-
-function AddInvestorForm({
-  dealId,
-  onClose,
-}: {
-  dealId: number;
-  onClose: () => void;
-}) {
-  const addInvestor = useAddInvestor(dealId);
-  const [form, setForm] = useState<InvestorInput>({ name: '', bidAmount: 0, bidPrice: undefined });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    addInvestor.mutate(form, { onSuccess: onClose });
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-        <h2 className="text-lg font-semibold mb-4">Add Investor</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Investor Name</label>
-            <input
-              className="w-full mt-1 input"
-              placeholder="Investor name"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Bid Amount</label>
-            <input
-              type="number"
-              className="w-full mt-1 input"
-              placeholder="0"
-              value={form.bidAmount || ''}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, bidAmount: parseFloat(e.target.value) || 0 }))
-              }
-              required
-              min={0}
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">
-              Bid Price <span className="text-muted-foreground/60">(optional)</span>
-            </label>
-            <input
-              type="number"
-              className="w-full mt-1 input"
-              placeholder="0.00"
-              value={form.bidPrice ?? ''}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  bidPrice: e.target.value ? parseFloat(e.target.value) : undefined,
-                }))
-              }
-              step="0.01"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" disabled={addInvestor.isPending} className="btn-primary">
-              {addInvestor.isPending ? 'Adding...' : 'Add Investor'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ─── Pricing Form ─────────────────────────────────────────────────────────────
-
-function PricingForm({ deal, onClose }: { deal: CapitalMarketsDeal; onClose: () => void }) {
-  const priceDeal = usePriceDeal();
-  const [form, setForm] = useState<PricingInput>({
-    finalPrice: 0,
-    yieldRate: 0,
-    allotmentDate: '',
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    priceDeal.mutate({ code: deal.code, input: form }, { onSuccess: onClose });
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-        <h2 className="text-lg font-semibold mb-4">Execute Pricing</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Final Price</label>
-            <input
-              type="number"
-              className="w-full mt-1 input"
-              placeholder="0.00"
-              value={form.finalPrice || ''}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, finalPrice: parseFloat(e.target.value) || 0 }))
-              }
-              required
-              step="0.01"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Yield Rate (%)</label>
-            <input
-              type="number"
-              className="w-full mt-1 input"
-              placeholder="0.00"
-              value={form.yieldRate || ''}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, yieldRate: parseFloat(e.target.value) || 0 }))
-              }
-              required
-              step="0.01"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Allotment Date</label>
-            <input
-              type="date"
-              className="w-full mt-1 input"
-              value={form.allotmentDate}
-              onChange={(e) => setForm((f) => ({ ...f, allotmentDate: e.target.value }))}
-              required
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" disabled={priceDeal.isPending} className="btn-primary">
-              {priceDeal.isPending ? 'Pricing...' : 'Execute Pricing'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ─── Investor Book Table ──────────────────────────────────────────────────────
-
-const investorColumns: ColumnDef<Investor, any>[] = [
-  {
-    accessorKey: 'name',
-    header: 'Investor',
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
-  },
-  {
-    accessorKey: 'bidAmount',
-    header: 'Bid Amount',
-    cell: ({ row }) => (
-      <span className="font-mono text-sm">{formatMoney(row.original.bidAmount)}</span>
-    ),
-  },
-  {
-    accessorKey: 'bidPrice',
-    header: 'Bid Price',
-    cell: ({ row }) => (
-      <span className="font-mono text-sm">
-        {row.original.bidPrice != null ? row.original.bidPrice.toFixed(4) : '—'}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'allocatedAmount',
-    header: 'Allocated',
-    cell: ({ row }) => (
-      <span className="font-mono text-sm">
-        {row.original.allocatedAmount != null
-          ? formatMoney(row.original.allocatedAmount)
-          : '—'}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'allocationStatus',
-    header: 'Status',
-    cell: ({ row }) => (
-      <StatusBadge status={row.original.allocationStatus ?? 'PENDING'} dot />
-    ),
-  },
-  {
-    accessorKey: 'createdAt',
-    header: 'Added',
-    cell: ({ row }) => formatDate(row.original.createdAt),
-  },
-];
-
-// ─── Deal Summary Card ────────────────────────────────────────────────────────
-
-function DealSummaryCard({ deal }: { deal: CapitalMarketsDeal }) {
-  return (
-    <div className="card p-6 space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">Deal Code</p>
-          <p className="font-mono font-semibold text-lg">{deal.code}</p>
-        </div>
-        <div className="flex gap-2">
-          <span
-            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-              deal.type === 'ECM'
-                ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-            }`}
-          >
-            {deal.type}
-          </span>
-          <StatusBadge status={deal.status} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div>
-          <p className="text-muted-foreground">Issuer</p>
-          <p className="font-medium">{deal.issuer}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">Target Amount</p>
-          <p className="font-mono font-medium">
-            {formatMoney(deal.targetAmount, deal.currency)}
-          </p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">Currency</p>
-          <p className="font-medium">{deal.currency}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">Tenor</p>
-          <p className="font-medium">{deal.tenor}</p>
-        </div>
-        {deal.finalPrice != null && (
-          <div>
-            <p className="text-muted-foreground">Final Price</p>
-            <p className="font-mono font-medium">{deal.finalPrice.toFixed(4)}</p>
-          </div>
-        )}
-        {deal.yieldRate != null && (
-          <div>
-            <p className="text-muted-foreground">Yield Rate</p>
-            <p className="font-mono font-medium">{deal.yieldRate.toFixed(2)}%</p>
-          </div>
-        )}
-        {deal.coverageRatio != null && (
-          <div>
-            <p className="text-muted-foreground">Coverage Ratio</p>
-            <p className="font-mono font-medium">{deal.coverageRatio.toFixed(2)}x</p>
-          </div>
-        )}
-        {deal.allotmentDate && (
-          <div>
-            <p className="text-muted-foreground">Allotment Date</p>
-            <p className="font-medium">{formatDate(deal.allotmentDate)}</p>
-          </div>
-        )}
-      </div>
-
-      <div>
-        <p className="text-sm text-muted-foreground mb-2">Deal Progress</p>
-        <StatusTimeline status={deal.status} />
-      </div>
-    </div>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function DealDetailPage() {
-  const { code = '' } = useParams<{ code: string }>();
-  const [showAddInvestor, setShowAddInvestor] = useState(false);
-  const [showPricing, setShowPricing] = useState(false);
-
+  const { id: code = '' } = useParams<{ id: string }>();
   const { data: deal, isLoading: dealLoading } = useCapitalMarketsDeal(code);
-  const { data: investors = [], isLoading: investorsLoading } = useInvestorBook(
-    deal?.id ?? 0,
-  );
+  const { data: investors = [], isLoading: investorsLoading } = useInvestorBook(deal?.id ?? 0);
   const allotDeal = useAllotDeal();
   const settleDeal = useSettleDeal();
 
-  const timelineEvents = deal
-    ? [
-        { id: '1', action: 'Deal Created', performedBy: deal.leadManager ?? 'System', performedAt: deal.createdAt },
-        ...(deal.finalPrice != null
-          ? [{ id: '2', action: 'Pricing Executed', performedBy: 'Banker', performedAt: deal.updatedAt }]
-          : []),
-        ...(deal.status === 'SETTLED'
-          ? [{ id: '3', action: 'Deal Settled', performedBy: 'Operations', performedAt: deal.settlementDate ?? deal.updatedAt }]
-          : []),
-      ]
-    : [];
+  const [activeTab, setActiveTab] = useState<TabKey>('investors');
+  const [showAddInvestor, setShowAddInvestor] = useState(false);
 
   if (dealLoading) {
     return (
       <>
         <PageHeader title="Deal Detail" backTo="/capital-markets" />
-        <div className="page-container">
-          <div className="h-48 bg-muted animate-pulse rounded-xl" />
+        <div className="page-container space-y-4">
+          <div className="h-24 bg-muted animate-pulse rounded-xl" />
+          <div className="h-16 bg-muted animate-pulse rounded-xl" />
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-20 bg-muted animate-pulse rounded-xl" />
+            ))}
+          </div>
         </div>
       </>
     );
@@ -408,151 +75,163 @@ export function DealDetailPage() {
     );
   }
 
+  const totalBids = investors.reduce((s, i) => s + i.bidAmount, 0);
+  const coverageRatio = deal.targetAmount > 0 ? totalBids / deal.targetAmount : (deal.coverageRatio ?? 0);
+  const coverageColor = coverageRatio >= 2 ? 'text-green-700' : coverageRatio >= 1 ? 'text-amber-700' : 'text-red-700';
+
+  // Contextual action buttons based on stage
+  const actionButtons = (
+    <div className="flex items-center gap-2 flex-wrap">
+      {deal.status === 'MARKETING' && (
+        <button onClick={() => setShowAddInvestor(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+          <Plus className="w-4 h-4" /> Add Investor
+        </button>
+      )}
+      {deal.status === 'PRICING' && (
+        <button onClick={() => setActiveTab('pricing')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+          <BarChart3 className="w-4 h-4" /> Execute Pricing
+        </button>
+      )}
+      {deal.status === 'ALLOTMENT' && (
+        <>
+          <button
+            onClick={() => allotDeal.mutate(deal.code, { onSuccess: () => toast.success('Allotment executed') })}
+            disabled={allotDeal.isPending}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+          >
+            <CheckCircle2 className="w-4 h-4" /> {allotDeal.isPending ? 'Allotting...' : 'Execute Allotment'}
+          </button>
+          <button
+            onClick={() => settleDeal.mutate(deal.code, { onSuccess: () => toast.success('Deal settled') })}
+            disabled={settleDeal.isPending}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted"
+          >
+            {settleDeal.isPending ? 'Settling...' : 'Settle Deal'}
+          </button>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <>
       {showAddInvestor && deal && (
-        <AddInvestorForm dealId={deal.id} onClose={() => setShowAddInvestor(false)} />
-      )}
-      {showPricing && deal && (
-        <PricingForm deal={deal} onClose={() => setShowPricing(false)} />
+        <InvestorBidForm dealId={deal.id} currency={deal.currency} onClose={() => setShowAddInvestor(false)} />
       )}
 
-      <PageHeader
-        title={`Deal: ${deal.code}`}
-        subtitle={`${deal.issuer} · ${deal.type} · ${deal.currency}`}
-        backTo="/capital-markets"
-        actions={
-          <div className="flex items-center gap-2">
-            {deal.status === 'MARKETING' && (
-              <button
-                onClick={() => setShowAddInvestor(true)}
-                className="flex items-center gap-1.5 btn-secondary text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                Add Investor
-              </button>
-            )}
-            {deal.status === 'PRICING' && (
-              <button
-                onClick={() => setShowPricing(true)}
-                className="flex items-center gap-1.5 btn-primary text-sm"
-              >
-                <BarChart3 className="w-4 h-4" />
-                Execute Pricing
-              </button>
-            )}
-            {deal.status === 'ALLOTMENT' && (
-              <button
-                onClick={() => allotDeal.mutate(deal.code)}
-                disabled={allotDeal.isPending}
-                className="flex items-center gap-1.5 btn-primary text-sm"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                {allotDeal.isPending ? 'Allotting...' : 'Execute Allotment'}
-              </button>
-            )}
-            {(deal.status === 'ALLOTMENT' || deal.status === 'PRICING') && (
-              <button
-                onClick={() => settleDeal.mutate(deal.code)}
-                disabled={settleDeal.isPending}
-                className="flex items-center gap-1.5 btn-secondary text-sm"
-              >
-                {settleDeal.isPending ? 'Settling...' : 'Settle'}
-              </button>
-            )}
+      <PageHeader title={`Deal: ${deal.code}`} subtitle={deal.issuer} backTo="/capital-markets" />
+
+      <div className="page-container space-y-4">
+        {/* Deal Header */}
+        <DealHeader deal={deal} actions={actionButtons} />
+
+        {/* Stage Progress Bar */}
+        <DealStageProgress status={deal.status} />
+
+        {/* Stat Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="stat-card">
+            <div className="stat-label">Target</div>
+            <div className="stat-value text-sm font-mono">{formatMoney(deal.targetAmount, deal.currency)}</div>
           </div>
-        }
-      />
-
-      <div className="page-container space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Target Amount"
-            value={deal.targetAmount}
-            format="money"
-            currency={deal.currency}
-            compact
-            icon={DollarSign}
-          />
-          <StatCard
-            label="Total Bids"
-            value={deal.totalBids ?? investors.length}
-            format="number"
-            icon={Users}
-          />
-          <StatCard
-            label="Coverage Ratio"
-            value={deal.coverageRatio ?? 0}
-            format="number"
-            icon={BarChart3}
-          />
-          <StatCard
-            label="Fees Earned"
-            value={deal.feesEarned ?? 0}
-            format="money"
-            compact
-            icon={TrendingUp}
-          />
+          <div className="stat-card">
+            <div className="stat-label">Total Bids</div>
+            <div className="stat-value text-sm font-mono">{formatMoney(totalBids, deal.currency)}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Cover Ratio</div>
+            <div className={cn('stat-value text-sm font-mono', coverageColor)}>{coverageRatio.toFixed(2)}x</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Final Price</div>
+            <div className="stat-value text-sm font-mono">{deal.finalPrice != null ? deal.finalPrice.toFixed(2) : '—'}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Yield Rate</div>
+            <div className="stat-value text-sm font-mono">{deal.yieldRate != null ? `${deal.yieldRate.toFixed(2)}%` : '—'}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Fees Earned</div>
+            <div className="stat-value text-sm font-mono text-green-700">{formatMoney(deal.feesEarned ?? 0, deal.currency)}</div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <DealSummaryCard deal={deal} />
+        {/* Tabs */}
+        <div className="border-b border-border">
+          <nav className="-mb-px flex gap-4 overflow-x-auto">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  'py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+                  activeTab === tab.key
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-            <div className="card overflow-hidden">
-              <div className="px-6 py-4 border-b flex items-center justify-between">
-                <h3 className="font-semibold">Investor Book</h3>
-                <span className="text-sm text-muted-foreground">{investors.length} investors</span>
-              </div>
-              <div className="p-4">
-                <DataTable
-                  columns={investorColumns}
-                  data={investors}
-                  isLoading={investorsLoading}
-                  enableGlobalFilter
-                  emptyMessage="No investors in book yet"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            {deal.finalPrice != null && (
-              <div className="card p-6">
-                <h3 className="font-semibold mb-4">Pricing Summary</h3>
-                <dl className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Final Price</dt>
-                    <dd className="font-mono font-medium">{deal.finalPrice.toFixed(4)}</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Yield Rate</dt>
-                    <dd className="font-mono font-medium">{deal.yieldRate?.toFixed(2)}%</dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Coverage</dt>
-                    <dd className="font-mono font-medium">{deal.coverageRatio?.toFixed(2)}x</dd>
-                  </div>
-                  {deal.allotmentDate && (
-                    <div className="flex justify-between">
-                      <dt className="text-muted-foreground">Allotment Date</dt>
-                      <dd className="font-medium">{formatDate(deal.allotmentDate)}</dd>
-                    </div>
-                  )}
-                </dl>
-              </div>
-            )}
-
-            <div className="card p-6">
-              <h3 className="font-semibold mb-4">Transaction Timeline</h3>
-              {timelineEvents.length > 0 ? (
-                <AuditTimeline events={timelineEvents} />
-              ) : (
-                <p className="text-sm text-muted-foreground">No timeline events yet.</p>
+        {/* Tab Content */}
+        {activeTab === 'investors' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">{investors.length} Investors</h3>
+              {deal.status === 'MARKETING' && (
+                <button onClick={() => setShowAddInvestor(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted">
+                  <Plus className="w-4 h-4" /> Add Investor
+                </button>
               )}
             </div>
+            <InvestorBookTable
+              investors={investors}
+              isLoading={investorsLoading}
+              targetAmount={deal.targetAmount}
+              currency={deal.currency}
+            />
           </div>
-        </div>
+        )}
+
+        {activeTab === 'pricing' && (
+          <div className="space-y-6">
+            {/* Pricing */}
+            <div className="rounded-xl border bg-card p-5">
+              <h3 className="font-semibold mb-4">Pricing</h3>
+              <PricingWorkflow deal={deal} investors={investors} />
+            </div>
+
+            {/* Allotment */}
+            <div className="rounded-xl border bg-card p-5">
+              <h3 className="font-semibold mb-4">Allotment</h3>
+              <AllotmentWorkflow deal={deal} investors={investors} />
+            </div>
+
+            {/* Settlement */}
+            <div className="rounded-xl border bg-card p-5">
+              <h3 className="font-semibold mb-4">Settlement</h3>
+              <SettlementPanel deal={deal} investors={investors} />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'offering' && (
+          <PublicOfferingPanel dealId={deal.id} currency={deal.currency} />
+        )}
+
+        {activeTab === 'timeline' && (
+          <div className="rounded-xl border bg-card p-5">
+            <h3 className="font-semibold mb-4">Deal Timeline</h3>
+            <DealTimeline deal={deal} investors={investors} />
+          </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <DealAnalyticsTab deal={deal} investors={investors} />
+        )}
       </div>
     </>
   );

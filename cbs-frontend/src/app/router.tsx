@@ -152,8 +152,21 @@ import {
   MarketMakingPage,
   CapitalMarketsDashboardPage,
   CapitalMarketsDealDetailPage,
+  CmTradeOpsPage,
+  CmSettlementPage,
+  CmCustodyPage,
+  SecuritiesPositionPage,
+  QuantModelPage,
+  CmSuitabilityPage,
+  SecuritizationPage,
+  ProgramTradingPage,
+  EconomicCapitalPage,
+  QuoteManagementPage,
+  ValuationPage,
   InvestmentPortfolioPage,
+  PortfolioDetailPage,
   FundManagementPage,
+  FundDetailPage,
   AdvisoryDashboardPage,
   CorporateFinancePage,
   ProjectFinancePage,
@@ -162,6 +175,7 @@ import {
   AlmDashboardPage,
   DurationAnalyticsPage,
   LiquidityGapPage,
+  StressTestingPage,
   AlcoReportPage,
   RegulatorySubmissionPage,
   CustodySettlementPage,
@@ -320,13 +334,26 @@ export function AppRouter() {
         {/* Capital Markets */}
         <Route path="/capital-markets" element={<Outlet />}>
           <Route index element={<CapitalMarketsDashboardPage />} />
+          <Route path="trade-ops" element={<CmTradeOpsPage />} />
+          <Route path="settlement" element={<CmSettlementPage />} />
+          <Route path="custody" element={<CmCustodyPage />} />
+          <Route path="positions" element={<SecuritiesPositionPage />} />
+          <Route path="models" element={<QuantModelPage />} />
+          <Route path="suitability" element={<CmSuitabilityPage />} />
+          <Route path="securitization" element={<SecuritizationPage />} />
+          <Route path="program-trading" element={<ProgramTradingPage />} />
+          <Route path="economic-capital" element={<EconomicCapitalPage />} />
+          <Route path="quotes" element={<QuoteManagementPage />} />
+          <Route path="valuation" element={<ValuationPage />} />
           <Route path=":id" element={<CapitalMarketsDealDetailPage />} />
         </Route>
 
         {/* Investments */}
         <Route path="/investments" element={<Outlet />}>
           <Route index element={<InvestmentPortfolioPage />} />
+          <Route path="portfolios/:code" element={<PortfolioDetailPage />} />
           <Route path="funds" element={<FundManagementPage />} />
+          <Route path="funds/:code" element={<FundDetailPage />} />
         </Route>
 
         {/* Advisory */}
@@ -345,6 +372,7 @@ export function AppRouter() {
         {/* ALM */}
         <Route path="/alm" element={<Outlet />}>
           <Route index element={<AlmDashboardPage />} />
+          <Route path="stress-testing" element={<StressTestingPage />} />
           <Route path="liquidity" element={<LiquidityGapPage />} />
           <Route path="alco-report" element={<AlcoReportPage />} />
           <Route path="regulatory" element={<RegulatorySubmissionPage />} />

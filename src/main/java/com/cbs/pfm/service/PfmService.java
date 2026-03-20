@@ -1,5 +1,6 @@
 package com.cbs.pfm.service;
 
+import com.cbs.account.repository.TransactionJournalRepository;
 import com.cbs.common.guard.SyntheticCapabilityGuard;
 import com.cbs.pfm.entity.*;
 import com.cbs.pfm.repository.*;
@@ -13,6 +14,7 @@ public class PfmService {
     private final PfmBudgetRepository budgetRepository;
     private final PfmFinancialHealthRepository healthRepository;
     private final PfmSpendingCategoryRepository categoryRepository;
+    private final TransactionJournalRepository transactionJournalRepository;
 
     @Transactional
     public PfmSnapshot generateSnapshot(Long customerId, String snapshotType) {
@@ -21,19 +23,33 @@ public class PfmService {
                 "Connect this flow to real customer transaction aggregates, or enable synthetic services only in isolated environments."
         );
 
-        // TODO: aggregate real CREDIT (income) and DEBIT (expense) transactions for the customer
-        // over the snapshot period from a transaction/journal repository when available.
-        BigDecimal income = BigDecimal.ZERO;
-        BigDecimal expenses = BigDecimal.ZERO;
+        LocalDate snapshotDate = LocalDate.now();
+        String resolvedSnapshotType = snapshotType == null ? "MONTHLY" : snapshotType.trim().toUpperCase(Locale.ROOT);
+        LocalDate fromDate = resolveSnapshotStartDate(snapshotDate, resolvedSnapshotType);
+        Object[] aggregates = transactionJournalRepository.aggregatePostedCreditsAndDebitsByCustomer(customerId, fromDate, snapshotDate);
+        BigDecimal income = toBigDecimal(aggregates != null && aggregates.length > 0 ? aggregates[0] : null);
+        BigDecimal expenses = toBigDecimal(aggregates != null && aggregates.length > 1 ? aggregates[1] : null);
         BigDecimal savings = income.subtract(expenses);
         BigDecimal savingsRate = income.signum() != 0 ? savings.divide(income, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")) : BigDecimal.ZERO;
         int healthScore = Math.min(100, Math.max(0, (int)(savingsRate.doubleValue() * 2 + 30)));
-        // TODO: populate expense breakdown from real transaction category aggregates
-        Map<String, Object> breakdown = null;
+        Map<String, BigDecimal> categorizedExpenses = new HashMap<>();
+        for (Object[] row : transactionJournalRepository.aggregatePostedDebitCategoriesByCustomer(customerId, fromDate, snapshotDate)) {
+            if (row == null || row.length < 2 || row[0] == null) {
+                continue;
+            }
+            categorizedExpenses.put(row[0].toString(), toBigDecimal(row[1]));
+        }
+        Map<String, Object> breakdown = new LinkedHashMap<>();
+        for (PfmSpendingCategory category : categoryRepository.findByIsSystemTrueOrderByCategoryNameAsc()) {
+            BigDecimal amount = categorizedExpenses.getOrDefault(category.getCategoryCode(), BigDecimal.ZERO);
+            if (amount.signum() > 0) {
+                breakdown.put(category.getCategoryCode().toLowerCase(Locale.ROOT), amount);
+            }
+        }
         Map<String, Object> insights = new LinkedHashMap<>();
         if (savingsRate.doubleValue() < 10) insights.put("warning", "Savings rate below 10% - consider reducing discretionary spending");
         if (savingsRate.doubleValue() > 30) insights.put("positive", "Excellent savings rate - consider investing surplus");
-        PfmSnapshot snapshot = PfmSnapshot.builder().customerId(customerId).snapshotDate(LocalDate.now()).snapshotType(snapshotType)
+        PfmSnapshot snapshot = PfmSnapshot.builder().customerId(customerId).snapshotDate(snapshotDate).snapshotType(resolvedSnapshotType)
                 .totalIncome(income).salaryIncome(income.multiply(new BigDecimal("0.8"))).totalExpenses(expenses)
                 .expenseBreakdown(breakdown).savingsRate(savingsRate).financialHealthScore(healthScore)
                 .healthFactors(Map.of("savings_ratio", savingsRate, "expense_control", healthScore > 60 ? "GOOD" : "NEEDS_ATTENTION"))
@@ -126,5 +142,23 @@ public class PfmService {
 
     public List<PfmSpendingCategory> getCategories() {
         return categoryRepository.findByIsSystemTrueOrderByCategoryNameAsc();
+    }
+
+    private LocalDate resolveSnapshotStartDate(LocalDate snapshotDate, String snapshotType) {
+        return switch (snapshotType) {
+            case "DAILY" -> snapshotDate;
+            case "WEEKLY" -> snapshotDate.minusDays(6);
+            case "QUARTERLY" -> snapshotDate.minusMonths(2).withDayOfMonth(1);
+            case "YEARLY", "ANNUAL" -> snapshotDate.withDayOfYear(1);
+            case "MONTHLY" -> snapshotDate.withDayOfMonth(1);
+            default -> snapshotDate.withDayOfMonth(1);
+        };
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        return value == null ? BigDecimal.ZERO : new BigDecimal(value.toString());
     }
 }

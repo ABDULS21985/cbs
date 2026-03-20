@@ -538,14 +538,66 @@ export const CapitalMarketsDealDetailPage = lazyNamed(
   () => import('@/features/capitalmarkets/pages/DealDetailPage'),
   'DealDetailPage',
 );
+export const CmTradeOpsPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/TradeOpsPage'),
+  'TradeOpsPage',
+);
+export const CmSettlementPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/SettlementPage'),
+  'SettlementPage',
+);
+export const CmCustodyPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/CustodyPage'),
+  'CustodyPage',
+);
+export const SecuritiesPositionPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/SecuritiesPositionPage'),
+  'SecuritiesPositionPage',
+);
+export const QuantModelPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/QuantModelPage'),
+  'QuantModelPage',
+);
+export const CmSuitabilityPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/SuitabilityPage'),
+  'SuitabilityPage',
+);
+export const SecuritizationPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/SecuritizationPage'),
+  'SecuritizationPage',
+);
+export const ProgramTradingPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/ProgramTradingPage'),
+  'ProgramTradingPage',
+);
+export const EconomicCapitalPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/EconomicCapitalPage'),
+  'EconomicCapitalPage',
+);
+export const QuoteManagementPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/QuoteManagementPage'),
+  'QuoteManagementPage',
+);
+export const ValuationPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/ValuationPage'),
+  'ValuationPage',
+);
 
 export const InvestmentPortfolioPage = lazyNamed(
   () => import('@/features/investments/pages/InvestmentPortfolioPage'),
   'InvestmentPortfolioPage',
 );
+export const PortfolioDetailPage = lazyNamed(
+  () => import('@/features/investments/pages/PortfolioDetailPage'),
+  'PortfolioDetailPage',
+);
 export const FundManagementPage = lazyNamed(
   () => import('@/features/investments/pages/FundManagementPage'),
   'FundManagementPage',
+);
+export const FundDetailPage = lazyNamed(
+  () => import('@/features/investments/pages/FundDetailPage'),
+  'FundDetailPage',
 );
 
 export const AdvisoryDashboardPage = lazyNamed(
@@ -581,6 +633,10 @@ export const DurationAnalyticsPage = lazyNamed(
 export const LiquidityGapPage = lazyNamed(
   () => import('@/features/alm/pages/LiquidityGapPage'),
   'LiquidityGapPage',
+);
+export const StressTestingPage = lazyNamed(
+  () => import('@/features/alm/pages/StressTestingPage'),
+  'StressTestingPage',
 );
 export const AlcoReportPage = lazyNamed(
   () => import('@/features/alm/pages/AlcoReportPage'),
