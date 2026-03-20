@@ -136,7 +136,7 @@ export default function LeaseDetailPage() {
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => setInspectTarget(a)} className="flex-1 px-2 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted">Inspect</button>
-                      <button onClick={() => returnMut.mutate(a.assetCode, { onSuccess: () => toast.success('Returned'), onError: () => toast.error('Failed') })}
+                      <button onClick={() => returnMut.mutate({ code: a.assetCode, returnCondition: a.condition }, { onSuccess: () => toast.success('Returned'), onError: () => toast.error('Failed') })}
                         className="flex-1 px-2 py-1.5 rounded-lg border text-xs font-medium text-red-600 hover:bg-red-50">Return</button>
                     </div>
                   </div>

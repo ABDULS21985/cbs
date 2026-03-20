@@ -95,6 +95,8 @@ export interface BranchRanking {
 
 export interface ScheduleRequest {
   staffId: string;
+  staffName?: string;
+  role?: string;
   weekOf: string;
   schedule: Record<string, ShiftType>;
 }
@@ -153,12 +155,12 @@ export const branchOpsApi = {
     return apiGet<StaffSchedule[]>(`/api/v1/branches/${branchId}/schedule`, { weekOf });
   },
 
-  createSchedule: async (branchId: string, data: ScheduleRequest): Promise<void> => {
-    await apiPost<void>(`/api/v1/branches/${branchId}/schedule`, data);
+  createSchedule: async (branchId: string, data: ScheduleRequest): Promise<StaffSchedule[]> => {
+    return apiPost<StaffSchedule[]>(`/api/v1/branches/${branchId}/schedule`, data);
   },
 
-  swapShift: async (branchId: string, data: SwapShiftRequest): Promise<void> => {
-    await apiPost<void>(`/api/v1/branches/${branchId}/schedule/swap`, data);
+  swapShift: async (branchId: string, data: SwapShiftRequest): Promise<StaffSchedule[]> => {
+    return apiPost<StaffSchedule[]>(`/api/v1/branches/${branchId}/schedule/swap`, data);
   },
 
   getFacilities: async (branchId: string): Promise<Facility[]> => {

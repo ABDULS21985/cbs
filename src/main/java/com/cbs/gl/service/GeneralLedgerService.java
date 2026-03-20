@@ -386,10 +386,8 @@ public class GeneralLedgerService {
             coa.setLevelNumber(parent.getLevelNumber() + 1);
             if (parent.getGlCategory() != coa.getGlCategory()) {
                 coa.setGlCategory(parent.getGlCategory());
-                if (coa.getNormalBalance() == null) {
-                    coa.setNormalBalance(parent.getNormalBalance());
-                }
             }
+            coa.setNormalBalance(parent.getNormalBalance());
         } else if (coa.getLevelNumber() == null || coa.getLevelNumber() < 1) {
             coa.setLevelNumber(1);
         }

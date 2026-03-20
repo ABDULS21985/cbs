@@ -4,12 +4,12 @@ import { StatCard, StatusBadge, DataTable, TabsPage } from '@/components/shared'
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Package, AlertTriangle, CheckCircle, Search } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle, Plus } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useLeasedAssetsDueInspection, useInspectLeasedAsset } from '../hooks/useLendingExt';
+import { useLeasedAssetsDueInspection, useInspectLeasedAsset, useRegisterLeasedAsset } from '../hooks/useLendingExt';
 import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '@/lib/api';
 import type { LeasedAsset } from '../types/leasedAsset';
+import { leasedAssetsApi } from '../api/leasedAssetApi';
 
 const CONDITION_COLORS: Record<string, string> = {
   EXCELLENT: 'bg-green-100 text-green-700', GOOD: 'bg-blue-100 text-blue-700',
@@ -20,17 +20,32 @@ const CONDITION_COLORS: Record<string, string> = {
 export function LeasedAssetPage() {
   useEffect(() => { document.title = 'Leased Asset Register | CBS'; }, []);
   const [inspectTarget, setInspectTarget] = useState<LeasedAsset | null>(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
   const [condition, setCondition] = useState('GOOD');
   const [nextDue, setNextDue] = useState('');
+  const [registerForm, setRegisterForm] = useState({
+    leaseContractId: '',
+    assetType: 'VEHICLE',
+    description: '',
+    manufacturer: '',
+    model: '',
+    serialNumber: '',
+    originalCost: '',
+    currentBookValue: '',
+    currentLocation: '',
+    condition: 'GOOD',
+    nextInspectionDue: '',
+  });
 
   const { data: allAssets = [], isLoading } = useQuery({
-    queryKey: ['leased-assets', 'all'],
-    queryFn: () => apiGet<LeasedAsset[]>('/api/v1/leased-assets'),
+    queryKey: ['lending', 'leased-assets', 'all'],
+    queryFn: () => leasedAssetsApi.listAll(),
     staleTime: 30_000,
   });
   const { data: dueAssets = [], isLoading: dueLoading } = useLeasedAssetsDueInspection();
 
   const inspectMutation = useInspectLeasedAsset();
+  const registerMutation = useRegisterLeasedAsset();
 
   const active = allAssets.filter((a) => a.status === 'ACTIVE' || !a.returnedAt);
   const returned = allAssets.filter((a) => a.status === 'RETURNED' || !!a.returnedAt);
@@ -40,6 +55,45 @@ export function LeasedAssetPage() {
     inspectMutation.mutate({ code: inspectTarget.assetCode, data: { condition, nextInspectionDue: nextDue } as any }, {
       onSuccess: () => { toast.success('Inspection recorded'); setInspectTarget(null); },
       onError: () => toast.error('Failed to record inspection'),
+    });
+  };
+
+  const handleRegister = () => {
+    if (!registerForm.description || !registerForm.originalCost) {
+      toast.error('Description and original cost are required');
+      return;
+    }
+    registerMutation.mutate({
+      leaseContractId: registerForm.leaseContractId ? Number(registerForm.leaseContractId) : undefined,
+      assetType: registerForm.assetType,
+      description: registerForm.description,
+      manufacturer: registerForm.manufacturer || undefined,
+      model: registerForm.model || undefined,
+      serialNumber: registerForm.serialNumber || undefined,
+      originalCost: Number(registerForm.originalCost),
+      currentBookValue: registerForm.currentBookValue ? Number(registerForm.currentBookValue) : Number(registerForm.originalCost),
+      currentLocation: registerForm.currentLocation || undefined,
+      condition: registerForm.condition,
+      nextInspectionDue: registerForm.nextInspectionDue || undefined,
+    }, {
+      onSuccess: () => {
+        toast.success('Leased asset registered');
+        setRegisterOpen(false);
+        setRegisterForm({
+          leaseContractId: '',
+          assetType: 'VEHICLE',
+          description: '',
+          manufacturer: '',
+          model: '',
+          serialNumber: '',
+          originalCost: '',
+          currentBookValue: '',
+          currentLocation: '',
+          condition: 'GOOD',
+          nextInspectionDue: '',
+        });
+      },
+      onError: () => toast.error('Failed to register asset'),
     });
   };
 
@@ -74,7 +128,20 @@ export function LeasedAssetPage() {
 
   return (
     <>
-      <PageHeader title="Leased Asset Register" subtitle="Track, inspect, and manage leased assets" />
+      <PageHeader
+        title="Leased Asset Register"
+        subtitle="Track, inspect, and manage leased assets"
+        actions={(
+          <button
+            type="button"
+            onClick={() => setRegisterOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Register Asset
+          </button>
+        )}
+      />
       <div className="page-container space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <StatCard label="Total Assets" value={allAssets.length} format="number" icon={Package} />
@@ -101,6 +168,69 @@ export function LeasedAssetPage() {
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setInspectTarget(null)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
                 <button onClick={handleInspect} disabled={inspectMutation.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">Record</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {registerOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setRegisterOpen(false)} />
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-xl shadow-2xl border w-full max-w-2xl p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-semibold">Register Leased Asset</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Lease Contract ID</label>
+                  <input type="number" value={registerForm.leaseContractId} onChange={(e) => setRegisterForm((prev) => ({ ...prev, leaseContractId: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Asset Type</label>
+                  <input value={registerForm.assetType} onChange={(e) => setRegisterForm((prev) => ({ ...prev, assetType: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground">Description</label>
+                  <input value={registerForm.description} onChange={(e) => setRegisterForm((prev) => ({ ...prev, description: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Manufacturer</label>
+                  <input value={registerForm.manufacturer} onChange={(e) => setRegisterForm((prev) => ({ ...prev, manufacturer: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Model</label>
+                  <input value={registerForm.model} onChange={(e) => setRegisterForm((prev) => ({ ...prev, model: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Serial Number</label>
+                  <input value={registerForm.serialNumber} onChange={(e) => setRegisterForm((prev) => ({ ...prev, serialNumber: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Current Location</label>
+                  <input value={registerForm.currentLocation} onChange={(e) => setRegisterForm((prev) => ({ ...prev, currentLocation: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Original Cost</label>
+                  <input type="number" value={registerForm.originalCost} onChange={(e) => setRegisterForm((prev) => ({ ...prev, originalCost: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Current Book Value</label>
+                  <input type="number" value={registerForm.currentBookValue} onChange={(e) => setRegisterForm((prev) => ({ ...prev, currentBookValue: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Condition</label>
+                  <select value={registerForm.condition} onChange={(e) => setRegisterForm((prev) => ({ ...prev, condition: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
+                    {['EXCELLENT', 'GOOD', 'FAIR', 'POOR', 'DAMAGED'].map((value) => <option key={value}>{value}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Next Inspection Due</label>
+                  <input type="date" value={registerForm.nextInspectionDue} onChange={(e) => setRegisterForm((prev) => ({ ...prev, nextInspectionDue: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setRegisterOpen(false)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+                <button onClick={handleRegister} disabled={registerMutation.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">Register</button>
               </div>
             </div>
           </div>

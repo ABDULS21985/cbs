@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiUpload } from '@/lib/api';
 
 export interface GlAccount {
   id: string;
@@ -83,6 +83,73 @@ export interface CreateJournalRequest {
   lines: { glCode: string; description: string; debit: number; credit: number }[];
 }
 
+interface BackendGlAccount {
+  id: number;
+  glCode: string;
+  glName: string;
+  glCategory: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'INCOME' | 'EXPENSE' | 'CONTINGENT';
+  parentGlCode?: string | null;
+  levelNumber: number;
+  isHeader: boolean;
+  isPostable: boolean;
+  currencyCode?: string | null;
+  normalBalance?: 'DEBIT' | 'CREDIT' | null;
+  isActive: boolean;
+}
+
+const NORMAL_BALANCE_BY_CATEGORY: Record<CreateGlAccountRequest['category'], 'DEBIT' | 'CREDIT'> = {
+  ASSET: 'DEBIT',
+  LIABILITY: 'CREDIT',
+  EQUITY: 'CREDIT',
+  INCOME: 'CREDIT',
+  EXPENSE: 'DEBIT',
+};
+
+function mapGlAccount(account: BackendGlAccount): GlAccount {
+  return {
+    id: String(account.id),
+    code: account.glCode,
+    name: account.glName,
+    type: account.isHeader ? 'HEADER' : 'DETAIL',
+    category: account.glCategory === 'CONTINGENT' ? 'ASSET' : account.glCategory,
+    currency: account.currencyCode ?? 'NGN',
+    status: account.isActive ? 'ACTIVE' : 'INACTIVE',
+    level: account.levelNumber,
+    parentCode: account.parentGlCode ?? undefined,
+  };
+}
+
+function buildTree(accounts: GlAccount[]): GlAccount[] {
+  const byCode = new Map<string, GlAccount>();
+  const roots: GlAccount[] = [];
+
+  for (const account of accounts) {
+    byCode.set(account.code, { ...account, children: [] });
+  }
+
+  for (const account of byCode.values()) {
+    if (account.parentCode && byCode.has(account.parentCode)) {
+      byCode.get(account.parentCode)!.children!.push(account);
+    } else {
+      roots.push(account);
+    }
+  }
+
+  const sortNodes = (nodes: GlAccount[]) => {
+    nodes.sort((left, right) => left.code.localeCompare(right.code));
+    nodes.forEach((node) => {
+      if (node.children?.length) {
+        sortNodes(node.children);
+      } else {
+        delete node.children;
+      }
+    });
+  };
+
+  sortNodes(roots);
+  return roots;
+}
+
 export interface JournalSearchParams {
   glCode?: string;
   dateFrom?: string;
@@ -109,11 +176,28 @@ export interface JournalFilters {
 
 export const glApi = {
   getChartOfAccounts: async (): Promise<GlAccount[]> => {
-    return apiGet<GlAccount[]>('/api/v1/gl/accounts');
+    const accounts = await apiGet<BackendGlAccount[]>('/api/v1/gl/accounts', { size: 2000 });
+    return buildTree(accounts.map(mapGlAccount));
   },
 
   createGlAccount: async (data: CreateGlAccountRequest): Promise<GlAccount> => {
-    return apiPost<GlAccount>('/api/v1/gl/accounts', data);
+    const created = await apiPost<BackendGlAccount>('/api/v1/gl/accounts', {
+      glCode: data.code,
+      glName: data.name,
+      glCategory: data.category,
+      parentGlCode: data.parentCode || null,
+      isHeader: data.type === 'HEADER',
+      isPostable: data.type !== 'HEADER',
+      currencyCode: data.currency,
+      isActive: data.status === 'ACTIVE',
+      normalBalance: NORMAL_BALANCE_BY_CATEGORY[data.category],
+    });
+    return mapGlAccount(created);
+  },
+
+  importChartOfAccounts: async (file: File): Promise<GlAccount[]> => {
+    const imported = await apiUpload<BackendGlAccount[]>('/api/v1/gl/accounts/import', file);
+    return buildTree(imported.map(mapGlAccount));
   },
 
   getGlBalances: async (date: string): Promise<GlBalance[]> => {

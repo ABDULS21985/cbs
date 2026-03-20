@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Loader2, FileText, Check, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, FileText, Check, X, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { branchOpsApi, type StaffSchedule, type ShiftType } from '../../api/branchOpsApi';
@@ -88,6 +88,9 @@ export function StaffScheduleCalendar({ branchId }: StaffScheduleCalendarProps) 
   const [currentMonday, setCurrentMonday] = useState(() => getMondayOf(new Date()));
   const [editCell, setEditCell] = useState<{ staffId: string; date: string } | null>(null);
   const [localOverrides, setLocalOverrides] = useState<Record<string, Record<string, ShiftType>>>({});
+  const [addStaffOpen, setAddStaffOpen] = useState(false);
+  const [newStaff, setNewStaff] = useState({ staffId: '', staffName: '', role: 'TELLER' });
+  const [isAddingStaff, setIsAddingStaff] = useState(false);
   const queryClient = useQueryClient();
 
   const weekOf = currentMonday.toISOString().split('T')[0];
@@ -112,6 +115,7 @@ export function StaffScheduleCalendar({ branchId }: StaffScheduleCalendarProps) 
   };
 
   const handleShiftChange = async (staffId: string, date: string, shift: ShiftType) => {
+    const previous = localOverrides[staffId]?.[date];
     setLocalOverrides((prev) => ({
       ...prev,
       [staffId]: { ...(prev[staffId] ?? {}), [date]: shift },
@@ -124,9 +128,38 @@ export function StaffScheduleCalendar({ branchId }: StaffScheduleCalendarProps) 
       });
       queryClient.invalidateQueries({ queryKey: ['branches', branchId, 'schedule', weekOf] });
     } catch {
+      setLocalOverrides((prev) => ({
+        ...prev,
+        [staffId]: { ...(prev[staffId] ?? {}), [date]: previous ?? schedule.find((entry) => entry.staffId === staffId)?.schedule[date] ?? 'OFF' },
+      }));
       toast.error('Failed to save schedule change');
     }
     setEditCell(null);
+  };
+
+  const handleAddStaff = async () => {
+    if (!newStaff.staffId.trim() || !newStaff.staffName.trim()) {
+      toast.error('Staff ID and name are required');
+      return;
+    }
+    setIsAddingStaff(true);
+    try {
+      await branchOpsApi.createSchedule(branchId, {
+        staffId: newStaff.staffId.trim(),
+        staffName: newStaff.staffName.trim(),
+        role: newStaff.role.trim() || 'TELLER',
+        weekOf,
+        schedule: Object.fromEntries(weekDates.map((date) => [date, 'OFF'])) as Record<string, ShiftType>,
+      });
+      queryClient.invalidateQueries({ queryKey: ['branches', branchId, 'schedule'] });
+      setAddStaffOpen(false);
+      setNewStaff({ staffId: '', staffName: '', role: 'TELLER' });
+      toast.success('Staff member added to branch roster');
+    } catch {
+      toast.error('Failed to add staff member');
+    } finally {
+      setIsAddingStaff(false);
+    }
   };
 
   const prevWeek = () => {
@@ -174,9 +207,14 @@ export function StaffScheduleCalendar({ branchId }: StaffScheduleCalendarProps) 
           </button>
         </div>
         <div className="flex gap-2">
-          <div className="px-3 py-1.5 rounded-lg border text-sm text-muted-foreground">
-            Staff roster is maintained from branch operations master data.
-          </div>
+          <button
+            type="button"
+            onClick={() => setAddStaffOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Staff
+          </button>
           <button
             type="button"
             onClick={handleAttendanceReport}
@@ -215,7 +253,13 @@ export function StaffScheduleCalendar({ branchId }: StaffScheduleCalendarProps) 
             </tr>
           </thead>
           <tbody>
-            {schedule.map((staff, rowIdx) => (
+            {schedule.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  No branch staff roster has been set up for this week yet.
+                </td>
+              </tr>
+            ) : schedule.map((staff, rowIdx) => (
               <tr key={staff.staffId} className={cn('border-t', rowIdx % 2 === 1 && 'bg-muted/20')}>
                 <td className="px-4 py-2.5 border-r">
                   <div className="font-medium text-sm">{staff.staffName}</div>
@@ -270,6 +314,34 @@ export function StaffScheduleCalendar({ branchId }: StaffScheduleCalendarProps) 
           <span className="text-xs text-muted-foreground">Understaffed day (&lt;{MIN_STAFF_PER_DAY})</span>
         </div>
       </div>
+
+      {addStaffOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setAddStaffOpen(false)} />
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-xl shadow-2xl border w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-semibold">Add Branch Staff</h3>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Staff ID</label>
+                <input value={newStaff.staffId} onChange={(e) => setNewStaff((prev) => ({ ...prev, staffId: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Staff Name</label>
+                <input value={newStaff.staffName} onChange={(e) => setNewStaff((prev) => ({ ...prev, staffName: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Role</label>
+                <input value={newStaff.role} onChange={(e) => setNewStaff((prev) => ({ ...prev, role: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+              </div>
+              <p className="text-xs text-muted-foreground">A new staff roster entry is created for the selected week and defaults to `Off` until you assign shifts.</p>
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setAddStaffOpen(false)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+                <button onClick={handleAddStaff} disabled={isAddingStaff} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">Add Staff</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

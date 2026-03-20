@@ -318,16 +318,16 @@ export function useActivateSyndicate() {
 export function useLeasedAssetByContract(contractId: number) {
   return useQuery({
     queryKey: KEYS.leasedAssets.byContract(contractId),
-    queryFn: () => leasedAssetsApi.returnAsset2(contractId),
+    queryFn: () => leasedAssetsApi.getByContract(contractId),
     enabled: !!contractId,
     staleTime: 30_000,
   });
 }
 
-export function useLeasedAssetsDueInspection(params?: Record<string, unknown>) {
+export function useLeasedAssetsDueInspection() {
   return useQuery({
-    queryKey: [...KEYS.leasedAssets.dueInspection, params],
-    queryFn: () => leasedAssetsApi.getDueForInspection(params),
+    queryKey: KEYS.leasedAssets.dueInspection,
+    queryFn: () => leasedAssetsApi.getDueForInspection(),
     staleTime: 60_000,
   });
 }
@@ -335,8 +335,15 @@ export function useLeasedAssetsDueInspection(params?: Record<string, unknown>) {
 export function useInspectLeasedAsset() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, data }: { code: string; data: Partial<LeasedAsset> }) =>
-      leasedAssetsApi.register(code, data),
+    mutationFn: ({ code, data }: { code: string; data: Partial<LeasedAsset> }) => {
+      const payload: { condition: string; nextInspectionDue?: string } = {
+        condition: data.condition ?? 'GOOD',
+      };
+      if (data.nextInspectionDue) {
+        payload.nextInspectionDue = data.nextInspectionDue;
+      }
+      return leasedAssetsApi.inspect(code, payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.leasedAssets.all });
     },
@@ -346,7 +353,8 @@ export function useInspectLeasedAsset() {
 export function useReturnLeasedAsset() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => leasedAssetsApi.returnAsset(code),
+    mutationFn: ({ code, returnCondition }: { code: string; returnCondition?: string }) =>
+      leasedAssetsApi.returnAsset(code, returnCondition),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.leasedAssets.all });
     },

@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
-import { ChevronRight, ChevronDown, Plus, Circle } from 'lucide-react';
+import { type ChangeEvent, useMemo, useRef, useState } from 'react';
+import { ChevronRight, ChevronDown, Plus, Circle, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GlAccount } from '../../api/glApi';
+import { glApi } from '../../api/glApi';
 import { GlAccountForm } from './GlAccountForm';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 interface ChartOfAccountsTreeProps {
   accounts: GlAccount[];
@@ -141,10 +143,12 @@ function TreeNode({ account, expanded, onToggle, visible, onAddChild }: TreeNode
 
 export function ChartOfAccountsTree({ accounts }: ChartOfAccountsTreeProps) {
   const queryClient = useQueryClient();
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(accounts.map((a) => a.code)));
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [selectedParent, setSelectedParent] = useState<GlAccount | undefined>();
+  const [isImporting, setIsImporting] = useState(false);
 
   const visible = useMemo<Set<string> | null>(() => {
     const q = search.trim().toLowerCase();
@@ -179,6 +183,24 @@ export function ChartOfAccountsTree({ accounts }: ChartOfAccountsTreeProps) {
     setFormOpen(true);
   };
 
+  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    setIsImporting(true);
+    try {
+      await glApi.importChartOfAccounts(file);
+      await queryClient.invalidateQueries({ queryKey: ['gl-accounts'] });
+      toast.success('Chart of accounts imported successfully');
+    } catch {
+      toast.error('Failed to import chart of accounts');
+    } finally {
+      setIsImporting(false);
+      event.target.value = '';
+    }
+  };
+
   return (
     <div className="space-y-4 p-6">
       <div className="flex items-center gap-3 flex-wrap">
@@ -201,6 +223,21 @@ export function ChartOfAccountsTree({ accounts }: ChartOfAccountsTreeProps) {
             className="px-3 py-2 text-xs rounded-lg border hover:bg-muted transition-colors"
           >
             Collapse All
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleImport}
+          />
+          <button
+            onClick={() => importInputRef.current?.click()}
+            disabled={isImporting}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            <Upload className="w-4 h-4" />
+            {isImporting ? 'Importing...' : 'Import COA'}
           </button>
           <button
             onClick={handleAddRoot}
