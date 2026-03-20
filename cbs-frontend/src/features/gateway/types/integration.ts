@@ -130,3 +130,44 @@ export interface Psd2TppRegistration {
   updatedAt?: string;
 }
 
+// ── Open Banking Types ──────────────────────────────────────────────────────
+
+export interface ApiClientRegistration {
+  id: number;
+  clientId: string;
+  clientName: string;
+  clientType: 'TPP' | 'AGGREGATOR' | 'PARTNER' | 'INTERNAL';
+  apiKey?: string;
+  oauthClientId?: string;
+  redirectUris: string[];
+  allowedScopes: string[];
+  allowedEndpoints: string[];
+  rateLimitPerSecond: number;
+  rateLimitPerDay: number;
+  dailyRequestCount: number;
+  apiVersion: string;
+  contactName: string;
+  contactEmail: string;
+  isActive: boolean;
+  approvedAt: string;
+  expiresAt: string;
+  lastRequestReset: string;
+  createdAt: string;
+}
+
+export interface OpenBankingConsent {
+  id: number;
+  consentId: string;
+  clientId: string;
+  clientName: string;
+  customerId: number;
+  consentType: 'AISP' | 'PISP' | 'CBPII';
+  permissions: string[];
+  accountIds: number[];
+  status: 'AWAITING_AUTHORISATION' | 'AUTHORISED' | 'REVOKED' | 'EXPIRED';
+  grantedAt?: string;
+  expiresAt: string;
+  revokedAt?: string;
+  createdAt: string;
+}
+

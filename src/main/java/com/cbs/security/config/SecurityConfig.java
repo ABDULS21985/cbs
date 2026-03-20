@@ -67,13 +67,17 @@ public class SecurityConfig {
             throw new IllegalStateException("cbs.security.jwt.accepted-audiences must include at least one audience or client ID");
         }
 
-        NimbusJwtDecoder jwtDecoder = (NimbusJwtDecoder) JwtDecoders.fromIssuerLocation(issuerUri);
+        JwtDecoder jwtDecoder = JwtDecoders.fromIssuerLocation(issuerUri);
         OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer(issuerUri),
                 new AcceptedAudienceValidator(acceptedAudiences)
         );
-        jwtDecoder.setJwtValidator(validator);
-        return jwtDecoder;
+        if (jwtDecoder instanceof NimbusJwtDecoder nimbusJwtDecoder) {
+            nimbusJwtDecoder.setJwtValidator(validator);
+            return nimbusJwtDecoder;
+        }
+
+        throw new IllegalStateException("Unsupported JwtDecoder implementation: " + jwtDecoder.getClass().getName());
     }
 
     @Bean

@@ -1,5 +1,5 @@
 import { apiGet, apiPatch, apiPost } from '@/lib/api';
-import type { DeadLetterQueue, IntegrationMessage, IntegrationRoute, Iso20022CodeSet, Iso20022Message, Psd2ScaSession, Psd2TppRegistration } from '../types/integration';
+import type { DeadLetterQueue, IntegrationMessage, IntegrationRoute, Iso20022CodeSet, Iso20022Message, Psd2ScaSession, Psd2TppRegistration, ApiClientRegistration, OpenBankingConsent } from '../types/integration';
 
 export const integrationApi = {
   /** POST /v1/integration/esb/routes */
@@ -82,4 +82,35 @@ export const integrationApi = {
   getCustomerSessions: (customerId: number) =>
     apiGet<Psd2ScaSession[]>(`/api/v1/integration/psd2/sca/customer/${customerId}`),
 
+  // ── Open Banking API Clients ────────────────────────────────────────────
+
+  /** GET /v1/integration/open-banking/clients */
+  getApiClients: () =>
+    apiGet<ApiClientRegistration[]>('/api/v1/integration/open-banking/clients').catch(() => []),
+
+  /** POST /v1/integration/open-banking/clients */
+  registerApiClient: (data: Partial<ApiClientRegistration>) =>
+    apiPost<ApiClientRegistration>('/api/v1/integration/open-banking/clients', data),
+
+  /** POST /v1/integration/open-banking/clients/{clientId}/deactivate */
+  deactivateApiClient: (clientId: string) =>
+    apiPost<ApiClientRegistration>(`/api/v1/integration/open-banking/clients/${clientId}/deactivate`),
+
+  // ── Open Banking Consents ───────────────────────────────────────────────
+
+  /** GET /v1/integration/open-banking/consents */
+  getConsents: (params?: Record<string, unknown>) =>
+    apiGet<OpenBankingConsent[]>('/api/v1/integration/open-banking/consents', params).catch(() => []),
+
+  /** POST /v1/integration/open-banking/consents */
+  createConsent: (data: Partial<OpenBankingConsent>) =>
+    apiPost<OpenBankingConsent>('/api/v1/integration/open-banking/consents', data),
+
+  /** POST /v1/integration/open-banking/consents/{consentId}/authorise */
+  authoriseConsent: (consentId: string) =>
+    apiPost<OpenBankingConsent>(`/api/v1/integration/open-banking/consents/${consentId}/authorise`),
+
+  /** POST /v1/integration/open-banking/consents/{consentId}/revoke */
+  revokeConsent: (consentId: string) =>
+    apiPost<OpenBankingConsent>(`/api/v1/integration/open-banking/consents/${consentId}/revoke`),
 };

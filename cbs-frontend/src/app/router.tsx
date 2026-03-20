@@ -69,8 +69,11 @@ import {
   FixedIncomePage,
   FraudManagementPage,
   GatewayConsolePage,
+  GatewayDetailPage,
+  MessageDetailPage,
   IntegrationHubPage,
   GeneralLedgerPage,
+  GoalAnalyticsPage,
   GoalDetailPage,
   GoalListPage,
   InternationalTransferPage,
@@ -116,6 +119,7 @@ import {
   QrPaymentPage,
   ReconciliationWorkbenchPage,
   RecurringDepositDetailPage,
+  NewRecurringDepositPage,
   RecurringDepositListPage,
   RegulatoryReturnsPage,
   ReportViewerPage,
@@ -302,8 +306,10 @@ export function AppRouter() {
           <Route path="fixed-deposits/:id" element={<FixedDepositDetailPage />} />
           <Route path="goals" element={<GoalListPage />} />
           <Route path="goals/new" element={<NewGoalPage />} />
+          <Route path="goals/analytics" element={<GoalAnalyticsPage />} />
           <Route path="goals/:id" element={<GoalDetailPage />} />
           <Route path="recurring-deposits" element={<RecurringDepositListPage />} />
+          <Route path="recurring-deposits/new" element={<NewRecurringDepositPage />} />
           <Route path="recurring-deposits/:id" element={<RecurringDepositDetailPage />} />
           <Route path="pfm" element={<PfmDashboardPage />} />
           <Route path=":id" element={<AccountDetailPage />} />
@@ -506,6 +512,9 @@ export function AppRouter() {
           <Route path="branches" element={<BranchOpsPage />} />
           <Route path="approvals" element={<ApprovalQueuePage />} />
           <Route path="gateway" element={<GatewayConsolePage />} />
+          <Route path="gateway/gateways/:id" element={<GatewayDetailPage />} />
+          <Route path="gateway/messages/:ref" element={<MessageDetailPage />} />
+          <Route path="gateway/integration" element={<IntegrationHubPage />} />
           <Route path="ach" element={<AchOperationsPage />} />
           <Route path="documents" element={<DocumentManagementPage />} />
         </Route>

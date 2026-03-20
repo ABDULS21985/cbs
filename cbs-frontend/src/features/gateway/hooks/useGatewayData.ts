@@ -525,3 +525,63 @@ export function useActionRequiredMessages(params?: Record<string, unknown>) {
     staleTime: 30_000,
   });
 }
+
+// ─── Open Banking Hooks ──────────────────────────────────────────────────────
+
+export function useApiClients() {
+  return useQuery({
+    queryKey: ['open-banking', 'clients'],
+    queryFn: () => integrationApi.getApiClients(),
+    staleTime: 30_000,
+  });
+}
+
+export function useRegisterApiClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof integrationApi.registerApiClient>[0]) =>
+      integrationApi.registerApiClient(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['open-banking', 'clients'] }); },
+  });
+}
+
+export function useDeactivateApiClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (clientId: string) => integrationApi.deactivateApiClient(clientId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['open-banking', 'clients'] }); },
+  });
+}
+
+export function useOpenBankingConsents(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['open-banking', 'consents', params],
+    queryFn: () => integrationApi.getConsents(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateConsent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof integrationApi.createConsent>[0]) =>
+      integrationApi.createConsent(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['open-banking', 'consents'] }); },
+  });
+}
+
+export function useAuthoriseConsent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (consentId: string) => integrationApi.authoriseConsent(consentId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['open-banking', 'consents'] }); },
+  });
+}
+
+export function useRevokeConsent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (consentId: string) => integrationApi.revokeConsent(consentId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['open-banking', 'consents'] }); },
+  });
+}

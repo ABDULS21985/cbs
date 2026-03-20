@@ -129,6 +129,14 @@ export const RecurringDepositDetailPage = lazyNamed(
   () => import('@/features/goals/pages/RecurringDepositDetailPage'),
   'RecurringDepositDetailPage',
 );
+export const NewRecurringDepositPage = lazyNamed(
+  () => import('@/features/goals/pages/NewRecurringDepositPage'),
+  'NewRecurringDepositPage',
+);
+export const GoalAnalyticsPage = lazyNamed(
+  () => import('@/features/goals/pages/GoalAnalyticsPage'),
+  'GoalAnalyticsPage',
+);
 
 export const AgreementListPage = lazyNamed(
   () => import('@/features/agreements/pages/AgreementListPage'),

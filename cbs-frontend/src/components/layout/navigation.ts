@@ -45,6 +45,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Fixed Deposits', path: '/accounts/fixed-deposits' },
           { label: 'Recurring Deposits', path: '/accounts/recurring-deposits' },
           { label: 'Savings Goals', path: '/accounts/goals' },
+          { label: 'Goal Analytics', path: '/accounts/goals/analytics' },
           { label: 'Financial Health', path: '/accounts/pfm' },
           { label: 'Virtual Accounts', path: '/accounts/virtual-accounts' },
           { label: 'Cash Pooling', path: '/accounts/cash-pooling' },
@@ -222,6 +223,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Branch Ops', path: '/operations/branches' },
           { label: 'Approvals', path: '/operations/approvals' },
           { label: 'Documents', path: '/operations/documents' },
+          { label: 'Gateway Console', path: '/operations/gateway' },
         ],
       },
       {
