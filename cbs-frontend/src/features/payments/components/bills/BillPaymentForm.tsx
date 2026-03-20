@@ -6,6 +6,7 @@ import { FormSection } from '@/components/shared/FormSection';
 import { MoneyInput } from '@/components/shared/MoneyInput';
 import { formatMoney } from '@/lib/formatters';
 import { billPaymentApi, type Biller, type BillValidationResult, type BillPaymentResponse } from '../../api/billPaymentApi';
+import { useAccounts } from '../../hooks/useTransfer';
 
 interface Props {
   biller: Biller;
@@ -19,6 +20,7 @@ export function BillPaymentForm({ biller, onSuccess, onBack }: Props) {
   const [sourceAccountId, setSourceAccountId] = useState('');
   const [validation, setValidation] = useState<BillValidationResult | null>(null);
   const [saveFavorite, setSaveFavorite] = useState(false);
+  const { data: accounts = [] } = useAccounts();
 
   const validateMutation = useMutation({
     mutationFn: () => billPaymentApi.validateReference(biller.id, fields),
@@ -103,7 +105,12 @@ export function BillPaymentForm({ biller, onSuccess, onBack }: Props) {
           {/* Source account */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Source Account</label>
-            <input value={sourceAccountId} onChange={(e) => setSourceAccountId(e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" placeholder="Account ID" />
+            <select value={sourceAccountId} onChange={(e) => setSourceAccountId(e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm">
+              <option value="">Select account...</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.accountNumber} — {a.accountName} ({a.currency})</option>
+              ))}
+            </select>
           </div>
 
           <label className="flex items-center gap-2 text-sm">

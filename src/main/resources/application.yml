@@ -143,7 +143,7 @@ cbs:
     opening-balance-contra-gl-code: ${CBS_LEDGER_OPENING_BALANCE_GL:}
     external-clearing-gl-code: ${CBS_LEDGER_EXTERNAL_CLEARING_GL:}
     wallet-settlement-gl-code: ${CBS_LEDGER_WALLET_SETTLEMENT_GL:}
-    remittance-settlement-gl-code: ${CBS_LEDGER_REMITTANCE_SETTLEMENT_GL:}
+    remittance-settlement-gl-code: ${CBS_LEDGER_REMITTANCE_SETTLEMENT_GL:${CBS_LEDGER_EXTERNAL_CLEARING_GL:}}
     fixed-deposit-control-gl-code: ${CBS_LEDGER_FIXED_DEPOSIT_GL:}
     recurring-deposit-control-gl-code: ${CBS_LEDGER_RECURRING_DEPOSIT_GL:}
 

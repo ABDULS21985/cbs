@@ -1,4 +1,5 @@
 import { CheckCircle, Printer, Download, Mail, ArrowRight } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatMoney, formatDateTime } from '@/lib/formatters';
 import type { TransferResponse } from '../../api/paymentApi';
 
@@ -9,7 +10,7 @@ interface Props {
 
 export function TransferReceipt({ transfer, onNewTransfer }: Props) {
   return (
-    <div className="max-w-lg mx-auto text-center space-y-6">
+    <div id="receipt-print-area" className="max-w-lg mx-auto text-center space-y-6">
       <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto">
         <CheckCircle className="w-8 h-8 text-green-600" />
       </div>
@@ -39,9 +40,9 @@ export function TransferReceipt({ transfer, onNewTransfer }: Props) {
       </div>
 
       <div className="flex gap-2 justify-center">
-        <button className="inline-flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm hover:bg-muted"><Printer className="w-4 h-4" /> Print</button>
-        <button className="inline-flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm hover:bg-muted"><Download className="w-4 h-4" /> PDF</button>
-        <button className="inline-flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm hover:bg-muted"><Mail className="w-4 h-4" /> Email</button>
+        <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm hover:bg-muted"><Printer className="w-4 h-4" /> Print</button>
+        <button onClick={() => { toast('Use browser Print dialog to save as PDF'); window.print(); }} className="inline-flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm hover:bg-muted"><Download className="w-4 h-4" /> PDF</button>
+        <button onClick={() => { const subject = encodeURIComponent(`Transfer Receipt - ${transfer.transactionRef}`); const body = encodeURIComponent(`Transfer Receipt\n\nReference: ${transfer.transactionRef}\nFrom: ${transfer.fromAccount}\nTo: ${transfer.toAccount} (${transfer.toAccountName})\nAmount: ${formatMoney(transfer.amount, transfer.currency)}\nTotal Debit: ${formatMoney(transfer.totalDebit, transfer.currency)}\nDate: ${formatDateTime(transfer.createdAt)}\nNarration: ${transfer.narration}`); window.location.href = `mailto:?subject=${subject}&body=${body}`; }} className="inline-flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm hover:bg-muted"><Mail className="w-4 h-4" /> Email</button>
       </div>
 
       <button onClick={onNewTransfer} className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90">

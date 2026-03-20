@@ -1,6 +1,6 @@
 import { apiGet, apiPost } from '@/lib/api';
 
-// ─── Interfaces ──────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 export type TppClientType = 'TPP_AISP' | 'TPP_PISP' | 'TPP_BOTH';
 export type TppClientStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
@@ -10,11 +10,14 @@ export interface TppClient {
   id: number;
   name: string;
   clientId: string;
+  clientSecret?: string;
   redirectUri: string;
   scopes: string[];
   clientType: TppClientType;
   status: TppClientStatus;
   registeredAt: string;
+  activeConsents?: number;
+  apiCalls30d?: number;
 }
 
 export interface ApiConsent {
@@ -32,30 +35,39 @@ export interface ApiConsent {
   createdAt: string;
 }
 
-// ─── API Functions ────────────────────────────────────────────────────────────
+export interface RegisterTppPayload {
+  name: string;
+  redirectUri: string;
+  scopes: string[];
+  clientType: TppClientType;
+}
+
+export interface CreateConsentPayload {
+  tppClientId: number;
+  customerId: number;
+  scopes: string[];
+  expiresAt: string;
+}
+
+// ─── API ────────────────────────────────────────────────────────────────────
 
 export const openBankingApi = {
   // TPP Clients
   getTppClients: () =>
     apiGet<TppClient[]>('/api/v1/openbanking/clients'),
 
-  registerTppClient: (payload: {
-    name: string;
-    redirectUri: string;
-    scopes: string[];
-    clientType: TppClientType;
-  }) => apiPost<TppClient>('/api/v1/openbanking/clients', payload),
+  registerTppClient: (payload: RegisterTppPayload) =>
+    apiPost<TppClient>('/api/v1/openbanking/clients', payload),
 
   // Consents
+  getConsents: (params?: Record<string, unknown>) =>
+    apiGet<ApiConsent[]>('/api/v1/openbanking/consents', params),
+
   getCustomerConsents: (customerId: string | number) =>
     apiGet<ApiConsent[]>(`/api/v1/openbanking/consents/customer/${customerId}`),
 
-  createConsent: (payload: {
-    tppClientId: number;
-    customerId: number;
-    scopes: string[];
-    expiresAt: string;
-  }) => apiPost<ApiConsent>('/api/v1/openbanking/consents', payload),
+  createConsent: (payload: CreateConsentPayload) =>
+    apiPost<ApiConsent>('/api/v1/openbanking/consents', payload),
 
   authoriseConsent: (consentId: string | number, customerId: number) =>
     apiPost<ApiConsent>(`/api/v1/openbanking/consents/${consentId}/authorise`, { customerId }),

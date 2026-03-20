@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
@@ -22,6 +22,7 @@ const ddColumns: ColumnDef<DirectDebitMandate, any>[] = [
 ];
 
 export function StandingOrderListPage() {
+  useEffect(() => { document.title = 'Standing Orders | CBS'; }, []);
   const navigate = useNavigate();
   const [tab, setTab] = useState<'standing' | 'direct-debit'>('standing');
   const [showNew, setShowNew] = useState(false);

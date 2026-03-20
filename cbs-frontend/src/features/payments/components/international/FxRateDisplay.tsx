@@ -30,7 +30,7 @@ export function FxRateDisplay({ rate, sendingAmount, onRefresh, isRefreshing }: 
   const receivingAmount = sendingAmount * rate.inverseRate;
 
   return (
-    <div className="p-4 border rounded-md bg-muted/30 space-y-3">
+    <div className="p-4 border rounded-md bg-muted/30 space-y-3" aria-live="polite">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">FX Conversion</h4>
         <div className="flex items-center gap-2">
@@ -42,9 +42,15 @@ export function FxRateDisplay({ rate, sendingAmount, onRefresh, isRefreshing }: 
           </button>
         </div>
       </div>
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">Exchange Rate</span>
-        <span className="font-mono">1 {rate.toCurrency} = {formatMoney(rate.rate, rate.fromCurrency)}</span>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Exchange Rate</span>
+          <span className="font-mono">1 {rate.fromCurrency} = {rate.rate.toFixed(6)} {rate.toCurrency}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Inverse Rate</span>
+          <span className="font-mono">1 {rate.toCurrency} = {rate.inverseRate.toFixed(6)} {rate.fromCurrency}</span>
+        </div>
       </div>
       {sendingAmount > 0 && (
         <div className="flex items-center justify-between text-sm font-semibold">
@@ -52,7 +58,14 @@ export function FxRateDisplay({ rate, sendingAmount, onRefresh, isRefreshing }: 
           <span className="font-mono">{formatMoney(receivingAmount, rate.toCurrency)}</span>
         </div>
       )}
-      <p className="text-[10px] text-muted-foreground">Source: {rate.source}</p>
+      {rate.validUntil && (
+        <p className="text-[10px] text-muted-foreground">
+          Valid until: {new Date(rate.validUntil).toLocaleTimeString()}
+        </p>
+      )}
+      {rate.source && (
+        <p className="text-[10px] text-muted-foreground">Source: {rate.source}</p>
+      )}
     </div>
   );
 }

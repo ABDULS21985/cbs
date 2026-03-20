@@ -34,6 +34,7 @@ import com.cbs.treasury.entity.DealType;
 import com.cbs.treasury.entity.TreasuryDeal;
 import com.cbs.treasury.repository.TreasuryDealRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -71,6 +72,11 @@ public class ReportsService {
     // ========================================================================
     // Helpers
     // ========================================================================
+
+    /** Null-safe list: never returns null */
+    private <T> List<T> safe(List<T> list) {
+        return list != null ? list : List.of();
+    }
 
     private LocalDate defaultFrom(LocalDate from) {
         return from != null ? from : LocalDate.now().minusMonths(12).withDayOfMonth(1);
@@ -119,13 +125,15 @@ public class ReportsService {
     // EXECUTIVE REPORTS
     // ========================================================================
 
+    @Cacheable("reports-executive-kpis")
     public ExecutiveKpis getExecutiveKpis() {
-        List<Account> allAccounts = accountRepository.findAll();
-        List<LoanAccount> allLoans = loanAccountRepository.findAll();
+        List<Account> allAccounts = safe(accountRepository.findAll());
+        List<LoanAccount> allLoans = safe(loanAccountRepository.findAll());
 
         BigDecimal totalDeposits = allAccounts.stream()
                 .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
                 .map(Account::getBookBalance)
+                .filter(Objects::nonNull)
                 .filter(b -> b.compareTo(BigDecimal.ZERO) > 0)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -134,6 +142,7 @@ public class ReportsService {
                 .collect(Collectors.toList());
         BigDecimal totalLoanPortfolio = activeLoans.stream()
                 .map(LoanAccount::getOutstandingPrincipal)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         long totalCustomers = customerRepository.count();
@@ -142,6 +151,7 @@ public class ReportsService {
         BigDecimal nplAmount = activeLoans.stream()
                 .filter(l -> l.getDaysPastDue() != null && l.getDaysPastDue() > 90)
                 .map(LoanAccount::getOutstandingPrincipal)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal nplRatio = pct(nplAmount, totalLoanPortfolio);
 
@@ -160,6 +170,7 @@ public class ReportsService {
                 .build();
     }
 
+    @Cacheable(value = "reports-pnl-summary", key = "#from?.toString() + #to?.toString()")
     public PnlSummary getPnlSummary(LocalDate from, LocalDate to) {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
@@ -197,6 +208,7 @@ public class ReportsService {
         return result;
     }
 
+    @Cacheable("reports-key-ratios")
     public KeyRatios getKeyRatios() {
         BigDecimal totalAssets = getGlCategoryBalance(GlCategory.ASSET);
         BigDecimal totalEquity = getGlCategoryBalance(GlCategory.EQUITY);
@@ -204,23 +216,27 @@ public class ReportsService {
         BigDecimal totalExpense = getGlCategoryBalance(GlCategory.EXPENSE);
         BigDecimal netProfit = totalIncome.subtract(totalExpense);
 
-        List<LoanAccount> activeLoans = loanAccountRepository.findAllActiveLoans();
+        List<LoanAccount> activeLoans = safe(loanAccountRepository.findAllActiveLoans());
         BigDecimal totalLoans = activeLoans.stream()
                 .map(LoanAccount::getOutstandingPrincipal)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal totalDeposits = accountRepository.findAll().stream()
+        BigDecimal totalDeposits = safe(accountRepository.findAll()).stream()
                 .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
                 .map(Account::getBookBalance)
+                .filter(Objects::nonNull)
                 .filter(b -> b.compareTo(BigDecimal.ZERO) > 0)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal interestIncome = activeLoans.stream()
                 .map(LoanAccount::getTotalInterestCharged)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal interestExpense = accountRepository.findAll().stream()
+        BigDecimal interestExpense = safe(accountRepository.findAll()).stream()
                 .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
                 .map(Account::getAccruedInterest)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return KeyRatios.builder()
@@ -453,20 +469,24 @@ public class ReportsService {
     // LOAN REPORTS
     // ========================================================================
 
+    @Cacheable("reports-loan-stats")
     public LoanStats getLoanStats() {
-        List<LoanAccount> allLoans = loanAccountRepository.findAll();
+        List<LoanAccount> allLoans = safe(loanAccountRepository.findAll());
         List<LoanAccount> active = allLoans.stream().filter(LoanAccount::isActive).collect(Collectors.toList());
 
         BigDecimal portfolio = active.stream().map(LoanAccount::getOutstandingPrincipal)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal nplAmount = active.stream()
                 .filter(l -> l.getDaysPastDue() != null && l.getDaysPastDue() > 90)
                 .map(LoanAccount::getOutstandingPrincipal)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalProvisions = active.stream()
                 .map(LoanAccount::getProvisionAmount)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return LoanStats.builder()
@@ -477,9 +497,11 @@ public class ReportsService {
                 .build();
     }
 
+    @Cacheable("reports-loan-product-mix")
     public List<ProductMixEntry> getLoanProductMix() {
-        List<LoanAccount> active = loanAccountRepository.findAllActiveLoans();
+        List<LoanAccount> active = safe(loanAccountRepository.findAllActiveLoans());
         BigDecimal totalPortfolio = active.stream().map(LoanAccount::getOutstandingPrincipal)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Map<String, List<LoanAccount>> byProduct = active.stream()
@@ -502,8 +524,9 @@ public class ReportsService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable("reports-loan-sector-exposure")
     public List<SectorExposureEntry> getLoanSectorExposure() {
-        List<LoanAccount> active = loanAccountRepository.findAllActiveLoans();
+        List<LoanAccount> active = safe(loanAccountRepository.findAllActiveLoans());
         BigDecimal totalPortfolio = active.stream().map(LoanAccount::getOutstandingPrincipal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -527,8 +550,9 @@ public class ReportsService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable("reports-dpd-buckets")
     public List<DpdBucket> getDpdBuckets() {
-        List<LoanAccount> active = loanAccountRepository.findAllActiveLoans();
+        List<LoanAccount> active = safe(loanAccountRepository.findAllActiveLoans());
         BigDecimal totalPortfolio = active.stream().map(LoanAccount::getOutstandingPrincipal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -590,8 +614,9 @@ public class ReportsService {
                 .build();
     }
 
+    @Cacheable("reports-top-obligors")
     public List<TopObligor> getTopObligors() {
-        List<LoanAccount> active = loanAccountRepository.findAllActiveLoans();
+        List<LoanAccount> active = safe(loanAccountRepository.findAllActiveLoans());
         BigDecimal totalPortfolio = active.stream().map(LoanAccount::getOutstandingPrincipal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -650,8 +675,9 @@ public class ReportsService {
     // DEPOSIT REPORTS
     // ========================================================================
 
+    @Cacheable("reports-deposit-stats")
     public DepositStats getDepositStats() {
-        List<Account> accounts = accountRepository.findAll();
+        List<Account> accounts = safe(accountRepository.findAll());
         List<Account> active = accounts.stream()
                 .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
                 .collect(Collectors.toList());
@@ -676,8 +702,9 @@ public class ReportsService {
                 .build();
     }
 
+    @Cacheable("reports-deposit-mix")
     public List<DepositMixEntry> getDepositMix() {
-        List<Object[]> summary = accountRepository.getAccountSummaryByProduct();
+        List<Object[]> summary = safe(accountRepository.getAccountSummaryByProduct());
         BigDecimal total = BigDecimal.ZERO;
         List<DepositMixEntry> entries = new ArrayList<>();
 

@@ -69,6 +69,8 @@ export const standingOrderApi = {
     apiPost<StandingOrder>(`/api/v1/standing-orders/${id}/cancel`, {}),
   getExecutions: (id: number) =>
     apiGet<StandingOrderExecution[]>(`/api/v1/standing-orders/${id}/executions`),
+  retryExecution: (orderId: number, executionId: number) =>
+    apiPost<StandingOrderExecution>(`/api/v1/standing-orders/${orderId}/executions/${executionId}/retry`, {}),
   getDirectDebits: (filters?: Record<string, unknown>) =>
     apiGet<DirectDebitMandate[]>('/api/v1/direct-debits', filters),
   authorizeMandate: (data: Partial<DirectDebitMandate>) =>

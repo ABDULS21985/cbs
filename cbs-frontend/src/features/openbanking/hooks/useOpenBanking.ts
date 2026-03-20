@@ -1,17 +1,39 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { openBankingApi } from '../api/openBankingApi';
+import type { RegisterTppPayload, CreateConsentPayload } from '../api/openBankingApi';
 
 const QK = {
   tppClients: ['openbanking', 'tpp-clients'] as const,
-  customerConsents: (customerId: string | number) =>
-    ['openbanking', 'consents', 'customer', customerId] as const,
+  consents: ['openbanking', 'consents'] as const,
+  consentsList: (params?: Record<string, unknown>) => ['openbanking', 'consents', 'list', params] as const,
+  customerConsents: (customerId: string | number) => ['openbanking', 'consents', 'customer', customerId] as const,
 };
+
+// ─── TPP Client Hooks ───────────────────────────────────────────────────────
 
 export function useTppClients() {
   return useQuery({
     queryKey: QK.tppClients,
     queryFn: () => openBankingApi.getTppClients(),
     staleTime: 60_000,
+  });
+}
+
+export function useRegisterTppClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: RegisterTppPayload) => openBankingApi.registerTppClient(payload),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.tppClients }); },
+  });
+}
+
+// ─── Consent Hooks ──────────────────────────────────────────────────────────
+
+export function useConsents(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: QK.consentsList(params),
+    queryFn: () => openBankingApi.getConsents(params),
+    staleTime: 30_000,
   });
 }
 
@@ -23,35 +45,31 @@ export function useCustomerConsents(customerId: string | number) {
   });
 }
 
-export function useRegisterTppClient() {
-  const queryClient = useQueryClient();
+export function useCreateConsent() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Parameters<typeof openBankingApi.registerTppClient>[0]) =>
-      openBankingApi.registerTppClient(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QK.tppClients });
-    },
+    mutationFn: (payload: CreateConsentPayload) => openBankingApi.createConsent(payload),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.consents }); },
   });
 }
 
-export function useCreateConsent() {
+export function useAuthoriseConsent() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Parameters<typeof openBankingApi.createConsent>[0]) =>
-      openBankingApi.createConsent(payload),
+    mutationFn: ({ consentId, customerId }: { consentId: string | number; customerId: number }) =>
+      openBankingApi.authoriseConsent(consentId, customerId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.consents }); },
   });
 }
 
 export function useRevokeConsent(customerId?: string | number) {
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ consentId, reason }: { consentId: string | number; reason?: string }) =>
       openBankingApi.revokeConsent(consentId, reason),
     onSuccess: () => {
-      if (customerId) {
-        queryClient.invalidateQueries({ queryKey: QK.customerConsents(customerId) });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ['openbanking', 'consents'] });
-      }
+      qc.invalidateQueries({ queryKey: QK.consents });
+      if (customerId) qc.invalidateQueries({ queryKey: QK.customerConsents(customerId) });
     },
   });
 }

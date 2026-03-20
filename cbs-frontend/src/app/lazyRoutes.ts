@@ -899,6 +899,50 @@ export const OpenBankingPage = lazyNamed(
   () => import('@/features/openbanking/pages/OpenBankingPage'),
   'OpenBankingPage',
 );
+export const OBTppDetailPage = lazyNamed(
+  () => import('@/features/openbanking/pages/TppClientDetailPage'),
+  'TppClientDetailPage',
+);
+export const OBConsentMgmtPage = lazyNamed(
+  () => import('@/features/openbanking/pages/ConsentManagementPage'),
+  'ConsentManagementPage',
+);
+export const OBConsentDetailPage = lazyNamed(
+  () => import('@/features/openbanking/pages/ConsentDetailPage'),
+  'ConsentDetailPage',
+);
+export const OBPsd2Page = lazyNamed(
+  () => import('@/features/openbanking/pages/Psd2CompliancePage'),
+  'Psd2CompliancePage',
+);
+export const OBScaPage = lazyNamed(
+  () => import('@/features/openbanking/pages/ScaSessionsPage'),
+  'ScaSessionsPage',
+);
+export const OBMarketplacePage = lazyNamed(
+  () => import('@/features/openbanking/pages/ApiMarketplacePage'),
+  'ApiMarketplacePage',
+);
+export const OBProductDetailPage = lazyNamed(
+  () => import('@/features/openbanking/pages/ApiProductDetailPage'),
+  'ApiProductDetailPage',
+);
+export const OBDeveloperPage = lazyNamed(
+  () => import('@/features/openbanking/pages/DeveloperPortalPage'),
+  'DeveloperPortalPage',
+);
+export const OBMonitoringPage = lazyNamed(
+  () => import('@/features/openbanking/pages/ApiMonitoringPage'),
+  'ApiMonitoringPage',
+);
+export const OBWebhooksPage = lazyNamed(
+  () => import('@/features/openbanking/pages/WebhookManagementPage'),
+  'WebhookManagementPage',
+);
+export const OBAnalyticsPage = lazyNamed(
+  () => import('@/features/openbanking/pages/OpenBankingAnalyticsPage'),
+  'OpenBankingAnalyticsPage',
+);
 
 export const MerchantAcquiringPage = lazyNamed(
   () => import('@/features/acquiring/pages/MerchantAcquiringPage'),

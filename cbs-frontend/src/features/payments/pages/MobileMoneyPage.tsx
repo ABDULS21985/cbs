@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Smartphone, TrendingUp, Receipt } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -7,6 +8,7 @@ import { MobileMoneyTransactions } from '../components/mobilemoney/MobileMoneyTr
 import { qrApi } from '../api/qrApi';
 
 export function MobileMoneyPage() {
+  useEffect(() => { document.title = 'Mobile Money | CBS'; }, []);
   const { data: linkedAccounts = [], isLoading: loadingAccounts } = useQuery({
     queryKey: ['linked-mobile-accounts'],
     queryFn: () => qrApi.getLinkedMobileAccounts(),

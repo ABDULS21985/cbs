@@ -5,6 +5,7 @@ import { FormSection } from '@/components/shared/FormSection';
 import { MoneyInput } from '@/components/shared/MoneyInput';
 import { formatMoney } from '@/lib/formatters';
 import { standingOrderApi } from '../../api/standingOrderApi';
+import { useAccounts } from '../../hooks/useTransfer';
 
 interface Props {
   onSuccess: () => void;
@@ -13,6 +14,7 @@ interface Props {
 
 export function NewStandingOrderForm({ onSuccess, onCancel }: Props) {
   const queryClient = useQueryClient();
+  const { data: accounts = [] } = useAccounts();
   const [form, setForm] = useState({
     sourceAccountId: '', beneficiaryName: '', beneficiaryAccount: '', beneficiaryBankCode: '',
     amount: 0, frequency: 'MONTHLY', dayOfMonth: '1', startDate: '', endDate: '', description: '',
@@ -44,7 +46,12 @@ export function NewStandingOrderForm({ onSuccess, onCancel }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Source Account</label>
-            <input value={form.sourceAccountId} onChange={(e) => update('sourceAccountId', e.target.value)} placeholder="Account ID" className="w-full px-3 py-2 border rounded-md text-sm" required />
+            <select value={form.sourceAccountId} onChange={(e) => update('sourceAccountId', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" required>
+              <option value="">Select account...</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.accountNumber} — {a.accountName} ({a.currency})</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">Beneficiary Name</label>

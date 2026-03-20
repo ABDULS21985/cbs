@@ -1,6 +1,7 @@
+import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Pause, Play, XCircle } from 'lucide-react';
+import { ArrowLeft, Pause, Play, XCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoGrid } from '@/components/shared/InfoGrid';
@@ -10,6 +11,7 @@ import { ExecutionHistoryTable } from '../components/standing/ExecutionHistoryTa
 import { standingOrderApi } from '../api/standingOrderApi';
 
 export function StandingOrderDetailPage() {
+  useEffect(() => { document.title = 'Standing Order | CBS'; }, []);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -40,6 +42,21 @@ export function StandingOrderDetailPage() {
     mutationFn: () => standingOrderApi.cancel(Number(id)),
     onSuccess: () => { toast.success('Standing order cancelled'); navigate('/payments/standing-orders'); },
   });
+
+  const retryMutation = useMutation({
+    mutationFn: (executionId: number) =>
+      standingOrderApi.retryExecution
+        ? standingOrderApi.retryExecution(Number(id), executionId)
+        : Promise.resolve(),
+    onSuccess: () => {
+      toast.success('Retry requested');
+      queryClient.invalidateQueries({ queryKey: ['standing-orders', Number(id), 'executions'] });
+    },
+    onError: () => toast.error('Failed to retry execution'),
+  });
+
+  const lastExecution = executions.length > 0 ? executions[executions.length - 1] : null;
+  const lastFailed = lastExecution?.status === 'FAILED' ? lastExecution : null;
 
   if (isLoading || !order) {
     return <><PageHeader title="Standing Order" /><div className="page-container"><div className="animate-pulse h-64 bg-muted rounded-lg" /></div></>;
@@ -74,6 +91,14 @@ export function StandingOrderDetailPage() {
         }
       />
       <div className="page-container space-y-6">
+        {lastFailed && (
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-800">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+            <p className="text-sm text-red-700 dark:text-red-300">
+              Last execution failed: {lastFailed.failureReason || 'Unknown error'}
+            </p>
+          </div>
+        )}
         <FormSection title="Instruction Details">
           <InfoGrid columns={4} items={[
             { label: 'Reference', value: order.reference, mono: true, copyable: true },
@@ -92,7 +117,12 @@ export function StandingOrderDetailPage() {
         </FormSection>
 
         <FormSection title="Execution History">
-          <ExecutionHistoryTable executions={executions} isLoading={execLoading} />
+          <ExecutionHistoryTable
+            executions={executions}
+            isLoading={execLoading}
+            onRetry={(executionId) => retryMutation.mutate(executionId)}
+            retryingId={retryMutation.isPending ? (retryMutation.variables as number) : undefined}
+          />
         </FormSection>
       </div>
     </>

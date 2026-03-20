@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Landmark, HandCoins, ArrowLeftRight, CreditCard,
   TrendingUp, ShieldAlert, Scale, Settings2, BarChart3, Shield,
-  FileText, MessageSquare, Headphones, Activity, Building2, Briefcase,
+  FileText, MessageSquare, Headphones, Activity, Building2, Briefcase, Globe,
   type LucideIcon,
 } from 'lucide-react';
 

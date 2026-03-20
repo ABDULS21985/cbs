@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle, Star } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -10,6 +10,7 @@ import { billPaymentApi, type BillerCategory, type Biller, type BillPaymentRespo
 type Step = 'category' | 'biller' | 'pay' | 'receipt';
 
 export function BillPaymentPage() {
+  useEffect(() => { document.title = 'Bill Payment | CBS'; }, []);
   const [step, setStep] = useState<Step>('category');
   const [selectedCategory, setSelectedCategory] = useState<BillerCategory | null>(null);
   const [selectedBiller, setSelectedBiller] = useState<Biller | null>(null);

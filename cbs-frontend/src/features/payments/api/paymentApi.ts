@@ -74,6 +74,10 @@ export interface RecentTransfer {
   amount: number;
   currency: string;
   date: string;
+  status: string;
+  direction: 'CREDIT' | 'DEBIT';
+  reference?: string;
+  narration?: string;
 }
 
 // Fee preview type — used for optional display; no backend endpoint exists

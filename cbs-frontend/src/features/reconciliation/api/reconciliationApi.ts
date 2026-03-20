@@ -95,3 +95,181 @@ export function getReconciliationHistory(
 ): Promise<Array<{ date: string; status: ReconciliationSession['status']; difference: number; matchedCount: number }>> {
   return apiGet<Array<{ date: string; status: ReconciliationSession['status']; difference: number; matchedCount: number }>>('/api/v1/reconciliation/history', { accountId });
 }
+
+// ─── Statement Import Types ──────────────────────────────────────────────────
+
+export interface StatementHeader {
+  accountNumber: string;
+  statementDate: string;
+  openingBalance: number;
+  closingBalance: number;
+  currency: string;
+  bankName: string;
+  totalCredits: number;
+  totalDebits: number;
+}
+
+export interface StatementEntry {
+  id: string;
+  date: string;
+  valueDate: string;
+  amount: number;
+  direction: 'D' | 'C';
+  reference: string;
+  narration: string;
+  balance?: number;
+}
+
+export interface ParsedStatement {
+  header: StatementHeader;
+  entries: StatementEntry[];
+  isDuplicate: boolean;
+  parseWarnings: string[];
+}
+
+export interface ImportRecord {
+  id: string;
+  importDate: string;
+  accountNumber: string;
+  bankName: string;
+  filename: string;
+  format: 'CSV' | 'MT940' | 'XML' | 'SWIFT';
+  entriesCount: number;
+  status: 'COMPLETED' | 'FAILED' | 'PARTIAL';
+  importedBy: string;
+  errors?: string[];
+}
+
+export interface AutoFetchConfig {
+  id: string;
+  bankName: string;
+  protocol: 'SFTP' | 'SWIFT' | 'API';
+  host: string;
+  schedule: string;
+  lastFetch: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'ERROR';
+  accountPattern: string;
+}
+
+// ─── Break Management Types ──────────────────────────────────────────────────
+
+export type BreakStatus = 'OPEN' | 'IN_PROGRESS' | 'ESCALATED' | 'RESOLVED' | 'WRITTEN_OFF';
+export type BreakResolutionType = 'MANUAL_MATCH' | 'TIMING_DIFFERENCE' | 'CORRECTION' | 'WRITE_OFF' | 'ESCALATE';
+export type EscalationLevel = 'OFFICER' | 'TEAM_LEAD' | 'OPS_MANAGER' | 'CFO';
+
+export interface BreakItem {
+  id: string;
+  accountNumber: string;
+  bankName: string;
+  currency: string;
+  amount: number;
+  direction: 'D' | 'C';
+  detectedDate: string;
+  agingDays: number;
+  assignedTo: string;
+  status: BreakStatus;
+  ourEntry?: ReconciliationEntry;
+  bankEntry?: ReconciliationEntry;
+  escalationLevel: EscalationLevel;
+  slaDeadline: string;
+}
+
+export interface BreakTimelineEvent {
+  id: string;
+  timestamp: string;
+  actor: string;
+  action: string;
+  notes: string;
+  type: 'INFO' | 'ACTION' | 'RESOLVED' | 'ESCALATED';
+}
+
+export interface ComplianceCheckItem {
+  id: string;
+  requirement: string;
+  description: string;
+  met: boolean;
+  lastChecked: string;
+}
+
+export interface ComplianceScorePoint {
+  month: string;
+  score: number;
+  target: number;
+}
+
+// ─── Statement Import API ────────────────────────────────────────────────────
+
+export function parseStatement(file: File, accountId: string): Promise<ParsedStatement> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('accountId', accountId);
+  return apiPost<ParsedStatement>('/api/v1/reconciliation/statements/parse', formData);
+}
+
+export function confirmImport(accountId: string, statementDate: string): Promise<{ importId: string }> {
+  return apiPost<{ importId: string }>('/api/v1/reconciliation/statements/confirm', { accountId, statementDate });
+}
+
+export function rejectImport(accountId: string, statementDate: string): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>('/api/v1/reconciliation/statements/reject', { accountId, statementDate });
+}
+
+export function getImportHistory(): Promise<ImportRecord[]> {
+  return apiGet<ImportRecord[]>('/api/v1/reconciliation/statements/history');
+}
+
+export function reImportStatement(importId: string): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>(`/api/v1/reconciliation/statements/${importId}/reimport`);
+}
+
+export function deleteImport(importId: string): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>(`/api/v1/reconciliation/statements/${importId}/delete`);
+}
+
+export function getAutoFetchConfigs(): Promise<AutoFetchConfig[]> {
+  return apiGet<AutoFetchConfig[]>('/api/v1/reconciliation/auto-fetch/configs');
+}
+
+// ─── Break Management API ────────────────────────────────────────────────────
+
+export function getBreaks(params?: { status?: BreakStatus; currency?: string; assignedTo?: string }): Promise<BreakItem[]> {
+  return apiGet<BreakItem[]>('/api/v1/reconciliation/breaks', params);
+}
+
+export function getBreakTimeline(breakId: string): Promise<BreakTimelineEvent[]> {
+  return apiGet<BreakTimelineEvent[]>(`/api/v1/reconciliation/breaks/${breakId}/timeline`);
+}
+
+export function resolveBreak(breakId: string, data: { resolutionType: BreakResolutionType; reason: string; glAccount?: string }): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>(`/api/v1/reconciliation/breaks/${breakId}/resolve`, data);
+}
+
+export function escalateBreak(breakId: string, notes: string): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>(`/api/v1/reconciliation/breaks/${breakId}/escalate`, { notes });
+}
+
+export function addBreakNote(breakId: string, notes: string): Promise<BreakTimelineEvent> {
+  return apiPost<BreakTimelineEvent>(`/api/v1/reconciliation/breaks/${breakId}/notes`, { notes });
+}
+
+export function bulkAssignBreaks(breakIds: string[], assignedTo: string): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>('/api/v1/reconciliation/breaks/bulk-assign', { breakIds, assignedTo });
+}
+
+export function bulkEscalateBreaks(breakIds: string[], notes: string): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>('/api/v1/reconciliation/breaks/bulk-escalate', { breakIds, notes });
+}
+
+// ─── Reports API ─────────────────────────────────────────────────────────────
+
+export function generateReconciliationReport(reportType: string, params: { dateFrom: string; dateTo: string }): Promise<Blob> {
+  return apiPost<Blob>(`/api/v1/reconciliation/reports/${reportType}/generate`, params);
+}
+
+export function getComplianceChecklist(): Promise<ComplianceCheckItem[]> {
+  return apiGet<ComplianceCheckItem[]>('/api/v1/reconciliation/compliance/checklist');
+}
+
+export function getComplianceScoreTrend(): Promise<ComplianceScorePoint[]> {
+  return apiGet<ComplianceScorePoint[]>('/api/v1/reconciliation/compliance/score-trend');
+}

@@ -5,8 +5,7 @@ import com.cbs.account.dto.TransactionResponse;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.customer.dto.CustomerResponse;
-import com.cbs.portal.dto.PortalDashboardResponse;
-import com.cbs.portal.dto.ProfileUpdateRequestDto;
+import com.cbs.portal.dto.*;
 import com.cbs.portal.service.PortalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -47,6 +46,14 @@ public class PortalController {
     public ResponseEntity<ApiResponse<PortalDashboardResponse>> getDashboard(
             @PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(portalService.getDashboard(customerId)));
+    }
+
+    @GetMapping("/dashboard/enhanced/{customerId}")
+    @Operation(summary = "Get enhanced portal dashboard with financial health, spending insights, goals, and upcoming events")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<EnhancedDashboardResponse>> getEnhancedDashboard(
+            @PathVariable Long customerId) {
+        return ResponseEntity.ok(ApiResponse.ok(portalService.getEnhancedDashboard(customerId)));
     }
 
     // ========================================================================
@@ -157,6 +164,99 @@ public class PortalController {
             @RequestParam String reviewedBy,
             @RequestParam String reason) {
         return ResponseEntity.ok(ApiResponse.ok(portalService.rejectProfileUpdate(requestId, reviewedBy, reason)));
+    }
+
+    // ========================================================================
+    // SECURITY — password, 2FA, sessions
+    // ========================================================================
+
+    @PostMapping("/security/change-password")
+    @Operation(summary = "Change portal password")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @RequestParam Long customerId,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        portalService.changePassword(customerId, request);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Password changed successfully"));
+    }
+
+    @PostMapping("/security/2fa/enable")
+    @Operation(summary = "Enable two-factor authentication")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<TwoFactorResponse>> enable2fa(@RequestParam Long customerId) {
+        return ResponseEntity.ok(ApiResponse.ok(portalService.enable2fa(customerId)));
+    }
+
+    @PostMapping("/security/2fa/disable")
+    @Operation(summary = "Disable two-factor authentication")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<TwoFactorResponse>> disable2fa(@RequestParam Long customerId) {
+        return ResponseEntity.ok(ApiResponse.ok(portalService.disable2fa(customerId)));
+    }
+
+    @GetMapping("/security/login-history")
+    @Operation(summary = "Get login history")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<List<LoginHistoryDto>>> getLoginHistory(
+            @RequestParam Long customerId,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(ApiResponse.ok(portalService.getLoginHistory(customerId, Math.min(limit, 50))));
+    }
+
+    @GetMapping("/security/active-sessions")
+    @Operation(summary = "Get active sessions")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<List<ActiveSessionDto>>> getActiveSessions(@RequestParam Long customerId) {
+        return ResponseEntity.ok(ApiResponse.ok(portalService.getActiveSessions(customerId)));
+    }
+
+    @DeleteMapping("/security/sessions/{sessionId}")
+    @Operation(summary = "Terminate an active session")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Void>> terminateSession(
+            @RequestParam Long customerId,
+            @PathVariable String sessionId) {
+        portalService.terminateSession(customerId, sessionId);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Session terminated"));
+    }
+
+    // ========================================================================
+    // ACTIVITY LOG
+    // ========================================================================
+
+    @GetMapping("/activity-log")
+    @Operation(summary = "Get customer activity log")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<ActivityLogDto>>> getActivityLog(
+            @RequestParam Long customerId,
+            @RequestParam(required = false) String eventType,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        var result = portalService.getActivityLog(customerId, eventType, from, to,
+                PageRequest.of(page, Math.min(size, 100)));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    // ========================================================================
+    // PREFERENCES
+    // ========================================================================
+
+    @GetMapping("/preferences")
+    @Operation(summary = "Get customer preferences")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<PortalPreferencesDto>> getPreferences(@RequestParam Long customerId) {
+        return ResponseEntity.ok(ApiResponse.ok(portalService.getPreferences(customerId)));
+    }
+
+    @PutMapping("/preferences")
+    @Operation(summary = "Update customer preferences")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<PortalPreferencesDto>> updatePreferences(
+            @RequestParam Long customerId,
+            @RequestBody PortalPreferencesDto preferences) {
+        return ResponseEntity.ok(ApiResponse.ok(portalService.updatePreferences(customerId, preferences)));
     }
 
     // ========================================================================
@@ -310,5 +410,106 @@ public class PortalController {
                 "Cheque Book Request", "Statement Request", "Card Replacement",
                 "Account Update", "General Inquiry"
         )));
+    }
+
+    // ========================================================================
+    // TRANSFERS (PORTAL SELF-SERVICE)
+    // ========================================================================
+
+    @PostMapping("/transfers/internal")
+    @Operation(summary = "Execute internal (same-bank) transfer")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> executeInternalTransfer(
+            @RequestBody Map<String, Object> request) {
+        Long debitAccountId = ((Number) request.get("debitAccountId")).longValue();
+        Long creditAccountId = ((Number) request.get("creditAccountId")).longValue();
+        java.math.BigDecimal amount = new java.math.BigDecimal(request.get("amount").toString());
+        String narration = (String) request.getOrDefault("narration", "Portal transfer");
+        String idempotencyKey = (String) request.get("idempotencyKey");
+
+        // Idempotency check
+        if (idempotencyKey != null) {
+            var existing = transactionJournalRepository.findByExternalRef(idempotencyKey);
+            if (existing.isPresent()) {
+                return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                        "status", "COMPLETED",
+                        "message", "Transfer already processed",
+                        "reference", existing.get().getTransactionRef()
+                )));
+            }
+        }
+
+        var result = portalService.executePortalTransfer(debitAccountId, creditAccountId, amount, narration, idempotencyKey);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(result));
+    }
+
+    @PostMapping("/transfers/validate")
+    @Operation(summary = "Validate/name-enquiry for transfer recipient")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> validateTransfer(
+            @RequestBody Map<String, Object> request) {
+        String accountNumber = (String) request.get("accountNumber");
+        String bankCode = (String) request.getOrDefault("bankCode", "000"); // 000 = same bank
+
+        Map<String, Object> result = portalService.nameEnquiry(accountNumber, bankCode);
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    @PostMapping("/transfers/otp/send")
+    @Operation(summary = "Send OTP for transfer authorization")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendTransferOtp(
+            @RequestBody Map<String, Object> request) {
+        Long accountId = ((Number) request.get("accountId")).longValue();
+        Map<String, Object> result = portalService.sendTransferOtp(accountId);
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    @PostMapping("/transfers/otp/verify")
+    @Operation(summary = "Verify OTP for transfer authorization")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyTransferOtp(
+            @RequestBody Map<String, Object> request) {
+        String otpCode = (String) request.get("otpCode");
+        String sessionId = (String) request.get("sessionId");
+        boolean valid = portalService.verifyTransferOtp(sessionId, otpCode);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("valid", valid)));
+    }
+
+    @GetMapping("/transfers/limits")
+    @Operation(summary = "Get transfer limits for the customer")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getTransferLimits() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "dailyLimit", 5_000_000,
+                "perTransactionLimit", 2_000_000,
+                "usedToday", 0,
+                "remainingDaily", 5_000_000,
+                "otpThreshold", 50_000
+        )));
+    }
+
+    @GetMapping("/transfers/recent")
+    @Operation(summary = "Get recent transfers")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<List<TransactionResponse>>> getRecentTransfers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        var pageable = PageRequest.of(page, Math.min(size, 50), Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<com.cbs.account.entity.TransactionJournal> result = transactionJournalRepository.findAll(pageable);
+        List<TransactionResponse> responses = result.getContent().stream()
+                .map(txn -> TransactionResponse.builder()
+                        .id(txn.getId())
+                        .transactionRef(txn.getTransactionRef())
+                        .accountNumber(txn.getAccount() != null ? txn.getAccount().getAccountNumber() : null)
+                        .transactionType(txn.getTransactionType())
+                        .amount(txn.getAmount())
+                        .currencyCode(txn.getCurrencyCode())
+                        .narration(txn.getNarration())
+                        .status(txn.getStatus())
+                        .createdAt(txn.getCreatedAt())
+                        .build())
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok(responses, PageMeta.from(result)));
     }
 }

@@ -1,12 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { QrGenerator } from '../components/qr/QrGenerator';
 import { QrCodeDisplay } from '../components/qr/QrCodeDisplay';
 import { QrTransactionHistory } from '../components/qr/QrTransactionHistory';
-import type { QrCode } from '../api/qrApi';
+import { qrApi, type QrCode } from '../api/qrApi';
+import { formatMoney } from '@/lib/formatters';
 
 export function QrPaymentPage() {
+  useEffect(() => { document.title = 'QR Payments | CBS'; }, []);
   const [generatedQr, setGeneratedQr] = useState<QrCode | null>(null);
+
+  const { data: qrTransactions = [] } = useQuery({
+    queryKey: ['qr-transactions'],
+    queryFn: () => qrApi.getQrTransactions(),
+  });
+
+  const totalPayments = qrTransactions.length;
+  const totalReceived = qrTransactions
+    .filter((tx) => tx.status === 'COMPLETED')
+    .reduce((sum, tx) => sum + tx.amount, 0);
+  const hasActiveQr = generatedQr !== null;
 
   return (
     <>
@@ -50,6 +64,32 @@ export function QrPaymentPage() {
                 </p>
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-card p-4">
+          <h3 className="text-sm font-semibold mb-3">QR Payment Analytics</h3>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 text-center">
+              <p className="text-xs text-muted-foreground">Total QR Payments</p>
+              <p className="text-lg font-bold">{totalPayments}</p>
+            </div>
+            <div className="flex-1 text-center">
+              <p className="text-xs text-muted-foreground">Total Received</p>
+              <p className="text-lg font-bold">{formatMoney(totalReceived, 'NGN')}</p>
+            </div>
+            <div className="flex-1 text-center">
+              <p className="text-xs text-muted-foreground">Active QR Code</p>
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                  hasActiveQr
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                }`}
+              >
+                {hasActiveQr ? 'Yes' : 'No'}
+              </span>
+            </div>
           </div>
         </div>
 

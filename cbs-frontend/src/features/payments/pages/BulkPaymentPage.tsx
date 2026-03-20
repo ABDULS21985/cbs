@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -10,6 +10,7 @@ import { bulkPaymentApi } from '../api/bulkPaymentApi';
 type Step = 'upload' | 'validate' | 'approve' | 'processing';
 
 export function BulkPaymentPage() {
+  useEffect(() => { document.title = 'Bulk Payments | CBS'; }, []);
   const [step, setStep] = useState<Step>('upload');
   const [batchId, setBatchId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Upload } from 'lucide-react';
@@ -15,6 +15,7 @@ import { internationalPaymentApi, type InternationalTransferRequest, type Intern
 type Step = 'form' | 'review' | 'tracking';
 
 export function InternationalTransferPage() {
+  useEffect(() => { document.title = 'International Transfer | CBS'; }, []);
   const [step, setStep] = useState<Step>('form');
   const [result, setResult] = useState<InternationalTransferResponse | null>(null);
   const [form, setForm] = useState({

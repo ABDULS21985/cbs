@@ -246,6 +246,17 @@ import {
   CustodyValuationRunPage,
   ChannelManagementPage,
   OpenBankingPage,
+  OBTppDetailPage,
+  OBConsentMgmtPage,
+  OBConsentDetailPage,
+  OBPsd2Page,
+  OBScaPage,
+  OBMarketplacePage,
+  OBProductDetailPage,
+  OBDeveloperPage,
+  OBMonitoringPage,
+  OBWebhooksPage,
+  OBAnalyticsPage,
   MerchantAcquiringPage,
   MarketDataManagementPage,
   PricesPage,
@@ -510,6 +521,17 @@ export function AppRouter() {
         {/* Open Banking */}
         <Route path="/open-banking" element={<Outlet />}>
           <Route index element={<OpenBankingPage />} />
+          <Route path="tpp/:id" element={<OBTppDetailPage />} />
+          <Route path="consents" element={<OBConsentMgmtPage />} />
+          <Route path="consents/:id" element={<OBConsentDetailPage />} />
+          <Route path="psd2" element={<OBPsd2Page />} />
+          <Route path="sca" element={<OBScaPage />} />
+          <Route path="marketplace" element={<OBMarketplacePage />} />
+          <Route path="marketplace/:id" element={<OBProductDetailPage />} />
+          <Route path="developer" element={<OBDeveloperPage />} />
+          <Route path="monitoring" element={<OBMonitoringPage />} />
+          <Route path="webhooks" element={<OBWebhooksPage />} />
+          <Route path="analytics" element={<OBAnalyticsPage />} />
         </Route>
 
         {/* Acquiring */}

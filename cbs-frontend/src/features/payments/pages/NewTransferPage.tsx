@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/shared/FormSection';
@@ -16,9 +16,11 @@ import type { TransferResponse, TransferRequest } from '../api/paymentApi';
 type Step = 'form' | 'review' | 'receipt';
 
 export function NewTransferPage() {
+  useEffect(() => { document.title = 'New Transfer | CBS'; }, []);
   const [step, setStep] = useState<Step>('form');
   const [showNewBeneficiary, setShowNewBeneficiary] = useState(false);
   const [completedTransfer, setCompletedTransfer] = useState<TransferResponse | null>(null);
+  const [dupAcknowledged, setDupAcknowledged] = useState(false);
 
   const [form, setForm] = useState({
     fromAccountId: 0,
@@ -65,6 +67,10 @@ export function NewTransferPage() {
   };
 
   const handleConfirm = () => {
+    if (duplicateCheck.data?.isDuplicate && !dupAcknowledged) {
+      toast.warning('Please acknowledge the duplicate transfer warning before proceeding.');
+      return;
+    }
     transferMutation.mutate({
       fromAccountId: form.fromAccountId,
       transferType: form.transferType,
@@ -107,6 +113,20 @@ export function NewTransferPage() {
       <>
         <PageHeader title="Review Transfer" />
         <div className="page-container py-6">
+          {duplicateCheck.data?.isDuplicate && !dupAcknowledged && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 p-4">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                Possible duplicate: a similar transfer ({duplicateCheck.data.existingRef}) was found in the last 24 hours.
+              </p>
+              <button
+                type="button"
+                onClick={() => setDupAcknowledged(true)}
+                className="mt-2 px-4 py-1.5 bg-amber-600 text-white rounded-md text-sm font-medium hover:bg-amber-700"
+              >
+                Proceed Anyway
+              </button>
+            </div>
+          )}
           <TransferReview
             fromAccount={selectedAccount?.accountNumber || ''}
             fromAccountName={selectedAccount?.accountName || ''}
