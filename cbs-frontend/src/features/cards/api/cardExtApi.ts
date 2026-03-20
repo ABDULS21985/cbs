@@ -1,5 +1,6 @@
 import { apiGet, apiPost } from '@/lib/api';
-import type { Card, CardDispute, CardToken, CardTransaction } from '../types/cardExt';
+import type { CardDispute, CardToken } from '../types/cardExt';
+import type { Card, CardTransaction } from '../types/card';
 
 export const cardsApi = {
   /** GET /v1/cards/disputes/{id} */
@@ -20,7 +21,7 @@ export const cardsApi = {
 
   /** GET /v1/cards/disputes/dashboard */
   dashboard: (params?: Record<string, unknown>) =>
-    apiGet<CardDisputeService.DisputeDashboard>('/api/v1/cards/disputes/dashboard', params),
+    apiGet<Record<string, unknown>>('/api/v1/cards/disputes/dashboard', params),
 
   /** POST /v1/cards/{id}/hotlist */
   hotlist: (id: number) =>

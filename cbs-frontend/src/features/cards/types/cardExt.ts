@@ -1,40 +1,30 @@
-// Auto-generated from backend entities
+// Extended card types — imports canonical Card/CardTransaction from card.ts
 
-export interface Card {
+export type { Card, CardType, CardScheme, CardStatus, CardTransaction } from './card';
+
+export type DisputeType = 'CHARGEBACK' | 'FRAUD' | 'SERVICE_NOT_RENDERED' | 'DUPLICATE' | 'ATM_FAILED' | 'UNAUTHORIZED' | 'COUNTERFEIT' | 'OTHER';
+export type DisputeStatus = 'OPEN' | 'INVESTIGATING' | 'CHARGEBACK_FILED' | 'REPRESENTMENT' | 'ARBITRATION' | 'RESOLVED' | 'ESCALATED' | 'CLOSED';
+export type TokenStatus = 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'EXPIRED';
+export type WalletProvider = 'APPLE_PAY' | 'GOOGLE_PAY' | 'SAMSUNG_PAY' | 'GARMIN_PAY' | 'OTHER';
+
+export interface CardExtAccount {
   id: number;
-  cardNumberHash: string;
-  cardNumberMasked: string;
-  cardReference: string;
-  account: Account;
-  customer: Customer;
-  cardType: CardType;
-  cardScheme: CardScheme;
-  cardTier: string;
-  cardholderName: string;
-  issueDate: string;
-  expiryDate: string;
-  lastUsedDate: string;
-  dailyPosLimit: number;
-  dailyAtmLimit: number;
-  dailyOnlineLimit: number;
-  singleTxnLimit: number;
-  monthlyLimit: number;
-  creditLimit: number;
-  availableCredit: number;
-  outstandingBalance: number;
-  minimumPayment: number;
-  paymentDueDate: string;
-  interestRate: number;
-  isContactlessEnabled: boolean;
-  isOnlineEnabled: boolean;
-  isInternationalEnabled: boolean;
-  isAtmEnabled: boolean;
-  isPosEnabled: boolean;
-  pinRetriesRemaining: number;
-  status: CardStatus;
-  blockReason: string;
-  currencyCode: string;
-  branchCode: string;
+  accountNumber: string;
+  accountName: string;
+}
+
+export interface CardExtCustomer {
+  id: number;
+  fullName: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface DisputeTimeline {
+  timestamp: string;
+  action: string;
+  actor: string;
+  notes?: string;
 }
 
 export interface CardDispute {
@@ -106,36 +96,3 @@ export interface CardToken {
   updatedAt?: string;
   version: number;
 }
-
-export interface CardTransaction {
-  id: number;
-  transactionRef: string;
-  card: Card;
-  account: Account;
-  transactionType: string;
-  channel: string;
-  amount: number;
-  currencyCode: string;
-  billingAmount: number;
-  billingCurrency: string;
-  fxRate: number;
-  merchantName: string;
-  merchantId: string;
-  merchantCategoryCode: string;
-  terminalId: string;
-  merchantCity: string;
-  merchantCountry: string;
-  isInternational: boolean;
-  authCode: string;
-  responseCode: string;
-  status: string;
-  declineReason: string;
-  isDisputed: boolean;
-  disputeReason: string;
-  disputeDate: string;
-  transactionDate: string;
-  settlementDate: string;
-  createdAt: string;
-  version: number;
-}
-

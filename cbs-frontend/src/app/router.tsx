@@ -188,6 +188,8 @@ import {
   WalletPage,
   PaymentsDashboardPage,
   CardDisputePage,
+  CardDisputeDetailPage,
+  MerchantDetailPage,
   TreasuryPositionsPage,
   FxRatesPage,
   ComplianceAssessmentsPage,
@@ -310,9 +312,11 @@ export function AppRouter() {
           <Route path=":id" element={<CardDetailPage />} />
           <Route path="transactions" element={<CardTransactionsPage />} />
           <Route path="merchants" element={<MerchantListPage />} />
+          <Route path="merchants/:merchantId" element={<MerchantDetailPage />} />
           <Route path="pos" element={<PosTerminalPage />} />
           <Route path="clearing" element={<CardClearingPage />} />
           <Route path="disputes" element={<CardDisputePage />} />
+          <Route path="disputes/:disputeId" element={<CardDisputeDetailPage />} />
         </Route>
 
         {/* Treasury */}

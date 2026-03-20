@@ -45,6 +45,11 @@ const labelOverrides: Record<string, string> = {
   statements: 'Statements',
   reconciliation: 'Reconciliation',
   maintenance: 'Maintenance',
+  merchants: 'Merchants',
+  pos: 'POS Terminals',
+  clearing: 'Clearing & Settlement',
+  disputes: 'Disputes',
+  transactions: 'Transactions',
 };
 
 function toLabel(segment: string): string {

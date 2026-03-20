@@ -5,7 +5,7 @@ import { useCardTransactions } from '../hooks/useCardData';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { CardTransaction } from '../types/card';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2, ReceiptText } from 'lucide-react';
 
 const columns: ColumnDef<CardTransaction, any>[] = [
@@ -22,14 +22,20 @@ const columns: ColumnDef<CardTransaction, any>[] = [
   )},
   { accessorKey: 'channel', header: 'Channel', cell: ({ row }) => <StatusBadge status={row.original.channel} /> },
   { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} /> },
-  { accessorKey: 'fraudScore', header: 'Fraud', cell: ({ row }) => (
-    <span className={cn('font-mono text-xs font-medium', row.original.fraudScore > 50 ? 'text-red-600' : row.original.fraudScore > 30 ? 'text-amber-600' : 'text-green-600')}>
-      {row.original.fraudScore}/100
-    </span>
-  )},
+  { accessorKey: 'fraudScore', header: 'Fraud', cell: ({ row }) => {
+    const score = row.original.fraudScore;
+    const riskLabel = score > 50 ? 'High Risk' : score > 30 ? 'Medium' : 'Low';
+    const colorCls = score > 50 ? 'text-red-600' : score > 30 ? 'text-amber-600' : 'text-green-600';
+    return (
+      <span className={cn('font-mono text-xs font-medium', colorCls)} aria-label={`Fraud score ${score} out of 100 — ${riskLabel}`}>
+        {score}/100 <span className="ml-1 font-sans">{riskLabel}</span>
+      </span>
+    );
+  }},
 ];
 
 export function CardTransactionsPage() {
+  useEffect(() => { document.title = 'Card Transactions | CBS'; }, []);
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
   const filters: Record<string, unknown> = {};
   if (dateRange.from) filters.fromDate = dateRange.from.toISOString();

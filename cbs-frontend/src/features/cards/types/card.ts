@@ -1,18 +1,44 @@
+// ─── Card Types (canonical source) ───────────────────────────────────────────
+
+export type CardType = 'DEBIT' | 'CREDIT' | 'PREPAID';
+export type CardScheme = 'VISA' | 'MASTERCARD' | 'VERVE';
+export type CardStatus = 'ACTIVE' | 'BLOCKED' | 'EXPIRED' | 'PENDING_ACTIVATION' | 'SUSPENDED' | 'HOTLISTED' | 'DESTROYED';
+
 export interface Card {
   id: number;
   cardNumberMasked: string;
   customerName: string;
   customerId: number;
-  cardType: 'DEBIT' | 'CREDIT' | 'PREPAID';
-  scheme: 'VISA' | 'MASTERCARD' | 'VERVE';
+  cardType: CardType;
+  scheme: CardScheme;
   accountNumber: string;
   accountId: number;
   expiryDate: string;
   nameOnCard: string;
-  status: 'ACTIVE' | 'BLOCKED' | 'EXPIRED' | 'PENDING_ACTIVATION' | 'SUSPENDED' | 'DESTROYED';
+  status: CardStatus;
   issuedDate: string;
   deliveryMethod: string;
   controls: CardControls;
+  // Extended fields from backend entity (optional, present on detail view)
+  cardNumberHash?: string;
+  cardReference?: string;
+  cardTier?: string;
+  lastUsedDate?: string;
+  dailyPosLimit?: number;
+  dailyAtmLimit?: number;
+  dailyOnlineLimit?: number;
+  singleTxnLimit?: number;
+  monthlyLimit?: number;
+  creditLimit?: number;
+  availableCredit?: number;
+  outstandingBalance?: number;
+  minimumPayment?: number;
+  paymentDueDate?: string;
+  interestRate?: number;
+  pinRetriesRemaining?: number;
+  blockReason?: string;
+  currencyCode?: string;
+  branchCode?: string;
 }
 
 export interface CardControls {
@@ -48,6 +74,20 @@ export interface CardTransaction {
   transactionDate: string;
   status: 'APPROVED' | 'DECLINED' | 'REVERSED' | 'PENDING';
   fraudScore: number;
+  // Extended fields (optional, present in detailed transaction views)
+  billingAmount?: number;
+  billingCurrency?: string;
+  fxRate?: number;
+  terminalId?: string;
+  merchantCity?: string;
+  merchantCountry?: string;
+  isInternational?: boolean;
+  declineReason?: string;
+  isDisputed?: boolean;
+  disputeReason?: string;
+  disputeDate?: string;
+  settlementDate?: string;
+  createdAt?: string;
 }
 
 export interface Merchant {
@@ -74,15 +114,4 @@ export interface PosTerminal {
   lastTransaction: string;
   onlineStatus: 'ONLINE' | 'IDLE' | 'OFFLINE';
   deployedDate: string;
-}
-
-export interface Agent {
-  id: number;
-  agentCode: string;
-  agentName: string;
-  location: string;
-  floatBalance: number;
-  transactionsToday: number;
-  commissionMtd: number;
-  status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
 }

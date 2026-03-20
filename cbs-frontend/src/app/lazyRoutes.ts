@@ -693,6 +693,14 @@ export const CardDisputePage = lazyNamed(
   () => import('@/features/cards/pages/CardDisputePage'),
   'CardDisputePage',
 );
+export const CardDisputeDetailPage = lazyNamed(
+  () => import('@/features/cards/pages/CardDisputeDetailPage'),
+  'CardDisputeDetailPage',
+);
+export const MerchantDetailPage = lazyNamed(
+  () => import('@/features/cards/pages/MerchantDetailPage'),
+  'MerchantDetailPage',
+);
 export const TreasuryPositionsPage = lazyNamed(
   () => import('@/features/treasury/pages/TreasuryPositionsPage'),
   'TreasuryPositionsPage',

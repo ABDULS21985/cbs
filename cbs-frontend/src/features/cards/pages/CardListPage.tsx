@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge, TabsPage } from '@/components/shared';
-import { CreditCard, ShieldCheck, ShieldX, Clock, Loader2 } from 'lucide-react';
+import { CreditCard, ShieldCheck, ShieldX, Clock, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { formatDate } from '@/lib/formatters';
 import { useCards } from '../hooks/useCardData';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -25,8 +27,21 @@ const columns: ColumnDef<Card, any>[] = [
 ];
 
 export function CardListPage() {
+  useEffect(() => { document.title = 'Card Management | CBS'; }, []);
   const navigate = useNavigate();
-  const { data: cards = [], isLoading } = useCards();
+  const { data: cards = [], isLoading, isError, refetch } = useCards();
+
+  // Ctrl+N keyboard shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        toast.info('Card request flow coming soon');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const active = cards.filter((c) => c.status === 'ACTIVE').length;
   const blocked = cards.filter((c) => c.status === 'BLOCKED').length;
@@ -52,7 +67,15 @@ export function CardListPage() {
           <StatCard label="Expired" value={expired} format="number" />
         </div>
 
-        {isLoading ? (
+        {isError ? (
+          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-3">
+            <AlertCircle className="w-8 h-8 text-red-500" />
+            <p className="text-sm">Failed to load cards.</p>
+            <button onClick={() => refetch()} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" /> Retry
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="flex items-center justify-center h-64 text-muted-foreground gap-2">
             <Loader2 className="w-5 h-5 animate-spin" /> Loading cards…
           </div>
