@@ -39,7 +39,9 @@ import {
   X,
   Briefcase,
   Target,
+  Download,
 } from 'lucide-react';
+import { exportAumReportExcel } from '../lib/wealthExport';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -473,13 +475,23 @@ export function WealthManagementPage() {
         title="Wealth Management"
         subtitle="Portfolio plans, trust accounts, and advisor management"
         actions={
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Plan
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportAumReportExcel(plans, advisors, trusts)}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors no-print"
+              aria-label="Export AUM report as Excel"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors no-print"
+            >
+              <Plus className="w-4 h-4" />
+              New Plan
+            </button>
+          </div>
         }
       />
 

@@ -18,11 +18,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -41,6 +44,12 @@ public class GeneralLedgerController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<ChartOfAccounts>> createGlAccount(@RequestBody ChartOfAccounts coa) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(glService.createGlAccount(coa)));
+    }
+
+    @PostMapping(value = "/accounts/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<ChartOfAccounts>>> importGlAccounts(@RequestParam("file") MultipartFile file) throws IOException {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(glService.importGlAccounts(file.getInputStream())));
     }
 
     @GetMapping("/accounts/postable")

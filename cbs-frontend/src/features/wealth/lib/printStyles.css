@@ -1,0 +1,90 @@
+/* ── Wealth Module Print Styles ────────────────────────────────────────────── */
+
+@media print {
+  /* Hide interactive elements */
+  .no-print,
+  nav,
+  [role="navigation"],
+  button:not(.print-keep),
+  .sidebar,
+  .mobile-nav,
+  dialog {
+    display: none !important;
+  }
+
+  /* Print header branding */
+  .print-header {
+    display: block !important;
+    text-align: center;
+    padding: 16px 0;
+    border-bottom: 2px solid #1a1a1a;
+    margin-bottom: 24px;
+  }
+
+  .print-header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .print-header p {
+    font-size: 10px;
+    color: #666;
+    margin-top: 4px;
+  }
+
+  /* Prevent page breaks inside cards and charts */
+  .stat-card,
+  .avoid-break,
+  .rounded-xl,
+  .recharts-wrapper,
+  table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Clean backgrounds for print */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .bg-card,
+  .bg-muted\/30,
+  .bg-muted\/50 {
+    background: white !important;
+    border-color: #ddd !important;
+  }
+
+  /* Font sizes for print */
+  .stat-value {
+    font-size: 14px !important;
+  }
+
+  .stat-label {
+    font-size: 10px !important;
+  }
+
+  /* Table styling */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th, td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+
+  /* Chart containers */
+  .recharts-responsive-container {
+    max-height: 200px !important;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+}

@@ -10,9 +10,14 @@ import org.springframework.web.bind.annotation.*; import java.time.LocalDate; im
 @Tag(name = "Leased Asset Tracking", description = "Asset lifecycle, inspections, returns")
 public class LeasedAssetController {
     private final LeasedAssetService service;
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<LeasedAsset>>> listAll() { return ResponseEntity.ok(ApiResponse.ok(service.getAll())); }
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<LeasedAsset>> register(@RequestBody LeasedAsset asset) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.register(asset))); }
-    @PostMapping("/{code}/inspect") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<LeasedAsset>> inspect(@PathVariable String code, @RequestParam String condition, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate nextDue) { return ResponseEntity.ok(ApiResponse.ok(service.recordInspection(code, condition, nextDue))); }
-    @PostMapping("/{code}/return") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<LeasedAsset>> returnAsset(@PathVariable String code, @RequestParam String returnCondition) { return ResponseEntity.ok(ApiResponse.ok(service.returnAsset(code, returnCondition))); }
+    @GetMapping("/{code}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<LeasedAsset>> get(@PathVariable String code) { return ResponseEntity.ok(ApiResponse.ok(service.getByCode(code))); }
+    @PostMapping("/{code}/inspect") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<LeasedAsset>> inspect(@PathVariable String code, @RequestBody InspectionRequest request) { return ResponseEntity.ok(ApiResponse.ok(service.recordInspection(code, request.condition(), request.nextInspectionDue()))); }
+    @PostMapping("/{code}/return") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<LeasedAsset>> returnAsset(@PathVariable String code, @RequestBody(required = false) ReturnRequest request) { return ResponseEntity.ok(ApiResponse.ok(service.returnAsset(code, request != null ? request.returnCondition() : null))); }
     @GetMapping("/contract/{contractId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<LeasedAsset>>> getByContract(@PathVariable Long contractId) { return ResponseEntity.ok(ApiResponse.ok(service.getByContract(contractId))); }
     @GetMapping("/due-inspection") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<LeasedAsset>>> getDueForInspection() { return ResponseEntity.ok(ApiResponse.ok(service.getDueForInspection())); }
+
+    public record InspectionRequest(String condition, @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate nextInspectionDue) {}
+    public record ReturnRequest(String returnCondition) {}
 }

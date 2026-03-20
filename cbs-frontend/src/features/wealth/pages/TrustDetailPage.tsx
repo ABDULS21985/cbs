@@ -3,8 +3,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, TabsPage } from '@/components/shared';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { Loader2, AlertCircle, Eye, Users, Banknote, Shield, FileText } from 'lucide-react';
+import { Loader2, AlertCircle, Eye, Users, Banknote, Shield, FileText, Download } from 'lucide-react';
 import { useTrust, useTrustDistributions } from '../hooks/useWealth';
+import { exportTrustStatementPdf } from '../lib/wealthExport';
 import { BeneficiaryManager } from '../components/trusts/BeneficiaryManager';
 import { DistributionScheduler } from '../components/trusts/DistributionScheduler';
 import { TrustComplianceTab } from '../components/trusts/TrustComplianceTab';
@@ -136,7 +137,19 @@ export function TrustDetailPage() {
         title={trust.trustName}
         subtitle={`${trust.trustType} Trust · ${trust.trustCode}`}
         backTo="/wealth/trusts"
-        actions={<StatusBadge status={trust.status} size="md" dot />}
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportTrustStatementPdf(trust, [])}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors no-print"
+              aria-label="Export trust statement as PDF"
+            >
+              <Download className="w-4 h-4" />
+              Export Statement
+            </button>
+            <StatusBadge status={trust.status} size="md" dot />
+          </div>
+        }
       />
 
       <div className="page-container space-y-6">

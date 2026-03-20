@@ -8,12 +8,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -141,6 +144,104 @@ public class BranchOperationsService {
         return servicePlanRepository.findAll();
     }
 
+    public List<BranchStaffScheduleView> getStaffSchedule(Long branchId, LocalDate weekOf) {
+        LocalDate weekEnd = weekOf.plusDays(6);
+        Map<String, BranchStaffScheduleView> rows = new LinkedHashMap<>();
+
+        staffScheduleRepository.findByBranchIdAndScheduledDateBetweenOrderByEmployeeNameAscScheduledDateAsc(branchId, weekOf, weekEnd)
+                .forEach(entry -> rows.computeIfAbsent(entry.getEmployeeId(), ignored ->
+                                new BranchStaffScheduleView(
+                                        entry.getEmployeeId(),
+                                        StringUtils.hasText(entry.getEmployeeName()) ? entry.getEmployeeName() : entry.getEmployeeId(),
+                                        entry.getRole(),
+                                        new LinkedHashMap<>()))
+                        .schedule()
+                        .put(entry.getScheduledDate().toString(), normalizeShiftType(entry.getShiftType())));
+
+        return rows.values().stream()
+                .sorted(Comparator.comparing(BranchStaffScheduleView::staffName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    @Transactional
+    public List<BranchStaffScheduleView> saveStaffSchedule(Long branchId, String staffId, String staffName, String role,
+                                                           LocalDate weekOf, Map<String, String> schedule) {
+        if (!StringUtils.hasText(staffId)) {
+            throw new BusinessException("Staff ID is required");
+        }
+        if (schedule == null || schedule.isEmpty()) {
+            throw new BusinessException("At least one scheduled shift is required");
+        }
+
+        LocalDate weekEnd = weekOf.plusDays(6);
+        List<BranchStaffSchedule> existingWeek = staffScheduleRepository
+                .findByEmployeeIdAndScheduledDateBetween(staffId, weekOf, weekEnd)
+                .stream()
+                .filter(entry -> entry.getBranchId().equals(branchId))
+                .toList();
+        BranchStaffSchedule template = existingWeek.stream().findFirst().orElse(null);
+
+        for (Map.Entry<String, String> entry : schedule.entrySet()) {
+            LocalDate scheduleDate = LocalDate.parse(entry.getKey());
+            BranchStaffSchedule row = staffScheduleRepository
+                    .findByBranchIdAndEmployeeIdAndScheduledDate(branchId, staffId, scheduleDate)
+                    .orElseGet(() -> BranchStaffSchedule.builder()
+                            .branchId(branchId)
+                            .employeeId(staffId)
+                            .scheduledDate(scheduleDate)
+                            .build());
+            row.setEmployeeName(resolveStaffName(staffName, template, staffId));
+            row.setRole(resolveRole(role, template));
+            row.setShiftType(normalizeShiftType(entry.getValue()));
+            row.setStatus("SCHEDULED");
+            row.setIsOvertime(Boolean.FALSE);
+            applyShiftHours(row);
+            staffScheduleRepository.save(row);
+        }
+
+        log.info("Staff schedule saved: branchId={}, staffId={}, weekOf={}, days={}", branchId, staffId, weekOf, schedule.size());
+        return getStaffSchedule(branchId, weekOf);
+    }
+
+    @Transactional
+    public List<BranchStaffScheduleView> swapShift(Long branchId, String staffId1, String staffId2,
+                                                   LocalDate date1, LocalDate date2, String reason) {
+        BranchStaffSchedule first = staffScheduleRepository
+                .findByBranchIdAndEmployeeIdAndScheduledDate(branchId, staffId1, date1)
+                .orElseGet(() -> BranchStaffSchedule.builder()
+                        .branchId(branchId)
+                        .employeeId(staffId1)
+                        .scheduledDate(date1)
+                        .shiftType("OFF")
+                        .build());
+        BranchStaffSchedule second = staffScheduleRepository
+                .findByBranchIdAndEmployeeIdAndScheduledDate(branchId, staffId2, date2)
+                .orElseGet(() -> BranchStaffSchedule.builder()
+                        .branchId(branchId)
+                        .employeeId(staffId2)
+                        .scheduledDate(date2)
+                        .shiftType("OFF")
+                        .build());
+
+        String firstShift = normalizeShiftType(first.getShiftType());
+        String secondShift = normalizeShiftType(second.getShiftType());
+
+        first.setShiftType(secondShift);
+        second.setShiftType(firstShift);
+        first.setStatus("SCHEDULED");
+        second.setStatus("SCHEDULED");
+        applyShiftHours(first);
+        applyShiftHours(second);
+
+        staffScheduleRepository.save(first);
+        staffScheduleRepository.save(second);
+        log.info("Shift swap recorded: branchId={}, staff1={} date1={}, staff2={} date2={}, reason={}",
+                branchId, staffId1, date1, staffId2, date2, reason);
+
+        LocalDate weekOf = date1.minusDays(date1.getDayOfWeek().getValue() - 1L);
+        return getStaffSchedule(branchId, weekOf);
+    }
+
     // ── Service Plan Operations ──────────────────────────────────────────
 
     @Transactional
@@ -160,4 +261,58 @@ public class BranchOperationsService {
         log.info("Service plan actuals updated: planId={}, txnVol={}, newAccts={}, crossSell={}", planId, txnVol, newAccts, crossSell);
         return servicePlanRepository.save(plan);
     }
+
+    private String resolveStaffName(String requestedName, BranchStaffSchedule existing, String staffId) {
+        if (StringUtils.hasText(requestedName)) {
+            return requestedName;
+        }
+        if (existing != null && StringUtils.hasText(existing.getEmployeeName())) {
+            return existing.getEmployeeName();
+        }
+        return staffId;
+    }
+
+    private String resolveRole(String requestedRole, BranchStaffSchedule existing) {
+        if (StringUtils.hasText(requestedRole)) {
+            return requestedRole;
+        }
+        if (existing != null && StringUtils.hasText(existing.getRole())) {
+            return existing.getRole();
+        }
+        return "BRANCH_STAFF";
+    }
+
+    private String normalizeShiftType(String shiftType) {
+        if (!StringUtils.hasText(shiftType)) {
+            return "OFF";
+        }
+        return shiftType.trim().toUpperCase();
+    }
+
+    private void applyShiftHours(BranchStaffSchedule schedule) {
+        switch (normalizeShiftType(schedule.getShiftType())) {
+            case "MORNING" -> {
+                schedule.setStartTime(java.time.LocalTime.of(8, 0));
+                schedule.setEndTime(java.time.LocalTime.of(13, 0));
+            }
+            case "AFTERNOON" -> {
+                schedule.setStartTime(java.time.LocalTime.of(13, 0));
+                schedule.setEndTime(java.time.LocalTime.of(18, 0));
+            }
+            case "FULL_DAY" -> {
+                schedule.setStartTime(java.time.LocalTime.of(8, 0));
+                schedule.setEndTime(java.time.LocalTime.of(18, 0));
+            }
+            case "ON_LEAVE", "OFF" -> {
+                schedule.setStartTime(null);
+                schedule.setEndTime(null);
+            }
+            default -> {
+                schedule.setStartTime(null);
+                schedule.setEndTime(null);
+            }
+        }
+    }
+
+    public record BranchStaffScheduleView(String staffId, String staffName, String role, Map<String, String> schedule) {}
 }

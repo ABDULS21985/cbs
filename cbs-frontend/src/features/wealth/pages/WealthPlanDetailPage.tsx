@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { wealthApi, type WealthPlan, type WealthGoal, type AssetAllocation } from '../api/wealthApi';
+import { usePlan, useActivatePlan, useClosePlan, useAddGoal, useRebalancePlan, useUploadPlanDocument, usePlanDocuments } from '../hooks/useWealthData';
+import { exportWealthPlanPdf } from '../lib/wealthExport';
 import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
@@ -835,39 +837,15 @@ const TABS: { id: TabId; label: string }[] = [
 
 export function WealthPlanDetailPage() {
   const { code } = useParams<{ code: string }>();
-  const [plan, setPlan] = useState<WealthPlan | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { data: plan, isLoading: loading, isError: error } = usePlan(code || '');
+  const activatePlan = useActivatePlan();
+  const closePlanMutation = useClosePlan();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
-  const [activating, setActivating] = useState(false);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
 
-  const loadPlan = useCallback(async () => {
+  function handleActivate() {
     if (!code) return;
-    setLoading(true);
-    setError(false);
-    try {
-      const data = await wealthApi.getPlan(code);
-      setPlan(data);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [code]);
-
-  useEffect(() => {
-    loadPlan();
-  }, [loadPlan]);
-
-  async function handleActivate() {
-    if (!code) return;
-    setActivating(true);
-    try {
-      const updated = await wealthApi.activatePlan(code);
-      setPlan(updated);
-    } finally {
-      setActivating(false);
-    }
+    activatePlan.mutate(code);
   }
 
   if (loading) {
@@ -895,15 +873,32 @@ export function WealthPlanDetailPage() {
         backTo="/wealth"
         actions={
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportWealthPlanPdf(plan)}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors no-print"
+              aria-label="Export plan as PDF"
+            >
+              <Download className="w-4 h-4" />
+              Export PDF
+            </button>
             <StatusBadge status={plan.status} size="md" dot />
             {plan.status === 'DRAFT' && (
               <button
                 onClick={handleActivate}
-                disabled={activating}
+                disabled={activatePlan.isPending}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 <Zap className="w-3.5 h-3.5" />
-                {activating ? 'Activating…' : 'Activate'}
+                {activatePlan.isPending ? 'Activating…' : 'Activate'}
+              </button>
+            )}
+            {plan.status === 'ACTIVE' && (
+              <button
+                onClick={() => code && closePlanMutation.mutate({ code, reason: 'Client request' })}
+                disabled={closePlanMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+              >
+                {closePlanMutation.isPending ? 'Closing…' : 'Close Plan'}
               </button>
             )}
           </div>

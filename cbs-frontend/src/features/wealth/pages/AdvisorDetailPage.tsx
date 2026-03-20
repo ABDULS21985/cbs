@@ -2,8 +2,9 @@ import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, TabsPage } from '@/components/shared';
 import { formatMoneyCompact, formatPercent, formatDate } from '@/lib/formatters';
-import { User, BarChart2, Users, Calendar, Shield, Loader2, AlertCircle } from 'lucide-react';
-import { useAdvisor } from '../hooks/useWealth';
+import { User, BarChart2, Users, Calendar, Shield, Loader2, AlertCircle, Download } from 'lucide-react';
+import { useAdvisor, useAdvisorClients } from '../hooks/useWealth';
+import { exportAdvisorReportPdf } from '../lib/wealthExport';
 import { AdvisorPerformanceTab } from '../components/advisors/AdvisorPerformanceTab';
 import { AdvisorClientsTab } from '../components/advisors/AdvisorClientsTab';
 import { AdvisorCalendar } from '../components/advisors/AdvisorCalendar';
@@ -112,7 +113,19 @@ export function AdvisorDetailPage() {
         title={advisor.name}
         subtitle="Wealth Advisor"
         backTo="/wealth/advisors"
-        actions={<StatusBadge status={advisor.status ?? 'ACTIVE'} size="md" dot />}
+        actions={
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportAdvisorReportPdf(advisor, [])}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors no-print"
+              aria-label="Export advisor report as PDF"
+            >
+              <Download className="w-4 h-4" />
+              Export PDF
+            </button>
+            <StatusBadge status={advisor.status ?? 'ACTIVE'} size="md" dot />
+          </div>
+        }
       />
 
       <div className="page-container space-y-6">

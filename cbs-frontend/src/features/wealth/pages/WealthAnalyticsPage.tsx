@@ -27,6 +27,7 @@ import {
   ShieldAlert,
   Target,
   Brain,
+  Download,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/shared';
@@ -265,21 +266,31 @@ export function WealthAnalyticsPage() {
         title="Wealth Analytics"
         subtitle="Portfolio performance, AUM trends, and risk analytics"
         actions={
-          <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-1">
-            {PERIOD_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setPeriod(opt.value)}
-                className={cn(
-                  'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
-                  period === opt.value
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors no-print"
+              aria-label="Print analytics report"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+            <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-1 no-print">
+              {PERIOD_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setPeriod(opt.value)}
+                  className={cn(
+                    'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                    period === opt.value
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         }
       />

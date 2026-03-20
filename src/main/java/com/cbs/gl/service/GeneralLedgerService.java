@@ -17,9 +17,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
@@ -256,10 +262,41 @@ public class GeneralLedgerService {
 
     @Transactional
     public ChartOfAccounts createGlAccount(ChartOfAccounts coa) {
+        normalizeGlAccount(coa);
         coaRepository.findByGlCode(coa.getGlCode()).ifPresent(existing -> {
             throw new BusinessException("GL code already exists: " + coa.getGlCode(), "DUPLICATE_GL");
         });
+        coa.setCreatedBy(currentActorProvider.getCurrentActor());
         return coaRepository.save(coa);
+    }
+
+    @Transactional
+    public List<ChartOfAccounts> importGlAccounts(InputStream inputStream) {
+        List<ChartOfAccounts> imported = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            String line;
+            int lineNumber = 0;
+            while ((line = reader.readLine()) != null) {
+                lineNumber++;
+                if (!StringUtils.hasText(line)) {
+                    continue;
+                }
+
+                List<String> columns = parseCsvLine(line);
+                if (lineNumber == 1 && !columns.isEmpty() && "glCode".equalsIgnoreCase(columns.get(0))) {
+                    continue;
+                }
+                if (columns.size() < 2) {
+                    throw new BusinessException("Invalid GL import row at line " + lineNumber, "INVALID_GL_IMPORT_ROW");
+                }
+
+                ChartOfAccounts account = upsertGlAccount(columns);
+                imported.add(account);
+            }
+        } catch (IOException ex) {
+            throw new BusinessException("Unable to read chart of accounts import file", "GL_IMPORT_READ_ERROR");
+        }
+        return imported;
     }
 
     public List<ChartOfAccounts> getPostableAccounts() {
@@ -280,6 +317,160 @@ public class GeneralLedgerService {
 
     public Page<JournalEntry> getJournalsByDate(LocalDate from, LocalDate to, Pageable pageable) {
         return journalRepository.findByPostingDateBetweenOrderByPostingDateDesc(from, to, pageable);
+    }
+
+    private ChartOfAccounts upsertGlAccount(List<String> columns) {
+        String glCode = requiredCsv(columns, 0, "glCode");
+        ChartOfAccounts account = coaRepository.findByGlCode(glCode).orElseGet(ChartOfAccounts::new);
+        account.setGlCode(glCode);
+        account.setGlName(requiredCsv(columns, 1, "glName"));
+        account.setGlCategory(parseEnum(columns, 2, GlCategory.class, inferCategory(glCode)));
+        account.setParentGlCode(optionalCsv(columns, 3));
+        account.setLevelNumber(parseInteger(columns, 4, null));
+        account.setIsHeader(parseBoolean(columns, 5, Boolean.FALSE));
+        account.setIsPostable(parseBoolean(columns, 6, !Boolean.TRUE.equals(account.getIsHeader())));
+        account.setCurrencyCode(optionalCsv(columns, 7));
+        account.setNormalBalance(parseEnum(columns, 8, NormalBalance.class, inferNormalBalance(account.getGlCategory())));
+        account.setIsActive(parseBoolean(columns, 9, Boolean.TRUE));
+        account.setCreatedBy(StringUtils.hasText(account.getCreatedBy()) ? account.getCreatedBy() : currentActorProvider.getCurrentActor());
+        normalizeGlAccount(account);
+        return coaRepository.save(account);
+    }
+
+    private void normalizeGlAccount(ChartOfAccounts coa) {
+        if (!StringUtils.hasText(coa.getGlCode())) {
+            throw new BusinessException("GL code is required", "MISSING_GL_CODE");
+        }
+        if (!StringUtils.hasText(coa.getGlName())) {
+            throw new BusinessException("GL name is required", "MISSING_GL_NAME");
+        }
+        if (coa.getGlCategory() == null) {
+            coa.setGlCategory(inferCategory(coa.getGlCode()));
+        }
+        if (coa.getNormalBalance() == null) {
+            coa.setNormalBalance(inferNormalBalance(coa.getGlCategory()));
+        }
+        if (coa.getIsHeader() == null) {
+            coa.setIsHeader(Boolean.FALSE);
+        }
+        if (coa.getIsPostable() == null) {
+            coa.setIsPostable(!Boolean.TRUE.equals(coa.getIsHeader()));
+        }
+        if (Boolean.TRUE.equals(coa.getIsHeader())) {
+            coa.setIsPostable(Boolean.FALSE);
+        }
+        if (coa.getIsActive() == null) {
+            coa.setIsActive(Boolean.TRUE);
+        }
+        if (coa.getAllowManualPosting() == null) {
+            coa.setAllowManualPosting(Boolean.TRUE);
+        }
+        if (coa.getRequiresCostCentre() == null) {
+            coa.setRequiresCostCentre(Boolean.FALSE);
+        }
+        if (coa.getIsInterBranch() == null) {
+            coa.setIsInterBranch(Boolean.FALSE);
+        }
+        if (coa.getIsMultiCurrency() == null) {
+            coa.setIsMultiCurrency(Boolean.FALSE);
+        }
+        coa.setGlCode(coa.getGlCode().trim().toUpperCase());
+        coa.setGlName(coa.getGlName().trim());
+        coa.setCurrencyCode(StringUtils.hasText(coa.getCurrencyCode()) ? coa.getCurrencyCode().trim().toUpperCase() : null);
+        coa.setParentGlCode(StringUtils.hasText(coa.getParentGlCode()) ? coa.getParentGlCode().trim().toUpperCase() : null);
+        coa.setUpdatedAt(Instant.now());
+
+        if (StringUtils.hasText(coa.getParentGlCode())) {
+            ChartOfAccounts parent = coaRepository.findByGlCode(coa.getParentGlCode())
+                    .orElseThrow(() -> new BusinessException("Parent GL code not found: " + coa.getParentGlCode(), "INVALID_PARENT_GL"));
+            coa.setLevelNumber(parent.getLevelNumber() + 1);
+            if (parent.getGlCategory() != coa.getGlCategory()) {
+                coa.setGlCategory(parent.getGlCategory());
+                if (coa.getNormalBalance() == null) {
+                    coa.setNormalBalance(parent.getNormalBalance());
+                }
+            }
+        } else if (coa.getLevelNumber() == null || coa.getLevelNumber() < 1) {
+            coa.setLevelNumber(1);
+        }
+    }
+
+    private List<String> parseCsvLine(String line) {
+        List<String> columns = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (ch == '"') {
+                if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    current.append('"');
+                    i++;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+                continue;
+            }
+            if (ch == ',' && !inQuotes) {
+                columns.add(current.toString().trim());
+                current.setLength(0);
+                continue;
+            }
+            current.append(ch);
+        }
+        columns.add(current.toString().trim());
+        return columns;
+    }
+
+    private String requiredCsv(List<String> columns, int index, String field) {
+        String value = optionalCsv(columns, index);
+        if (!StringUtils.hasText(value)) {
+            throw new BusinessException("Missing required field '" + field + "' in GL import", "INVALID_GL_IMPORT_ROW");
+        }
+        return value;
+    }
+
+    private String optionalCsv(List<String> columns, int index) {
+        if (index >= columns.size()) {
+            return null;
+        }
+        String value = columns.get(index);
+        return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private Integer parseInteger(List<String> columns, int index, Integer defaultValue) {
+        String value = optionalCsv(columns, index);
+        return StringUtils.hasText(value) ? Integer.valueOf(value) : defaultValue;
+    }
+
+    private Boolean parseBoolean(List<String> columns, int index, Boolean defaultValue) {
+        String value = optionalCsv(columns, index);
+        return StringUtils.hasText(value) ? Boolean.valueOf(value) : defaultValue;
+    }
+
+    private <E extends Enum<E>> E parseEnum(List<String> columns, int index, Class<E> type, E defaultValue) {
+        String value = optionalCsv(columns, index);
+        return StringUtils.hasText(value) ? Enum.valueOf(type, value.toUpperCase()) : defaultValue;
+    }
+
+    private GlCategory inferCategory(String glCode) {
+        if (!StringUtils.hasText(glCode)) {
+            return GlCategory.ASSET;
+        }
+        return switch (glCode.trim().charAt(0)) {
+            case '1' -> GlCategory.ASSET;
+            case '2' -> GlCategory.LIABILITY;
+            case '3' -> GlCategory.EQUITY;
+            case '4' -> GlCategory.INCOME;
+            case '5' -> GlCategory.EXPENSE;
+            default -> GlCategory.ASSET;
+        };
+    }
+
+    private NormalBalance inferNormalBalance(GlCategory category) {
+        return switch (category) {
+            case LIABILITY, EQUITY, INCOME -> NormalBalance.CREDIT;
+            default -> NormalBalance.DEBIT;
+        };
     }
 
     /** DTO for journal line creation */
