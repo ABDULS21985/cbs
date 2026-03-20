@@ -1,29 +1,21 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { TabsPage } from '@/components/shared/TabsPage';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import { formatDate } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
-  Search,
-  Plus,
-  RefreshCw,
-  Globe,
-  Package,
+  Ban,
   CheckCircle2,
   Clock,
-  Ban,
+  Globe,
   Layers,
+  Loader2,
+  Package,
+  RefreshCw,
+  Search,
 } from 'lucide-react';
 
 import {
@@ -32,15 +24,11 @@ import {
   usePublishProduct,
   useDeprecateProduct,
   useApproveSubscription,
-  useCreateApiProduct,
-  useSubscribeToApi,
 } from '../hooks/useMarketplace';
 import { useTppClients } from '../hooks/useOpenBanking';
-import type { ApiProduct } from '../api/marketplaceApi';
-import { ApiProductCard } from '../components/marketplace/ApiProductCard';
 import { ApiProductGrid } from '../components/marketplace/ApiProductGrid';
 
-// ─── Categories ──────────────────────────────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
   'All',
@@ -60,16 +48,12 @@ export function ApiMarketplacePage() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [tab, setTab] = useState('catalogue');
 
   const { data: products = [], isLoading, refetch, isFetching } = useApiProducts();
   const { data: subscriptions = [], isLoading: subsLoading } = useApiSubscriptions();
-  const { data: tppClients = [] } = useTppClients();
   const publish = usePublishProduct();
   const deprecate = useDeprecateProduct();
   const approveSubscription = useApproveSubscription();
-  const createProduct = useCreateApiProduct();
-  const subscribe = useSubscribeToApi();
 
   const filtered = useMemo(() => {
     return products.filter(p => {
@@ -105,80 +89,21 @@ export function ApiMarketplacePage() {
     });
   }
 
-  function handleApproveSub(id: number) {
-    approveSubscription.mutate(id, {
-      onSuccess: () => toast.success('Subscription approved'),
-      onError: () => toast.error('Failed to approve'),
-    });
-  }
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="API Marketplace"
-        description="Publish and manage open banking API products for third-party integrations"
-        actions={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={`mr-1.5 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            <Button size="sm" onClick={() => navigate('/open-banking/developer')}>
-              <Globe className="mr-1.5 h-4 w-4" /> Developer Portal
-            </Button>
-          </div>
-        }
-      />
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {[
-          { icon: CheckCircle2, label: 'Published', value: stats.published, color: 'text-green-600', filter: 'PUBLISHED' },
-          { icon: Clock, label: 'Draft', value: stats.draft, color: 'text-amber-600', filter: 'DRAFT' },
-          { icon: Ban, label: 'Deprecated', value: stats.deprecated, color: 'text-gray-500', filter: 'DEPRECATED' },
-          { icon: Layers, label: 'Subscriptions', value: stats.totalSubs, color: 'text-blue-600', filter: null },
-          { icon: Clock, label: 'Pending Subs', value: stats.pendingSubs, color: 'text-orange-600', filter: null },
-        ].map(({ icon: Icon, label, value, color, filter }) => (
-          <button
-            key={label}
-            className={`p-4 rounded-lg border bg-card text-left hover:bg-muted/50 transition-colors ${filter && statusFilter === filter ? 'ring-2 ring-primary' : ''}`}
-            onClick={() => filter && setStatusFilter(s => s === filter ? 'ALL' : filter)}
-          >
-            <div className="flex items-center gap-3">
-              <Icon className={`h-6 w-6 ${color}`} />
-              <div>
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="text-2xl font-bold">{value}</p>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Tabs */}
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="catalogue">
-            API Catalogue
-            <Badge variant="secondary" className="ml-2 h-4 text-xs">{filtered.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="subscriptions">
-            Subscriptions
-            {stats.pendingSubs > 0 && (
-              <Badge variant="destructive" className="ml-2 h-4 text-xs">{stats.pendingSubs}</Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ── Catalogue ───────────────────────────────────────────────────── */}
-        <TabsContent value="catalogue" className="space-y-4">
-          {/* Search & Filters */}
+  const tabs = [
+    {
+      id: 'catalogue',
+      label: 'API Catalogue',
+      badge: filtered.length,
+      content: (
+        <div className="p-6 space-y-4">
+          {/* Filters */}
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
+              <input
+                type="text"
                 placeholder="Search products…"
-                className="pl-9"
+                className="w-full pl-9 pr-3 py-1.5 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -187,10 +112,12 @@ export function ApiMarketplacePage() {
               {CATEGORIES.map(cat => (
                 <button
                   key={cat}
-                  className={`px-3 py-1 rounded-full text-xs border transition-colors ${category === cat
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-card hover:bg-muted border-border'
-                  }`}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs border transition-colors',
+                    category === cat
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card hover:bg-muted border-border',
+                  )}
                   onClick={() => setCategory(cat)}
                 >
                   {cat}
@@ -199,7 +126,6 @@ export function ApiMarketplacePage() {
             </div>
           </div>
 
-          {/* Product Grid */}
           <ApiProductGrid
             products={filtered}
             isLoading={isLoading}
@@ -207,63 +133,123 @@ export function ApiMarketplacePage() {
             onDeprecate={handleDeprecate}
             onView={(p) => navigate(`/open-banking/marketplace/${p.id}`)}
           />
-        </TabsContent>
-
-        {/* ── Subscriptions ───────────────────────────────────────────────── */}
-        <TabsContent value="subscriptions">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">API Subscriptions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {subsLoading ? (
-                <div className="flex justify-center py-8">
-                  <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : subscriptions.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-8">No subscriptions yet.</p>
-              ) : (
-                <div className="divide-y">
-                  {subscriptions.map(sub => (
-                    <div key={sub.id} className="flex items-center justify-between py-3 gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {sub.productName ?? `Product #${sub.productId}`}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {sub.tppClientName ?? `TPP #${sub.tppClientId}`} · Subscribed {formatDate(sub.subscribedAt)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge
-                          variant={sub.status === 'APPROVED' ? 'default' : sub.status === 'PENDING' ? 'secondary' : 'destructive'}
-                        >
-                          {sub.status}
-                        </Badge>
-                        {sub.status === 'PENDING' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleApproveSub(sub.id)}
-                            disabled={approveSubscription.isPending}
-                          >
-                            Approve
-                          </Button>
-                        )}
-                      </div>
+        </div>
+      ),
+    },
+    {
+      id: 'subscriptions',
+      label: 'Subscriptions',
+      badge: stats.pendingSubs,
+      content: (
+        <div className="p-6">
+          <div className="rounded-lg border bg-card overflow-hidden">
+            <div className="px-4 py-3 border-b">
+              <h3 className="text-sm font-semibold">API Subscriptions</h3>
+            </div>
+            {subsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : subscriptions.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-8">No subscriptions yet.</p>
+            ) : (
+              <div className="divide-y">
+                {subscriptions.map(sub => (
+                  <div key={sub.id} className="flex items-center justify-between px-4 py-3 gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {sub.productName ?? `Product #${sub.productId}`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {sub.tppClientName ?? `TPP #${sub.tppClientId}`} · Subscribed {formatDate(sub.subscribedAt)}
+                      </p>
                     </div>
-                  ))}
-                </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <StatusBadge status={sub.status} />
+                      {sub.status === 'PENDING' && (
+                        <button
+                          className="px-2.5 py-1 rounded-md border text-xs hover:bg-muted transition-colors disabled:opacity-50"
+                          onClick={() => {
+                            approveSubscription.mutate(sub.id, {
+                              onSuccess: () => toast.success('Subscription approved'),
+                              onError: () => toast.error('Failed to approve'),
+                            });
+                          }}
+                          disabled={approveSubscription.isPending}
+                        >
+                          Approve
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-0">
+      <PageHeader
+        title="API Marketplace"
+        subtitle="Publish and manage open banking API products for third-party integrations"
+        actions={
+          <div className="flex gap-2">
+            <button
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background text-sm hover:bg-muted transition-colors disabled:opacity-50"
+              onClick={() => refetch()}
+              disabled={isFetching}
+            >
+              <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
+              Refresh
+            </button>
+            <button
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 transition-colors"
+              onClick={() => navigate('/open-banking/developer')}
+            >
+              <Globe className="h-4 w-4" /> Developer Portal
+            </button>
+          </div>
+        }
+      />
+
+      {/* Stats */}
+      <div className="px-6 pb-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {[
+            { icon: CheckCircle2, label: 'Published', value: stats.published, color: 'text-green-600', filter: 'PUBLISHED' as const },
+            { icon: Clock, label: 'Draft', value: stats.draft, color: 'text-amber-600', filter: 'DRAFT' as const },
+            { icon: Ban, label: 'Deprecated', value: stats.deprecated, color: 'text-gray-500', filter: 'DEPRECATED' as const },
+            { icon: Layers, label: 'Subscriptions', value: stats.totalSubs, color: 'text-blue-600', filter: null },
+            { icon: Clock, label: 'Pending Subs', value: stats.pendingSubs, color: 'text-orange-600', filter: null },
+          ].map(({ icon: Icon, label, value, color, filter }) => (
+            <button
+              key={label}
+              className={cn(
+                'p-4 rounded-lg border bg-card text-left hover:bg-muted/50 transition-colors',
+                filter && statusFilter === filter ? 'ring-2 ring-primary' : '',
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              onClick={() => filter && setStatusFilter(s => s === filter ? 'ALL' : filter)}
+            >
+              <div className="flex items-center gap-3">
+                <Icon className={cn('h-6 w-6', color)} />
+                <div>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="text-2xl font-bold">{value}</p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-t">
+        <TabsPage tabs={tabs} />
+      </div>
     </div>
   );
-}
-
-function formatDate(dateStr: string) {
-  try { return new Date(dateStr).toLocaleDateString(); }
-  catch { return dateStr; }
 }

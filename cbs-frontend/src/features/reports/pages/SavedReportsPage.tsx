@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, X, Play, Pencil, Copy, Trash2, History, Search, Loader2,
-  Clock, CheckCircle2, XCircle, Calendar,
+  CheckCircle2, Calendar,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';

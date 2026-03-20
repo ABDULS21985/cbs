@@ -1,32 +1,23 @@
 import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
-  Plus,
-  Search,
-  Filter,
-  RefreshCw,
+  Ban,
   CheckCircle2,
   Clock,
-  Ban,
   AlertTriangle,
+  Plus,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  Loader2,
   Shield,
 } from 'lucide-react';
 
-import { useConsents, useCreateConsent, useAuthoriseConsent, useRevokeConsent } from '../hooks/useOpenBanking';
-import { useTppClients } from '../hooks/useOpenBanking';
+import { useConsents, useCreateConsent, useAuthoriseConsent, useRevokeConsent, useTppClients } from '../hooks/useOpenBanking';
 import type { ConsentStatus } from '../api/openBankingApi';
 import { ConsentTable } from '../components/consent/ConsentTable';
 import { CreateConsentSheet } from '../components/consent/CreateConsentSheet';
@@ -35,14 +26,14 @@ import { RevokeConsentDialog } from '../components/consent/RevokeConsentDialog';
 import { BulkConsentActions } from '../components/consent/BulkConsentActions';
 import { ConsentExpiryTracker } from '../components/consent/ConsentExpiryTracker';
 
-// ─── Status Stats ───────────────────────────────────────────────────────────
+// ─── Status chips ─────────────────────────────────────────────────────────────
 
-const STATUS_STATS = [
+const STATUS_CHIPS = [
   { status: 'AUTHORISED' as ConsentStatus, icon: CheckCircle2, label: 'Authorised', color: 'text-green-600' },
   { status: 'PENDING' as ConsentStatus, icon: Clock, label: 'Pending', color: 'text-amber-600' },
   { status: 'REVOKED' as ConsentStatus, icon: Ban, label: 'Revoked', color: 'text-red-600' },
   { status: 'EXPIRED' as ConsentStatus, icon: AlertTriangle, label: 'Expired', color: 'text-gray-500' },
-];
+] as const;
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
@@ -86,11 +77,11 @@ export function ConsentManagementPage() {
     return consents.filter(c => c.status === 'AUTHORISED' && new Date(c.expiresAt) <= in7d);
   }, [consents]);
 
-  const authoriseConsent = authorise;
-  const revokeConsent = revoke;
+  const authoriseTarget = authoriseId !== null ? consents.find(c => c.id === authoriseId) : undefined;
+  const revokeTarget = revokeId !== null ? consents.find(c => c.id === revokeId) : undefined;
 
   function handleAuthorise(consentId: number, customerId: number) {
-    authoriseConsent.mutate(
+    authorise.mutate(
       { consentId, customerId },
       {
         onSuccess: () => { toast.success('Consent authorised'); setAuthoriseId(null); },
@@ -100,7 +91,7 @@ export function ConsentManagementPage() {
   }
 
   function handleRevoke(consentId: number, reason?: string) {
-    revokeConsent.mutate(
+    revoke.mutate(
       { consentId, reason },
       {
         onSuccess: () => { toast.success('Consent revoked'); setRevokeId(null); },
@@ -109,133 +100,139 @@ export function ConsentManagementPage() {
     );
   }
 
-  const authoriseTarget = authoriseId !== null ? consents.find(c => c.id === authoriseId) : undefined;
-  const revokeTarget = revokeId !== null ? consents.find(c => c.id === revokeId) : undefined;
+  const hasFilters = search || statusFilter !== 'ALL' || tppFilter !== 'ALL';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-0">
       <PageHeader
         title="Consent Management"
-        description="Manage customer authorisations granted to third-party providers"
+        subtitle="Manage customer authorisations granted to third-party providers"
         actions={
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
+            <button
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border bg-background text-sm hover:bg-muted transition-colors disabled:opacity-50"
               onClick={() => refetch()}
               disabled={isFetching}
             >
-              <RefreshCw className={`mr-1.5 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+              <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
               Refresh
-            </Button>
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="mr-1.5 h-4 w-4" /> New Consent
-            </Button>
+            </button>
+            <button
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 transition-colors"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="h-4 w-4" /> New Consent
+            </button>
           </div>
         }
       />
 
-      {/* Status Stat Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {STATUS_STATS.map(({ status, icon: Icon, label, color }) => (
-          <button
-            key={status}
-            className={`p-4 rounded-lg border bg-card text-left transition-colors hover:bg-muted/50 ${statusFilter === status ? 'ring-2 ring-primary' : ''}`}
-            onClick={() => setStatusFilter(s => s === status ? 'ALL' : status)}
-          >
-            <div className="flex items-center gap-3">
-              <Icon className={`h-6 w-6 ${color}`} />
-              <div>
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="text-2xl font-bold">{statCounts[status]}</p>
+      <div className="px-6 space-y-6">
+        {/* Status Stat Strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {STATUS_CHIPS.map(({ status, icon: Icon, label, color }) => (
+            <button
+              key={status}
+              className={cn(
+                'p-4 rounded-lg border bg-card text-left transition-colors hover:bg-muted/50',
+                statusFilter === status ? 'ring-2 ring-primary' : '',
+              )}
+              onClick={() => setStatusFilter(s => s === status ? 'ALL' : status)}
+            >
+              <div className="flex items-center gap-3">
+                <Icon className={cn('h-6 w-6', color)} />
+                <div>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="text-2xl font-bold">{statCounts[status]}</p>
+                </div>
               </div>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Expiry Alert */}
-      {expiringConsents.length > 0 && (
-        <ConsentExpiryTracker consents={expiringConsents} />
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by ID, customer, TPP…"
-            className="pl-9"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+            </button>
+          ))}
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40">
-            <Filter className="mr-1.5 h-4 w-4 text-muted-foreground" />
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All Statuses</SelectItem>
-            <SelectItem value="AUTHORISED">Authorised</SelectItem>
-            <SelectItem value="PENDING">Pending</SelectItem>
-            <SelectItem value="REVOKED">Revoked</SelectItem>
-            <SelectItem value="EXPIRED">Expired</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={tppFilter} onValueChange={setTppFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="TPP Client" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All TPP Clients</SelectItem>
-            {tppClients.map(t => (
-              <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {selectedIds.length > 0 && (
-          <BulkConsentActions
-            selectedIds={selectedIds}
-            onClear={() => setSelectedIds([])}
-            onBulkRevoke={(ids) => {
-              Promise.all(ids.map(id => revokeConsent.mutateAsync({ consentId: id })))
-                .then(() => { toast.success(`${ids.length} consents revoked`); setSelectedIds([]); })
-                .catch(() => toast.error('Bulk revoke partially failed'));
-            }}
-          />
-        )}
-      </div>
 
-      {/* Results Info */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          {isLoading ? 'Loading…' : `${filtered.length} of ${consents.length} consents`}
-        </span>
-        {(search || statusFilter !== 'ALL' || tppFilter !== 'ALL') && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { setSearch(''); setStatusFilter('ALL'); setTppFilter('ALL'); }}
+        {/* Expiry Alert */}
+        {expiringConsents.length > 0 && (
+          <ConsentExpiryTracker consents={expiringConsents} />
+        )}
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search by ID, customer, TPP…"
+              className="w-full pl-9 pr-3 py-1.5 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <select
+            className="px-3 py-1.5 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
           >
-            Clear filters
-          </Button>
-        )}
-      </div>
+            <option value="ALL">All Statuses</option>
+            <option value="AUTHORISED">Authorised</option>
+            <option value="PENDING">Pending</option>
+            <option value="REVOKED">Revoked</option>
+            <option value="EXPIRED">Expired</option>
+          </select>
+          <select
+            className="px-3 py-1.5 rounded-md border bg-background text-sm outline-none focus:ring-2 focus:ring-primary/30"
+            value={tppFilter}
+            onChange={e => setTppFilter(e.target.value)}
+          >
+            <option value="ALL">All TPP Clients</option>
+            {tppClients.map(t => (
+              <option key={t.id} value={String(t.id)}>{t.name}</option>
+            ))}
+          </select>
+          {selectedIds.length > 0 && (
+            <BulkConsentActions
+              selectedIds={selectedIds}
+              onClear={() => setSelectedIds([])}
+              onBulkRevoke={(ids) => {
+                Promise.all(ids.map(id => revoke.mutateAsync({ consentId: id })))
+                  .then(() => { toast.success(`${ids.length} consents revoked`); setSelectedIds([]); })
+                  .catch(() => toast.error('Bulk revoke partially failed'));
+              }}
+            />
+          )}
+        </div>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <ConsentTable
-            consents={filtered}
-            isLoading={isLoading}
-            selectedIds={selectedIds}
-            onSelectionChange={setSelectedIds}
-            onAuthorise={(c) => setAuthoriseId(c.id)}
-            onRevoke={(c) => setRevokeId(c.id)}
-          />
-        </CardContent>
-      </Card>
+        {/* Results info */}
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            {isLoading ? 'Loading…' : `${filtered.length} of ${consents.length} consents`}
+          </span>
+          {hasFilters && (
+            <button
+              className="text-primary hover:underline text-xs"
+              onClick={() => { setSearch(''); setStatusFilter('ALL'); setTppFilter('ALL'); }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        {/* Table */}
+        <div className="rounded-lg border bg-card overflow-hidden">
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <ConsentTable
+              consents={filtered}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              onAuthorise={(c) => setAuthoriseId(c.id)}
+              onRevoke={(c) => setRevokeId(c.id)}
+            />
+          )}
+        </div>
+      </div>
 
       {/* Dialogs */}
       <CreateConsentSheet

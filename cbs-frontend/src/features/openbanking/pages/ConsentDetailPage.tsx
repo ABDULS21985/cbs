@@ -1,25 +1,20 @@
 import { useState, useMemo } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge } from '@/components/shared';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import { TabsPage } from '@/components/shared/TabsPage';
 import { formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
-  ArrowLeft,
-  Shield,
-  Clock,
-  CheckCircle2,
-  Ban,
   AlertTriangle,
-  User,
-  Building2,
-  RefreshCw,
+  Ban,
+  CheckCircle2,
+  Clock,
   Key,
+  Loader2,
+  RefreshCw,
+  User,
 } from 'lucide-react';
 
 import { useConsents, useAuthoriseConsent, useRevokeConsent } from '../hooks/useOpenBanking';
@@ -33,11 +28,11 @@ import { CustomerConsentSummary } from '../components/consent/CustomerConsentSum
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const STATUS_VARIANT: Record<ConsentStatus, 'success' | 'warning' | 'danger' | 'default'> = {
-  AUTHORISED: 'success',
-  PENDING: 'warning',
-  REVOKED: 'danger',
-  EXPIRED: 'default',
+const STATUS_BG: Record<ConsentStatus, string> = {
+  AUTHORISED: 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900',
+  PENDING: 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900',
+  REVOKED: 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900',
+  EXPIRED: 'bg-muted border-border',
 };
 
 const STATUS_ICON: Record<ConsentStatus, React.ElementType> = {
@@ -47,31 +42,27 @@ const STATUS_ICON: Record<ConsentStatus, React.ElementType> = {
   EXPIRED: AlertTriangle,
 };
 
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-2">
-      <span className="text-sm text-muted-foreground min-w-[160px]">{label}</span>
-      <span className="text-sm font-medium text-right">{value}</span>
-    </div>
-  );
-}
+const STATUS_ICON_COLOR: Record<ConsentStatus, string> = {
+  AUTHORISED: 'text-green-600',
+  PENDING: 'text-amber-600',
+  REVOKED: 'text-red-600',
+  EXPIRED: 'text-muted-foreground',
+};
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export function ConsentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [tab, setTab] = useState('overview');
   const [authoriseOpen, setAuthoriseOpen] = useState(false);
   const [revokeOpen, setRevokeOpen] = useState(false);
 
   const { data: consents = [], isLoading } = useConsents();
   const consent = useMemo(() => consents.find(c => String(c.id) === id), [consents, id]);
 
-  const { data: allConsents = [] } = useConsents();
   const customerConsents = useMemo(
-    () => allConsents.filter(c => consent && c.customerId === consent.customerId),
-    [allConsents, consent],
+    () => consents.filter(c => consent && c.customerId === consent.customerId),
+    [consents, consent],
   );
 
   const authorise = useAuthoriseConsent();
@@ -80,7 +71,7 @@ export function ConsentDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
@@ -89,15 +80,17 @@ export function ConsentDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <p className="text-muted-foreground">Consent not found.</p>
-        <Button variant="ghost" onClick={() => navigate('/open-banking/consents')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Consents
-        </Button>
+        <button
+          className="text-sm text-primary hover:underline"
+          onClick={() => navigate('/open-banking/consents')}
+        >
+          ← Back to Consents
+        </button>
       </div>
     );
   }
 
   const StatusIcon = STATUS_ICON[consent.status];
-  const isExpired = new Date(consent.expiresAt) < new Date();
   const daysUntilExpiry = Math.ceil(
     (new Date(consent.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
   );
@@ -122,117 +115,116 @@ export function ConsentDetailPage() {
     );
   }
 
+  const tabs = [
+    {
+      id: 'overview',
+      label: 'Overview',
+      content: (
+        <div className="p-6">
+          <ConsentDetailCard consent={consent} />
+        </div>
+      ),
+    },
+    {
+      id: 'scopes',
+      label: 'Scopes & Data',
+      content: (
+        <div className="p-6">
+          <div className="rounded-lg border bg-card p-4">
+            <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+              <Key className="h-4 w-4 text-muted-foreground" /> Authorised Data Access
+            </h3>
+            <ConsentScopeVisualizer scopes={consent.scopes} />
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'timeline',
+      label: 'Timeline',
+      content: (
+        <div className="p-6">
+          <div className="rounded-lg border bg-card p-4">
+            <h3 className="text-sm font-semibold mb-4">Consent Lifecycle</h3>
+            <ConsentTimeline consent={consent} />
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'customer',
+      label: 'Customer',
+      content: (
+        <div className="p-6">
+          <div className="rounded-lg border bg-card p-4">
+            <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground" /> Customer Consents Summary
+            </h3>
+            <CustomerConsentSummary
+              customerId={consent.customerId}
+              consents={customerConsents}
+            />
+          </div>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-0">
       <PageHeader
         title={`Consent ${consent.consentId}`}
-        description={`Customer ${consent.customerId} · ${consent.tppClientName ?? `TPP #${consent.tppClientId}`}`}
+        subtitle={`Customer ${consent.customerId} · ${consent.tppClientName ?? `TPP #${consent.tppClientId}`}`}
+        backTo="/open-banking/consents"
         actions={
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/open-banking/consents">
-                <ArrowLeft className="mr-1.5 h-4 w-4" /> Consents
-              </Link>
-            </Button>
             {consent.status === 'PENDING' && (
-              <Button size="sm" onClick={() => setAuthoriseOpen(true)}>
-                <CheckCircle2 className="mr-1.5 h-4 w-4" /> Authorise
-              </Button>
+              <button
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 transition-colors"
+                onClick={() => setAuthoriseOpen(true)}
+              >
+                <CheckCircle2 className="h-4 w-4" /> Authorise
+              </button>
             )}
             {consent.status === 'AUTHORISED' && (
-              <Button size="sm" variant="destructive" onClick={() => setRevokeOpen(true)}>
-                <Ban className="mr-1.5 h-4 w-4" /> Revoke
-              </Button>
+              <button
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground text-sm hover:bg-destructive/90 transition-colors"
+                onClick={() => setRevokeOpen(true)}
+              >
+                <Ban className="h-4 w-4" /> Revoke
+              </button>
             )}
           </div>
         }
       />
 
       {/* Status Banner */}
-      <div className={cn(
-        'flex items-center gap-3 p-4 rounded-lg border',
-        consent.status === 'AUTHORISED' ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900' :
-        consent.status === 'PENDING' ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900' :
-        consent.status === 'REVOKED' ? 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900' :
-        'bg-muted border-border',
-      )}>
-        <StatusIcon className={cn(
-          'h-5 w-5',
-          consent.status === 'AUTHORISED' ? 'text-green-600' :
-          consent.status === 'PENDING' ? 'text-amber-600' :
-          consent.status === 'REVOKED' ? 'text-red-600' : 'text-muted-foreground',
-        )} />
-        <div className="flex-1">
-          <p className="text-sm font-medium">
-            {consent.status === 'AUTHORISED' && `Active consent · ${isExpired ? 'Expired' : daysUntilExpiry > 0 ? `Expires in ${daysUntilExpiry} days` : 'Expires today'}`}
-            {consent.status === 'PENDING' && 'Awaiting customer authorisation'}
-            {consent.status === 'REVOKED' && `Revoked${consent.revokeReason ? ` · ${consent.revokeReason}` : ''}`}
-            {consent.status === 'EXPIRED' && 'Consent has expired'}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Expires {formatDate(consent.expiresAt)}
-          </p>
+      <div className="px-6 pb-4">
+        <div className={cn('flex items-center gap-3 p-4 rounded-lg border', STATUS_BG[consent.status])}>
+          <StatusIcon className={cn('h-5 w-5 shrink-0', STATUS_ICON_COLOR[consent.status])} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">
+              {consent.status === 'AUTHORISED' && (
+                daysUntilExpiry > 0
+                  ? `Active consent · Expires in ${daysUntilExpiry} day${daysUntilExpiry !== 1 ? 's' : ''}`
+                  : 'Active consent · Expires today'
+              )}
+              {consent.status === 'PENDING' && 'Awaiting customer authorisation'}
+              {consent.status === 'REVOKED' && `Revoked${consent.revokeReason ? ` · ${consent.revokeReason}` : ''}`}
+              {consent.status === 'EXPIRED' && 'Consent has expired'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Expires {formatDate(consent.expiresAt)}
+            </p>
+          </div>
+          <StatusBadge status={consent.status} />
         </div>
-        <StatusBadge status={STATUS_VARIANT[consent.status]}>{consent.status}</StatusBadge>
       </div>
 
       {/* Tabs */}
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="scopes">Scopes & Data</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="customer">Customer Profile</TabsTrigger>
-        </TabsList>
-
-        {/* ── Overview ────────────────────────────────────────────────────── */}
-        <TabsContent value="overview">
-          <ConsentDetailCard consent={consent} />
-        </TabsContent>
-
-        {/* ── Scopes ──────────────────────────────────────────────────────── */}
-        <TabsContent value="scopes">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Key className="h-4 w-4 text-muted-foreground" /> Authorised Data Access
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ConsentScopeVisualizer scopes={consent.scopes} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ── Timeline ────────────────────────────────────────────────────── */}
-        <TabsContent value="timeline">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Consent Lifecycle</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ConsentTimeline consent={consent} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ── Customer ────────────────────────────────────────────────────── */}
-        <TabsContent value="customer">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" /> Customer Consents Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CustomerConsentSummary
-                customerId={consent.customerId}
-                consents={customerConsents}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <div className="border-t">
+        <TabsPage tabs={tabs} />
+      </div>
 
       {/* Dialogs */}
       <AuthoriseConsentDialog

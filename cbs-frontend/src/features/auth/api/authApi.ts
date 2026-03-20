@@ -18,6 +18,7 @@ const AUTHORIZE_URL = `${KEYCLOAK_BASE}/realms/${KEYCLOAK_REALM}/protocol/openid
 const TOKEN_URL = `${KEYCLOAK_BASE}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token`;
 const USERINFO_URL = `${KEYCLOAK_BASE}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/userinfo`;
 const LOGOUT_URL = `${KEYCLOAK_BASE}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/logout`;
+const RESET_CREDENTIALS_URL = `${KEYCLOAK_BASE}/realms/${KEYCLOAK_REALM}/login-actions/reset-credentials`;
 const PKCE_STORAGE_KEY = 'cbs-auth-pkce';
 
 // Direct Keycloak calls (not through the API proxy — Keycloak is a separate service)
@@ -109,6 +110,16 @@ function redirectBrowser(url: string) {
   window.location.assign(url);
 }
 
+function buildResetCredentialsUrl(loginHint?: string): string {
+  const resetUrl = new URL(RESET_CREDENTIALS_URL);
+  resetUrl.searchParams.set('client_id', KEYCLOAK_CLIENT);
+  resetUrl.searchParams.set('redirect_uri', getRedirectUri());
+  if (loginHint) {
+    resetUrl.searchParams.set('login_hint', loginHint);
+  }
+  return resetUrl.toString();
+}
+
 export const authApi = {
   login: async (data: LoginRequest): Promise<void> => {
     const codeVerifier = generateCodeVerifier();
@@ -187,19 +198,15 @@ export const authApi = {
   },
 
   verifyMfa: async (_data: MfaVerifyRequest): Promise<LoginResponse> => {
-    // Keycloak handles MFA as part of the login flow
-    // This is a placeholder — real MFA would use Keycloak's authentication flow API
-    throw new Error('MFA verification should be handled through Keycloak authentication flow');
+    throw new Error('Multi-factor authentication is handled by the hosted sign-in flow. Restart login.');
   },
 
-  forgotPassword: async (_data: ForgotPasswordRequest): Promise<void> => {
-    // Password reset is handled by Keycloak's built-in flow
-    // Redirect user to: ${KEYCLOAK_BASE}/realms/${KEYCLOAK_REALM}/login-actions/reset-credentials
-    throw new Error('Password reset is handled by Keycloak. Use the Keycloak login page.');
+  forgotPassword: async (data: ForgotPasswordRequest): Promise<void> => {
+    redirectBrowser(buildResetCredentialsUrl(data.email));
   },
 
   resetPassword: async (_data: ResetPasswordRequest): Promise<void> => {
-    throw new Error('Password reset is handled by Keycloak.');
+    redirectBrowser(buildResetCredentialsUrl());
   },
 
   getMe: async (token: string | null): Promise<User> => {

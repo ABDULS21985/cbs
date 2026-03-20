@@ -5,8 +5,8 @@ import { useFxRates, useMoneyMarketRates, useMarketDataFeeds } from '../hooks/us
 import { Activity, Wifi, WifiOff, AlertTriangle, Loader2 } from 'lucide-react';
 
 function LiveRatesTab() {
-  const { data: fxRates = [], isLoading: fxLoading } = useFxRates();
-  const { data: mmRates = [], isLoading: mmLoading } = useMoneyMarketRates();
+  const { data: fxRates = [], isLoading: fxLoading, isError: fxError } = useFxRates();
+  const { data: mmRates = [], isLoading: mmLoading, isError: mmError } = useMoneyMarketRates();
 
   return (
     <div className="p-4 space-y-6">
@@ -15,6 +15,8 @@ function LiveRatesTab() {
         <h3 className="text-sm font-semibold mb-3">FX Rates</h3>
         {fxLoading ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading FX rates...</div>
+        ) : fxError ? (
+          <div className="text-center py-8 text-sm text-red-600">Failed to load FX rates from the backend.</div>
         ) : fxRates.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">No FX rates available</div>
         ) : (
@@ -44,6 +46,8 @@ function LiveRatesTab() {
         <h3 className="text-sm font-semibold mb-3">Money Market Rates</h3>
         {mmLoading ? (
           <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading money market rates...</div>
+        ) : mmError ? (
+          <div className="text-center py-8 text-sm text-red-600">Failed to load money market rates from the backend.</div>
         ) : mmRates.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">No money market rates available</div>
         ) : (
@@ -72,10 +76,14 @@ function LiveRatesTab() {
 }
 
 function FeedStatusTab() {
-  const { data: feeds = [], isLoading } = useMarketDataFeeds();
+  const { data: feeds = [], isLoading, isError } = useMarketDataFeeds();
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-12 text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading feed status...</div>;
+  }
+
+  if (isError) {
+    return <div className="text-center py-12 text-sm text-red-600">Failed to load market data feed health from the backend.</div>;
   }
 
   if (feeds.length === 0) {
@@ -127,13 +135,11 @@ export function MarketDataPage() {
 
   return (
     <>
-      <PageHeader title="Market Data" subtitle="Live rates, price history, feed status, data quality" />
+      <PageHeader title="Market Data" subtitle="Live rates and feed health backed by the core market-data APIs" />
       <div className="page-container">
         <TabsPage syncWithUrl tabs={[
           { id: 'rates', label: 'Live Rates', icon: Activity, content: <LiveRatesTab /> },
-          { id: 'history', label: 'Price History', content: <div className="p-8 text-center text-muted-foreground">Price history charting coming soon</div> },
           { id: 'feeds', label: 'Feed Status', badge: degradedCount || undefined, content: <FeedStatusTab /> },
-          { id: 'quality', label: 'Data Quality', content: <div className="p-8 text-center text-muted-foreground">Data quality scorecard coming soon</div> },
         ]} />
       </div>
     </>

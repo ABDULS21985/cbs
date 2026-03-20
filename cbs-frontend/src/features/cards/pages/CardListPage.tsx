@@ -36,12 +36,12 @@ export function CardListPage() {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault();
-        toast.info('Card request flow coming soon');
+        navigate('/cards/request');
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [navigate]);
 
   const active = cards.filter((c) => c.status === 'ACTIVE').length;
   const blocked = cards.filter((c) => c.status === 'BLOCKED').length;
@@ -53,9 +53,13 @@ export function CardListPage() {
       <PageHeader
         title="Card Management"
         actions={
-          <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-            Card request UI is not available in this frontend yet.
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/cards/request')}
+            className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Request Card
+          </button>
         }
       />
       <div className="page-container space-y-4">

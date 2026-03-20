@@ -238,8 +238,10 @@ public class ReportsController {
     // ========================================================================
 
     @GetMapping("/executive/kpis")
-    public ResponseEntity<ApiResponse<ExecutiveKpis>> getExecutiveKpis() {
-        return ResponseEntity.ok(ApiResponse.ok(reportsService.getExecutiveKpis()));
+    public ResponseEntity<ApiResponse<ExecutiveKpis>> getExecutiveKpis(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(reportsService.getExecutiveKpis(from, to)));
     }
 
     @GetMapping("/executive/pnl-summary")

@@ -193,6 +193,9 @@ export const tradeFinanceExtApi = {
   }) => apiPost<DocumentaryCollection>(`/api/v1/trade/collections/${id}/settle`, input),
 
   // ── Supply Chain Finance ─────────────────────────────────────────────────────
+  listScfProgrammes: () =>
+    apiGet<ScfProgramme[]>('/api/v1/trade/scf/programmes'),
+
   createScfProgramme: (input: {
     buyer: string;
     currency: string;

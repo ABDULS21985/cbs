@@ -5,21 +5,21 @@ import type { SecurityHolding, CouponEvent, FeedStatus, MoneyMarketRate, MarketO
 export function useSecurityHoldings() {
   return useQuery({
     queryKey: ['treasury', 'holdings'],
-    queryFn: () => apiGet<SecurityHolding[]>('/api/v1/securities-positions').catch(() => []),
+    queryFn: () => apiGet<SecurityHolding[]>('/api/v1/securities-positions'),
   });
 }
 
 export function useCouponCalendar(days = 90) {
   return useQuery({
     queryKey: ['treasury', 'coupons', days],
-    queryFn: () => apiGet<CouponEvent[]>('/api/v1/treasury/coupons', { days }).catch(() => []),
+    queryFn: () => apiGet<CouponEvent[]>('/api/v1/treasury/coupons', { days }),
   });
 }
 
 export function useMarketDataFeeds() {
   return useQuery({
     queryKey: ['market-data', 'feeds'],
-    queryFn: () => apiGet<FeedStatus[]>('/api/v1/market-data/feeds/status').catch(() => []),
+    queryFn: () => apiGet<FeedStatus[]>('/api/v1/market-data/feeds/status'),
     refetchInterval: 30_000, // refresh every 30s
   });
 }
@@ -27,7 +27,7 @@ export function useMarketDataFeeds() {
 export function useFxRates() {
   return useQuery({
     queryKey: ['market-data', 'fx-rates'],
-    queryFn: () => apiGet<any[]>('/api/v1/market-data/prices/FX').catch(() => []),
+    queryFn: () => apiGet<any[]>('/api/v1/market-data/prices/FX'),
     refetchInterval: 10_000, // refresh every 10s for live rates
   });
 }
@@ -35,7 +35,7 @@ export function useFxRates() {
 export function useMoneyMarketRates() {
   return useQuery({
     queryKey: ['market-data', 'money-market'],
-    queryFn: () => apiGet<MoneyMarketRate[]>('/api/v1/market-data/money-market').catch(() => []),
+    queryFn: () => apiGet<MoneyMarketRate[]>('/api/v1/market-data/money-market'),
     refetchInterval: 30_000,
   });
 }
@@ -43,20 +43,20 @@ export function useMoneyMarketRates() {
 export function useOrders(status?: string) {
   return useQuery({
     queryKey: ['treasury', 'orders', status],
-    queryFn: () => apiGet<MarketOrder[]>('/api/v1/treasury/orders', status ? { status } : undefined).catch(() => []),
+    queryFn: () => apiGet<MarketOrder[]>('/api/v1/treasury/orders', status ? { status } : undefined),
   });
 }
 
 export function useTradeConfirmations(status?: string) {
   return useQuery({
     queryKey: ['treasury', 'confirmations', status],
-    queryFn: () => apiGet<TradeConfirmation[]>('/api/v1/treasury/confirmations', status ? { status } : undefined).catch(() => []),
+    queryFn: () => apiGet<TradeConfirmation[]>('/api/v1/treasury/confirmations', status ? { status } : undefined),
   });
 }
 
 export function useSettlementFails() {
   return useQuery({
     queryKey: ['treasury', 'settlement-fails'],
-    queryFn: () => apiGet<SettlementFail[]>('/api/v1/open-items/open').catch(() => []),
+    queryFn: () => apiGet<SettlementFail[]>('/api/v1/open-items/open'),
   });
 }

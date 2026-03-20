@@ -16,6 +16,7 @@ import { contactCenterApi, type AgentState, type QueueStatus, type CustomerMiniP
 import { apiGet, apiPost } from '@/lib/api';
 import type { ContactInteraction } from '../types/contactCenterExt';
 import type { HelpArticle } from '../types/help';
+import { useAuthStore } from '@/stores/authStore';
 import {
   useAssignInteraction,
   useCompleteInteraction,
@@ -582,6 +583,7 @@ function CollapsibleSection({ title, expanded, onToggle, children }: {
 
 export function AgentWorkbenchPage() {
   const qc = useQueryClient();
+  const user = useAuthStore((state) => state.user);
   const [selectedQueue, setSelectedQueue] = useState<string | null>(null);
   const [shiftStart] = useState(() => Date.now());
   const [shiftSeconds, setShiftSeconds] = useState(0);
@@ -625,12 +627,22 @@ export function AgentWorkbenchPage() {
   });
   const { data: interactions = [] } = useQuery({
     queryKey: ['contact-center', 'interactions'],
-    queryFn: () => apiGet<ContactInteraction[]>('/api/v1/contact-center/interactions').catch(() => []),
+    queryFn: () => apiGet<ContactInteraction[]>('/api/v1/contact-center/interactions'),
     refetchInterval: 10_000,
   });
 
-  // Current agent (first in list as demo — in production, from auth context)
-  const currentAgent = agents[0] ?? null;
+  const currentAgent = useMemo(() => {
+    if (!user) return null;
+    const normalizedUserId = user.id.trim().toLowerCase();
+    const normalizedUsername = user.username.trim().toLowerCase();
+    const normalizedFullName = user.fullName.trim().toLowerCase();
+    return agents.find((agent) => {
+      const agentId = agent.agentId.trim().toLowerCase();
+      const agentName = agent.agentName.trim().toLowerCase();
+      return agentId === normalizedUserId || agentId === normalizedUsername || agentName === normalizedFullName;
+    }) ?? null;
+  }, [agents, user]);
+  const missingAgentMapping = Boolean(user) && agents.length > 0 && !currentAgent;
   const activeInteraction = interactions.find(
     (i) => i.agentId === currentAgent?.agentId && (i.status === 'ACTIVE' || i.status === 'QUEUED'),
   ) ?? null;
@@ -647,6 +659,10 @@ export function AgentWorkbenchPage() {
   }, [currentAgent, qc]);
 
   const handlePickFromQueue = useCallback(() => {
+    if (!currentAgent) {
+      toast.error('Authenticated user is not mapped to a contact-center agent record.');
+      return;
+    }
     // Find oldest waiting interaction
     const waiting = interactions.filter((i) => i.status === 'QUEUED').sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     if (waiting.length === 0) { toast.info('No interactions waiting in queue'); return; }
@@ -654,7 +670,7 @@ export function AgentWorkbenchPage() {
       onSuccess: () => toast.success('Interaction assigned'),
       onError: () => toast.error('Failed to assign'),
     });
-  }, [interactions, assignMut]);
+  }, [currentAgent, interactions, assignMut]);
 
   const handleCompleteInteraction = useCallback((disp: CallDisposition) => {
     if (!activeInteraction) return;
@@ -677,7 +693,13 @@ export function AgentWorkbenchPage() {
   }, [activeInteraction, currentAgent, completeMut, qc]);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
+    <>
+      {missingAgentMapping && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          The authenticated user is not mapped to a contact-center agent record. Agent-specific actions are disabled until that mapping exists in backend data.
+        </div>
+      )}
+      <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
       {/* Left Panel */}
       <LeftPanel
         agent={currentAgent}
@@ -716,6 +738,7 @@ export function AgentWorkbenchPage() {
           <RightPanel customerId={activeInteraction.customerId} />
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

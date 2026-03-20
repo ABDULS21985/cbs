@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Phone, PhoneCall, Clock, HeadphonesIcon, Coffee,
@@ -14,6 +14,7 @@ import { contactCenterApi, type AgentState } from '../api/contactCenterApi';
 import type { ContactInteraction } from '../types/contactCenterExt';
 import type { CallbackRequest } from '../types/contactRouting';
 import { apiGet, apiPost } from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
 
 function fmtTime(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -104,10 +105,8 @@ export function AgentDashboardPage() {
   useEffect(() => { document.title = 'Agent Dashboard | CBS'; }, []);
 
   const qc = useQueryClient();
+  const user = useAuthStore((state) => state.user);
   const [completeTarget, setCompleteTarget] = useState<ContactInteraction | null>(null);
-
-  // In a real app, agentId would come from auth context
-  const agentId = '1';
 
   const { data: agents = [] } = useQuery({
     queryKey: ['contact-center', 'agents'],
@@ -115,17 +114,31 @@ export function AgentDashboardPage() {
     refetchInterval: 10_000,
   });
 
-  const currentAgent = agents.find((a) => a.agentId === agentId);
+  const currentAgent = useMemo(() => {
+    if (!user) return undefined;
+    const normalizedUserId = user.id.trim().toLowerCase();
+    const normalizedUsername = user.username.trim().toLowerCase();
+    const normalizedFullName = user.fullName.trim().toLowerCase();
+    return agents.find((agent) => {
+      const agentId = agent.agentId.trim().toLowerCase();
+      const agentName = agent.agentName.trim().toLowerCase();
+      return agentId === normalizedUserId || agentId === normalizedUsername || agentName === normalizedFullName;
+    });
+  }, [agents, user]);
+  const currentAgentId = currentAgent?.agentId ?? null;
+  const missingAgentMapping = Boolean(user) && agents.length > 0 && !currentAgent;
 
-  const { data: myQueue = [], isLoading: queueLoading } = useQuery({
-    queryKey: ['contact-center', 'agent-queue', agentId],
-    queryFn: () => apiGet<ContactInteraction[]>(`/api/v1/contact-center/interactions/agent/${agentId}`).catch(() => []),
+  const { data: myQueue = [], isLoading: queueLoading, isError: queueError } = useQuery({
+    queryKey: ['contact-center', 'agent-queue', currentAgentId],
+    queryFn: () => apiGet<ContactInteraction[]>(`/api/v1/contact-center/interactions/agent/${currentAgentId}`),
+    enabled: Boolean(currentAgentId),
     refetchInterval: 10_000,
   });
 
-  const { data: myCallbacks = [] } = useQuery({
-    queryKey: ['contact-center', 'agent-callbacks', agentId],
-    queryFn: () => apiGet<CallbackRequest[]>('/api/v1/contact-center/callbacks').catch(() => []),
+  const { data: myCallbacks = [], isError: callbacksError } = useQuery({
+    queryKey: ['contact-center', 'agent-callbacks', currentAgentId],
+    queryFn: () => apiGet<CallbackRequest[]>('/api/v1/contact-center/callbacks'),
+    enabled: Boolean(currentAgentId),
     refetchInterval: 15_000,
   });
 
@@ -133,7 +146,11 @@ export function AgentDashboardPage() {
   const completedToday = myQueue.filter((i) => i.status === 'COMPLETED');
 
   const handleStateChange = (newState: string) => {
-    contactCenterApi.updateAgentState(agentId, newState).then(() => {
+    if (!currentAgentId) {
+      toast.error('Authenticated user is not mapped to a contact-center agent record.');
+      return;
+    }
+    contactCenterApi.updateAgentState(currentAgentId, newState).then(() => {
       toast.success(`State changed to ${newState}`);
       qc.invalidateQueries({ queryKey: ['contact-center', 'agents'] });
     }).catch(() => toast.error('Failed'));
@@ -178,6 +195,16 @@ export function AgentDashboardPage() {
       />
 
       <div className="page-container space-y-6">
+        {missingAgentMapping && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            The authenticated user is not mapped to a contact-center agent record. This page no longer falls back to a hardcoded demo agent.
+          </div>
+        )}
+        {(queueError || callbacksError) && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Failed to load one or more agent-specific backend feeds.
+          </div>
+        )}
         {/* Agent state + stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="stat-card">
@@ -187,6 +214,7 @@ export function AgentDashboardPage() {
               <select
                 value={currentAgent?.state ?? 'OFFLINE'}
                 onChange={(e) => handleStateChange(e.target.value)}
+                disabled={!currentAgentId}
                 className="text-sm font-semibold bg-transparent border-none focus:outline-none cursor-pointer"
               >
                 {['AVAILABLE', 'ON_CALL', 'WRAP_UP', 'BREAK', 'OFFLINE'].map((s) => (
@@ -214,7 +242,7 @@ export function AgentDashboardPage() {
                   data={myQueue}
                   isLoading={queueLoading}
                   enableGlobalFilter
-                  emptyMessage="No interactions in your queue"
+                  emptyMessage={currentAgentId ? 'No interactions in your queue' : 'No contact-center agent mapping found for the authenticated user'}
                 />
               </div>
             ),
@@ -222,14 +250,14 @@ export function AgentDashboardPage() {
           {
             id: 'callbacks',
             label: 'My Callbacks',
-            badge: myCallbacks.filter((c) => c.assignedAgentId === agentId && c.status !== 'COMPLETED').length || undefined,
+            badge: myCallbacks.filter((c) => c.assignedAgentId === currentAgentId && c.status !== 'COMPLETED').length || undefined,
             content: (
               <div className="p-4">
-                {myCallbacks.filter((c) => c.assignedAgentId === agentId).length === 0 ? (
+                {myCallbacks.filter((c) => c.assignedAgentId === currentAgentId).length === 0 ? (
                   <div className="text-center text-muted-foreground py-12">No callbacks assigned to you</div>
                 ) : (
                   <div className="space-y-3">
-                    {myCallbacks.filter((c) => c.assignedAgentId === agentId).map((cb) => (
+                    {myCallbacks.filter((c) => c.assignedAgentId === currentAgentId).map((cb) => (
                       <div key={cb.id} className="rounded-lg border bg-card p-4 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium">Customer #{cb.customerId} — {cb.callbackNumber}</p>

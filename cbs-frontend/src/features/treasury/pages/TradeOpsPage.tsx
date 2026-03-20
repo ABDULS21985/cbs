@@ -33,8 +33,8 @@ const failCols: ColumnDef<SettlementFail, any>[] = [
 ];
 
 export function TradeOpsPage() {
-  const { data: confirmations = [], isLoading: confsLoading } = useTradeConfirmations();
-  const { data: fails = [], isLoading: failsLoading } = useSettlementFails();
+  const { data: confirmations = [], isLoading: confsLoading, isError: confsError } = useTradeConfirmations();
+  const { data: fails = [], isLoading: failsLoading, isError: failsError } = useSettlementFails();
 
   const pendingConfs = confirmations.filter((c) => c.status === 'PENDING').length;
   const unmatchedConfs = confirmations.filter((c) => c.matchStatus === 'UNMATCHED').length;
@@ -43,11 +43,15 @@ export function TradeOpsPage() {
     <>
       <PageHeader title="Trade Operations" subtitle="Post-trade operations -- confirmations, settlement, fails management" />
       <div className="page-container space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {(confsError || failsError) && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            One or more trade-operations backend feeds failed to load. This page now shows the failure instead of masking it as an empty dataset.
+          </div>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard label="Pending Confirmations" value={pendingConfs} format="number" icon={FileCheck} />
           <StatCard label="Unmatched" value={unmatchedConfs} format="number" icon={AlertTriangle} />
           <StatCard label="Failed Settlements" value={fails.length} format="number" icon={XCircle} />
-          <StatCard label="Clearing Today" value={0} format="number" icon={Activity} />
         </div>
 
         <TabsPage syncWithUrl tabs={[
@@ -57,8 +61,6 @@ export function TradeOpsPage() {
           { id: 'fails', label: 'Fails', badge: fails.length, content: (
             <div className="p-4"><DataTable columns={failCols} data={fails} isLoading={failsLoading} enableGlobalFilter enableExport exportFilename="settlement-fails" /></div>
           )},
-          { id: 'settlement', label: 'Settlement', content: <div className="p-8 text-center text-muted-foreground">Settlement instruction tracking coming soon</div> },
-          { id: 'clearing', label: 'Clearing', content: <div className="p-8 text-center text-muted-foreground">Clearing submissions coming soon</div> },
         ]} />
       </div>
     </>

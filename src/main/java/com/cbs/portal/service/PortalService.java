@@ -10,6 +10,7 @@ import com.cbs.account.repository.AccountSignatoryRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
 import com.cbs.audit.entity.AuditEvent;
 import com.cbs.audit.repository.AuditEventRepository;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.dto.CustomerResponse;
@@ -62,6 +63,7 @@ public class PortalService {
     private final CustomerMapper customerMapper;
     private final AccountMapper accountMapper;
     private final com.cbs.account.service.AccountPostingService accountPostingService;
+    private final CbsProperties cbsProperties;
 
     // ========================================================================
     // DASHBOARD — single pane for the logged-in customer
@@ -244,10 +246,12 @@ public class PortalService {
             throw new BusinessException("New password and confirmation do not match", "PASSWORD_MISMATCH");
         }
         findCustomerOrThrow(customerId);
-        // Password change is delegated to the identity provider (Keycloak).
-        // This endpoint validates the request and forwards it via the Keycloak Admin API.
-        // In a production setup, this would call keycloakClient.updatePassword(customerId, request).
-        log.info("Password change requested for customer={}", customerId);
+        // Password change must be forwarded to the identity provider (e.g. Keycloak Admin API).
+        // This stub is disabled until the Keycloak client is configured and injected here.
+        throw new BusinessException(
+                "Password change is not available: configure the identity provider client (e.g. Keycloak Admin API) before enabling this feature.",
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "IDENTITY_PROVIDER_NOT_CONFIGURED");
     }
 
     @Transactional
@@ -325,8 +329,12 @@ public class PortalService {
     @Transactional
     public void terminateSession(Long customerId, String sessionId) {
         findCustomerOrThrow(customerId);
-        // Log the session termination event
-        log.info("Session terminated: customer={}, session={}", customerId, sessionId);
+        // Session revocation must be forwarded to the identity provider (e.g. Keycloak Admin API).
+        // The stub that only logged this request has been removed to prevent misleading callers.
+        throw new BusinessException(
+                "Session termination is not available: configure the identity provider client (e.g. Keycloak Admin API) before enabling this feature.",
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "IDENTITY_PROVIDER_NOT_CONFIGURED");
     }
 
     // ========================================================================
@@ -773,7 +781,7 @@ public class PortalService {
 
     public java.util.Map<String, Object> nameEnquiry(String accountNumber, String bankCode) {
         if ("000".equals(bankCode) || bankCode == null || bankCode.isEmpty()) {
-            // Internal name enquiry
+            // Internal name enquiry — resolved from local account store
             Account account = accountRepository.findByAccountNumber(accountNumber).orElse(null);
             if (account == null) {
                 return java.util.Map.of("found", false, "message", "Account not found");
@@ -782,33 +790,32 @@ public class PortalService {
                     "found", true,
                     "accountName", account.getAccountName(),
                     "accountNumber", account.getAccountNumber(),
-                    "bankName", "BellBank"
+                    "bankName", cbsProperties.getDeployment().getInstitutionName()
             );
         }
-        // External name enquiry — would call NIBSS NIP in production
-        return java.util.Map.of(
-                "found", true,
-                "accountName", "Name Enquiry Pending",
-                "accountNumber", accountNumber,
-                "bankCode", bankCode,
-                "bankName", "External Bank"
-        );
+        // External name enquiry requires integration with the interbank switch (e.g. NIBSS NIP).
+        // Returning synthetic data has been removed — this must fail honestly until wired.
+        throw new BusinessException(
+                "External name enquiry is not available: configure the interbank switch integration (e.g. NIBSS NIP) before enabling cross-bank transfers.",
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "INTERBANK_SWITCH_NOT_CONFIGURED");
     }
 
     public java.util.Map<String, Object> sendTransferOtp(Long accountId) {
-        // In production, send real SMS OTP via notification service
-        String sessionId = java.util.UUID.randomUUID().toString();
-        log.info("Transfer OTP sent for accountId={}, sessionId={}", accountId, sessionId);
-        return java.util.Map.of(
-                "sessionId", sessionId,
-                "expiresInSeconds", 300,
-                "maskedPhone", "****1234"
-        );
+        // OTP dispatch is delegated to the notification service in production.
+        // This endpoint must not be called until a real OTP provider is wired.
+        throw new BusinessException(
+                "Transfer OTP is not available: configure a real OTP/notification provider before enabling portal transfers.",
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "OTP_SERVICE_NOT_CONFIGURED");
     }
 
     public boolean verifyTransferOtp(String sessionId, String otpCode) {
-        // In production, verify against stored OTP
-        // For dev: accept "123456" as valid OTP
-        return "123456".equals(otpCode) || (otpCode != null && otpCode.length() == 6);
+        // OTP verification is delegated to the notification service in production.
+        // Stub verification has been removed to prevent bypassing authentication.
+        throw new BusinessException(
+                "Transfer OTP verification is not available: configure a real OTP/notification provider.",
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "OTP_SERVICE_NOT_CONFIGURED");
     }
 }

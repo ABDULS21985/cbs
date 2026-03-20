@@ -12,8 +12,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SyntheticCapabilityGuard {
 
-    private static volatile boolean allowSyntheticServices = true;
-    private static volatile boolean allowInternalKyc = true;
+    // Defaults to false — synthetic services are never allowed unless explicitly enabled via config.
+    // @PostConstruct reads the real config value; this ensures fail-safe behaviour
+    // if initialization is delayed or fails in test/container environments.
+    private static volatile boolean allowSyntheticServices = false;
+    private static volatile boolean allowInternalKyc = false;
 
     private final CbsProperties cbsProperties;
 
@@ -25,8 +28,10 @@ public class SyntheticCapabilityGuard {
 
     @PreDestroy
     void reset() {
-        allowSyntheticServices = true;
-        allowInternalKyc = true;
+        // Reset to false on shutdown to prevent stale static state from leaking
+        // between application contexts in test or hot-reload scenarios.
+        allowSyntheticServices = false;
+        allowInternalKyc = false;
     }
 
     public static void requireSyntheticServices(String capability, String remediation) {

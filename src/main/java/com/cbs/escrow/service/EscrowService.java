@@ -1,7 +1,10 @@
 package com.cbs.escrow.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
@@ -32,6 +35,8 @@ public class EscrowService {
     private final EscrowReleaseRepository releaseRepository;
     private final AccountRepository accountRepository;
     private final CustomerRepository customerRepository;
+    private final AccountPostingService accountPostingService;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public EscrowResponse createMandate(CreateEscrowRequest request) {
@@ -117,6 +122,7 @@ public class EscrowService {
                 .releaseToAccount(releaseToAccount)
                 .releaseReason(reason)
                 .status("PENDING")
+                .createdBy(currentActorProvider.getCurrentActor())
                 .build();
 
         EscrowRelease saved = releaseRepository.save(release);
@@ -125,7 +131,7 @@ public class EscrowService {
     }
 
     @Transactional
-    public EscrowReleaseDto approveAndExecuteRelease(Long releaseId, String approvedBy) {
+    public EscrowReleaseDto approveAndExecuteRelease(Long releaseId) {
         EscrowRelease release = releaseRepository.findById(releaseId)
                 .orElseThrow(() -> new ResourceNotFoundException("EscrowRelease", "id", releaseId));
 
@@ -134,15 +140,30 @@ public class EscrowService {
         }
 
         EscrowMandate mandate = release.getMandate();
+        Account sourceAccount = mandate.getAccount();
+        Account destinationAccount = release.getReleaseToAccount();
+        String actor = currentActorProvider.getCurrentActor();
 
-        // Release lien on source account
-        mandate.getAccount().releaseLien(release.getReleaseAmount());
-        accountRepository.save(mandate.getAccount());
+        // Release the lien first, then either unlock funds in place or move them through a real posting.
+        sourceAccount.releaseLien(release.getReleaseAmount());
+        accountRepository.save(sourceAccount);
 
-        // Credit release-to account if specified
-        if (release.getReleaseToAccount() != null) {
-            release.getReleaseToAccount().credit(release.getReleaseAmount());
-            accountRepository.save(release.getReleaseToAccount());
+        if (destinationAccount != null
+                && destinationAccount.getId() != null
+                && !destinationAccount.getId().equals(sourceAccount.getId())) {
+            var posting = accountPostingService.postTransfer(
+                    sourceAccount,
+                    destinationAccount,
+                    release.getReleaseAmount(),
+                    release.getReleaseAmount(),
+                    "Escrow release " + mandate.getMandateNumber(),
+                    "Escrow release " + mandate.getMandateNumber(),
+                    TransactionChannel.SYSTEM,
+                    "ESC-" + release.getId(),
+                    "ESCROW",
+                    mandate.getMandateNumber()
+            );
+            release.setTransactionRef(posting.debitTransaction().getTransactionRef());
         }
 
         // Update mandate
@@ -151,12 +172,12 @@ public class EscrowService {
 
         // Update release
         release.setStatus("EXECUTED");
-        release.setApprovedBy(approvedBy);
+        release.setApprovedBy(actor);
         release.setApprovalDate(Instant.now());
         releaseRepository.save(release);
 
         log.info("Escrow release executed: mandate={}, amount={}, approvedBy={}",
-                mandate.getMandateNumber(), release.getReleaseAmount(), approvedBy);
+                mandate.getMandateNumber(), release.getReleaseAmount(), actor);
         return toReleaseDto(release);
     }
 

@@ -240,8 +240,7 @@ export function useProcessGuaranteeExpiry() {
 export function useScfProgrammes() {
   return useQuery({
     queryKey: KEYS.scf.programmes,
-    queryFn: () =>
-      Promise.resolve([] as Awaited<ReturnType<typeof tradeFinanceExtApi.createScfProgramme>>[]),
+    queryFn: () => tradeFinanceExtApi.listScfProgrammes(),
     staleTime: 60_000,
   });
 }
@@ -322,8 +321,7 @@ export function useUploadDocument() {
 export function useFactoringFacilitiesExt() {
   return useQuery({
     queryKey: [...KEYS.factoring.all, 'ext'],
-    queryFn: () =>
-      Promise.resolve([] as Awaited<ReturnType<typeof tradeFinanceExtApi.createFactoringFacility>>[]),
+    queryFn: () => factoringApi.listFacilities(),
     staleTime: 60_000,
   });
 }

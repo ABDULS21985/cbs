@@ -301,6 +301,22 @@ export const PortalServiceRequestsPage = lazyNamed(
   () => import('@/features/portal/pages/PortalServiceRequestsPage'),
   'PortalServiceRequestsPage',
 );
+export const PortalNotificationsPage = lazyNamed(
+  () => import('@/features/portal/pages/PortalNotificationsPage'),
+  'PortalNotificationsPage',
+);
+export const PortalHelpPage = lazyNamed(
+  () => import('@/features/portal/pages/PortalHelpPage'),
+  'PortalHelpPage',
+);
+export const PortalBillPaymentPage = lazyNamed(
+  () => import('@/features/portal/pages/PortalBillPaymentPage'),
+  'PortalBillPaymentPage',
+);
+export const PortalAirtimePage = lazyNamed(
+  () => import('@/features/portal/pages/PortalAirtimePage'),
+  'PortalAirtimePage',
+);
 
 export const NewTransferPage = lazyNamed(
   () => import('@/features/payments/pages/NewTransferPage'),

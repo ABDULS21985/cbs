@@ -30,10 +30,10 @@ describe('CardListPage', () => {
     expect(screen.getByText('Card Management')).toBeInTheDocument();
   });
 
-  it('renders the unsupported request note', () => {
+  it('renders the request card action', () => {
     setupHandlers();
     renderWithProviders(<CardListPage />);
-    expect(screen.getByText(/card request ui is not available in this frontend yet/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /request card/i })).toBeInTheDocument();
   });
 
   it('renders stat cards', async () => {

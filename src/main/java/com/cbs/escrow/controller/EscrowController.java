@@ -68,8 +68,7 @@ public class EscrowController {
     @PostMapping("/releases/{releaseId}/approve")
     @Operation(summary = "Approve and execute an escrow release")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<EscrowReleaseDto>> approveRelease(
-            @PathVariable Long releaseId, @RequestParam String approvedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(escrowService.approveAndExecuteRelease(releaseId, approvedBy)));
+    public ResponseEntity<ApiResponse<EscrowReleaseDto>> approveRelease(@PathVariable Long releaseId) {
+        return ResponseEntity.ok(ApiResponse.ok(escrowService.approveAndExecuteRelease(releaseId)));
     }
 }

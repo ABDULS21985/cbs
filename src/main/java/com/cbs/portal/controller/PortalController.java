@@ -428,15 +428,11 @@ public class PortalController {
         String idempotencyKey = (String) request.get("idempotencyKey");
 
         // Idempotency check
-        if (idempotencyKey != null) {
-            var existing = transactionJournalRepository.findByExternalRef(idempotencyKey);
-            if (existing.isPresent()) {
-                return ResponseEntity.ok(ApiResponse.ok(Map.of(
-                        "status", "COMPLETED",
-                        "message", "Transfer already processed",
-                        "reference", existing.get().getTransactionRef()
-                )));
-            }
+        if (idempotencyKey != null && transactionJournalRepository.existsByExternalRef(idempotencyKey)) {
+            return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                    "status", "COMPLETED",
+                    "message", "Transfer already processed"
+            )));
         }
 
         var result = portalService.executePortalTransfer(debitAccountId, creditAccountId, amount, narration, idempotencyKey);
