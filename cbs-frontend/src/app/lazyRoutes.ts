@@ -381,11 +381,31 @@ export const CollectionsPage = lazy(() => import('@/features/lending/pages/Colle
 export const EclDashboardPage = lazy(() => import('@/features/lending/pages/EclDashboardPage'));
 export const MortgageListPage = lazy(() => import('@/features/lending/pages/MortgageListPage'));
 export const MortgageDetailPage = lazy(() => import('@/features/lending/pages/MortgageDetailPage'));
+export const MortgageOriginationPage = lazyNamed(
+  () => import('@/features/lending/pages/MortgageOriginationPage'),
+  'MortgageOriginationPage',
+);
 export const LeaseListPage = lazy(() => import('@/features/lending/pages/LeaseListPage'));
 export const LeaseDetailPage = lazy(() => import('@/features/lending/pages/LeaseDetailPage'));
+export const LeasedAssetPage = lazyNamed(
+  () => import('@/features/lending/pages/LeasedAssetPage'),
+  'LeasedAssetPage',
+);
+export const CorporateLeasePage = lazyNamed(
+  () => import('@/features/lending/pages/CorporateLeasePage'),
+  'CorporateLeasePage',
+);
 export const SyndicationPage = lazyNamed(
   () => import('@/features/lending/pages/SyndicationPage'),
   'SyndicationPage',
+);
+export const CollectionCaseDetailPage = lazyNamed(
+  () => import('@/features/lending/pages/CollectionCaseDetailPage'),
+  'CollectionCaseDetailPage',
+);
+export const EclParameterPage = lazyNamed(
+  () => import('@/features/lending/pages/EclParameterPage'),
+  'EclParameterPage',
 );
 
 export const FixedIncomePage = lazyNamed(
@@ -727,6 +747,38 @@ export const FundManagementPage = lazyNamed(
 export const FundDetailPage = lazyNamed(
   () => import('@/features/investments/pages/FundDetailPage'),
   'FundDetailPage',
+);
+export const InvestFixedIncomePage = lazyNamed(
+  () => import('@/features/investments/pages/FixedIncomePage'),
+  'FixedIncomePage',
+);
+export const InvestBankPortfolioPage = lazyNamed(
+  () => import('@/features/investments/pages/BankPortfolioPage'),
+  'BankPortfolioPage',
+);
+export const InvWealthPage = lazyNamed(
+  () => import('@/features/investments/pages/WealthManagementPage'),
+  'WealthManagementPage',
+);
+export const InvWealthDetailPage = lazyNamed(
+  () => import('@/features/investments/pages/WealthClientDetailPage'),
+  'WealthClientDetailPage',
+);
+export const InvPositionsPage = lazyNamed(
+  () => import('@/features/investments/pages/SecuritiesPositionPage'),
+  'SecuritiesPositionPage',
+);
+export const InvValuationPage = lazyNamed(
+  () => import('@/features/investments/pages/ValuationPage'),
+  'ValuationPage',
+);
+export const InterbankPage = lazyNamed(
+  () => import('@/features/investments/pages/InterbankPage'),
+  'InterbankPage',
+);
+export const InvestmentAnalyticsPage = lazyNamed(
+  () => import('@/features/investments/pages/InvestmentAnalyticsPage'),
+  'InvestmentAnalyticsPage',
 );
 
 export const AdvisoryDashboardPage = lazyNamed(

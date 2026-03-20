@@ -62,7 +62,7 @@ export function useMarketPrices(params?: Record<string, unknown>) {
 export function useMarketResearchData(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: KEYS.research.list(params),
-    queryFn: () => marketDataApi.recordSignal2(params),
+    queryFn: () => marketDataApi.getResearchData(params),
     staleTime: 30_000,
   });
 }

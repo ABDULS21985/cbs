@@ -56,6 +56,12 @@ const labelOverrides: Record<string, string> = {
   ivr: 'IVR Manager',
   help: 'Knowledge Base',
   chat: 'Chat Sessions',
+  'market-data': 'Market Data',
+  'market-making': 'Market Making',
+  switch: 'Switch Dashboard',
+  prices: 'Prices & Signals',
+  research: 'Research',
+  analysis: 'Analysis',
 };
 
 function toLabel(segment: string): string {

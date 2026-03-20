@@ -18,6 +18,10 @@ export const integrationApi = {
   sendMessage: (data: Record<string, unknown>) =>
     apiPost<IntegrationMessage>('/api/v1/integration/esb/messages', data),
 
+  /** GET /v1/integration/esb/messages */
+  listMessages: () =>
+    apiGet<IntegrationMessage[]>('/api/v1/integration/esb/messages'),
+
   /** POST /v1/integration/esb/dlq/retry */
   retryDeadLetters: () =>
     apiPost<Record<string, unknown>>('/api/v1/integration/esb/dlq/retry'),

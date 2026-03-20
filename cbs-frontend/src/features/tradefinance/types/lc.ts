@@ -5,7 +5,7 @@ export interface LetterOfCredit {
   lcNumber: string;
   lcType: LcType;
   lcRole: string;
-  applicant: Customer;
+  applicant: { id: number; name: string };
   beneficiaryName: string;
   beneficiaryAddress: string;
   beneficiaryBankCode: string;
@@ -33,14 +33,14 @@ export interface LetterOfCredit {
   isConfirmed: boolean;
   isTransferable: boolean;
   ucpVersion: string;
-  marginAccount: Account;
-  settlementAccount: Account;
+  marginAccount: { id: number; accountNumber: string };
+  settlementAccount: { id: number; accountNumber: string };
   marginPercentage: number;
   marginAmount: number;
   commissionRate: number;
   commissionAmount: number;
   swiftCharges: number;
-  status: LcStatus;
+  status: string;
   metadata: Record<string, unknown>;
 }
 

@@ -168,6 +168,61 @@ export function useRevertMortgageSvr() {
   });
 }
 
+export function useHighLtvMortgages() {
+  return useQuery({
+    queryKey: [...KEYS.mortgages.all, 'high-ltv'],
+    queryFn: async () => {
+      const { apiGet } = await import('@/lib/api');
+      return apiGet<any[]>('/api/v1/mortgages/high-ltv').catch(() => []);
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useFixedRateExpiring() {
+  return useQuery({
+    queryKey: [...KEYS.mortgages.all, 'fixed-expiring'],
+    queryFn: async () => {
+      const { apiGet } = await import('@/lib/api');
+      return apiGet<any[]>('/api/v1/mortgages/fixed-rate-expiring').catch(() => []);
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useCorporateLeases(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: [...KEYS.corporateLeases.all, 'list', params],
+    queryFn: async () => {
+      const { apiGet } = await import('@/lib/api');
+      return apiGet<any[]>('/api/v1/corporate-leases', params).catch(() => []);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateCorporateLease() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      const { apiPost } = await import('@/lib/api');
+      return apiPost<any>('/api/v1/corporate-leases', data);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.corporateLeases.all }); },
+  });
+}
+
+export function useRegisterLeasedAsset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      const { apiPost } = await import('@/lib/api');
+      return apiPost<any>('/api/v1/leased-assets', data);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.leasedAssets.all }); },
+  });
+}
+
 // ─── Syndicated Loan ──────────────────────────────────────────────────────────
 
 export function useSyndicatedLoansByRole(role: string) {

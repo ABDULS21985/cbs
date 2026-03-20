@@ -19,6 +19,7 @@ export const GATEWAY_KEYS = {
   // Integration
   integration: ['gateway', 'integration'] as const,
   routes: () => [...GATEWAY_KEYS.integration, 'routes'] as const,
+  messages: () => [...GATEWAY_KEYS.integration, 'messages'] as const,
   dlqCount: () => [...GATEWAY_KEYS.integration, 'dlq-count'] as const,
   iso20022ByStatus: (status: string) => [...GATEWAY_KEYS.integration, 'iso20022', status] as const,
   codeSet: (codeSetName: string) => [...GATEWAY_KEYS.integration, 'code-set', codeSetName] as const,
@@ -101,8 +102,12 @@ export function useRouteHealthCheck() {
 }
 
 export function useSendIntegrationMessage() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => integrationApi.sendMessage(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: GATEWAY_KEYS.messages() });
+    },
   });
 }
 

@@ -9,7 +9,7 @@ import { orderExecutionsApi } from '../api/orderExecutionApi';
 import { tradingBooksApi } from '../api/tradingBookApi';
 import { treasuryApi as treasuryExtApi } from '../api/treasuryExtApi';
 import type { SecurityHolding } from '../types/fixedIncome';
-import type { FtpAllocation } from '../types/ftp';
+// FtpAllocation import removed
 import type { DeskDealer } from '../types/dealerDesk';
 import type { TraderPosition, TraderPositionLimit } from '../types/traderPosition';
 import type { ExecutionQuality } from '../types/orderExecution';

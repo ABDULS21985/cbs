@@ -161,11 +161,30 @@ export function useBankPortfolioByType(type: string) {
 
 // ─── Interbank Relationships ─────────────────────────────────────────────────
 
+export function useInterbankRelationships() {
+  return useQuery({
+    queryKey: KEYS.interbank.all,
+    queryFn: () => interbankRelationshipsApi.getAll(),
+    staleTime: 30_000,
+  });
+}
+
 export function useInterbankRelationshipsByType(type: string) {
   return useQuery({
     queryKey: KEYS.interbank.byType(type),
     queryFn: () => interbankRelationshipsApi.byType(type),
     enabled: !!type,
     staleTime: 60_000,
+  });
+}
+
+export function useCreateInterbankRelationship() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<import('../types/interbank').InterbankRelationship>) =>
+      interbankRelationshipsApi.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.interbank.all });
+    },
   });
 }

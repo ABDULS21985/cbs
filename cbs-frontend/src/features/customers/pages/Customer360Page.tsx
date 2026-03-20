@@ -22,11 +22,8 @@ import { usePermission } from '@/hooks/usePermission';
 
 // Portfolio components
 import { RelationshipSummary } from '../components/portfolio/RelationshipSummary';
-import { BalanceTrendChart } from '../components/portfolio/BalanceTrendChart';
-import { RevenueBreakdownChart } from '../components/portfolio/RevenueBreakdownChart';
 import { ProductHoldingsGrid } from '../components/portfolio/ProductHoldingsGrid';
 import { CrossSellRecommendations } from '../components/portfolio/CrossSellRecommendations';
-import { ProfitabilityAnalysis } from '../components/portfolio/ProfitabilityAnalysis';
 
 // ── Portfolio Tab ────────────────────────────────────────────────────────────
 
@@ -34,7 +31,10 @@ function PortfolioTab({ customerId, customerName }: { customerId: number; custom
   const { data: accounts = [] } = useCustomerAccounts(customerId);
   const { data: loans = [] } = useCustomerLoans(customerId, true);
   const { data: cards = [] } = useCustomerCards(customerId, true);
-  const { data: apiRecommendations = [] } = useRecommendations(customerId);
+  const {
+    data: apiRecommendations = [],
+    isError: recommendationsError,
+  } = useRecommendations(customerId);
 
   const totalBalance = accounts.reduce((s, a) => s + (a.availableBalance ?? a.ledgerBalance ?? 0), 0);
   const loanOutstanding = loans.reduce((s, l) => s + (l.outstandingBalance ?? 0), 0);
@@ -67,65 +67,39 @@ function PortfolioTab({ customerId, customerName }: { customerId: number; custom
     },
   ].filter((h) => h.items.length > 0);
 
-  const revenueData = [
-    { name: 'Deposit Interest', value: totalBalance * 0.001 },
-    { name: 'Loan Interest', value: loanOutstanding * 0.015 },
-    { name: 'Card Fees', value: cards.length * 2500 },
-    { name: 'Transaction Fees', value: accounts.length * 1500 },
-  ].filter((r) => r.value > 0);
-
-  const totalRevenue = revenueData.reduce((s, r) => s + r.value, 0);
-
-  const now = new Date();
-  const trendData = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
-    const factor = 0.85 + (i / 11) * 0.15;
-    return { month: d.toLocaleDateString('en-US', { month: 'short' }), balance: totalBalance * factor };
-  });
-
-  // Fallback to client-side recommendations if API returns empty
-  const fallbackRecommendations = [
-    ...(loans.length === 0 ? [{ product: 'Personal Loan', reason: 'No lending products — pre-qualified based on deposit history' }] : []),
-    ...(cards.length === 0 ? [{ product: 'Debit Card', reason: 'No cards linked — enhance transaction convenience' }] : []),
-    ...(accounts.length < 2 ? [{ product: 'Savings Account', reason: 'Single account holder — opportunity for goal-based savings' }] : []),
-    ...(totalBalance > 1000000 ? [{ product: 'Fixed Deposit', reason: 'High balance customer — optimize idle funds' }] : []),
-  ];
-
-  const recommendations = apiRecommendations.length > 0 ? apiRecommendations : fallbackRecommendations;
-
   return (
     <div className="p-4 space-y-6">
       <RelationshipSummary
         totalBalance={totalBalance + loanOutstanding}
         productsHeld={productsHeld}
-        monthlyRevenue={totalRevenue}
-        lifetimeValue={totalBalance * 12}
+        monthlyRevenue={null}
+        lifetimeValue={null}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="text-sm font-semibold mb-3">Balance Trend</h3>
-          <BalanceTrendChart data={trendData} />
-        </div>
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="text-sm font-semibold mb-3">Revenue Breakdown</h3>
-          <RevenueBreakdownChart data={revenueData} />
+      <div className="rounded-xl border border-dashed bg-muted/20 p-5">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-semibold">Portfolio analytics unavailable</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Historical trend, revenue, and profitability figures are hidden until backend analytics endpoints are available.
+            </p>
+          </div>
         </div>
       </div>
 
       <ProductHoldingsGrid holdings={holdings} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ProfitabilityAnalysis
-          revenue={totalRevenue}
-          costOfFunds={totalBalance * 0.0008}
-          operatingCost={totalRevenue * 0.3}
-          provisions={loanOutstanding * 0.02}
-          netProfit={totalRevenue * 0.4}
-          roc={totalBalance > 0 ? (totalRevenue * 0.4) / totalBalance * 100 : 0}
-        />
-        <CrossSellRecommendations recommendations={recommendations} customerName={customerName} />
-      </div>
+      {recommendationsError ? (
+        <div className="rounded-xl border border-dashed bg-muted/20 p-5">
+          <p className="text-sm font-semibold">Recommendations unavailable</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Backend recommendations could not be loaded for this customer, so no fallback recommendations are shown.
+          </p>
+        </div>
+      ) : (
+        <CrossSellRecommendations recommendations={apiRecommendations} customerName={customerName} />
+      )}
     </div>
   );
 }

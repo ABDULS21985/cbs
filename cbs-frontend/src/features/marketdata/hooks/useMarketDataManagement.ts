@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiPost } from '@/lib/api';
 import { marketDataManagementApi } from '../api/marketDataManagementApi';
 import type { AnalysisType, FeedType, Recommendation } from '../api/marketDataManagementApi';
 
@@ -42,6 +43,28 @@ export function useMarketSignals(instrumentCode: string) {
     queryKey: keys.marketSignals(instrumentCode),
     queryFn: () => marketDataManagementApi.getMarketSignals(instrumentCode),
     enabled: !!instrumentCode,
+  });
+}
+
+export function useRecordPrice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Parameters<typeof marketDataManagementApi.recordPrice>[0]) =>
+      marketDataManagementApi.recordPrice(input),
+    onSuccess: (_data, { instrumentCode }) => {
+      qc.invalidateQueries({ queryKey: keys.instrumentPrices(instrumentCode) });
+    },
+  });
+}
+
+export function useRecordMarketSignal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { instrumentCode: string; signal: string; confidence: number; source: string; analyst?: string; summary?: string }) =>
+      apiPost<import('../api/marketDataManagementApi').MarketSignal>('/api/v1/market-data/signals', input),
+    onSuccess: (_data, { instrumentCode }) => {
+      qc.invalidateQueries({ queryKey: keys.marketSignals(instrumentCode) });
+    },
   });
 }
 
@@ -152,6 +175,28 @@ export function useCreateAnalysis() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: keys.marketAnalysis(variables.type) });
       qc.invalidateQueries({ queryKey: keys.marketAnalysis() });
+    },
+  });
+}
+
+export function usePublishAnalysis() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => marketDataManagementApi.publishAnalysis(code),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.marketAnalysis() });
+    },
+  });
+}
+
+export function useCreateResearchProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { title: string; type: string; description: string }) =>
+      marketDataManagementApi.createResearchProject(input as any),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.activeResearch });
+      qc.invalidateQueries({ queryKey: keys.researchInsights });
     },
   });
 }

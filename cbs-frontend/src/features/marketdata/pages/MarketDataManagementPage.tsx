@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge, TabsPage } from '@/components/shared';
 import {
@@ -35,9 +35,12 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // ─── Feed Status Helpers ──────────────────────────────────────────────────────
 
@@ -880,15 +883,46 @@ function AnalysisTab() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function MarketDataManagementPage() {
-  const { data: dashboard, isLoading: dashLoading } = useSwitchDashboard();
+  useEffect(() => { document.title = 'Market Data Infrastructure | CBS'; }, []);
+
+  const { data: dashboard, isLoading: dashLoading, isError: dashError, isFetching: dashFetching, refetch: dashRefetch } = useSwitchDashboard();
+
+  // Connection status indicator
+  const connectionStatus = dashError ? 'disconnected' : dashFetching ? 'updating' : 'live';
 
   return (
     <>
       <PageHeader
         title="Market Data Infrastructure"
         subtitle="Manage data feeds, prices, signals, and research publications"
+        actions={
+          <span className={cn('flex items-center gap-1.5 text-xs font-medium',
+            connectionStatus === 'live' ? 'text-green-600' :
+            connectionStatus === 'updating' ? 'text-amber-600' : 'text-red-600',
+          )}>
+            <span className={cn('w-2 h-2 rounded-full',
+              connectionStatus === 'live' ? 'bg-green-500 animate-pulse' :
+              connectionStatus === 'updating' ? 'bg-amber-500' : 'bg-red-500',
+            )} />
+            {connectionStatus === 'live' ? 'Live — refreshes every 60s' :
+             connectionStatus === 'updating' ? 'Updating...' : 'Disconnected'}
+          </span>
+        }
       />
       <div className="page-container space-y-6">
+        {/* Error banner */}
+        {dashError && (
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600" />
+              <p className="text-sm text-red-700 dark:text-red-400">Unable to load market data. Check connectivity.</p>
+            </div>
+            <button onClick={() => dashRefetch()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted">
+              <RefreshCw className="w-3.5 h-3.5" /> Retry
+            </button>
+          </div>
+        )}
+
         {/* Switch Dashboard Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard

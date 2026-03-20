@@ -70,6 +70,79 @@ export function useSubmitWriteOffRequest() {
   });
 }
 
+export function useCollectionCase(id: number) {
+  return useQuery({
+    queryKey: ['collections', 'case', id],
+    queryFn: () => collectionsApi.getCase(id),
+    enabled: id > 0,
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateCollectionCase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (loanAccountId: number) => collectionsApi.createCase(loanAccountId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collections', 'cases'] });
+      queryClient.invalidateQueries({ queryKey: ['collections', 'stats'] });
+    },
+  });
+}
+
+export function useBatchCreateCases() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => collectionsApi.batchCreateCases(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collections'] });
+    },
+  });
+}
+
+export function useAssignCase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ caseId, assignedTo, team }: { caseId: number; assignedTo: string; team?: string }) =>
+      collectionsApi.assignCase(caseId, assignedTo, team),
+    onSuccess: (_data, { caseId }) => {
+      queryClient.invalidateQueries({ queryKey: ['collections', 'case', caseId] });
+      queryClient.invalidateQueries({ queryKey: ['collections', 'cases'] });
+    },
+  });
+}
+
+export function useLogCollectionAction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ caseId, action }: { caseId: number; action: Record<string, unknown> }) =>
+      collectionsApi.logAction(caseId, action),
+    onSuccess: (_data, { caseId }) => {
+      queryClient.invalidateQueries({ queryKey: ['collections', 'case', caseId] });
+      queryClient.invalidateQueries({ queryKey: ['collections', 'cases'] });
+    },
+  });
+}
+
+export function useCloseCase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ caseId, resolutionType, resolutionAmount }: { caseId: number; resolutionType: string; resolutionAmount?: number }) =>
+      collectionsApi.closeCase(caseId, resolutionType, resolutionAmount),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collections'] });
+    },
+  });
+}
+
+export function useAgentCases(assignedTo: string, params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['collections', 'agent-cases', assignedTo, params],
+    queryFn: () => collectionsApi.getAgentCases(assignedTo, params),
+    enabled: !!assignedTo,
+  });
+}
+
 export function useRecordRecovery() {
   const queryClient = useQueryClient();
   return useMutation({

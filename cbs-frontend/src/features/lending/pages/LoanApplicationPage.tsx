@@ -1,8 +1,13 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useLoanApplication } from '../hooks/useLoanApplication';
 import { LoanTypeStep } from '../components/application/LoanTypeStep';
+import { CustomerStep } from '../components/application/CustomerStep';
 import { LoanDetailsStep } from '../components/application/LoanDetailsStep';
 import { FinancialAssessmentStep } from '../components/application/FinancialAssessmentStep';
+import { CollateralStep } from '../components/application/CollateralStep';
+import { DocumentsStep } from '../components/application/DocumentsStep';
+import { CreditScoreStep } from '../components/application/CreditScoreStep';
+import { ApprovalStep } from '../components/application/ApprovalStep';
 import { SchedulePreviewStep } from '../components/application/SchedulePreviewStep';
 import { ReviewSubmitStep } from '../components/application/ReviewSubmitStep';
 import { cn } from '@/lib/utils';
@@ -19,9 +24,14 @@ export function LoanApplicationPage() {
   const renderStep = () => {
     switch (state.step) {
       case 0: return <LoanTypeStep state={state} updateField={updateField} onNext={nextStep} />;
+      case 1: return <CustomerStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
       case 2: return <LoanDetailsStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
       case 3: return <FinancialAssessmentStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
+      case 4: return <CollateralStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
+      case 5: return <DocumentsStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
+      case 6: return <CreditScoreStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
       case 7: return <SchedulePreviewStep state={state} onNext={nextStep} onBack={prevStep} />;
+      case 8: return <ApprovalStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
       case 9: return <ReviewSubmitStep state={state} goToStep={goToStep} />;
       default: return <PlaceholderStep step={state.step} stepName={STEPS[state.step]} onNext={nextStep} onBack={prevStep} />;
     }

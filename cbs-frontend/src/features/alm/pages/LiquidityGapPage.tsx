@@ -222,7 +222,7 @@ export function LiquidityGapPage() {
   }, [hqlaData, totalHqla]);
 
   const totalAvailableLiquidity = liquiditySources.reduce((s, r) => s + r.net, 0);
-  const totalStressOutflows = ratios?.netCashOutflows30d ?? 0 || totalHqla * 0.4;
+  const totalStressOutflows = (ratios?.netCashOutflows30d ?? 0) || (totalHqla * 0.4);
 
   const isLoading = positionsLoading || ratiosLoading || hqlaLoading || stressLoading;
 

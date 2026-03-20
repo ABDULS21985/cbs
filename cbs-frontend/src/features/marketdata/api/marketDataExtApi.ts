@@ -15,7 +15,7 @@ export const marketDataApi = {
     apiPost<MarketSignal>('/api/v1/market-data/signals', data),
 
   /** GET /v1/market-data/research */
-  recordSignal2: (params?: Record<string, unknown>) =>
+  getResearchData: (params?: Record<string, unknown>) =>
     apiGet<MarketSignal>('/api/v1/market-data/research', params),
 
 };

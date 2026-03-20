@@ -44,6 +44,8 @@ import {
   ChannelAnalyticsPage,
   ChequeManagementPage,
   CollectionsPage,
+  CollectionCaseDetailPage,
+  EclParameterPage,
   ComplianceDashboardPage,
   AmlDashboardPage,
   AmlAlertDetailPage,
@@ -88,6 +90,8 @@ import {
   InternationalTransferPage,
   LeaseDetailPage,
   LeaseListPage,
+  LeasedAssetPage,
+  CorporateLeasePage,
   LoanAnalyticsPage,
   LoanApplicationListPage,
   LoanApplicationPage,
@@ -205,6 +209,14 @@ import {
   PortfolioDetailPage,
   FundManagementPage,
   FundDetailPage,
+  InvWealthPage,
+  InvWealthDetailPage,
+  InvPositionsPage,
+  InvValuationPage,
+  InterbankPage,
+  InvestFixedIncomePage,
+  InvestBankPortfolioPage,
+  InvestmentAnalyticsPage,
   AdvisoryDashboardPage,
   CorporateFinancePage,
   ProjectFinancePage,
@@ -349,11 +361,15 @@ export function AppRouter() {
           <Route path="collateral" element={<CollateralRegisterPage />} />
           <Route path="collateral/:id" element={<CollateralDetailPage />} />
           <Route path="collections" element={<CollectionsPage />} />
+          <Route path="collections/cases/:id" element={<CollectionCaseDetailPage />} />
           <Route path="mortgages" element={<MortgageListPage />} />
           <Route path="mortgages/:id" element={<MortgageDetailPage />} />
           <Route path="leases" element={<LeaseListPage />} />
           <Route path="leases/:id" element={<LeaseDetailPage />} />
+          <Route path="leased-assets" element={<LeasedAssetPage />} />
+          <Route path="corporate-leases" element={<CorporateLeasePage />} />
           <Route path="ecl" element={<EclDashboardPage />} />
+          <Route path="ecl/parameters" element={<EclParameterPage />} />
         </Route>
 
         {/* Payments */}
@@ -427,6 +443,14 @@ export function AppRouter() {
           <Route path="portfolios/:code" element={<PortfolioDetailPage />} />
           <Route path="funds" element={<FundManagementPage />} />
           <Route path="funds/:code" element={<FundDetailPage />} />
+          <Route path="advisory" element={<InvWealthPage />} />
+          <Route path="advisory/:code" element={<InvWealthDetailPage />} />
+          <Route path="positions" element={<InvPositionsPage />} />
+          <Route path="valuations" element={<InvValuationPage />} />
+          <Route path="interbank" element={<InterbankPage />} />
+          <Route path="analytics" element={<InvestmentAnalyticsPage />} />
+          <Route path="fixed-income" element={<InvestFixedIncomePage />} />
+          <Route path="bank-portfolios" element={<InvestBankPortfolioPage />} />
         </Route>
 
         {/* Advisory */}
@@ -482,9 +506,10 @@ export function AppRouter() {
         </Route>
 
         {/* Market Data Management */}
-        <Route path="/market-data-mgmt" element={<Outlet />}>
+        <Route path="/market-data" element={<Outlet />}>
           <Route index element={<MarketDataManagementPage />} />
         </Route>
+        <Route path="/market-data-mgmt" element={<Navigate to="/market-data" replace />} />
 
         {/* Risk */}
         <Route path="/risk" element={<Outlet />}>

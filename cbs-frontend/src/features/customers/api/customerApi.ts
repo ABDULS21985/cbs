@@ -710,7 +710,7 @@ export const customerApi = {
   },
 
   getRecommendations(id: number) {
-    return apiGet<import('../types/customer').ProductRecommendation[]>(`/api/v1/customers/${id}/recommendations`).catch(() => []);
+    return apiGet<import('../types/customer').ProductRecommendation[]>(`/api/v1/customers/${id}/recommendations`);
   },
 
   getTimeline(id: number, params?: { page?: number; size?: number; eventType?: string }) {

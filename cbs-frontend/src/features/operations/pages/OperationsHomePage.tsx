@@ -10,7 +10,6 @@ import {
   Headphones,
   AlertTriangle,
   ChevronRight,
-  Activity,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useWorkflowTasks } from '../hooks/useWorkflowTasks';
@@ -84,15 +83,6 @@ const QUICK_LINKS: QuickLink[] = [
   },
 ];
 
-// ─── Recent Activity placeholder ───────────────────────────────────────────────
-
-const PLACEHOLDER_ACTIVITY = [
-  { id: 1, text: 'EOD batch completed successfully', time: '2 hours ago', type: 'success' },
-  { id: 2, text: '3 loan approvals pending review', time: '4 hours ago', type: 'warning' },
-  { id: 3, text: 'ACH batch #20260319-02 processed 1,240 items', time: '6 hours ago', type: 'info' },
-  { id: 4, text: 'Branch "Ikeja" opened for the day', time: '8 hours ago', type: 'info' },
-];
-
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export function OperationsHomePage() {
@@ -157,31 +147,11 @@ export function OperationsHomePage() {
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="w-4 h-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Recent Activity
-            </h2>
-          </div>
-          <div className="rounded-lg border border-border divide-y divide-border">
-            {PLACEHOLDER_ACTIVITY.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 px-4 py-3">
-                <div
-                  className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                    item.type === 'success'
-                      ? 'bg-green-500'
-                      : item.type === 'warning'
-                      ? 'bg-amber-500'
-                      : 'bg-blue-500'
-                  }`}
-                />
-                <span className="text-sm flex-1">{item.text}</span>
-                <span className="text-xs text-muted-foreground">{item.time}</span>
-              </div>
-            ))}
-          </div>
+        <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6">
+          <p className="text-sm font-medium">Recent activity feed unavailable</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            This page no longer shows placeholder operational events. Wire a backend activity endpoint before restoring this panel.
+          </p>
         </div>
       </div>
     </>

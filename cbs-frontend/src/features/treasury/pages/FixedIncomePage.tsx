@@ -1,12 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge, TabsPage, SummaryBar } from '@/components/shared';
-import { Landmark, TrendingUp, Calendar, Clock, Loader2, CheckCircle2, Play } from 'lucide-react';
 import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts';
 import { useSecurityHoldings, useCouponCalendar } from '../hooks/useTreasuryData';
 import {
@@ -101,7 +99,6 @@ function BatchOperationCard({
 // ─── Maturity Ladder ─────────────────────────────────────────────────────────
 
 const MATURITY_BUCKETS = ['This Month', '1-3M', '3-6M', '6-12M', '1-2Y', '2-5Y', '5Y+'];
-const _BUCKET_COLORS = ['#ef4444', '#f59e0b', '#eab308', '#22c55e', '#3b82f6', '#6366f1', '#8b5cf6'];
 
 function getMaturityBucket(maturityDate: string): string {
   const today = new Date();
@@ -154,7 +151,6 @@ export function FixedIncomePage() {
   const totalMarket = holdings.reduce((s, h) => s + h.marketValue, 0);
   const avgYield = holdings.length > 0 ? holdings.reduce((s, h) => s + h.yieldToMaturity, 0) / holdings.length : 0;
   const totalUnrealized = holdings.reduce((s, h) => s + h.unrealizedPnl, 0);
-  const _totalCoupon30d = coupons.filter((c) => c.eventType === 'COUPON').reduce((s, c) => s + c.amount, 0);
 
   const today = new Date();
   const maturingIn30 = holdings.filter((h) => {

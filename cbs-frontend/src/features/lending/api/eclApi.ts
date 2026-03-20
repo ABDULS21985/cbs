@@ -1,5 +1,6 @@
-import api from '@/lib/api';
+import api, { apiGet, apiPost } from '@/lib/api';
 import type { ApiResponse } from '@/types/common';
+import type { EclModelParameter, EclCalculation } from '../types/eclExt';
 import type {
   EclSummary,
   StageDistributionItem,
@@ -46,4 +47,16 @@ export const eclApi = {
 
   runCalculation: () =>
     api.post<ApiResponse<{ jobId: string }>>('/api/v1/ecl/run'),
+
+  listParameters: () =>
+    apiGet<EclModelParameter[]>('/api/v1/ecl/parameters'),
+
+  saveParameter: (data: Partial<EclModelParameter>) =>
+    apiPost<EclModelParameter>('/api/v1/ecl/parameters', data),
+
+  calculate: (params: Record<string, unknown>) =>
+    apiPost<EclCalculation>('/api/v1/ecl/calculate', params),
+
+  getCalculations: (date: string, params?: Record<string, unknown>) =>
+    apiGet<EclCalculation[]>(`/api/v1/ecl/calculations/${date}`, params),
 };

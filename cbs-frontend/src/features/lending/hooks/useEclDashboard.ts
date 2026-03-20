@@ -95,6 +95,40 @@ export function useLoansByStage(stage: 1 | 2 | 3, enabled: boolean) {
   });
 }
 
+export function useEclParameters() {
+  return useQuery({
+    queryKey: ['ecl', 'parameters'],
+    queryFn: () => eclApi.listParameters(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useSaveEclParameter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<import('../types/eclExt').EclModelParameter>) =>
+      eclApi.saveParameter(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ecl', 'parameters'] });
+    },
+  });
+}
+
+export function useCalculateEcl() {
+  return useMutation({
+    mutationFn: (params: Record<string, unknown>) => eclApi.calculate(params),
+  });
+}
+
+export function useEclCalculationsForDate(date: string, params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['ecl', 'calculations', date, params],
+    queryFn: () => eclApi.getCalculations(date, params),
+    enabled: !!date,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 export function useRunEclCalculation() {
   const queryClient = useQueryClient();
   return useMutation({

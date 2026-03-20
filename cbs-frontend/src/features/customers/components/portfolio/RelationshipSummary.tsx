@@ -3,8 +3,8 @@ import { formatMoney, formatMoneyCompact } from '@/lib/formatters';
 interface Props {
   totalBalance: number;
   productsHeld: number;
-  monthlyRevenue: number;
-  lifetimeValue: number;
+  monthlyRevenue?: number | null;
+  lifetimeValue?: number | null;
   currency?: string;
 }
 
@@ -12,8 +12,8 @@ export function RelationshipSummary({ totalBalance, productsHeld, monthlyRevenue
   const stats = [
     { label: 'Total Balance', value: formatMoneyCompact(totalBalance, currency) },
     { label: 'Products Held', value: String(productsHeld) },
-    { label: 'Monthly Revenue', value: formatMoney(monthlyRevenue, currency) },
-    { label: 'Lifetime Value', value: formatMoneyCompact(lifetimeValue, currency) },
+    { label: 'Monthly Revenue', value: monthlyRevenue == null ? 'Unavailable' : formatMoney(monthlyRevenue, currency) },
+    { label: 'Lifetime Value', value: lifetimeValue == null ? 'Unavailable' : formatMoneyCompact(lifetimeValue, currency) },
   ];
 
   return (

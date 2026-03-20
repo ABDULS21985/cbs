@@ -147,6 +147,17 @@ export const navigationItems: NavSection[] = [
         ],
       },
       {
+        label: 'Market Data', icon: Activity, path: '/market-data', roles: ['CBS_ADMIN', 'TREASURY'],
+        children: [
+          { label: 'Infrastructure', path: '/market-data' },
+          { label: 'Prices & Signals', path: '/market-data/prices' },
+          { label: 'Research', path: '/market-data/research' },
+          { label: 'Analysis', path: '/market-data/analysis' },
+          { label: 'Market Making', path: '/market-data/market-making' },
+          { label: 'Switch Dashboard', path: '/market-data/switch' },
+        ],
+      },
+      {
         label: 'Capital Markets', icon: Building2, path: '/capital-markets', roles: ['CBS_ADMIN', 'TREASURY'],
         children: [
           { label: 'Deal Pipeline', path: '/capital-markets' },

@@ -6,21 +6,21 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge, TabsPage, EmptyState } from '@/components/shared';
-import { formatDate, formatRelative, formatDateTime } from '@/lib/formatters';
+import { formatRelative } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import {
+  GATEWAY_KEYS,
   useIntegrationRoutes,
   useCreateRoute,
   useRouteHealthCheck,
   useRetryDeadLetters,
-  useResolveDeadLetter,
   useDlqCount,
   useSendIntegrationMessage,
 } from '../hooks/useGatewayData';
 import { integrationApi } from '../api/integrationApi';
-import type { IntegrationRoute, IntegrationMessage, DeadLetterQueue } from '../types/integration';
+import type { IntegrationRoute, IntegrationMessage } from '../types/integration';
 import { useQuery } from '@tanstack/react-query';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -208,14 +208,12 @@ export function IntegrationHubPage() {
   const { data: dlqCountData } = useDlqCount();
   const healthCheck = useRouteHealthCheck();
   const retryAll = useRetryDeadLetters();
-  const resolveDlq = useResolveDeadLetter();
 
   // Fetch messages and DLQ items
-  const { data: messages = [] } = useQuery({
-    queryKey: ['gateway', 'integration', 'messages'],
-    queryFn: () => integrationApi.sendMessage({}).catch(() => []) as unknown as Promise<IntegrationMessage[]>,
+  const { data: messages = [], isLoading: messagesLoading } = useQuery({
+    queryKey: GATEWAY_KEYS.messages(),
+    queryFn: () => integrationApi.listMessages(),
     staleTime: 30_000,
-    enabled: false, // Messages are fetched via the routes
   });
 
   const dlqCount = typeof dlqCountData === 'object' && dlqCountData ? (dlqCountData as Record<string, number>).count ?? 0 : 0;
@@ -306,40 +304,6 @@ export function IntegrationHubPage() {
     { accessorKey: 'createdAt', header: 'Created', cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatRelative(row.original.createdAt)}</span> },
   ];
 
-  // DLQ columns
-  const dlqCols: ColumnDef<DeadLetterQueue, unknown>[] = [
-    { accessorKey: 'id', header: 'ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.id}</span> },
-    { accessorKey: 'messageId', header: 'Msg ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.messageId}</span> },
-    { accessorKey: 'routeId', header: 'Route', cell: ({ row }) => <span className="font-mono text-xs">#{row.original.routeId}</span> },
-    { accessorKey: 'failureReason', header: 'Failure', cell: ({ row }) => <span className="text-xs truncate max-w-[200px] block" title={row.original.failureReason}>{row.original.failureReason}</span> },
-    {
-      id: 'retries', header: 'Retries',
-      cell: ({ row }) => <span className="text-xs font-mono">{row.original.retryCount}/{row.original.maxRetries}</span>,
-    },
-    {
-      accessorKey: 'nextRetryAt', header: 'Next Retry',
-      cell: ({ row }) => {
-        const overdue = new Date(row.original.nextRetryAt) < new Date();
-        return <span className={cn('text-xs', overdue ? 'text-red-600 font-medium' : 'text-muted-foreground')}>{formatDateTime(row.original.nextRetryAt)}</span>;
-      },
-    },
-    {
-      accessorKey: 'status', header: 'Status',
-      cell: ({ row }) => {
-        const colors: Record<string, string> = { PENDING: 'bg-amber-100 text-amber-700', RETRYING: 'bg-blue-100 text-blue-700', RESOLVED: 'bg-green-100 text-green-700', ABANDONED: 'bg-red-100 text-red-700' };
-        return <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold', colors[row.original.status] ?? 'bg-gray-100')}>{row.original.status}</span>;
-      },
-    },
-    { accessorKey: 'createdAt', header: 'Created', cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatRelative(row.original.createdAt)}</span> },
-    {
-      id: 'actions', header: '',
-      cell: ({ row }) => (row.original.status === 'PENDING' || row.original.status === 'RETRYING') ? (
-        <button onClick={() => resolveDlq.mutate(row.original.id, { onSuccess: () => toast.success('Resolved'), onError: () => toast.error('Failed') })}
-          className="text-xs text-green-600 hover:underline font-medium">Resolve</button>
-      ) : null,
-    },
-  ];
-
   // Circuit breaker data from routes
   const circuitBreakerData = useMemo(() => routes.map((r) => {
     const cb = r.circuitBreaker as Record<string, unknown> | undefined;
@@ -377,7 +341,7 @@ export function IntegrationHubPage() {
       label: 'Messages',
       content: (
         <div className="p-4">
-          <DataTable columns={messageCols} data={messages} enableGlobalFilter emptyMessage="No messages (messages are loaded per-route)" />
+          <DataTable columns={messageCols} data={messages} isLoading={messagesLoading} enableGlobalFilter emptyMessage="No integration messages found" />
         </div>
       ),
     },
@@ -399,7 +363,11 @@ export function IntegrationHubPage() {
               </button>
             </div>
           )}
-          <DataTable columns={dlqCols} data={[]} enableGlobalFilter emptyMessage="Dead letter queue is empty" />
+          <EmptyState
+            icon={Inbox}
+            title="DLQ item listing unavailable"
+            description="The backend currently exposes DLQ count and retry actions, but not a detailed DLQ list endpoint for this page."
+          />
         </div>
       ),
     },
