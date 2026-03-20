@@ -220,6 +220,7 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
         <button
           onClick={handleDownload}
           disabled={isExpired}
+          aria-label="Download QR code as image"
           className="flex-1 flex items-center justify-center gap-1.5 py-2 border rounded-lg text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
         >
           <Download className="w-3.5 h-3.5" />
@@ -228,6 +229,7 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
         <button
           onClick={handlePrint}
           disabled={isExpired}
+          aria-label="Print QR code"
           className="flex-1 flex items-center justify-center gap-1.5 py-2 border rounded-lg text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
         >
           <Printer className="w-3.5 h-3.5" />
@@ -235,6 +237,7 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
         </button>
         <button
           onClick={handleShare}
+          aria-label="Share payment details"
           className="flex-1 flex items-center justify-center gap-1.5 py-2 border rounded-lg text-xs font-medium hover:bg-muted transition-colors"
         >
           {copied ? (

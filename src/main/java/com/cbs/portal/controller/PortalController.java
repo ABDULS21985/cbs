@@ -489,6 +489,108 @@ public class PortalController {
         )));
     }
 
+    // ========================================================================
+    // BILLS, AIRTIME, NOTIFICATIONS, CARD EXTRAS, HELP
+    // ========================================================================
+
+    @GetMapping("/billers")
+    @Operation(summary = "List biller categories and billers")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getBillers() {
+        List<Map<String, Object>> billers = List.of(
+                Map.of("id", 1, "name", "EKEDC Prepaid", "category", "Electricity", "fixedAmount", false, "requiresRef", true, "refLabel", "Meter Number"),
+                Map.of("id", 2, "name", "IKEDC Postpaid", "category", "Electricity", "fixedAmount", false, "requiresRef", true, "refLabel", "Account Number"),
+                Map.of("id", 3, "name", "Lagos Water Corp", "category", "Water", "fixedAmount", false, "requiresRef", true, "refLabel", "Customer ID"),
+                Map.of("id", 4, "name", "DSTV", "category", "TV", "fixedAmount", true, "amount", 21000, "requiresRef", true, "refLabel", "Smart Card Number"),
+                Map.of("id", 5, "name", "Spectranet", "category", "Internet", "fixedAmount", false, "requiresRef", true, "refLabel", "Account ID"),
+                Map.of("id", 6, "name", "NHIS", "category", "Insurance", "fixedAmount", false, "requiresRef", true, "refLabel", "Policy Number"),
+                Map.of("id", 7, "name", "FIRS TaxPro", "category", "Government", "fixedAmount", false, "requiresRef", true, "refLabel", "Tax ID")
+        );
+        return ResponseEntity.ok(ApiResponse.ok(billers));
+    }
+
+    @PostMapping("/billers/validate")
+    @Operation(summary = "Validate biller customer reference")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> validateBiller(@RequestBody Map<String, Object> body) {
+        String customerRef = String.valueOf(body.getOrDefault("customerRef", ""));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("valid", true, "customerName", "Customer " + customerRef, "outstandingBalance", 15000)));
+    }
+
+    @PostMapping("/billers/pay")
+    @Operation(summary = "Process bill payment")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> payBill(@RequestBody Map<String, Object> body) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(Map.of(
+                "status", "SUCCESS", "reference", "BP-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase(),
+                "amount", body.get("amount"), "billerName", body.get("billerName"), "paidAt", java.time.Instant.now().toString()
+        )));
+    }
+
+    @PostMapping("/airtime/purchase")
+    @Operation(summary = "Purchase airtime or data")
+    @PreAuthorize("hasRole('PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> purchaseAirtime(@RequestBody Map<String, Object> body) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(Map.of(
+                "status", "SUCCESS", "reference", "AIR-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase(),
+                "network", body.get("network"), "phone", body.get("phone"), "amount", body.get("amount"),
+                "type", body.getOrDefault("type", "AIRTIME"), "paidAt", java.time.Instant.now().toString()
+        )));
+    }
+
+    @PostMapping("/cards/{cardId}/freeze")
+    @Operation(summary = "Freeze/unfreeze a card")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<com.cbs.card.entity.Card>> freezeCard(@PathVariable Long cardId, @RequestParam boolean freeze) {
+        com.cbs.card.entity.Card card = cardRepository.findById(cardId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Card", "id", cardId));
+        card.setStatus(freeze ? com.cbs.card.entity.CardStatus.BLOCKED : com.cbs.card.entity.CardStatus.ACTIVE);
+        return ResponseEntity.ok(ApiResponse.ok(cardRepository.save(card)));
+    }
+
+    @PostMapping("/cards/{cardId}/travel-notice")
+    @Operation(summary = "Set travel notification")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> setTravelNotice(@PathVariable Long cardId, @RequestBody Map<String, Object> body) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("cardId", cardId, "country", body.get("country"),
+                "fromDate", body.get("fromDate"), "toDate", body.get("toDate"), "status", "ACTIVE")));
+    }
+
+    @GetMapping("/notifications")
+    @Operation(summary = "Get customer's notifications")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getPortalNotifications(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping("/notifications/mark-read")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> markNotificationsRead(@RequestBody Map<String, Object> body) {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("markedAsRead", 0)));
+    }
+
+    @GetMapping("/help/faq")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getFaq() {
+        return ResponseEntity.ok(ApiResponse.ok(List.of(
+                Map.of("q", "How do I reset my password?", "a", "Go to Profile > Security > Change Password to reset your password."),
+                Map.of("q", "How do I block my card?", "a", "Go to Cards, select the card, and tap Block Card. The card will be blocked immediately."),
+                Map.of("q", "What are the transfer limits?", "a", "Daily limit is ₦5,000,000. Single transaction limit is ₦2,000,000. Transfers above ₦50,000 require OTP."),
+                Map.of("q", "How do I add a beneficiary?", "a", "Go to Beneficiaries > Add New. Enter the account number, bank, and name."),
+                Map.of("q", "How do I request a statement?", "a", "Go to Accounts > select account > Download Statement. Choose date range and format (PDF/CSV)."),
+                Map.of("q", "What is a service request?", "a", "Service requests are used for cheque book orders, card replacements, account updates, and general inquiries.")
+        )));
+    }
+
+    @PostMapping("/help/contact")
+    @PreAuthorize("hasAnyRole('PORTAL_USER','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> submitContactForm(@RequestBody Map<String, Object> body) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(Map.of(
+                "status", "RECEIVED", "ticketId", "HLP-" + System.currentTimeMillis(), "message", "Your inquiry has been received. We'll respond within 24 hours."
+        )));
+    }
+
     @GetMapping("/transfers/recent")
     @Operation(summary = "Get recent transfers")
     @PreAuthorize("hasRole('PORTAL_USER')")

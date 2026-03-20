@@ -277,6 +277,19 @@ export const navigationItems: NavSection[] = [
         ],
       },
       {
+        label: 'Open Banking', icon: Globe, path: '/open-banking', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
+        children: [
+          { label: 'Dashboard', path: '/open-banking' },
+          { label: 'Consents', path: '/open-banking/consents' },
+          { label: 'PSD2 Compliance', path: '/open-banking/psd2' },
+          { label: 'API Marketplace', path: '/open-banking/marketplace' },
+          { label: 'Developer Portal', path: '/open-banking/developer' },
+          { label: 'Monitoring', path: '/open-banking/monitoring' },
+          { label: 'Webhooks', path: '/open-banking/webhooks' },
+          { label: 'Analytics', path: '/open-banking/analytics' },
+        ],
+      },
+      {
         label: 'Reports', icon: BarChart3, path: '/reports', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
         children: [
           { label: 'Executive', path: '/reports/executive' },

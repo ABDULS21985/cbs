@@ -41,6 +41,18 @@ export const ReconciliationWorkbenchPage = lazyNamed(
   () => import('@/features/reconciliation/pages/ReconciliationWorkbenchPage'),
   'ReconciliationWorkbenchPage',
 );
+export const ReconciliationDashboardPage = lazyNamed(
+  () => import('@/features/reconciliation/pages/ReconciliationDashboardPage'),
+  'ReconciliationDashboardPage',
+);
+export const NostroPositionsPage = lazyNamed(
+  () => import('@/features/reconciliation/pages/NostroPositionsPage'),
+  'NostroPositionsPage',
+);
+export const CorrespondentBankPage = lazyNamed(
+  () => import('@/features/reconciliation/pages/CorrespondentBankPage'),
+  'CorrespondentBankPage',
+);
 export const VirtualAccountListPage = lazyNamed(
   () => import('@/features/accounts/pages/VirtualAccountListPage'),
   'VirtualAccountListPage',
@@ -675,6 +687,51 @@ export const ApprovalQueuePage = lazyNamed(
 export const OperationsHomePage = lazyNamed(
   () => import('@/features/operations/pages/OperationsHomePage'),
   'OperationsHomePage',
+);
+
+export const ApprovalWorkbenchPage = lazyNamed(
+  () => import('@/features/operations/pages/ApprovalWorkbenchPage'),
+  'ApprovalWorkbenchPage',
+);
+export const AtmManagementPage = lazyNamed(
+  () => import('@/features/operations/pages/AtmManagementPage'),
+  'AtmManagementPage',
+);
+export const VaultOperationsPage = lazyNamed(
+  () => import('@/features/operations/pages/VaultOperationsPage'),
+  'VaultOperationsPage',
+);
+export const BranchNetworkPage = lazyNamed(
+  () => import('@/features/operations/pages/BranchNetworkPage'),
+  'BranchNetworkPage',
+);
+export const BranchPerformancePage = lazyNamed(
+  () => import('@/features/operations/pages/BranchPerformancePage'),
+  'BranchPerformancePage',
+);
+export const AgentBankingPage = lazyNamed(
+  () => import('@/features/operations/pages/AgentBankingPage'),
+  'AgentBankingPage',
+);
+export const BankDraftPage = lazyNamed(
+  () => import('@/features/operations/pages/BankDraftPage'),
+  'BankDraftPage',
+);
+export const LockboxPage = lazyNamed(
+  () => import('@/features/operations/pages/LockboxPage'),
+  'LockboxPage',
+);
+export const ReconciliationPage = lazyNamed(
+  () => import('@/features/operations/pages/ReconciliationPage'),
+  'ReconciliationPage',
+);
+export const OpenItemsPage = lazyNamed(
+  () => import('@/features/operations/pages/OpenItemsPage'),
+  'OpenItemsPage',
+);
+export const IssuedDevicesPage = lazyNamed(
+  () => import('@/features/operations/pages/IssuedDevicesPage'),
+  'IssuedDevicesPage',
 );
 
 export const TreasuryHomePage = lazyNamed(

@@ -83,7 +83,76 @@
 ::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.3); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
 
+/* Screen-reader-only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Print-specific styles */
 @media print {
-  .no-print { display: none !important; }
-  body { background: white !important; color: black !important; }
+  .no-print, nav, aside, header[role="banner"],
+  .sidebar, [data-sidebar], .topbar { display: none !important; }
+  .print-only { display: block !important; }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 10pt !important;
+    margin: 0 !important;
+    padding: 20pt !important;
+  }
+
+  .print-header {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid #1E40AF;
+    padding-bottom: 12pt;
+    margin-bottom: 16pt;
+  }
+  .print-header .logo { font-size: 18pt; font-weight: 700; color: #1E40AF; }
+  .print-header .meta { text-align: right; font-size: 8pt; color: #666; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 9pt; }
+  th {
+    background: #1E40AF !important;
+    color: white !important;
+    padding: 6pt 8pt;
+    text-align: left;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  td { padding: 4pt 8pt; border-bottom: 0.5pt solid #E5E7EB; }
+  tr:nth-child(even) {
+    background: #F9FAFB !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page-break-before { page-break-before: always; }
+  .avoid-break { page-break-inside: avoid; }
+
+  .recharts-wrapper { max-width: 100% !important; height: auto !important; }
+  .recharts-surface { max-width: 100% !important; }
+
+  .print-footer {
+    display: block !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 7pt;
+    color: #999;
+    border-top: 0.5pt solid #E5E7EB;
+    padding-top: 4pt;
+  }
 }

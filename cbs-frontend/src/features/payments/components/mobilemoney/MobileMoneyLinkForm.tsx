@@ -329,6 +329,7 @@ export function MobileMoneyLinkForm({ open, onClose, onSuccess }: MobileMoneyLin
                       setErrors((p) => ({ ...p, otp: '' }));
                     }}
                     placeholder="000000"
+                    aria-label="Enter 6-digit OTP verification code"
                     className="w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring font-mono text-center tracking-[0.5em] text-lg"
                   />
                   {errors.otp && <p className="text-xs text-red-500 mt-1">{errors.otp}</p>}

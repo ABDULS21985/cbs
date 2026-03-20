@@ -22,5 +22,5 @@ interface Props {
 }
 
 export function StandingOrderTable({ data, isLoading, onRowClick }: Props) {
-  return <DataTable columns={columns} data={data} isLoading={isLoading} onRowClick={onRowClick} enableGlobalFilter enableExport exportFilename="standing-orders" />;
+  return <DataTable columns={columns} data={data} isLoading={isLoading} onRowClick={onRowClick} enableGlobalFilter enableExport exportFilename="standing-orders" emptyMessage="No standing orders found" />;
 }

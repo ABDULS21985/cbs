@@ -254,8 +254,8 @@ public class ReportsService {
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
 
-        List<Account> allAccounts = accountRepository.findAll();
-        List<LoanAccount> allLoans = loanAccountRepository.findAll();
+        List<Account> allAccounts = safe(accountRepository.findAll());
+        List<LoanAccount> allLoans = safe(loanAccountRepository.findAll());
 
         List<DepositLoanGrowthEntry> result = new ArrayList<>();
         for (String m : months) {
@@ -284,7 +284,7 @@ public class ReportsService {
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
 
-        List<Customer> allCustomers = customerRepository.findAll();
+        List<Customer> allCustomers = safe(customerRepository.findAll());
 
         List<CustomerGrowthEntry> result = new ArrayList<>();
         for (String m : months) {
@@ -309,9 +309,9 @@ public class ReportsService {
     }
 
     public List<BranchPerformance> getTopBranches() {
-        List<Branch> branches = branchRepository.findByIsActiveTrueOrderByBranchNameAsc();
-        List<Account> accounts = accountRepository.findAll();
-        List<LoanAccount> loans = loanAccountRepository.findAll();
+        List<Branch> branches = safe(branchRepository.findByIsActiveTrueOrderByBranchNameAsc());
+        List<Account> accounts = safe(accountRepository.findAll());
+        List<LoanAccount> loans = safe(loanAccountRepository.findAll());
 
         Map<String, BigDecimal> depositByBranch = accounts.stream()
                 .filter(a -> a.getBranchCode() != null && a.getStatus() == AccountStatus.ACTIVE)
@@ -349,8 +349,8 @@ public class ReportsService {
 
     public BalanceSheet getBalanceSheet(LocalDate asOf) {
         LocalDate date = asOf != null ? asOf : LocalDate.now();
-        List<GlBalance> balances = glBalanceRepository.findByBalanceDateOrderByGlCodeAsc(date);
-        List<ChartOfAccounts> coa = chartOfAccountsRepository.findAll();
+        List<GlBalance> balances = safe(glBalanceRepository.findByBalanceDateOrderByGlCodeAsc(date));
+        List<ChartOfAccounts> coa = safe(chartOfAccountsRepository.findAll());
         Map<String, ChartOfAccounts> coaMap = coa.stream().collect(Collectors.toMap(ChartOfAccounts::getGlCode, c -> c, (a, b) -> a));
 
         List<GlCategoryEntry> assets = new ArrayList<>();
@@ -385,15 +385,17 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
 
-        List<LoanAccount> activeLoans = loanAccountRepository.findAllActiveLoans();
+        List<LoanAccount> activeLoans = safe(loanAccountRepository.findAllActiveLoans());
         BigDecimal interestIncome = activeLoans.stream()
                 .map(LoanAccount::getTotalInterestCharged)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<Account> accounts = accountRepository.findAll();
+        List<Account> accounts = safe(accountRepository.findAll());
         BigDecimal interestExpense = accounts.stream()
                 .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
                 .map(Account::getAccruedInterest)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal feeIncome = getGlCategoryBalanceForPeriod(GlCategory.INCOME, f, t)
@@ -403,6 +405,7 @@ public class ReportsService {
 
         BigDecimal provisionCharge = activeLoans.stream()
                 .map(LoanAccount::getProvisionAmount)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal netInterest = interestIncome.subtract(interestExpense);
@@ -426,7 +429,7 @@ public class ReportsService {
         BigDecimal operating = income.subtract(expense);
 
         // Investing: net change in loan portfolio
-        List<LoanAccount> allLoans = loanAccountRepository.findAll();
+        List<LoanAccount> allLoans = safe(loanAccountRepository.findAll());
         BigDecimal loanDisbursed = allLoans.stream()
                 .filter(l -> l.getDisbursementDate() != null && !l.getDisbursementDate().isBefore(f) && !l.getDisbursementDate().isAfter(t))
                 .map(LoanAccount::getDisbursedAmount)
@@ -452,9 +455,10 @@ public class ReportsService {
         BigDecimal totalCapital = tier1.add(tier2);
 
         // Simplified RWA: total loan outstanding (100% risk weight)
-        List<LoanAccount> activeLoans = loanAccountRepository.findAllActiveLoans();
+        List<LoanAccount> activeLoans = safe(loanAccountRepository.findAllActiveLoans());
         BigDecimal rwa = activeLoans.stream()
                 .map(LoanAccount::getOutstandingPrincipal)
+                .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal car = pct(totalCapital, rwa);
@@ -577,7 +581,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<LoanAccount> allLoans = loanAccountRepository.findAll();
+        List<LoanAccount> allLoans = safe(loanAccountRepository.findAll());
 
         List<NplTrendEntry> result = new ArrayList<>();
         for (String m : months) {
@@ -601,7 +605,7 @@ public class ReportsService {
     }
 
     public ProvisionWaterfall getProvisionWaterfall(LocalDate from, LocalDate to) {
-        List<LoanAccount> allLoans = loanAccountRepository.findAll();
+        List<LoanAccount> allLoans = safe(loanAccountRepository.findAll());
         BigDecimal closing = allLoans.stream()
                 .filter(LoanAccount::isActive)
                 .map(LoanAccount::getProvisionAmount)
@@ -644,8 +648,9 @@ public class ReportsService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable("reports-loan-vintage")
     public List<VintageEntry> getLoanVintage() {
-        List<LoanAccount> allLoans = loanAccountRepository.findAll();
+        List<LoanAccount> allLoans = safe(loanAccountRepository.findAll());
 
         Map<String, List<LoanAccount>> byCohort = allLoans.stream()
                 .filter(l -> l.getDisbursementDate() != null)
@@ -725,7 +730,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<Account> allAccounts = accountRepository.findAll();
+        List<Account> allAccounts = safe(accountRepository.findAll());
 
         List<DepositGrowthEntry> result = new ArrayList<>();
         BigDecimal prev = BigDecimal.ZERO;
@@ -748,8 +753,9 @@ public class ReportsService {
         return result;
     }
 
+    @Cacheable("reports-deposit-maturity")
     public List<MaturityBucket> getDepositMaturityProfile() {
-        List<FixedDeposit> active = fixedDepositRepository.findAllActive();
+        List<FixedDeposit> active = safe(fixedDepositRepository.findAllActive());
         BigDecimal total = active.stream().map(FixedDeposit::getPrincipalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -783,8 +789,9 @@ public class ReportsService {
         }).collect(Collectors.toList());
     }
 
+    @Cacheable("reports-cost-of-funds")
     public List<CostOfFundsEntry> getCostOfFunds() {
-        List<Account> accounts = accountRepository.findAll();
+        List<Account> accounts = safe(accountRepository.findAll());
 
         Map<String, List<Account>> byProduct = accounts.stream()
                 .filter(a -> a.getStatus() == AccountStatus.ACTIVE && a.getProduct() != null)
@@ -804,8 +811,9 @@ public class ReportsService {
         }).collect(Collectors.toList());
     }
 
+    @Cacheable("reports-top-depositors")
     public List<TopDepositor> getTopDepositors() {
-        List<Account> accounts = accountRepository.findAll();
+        List<Account> accounts = safe(accountRepository.findAll());
         BigDecimal total = accounts.stream()
                 .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
                 .map(Account::getBookBalance)
@@ -832,8 +840,9 @@ public class ReportsService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable("reports-deposit-rate-bands")
     public List<RateBandEntry> getDepositRateBands() {
-        List<Account> accounts = accountRepository.findAll().stream()
+        List<Account> accounts = safe(accountRepository.findAll()).stream()
                 .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
                 .collect(Collectors.toList());
 
@@ -1080,6 +1089,7 @@ public class ReportsService {
     // CUSTOMER REPORTS
     // ========================================================================
 
+    @Cacheable("reports-customer-stats")
     public CustomerStats getCustomerStats() {
         long total = customerRepository.count();
         long active = customerRepository.countByStatus(CustomerStatus.ACTIVE);
@@ -1293,8 +1303,9 @@ public class ReportsService {
     // CHANNEL REPORTS
     // ========================================================================
 
+    @Cacheable("reports-channel-stats")
     public List<ChannelStats> getChannelStats() {
-        List<PaymentInstruction> payments = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> payments = safe(paymentInstructionRepository.findAll());
 
         Map<String, Long> volumeByType = payments.stream()
                 .collect(Collectors.groupingBy(p -> p.getPaymentType() != null ? p.getPaymentType().name() : "UNKNOWN", Collectors.counting()));
@@ -1488,8 +1499,9 @@ public class ReportsService {
     // TREASURY REPORTS
     // ========================================================================
 
+    @Cacheable("reports-liquidity")
     public LiquidityReport getLiquidity() {
-        List<Account> accounts = accountRepository.findAll();
+        List<Account> accounts = safe(accountRepository.findAll());
         BigDecimal totalDeposits = accounts.stream()
                 .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
                 .map(Account::getBookBalance)
@@ -1781,9 +1793,10 @@ public class ReportsService {
     // MARKETING REPORTS
     // ========================================================================
 
+    @Cacheable("reports-marketing-stats")
     public MarketingStats getMarketingStats() {
         long campaigns = marketingCampaignRepository.count();
-        List<SalesLead> allLeads = salesLeadRepository.findAll();
+        List<SalesLead> allLeads = safe(salesLeadRepository.findAll());
         long leads = allLeads.size();
         long conversions = allLeads.stream().filter(l -> "CONVERTED".equals(l.getStage())).count();
 

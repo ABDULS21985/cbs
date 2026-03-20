@@ -134,7 +134,10 @@ import {
   ProductFactoryPage,
   ProviderDetailPage,
   QrPaymentPage,
+  ReconciliationDashboardPage,
   ReconciliationWorkbenchPage,
+  NostroPositionsPage,
+  CorrespondentBankPage,
   RecurringDepositDetailPage,
   NewRecurringDepositPage,
   RecurringDepositListPage,
@@ -360,7 +363,10 @@ export function AppRouter() {
           <Route path="pfm" element={<PfmDashboardPage />} />
           <Route path=":id" element={<AccountDetailPage />} />
           <Route path=":id/maintenance" element={<AccountMaintenancePage />} />
-          <Route path="reconciliation" element={<ReconciliationWorkbenchPage />} />
+          <Route path="reconciliation" element={<ReconciliationDashboardPage />} />
+          <Route path="reconciliation/workbench" element={<ReconciliationWorkbenchPage />} />
+          <Route path="reconciliation/positions" element={<NostroPositionsPage />} />
+          <Route path="reconciliation/banks" element={<CorrespondentBankPage />} />
           <Route path="virtual-accounts" element={<VirtualAccountListPage />} />
           <Route path="virtual-accounts/:id" element={<VirtualAccountDetailPage />} />
           <Route path="cash-pooling" element={<CashPoolPage />} />
