@@ -4,9 +4,9 @@ import { StatCard, StatusBadge, DataTable, TabsPage } from '@/components/shared'
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Package, AlertTriangle, CheckCircle, Search, Plus, X } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle, Search } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useLeasedAssetsDueInspection, useInspectLeasedAsset, useReturnLeasedAsset, useRegisterLeasedAsset } from '../hooks/useLendingExt';
+import { useLeasedAssetsDueInspection, useInspectLeasedAsset } from '../hooks/useLendingExt';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api';
 import type { LeasedAsset } from '../types/leasedAsset';
@@ -19,7 +19,6 @@ const CONDITION_COLORS: Record<string, string> = {
 
 export function LeasedAssetPage() {
   useEffect(() => { document.title = 'Leased Asset Register | CBS'; }, []);
-  const [showRegister, setShowRegister] = useState(false);
   const [inspectTarget, setInspectTarget] = useState<LeasedAsset | null>(null);
   const [condition, setCondition] = useState('GOOD');
   const [nextDue, setNextDue] = useState('');
@@ -32,7 +31,6 @@ export function LeasedAssetPage() {
   const { data: dueAssets = [], isLoading: dueLoading } = useLeasedAssetsDueInspection();
 
   const inspectMutation = useInspectLeasedAsset();
-  const registerMutation = useRegisterLeasedAsset();
 
   const active = allAssets.filter((a) => a.status === 'ACTIVE' || !a.returnedAt);
   const returned = allAssets.filter((a) => a.status === 'RETURNED' || !!a.returnedAt);
@@ -76,8 +74,7 @@ export function LeasedAssetPage() {
 
   return (
     <>
-      <PageHeader title="Leased Asset Register" subtitle="Track, inspect, and manage leased assets"
-        actions={<button onClick={() => setShowRegister(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"><Plus className="w-4 h-4" /> Register Asset</button>} />
+      <PageHeader title="Leased Asset Register" subtitle="Track, inspect, and manage leased assets" />
       <div className="page-container space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <StatCard label="Total Assets" value={allAssets.length} format="number" icon={Package} />
@@ -87,20 +84,6 @@ export function LeasedAssetPage() {
         </div>
         <div className="card overflow-hidden"><TabsPage syncWithUrl tabs={tabs} /></div>
       </div>
-
-      {/* Register Dialog */}
-      {showRegister && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowRegister(false)} />
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-            <div className="bg-card rounded-xl shadow-2xl border w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-              <h3 className="font-semibold">Register Leased Asset</h3>
-              <p className="text-sm text-muted-foreground">Asset registration is not wired to a backend endpoint from this dialog. Do not use this path for production booking.</p>
-              <div className="flex justify-end"><button onClick={() => setShowRegister(false)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Close</button></div>
-            </div>
-          </div>
-        </>
-      )}
 
       {/* Inspect Dialog */}
       {inspectTarget && (

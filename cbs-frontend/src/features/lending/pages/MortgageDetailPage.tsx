@@ -170,16 +170,11 @@ export default function MortgageDetailPage() {
     {
       id: 'documents', label: 'Documents', icon: FileText,
       content: (
-        <div className="p-6 space-y-3">
-          <h3 className="text-sm font-semibold mb-3">Document Checklist</h3>
-          {['Title Deed', 'Sale Agreement', 'Valuation Report', 'Insurance Policy', 'ID Verification', 'Proof of Income'].map((doc) => (
-            <div key={doc} className="flex items-center gap-3 py-2 border-b last:border-0">
-              <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs">○</span>
-              <span className="text-sm">{doc}</span>
-              <span className="ml-auto text-xs text-muted-foreground">Pending</span>
-            </div>
-          ))}
-          <p className="text-xs text-muted-foreground italic mt-4">Document upload is not wired to a backend document service from this mortgage view.</p>
+        <div className="p-6">
+          <EmptyState
+            title="No mortgage document records"
+            description="The mortgage detail response does not include document metadata for this case. Review supporting files in the lending document repository."
+          />
         </div>
       ),
     },

@@ -20,7 +20,6 @@ import {
   type TopObligor,
 } from '../api/loanAnalyticsApi';
 import { LoanStatsCards } from '../components/loans/LoanStatsCards';
-// DpdHeatmapMatrix removed — awaiting GET /api/v1/reports/loans/dpd-matrix backend endpoint
 import { DpdAgingChart } from '../components/loans/DpdAgingChart';
 import { DpdAgingTable } from '../components/loans/DpdAgingTable';
 import { VintageAnalysisChart, type VintageCohort } from '../components/loans/VintageAnalysisChart';

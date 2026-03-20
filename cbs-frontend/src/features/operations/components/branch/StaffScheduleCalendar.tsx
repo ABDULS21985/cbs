@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Loader2, Plus, FileText, Check, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, FileText, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { branchOpsApi, type StaffSchedule, type ShiftType } from '../../api/branchOpsApi';
@@ -174,14 +174,9 @@ export function StaffScheduleCalendar({ branchId }: StaffScheduleCalendarProps) 
           </button>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => toast.error('Staff creation is not wired to a backend workflow from this calendar view.')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Staff
-          </button>
+          <div className="px-3 py-1.5 rounded-lg border text-sm text-muted-foreground">
+            Staff roster is maintained from branch operations master data.
+          </div>
           <button
             type="button"
             onClick={handleAttendanceReport}

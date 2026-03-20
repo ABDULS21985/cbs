@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ChevronRight, ChevronDown, Plus, Upload, Circle } from 'lucide-react';
-import { toast } from 'sonner';
+import { ChevronRight, ChevronDown, Plus, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GlAccount } from '../../api/glApi';
 import { GlAccountForm } from './GlAccountForm';
@@ -202,14 +201,6 @@ export function ChartOfAccountsTree({ accounts }: ChartOfAccountsTreeProps) {
             className="px-3 py-2 text-xs rounded-lg border hover:bg-muted transition-colors"
           >
             Collapse All
-          </button>
-          <button
-            type="button"
-            onClick={() => { toast.error('COA import is not wired to a backend endpoint in this build.'); }}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border hover:bg-muted transition-colors"
-          >
-            <Upload className="w-4 h-4" />
-            Import COA
           </button>
           <button
             onClick={handleAddRoot}

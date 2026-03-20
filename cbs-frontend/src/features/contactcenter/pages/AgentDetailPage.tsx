@@ -8,7 +8,7 @@ import { formatDate, formatRelative } from '@/lib/formatters';
 import {
   Phone, PhoneCall, Clock, Coffee, PhoneOff, Radio,
   Users, BarChart3, CheckCircle2, Award, AlertTriangle,
-  MessageSquare, Send, Shield, Loader2, X,
+  MessageSquare, Loader2, X,
 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { contactCenterApi, type AgentState } from '../api/contactCenterApi';
@@ -342,18 +342,9 @@ export function AgentDetailPage() {
               >
                 <PhoneOff className="w-3.5 h-3.5" /> Force Logout
               </button>
-              <button
-                onClick={() => toast.error('Silent monitoring is not wired to a backend or telephony control from this web UI.')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border hover:bg-muted"
-              >
-                <Shield className="w-3.5 h-3.5" /> Monitor
-              </button>
-              <button
-                onClick={() => toast.error('Agent messaging is not wired to a backend delivery channel from this page.')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border hover:bg-muted"
-              >
-                <Send className="w-3.5 h-3.5" /> Message
-              </button>
+              <div className="rounded-lg border px-3 py-1.5 text-xs text-muted-foreground">
+                Telephony monitoring and agent messaging are managed in the contact-center platform.
+              </div>
             </div>
           </div>
         </div>

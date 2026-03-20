@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable } from '@/components/shared/DataTable';
@@ -11,6 +11,7 @@ import {
   type AumDataPoint,
   type PlanCreateRequest,
 } from '../api/wealthApi';
+import { usePlans, useAdvisors, useTrusts, useAumTrend, useCreatePlan } from '../hooks/useWealthData';
 import { formatMoney, formatMoneyCompact, formatDate, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -50,20 +51,7 @@ const CHART_COLORS = [
   '#ef4444',
 ];
 
-const FALLBACK_AUM: AumDataPoint[] = [
-  { month: 'Apr', aum: 4200000000, returns: 6.1 },
-  { month: 'May', aum: 4350000000, returns: 6.8 },
-  { month: 'Jun', aum: 4180000000, returns: 5.4 },
-  { month: 'Jul', aum: 4520000000, returns: 7.2 },
-  { month: 'Aug', aum: 4680000000, returns: 7.9 },
-  { month: 'Sep', aum: 4590000000, returns: 7.0 },
-  { month: 'Oct', aum: 4810000000, returns: 8.3 },
-  { month: 'Nov', aum: 5020000000, returns: 9.1 },
-  { month: 'Dec', aum: 4930000000, returns: 8.6 },
-  { month: 'Jan', aum: 5150000000, returns: 9.4 },
-  { month: 'Feb', aum: 5340000000, returns: 10.2 },
-  { month: 'Mar', aum: 5480000000, returns: 10.8 },
-];
+// No fallback data — all data comes from real API calls
 
 const DEFAULT_ALLOCATION = [
   { name: 'Equity', value: 45 },
@@ -241,7 +229,7 @@ interface CreatePlanModalProps {
 }
 
 function CreatePlanModal({ advisors, onClose, onSuccess }: CreatePlanModalProps) {
-  const [submitting, setSubmitting] = useState(false);
+  const createPlan = useCreatePlan();
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<PlanCreateRequest>({
     customerId: '',
@@ -268,15 +256,12 @@ function CreatePlanModal({ advisors, onClose, onSuccess }: CreatePlanModalProps)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setError(null);
     try {
-      await wealthApi.createPlan(form);
+      await createPlan.mutateAsync(form);
       onSuccess();
     } catch {
       setError('Failed to create plan. Please try again.');
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -414,10 +399,10 @@ function CreatePlanModal({ advisors, onClose, onSuccess }: CreatePlanModalProps)
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={createPlan.isPending}
               className="px-4 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              {submitting ? 'Creating…' : 'Create Plan'}
+              {createPlan.isPending ? 'Creating…' : 'Create Plan'}
             </button>
           </div>
         </form>
@@ -431,40 +416,13 @@ function CreatePlanModal({ advisors, onClose, onSuccess }: CreatePlanModalProps)
 export function WealthManagementPage() {
   const navigate = useNavigate();
 
-  const [plans, setPlans] = useState<WealthPlan[]>([]);
-  const [trusts, setTrusts] = useState<TrustAccount[]>([]);
-  const [advisors, setAdvisors] = useState<Advisor[]>([]);
-  const [aumTrend, setAumTrend] = useState<AumDataPoint[]>([]);
-
-  const [plansLoading, setPlansLoading] = useState(true);
-  const [trustsLoading, setTrustsLoading] = useState(true);
-  const [advisorsLoading, setAdvisorsLoading] = useState(true);
-  const [aumLoading, setAumLoading] = useState(true);
+  const { data: plans = [], isLoading: plansLoading } = usePlans();
+  const { data: trusts = [], isLoading: trustsLoading } = useTrusts();
+  const { data: advisors = [], isLoading: advisorsLoading } = useAdvisors();
+  const { data: aumTrend = [], isLoading: aumLoading } = useAumTrend(12);
 
   const [activeTab, setActiveTab] = useState<TabId>('plans');
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  const loadPlans = useCallback(async () => {
-    setPlansLoading(true);
-    try {
-      const data = await wealthApi.getPlans();
-      setPlans(data ?? []);
-    } finally {
-      setPlansLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadPlans();
-  }, [loadPlans]);
-
-  useEffect(() => {
-    wealthApi.getTrusts().then((data) => setTrusts(data ?? [])).finally(() => setTrustsLoading(false));
-    wealthApi.getAdvisors().then((data) => setAdvisors(data ?? [])).finally(() => setAdvisorsLoading(false));
-    wealthApi.getAumTrend(12).then((data) => {
-      setAumTrend((data && data.length > 0) ? data : FALLBACK_AUM);
-    }).catch(() => setAumTrend(FALLBACK_AUM)).finally(() => setAumLoading(false));
-  }, []);
 
   // ── Derived KPIs ──
   const totalAum = plans.reduce((s, p) => s + (p.totalInvestableAssets || 0), 0);
@@ -823,10 +781,7 @@ export function WealthManagementPage() {
         <CreatePlanModal
           advisors={advisors}
           onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            setShowCreateModal(false);
-            loadPlans();
-          }}
+          onSuccess={() => setShowCreateModal(false)}
         />
       )}
     </>

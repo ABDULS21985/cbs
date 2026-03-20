@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { FileText, Upload, Check, AlertTriangle } from 'lucide-react';
+import { FileText, Check, AlertTriangle } from 'lucide-react';
 import type { LoanApplicationState } from '../../hooks/useLoanApplication';
-import { toast } from 'sonner';
 
 interface DocumentsStepProps {
   state: LoanApplicationState;
@@ -135,13 +134,9 @@ export function DocumentsStep({ state, updateField, onNext, onBack }: DocumentsS
                       {doc.required && !isChecked && <span className="text-red-500 text-xs ml-1">*</span>}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => toast.error('Document upload is not wired to a backend service from this application flow.')}
-                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border hover:bg-muted"
-                  >
-                    <Upload className="w-3 h-3" /> Upload
-                  </button>
+                  <span className="text-xs text-muted-foreground">
+                    {isChecked ? 'Received' : 'Awaiting document'}
+                  </span>
                 </div>
               );
             })}

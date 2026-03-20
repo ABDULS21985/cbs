@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import type { ColumnDef } from '@tanstack/react-table';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { Shield, X, Plus } from 'lucide-react';
+import { TrustAnalyticsSection } from '../components/trusts/TrustAnalyticsSection';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -288,6 +289,11 @@ export function TrustManagementPage() {
             />
           </div>
         </div>
+      </div>
+
+      {/* Trust Analytics */}
+      <div className="page-container">
+        <TrustAnalyticsSection />
       </div>
 
       {/* Create Trust Modal */}

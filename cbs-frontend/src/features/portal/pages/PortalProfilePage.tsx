@@ -487,10 +487,8 @@ function PreferencesTab({ customerId }: { customerId: number }) {
     });
   };
 
-  // Communication preferences are read-only at this time.
-  // The backend (PortalService.updatePreferences) does not yet support per-channel
-  // notification preferences — only language and statement delivery channel are persisted.
-  // toggleComm is intentionally disabled until the backend endpoint is extended.
+  // Communication preferences are read-only from this page.
+  // Only language and statement delivery channel are persisted for the current portal profile flow.
   const toggleComm = useCallback((_category: string, _channel: string) => {
     toast.error('Communication preference changes are not yet supported. Contact your bank to update notification settings.');
   }, []);

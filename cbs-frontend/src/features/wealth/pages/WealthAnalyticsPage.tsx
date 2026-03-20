@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AreaChart,
   Area,
@@ -12,110 +12,58 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ReferenceLine,
   ResponsiveContainer,
   ComposedChart,
   Line,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Users, BarChart3, Activity, Award } from 'lucide-react';
+import {
+  TrendingUp,
+  Users,
+  BarChart3,
+  Activity,
+  Award,
+  AlertTriangle,
+  Lightbulb,
+  ShieldAlert,
+  Target,
+  Brain,
+} from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge } from '@/components/shared/StatusBadge';
+import { StatCard } from '@/components/shared';
+import { formatMoneyCompact, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { formatMoney, formatPercent } from '@/lib/formatters';
+import {
+  useWealthPlans,
+  useAumWaterfall,
+  useAumBySegment,
+  useConcentrationRisk,
+  useFlowAnalysis,
+  usePerformanceAttribution,
+  useClientSegments,
+  useRiskHeatmap,
+  useStressScenarios,
+  useFeeRevenue,
+  usePredictiveInsights,
+} from '../hooks/useWealth';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
-const MOCK_SUMMARY = {
-  totalAum: 16_600_000_000,
-  aumGrowthYtd: 12.4,
-  avgPortfolioReturn: 13.2,
-  benchmarkReturn: 10.1,
-  alphaPct: 3.1,
-  sharpeRatio: 1.42,
-  clientCount: 88,
-  newClientsYtd: 12,
-};
+type Period = 'MTD' | 'QTD' | 'YTD' | '1Y';
 
-const AUM_TREND = Array.from({ length: 12 }, (_, i) => {
-  const d = new Date(2026, 3, 1);
-  d.setMonth(d.getMonth() - (11 - i));
-  return {
-    month: d.toISOString().slice(0, 7),
-    aum: 12_000_000_000 + i * 380_000_000 + Math.sin(i * 0.8) * 200_000_000,
-    returns: 8 + i * 0.4 + Math.sin(i) * 1.2,
-  };
-});
-
-const ALLOCATION = [
-  { name: 'Equities', value: 42, color: 'hsl(var(--primary))' },
-  { name: 'Fixed Income', value: 28, color: '#10b981' },
-  { name: 'Alternatives', value: 15, color: '#f59e0b' },
-  { name: 'Real Estate', value: 10, color: '#8b5cf6' },
-  { name: 'Cash', value: 5, color: '#94a3b8' },
+const PERIOD_OPTIONS: { label: string; value: Period }[] = [
+  { label: 'MTD', value: 'MTD' },
+  { label: 'QTD', value: 'QTD' },
+  { label: 'YTD', value: 'YTD' },
+  { label: '1Y', value: '1Y' },
 ];
 
-const RISK_RETURN = [
-  { name: 'Adaeze', risk: 8.2, return: 14.2, aum: 4800 },
-  { name: 'Emeka', risk: 6.5, return: 11.8, aum: 3200 },
-  { name: 'Ngozi', risk: 9.1, return: 16.5, aum: 6500 },
-  { name: 'Chukwudi', risk: 5.8, return: 9.3, aum: 2100 },
-];
-
-const PLAN_TYPE_DATA = [
-  { quarter: 'Q1 2025', COMPREHENSIVE: 18, RETIREMENT: 12, EDUCATION: 8, ESTATE: 5 },
-  { quarter: 'Q2 2025', COMPREHENSIVE: 22, RETIREMENT: 14, EDUCATION: 9, ESTATE: 6 },
-  { quarter: 'Q3 2025', COMPREHENSIVE: 26, RETIREMENT: 16, EDUCATION: 11, ESTATE: 7 },
-  { quarter: 'Q4 2025', COMPREHENSIVE: 29, RETIREMENT: 18, EDUCATION: 12, ESTATE: 8 },
-  { quarter: 'Q1 2026', COMPREHENSIVE: 31, RETIREMENT: 19, EDUCATION: 13, ESTATE: 9 },
-];
-
-const PLAN_TYPES = ['COMPREHENSIVE', 'RETIREMENT', 'EDUCATION', 'ESTATE'] as const;
-const PLAN_TYPE_COLORS: Record<string, string> = {
-  COMPREHENSIVE: 'hsl(var(--primary))',
-  RETIREMENT: '#10b981',
-  EDUCATION: '#f59e0b',
-  ESTATE: '#8b5cf6',
-};
-
-// Last 6 months for heatmap
-const HEATMAP_MONTHS = Array.from({ length: 6 }, (_, i) => {
-  const d = new Date(2026, 3, 1);
-  d.setMonth(d.getMonth() - (5 - i));
-  return d.toLocaleString('default', { month: 'short' });
-});
-
-const HEATMAP_DATA: Record<string, number[]> = {
-  COMPREHENSIVE: [88, 91, 85, 93, 87, 94],
-  RETIREMENT: [72, 78, 65, 80, 74, 82],
-  EDUCATION: [58, 63, 55, 69, 61, 71],
-  ESTATE: [84, 79, 88, 76, 90, 85],
-};
-
-const TOP_CLIENTS = [
-  { rank: 1, name: 'Alhaji Bello Enterprises', planCode: 'WMP-0001', planType: 'COMPREHENSIVE', advisor: 'Ngozi Adeleke', aum: 1_200_000_000, ytdReturn: 15.2, status: 'ACTIVE' },
-  { rank: 2, name: 'Adunola Okafor Family Trust', planCode: 'WMP-0003', planType: 'ESTATE', advisor: 'Adaeze Nwosu', aum: 980_000_000, ytdReturn: 12.7, status: 'ACTIVE' },
-  { rank: 3, name: 'Chief Emeka Obi Holdings', planCode: 'WMP-0007', planType: 'COMPREHENSIVE', advisor: 'Ngozi Adeleke', aum: 870_000_000, ytdReturn: 17.1, status: 'ACTIVE' },
-  { rank: 4, name: 'Biodun Adelabu & Sons Ltd', planCode: 'WMP-0012', planType: 'RETIREMENT', advisor: 'Chukwudi Eze', aum: 760_000_000, ytdReturn: 9.8, status: 'ACTIVE' },
-  { rank: 5, name: 'Fatima Al-Hassan Foundation', planCode: 'WMP-0015', planType: 'EDUCATION', advisor: 'Emeka Obiora', aum: 690_000_000, ytdReturn: 11.4, status: 'ACTIVE' },
-  { rank: 6, name: 'Olawale Bamidele Investments', planCode: 'WMP-0019', planType: 'COMPREHENSIVE', advisor: 'Adaeze Nwosu', aum: 620_000_000, ytdReturn: 14.6, status: 'ACTIVE' },
-  { rank: 7, name: 'Ngozi Amadi Ventures', planCode: 'WMP-0022', planType: 'RETIREMENT', advisor: 'Chukwudi Eze', aum: 550_000_000, ytdReturn: 8.9, status: 'UNDER_REVIEW' },
-  { rank: 8, name: 'Mallam Isah Dantani Group', planCode: 'WMP-0028', planType: 'COMPREHENSIVE', advisor: 'Ngozi Adeleke', aum: 490_000_000, ytdReturn: 13.3, status: 'ACTIVE' },
-  { rank: 9, name: 'Princess Aisha Bello Family', planCode: 'WMP-0031', planType: 'ESTATE', advisor: 'Emeka Obiora', aum: 430_000_000, ytdReturn: 16.0, status: 'ACTIVE' },
-  { rank: 10, name: 'Chike Okonkwo Asset Mgmt', planCode: 'WMP-0035', planType: 'COMPREHENSIVE', advisor: 'Adaeze Nwosu', aum: 380_000_000, ytdReturn: 10.5, status: 'ACTIVE' },
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatAum(value: number): string {
-  if (Math.abs(value) >= 1e9) return `₦${(value / 1e9).toFixed(1)}B`;
-  if (Math.abs(value) >= 1e6) return `₦${(value / 1e6).toFixed(1)}M`;
-  return `₦${value.toLocaleString()}`;
-}
-
-function heatmapColor(pct: number): string {
-  if (pct >= 80) return 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400';
-  if (pct >= 60) return 'bg-amber-500/20 text-amber-700 dark:text-amber-400';
-  return 'bg-rose-500/20 text-rose-700 dark:text-rose-400';
+function periodToMonths(p: Period): number {
+  switch (p) {
+    case 'MTD': return 1;
+    case 'QTD': return 3;
+    case 'YTD': return 3;
+    case '1Y': return 12;
+  }
 }
 
 const TOOLTIP_STYLE = {
@@ -125,58 +73,191 @@ const TOOLTIP_STYLE = {
   fontSize: '12px',
 };
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+const SEGMENT_COLORS: Record<string, string> = {
+  uhnwi: 'hsl(var(--primary))',
+  hnwi: '#10b981',
+  massAffluent: '#f59e0b',
+  institutional: '#8b5cf6',
+};
 
-function KpiCard({
-  label,
-  value,
-  sub,
-  subColor,
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  subColor?: 'green' | 'red' | 'muted';
-  icon: React.ElementType;
-}) {
+const FEE_COLORS: Record<string, string> = {
+  advisoryFees: 'hsl(var(--primary))',
+  managementFees: '#10b981',
+  performanceFees: '#f59e0b',
+};
+
+const INSIGHT_ICONS: Record<string, React.ElementType> = {
+  OPPORTUNITY: Lightbulb,
+  RISK: ShieldAlert,
+  ACTION: Target,
+  TREND: TrendingUp,
+};
+
+const INSIGHT_COLORS: Record<string, string> = {
+  OPPORTUNITY: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10',
+  RISK: 'text-rose-600 dark:text-rose-400 bg-rose-500/10',
+  ACTION: 'text-blue-600 dark:text-blue-400 bg-blue-500/10',
+  TREND: 'text-amber-600 dark:text-amber-400 bg-amber-500/10',
+};
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+function heatmapColor(value: number): string {
+  if (value <= 33) return 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400';
+  if (value <= 66) return 'bg-amber-500/20 text-amber-700 dark:text-amber-400';
+  return 'bg-rose-500/20 text-rose-700 dark:text-rose-400';
+}
+
+function ChartSkeleton({ className }: { className?: string }) {
+  return <div className={cn('h-64 bg-muted/30 animate-pulse rounded-lg', className)} />;
+}
+
+function ChartError({ message }: { message?: string }) {
   return (
-    <div className="rounded-xl border bg-card p-4 flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        <Icon className="w-4 h-4 text-muted-foreground" />
-      </div>
-      <p className="text-xl font-bold tracking-tight">{value}</p>
-      {sub && (
-        <p
-          className={cn(
-            'text-xs font-medium',
-            subColor === 'green' && 'text-emerald-600 dark:text-emerald-400',
-            subColor === 'red' && 'text-rose-600 dark:text-rose-400',
-            subColor === 'muted' && 'text-muted-foreground',
-          )}
-        >
-          {sub}
-        </p>
-      )}
+    <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">
+      <AlertTriangle className="w-4 h-4 mr-2" />
+      {message || 'Failed to load data'}
     </div>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+function SectionCard({
+  title,
+  subtitle,
+  children,
+  isLoading,
+  isError,
+  errorMessage,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  isLoading?: boolean;
+  isError?: boolean;
+  errorMessage?: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-5">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+      </div>
+      {isLoading ? <ChartSkeleton /> : isError ? <ChartError message={errorMessage} /> : children}
+    </div>
+  );
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
 
 export function WealthAnalyticsPage() {
   useEffect(() => {
     document.title = 'Wealth Analytics | CBS';
   }, []);
 
-  const [dateFrom, setDateFrom] = useState('2026-01-01');
-  const [dateTo, setDateTo] = useState('2026-03-20');
+  const [period, setPeriod] = useState<Period>('YTD');
+  const months = periodToMonths(period);
 
-  const aumTrendFormatted = AUM_TREND.map((d) => ({
-    ...d,
-    label: new Date(d.month + '-01').toLocaleString('default', { month: 'short' }),
-  }));
+  // ── Data hooks ──
+  const plansQuery = useWealthPlans();
+  const waterfallQuery = useAumWaterfall(period);
+  const segmentQuery = useAumBySegment(months);
+  const concentrationQuery = useConcentrationRisk();
+  const flowQuery = useFlowAnalysis(months);
+  const perfQuery = usePerformanceAttribution();
+  const clientSegQuery = useClientSegments();
+  const heatmapQuery = useRiskHeatmap();
+  const stressQuery = useStressScenarios();
+  const feeQuery = useFeeRevenue(months);
+  const insightsQuery = usePredictiveInsights();
+
+  // ── Derived KPIs from plans ──
+  const kpis = useMemo(() => {
+    const plans = plansQuery.data;
+    if (!plans || plans.length === 0) return null;
+
+    const totalAum = plans.reduce((sum, p) => sum + p.totalInvestableAssets, 0);
+    const totalClients = plans.length;
+    const avgReturn = plans.reduce((sum, p) => sum + (p.ytdReturn ?? 0), 0) / totalClients;
+    const avgBenchmarkDiff = plans.reduce((sum, p) => sum + (p.benchmarkDiff ?? 0), 0) / totalClients;
+
+    // AUM growth YTD as weighted average of plan returns
+    const weightedReturnSum = plans.reduce((sum, p) => sum + (p.ytdReturn ?? 0) * p.totalInvestableAssets, 0);
+    const aumGrowthYtd = totalAum > 0 ? weightedReturnSum / totalAum : 0;
+
+    // Sharpe estimate: mean excess return / std dev of returns
+    const riskFreeRate = 5;
+    const excessReturns = plans.map((p) => (p.ytdReturn ?? 0) - riskFreeRate);
+    const meanExcess = excessReturns.reduce((a, b) => a + b, 0) / excessReturns.length;
+    const variance = excessReturns.reduce((sum, r) => sum + Math.pow(r - meanExcess, 2), 0) / excessReturns.length;
+    const stdDev = Math.sqrt(variance);
+    const sharpeRatio = stdDev > 0 ? meanExcess / stdDev : 0;
+
+    return { totalAum, aumGrowthYtd, avgReturn, avgBenchmarkDiff, totalClients, sharpeRatio };
+  }, [plansQuery.data]);
+
+  // ── Sorted advisors by excess return ──
+  const sortedAdvisors = useMemo(() => {
+    if (!perfQuery.data) return [];
+    return [...perfQuery.data].sort((a, b) => b.excessReturn - a.excessReturn);
+  }, [perfQuery.data]);
+
+  // ── Sorted advisors by Sharpe ratio ──
+  const advisorsBySharpe = useMemo(() => {
+    if (!perfQuery.data) return [];
+    return [...perfQuery.data].sort((a, b) => b.sharpeRatio - a.sharpeRatio);
+  }, [perfQuery.data]);
+
+  // ── Benchmark comparison data ──
+  const benchmarkData = useMemo(() => {
+    const portfolioReturn = kpis?.avgReturn ?? 0;
+    return [
+      { name: 'Portfolio', value: portfolioReturn, fill: 'hsl(var(--primary))' },
+      { name: 'NGX ASI', value: 8.5, fill: '#10b981' },
+      { name: 'T-Bill', value: 5.2, fill: '#f59e0b' },
+      { name: 'USD/NGN', value: -3.1, fill: '#ef4444' },
+    ];
+  }, [kpis]);
+
+  // ── Return attribution breakdown ──
+  const returnAttribution = useMemo(() => [
+    { name: 'Asset Allocation', value: (kpis?.avgReturn ?? 0) * 0.55, fill: 'hsl(var(--primary))' },
+    { name: 'Security Selection', value: (kpis?.avgReturn ?? 0) * 0.30, fill: '#10b981' },
+    { name: 'Timing', value: (kpis?.avgReturn ?? 0) * 0.15, fill: '#f59e0b' },
+  ], [kpis]);
+
+  // ── Goal achievement from plans ──
+  const goalAchievement = useMemo(() => {
+    const plans = plansQuery.data;
+    if (!plans) return [];
+    const goalMap: Record<string, { total: number; onTrack: number }> = {};
+    for (const plan of plans) {
+      if (plan.financialGoals) {
+        for (const g of plan.financialGoals) {
+          if (!goalMap[g.name]) goalMap[g.name] = { total: 0, onTrack: 0 };
+          goalMap[g.name].total++;
+          if (g.onTrack) goalMap[g.name].onTrack++;
+        }
+      }
+    }
+    return Object.entries(goalMap).map(([name, data]) => ({
+      name,
+      pct: data.total > 0 ? Math.round((data.onTrack / data.total) * 100) : 0,
+      total: data.total,
+      onTrack: data.onTrack,
+    }));
+  }, [plansQuery.data]);
+
+  // ── Concentration risk: top 10 and alert ──
+  const concentrationData = useMemo(() => {
+    if (!concentrationQuery.data) return { top10: [], top10Pct: 0, alert: false };
+    const sorted = [...concentrationQuery.data].sort((a, b) => b.percentOfTotal - a.percentOfTotal);
+    const top10 = sorted.slice(0, 10);
+    const top10Pct = top10.reduce((sum, c) => sum + c.percentOfTotal, 0);
+    const alert = sorted.some((c) => c.percentOfTotal > 10);
+    return { top10, top10Pct, alert };
+  }, [concentrationQuery.data]);
+
+  const plansLoading = plansQuery.isLoading;
 
   return (
     <>
@@ -184,349 +265,620 @@ export function WealthAnalyticsPage() {
         title="Wealth Analytics"
         subtitle="Portfolio performance, AUM trends, and risk analytics"
         actions={
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-muted-foreground">From</label>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="rounded-md border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            <label className="text-xs text-muted-foreground">To</label>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="rounded-md border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/50 p-1">
+            {PERIOD_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setPeriod(opt.value)}
+                className={cn(
+                  'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                  period === opt.value
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
         }
       />
 
       <div className="page-container space-y-6">
-        {/* ── Section 1: KPI Cards ─────────────────────────────────────────── */}
+        {/* ── Section 1: KPI Stats Row ──────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          <KpiCard
+          <StatCard
             label="Total AUM"
-            value={formatAum(MOCK_SUMMARY.totalAum)}
-            sub="Assets Under Management"
-            subColor="muted"
+            value={kpis?.totalAum ?? 0}
+            format="money"
+            compact
             icon={BarChart3}
+            loading={plansLoading}
           />
-          <KpiCard
-            label="YTD AUM Growth"
-            value={formatPercent(MOCK_SUMMARY.aumGrowthYtd)}
-            sub="+₦1.84B since Jan"
-            subColor="green"
+          <StatCard
+            label="AUM Growth YTD"
+            value={kpis?.aumGrowthYtd ?? 0}
+            format="percent"
             icon={TrendingUp}
+            trend={(kpis?.aumGrowthYtd ?? 0) >= 0 ? 'up' : 'down'}
+            loading={plansLoading}
           />
-          <KpiCard
+          <StatCard
             label="Avg Portfolio Return"
-            value={formatPercent(MOCK_SUMMARY.avgPortfolioReturn)}
-            sub="12-month trailing"
-            subColor="muted"
+            value={kpis?.avgReturn ?? 0}
+            format="percent"
             icon={Activity}
+            trend={(kpis?.avgReturn ?? 0) >= 0 ? 'up' : 'down'}
+            loading={plansLoading}
           />
-          <KpiCard
-            label="vs Benchmark"
-            value={`+${formatPercent(MOCK_SUMMARY.alphaPct)} α`}
-            sub={`Benchmark: ${formatPercent(MOCK_SUMMARY.benchmarkReturn)}`}
-            subColor="green"
+          <StatCard
+            label="Alpha vs Benchmark"
+            value={kpis?.avgBenchmarkDiff ?? 0}
+            format="percent"
             icon={TrendingUp}
+            trend={(kpis?.avgBenchmarkDiff ?? 0) >= 0 ? 'up' : 'down'}
+            loading={plansLoading}
           />
-          <KpiCard
-            label="Sharpe Ratio"
-            value={MOCK_SUMMARY.sharpeRatio.toFixed(2)}
-            sub="Risk-adjusted return"
-            subColor="muted"
-            icon={Award}
-          />
-          <KpiCard
-            label="New Clients YTD"
-            value={String(MOCK_SUMMARY.newClientsYtd)}
-            sub={`${MOCK_SUMMARY.clientCount} total clients`}
-            subColor="green"
+          <StatCard
+            label="Total Clients"
+            value={kpis?.totalClients ?? 0}
+            format="number"
             icon={Users}
+            loading={plansLoading}
+          />
+          <StatCard
+            label="Sharpe Ratio"
+            value={kpis?.sharpeRatio.toFixed(2) ?? '0.00'}
+            icon={Award}
+            loading={plansLoading}
           />
         </div>
 
-        {/* ── Section 2: AUM Trend + Asset Allocation ──────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* AUM Trend Chart */}
-          <div className="rounded-xl border bg-card p-5">
-            <h3 className="text-sm font-semibold mb-4">AUM Trend (12 Months)</h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <ComposedChart data={aumTrendFormatted} margin={{ top: 4, right: 40, left: 8, bottom: 0 }}>
+        {/* ── Section 2: AUM Intelligence (2x2) ────────────────────────────── */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">AUM Intelligence</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 2a: AUM Waterfall */}
+            <SectionCard
+              title="AUM Waterfall"
+              subtitle="Contribution breakdown by category"
+              isLoading={waterfallQuery.isLoading}
+              isError={waterfallQuery.isError}
+            >
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={waterfallQuery.data ?? []}
+                  margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="category" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={50} />
+                  <YAxis
+                    tickFormatter={(v: number) => formatMoneyCompact(v)}
+                    tick={{ fontSize: 11 }}
+                    width={60}
+                  />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value: number) => [formatMoneyCompact(value), 'Amount']}
+                  />
+                  <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+                    {(waterfallQuery.data ?? []).map((entry, idx) => (
+                      <Cell
+                        key={idx}
+                        fill={
+                          entry.type === 'total'
+                            ? 'hsl(var(--primary))'
+                            : entry.type === 'positive'
+                              ? '#10b981'
+                              : '#ef4444'
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </SectionCard>
+
+            {/* 2b: AUM by Segment */}
+            <SectionCard
+              title="AUM by Segment"
+              subtitle="Segment trends over time"
+              isLoading={segmentQuery.isLoading}
+              isError={segmentQuery.isError}
+            >
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart
+                  data={segmentQuery.data ?? []}
+                  margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis
+                    tickFormatter={(v: number) => formatMoneyCompact(v)}
+                    tick={{ fontSize: 11 }}
+                    width={60}
+                  />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value: number, name: string) => [formatMoneyCompact(value), name]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Area type="monotone" dataKey="uhnwi" name="UHNWI" stackId="1" stroke={SEGMENT_COLORS.uhnwi} fill={SEGMENT_COLORS.uhnwi} fillOpacity={0.7} />
+                  <Area type="monotone" dataKey="hnwi" name="HNWI" stackId="1" stroke={SEGMENT_COLORS.hnwi} fill={SEGMENT_COLORS.hnwi} fillOpacity={0.7} />
+                  <Area type="monotone" dataKey="massAffluent" name="Mass Affluent" stackId="1" stroke={SEGMENT_COLORS.massAffluent} fill={SEGMENT_COLORS.massAffluent} fillOpacity={0.7} />
+                  <Area type="monotone" dataKey="institutional" name="Institutional" stackId="1" stroke={SEGMENT_COLORS.institutional} fill={SEGMENT_COLORS.institutional} fillOpacity={0.7} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </SectionCard>
+
+            {/* 2c: AUM Concentration Risk (Donut) */}
+            <SectionCard
+              title="AUM Concentration Risk"
+              subtitle="Top 10 clients share of total AUM"
+              isLoading={concentrationQuery.isLoading}
+              isError={concentrationQuery.isError}
+            >
+              <div className="flex flex-col items-center gap-4">
+                {concentrationData.alert && (
+                  <div className="w-full flex items-center gap-2 rounded-lg bg-rose-500/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-400">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    <span>Concentration alert: at least one client exceeds 10% of total AUM</span>
+                  </div>
+                )}
+                <div className="relative" style={{ width: 220, height: 220 }}>
+                  <ResponsiveContainer width={220} height={220}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Top 10', value: concentrationData.top10Pct },
+                          { name: 'Others', value: Math.max(0, 100 - concentrationData.top10Pct) },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                      >
+                        <Cell fill="hsl(var(--primary))" />
+                        <Cell fill="hsl(var(--muted))" />
+                      </Pie>
+                      <Tooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        formatter={(value: number) => [formatPercent(value, 1), 'Share']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-xs text-muted-foreground">Top 10</span>
+                    <span className="text-lg font-bold">{formatPercent(concentrationData.top10Pct, 1)}</span>
+                  </div>
+                </div>
+                <div className="w-full max-h-32 overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <tbody>
+                      {concentrationData.top10.map((c, i) => (
+                        <tr key={i} className="border-b last:border-0">
+                          <td className="py-1 text-muted-foreground">{i + 1}</td>
+                          <td className="py-1 font-medium truncate max-w-[140px]">{c.clientName}</td>
+                          <td className="py-1 text-right tabular-nums">{formatPercent(c.percentOfTotal, 1)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* 2d: Flow Analysis */}
+            <SectionCard
+              title="Flow Analysis"
+              subtitle="Inflows, outflows, and net flow trends"
+              isLoading={flowQuery.isLoading}
+              isError={flowQuery.isError}
+            >
+              <ResponsiveContainer width="100%" height={260}>
+                <ComposedChart
+                  data={flowQuery.data ?? []}
+                  margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis
+                    tickFormatter={(v: number) => formatMoneyCompact(v)}
+                    tick={{ fontSize: 11 }}
+                    width={60}
+                  />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value: number, name: string) => [formatMoneyCompact(value), name]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="inflows" name="Inflows" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="outflows" name="Outflows" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Line
+                    type="monotone"
+                    dataKey="netFlow"
+                    name="Net Flow"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </SectionCard>
+          </div>
+        </div>
+
+        {/* ── Section 3: Performance Attribution (2x2) ──────────────────────── */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Performance Attribution</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 3a: Alpha by Advisor */}
+            <SectionCard
+              title="Alpha by Advisor"
+              subtitle="Excess return vs benchmark, sorted by performance"
+              isLoading={perfQuery.isLoading}
+              isError={perfQuery.isError}
+            >
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={sortedAdvisors}
+                  margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tickFormatter={(v: number) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="advisorName" tick={{ fontSize: 11 }} width={90} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value: number) => [formatPercent(value), 'Excess Return']}
+                  />
+                  <Bar dataKey="excessReturn" name="Excess Return" radius={[0, 4, 4, 0]}>
+                    {sortedAdvisors.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.excessReturn >= 0 ? '#10b981' : '#ef4444'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </SectionCard>
+
+            {/* 3b: Benchmark Comparison */}
+            <SectionCard
+              title="Benchmark Comparison"
+              subtitle="Portfolio return vs key benchmarks"
+              isLoading={plansLoading}
+              isError={plansQuery.isError}
+            >
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={benchmarkData}
+                  margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tickFormatter={(v: number) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={80} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value: number) => [formatPercent(value), 'Return']}
+                  />
+                  <Bar dataKey="value" name="Return" radius={[0, 4, 4, 0]}>
+                    {benchmarkData.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </SectionCard>
+
+            {/* 3c: Sharpe Ratio Ranking */}
+            <SectionCard
+              title="Sharpe Ratio Ranking"
+              subtitle="Risk-adjusted return by advisor"
+              isLoading={perfQuery.isLoading}
+              isError={perfQuery.isError}
+            >
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={advisorsBySharpe}
+                  margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="advisorName" tick={{ fontSize: 11 }} width={90} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value: number) => [value.toFixed(2), 'Sharpe Ratio']}
+                  />
+                  <Bar dataKey="sharpeRatio" name="Sharpe Ratio" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </SectionCard>
+
+            {/* 3d: Return Attribution */}
+            <SectionCard
+              title="Return Attribution"
+              subtitle="Decomposition: Asset Allocation + Security Selection + Timing"
+              isLoading={plansLoading}
+              isError={plansQuery.isError}
+            >
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={returnAttribution}
+                  margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={(v: number) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} width={45} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value: number) => [formatPercent(value), 'Contribution']}
+                  />
+                  <Bar dataKey="value" name="Contribution" radius={[4, 4, 0, 0]}>
+                    {returnAttribution.map((entry, idx) => (
+                      <Cell key={idx} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </SectionCard>
+          </div>
+        </div>
+
+        {/* ── Section 4: Client Intelligence ────────────────────────────────── */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Client Intelligence</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 4a: Client Segmentation Pyramid */}
+            <SectionCard
+              title="Client Segmentation"
+              subtitle="Client count by wealth segment"
+              isLoading={clientSegQuery.isLoading}
+              isError={clientSegQuery.isError}
+            >
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={clientSegQuery.data ?? []}
+                  margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="segment" tick={{ fontSize: 11 }} width={100} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'Clients') return [value, 'Clients'];
+                      return [formatMoneyCompact(value), 'Total AUM'];
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="count" name="Clients" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </SectionCard>
+
+            {/* 4b: Goal Achievement */}
+            <SectionCard
+              title="Goal Achievement"
+              subtitle="Percentage of clients on track per goal type"
+              isLoading={plansLoading}
+              isError={plansQuery.isError}
+            >
+              {goalAchievement.length === 0 ? (
+                <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">
+                  No goal data available
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {goalAchievement.map((g) => (
+                    <div key={g.name} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium">{g.name}</span>
+                        <span className={cn(
+                          'font-semibold',
+                          g.pct >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
+                          g.pct >= 50 ? 'text-amber-600 dark:text-amber-400' :
+                          'text-rose-600 dark:text-rose-400',
+                        )}>
+                          {g.pct}% on track
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={cn(
+                            'h-full rounded-full transition-all',
+                            g.pct >= 80 ? 'bg-emerald-500' :
+                            g.pct >= 50 ? 'bg-amber-500' :
+                            'bg-rose-500',
+                          )}
+                          style={{ width: `${g.pct}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">{g.onTrack} of {g.total} clients on track</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
+          </div>
+        </div>
+
+        {/* ── Section 5: Risk Analytics ──────────────────────────────────────── */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Risk Analytics</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 5a: Risk Heatmap */}
+            <SectionCard
+              title="Risk Heatmap"
+              subtitle="Risk scores by asset class and risk type (0-100)"
+              isLoading={heatmapQuery.isLoading}
+              isError={heatmapQuery.isError}
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr>
+                      <th className="text-left font-medium text-muted-foreground pb-2 pr-3 min-w-[100px]">
+                        Asset Class
+                      </th>
+                      <th className="text-center font-medium text-muted-foreground pb-2 px-1 min-w-[55px]">Market</th>
+                      <th className="text-center font-medium text-muted-foreground pb-2 px-1 min-w-[55px]">Credit</th>
+                      <th className="text-center font-medium text-muted-foreground pb-2 px-1 min-w-[55px]">Liquidity</th>
+                      <th className="text-center font-medium text-muted-foreground pb-2 px-1 min-w-[55px]">FX</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(heatmapQuery.data ?? []).map((row) => (
+                      <tr key={row.assetClass}>
+                        <td className="py-1 pr-3 font-medium text-foreground whitespace-nowrap">{row.assetClass}</td>
+                        {(['market', 'credit', 'liquidity', 'fx'] as const).map((col) => (
+                          <td key={col} className="py-1 px-1 text-center">
+                            <span
+                              className={cn(
+                                'inline-flex items-center justify-center w-full rounded px-1 py-0.5 font-semibold',
+                                heatmapColor(row[col]),
+                              )}
+                            >
+                              {row[col]}
+                            </span>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded bg-emerald-500/20" />
+                    Low (0-33)
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded bg-amber-500/20" />
+                    Medium (34-66)
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded bg-rose-500/20" />
+                    High (67-100)
+                  </span>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* 5b: Stress Test Scenarios */}
+            <SectionCard
+              title="Stress Test Scenarios"
+              subtitle="Projected AUM impact under adverse conditions"
+              isLoading={stressQuery.isLoading}
+              isError={stressQuery.isError}
+            >
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={stressQuery.data ?? []}
+                  margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+                  layout="vertical"
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis
+                    type="number"
+                    tickFormatter={(v: number) => formatMoneyCompact(v)}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis type="category" dataKey="scenario" tick={{ fontSize: 10 }} width={100} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'AUM Impact') return [formatMoneyCompact(value), name];
+                      return [formatPercent(value), name];
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="aumImpact" name="AUM Impact" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="returnImpact" name="Return Impact %" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </SectionCard>
+          </div>
+        </div>
+
+        {/* ── Section 6: Fee & Revenue ──────────────────────────────────────── */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Fee & Revenue</h2>
+          <SectionCard
+            title="Revenue Breakdown by Fee Type"
+            subtitle="Advisory, management, and performance fees by month"
+            isLoading={feeQuery.isLoading}
+            isError={feeQuery.isError}
+          >
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={feeQuery.data ?? []}
+                margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis
-                  yAxisId="aum"
-                  orientation="left"
-                  tickFormatter={(v) => `₦${(v / 1e9).toFixed(1)}B`}
+                  tickFormatter={(v: number) => formatMoneyCompact(v)}
                   tick={{ fontSize: 11 }}
                   width={60}
                 />
-                <YAxis
-                  yAxisId="returns"
-                  orientation="right"
-                  tickFormatter={(v) => `${v.toFixed(1)}%`}
-                  tick={{ fontSize: 11 }}
-                  width={42}
-                />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
-                  formatter={(value: number, name: string) =>
-                    name === 'aum'
-                      ? [formatAum(value), 'AUM']
-                      : [formatPercent(value), 'Returns']
-                  }
-                  labelFormatter={(label) => `Month: ${label}`}
+                  formatter={(value: number, name: string) => [formatMoneyCompact(value), name]}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area
-                  yAxisId="aum"
-                  type="monotone"
-                  dataKey="aum"
-                  name="AUM"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                />
-                <Line
-                  yAxisId="returns"
-                  type="monotone"
-                  dataKey="returns"
-                  name="Returns"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Asset Allocation Donut */}
-          <div className="rounded-xl border bg-card p-5">
-            <h3 className="text-sm font-semibold mb-4">Asset Allocation</h3>
-            <div className="flex flex-col items-center gap-4">
-              <div className="relative" style={{ width: 220, height: 220 }}>
-                <ResponsiveContainer width={220} height={220}>
-                  <PieChart>
-                    <Pie
-                      data={ALLOCATION}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {ALLOCATION.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={TOOLTIP_STYLE}
-                      formatter={(value: number) => [`${value}%`, 'Allocation']}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                {/* Center label */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-xs text-muted-foreground">Total AUM</span>
-                  <span className="text-sm font-bold">₦16.6B</span>
-                </div>
-              </div>
-              {/* Legend */}
-              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5">
-                {ALLOCATION.map((item) => (
-                  <div key={item.name} className="flex items-center gap-1.5">
-                    <span
-                      className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {item.name} ({item.value}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Section 3: Advisor Risk-Return Profile ───────────────────────── */}
-        <div className="rounded-xl border bg-card p-5">
-          <h3 className="text-sm font-semibold mb-4">Advisor Risk-Return Profile</h3>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={RISK_RETURN} margin={{ top: 4, right: 24, left: 8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} width={40} />
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                formatter={(value: number, name: string) => [
-                  formatPercent(value),
-                  name === 'risk' ? 'Portfolio Risk' : 'Portfolio Return',
-                ]}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine
-                y={MOCK_SUMMARY.benchmarkReturn}
-                stroke="#f59e0b"
-                strokeDasharray="4 4"
-                label={{ value: 'Benchmark 10.1%', position: 'right', fontSize: 10, fill: '#f59e0b' }}
-              />
-              <Bar dataKey="risk" name="Risk %" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="return" name="Return %" fill="#10b981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* ── Section 4: Plan Type Distribution + Goal Achievement Heatmap ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Stacked Plan Type Distribution */}
-          <div className="rounded-xl border bg-card p-5">
-            <h3 className="text-sm font-semibold mb-4">Plan Type Distribution</h3>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={PLAN_TYPE_DATA} margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="quarter" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} width={32} />
-                <Tooltip contentStyle={TOOLTIP_STYLE} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                {PLAN_TYPES.map((type) => (
-                  <Bar
-                    key={type}
-                    dataKey={type}
-                    stackId="plans"
-                    fill={PLAN_TYPE_COLORS[type]}
-                    radius={type === 'ESTATE' ? [4, 4, 0, 0] : [0, 0, 0, 0]}
-                  />
-                ))}
+                <Bar dataKey="advisoryFees" name="Advisory Fees" stackId="fees" fill={FEE_COLORS.advisoryFees} radius={[0, 0, 0, 0]} />
+                <Bar dataKey="managementFees" name="Management Fees" stackId="fees" fill={FEE_COLORS.managementFees} radius={[0, 0, 0, 0]} />
+                <Bar dataKey="performanceFees" name="Performance Fees" stackId="fees" fill={FEE_COLORS.performanceFees} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
-
-          {/* Goal Achievement Heatmap */}
-          <div className="rounded-xl border bg-card p-5">
-            <h3 className="text-sm font-semibold mb-4">Goal Achievement Rate (%)</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr>
-                    <th className="text-left font-medium text-muted-foreground pb-2 pr-3 min-w-[110px]">
-                      Plan Type
-                    </th>
-                    {HEATMAP_MONTHS.map((m) => (
-                      <th key={m} className="text-center font-medium text-muted-foreground pb-2 px-1 min-w-[44px]">
-                        {m}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="space-y-1">
-                  {PLAN_TYPES.map((type) => (
-                    <tr key={type}>
-                      <td className="py-1 pr-3 font-medium text-foreground whitespace-nowrap">{type}</td>
-                      {HEATMAP_DATA[type].map((pct, i) => (
-                        <td key={i} className="py-1 px-1 text-center">
-                          <span
-                            className={cn(
-                              'inline-flex items-center justify-center w-full rounded px-1 py-0.5 font-semibold',
-                              heatmapColor(pct),
-                            )}
-                          >
-                            {pct}%
-                          </span>
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 rounded bg-emerald-500/20" />
-                  ≥80% On Track
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 rounded bg-amber-500/20" />
-                  60–79% At Risk
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-3 h-3 rounded bg-rose-500/20" />
-                  &lt;60% Off Track
-                </span>
-              </div>
-            </div>
-          </div>
+          </SectionCard>
         </div>
 
-        {/* ── Section 5: Top 10 Clients by AUM ────────────────────────────── */}
-        <div className="rounded-xl border bg-card">
-          <div className="px-5 py-4 border-b">
-            <h3 className="text-sm font-semibold">Top 10 Clients by AUM</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-xs text-muted-foreground">
-                  <th className="px-4 py-3 text-left font-medium w-10">#</th>
-                  <th className="px-4 py-3 text-left font-medium">Client Name</th>
-                  <th className="px-4 py-3 text-left font-medium">Plan Code</th>
-                  <th className="px-4 py-3 text-left font-medium">Plan Type</th>
-                  <th className="px-4 py-3 text-left font-medium">Advisor</th>
-                  <th className="px-4 py-3 text-right font-medium">AUM</th>
-                  <th className="px-4 py-3 text-right font-medium">YTD Return</th>
-                  <th className="px-4 py-3 text-left font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {TOP_CLIENTS.map((client) => (
-                  <tr key={client.rank} className="border-b last:border-0 hover:bg-muted/40 transition-colors">
-                    <td className="px-4 py-3 text-muted-foreground font-medium">{client.rank}</td>
-                    <td className="px-4 py-3 font-medium">{client.name}</td>
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                        {client.planCode}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      <span
-                        className="px-2 py-0.5 rounded-full font-medium"
-                        style={{
-                          backgroundColor: `${PLAN_TYPE_COLORS[client.planType]}22`,
-                          color: PLAN_TYPE_COLORS[client.planType],
-                        }}
-                      >
-                        {client.planType}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">{client.advisor}</td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums">
-                      {formatAum(client.aum)}
-                    </td>
-                    <td
-                      className={cn(
-                        'px-4 py-3 text-right font-semibold tabular-nums text-xs',
-                        client.ytdReturn > 10
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-muted-foreground',
+        {/* ── Section 7: Predictive Insights ────────────────────────────────── */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Predictive Insights</h2>
+          <SectionCard
+            title="AI-Powered Insights"
+            subtitle="Opportunities, risks, and recommended actions"
+            isLoading={insightsQuery.isLoading}
+            isError={insightsQuery.isError}
+          >
+            <div className="space-y-3">
+              {(insightsQuery.data ?? []).map((insight) => {
+                const Icon = INSIGHT_ICONS[insight.type] ?? Brain;
+                const colorClass = INSIGHT_COLORS[insight.type] ?? 'text-muted-foreground bg-muted';
+                return (
+                  <div key={insight.id} className="flex items-start gap-3 p-3 rounded-lg border bg-background">
+                    <div className={cn('flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center', colorClass)}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-medium">{insight.title}</h4>
+                        <span className={cn('text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase', colorClass)}>
+                          {insight.type}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{insight.description}</p>
+                      {insight.metric && insight.metricValue && (
+                        <p className="text-xs font-medium mt-1">
+                          {insight.metric}: <span className="text-foreground">{insight.metricValue}</span>
+                        </p>
                       )}
-                    >
-                      {client.ytdReturn > 10 ? '+' : ''}
-                      {formatPercent(client.ytdReturn)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={client.status} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {insightsQuery.data?.length === 0 && (
+                <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
+                  No insights available at this time
+                </div>
+              )}
+            </div>
+          </SectionCard>
         </div>
       </div>
     </>

@@ -80,7 +80,7 @@ export interface RecentTransfer {
   narration?: string;
 }
 
-// Fee preview type — used for optional display; no backend endpoint exists
+// Optional fee preview model used when a payment rail returns fee details.
 export interface FeePreview {
   transferFee: number;
   vat: number;

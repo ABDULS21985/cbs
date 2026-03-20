@@ -93,7 +93,7 @@ export function AccountCardHeader({ account }: AccountCardHeaderProps) {
         </Link>
         <div className="ml-auto inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-primary-foreground/80">
           <Info className="w-3.5 h-3.5" />
-          Cash deposit, withdrawal, and maintenance workflows are not wired from this view yet.
+          Use teller and servicing workbenches for cash operations and account maintenance.
         </div>
       </div>
     </div>

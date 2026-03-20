@@ -361,6 +361,23 @@ export const wealthApi = {
   rebalancePlan: (code: string): Promise<{ message: string }> =>
     apiPost<{ message: string }>(`/api/v1/wealth-management/${code}/rebalance`),
 
+  // ── Analytics ──
+  getAnalyticsSummary: (): Promise<Record<string, unknown>> =>
+    apiGet<Record<string, unknown>>('/api/v1/wealth-management/analytics/summary'),
+
+  getAdvisorLeaderboard: (): Promise<Record<string, unknown>[]> =>
+    apiGet<Record<string, unknown>[]>('/api/v1/wealth-management/analytics/advisors'),
+
+  getClientSegments: (): Promise<Record<string, unknown>> =>
+    apiGet<Record<string, unknown>>('/api/v1/wealth-management/analytics/segments'),
+
+  // ── Advisor CRUD ──
+  createAdvisor: (data: Record<string, unknown>): Promise<Record<string, unknown>> =>
+    apiPost<Record<string, unknown>>('/api/v1/wealth-management/advisors', data),
+
+  scheduleReview: (advisorId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> =>
+    apiPost<Record<string, unknown>>(`/api/v1/wealth-management/advisors/${advisorId}/reviews`, data),
+
   // ── Documents ──
   uploadDocument: (code: string, file: File): Promise<{ id: string; name: string; url: string }> => {
     const formData = new FormData();
