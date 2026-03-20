@@ -177,7 +177,11 @@ export function TppClientDetailPage() {
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <Key className="h-4 w-4 text-muted-foreground" /> Approved Scopes
               </h3>
-              <TppScopeSelector value={client.scopes} readOnly />
+              <TppScopeSelector
+                selectedScopes={client.scopes}
+                onChange={() => {}}
+                autoSelect={false}
+              />
             </div>
           </div>
         </div>
@@ -198,11 +202,7 @@ export function TppClientDetailPage() {
               No consents for this client yet.
             </p>
           ) : (
-            <ConsentTable
-              consents={clientConsents}
-              onAuthorise={() => {}}
-              onRevoke={() => {}}
-            />
+            <ConsentTable consents={clientConsents} />
           )}
         </div>
       ),
@@ -306,7 +306,13 @@ export function TppClientDetailPage() {
         title={client.name}
         subtitle={`TPP Client · ${client.clientType}`}
         backTo="/open-banking"
-        actions={<TppStatusActions client={client} />}
+        actions={
+          <TppStatusActions
+            client={client}
+            onSuspend={() => toast.info('Suspend via API')}
+            onReactivate={() => toast.info('Reactivate via API')}
+          />
+        }
       />
 
       {/* Status Strip */}

@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Phone, PhoneCall, Clock, HeadphonesIcon, Coffee,
-  CheckCircle2, MessageSquare, Loader2, PhoneOff,
+  Phone, PhoneCall, Clock, HeadphonesIcon, CheckCircle2,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge, TabsPage } from '@/components/shared';
@@ -10,7 +9,7 @@ import { formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
-import { contactCenterApi, type AgentState } from '../api/contactCenterApi';
+import { contactCenterApi } from '../api/contactCenterApi';
 import type { ContactInteraction } from '../types/contactCenterExt';
 import type { CallbackRequest } from '../types/contactRouting';
 import { apiGet, apiPost } from '@/lib/api';

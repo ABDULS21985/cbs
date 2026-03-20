@@ -1,7 +1,5 @@
 import { useState, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-import { formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -12,9 +10,7 @@ import {
   Plus,
   RefreshCw,
   Search,
-  SlidersHorizontal,
   Loader2,
-  Shield,
 } from 'lucide-react';
 
 import { useConsents, useCreateConsent, useAuthoriseConsent, useRevokeConsent, useTppClients } from '../hooks/useOpenBanking';
@@ -24,9 +20,8 @@ import { CreateConsentSheet } from '../components/consent/CreateConsentSheet';
 import { AuthoriseConsentDialog } from '../components/consent/AuthoriseConsentDialog';
 import { RevokeConsentDialog } from '../components/consent/RevokeConsentDialog';
 import { BulkConsentActions } from '../components/consent/BulkConsentActions';
-import { ConsentExpiryTracker } from '../components/consent/ConsentExpiryTracker';
 
-// ─── Status chips ─────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_CHIPS = [
   { status: 'AUTHORISED' as ConsentStatus, icon: CheckCircle2, label: 'Authorised', color: 'text-green-600' },
@@ -42,15 +37,15 @@ export function ConsentManagementPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [tppFilter, setTppFilter] = useState<string>('ALL');
   const [createOpen, setCreateOpen] = useState(false);
-  const [authoriseId, setAuthoriseId] = useState<number | null>(null);
-  const [revokeId, setRevokeId] = useState<number | null>(null);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [authoriseConsent, setAuthoriseConsent] = useState<ReturnType<typeof useConsents>['data'][0] | null>(null);
+  const [revokeConsent, setRevokeConsent] = useState<ReturnType<typeof useConsents>['data'][0] | null>(null);
+  const [selectedConsents, setSelectedConsents] = useState<ReturnType<typeof useConsents>['data']>([]);
 
   const { data: consents = [], isLoading, refetch, isFetching } = useConsents();
   const { data: tppClients = [] } = useTppClients();
-  const createConsent = useCreateConsent();
-  const authorise = useAuthoriseConsent();
-  const revoke = useRevokeConsent();
+  const createConsentMutation = useCreateConsent();
+  const authoriseMutation = useAuthoriseConsent();
+  const revokeMutation = useRevokeConsent();
 
   const filtered = useMemo(() => {
     return consents.filter(c => {
@@ -71,33 +66,36 @@ export function ConsentManagementPage() {
     return counts;
   }, [consents]);
 
-  const expiringConsents = useMemo(() => {
+  const expiringNow = useMemo(() => {
     const in7d = new Date();
     in7d.setDate(in7d.getDate() + 7);
     return consents.filter(c => c.status === 'AUTHORISED' && new Date(c.expiresAt) <= in7d);
   }, [consents]);
 
-  const authoriseTarget = authoriseId !== null ? consents.find(c => c.id === authoriseId) : undefined;
-  const revokeTarget = revokeId !== null ? consents.find(c => c.id === revokeId) : undefined;
-
-  function handleAuthorise(consentId: number, customerId: number) {
-    authorise.mutate(
+  function handleAuthorise(consentId: string | number, customerId: number) {
+    authoriseMutation.mutate(
       { consentId, customerId },
       {
-        onSuccess: () => { toast.success('Consent authorised'); setAuthoriseId(null); },
+        onSuccess: () => { toast.success('Consent authorised'); setAuthoriseConsent(null); },
         onError: () => toast.error('Failed to authorise consent'),
       },
     );
   }
 
-  function handleRevoke(consentId: number, reason?: string) {
-    revoke.mutate(
+  function handleRevoke(consentId: string | number, reason?: string) {
+    revokeMutation.mutate(
       { consentId, reason },
       {
-        onSuccess: () => { toast.success('Consent revoked'); setRevokeId(null); },
+        onSuccess: () => { toast.success('Consent revoked'); setRevokeConsent(null); },
         onError: () => toast.error('Failed to revoke consent'),
       },
     );
+  }
+
+  function handleBulkRevoke() {
+    Promise.all(selectedConsents.map(c => revokeMutation.mutateAsync({ consentId: c.id })))
+      .then(() => { toast.success(`${selectedConsents.length} consents revoked`); setSelectedConsents([]); })
+      .catch(() => toast.error('Bulk revoke partially failed'));
   }
 
   const hasFilters = search || statusFilter !== 'ALL' || tppFilter !== 'ALL';
@@ -128,7 +126,7 @@ export function ConsentManagementPage() {
       />
 
       <div className="px-6 space-y-6">
-        {/* Status Stat Strip */}
+        {/* Status Chips */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {STATUS_CHIPS.map(({ status, icon: Icon, label, color }) => (
             <button
@@ -151,8 +149,13 @@ export function ConsentManagementPage() {
         </div>
 
         {/* Expiry Alert */}
-        {expiringConsents.length > 0 && (
-          <ConsentExpiryTracker consents={expiringConsents} />
+        {expiringNow.length > 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              <strong>{expiringNow.length} consent{expiringNow.length > 1 ? 's' : ''}</strong> will expire within the next 7 days.
+            </p>
+          </div>
         )}
 
         {/* Filters */}
@@ -188,15 +191,13 @@ export function ConsentManagementPage() {
               <option key={t.id} value={String(t.id)}>{t.name}</option>
             ))}
           </select>
-          {selectedIds.length > 0 && (
+          {selectedConsents.length > 0 && (
             <BulkConsentActions
-              selectedIds={selectedIds}
-              onClear={() => setSelectedIds([])}
-              onBulkRevoke={(ids) => {
-                Promise.all(ids.map(id => revoke.mutateAsync({ consentId: id })))
-                  .then(() => { toast.success(`${ids.length} consents revoked`); setSelectedIds([]); })
-                  .catch(() => toast.error('Bulk revoke partially failed'));
-              }}
+              selectedCount={selectedConsents.length}
+              onAuthoriseAll={() => toast.info('Bulk authorise not available for existing consents')}
+              onRevokeAll={handleBulkRevoke}
+              onClear={() => setSelectedConsents([])}
+              isRevoking={revokeMutation.isPending}
             />
           )}
         </div>
@@ -225,10 +226,10 @@ export function ConsentManagementPage() {
           ) : (
             <ConsentTable
               consents={filtered}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-              onAuthorise={(c) => setAuthoriseId(c.id)}
-              onRevoke={(c) => setRevokeId(c.id)}
+              enableRowSelection
+              onRowSelectionChange={setSelectedConsents}
+              onAuthorise={setAuthoriseConsent}
+              onRevoke={setRevokeConsent}
             />
           )}
         </div>
@@ -237,35 +238,32 @@ export function ConsentManagementPage() {
       {/* Dialogs */}
       <CreateConsentSheet
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onClose={() => setCreateOpen(false)}
         tppClients={tppClients}
-        onCreate={(payload) =>
-          createConsent.mutateAsync(payload).then(() => {
-            toast.success('Consent created');
-            setCreateOpen(false);
-          })
-        }
+        isPending={createConsentMutation.isPending}
+        onSubmit={(payload, callbacks) => {
+          createConsentMutation.mutate(payload, {
+            onSuccess: () => { toast.success('Consent created'); setCreateOpen(false); callbacks.onSuccess(); },
+            onError: () => { toast.error('Failed to create consent'); callbacks.onError(); },
+          });
+        }}
       />
 
-      {authoriseTarget && (
-        <AuthoriseConsentDialog
-          consent={authoriseTarget}
-          open={!!authoriseId}
-          onOpenChange={(o) => { if (!o) setAuthoriseId(null); }}
-          onConfirm={handleAuthorise}
-          isLoading={authorise.isPending}
-        />
-      )}
+      <AuthoriseConsentDialog
+        open={!!authoriseConsent}
+        consent={authoriseConsent ?? null}
+        onClose={() => setAuthoriseConsent(null)}
+        onAuthorise={handleAuthorise}
+        isPending={authoriseMutation.isPending}
+      />
 
-      {revokeTarget && (
-        <RevokeConsentDialog
-          consent={revokeTarget}
-          open={!!revokeId}
-          onOpenChange={(o) => { if (!o) setRevokeId(null); }}
-          onConfirm={handleRevoke}
-          isLoading={revoke.isPending}
-        />
-      )}
+      <RevokeConsentDialog
+        open={!!revokeConsent}
+        consent={revokeConsent ?? null}
+        onClose={() => setRevokeConsent(null)}
+        onRevoke={handleRevoke}
+        isPending={revokeMutation.isPending}
+      />
     </div>
   );
 }

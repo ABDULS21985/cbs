@@ -4,6 +4,7 @@ import com.cbs.account.entity.Account;
 import com.cbs.account.entity.TransactionJournal;
 import com.cbs.card.entity.Card;
 import com.cbs.card.service.CardService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.customer.dto.*;
@@ -44,6 +45,7 @@ public class CustomerController {
     private final CustomerService customerService;
     private final CustomerRepository customerRepository;
     private final CardService cardService;
+    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // CAPABILITY 1: 360° Customer View
@@ -528,10 +530,10 @@ public class CustomerController {
     @PostMapping("/{id}/edd/approve")
     @Operation(summary = "Senior management EDD sign-off")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> eddApprove(
-            @PathVariable Long id, @RequestBody Map<String, String> body) {
-        log.info("EDD approved: customerId={}, approvedBy={}", id, body.get("approvedBy"));
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "status", "EDD_APPROVED", "approvedBy", body.getOrDefault("approvedBy", "ADMIN"), "approvedAt", java.time.Instant.now().toString())));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> eddApprove(@PathVariable Long id) {
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("EDD approved: customerId={}, approvedBy={}", id, actor);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "status", "EDD_APPROVED", "approvedBy", actor, "approvedAt", java.time.Instant.now().toString())));
     }
 
     @GetMapping("/kyc/reviews-due")
@@ -551,10 +553,10 @@ public class CustomerController {
     @PostMapping("/{id}/kyc/complete-review")
     @Operation(summary = "Record KYC review completion")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> kycCompleteReview(
-            @PathVariable Long id, @RequestBody Map<String, String> body) {
-        log.info("KYC review completed: customerId={}, reviewedBy={}", id, body.get("reviewedBy"));
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "status", "REVIEW_COMPLETED", "reviewedBy", body.getOrDefault("reviewedBy", "ADMIN"), "reviewedAt", java.time.Instant.now().toString())));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> kycCompleteReview(@PathVariable Long id) {
+        String actor = currentActorProvider.getCurrentActor();
+        log.info("KYC review completed: customerId={}, reviewedBy={}", id, actor);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "status", "REVIEW_COMPLETED", "reviewedBy", actor, "reviewedAt", java.time.Instant.now().toString())));
     }
 
     // ── Onboarding Drafts ───────────────────────────────────────────────────

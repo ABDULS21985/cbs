@@ -301,7 +301,7 @@ export const PortalServiceRequestsPage = lazyNamed(
   () => import('@/features/portal/pages/PortalServiceRequestsPage'),
   'PortalServiceRequestsPage',
 );
-export const PortalNotificationsPage = lazyNamed(
+export const PortalSelfServiceNotificationsPage = lazyNamed(
   () => import('@/features/portal/pages/PortalNotificationsPage'),
   'PortalNotificationsPage',
 );
@@ -664,6 +664,26 @@ export const WealthManagementPage = lazyNamed(
 export const WealthPlanDetailPage = lazyNamed(
   () => import('@/features/wealth/pages/WealthPlanDetailPage'),
   'WealthPlanDetailPage',
+);
+export const TrustManagementPage = lazyNamed(
+  () => import('@/features/wealth/pages/TrustManagementPage'),
+  'TrustManagementPage',
+);
+export const TrustDetailPage = lazyNamed(
+  () => import('@/features/wealth/pages/TrustDetailPage'),
+  'TrustDetailPage',
+);
+export const AdvisorListPage = lazyNamed(
+  () => import('@/features/wealth/pages/AdvisorListPage'),
+  'AdvisorListPage',
+);
+export const AdvisorDetailPage = lazyNamed(
+  () => import('@/features/wealth/pages/AdvisorDetailPage'),
+  'AdvisorDetailPage',
+);
+export const WealthAnalyticsPage = lazyNamed(
+  () => import('@/features/wealth/pages/WealthAnalyticsPage'),
+  'WealthAnalyticsPage',
 );
 export const TradeFinancePage = lazyNamed(
   () => import('@/features/tradefinance/pages/TradeFinancePage'),

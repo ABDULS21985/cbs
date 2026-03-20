@@ -2,6 +2,8 @@ package com.cbs.escrow;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
@@ -35,6 +37,8 @@ class EscrowServiceTest {
     @Mock private EscrowReleaseRepository releaseRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private CustomerRepository customerRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks private EscrowService escrowService;
 
@@ -114,10 +118,19 @@ class EscrowServiceTest {
         when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(mandateRepository.save(any())).thenReturn(mandate);
         when(releaseRepository.save(any())).thenReturn(release);
+        when(currentActorProvider.getCurrentActor()).thenReturn("admin1");
+        when(accountPostingService.postTransfer(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new AccountPostingService.TransferPosting(
+                        TransactionJournal.builder().transactionRef("TXN-ESC-1").build(),
+                        TransactionJournal.builder().transactionRef("TXN-ESC-2").build(),
+                        null
+                ));
 
-        EscrowReleaseDto result = escrowService.approveAndExecuteRelease(1L, "admin1");
+        EscrowReleaseDto result = escrowService.approveAndExecuteRelease(1L);
 
         assertThat(result.getStatus()).isEqualTo("EXECUTED");
+        assertThat(result.getApprovedBy()).isEqualTo("admin1");
+        assertThat(result.getTransactionRef()).isEqualTo("TXN-ESC-1");
         assertThat(mandate.getStatus()).isEqualTo(EscrowStatus.PARTIALLY_RELEASED);
         assertThat(mandate.getRemainingAmount()).isEqualByComparingTo(new BigDecimal("50000"));
     }

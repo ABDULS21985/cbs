@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, TabsPage } from '@/components/shared';
 import { cn } from '@/lib/utils';
-import { formatDate, formatMoneyCompact } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import {
   FileText, Send, CheckCircle, Users, Plus, X, Clock,
   Sparkles, Printer, History, AlertTriangle, ChevronDown,
@@ -22,14 +22,10 @@ import {
   useActionItems,
   useCreateActionItem,
   useUpdateActionItemStatus,
-  useAlmGapReport,
-  usePortfolioDuration,
   useAlmScenarios,
 } from '../hooks/useAlm';
 import type { AlcoActionItem, ActionItemStatus, AlcoPack } from '../api/almApi';
 import { toast } from 'sonner';
-
-const DEFAULT_PORTFOLIO = 'MAIN';
 
 function getCurrentMonth() {
   return new Date().toISOString().slice(0, 7);
@@ -149,8 +145,6 @@ function ExecutiveSummaryEditor({
   month: string;
 }) {
   const generateSummary = useGenerateExecutiveSummary();
-  const { data: gapReport } = useAlmGapReport(new Date().toISOString().split('T')[0]);
-  const { data: duration } = usePortfolioDuration(DEFAULT_PORTFOLIO);
 
   const handleGenerate = () => {
     generateSummary.mutate(month, {
@@ -159,16 +153,7 @@ function ExecutiveSummaryEditor({
         toast.success('Executive summary generated');
       },
       onError: () => {
-        // Fallback: generate a demo summary from available data
-        const dGap = duration?.durationGap?.toFixed(2) ?? '1.42';
-        const niiPct = gapReport?.buckets?.[0]?.niiImpact?.toFixed(1) ?? '8.2';
-        const netGap = gapReport?.netGap
-          ? formatMoneyCompact(gapReport.netGap)
-          : '₦15B';
-
-        const fallback = `The bank's duration gap stands at ${dGap}Y as of the reporting date. Net repricing gap is ${netGap}. NII-at-risk under +200bps parallel shock is ${niiPct}% of Tier 1 capital, within the 15% board-approved limit.\n\nKey observations:\n- Duration gap remains within the ±2.5Y board limit\n- Liquidity coverage ratio at 142%, above the 100% regulatory minimum\n- No limit breaches reported during the period\n- Stress test results show adequate capital buffers under all scenarios\n\nRecommended actions are detailed in the Action Items section below.`;
-        onChange(fallback);
-        toast.info('Generated summary with available data');
+        toast.error('Failed to generate the executive summary from the backend. Retry or enter it manually.');
       },
     });
   };

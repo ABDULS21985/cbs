@@ -127,6 +127,10 @@ import {
   PortalDashboard,
   PortalProfilePage,
   PortalServiceRequestsPage,
+  PortalNotificationsPage,
+  PortalHelpPage,
+  PortalBillPaymentPage,
+  PortalAirtimePage,
   PortalTransferPage,
   PosTerminalPage,
   ProductCreatePage,
@@ -169,6 +173,11 @@ import {
   VirtualAccountListPage,
   WealthManagementPage,
   WealthPlanDetailPage,
+  TrustManagementPage,
+  TrustDetailPage,
+  AdvisorListPage,
+  AdvisorDetailPage,
+  WealthAnalyticsPage,
   AgreementCreatePage,
   AgreementDetailPage,
   AgreementEditPage,
@@ -717,6 +726,11 @@ export function AppRouter() {
         {/* Wealth & Trust */}
         <Route path="/wealth" element={<Outlet />}>
           <Route index element={<WealthManagementPage />} />
+          <Route path="analytics" element={<WealthAnalyticsPage />} />
+          <Route path="trusts" element={<TrustManagementPage />} />
+          <Route path="trusts/:code" element={<TrustDetailPage />} />
+          <Route path="advisors" element={<AdvisorListPage />} />
+          <Route path="advisors/:id" element={<AdvisorDetailPage />} />
           <Route path=":code" element={<WealthPlanDetailPage />} />
         </Route>
 
@@ -771,6 +785,9 @@ export function AppRouter() {
           <Route path="cards" element={<PortalCardControlsPage />} />
           <Route path="requests" element={<PortalServiceRequestsPage />} />
           <Route path="notifications" element={<PortalNotificationsPage />} />
+          <Route path="bills" element={<PortalBillPaymentPage />} />
+          <Route path="airtime" element={<PortalAirtimePage />} />
+          <Route path="help" element={<PortalHelpPage />} />
         </Route>
     </Routes>
     </>

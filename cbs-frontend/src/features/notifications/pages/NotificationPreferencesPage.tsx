@@ -1,6 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { cn } from '@/lib/utils';
 import { Send, Loader2 } from 'lucide-react';
 import type { NotificationChannel } from '../types/notificationExt';
 import { useNotificationPreferences, useUpdatePreference, useSendNotification } from '../hooks/useNotificationsExt';
@@ -8,9 +7,7 @@ import { ChannelToggleCard } from '../components/ChannelToggleCard';
 import { PreferenceMatrix } from '../components/PreferenceMatrix';
 import { QuietHoursConfig } from '../components/QuietHoursConfig';
 import { toast } from 'sonner';
-
-// Demo customer ID — in production this comes from auth context
-const CURRENT_CUSTOMER_ID = 1;
+import { useAuthStore } from '@/stores/authStore';
 
 const CHANNELS: { channel: NotificationChannel; description: string }[] = [
   { channel: 'EMAIL', description: 'Receive notifications via email' },
@@ -20,7 +17,20 @@ const CHANNELS: { channel: NotificationChannel; description: string }[] = [
 ];
 
 export function NotificationPreferencesPage() {
-  const { data: preferences = [], isLoading } = useNotificationPreferences(CURRENT_CUSTOMER_ID);
+  const user = useAuthStore((state) => state.user);
+  const currentCustomerId = useMemo(() => {
+    const candidates = [user?.id, user?.username].filter(Boolean) as string[];
+    for (const candidate of candidates) {
+      if (/^\d+$/.test(candidate)) {
+        const numericId = Number(candidate);
+        if (numericId > 0) {
+          return numericId;
+        }
+      }
+    }
+    return null;
+  }, [user]);
+  const { data: preferences = [], isLoading } = useNotificationPreferences(currentCustomerId ?? 0);
   const updatePref = useUpdatePreference();
   const sendTest = useSendNotification();
   const [updatingKeys, setUpdatingKeys] = useState<Record<string, boolean>>({});
@@ -33,15 +43,19 @@ export function NotificationPreferencesPage() {
   };
 
   const handleToggle = useCallback((channel: NotificationChannel, eventType: string, enabled: boolean) => {
+    if (!currentCustomerId) {
+      toast.error('Authenticated user is not mapped to a numeric customer profile.');
+      return;
+    }
     const key = `${channel}:${eventType}`;
     setUpdatingKeys((prev) => ({ ...prev, [key]: true }));
     updatePref.mutate(
-      { customerId: CURRENT_CUSTOMER_ID, channel, eventType, enabled },
+      { customerId: currentCustomerId, channel, eventType, enabled },
       {
         onSettled: () => setUpdatingKeys((prev) => { const next = { ...prev }; delete next[key]; return next; }),
       },
     );
-  }, [updatePref]);
+  }, [currentCustomerId, updatePref]);
 
   const handleChannelMasterToggle = useCallback((channel: NotificationChannel, enabled: boolean) => {
     // Toggle all event types for this channel
@@ -60,8 +74,12 @@ export function NotificationPreferencesPage() {
   }, [handleToggle]);
 
   const handleSendTest = () => {
+    if (!currentCustomerId) {
+      toast.error('Authenticated user is not mapped to a numeric customer profile.');
+      return;
+    }
     sendTest.mutate(
-      { eventType: 'TEST_NOTIFICATION', customerId: CURRENT_CUSTOMER_ID },
+      { eventType: 'TEST_NOTIFICATION', customerId: currentCustomerId },
       {
         onSuccess: () => toast.success(`Test ${testChannel} notification sent`),
         onError: () => toast.error('Failed to send test notification'),
@@ -75,6 +93,23 @@ export function NotificationPreferencesPage() {
         <PageHeader title="Notification Settings" backTo="/notifications" />
         <div className="page-container space-y-4">
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-muted animate-pulse" />)}
+        </div>
+      </>
+    );
+  }
+
+  if (!currentCustomerId) {
+    return (
+      <>
+        <PageHeader
+          title="Notification Settings"
+          subtitle="Manage how and when you receive notifications"
+          backTo="/notifications"
+        />
+        <div className="page-container">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+            The authenticated session is not mapped to a numeric customer ID, so customer notification preferences cannot be loaded or changed from this page.
+          </div>
         </div>
       </>
     );

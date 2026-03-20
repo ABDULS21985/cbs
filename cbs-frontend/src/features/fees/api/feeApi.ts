@@ -219,9 +219,11 @@ export function getAccountFeeHistory(accountId: string): Promise<FeeCharge[]> {
   return apiGet<FeeCharge[]>(`/api/v1/fees/history/account/${accountId}`);
 }
 
-// Backward-compat alias — maps feeId to getAccountFeeHistory if numeric, else returns empty
+// Backward-compat alias — require an identifier instead of silently pretending history is empty.
 export function getFeeChargeHistory(feeId?: string): Promise<FeeCharge[]> {
-  if (!feeId) return Promise.resolve([]);
+  if (!feeId) {
+    return Promise.reject(new Error('Fee charge history requires a fee or account identifier.'));
+  }
   return getAccountFeeHistory(feeId);
 }
 

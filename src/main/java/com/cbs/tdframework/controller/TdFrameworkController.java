@@ -1,5 +1,6 @@
 package com.cbs.tdframework.controller;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.tdframework.entity.TdFrameworkAgreement;
 import com.cbs.tdframework.service.TdFrameworkService;
@@ -16,6 +17,7 @@ import java.util.Map;
 @Tag(name = "Term Deposit Framework", description = "Framework agreements for term deposits — rate tiers, auto-rollover, withdrawal rules")
 public class TdFrameworkController {
     private final TdFrameworkService tdFrameworkService;
+    private final CurrentActorProvider currentActorProvider;
 
     @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<TdFrameworkAgreement>>> listAll() {
@@ -30,8 +32,8 @@ public class TdFrameworkController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(tdFrameworkService.create(agreement)));
     }
     @PostMapping("/{number}/approve") @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<TdFrameworkAgreement>> approve(@PathVariable String number, @RequestParam String approvedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(tdFrameworkService.approve(number, approvedBy)));
+    public ResponseEntity<ApiResponse<TdFrameworkAgreement>> approve(@PathVariable String number) {
+        return ResponseEntity.ok(ApiResponse.ok(tdFrameworkService.approve(number, currentActorProvider.getCurrentActor())));
     }
     @GetMapping("/{number}/rate") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getRate(@PathVariable String number, @RequestParam BigDecimal amount, @RequestParam int tenorDays) {

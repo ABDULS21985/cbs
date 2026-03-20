@@ -13,14 +13,13 @@ import {
   Clock,
   Key,
   Loader2,
-  RefreshCw,
   User,
 } from 'lucide-react';
 
 import { useConsents, useAuthoriseConsent, useRevokeConsent } from '../hooks/useOpenBanking';
 import type { ConsentStatus } from '../api/openBankingApi';
 import { ConsentDetailCard } from '../components/consent/ConsentDetailCard';
-import { ConsentTimeline } from '../components/consent/ConsentTimeline';
+import { ConsentTimeline, type ConsentTimelineEvent } from '../components/consent/ConsentTimeline';
 import { ConsentScopeVisualizer } from '../components/consent/ConsentScopeVisualizer';
 import { AuthoriseConsentDialog } from '../components/consent/AuthoriseConsentDialog';
 import { RevokeConsentDialog } from '../components/consent/RevokeConsentDialog';
@@ -49,6 +48,59 @@ const STATUS_ICON_COLOR: Record<ConsentStatus, string> = {
   EXPIRED: 'text-muted-foreground',
 };
 
+// ─── Build timeline events from consent ───────────────────────────────────────
+
+function buildTimelineEvents(consent: {
+  createdAt: string;
+  authorisedAt?: string;
+  revokedAt?: string;
+  expiresAt: string;
+  status: ConsentStatus;
+  revokeReason?: string;
+}): ConsentTimelineEvent[] {
+  const events: ConsentTimelineEvent[] = [
+    {
+      id: 'created',
+      type: 'created',
+      title: 'Consent Created',
+      description: 'Consent request initiated by TPP',
+      timestamp: consent.createdAt,
+    },
+  ];
+
+  if (consent.authorisedAt) {
+    events.push({
+      id: 'authorised',
+      type: 'authorised',
+      title: 'Consent Authorised',
+      description: 'Customer granted access',
+      timestamp: consent.authorisedAt,
+    });
+  }
+
+  if (consent.revokedAt) {
+    events.push({
+      id: 'revoked',
+      type: 'revoked',
+      title: 'Consent Revoked',
+      description: consent.revokeReason ?? 'Access withdrawn',
+      timestamp: consent.revokedAt,
+    });
+  }
+
+  if (consent.status === 'EXPIRED') {
+    events.push({
+      id: 'expired',
+      type: 'expired',
+      title: 'Consent Expired',
+      description: 'Consent validity period ended',
+      timestamp: consent.expiresAt,
+    });
+  }
+
+  return events;
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export function ConsentDetailPage() {
@@ -63,6 +115,11 @@ export function ConsentDetailPage() {
   const customerConsents = useMemo(
     () => consents.filter(c => consent && c.customerId === consent.customerId),
     [consents, consent],
+  );
+
+  const timelineEvents = useMemo(
+    () => consent ? buildTimelineEvents(consent) : [],
+    [consent],
   );
 
   const authorise = useAuthoriseConsent();
@@ -95,7 +152,7 @@ export function ConsentDetailPage() {
     (new Date(consent.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
   );
 
-  function handleAuthorise(consentId: number, customerId: number) {
+  function handleAuthorise(consentId: string | number, customerId: number) {
     authorise.mutate(
       { consentId, customerId },
       {
@@ -105,7 +162,7 @@ export function ConsentDetailPage() {
     );
   }
 
-  function handleRevoke(consentId: number, reason?: string) {
+  function handleRevoke(consentId: string | number, reason?: string) {
     revoke.mutate(
       { consentId, reason },
       {
@@ -146,7 +203,7 @@ export function ConsentDetailPage() {
         <div className="p-6">
           <div className="rounded-lg border bg-card p-4">
             <h3 className="text-sm font-semibold mb-4">Consent Lifecycle</h3>
-            <ConsentTimeline consent={consent} />
+            <ConsentTimeline events={timelineEvents} />
           </div>
         </div>
       ),
@@ -188,7 +245,7 @@ export function ConsentDetailPage() {
             )}
             {consent.status === 'AUTHORISED' && (
               <button
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground text-sm hover:bg-destructive/90 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-red-600 text-white text-sm hover:bg-red-700 transition-colors"
                 onClick={() => setRevokeOpen(true)}
               >
                 <Ban className="h-4 w-4" /> Revoke
@@ -228,19 +285,19 @@ export function ConsentDetailPage() {
 
       {/* Dialogs */}
       <AuthoriseConsentDialog
-        consent={consent}
         open={authoriseOpen}
-        onOpenChange={setAuthoriseOpen}
-        onConfirm={handleAuthorise}
-        isLoading={authorise.isPending}
+        consent={consent}
+        onClose={() => setAuthoriseOpen(false)}
+        onAuthorise={handleAuthorise}
+        isPending={authorise.isPending}
       />
 
       <RevokeConsentDialog
-        consent={consent}
         open={revokeOpen}
-        onOpenChange={setRevokeOpen}
-        onConfirm={handleRevoke}
-        isLoading={revoke.isPending}
+        consent={consent}
+        onClose={() => setRevokeOpen(false)}
+        onRevoke={handleRevoke}
+        isPending={revoke.isPending}
       />
     </div>
   );

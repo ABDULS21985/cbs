@@ -5,7 +5,7 @@ import { useTradeConfirmations, useSettlementFails } from '../hooks/useTreasuryD
 import type { ColumnDef } from '@tanstack/react-table';
 import type { TradeConfirmation, SettlementFail } from '../types/treasury';
 import { cn } from '@/lib/utils';
-import { FileCheck, AlertTriangle, XCircle, Activity } from 'lucide-react';
+import { FileCheck, AlertTriangle, XCircle } from 'lucide-react';
 
 const confirmCols: ColumnDef<TradeConfirmation, any>[] = [
   { accessorKey: 'confirmRef', header: 'Ref', cell: ({ row }) => <span className="font-mono text-xs">{row.original.confirmRef}</span> },

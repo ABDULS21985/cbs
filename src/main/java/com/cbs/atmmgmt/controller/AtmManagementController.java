@@ -2,6 +2,7 @@ package com.cbs.atmmgmt.controller;
 
 import com.cbs.atmmgmt.entity.*;
 import com.cbs.atmmgmt.service.AtmManagementService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +22,7 @@ import java.util.List;
 public class AtmManagementController {
 
     private final AtmManagementService atmService;
+    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping("/terminals")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -67,8 +69,8 @@ public class AtmManagementController {
     @Operation(summary = "Replenish ATM cash and update forecast")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<AtmTerminal>> replenish(@PathVariable String terminalId,
-            @RequestParam BigDecimal amount, @RequestParam String performedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(atmService.replenishCash(terminalId, amount, performedBy)));
+            @RequestParam BigDecimal amount) {
+        return ResponseEntity.ok(ApiResponse.ok(atmService.replenishCash(terminalId, amount, currentActorProvider.getCurrentActor())));
     }
 
     @PatchMapping("/terminals/{terminalId}/status")

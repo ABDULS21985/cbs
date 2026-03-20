@@ -1,5 +1,6 @@
 package com.cbs.lending.controller;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.credit.dto.CreditDecisionResponse;
@@ -33,6 +34,7 @@ public class LoanController {
     private final LoanOriginationService loanService;
     private final LoanAccountRepository loanAccountRepository;
     private final com.cbs.lending.engine.RepaymentScheduleGenerator scheduleGenerator;
+    private final CurrentActorProvider currentActorProvider;
 
     // Applications
     @PostMapping("/applications")
@@ -74,17 +76,16 @@ public class LoanController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<LoanApplicationResponse>> approveApplication(
             @PathVariable Long id,
-            @Valid @RequestBody LoanApprovalRequest approval,
-            @RequestParam String approvedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(loanService.approveApplication(id, approval, approvedBy)));
+            @Valid @RequestBody LoanApprovalRequest approval) {
+        return ResponseEntity.ok(ApiResponse.ok(loanService.approveApplication(id, approval, currentActorProvider.getCurrentActor())));
     }
 
     @PostMapping("/applications/{id}/decline")
     @Operation(summary = "Decline a loan application")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<LoanApplicationResponse>> declineApplication(
-            @PathVariable Long id, @RequestParam String reason, @RequestParam String declinedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(loanService.declineApplication(id, reason, declinedBy)));
+            @PathVariable Long id, @RequestParam String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(loanService.declineApplication(id, reason, currentActorProvider.getCurrentActor())));
     }
 
     @PostMapping("/applications/{id}/disburse")

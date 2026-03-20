@@ -3,7 +3,6 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge, TabsPage } from '@/components/shared';
 import { CreditCard, ShieldCheck, ShieldX, Clock, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { formatDate } from '@/lib/formatters';
 import { useCards } from '../hooks/useCardData';
 import type { ColumnDef } from '@tanstack/react-table';

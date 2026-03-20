@@ -1,5 +1,6 @@
 package com.cbs.compliancereport.controller;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.compliancereport.entity.ComplianceReport;
@@ -27,6 +28,7 @@ public class ComplianceReportController {
 
     private final ComplianceReportService service;
     private final ComplianceReportRepository complianceReportRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -36,8 +38,8 @@ public class ComplianceReportController {
 
     @PostMapping("/{code}/review")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<ComplianceReport>> review(@PathVariable String code, @RequestParam String reviewedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(service.review(code, reviewedBy)));
+    public ResponseEntity<ApiResponse<ComplianceReport>> review(@PathVariable String code) {
+        return ResponseEntity.ok(ApiResponse.ok(service.review(code, currentActorProvider.getCurrentActor())));
     }
 
     @PostMapping("/{code}/submit")

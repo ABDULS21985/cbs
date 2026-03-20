@@ -2,6 +2,7 @@ package com.cbs.portal.controller;
 
 import com.cbs.account.dto.AccountResponse;
 import com.cbs.account.dto.TransactionResponse;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.customer.dto.CustomerResponse;
@@ -30,6 +31,7 @@ import java.util.Map;
 public class PortalController {
 
     private final PortalService portalService;
+    private final CurrentActorProvider currentActorProvider;
     private final com.cbs.account.service.AccountService accountService;
     private final com.cbs.account.repository.TransactionJournalRepository transactionJournalRepository;
     private final com.cbs.payments.repository.BeneficiaryRepository beneficiaryRepository;
@@ -151,9 +153,8 @@ public class PortalController {
     @Operation(summary = "Approve a profile update request")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<ProfileUpdateRequestDto>> approveUpdate(
-            @PathVariable Long requestId,
-            @RequestParam String reviewedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(portalService.approveProfileUpdate(requestId, reviewedBy)));
+            @PathVariable Long requestId) {
+        return ResponseEntity.ok(ApiResponse.ok(portalService.approveProfileUpdate(requestId, currentActorProvider.getCurrentActor())));
     }
 
     @PostMapping("/admin/profile-updates/{requestId}/reject")
@@ -161,9 +162,8 @@ public class PortalController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<ProfileUpdateRequestDto>> rejectUpdate(
             @PathVariable Long requestId,
-            @RequestParam String reviewedBy,
             @RequestParam String reason) {
-        return ResponseEntity.ok(ApiResponse.ok(portalService.rejectProfileUpdate(requestId, reviewedBy, reason)));
+        return ResponseEntity.ok(ApiResponse.ok(portalService.rejectProfileUpdate(requestId, currentActorProvider.getCurrentActor(), reason)));
     }
 
     // ========================================================================

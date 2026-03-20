@@ -1,5 +1,6 @@
 package com.cbs.lending.controller;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.lending.dto.*;
@@ -29,6 +30,7 @@ public class CollateralController {
 
     private final CollateralService collateralService;
     private final LoanRestructuringService restructuringService;
+    private final CurrentActorProvider currentActorProvider;
 
     @GetMapping
     @Operation(summary = "List all collaterals")
@@ -102,9 +104,8 @@ public class CollateralController {
     @Operation(summary = "Restructure a loan")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> restructureLoan(
-            @PathVariable Long loanId, @Valid @RequestBody LoanRestructureRequest request,
-            @RequestParam String approvedBy) {
-        restructuringService.restructureLoan(loanId, request, approvedBy);
+            @PathVariable Long loanId, @Valid @RequestBody LoanRestructureRequest request) {
+        restructuringService.restructureLoan(loanId, request, currentActorProvider.getCurrentActor());
         return ResponseEntity.ok(ApiResponse.ok(null, "Loan restructured"));
     }
 

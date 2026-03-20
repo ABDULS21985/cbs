@@ -13,7 +13,7 @@ import {
   ChevronRight, AlertTriangle, MessageSquare, Loader2,
 } from 'lucide-react';
 import { contactCenterApi, type AgentState, type QueueStatus, type CustomerMiniProfile, type CallDisposition } from '../api/contactCenterApi';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet } from '@/lib/api';
 import type { ContactInteraction } from '../types/contactCenterExt';
 import type { HelpArticle } from '../types/help';
 import { useAuthStore } from '@/stores/authStore';

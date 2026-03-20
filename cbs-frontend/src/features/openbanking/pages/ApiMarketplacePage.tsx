@@ -21,11 +21,8 @@ import {
 import {
   useApiProducts,
   useApiSubscriptions,
-  usePublishProduct,
-  useDeprecateProduct,
   useApproveSubscription,
 } from '../hooks/useMarketplace';
-import { useTppClients } from '../hooks/useOpenBanking';
 import { ApiProductGrid } from '../components/marketplace/ApiProductGrid';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -51,8 +48,6 @@ export function ApiMarketplacePage() {
 
   const { data: products = [], isLoading, refetch, isFetching } = useApiProducts();
   const { data: subscriptions = [], isLoading: subsLoading } = useApiSubscriptions();
-  const publish = usePublishProduct();
-  const deprecate = useDeprecateProduct();
   const approveSubscription = useApproveSubscription();
 
   const filtered = useMemo(() => {
@@ -74,20 +69,6 @@ export function ApiMarketplacePage() {
     totalSubs: subscriptions.length,
     pendingSubs: subscriptions.filter(s => s.status === 'PENDING').length,
   }), [products, subscriptions]);
-
-  function handlePublish(id: number) {
-    publish.mutate(id, {
-      onSuccess: () => toast.success('Product published'),
-      onError: () => toast.error('Failed to publish'),
-    });
-  }
-
-  function handleDeprecate(id: number) {
-    deprecate.mutate(id, {
-      onSuccess: () => toast.success('Product deprecated'),
-      onError: () => toast.error('Failed to deprecate'),
-    });
-  }
 
   const tabs = [
     {
@@ -129,9 +110,7 @@ export function ApiMarketplacePage() {
           <ApiProductGrid
             products={filtered}
             isLoading={isLoading}
-            onPublish={handlePublish}
-            onDeprecate={handleDeprecate}
-            onView={(p) => navigate(`/open-banking/marketplace/${p.id}`)}
+            onViewDetails={(p) => navigate(`/open-banking/marketplace/${p.id}`)}
           />
         </div>
       ),

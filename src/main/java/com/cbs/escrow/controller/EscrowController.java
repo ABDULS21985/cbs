@@ -1,5 +1,6 @@
 package com.cbs.escrow.controller;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.escrow.dto.*;
@@ -26,6 +27,7 @@ import java.util.List;
 public class EscrowController {
 
     private final EscrowService escrowService;
+    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping
     @Operation(summary = "Create an escrow mandate")

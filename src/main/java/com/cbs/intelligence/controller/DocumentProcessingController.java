@@ -1,5 +1,6 @@
 package com.cbs.intelligence.controller;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.intelligence.entity.DocumentProcessingJob;
 import com.cbs.intelligence.service.DocumentProcessingService;
@@ -14,6 +15,7 @@ import java.util.List;
 @Tag(name = "AI Document Processing", description = "OCR/NLP extraction, classification, verification, tamper detection")
 public class DocumentProcessingController {
     private final DocumentProcessingService service;
+    private final CurrentActorProvider currentActorProvider;
 
     @GetMapping("/process")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -30,8 +32,8 @@ public class DocumentProcessingController {
     @PostMapping("/{jobId}/review")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<DocumentProcessingJob>> review(
-            @PathVariable String jobId, @RequestParam String reviewedBy, @RequestParam String status) {
-        return ResponseEntity.ok(ApiResponse.ok(service.markReviewed(jobId, reviewedBy, status)));
+            @PathVariable String jobId, @RequestParam String status) {
+        return ResponseEntity.ok(ApiResponse.ok(service.markReviewed(jobId, currentActorProvider.getCurrentActor(), status)));
     }
 
     @GetMapping("/pending-review")
