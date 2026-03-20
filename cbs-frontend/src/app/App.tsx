@@ -1,14 +1,37 @@
 import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from 'sonner';
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { toast, Toaster } from 'sonner';
 import { AppRouter } from './router';
 import { ThemeProvider } from './providers';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useAuthStore } from '@/stores/authStore';
 
+let lastQueryErrorSignature = '';
+let lastQueryErrorAt = 0;
+
+function getQueryErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return 'Failed to load data from the backend.';
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      const message = getQueryErrorMessage(error);
+      const signature = `${query.queryHash}:${message}`;
+      const now = Date.now();
+      if (signature === lastQueryErrorSignature && now - lastQueryErrorAt < 3_000) {
+        return;
+      }
+      lastQueryErrorSignature = signature;
+      lastQueryErrorAt = now;
+      toast.error(message);
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 30_000,

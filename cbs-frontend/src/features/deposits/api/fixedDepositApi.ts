@@ -80,7 +80,7 @@ export interface CreateFdRequest {
 
 export const fixedDepositApi = {
   getFixedDeposits: (params: { status?: string; page?: number; pageSize?: number }): Promise<FixedDeposit[]> =>
-    apiGet<FixedDeposit[]>('/api/v1/deposits/fixed', params as Record<string, unknown>).catch(() => []),
+    apiGet<FixedDeposit[]>('/api/v1/deposits/fixed', params as Record<string, unknown>),
 
   getFixedDeposit: (id: string): Promise<FixedDeposit> =>
     apiGet<FixedDeposit>(`/api/v1/deposits/fixed/${id}`),
@@ -89,7 +89,7 @@ export const fixedDepositApi = {
     apiPost<FixedDeposit>('/api/v1/deposits/fixed', data),
 
   getRateTables: (): Promise<RateTable[]> =>
-    apiGet<RateTable[]>('/api/v1/deposits/fixed/rates').catch(() => []),
+    apiGet<RateTable[]>('/api/v1/deposits/fixed/rates'),
 
   calculateInterest: (params: InterestCalcParams): Promise<InterestCalcResult> =>
     apiPost<InterestCalcResult>('/api/v1/deposits/fixed/calculate', params),
@@ -113,7 +113,7 @@ export const fixedDepositApi = {
     apiPost<void>(`/api/v1/deposits/fixed/${id}/terminate`, { reason }),
 
   getCustomerFds: (customerId: string): Promise<FixedDeposit[]> =>
-    apiGet<FixedDeposit[]>(`/api/v1/deposits/fixed/customer/${customerId}`).catch(() => []),
+    apiGet<FixedDeposit[]>(`/api/v1/deposits/fixed/customer/${customerId}`),
 
   batchProcessMaturity: (): Promise<{ processed: number; rolledOver: number; liquidated: number; failed: number }> =>
     apiPost<{ processed: number; rolledOver: number; liquidated: number; failed: number }>('/api/v1/deposits/fixed/batch/maturity'),

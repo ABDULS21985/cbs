@@ -1,6 +1,5 @@
 package com.cbs.card.dispute;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,7 +21,6 @@ import java.util.Map;
 public class CardDisputeController {
 
     private final CardDisputeService disputeService;
-    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping
     @Operation(summary = "Initiate a card dispute")
@@ -38,7 +36,7 @@ public class CardDisputeController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(disputeService.initiateDispute(
                 cardId, customerId, accountId, transactionId, transactionRef, transactionDate,
                 transactionAmount, transactionCurrency, merchantName, merchantId,
-                disputeType, disputeReason, disputeAmount, cardScheme, currentActorProvider.getCurrentActor())));
+                disputeType, disputeReason, disputeAmount, cardScheme)));
     }
 
     @GetMapping("/{id}")
@@ -67,7 +65,7 @@ public class CardDisputeController {
     @Operation(summary = "Issue provisional credit to cardholder")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CardDispute>> provisionalCredit(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(disputeService.issueProvisionalCredit(id, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(disputeService.issueProvisionalCredit(id)));
     }
 
     @PostMapping("/{id}/chargeback")
@@ -75,7 +73,7 @@ public class CardDisputeController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CardDispute>> fileChargeback(@PathVariable Long id,
             @RequestParam String schemeCaseId, @RequestParam String schemeReasonCode) {
-        return ResponseEntity.ok(ApiResponse.ok(disputeService.fileChargeback(id, schemeCaseId, schemeReasonCode, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(disputeService.fileChargeback(id, schemeCaseId, schemeReasonCode)));
     }
 
     @PostMapping("/{id}/representment")
@@ -83,7 +81,7 @@ public class CardDisputeController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CardDispute>> representment(@PathVariable Long id,
             @RequestParam String merchantResponse) {
-        return ResponseEntity.ok(ApiResponse.ok(disputeService.recordRepresentment(id, merchantResponse, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(disputeService.recordRepresentment(id, merchantResponse)));
     }
 
     @PostMapping("/{id}/arbitration")
@@ -92,7 +90,7 @@ public class CardDisputeController {
     public ResponseEntity<ApiResponse<CardDispute>> arbitration(@PathVariable Long id,
             @RequestParam(defaultValue = "true") boolean preArbitration,
             @RequestParam(required = false) String notes) {
-        return ResponseEntity.ok(ApiResponse.ok(disputeService.escalateToArbitration(id, preArbitration, currentActorProvider.getCurrentActor(), notes)));
+        return ResponseEntity.ok(ApiResponse.ok(disputeService.escalateToArbitration(id, preArbitration, notes)));
     }
 
     @PostMapping("/{id}/resolve")
@@ -101,7 +99,7 @@ public class CardDisputeController {
     public ResponseEntity<ApiResponse<CardDispute>> resolve(@PathVariable Long id,
             @RequestParam String resolutionType, @RequestParam BigDecimal resolutionAmount,
             @RequestParam(required = false) String notes) {
-        return ResponseEntity.ok(ApiResponse.ok(disputeService.resolveDispute(id, resolutionType, resolutionAmount, notes, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(disputeService.resolveDispute(id, resolutionType, resolutionAmount, notes)));
     }
 
     @PostMapping("/sla-check")

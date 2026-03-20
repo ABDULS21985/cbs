@@ -418,12 +418,12 @@ export function ContactCenterPage() {
   const connectionStatus = isError ? 'disconnected' : isFetching ? 'updating' : 'live';
   const { data: interactions = [] } = useQuery({
     queryKey: ['contact-center', 'interactions'],
-    queryFn: () => apiGet<ContactInteraction[]>('/api/v1/contact-center/interactions').catch(() => []),
+    queryFn: () => apiGet<ContactInteraction[]>('/api/v1/contact-center/interactions'),
     refetchInterval: 10_000,
   });
   const { data: callbacks = [] } = useQuery({
     queryKey: ['contact-center', 'callbacks'],
-    queryFn: () => apiGet<CallbackRequest[]>('/api/v1/contact-center/callbacks').catch(() => []),
+    queryFn: () => apiGet<CallbackRequest[]>('/api/v1/contact-center/callbacks'),
     refetchInterval: 15_000,
   });
 

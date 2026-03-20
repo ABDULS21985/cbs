@@ -3,6 +3,7 @@ import { tradingApi } from '../api/tradingApi';
 import type {
   TreasuryDealsParams,
   BookDealRequest,
+  AmendDealRequest,
   RecordAnalyticsRequest,
   RecordPnlRequest,
   SubmitOrderRequest,
@@ -80,6 +81,27 @@ export function useSettleDeal() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['treasury-deals'] });
     },
+  });
+}
+
+export function useAmendDeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: AmendDealRequest }) =>
+      tradingApi.amendDeal(id, data),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['treasury-deals'] });
+      qc.invalidateQueries({ queryKey: KEYS.deal(vars.id) });
+    },
+  });
+}
+
+export function useDealAuditTrail(dealId: string) {
+  return useQuery({
+    queryKey: ['treasury-deals', 'audit-trail', dealId] as const,
+    queryFn: () => tradingApi.getDealAuditTrail(dealId),
+    enabled: !!dealId,
+    staleTime: 30_000,
   });
 }
 
@@ -315,5 +337,38 @@ export function useModelsDueForReview() {
     queryKey: KEYS.modelsDueForReview(),
     queryFn: () => tradingApi.getModelsDueForReview(),
     staleTime: 60_000,
+  });
+}
+
+// ─── Cross-Feature Summary Hooks ──────────────────────────────────────────────
+
+export function useTreasuryDealsSummary() {
+  return useQuery({
+    queryKey: ['treasury-deals', 'summary'],
+    queryFn: async () => {
+      const deals = await tradingApi.listDeals({ size: 1000 });
+      const allDeals = Array.isArray(deals) ? deals : (deals as any).content ?? [];
+      return {
+        totalDeals: allDeals.length,
+        pendingConfirmation: allDeals.filter((d: any) => d.status === 'BOOKED').length,
+        pendingSettlement: allDeals.filter((d: any) => d.status === 'CONFIRMED').length,
+        totalNotional: allDeals.reduce((s: number, d: any) => s + (d.amount ?? 0), 0),
+      };
+    },
+    staleTime: 60_000,
+  });
+}
+
+export function useFxRateLive(pair: string) {
+  return useQuery({
+    queryKey: ['fx-rates', 'live', pair],
+    queryFn: () =>
+      tradingApi.listDeals({ size: 1 }).then(() => {
+        // Stub — real implementation would call /api/v1/market-data/fx-rates?pair=pair
+        return { pair, bid: 0, ask: 0, mid: 0, updatedAt: new Date().toISOString() };
+      }),
+    enabled: !!pair,
+    staleTime: 10_000,
+    refetchInterval: 30_000,
   });
 }

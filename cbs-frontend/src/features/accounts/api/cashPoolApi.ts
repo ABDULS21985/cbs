@@ -75,7 +75,7 @@ export interface CashPoolView {
 // ── API functions ────────────────────────────────────────────────────────────
 
 export function getCashPools(): Promise<CashPool[]> {
-  return apiGet<CashPool[]>('/api/v1/cash-pools').catch(() => []);
+  return apiGet<CashPool[]>('/api/v1/cash-pools');
 }
 
 export function getCashPoolByCode(poolCode: string): Promise<CashPool> {
@@ -87,7 +87,7 @@ export function createCashPool(data: Partial<CashPool>): Promise<CashPool> {
 }
 
 export function getParticipants(poolCode: string): Promise<CashPoolParticipant[]> {
-  return apiGet<CashPoolParticipant[]>(`/api/v1/cash-pools/${poolCode}/participants`).catch(() => []);
+  return apiGet<CashPoolParticipant[]>(`/api/v1/cash-pools/${poolCode}/participants`);
 }
 
 export function addParticipant(poolCode: string, data: Partial<CashPoolParticipant>): Promise<CashPoolParticipant> {
@@ -108,7 +108,7 @@ export function removeParticipant(poolCode: string, participantId: number): Prom
 
 export function getSweepHistory(poolCode: string, date?: string): Promise<SweepTransaction[]> {
   const params = date ? { date } : undefined;
-  return apiGet<SweepTransaction[]>(`/api/v1/cash-pools/${poolCode}/sweeps`, params).catch(() => []);
+  return apiGet<SweepTransaction[]>(`/api/v1/cash-pools/${poolCode}/sweeps`, params);
 }
 
 export function triggerSweep(poolCode: string): Promise<SweepTransaction[]> {

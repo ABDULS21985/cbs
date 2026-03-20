@@ -1,6 +1,5 @@
 package com.cbs.lifecycle.controller;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.lifecycle.dto.LifecycleEventDto;
@@ -24,7 +23,6 @@ import java.util.Map;
 public class AccountLifecycleController {
 
     private final AccountLifecycleService lifecycleService;
-    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping("/dormancy/detect")
     @Operation(summary = "Run dormancy detection on all active accounts")
@@ -39,7 +37,7 @@ public class AccountLifecycleController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Void>> reactivateAccount(
             @PathVariable Long accountId) {
-        lifecycleService.reactivateAccount(accountId, currentActorProvider.getCurrentActor());
+        lifecycleService.reactivateAccount(accountId);
         return ResponseEntity.ok(ApiResponse.ok(null, "Account reactivated"));
     }
 

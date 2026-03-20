@@ -77,7 +77,7 @@ public class LoanController {
     public ResponseEntity<ApiResponse<LoanApplicationResponse>> approveApplication(
             @PathVariable Long id,
             @Valid @RequestBody LoanApprovalRequest approval) {
-        return ResponseEntity.ok(ApiResponse.ok(loanService.approveApplication(id, approval, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(loanService.approveApplication(id, approval)));
     }
 
     @PostMapping("/applications/{id}/decline")

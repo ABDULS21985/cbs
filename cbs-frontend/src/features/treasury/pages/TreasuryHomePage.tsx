@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   TrendingUp,
@@ -97,6 +98,7 @@ const DEAL_STATUS_COLORS: Record<string, string> = {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export function TreasuryHomePage() {
+  useEffect(() => { document.title = 'Treasury | CBS'; }, []);
   const { deals, desks, analytics, almScenarios } = useTreasuryHomeData();
 
   const dealList = (deals.data ?? []).slice(0, 5);
@@ -105,7 +107,11 @@ export function TreasuryHomePage() {
   const metrics = Array.isArray(analytics.data) ? analytics.data[0] ?? null : null;
   const scenarios = almScenarios.data ?? [];
 
-  const totalDealCount = deals.data?.length ?? 0;
+  const allDeals = deals.data ?? [];
+  const totalDealCount = allDeals.length;
+  const pendingConfirmation = allDeals.filter((d) => d.status === 'BOOKED').length;
+  const pendingSettlement = allDeals.filter((d) => d.status === 'CONFIRMED').length;
+  const totalNotional = allDeals.reduce((s, d) => s + (d.amount ?? 0), 0);
   const activeDeskCount = deskList.filter((d) => d.status === 'ACTIVE').length;
   const totalDeskPnl = deskList.reduce((sum, d) => sum + (d.todayPnl ?? 0), 0);
   const hasAlerts = scenarios.length === 0 && !almScenarios.isLoading;
@@ -119,21 +125,21 @@ export function TreasuryHomePage() {
       <div className="page-container space-y-6">
         {/* KPI Row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard
-            label="Total Deals"
-            value={totalDealCount}
-            loading={deals.isLoading}
-          />
-          <StatCard
-            label="Active Desks"
-            value={activeDeskCount}
-            loading={desks.isLoading}
-          />
-          <KpiTile label="NIM" value={metrics?.nim} suffix="%" />
-          <KpiTile label="CAR" value={metrics?.car} suffix="%" />
+          <StatCard label="Total Deals" value={totalDealCount} loading={deals.isLoading} />
+          <StatCard label="Total Notional" value={totalNotional > 0 ? `₦${(totalNotional / 1_000_000).toFixed(1)}M` : '—'} loading={deals.isLoading} />
+          <StatCard label="Pending Confirm" value={pendingConfirmation} loading={deals.isLoading} />
+          <StatCard label="Pending Settle" value={pendingSettlement} loading={deals.isLoading} />
         </div>
 
         {/* Treasury Metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <StatCard label="Active Desks" value={activeDeskCount} loading={desks.isLoading} />
+          <KpiTile label="NIM" value={metrics?.nim} suffix="%" />
+          <KpiTile label="CAR" value={metrics?.car} suffix="%" />
+          <StatCard label="Daily P&L" value={totalDeskPnl !== 0 ? `${totalDeskPnl >= 0 ? '+' : ''}${totalDeskPnl.toLocaleString()}` : '—'}
+            loading={desks.isLoading}
+            trend={totalDeskPnl > 0 ? 'up' : totalDeskPnl < 0 ? 'down' : 'flat'} />
+        </div>
         {metrics && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <KpiTile label="ROA" value={metrics.roa} suffix="%" />

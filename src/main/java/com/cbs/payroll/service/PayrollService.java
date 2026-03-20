@@ -4,6 +4,7 @@ import com.cbs.account.dto.PostTransactionRequest;
 import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.service.AccountService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payroll.entity.*;
@@ -26,6 +27,7 @@ public class PayrollService {
     private final PayrollItemRepository itemRepository;
     private final PaymentService paymentService;
     private final AccountService accountService;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public PayrollBatch createBatch(PayrollBatch batch, List<PayrollItem> items) {
@@ -73,9 +75,10 @@ public class PayrollService {
     }
 
     @Transactional
-    public PayrollBatch approve(String batchId, String approvedBy) {
+    public PayrollBatch approve(String batchId) {
         PayrollBatch batch = getBatch(batchId);
         if (!"VALIDATED".equals(batch.getStatus())) throw new BusinessException("Batch must be VALIDATED before approval");
+        String approvedBy = currentActorProvider.getCurrentActor();
         batch.setStatus("APPROVED");
         batch.setApprovedBy(approvedBy);
         batch.setApprovedAt(Instant.now());

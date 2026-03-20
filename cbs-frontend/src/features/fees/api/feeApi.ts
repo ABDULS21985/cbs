@@ -169,7 +169,7 @@ export async function previewCharge(
       { params: { triggerEvent: eventType, accountId: 0, amount } },
     );
     return data.data ?? [];
-  })().catch(() => [] as BackendFeeResult[]);
+  })();
 
   const applicableFees = results.map((r) => ({
     feeId: r.feeCode ?? '',

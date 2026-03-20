@@ -1,6 +1,5 @@
 package com.cbs.payroll.controller;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.payroll.entity.*;
 import com.cbs.payroll.service.PayrollService;
@@ -15,7 +14,6 @@ import java.util.List;
 @Tag(name = "Corporate Payroll", description = "Batch payroll processing — validation, approval, disbursement, statutory deductions")
 public class PayrollController {
     private final PayrollService payrollService;
-    private final CurrentActorProvider currentActorProvider;
 
     @GetMapping("/batches") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<PayrollBatch>>> listBatches() {
@@ -31,7 +29,7 @@ public class PayrollController {
     }
     @PostMapping("/batches/{batchId}/approve") @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<PayrollBatch>> approve(@PathVariable String batchId) {
-        return ResponseEntity.ok(ApiResponse.ok(payrollService.approve(batchId, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(payrollService.approve(batchId)));
     }
     @PostMapping("/batches/{batchId}/process") @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<PayrollBatch>> process(@PathVariable String batchId) {

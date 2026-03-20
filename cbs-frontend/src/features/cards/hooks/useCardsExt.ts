@@ -98,8 +98,8 @@ export function useInitiateDispute() {
 export function useProvisionalCredit() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, performedBy }: { id: number; performedBy: string }) =>
-      cardsApi.provisionalCredit(id, performedBy),
+    mutationFn: ({ id }: { id: number }) =>
+      cardsApi.provisionalCredit(id),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
       queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
@@ -110,8 +110,8 @@ export function useProvisionalCredit() {
 export function useFileChargeback() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, schemeCaseId, schemeReasonCode, performedBy }: { id: number; schemeCaseId: string; schemeReasonCode: string; performedBy: string }) =>
-      cardsApi.fileChargeback(id, schemeCaseId, schemeReasonCode, performedBy),
+    mutationFn: ({ id, schemeCaseId, schemeReasonCode }: { id: number; schemeCaseId: string; schemeReasonCode: string }) =>
+      cardsApi.fileChargeback(id, schemeCaseId, schemeReasonCode),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
       queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
@@ -122,8 +122,8 @@ export function useFileChargeback() {
 export function useSubmitRepresentment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, merchantResponse, performedBy }: { id: number; merchantResponse: string; performedBy: string }) =>
-      cardsApi.submitRepresentment(id, merchantResponse, performedBy),
+    mutationFn: ({ id, merchantResponse }: { id: number; merchantResponse: string }) =>
+      cardsApi.submitRepresentment(id, merchantResponse),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
       queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
@@ -134,8 +134,8 @@ export function useSubmitRepresentment() {
 export function useEscalateToArbitration() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, performedBy, notes }: { id: number; performedBy: string; notes?: string }) =>
-      cardsApi.escalateToArbitration(id, performedBy, notes),
+    mutationFn: ({ id, notes }: { id: number; notes?: string }) =>
+      cardsApi.escalateToArbitration(id, notes),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
       queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
@@ -146,9 +146,9 @@ export function useEscalateToArbitration() {
 export function useResolveDispute() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, resolutionType, resolutionAmount, performedBy, notes }: {
-      id: number; resolutionType: string; resolutionAmount: number; performedBy: string; notes?: string;
-    }) => cardsApi.resolveDispute(id, resolutionType, resolutionAmount, performedBy, notes),
+    mutationFn: ({ id, resolutionType, resolutionAmount, notes }: {
+      id: number; resolutionType: string; resolutionAmount: number; notes?: string;
+    }) => cardsApi.resolveDispute(id, resolutionType, resolutionAmount, notes),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
       queryClient.invalidateQueries({ queryKey: cardKeys.disputes });

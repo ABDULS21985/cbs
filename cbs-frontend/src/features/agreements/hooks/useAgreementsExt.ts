@@ -426,23 +426,23 @@ export function useTdFramework(id: number) {
 
 
 export function useTdMaturityLadder(agreementId?: number) {
-  return useQuery({ queryKey: ['td-maturity-ladder', agreementId], queryFn: () => apiGet<any[]>(`/api/v1/td-framework-summary/maturity-ladder/${agreementId || 0}`).catch(() => []), enabled: !!agreementId });
+  return useQuery({ queryKey: ['td-maturity-ladder', agreementId], queryFn: () => apiGet<any[]>(`/api/v1/td-framework-summary/maturity-ladder/${agreementId || 0}`), enabled: !!agreementId });
 }
 
 export function useTdRolloverForecast(agreementId?: number) {
-  return useQuery({ queryKey: ['td-rollover-forecast', agreementId], queryFn: () => apiGet<any>(`/api/v1/td-framework-summary/rollover-forecast/${agreementId || 0}`).catch(() => null), enabled: !!agreementId });
+  return useQuery({ queryKey: ['td-rollover-forecast', agreementId], queryFn: () => apiGet<any>(`/api/v1/td-framework-summary/rollover-forecast/${agreementId || 0}`), enabled: !!agreementId });
 }
 
 export function useTdHistory(agreementId?: number) {
-  return useQuery({ queryKey: ['td-history', agreementId], queryFn: () => apiGet<any[]>(`/api/v1/td-framework-summary/history/${agreementId || 0}`).catch(() => []), enabled: !!agreementId });
+  return useQuery({ queryKey: ['td-history', agreementId], queryFn: () => apiGet<any[]>(`/api/v1/td-framework-summary/history/${agreementId || 0}`), enabled: !!agreementId });
 }
 
 export function useCommissionAgreement(id: number) {
-  return useQuery({ queryKey: ['commission-agreement', id], queryFn: () => apiGet<any>(`/api/v1/commissions/agreements/${id}`).catch(() => null), enabled: !!id });
+  return useQuery({ queryKey: ['commission-agreement', id], queryFn: () => apiGet<any>(`/api/v1/commissions/agreements/${id}`), enabled: !!id });
 }
 
 export function useAgreement(id: number) {
-  return useQuery({ queryKey: ['agreement', id], queryFn: () => apiGet<any>(`/api/v1/agreements/${id}`).catch(() => null), enabled: !!id });
+  return useQuery({ queryKey: ['agreement', id], queryFn: () => apiGet<any>(`/api/v1/agreements/${id}`), enabled: !!id });
 }
 
 export function useUpdateAgreement() {

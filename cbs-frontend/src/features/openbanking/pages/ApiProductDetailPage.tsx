@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge } from '@/components/shared/StatusBadge';
 import { TabsPage } from '@/components/shared/TabsPage';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -10,8 +9,6 @@ import {
   Ban,
   BarChart3,
   CheckCircle2,
-  Code2,
-  Copy,
   Globe,
   Loader2,
   Lock,

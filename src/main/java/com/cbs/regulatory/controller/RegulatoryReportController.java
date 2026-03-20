@@ -48,15 +48,15 @@ public class RegulatoryReportController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<RegulatoryReportRun>> generate(
             @RequestParam String reportCode, @RequestParam LocalDate periodStart,
-            @RequestParam LocalDate periodEnd, @RequestParam String generatedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(reportingService.generateReport(reportCode, periodStart, periodEnd, generatedBy)));
+            @RequestParam LocalDate periodEnd) {
+        return ResponseEntity.ok(ApiResponse.ok(reportingService.generateReport(reportCode, periodStart, periodEnd)));
     }
 
     @PostMapping("/runs/{runId}/submit")
     @Operation(summary = "Submit a generated report to the regulator")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<RegulatoryReportRun>> submit(@PathVariable Long runId, @RequestParam String submittedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(reportingService.submitReport(runId, submittedBy)));
+    public ResponseEntity<ApiResponse<RegulatoryReportRun>> submit(@PathVariable Long runId) {
+        return ResponseEntity.ok(ApiResponse.ok(reportingService.submitReport(runId)));
     }
 
     @GetMapping("/runs/{reportCode}")

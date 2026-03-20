@@ -343,13 +343,13 @@ export function AgentDetailPage() {
                 <PhoneOff className="w-3.5 h-3.5" /> Force Logout
               </button>
               <button
-                onClick={() => toast.info('Silent monitoring not available in web UI')}
+                onClick={() => toast.error('Silent monitoring is not wired to a backend or telephony control from this web UI.')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border hover:bg-muted"
               >
                 <Shield className="w-3.5 h-3.5" /> Monitor
               </button>
               <button
-                onClick={() => toast.info('Message sent to agent')}
+                onClick={() => toast.error('Agent messaging is not wired to a backend delivery channel from this page.')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border hover:bg-muted"
               >
                 <Send className="w-3.5 h-3.5" /> Message

@@ -61,7 +61,7 @@ interface FeePreviewCalculatorProps {
 export function FeePreviewCalculator({ accountId, feeCode }: FeePreviewCalculatorProps) {
   const { data: customerOptions = [] } = useQuery({
     queryKey: ['customer-selector'],
-    queryFn: () => apiGet<{ value: string; label: string }[]>('/api/v1/customers/selector').catch(() => []),
+    queryFn: () => apiGet<{ value: string; label: string }[]>('/api/v1/customers/selector'),
     staleTime: 5 * 60_000,
   });
 

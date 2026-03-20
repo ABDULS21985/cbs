@@ -13,7 +13,6 @@ import {
   Globe,
   Layers,
   Loader2,
-  Package,
   RefreshCw,
   Search,
 } from 'lucide-react';

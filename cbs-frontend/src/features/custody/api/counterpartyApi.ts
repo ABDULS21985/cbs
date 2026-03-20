@@ -29,9 +29,9 @@ export const counterpartiesApi = {
 
   /** GET /v1/counterparties/type/{type} */
   byType: (type: string) =>
-    apiGet<Counterparty[]>(`/api/v1/counterparties/type/${type}`).catch(() => []),
+    apiGet<Counterparty[]>(`/api/v1/counterparties/type/${type}`),
 
   /** GET /v1/counterparties/pending-kyc */
   pendingKyc: (params?: Record<string, unknown>) =>
-    apiGet<Counterparty[]>('/api/v1/counterparties/pending-kyc', params).catch(() => []),
+    apiGet<Counterparty[]>('/api/v1/counterparties/pending-kyc', params),
 };

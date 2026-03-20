@@ -8,7 +8,6 @@ import {
   KeyRound,
   Activity,
   ClipboardCheck,
-  ScrollText,
   Settings2,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';

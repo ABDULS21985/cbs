@@ -1,7 +1,10 @@
 package com.cbs.goal.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -15,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,6 +33,7 @@ public class SavingsGoalService {
     private final SavingsGoalRepository goalRepository;
     private final SavingsGoalTransactionRepository goalTxnRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
     private final CbsProperties cbsProperties;
 
     @Transactional
@@ -99,16 +104,25 @@ public class SavingsGoalService {
             throw new BusinessException("Goal is not active", "GOAL_NOT_ACTIVE");
         }
 
-        Account sourceAccount = null;
-        if (request.getSourceAccountId() != null) {
-            sourceAccount = accountRepository.findById(request.getSourceAccountId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Account", "id", request.getSourceAccountId()));
-            if (sourceAccount.getAvailableBalance().compareTo(request.getAmount()) < 0) {
-                throw new BusinessException("Insufficient balance in source account", "INSUFFICIENT_BALANCE");
-            }
-            sourceAccount.debit(request.getAmount());
-            accountRepository.save(sourceAccount);
+        if (request.getSourceAccountId() == null) {
+            throw new BusinessException("Source account is required to fund a savings goal", "SOURCE_ACCOUNT_REQUIRED");
         }
+        Account sourceAccount = accountRepository.findById(request.getSourceAccountId())
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", request.getSourceAccountId()));
+        if (sourceAccount.getAvailableBalance().compareTo(request.getAmount()) < 0) {
+            throw new BusinessException("Insufficient balance in source account", "INSUFFICIENT_BALANCE");
+        }
+        accountPostingService.postDebitAgainstGl(
+                sourceAccount,
+                TransactionType.TRANSFER_OUT,
+                request.getAmount(),
+                request.getNarration() != null ? request.getNarration() : "Deposit to goal: " + goal.getGoalName(),
+                TransactionChannel.SYSTEM,
+                goal.getGoalNumber() + ":FUND",
+                resolveGoalControlGlCode(),
+                "SAVINGS_GOAL",
+                goal.getGoalNumber()
+        );
 
         goal.deposit(request.getAmount());
 
@@ -152,8 +166,17 @@ public class SavingsGoalService {
                         .orElseThrow(() -> new ResourceNotFoundException("Account", "id", request.getSourceAccountId()))
                 : goal.getAccount();
 
-        destinationAccount.credit(request.getAmount());
-        accountRepository.save(destinationAccount);
+        accountPostingService.postCreditAgainstGl(
+                destinationAccount,
+                TransactionType.TRANSFER_IN,
+                request.getAmount(),
+                request.getNarration() != null ? request.getNarration() : "Withdrawal from goal: " + goal.getGoalName(),
+                TransactionChannel.SYSTEM,
+                goal.getGoalNumber() + ":WITHDRAW",
+                resolveGoalControlGlCode(),
+                "SAVINGS_GOAL",
+                goal.getGoalNumber()
+        );
 
         SavingsGoalTransaction txn = SavingsGoalTransaction.builder()
                 .savingsGoal(goal)
@@ -177,8 +200,17 @@ public class SavingsGoalService {
 
         if (goal.getCurrentAmount().compareTo(BigDecimal.ZERO) > 0) {
             Account account = goal.getAccount();
-            account.credit(goal.getCurrentAmount());
-            accountRepository.save(account);
+            accountPostingService.postCreditAgainstGl(
+                    account,
+                    TransactionType.TRANSFER_IN,
+                    goal.getCurrentAmount(),
+                    "Goal cancellation refund " + goal.getGoalName(),
+                    TransactionChannel.SYSTEM,
+                    goal.getGoalNumber() + ":CANCEL",
+                    resolveGoalControlGlCode(),
+                    "SAVINGS_GOAL",
+                    goal.getGoalNumber()
+            );
             goal.setCurrentAmount(BigDecimal.ZERO);
         }
 
@@ -197,8 +229,17 @@ public class SavingsGoalService {
                 Account debitAccount = goal.getAutoDebitAccount() != null ? goal.getAutoDebitAccount() : goal.getAccount();
                 BigDecimal amount = goal.getAutoDebitAmount();
                 if (debitAccount.getAvailableBalance().compareTo(amount) >= 0) {
-                    debitAccount.debit(amount);
-                    accountRepository.save(debitAccount);
+                    accountPostingService.postDebitAgainstGl(
+                            debitAccount,
+                            TransactionType.TRANSFER_OUT,
+                            amount,
+                            "Auto-debit for goal: " + goal.getGoalName(),
+                            TransactionChannel.SYSTEM,
+                            goal.getGoalNumber() + ":AUTO",
+                            resolveGoalControlGlCode(),
+                            "SAVINGS_GOAL",
+                            goal.getGoalNumber()
+                    );
                     goal.deposit(amount);
 
                     SavingsGoalTransaction txn = SavingsGoalTransaction.builder()
@@ -246,5 +287,14 @@ public class SavingsGoalService {
                 .isLocked(g.getIsLocked()).allowWithdrawalBeforeTarget(g.getAllowWithdrawalBeforeTarget())
                 .currencyCode(g.getCurrencyCode()).metadata(g.getMetadata()).createdAt(g.getCreatedAt())
                 .build();
+    }
+
+    private String resolveGoalControlGlCode() {
+        String glCode = cbsProperties.getLedger().getSavingsGoalControlGlCode();
+        if (!StringUtils.hasText(glCode)) {
+            throw new BusinessException("CBS_LEDGER_SAVINGS_GOAL_GL is required for savings goal postings",
+                    "MISSING_SAVINGS_GOAL_CONTROL_GL");
+        }
+        return glCode;
     }
 }

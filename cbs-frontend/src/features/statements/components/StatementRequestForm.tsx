@@ -81,7 +81,7 @@ export function StatementRequestForm({
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['statement-accounts'],
-    queryFn: () => apiGet<AccountOption[]>('/api/v1/accounts/selector').catch(() => []),
+    queryFn: () => apiGet<AccountOption[]>('/api/v1/accounts/selector'),
     staleTime: 5 * 60 * 1000,
   });
 

@@ -74,7 +74,7 @@ export const ACH_RETURN_CODES: Record<string, string> = {
 
 export const achApi = {
   getOutboundBatches: (params?: Record<string, unknown>): Promise<AchBatch[]> =>
-    apiGet<AchBatch[]>('/api/v1/ach/outbound', params).catch(() => []),
+    apiGet<AchBatch[]>('/api/v1/ach/outbound', params),
 
   getOutboundBatch: (id: string): Promise<AchBatch> =>
     apiGet<AchBatch>(`/api/v1/ach/outbound/${id}`),
@@ -87,7 +87,7 @@ export const achApi = {
   },
 
   getInboundBatches: (params?: Record<string, unknown>): Promise<AchBatch[]> =>
-    apiGet<AchBatch[]>('/api/v1/ach/inbound', params).catch(() => []),
+    apiGet<AchBatch[]>('/api/v1/ach/inbound', params),
 
   getInboundBatch: (id: string): Promise<AchBatch> =>
     apiGet<AchBatch>(`/api/v1/ach/inbound/${id}`),
@@ -99,10 +99,10 @@ export const achApi = {
     apiPost<AchItem>(`/api/v1/ach/inbound/${batchId}/items/${itemId}/return`, { reasonCode }),
 
   getReturns: (params?: Record<string, unknown>): Promise<AchReturn[]> =>
-    apiGet<AchReturn[]>('/api/v1/ach/returns', params).catch(() => []),
+    apiGet<AchReturn[]>('/api/v1/ach/returns', params),
 
   getSettlementSummary: (date?: string): Promise<SettlementSummary[]> =>
-    apiGet<SettlementSummary[]>('/api/v1/ach/settlement', date ? { date } : undefined).catch(() => []),
+    apiGet<SettlementSummary[]>('/api/v1/ach/settlement', date ? { date } : undefined),
 
   getRawNachaFile: async (batchId: string): Promise<string> => {
     const response = await api.get(`/api/v1/ach/outbound/${batchId}/nacha`, { responseType: 'text' });

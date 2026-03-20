@@ -38,7 +38,7 @@ export const cardsApi = {
     transactionDate: string; transactionAmount: number; transactionCurrency: string;
     merchantName?: string; merchantId?: string;
     disputeType: string; disputeReason: string; disputeAmount: number;
-    cardScheme: string; createdBy: string;
+    cardScheme: string;
   }) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => { if (v != null) qs.set(k, String(v)); });
@@ -46,24 +46,24 @@ export const cardsApi = {
   },
 
   /** POST /v1/cards/disputes/{id}/provisional-credit */
-  provisionalCredit: (id: number, performedBy: string) =>
-    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/provisional-credit?performedBy=${encodeURIComponent(performedBy)}`),
+  provisionalCredit: (id: number) =>
+    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/provisional-credit`),
 
   /** POST /v1/cards/disputes/{id}/chargeback */
-  fileChargeback: (id: number, schemeCaseId: string, schemeReasonCode: string, performedBy: string) =>
-    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/chargeback?schemeCaseId=${encodeURIComponent(schemeCaseId)}&schemeReasonCode=${encodeURIComponent(schemeReasonCode)}&performedBy=${encodeURIComponent(performedBy)}`),
+  fileChargeback: (id: number, schemeCaseId: string, schemeReasonCode: string) =>
+    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/chargeback?schemeCaseId=${encodeURIComponent(schemeCaseId)}&schemeReasonCode=${encodeURIComponent(schemeReasonCode)}`),
 
   /** POST /v1/cards/disputes/{id}/representment */
-  submitRepresentment: (id: number, merchantResponse: string, performedBy: string) =>
-    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/representment?merchantResponse=${encodeURIComponent(merchantResponse)}&performedBy=${encodeURIComponent(performedBy)}`),
+  submitRepresentment: (id: number, merchantResponse: string) =>
+    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/representment?merchantResponse=${encodeURIComponent(merchantResponse)}`),
 
   /** POST /v1/cards/disputes/{id}/arbitration */
-  escalateToArbitration: (id: number, performedBy: string, notes?: string) =>
-    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/arbitration?performedBy=${encodeURIComponent(performedBy)}${notes ? `&notes=${encodeURIComponent(notes)}` : ''}`),
+  escalateToArbitration: (id: number, notes?: string) =>
+    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/arbitration${notes ? `?notes=${encodeURIComponent(notes)}` : ''}`),
 
   /** POST /v1/cards/disputes/{id}/resolve */
-  resolveDispute: (id: number, resolutionType: string, resolutionAmount: number, performedBy: string, notes?: string) =>
-    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/resolve?resolutionType=${encodeURIComponent(resolutionType)}&resolutionAmount=${resolutionAmount}&performedBy=${encodeURIComponent(performedBy)}${notes ? `&notes=${encodeURIComponent(notes)}` : ''}`),
+  resolveDispute: (id: number, resolutionType: string, resolutionAmount: number, notes?: string) =>
+    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/resolve?resolutionType=${encodeURIComponent(resolutionType)}&resolutionAmount=${resolutionAmount}${notes ? `&notes=${encodeURIComponent(notes)}` : ''}`),
 
   /** GET /v1/cards/tokens/card/{cardId} */
   getCardTokens: (cardId: number) =>

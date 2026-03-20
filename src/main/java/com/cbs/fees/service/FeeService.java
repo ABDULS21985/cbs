@@ -1,7 +1,11 @@
 package com.cbs.fees.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.fees.engine.FeeEngine;
@@ -13,8 +17,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -28,6 +34,8 @@ public class FeeService {
     private final FeeChargeLogRepository feeChargeLogRepository;
     private final AccountRepository accountRepository;
     private final FeeEngine feeEngine;
+    private final AccountPostingService accountPostingService;
+    private final CurrentActorProvider currentActorProvider;
 
     /**
      * Charges a fee triggered by a business event.
@@ -48,7 +56,17 @@ public class FeeService {
                     FeeEngine.FeeResult result = feeEngine.calculate(fee, transactionAmount);
 
                     if (result.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
-                        account.debit(result.getTotalAmount());
+                        accountPostingService.postDebitAgainstGl(
+                                account,
+                                TransactionType.FEE_DEBIT,
+                                result.getTotalAmount(),
+                                buildChargeNarration(fee, triggerEvent),
+                                TransactionChannel.SYSTEM,
+                                buildPostingRef(triggerRef, fee.getFeeCode(), "CHARGE"),
+                                buildChargeLegs(fee, result, account),
+                                "FEE_ENGINE",
+                                buildSourceRef(triggerEvent, triggerRef, fee.getFeeCode())
+                        );
 
                         FeeChargeLog chargeLog = FeeChargeLog.builder()
                                 .feeCode(fee.getFeeCode())
@@ -86,8 +104,17 @@ public class FeeService {
         FeeEngine.FeeResult result = feeEngine.calculate(fee, transactionAmount);
 
         if (result.getTotalAmount().compareTo(BigDecimal.ZERO) > 0) {
-            account.debit(result.getTotalAmount());
-            accountRepository.save(account);
+            accountPostingService.postDebitAgainstGl(
+                    account,
+                    TransactionType.FEE_DEBIT,
+                    result.getTotalAmount(),
+                    buildChargeNarration(fee, fee.getTriggerEvent()),
+                    TransactionChannel.SYSTEM,
+                    buildPostingRef(triggerRef, feeCode, "CHARGE"),
+                    buildChargeLegs(fee, result, account),
+                    "FEE_ENGINE",
+                    buildSourceRef(fee.getTriggerEvent(), triggerRef, feeCode)
+            );
 
             FeeChargeLog chargeLog = FeeChargeLog.builder()
                     .feeCode(feeCode).accountId(accountId).customerId(account.getCustomer().getId())
@@ -115,19 +142,30 @@ public class FeeService {
      * Waive a previously charged fee.
      */
     @Transactional
-    public FeeChargeLog waiveFee(Long chargeLogId, String waivedBy, String reason) {
+    public FeeChargeLog waiveFee(Long chargeLogId, String reason) {
         FeeChargeLog chargeLog = feeChargeLogRepository.findById(chargeLogId)
                 .orElseThrow(() -> new ResourceNotFoundException("FeeChargeLog", "id", chargeLogId));
+        String waivedBy = currentActorProvider.getCurrentActor();
 
         if (!"CHARGED".equals(chargeLog.getStatus())) {
             throw new BusinessException("Fee is not in CHARGED status", "FEE_NOT_CHARGED");
         }
 
-        // Refund the fee
         Account account = accountRepository.findById(chargeLog.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", chargeLog.getAccountId()));
-        account.credit(chargeLog.getTotalAmount());
-        accountRepository.save(account);
+        FeeDefinition fee = feeDefinitionRepository.findByFeeCode(chargeLog.getFeeCode())
+                .orElseThrow(() -> new ResourceNotFoundException("FeeDefinition", "feeCode", chargeLog.getFeeCode()));
+        accountPostingService.postCreditAgainstGl(
+                account,
+                TransactionType.ADJUSTMENT,
+                chargeLog.getTotalAmount(),
+                "Fee waiver " + chargeLog.getFeeCode(),
+                TransactionChannel.SYSTEM,
+                buildPostingRef(chargeLog.getTriggerRef(), chargeLog.getFeeCode(), "WAIVE"),
+                buildWaiverLegs(fee, chargeLog, account),
+                "FEE_ENGINE",
+                buildSourceRef(chargeLog.getTriggerEvent(), chargeLog.getTriggerRef(), chargeLog.getFeeCode())
+        );
 
         chargeLog.setWasWaived(true);
         chargeLog.setWaivedBy(waivedBy);
@@ -239,5 +277,91 @@ public class FeeService {
         result.put("totalAmount", 0);
         result.put("sampleAccounts", List.of());
         return result;
+    }
+
+    private List<AccountPostingService.GlPostingLeg> buildChargeLegs(FeeDefinition fee, FeeEngine.FeeResult result, Account account) {
+        List<AccountPostingService.GlPostingLeg> legs = new ArrayList<>();
+        if (result.getFeeAmount().compareTo(BigDecimal.ZERO) > 0) {
+            legs.add(accountPostingService.balanceLeg(
+                    requireGlCode(fee.getFeeIncomeGlCode(), "fee income", fee.getFeeCode()),
+                    AccountPostingService.EntrySide.CREDIT,
+                    result.getFeeAmount(),
+                    account.getCurrencyCode(),
+                    BigDecimal.ONE,
+                    "Fee income " + fee.getFeeCode(),
+                    account.getId(),
+                    account.getCustomer() != null ? account.getCustomer().getId() : null
+            ));
+        }
+        if (result.getTaxAmount().compareTo(BigDecimal.ZERO) > 0) {
+            legs.add(accountPostingService.balanceLeg(
+                    requireGlCode(fee.getTaxGlCode(), "tax", fee.getFeeCode()),
+                    AccountPostingService.EntrySide.CREDIT,
+                    result.getTaxAmount(),
+                    account.getCurrencyCode(),
+                    BigDecimal.ONE,
+                    "Fee tax " + fee.getFeeCode(),
+                    account.getId(),
+                    account.getCustomer() != null ? account.getCustomer().getId() : null
+            ));
+        }
+        return legs;
+    }
+
+    private List<AccountPostingService.GlPostingLeg> buildWaiverLegs(FeeDefinition fee, FeeChargeLog chargeLog, Account account) {
+        List<AccountPostingService.GlPostingLeg> legs = new ArrayList<>();
+        if (chargeLog.getFeeAmount().compareTo(BigDecimal.ZERO) > 0) {
+            legs.add(accountPostingService.balanceLeg(
+                    requireGlCode(fee.getFeeIncomeGlCode(), "fee income", fee.getFeeCode()),
+                    AccountPostingService.EntrySide.DEBIT,
+                    chargeLog.getFeeAmount(),
+                    account.getCurrencyCode(),
+                    BigDecimal.ONE,
+                    "Fee income reversal " + fee.getFeeCode(),
+                    account.getId(),
+                    account.getCustomer() != null ? account.getCustomer().getId() : null
+            ));
+        }
+        if (chargeLog.getTaxAmount().compareTo(BigDecimal.ZERO) > 0) {
+            legs.add(accountPostingService.balanceLeg(
+                    requireGlCode(fee.getTaxGlCode(), "tax", fee.getFeeCode()),
+                    AccountPostingService.EntrySide.DEBIT,
+                    chargeLog.getTaxAmount(),
+                    account.getCurrencyCode(),
+                    BigDecimal.ONE,
+                    "Fee tax reversal " + fee.getFeeCode(),
+                    account.getId(),
+                    account.getCustomer() != null ? account.getCustomer().getId() : null
+            ));
+        }
+        return legs;
+    }
+
+    private String requireGlCode(String glCode, String purpose, String feeCode) {
+        if (!StringUtils.hasText(glCode)) {
+            throw new BusinessException("Fee " + feeCode + " is missing " + purpose + " GL code",
+                    "MISSING_FEE_GL_CODE");
+        }
+        return glCode;
+    }
+
+    private String buildChargeNarration(FeeDefinition fee, String triggerEvent) {
+        return "Fee charge " + fee.getFeeCode() + (StringUtils.hasText(triggerEvent) ? " for " + triggerEvent : "");
+    }
+
+    private String buildPostingRef(String triggerRef, String feeCode, String suffix) {
+        String base = StringUtils.hasText(triggerRef) ? triggerRef : feeCode;
+        String value = base + ":" + suffix;
+        return value.length() <= 50 ? value : value.substring(0, 50);
+    }
+
+    private String buildSourceRef(String triggerEvent, String triggerRef, String feeCode) {
+        if (StringUtils.hasText(triggerRef)) {
+            return triggerRef;
+        }
+        if (StringUtils.hasText(triggerEvent)) {
+            return triggerEvent + ":" + feeCode;
+        }
+        return feeCode;
     }
 }

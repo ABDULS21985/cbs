@@ -367,7 +367,7 @@ export function useMarketMakingMandates() {
     queryKey: marketDataKeys.marketMaking,
     queryFn: async () => {
       const { apiGet } = await import('@/lib/api');
-      return apiGet<import('../types/marketMaking').MarketMakingMandate[]>('/api/v1/market-making/mandates').catch(() => []);
+      return apiGet<import('../types/marketMaking').MarketMakingMandate[]>('/api/v1/market-making/mandates');
     },
     staleTime: 30_000,
   });

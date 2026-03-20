@@ -16,7 +16,6 @@ import type { IssuedDevice } from '../types/issuedDevice';
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
 type DeviceType = 'CARD' | 'TOKEN' | 'SECURITY_KEY' | 'OTP_DEVICE';
-type DeviceStatus = 'PENDING' | 'ACTIVE' | 'BLOCKED' | 'EXPIRED' | 'REPLACED';
 type BlockReason = 'LOST' | 'STOLEN' | 'FRAUD' | 'CUSTOMER_REQUEST' | 'SECURITY';
 
 interface RegisterDeviceRequest {

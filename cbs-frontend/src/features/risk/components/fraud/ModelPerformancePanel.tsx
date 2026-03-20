@@ -50,14 +50,14 @@ export function ModelPerformancePanel() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => showToast('Model retraining pipeline coming soon')}
+            onClick={() => showToast('Model retraining is not wired to a backend workflow in this build')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border hover:bg-muted transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Retrain Model
           </button>
           <button
-            onClick={() => showToast('A/B testing framework coming soon')}
+            onClick={() => showToast('A/B model testing is not wired to a backend workflow in this build')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border hover:bg-muted transition-colors"
           >
             <FlaskConical className="w-3.5 h-3.5" />

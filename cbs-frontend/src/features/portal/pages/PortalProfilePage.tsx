@@ -477,7 +477,6 @@ function PreferencesTab({ customerId }: { customerId: number }) {
   const { data: preferences, isLoading } = usePortalPreferences(customerId);
   const updateMutation = useUpdatePreferences(customerId);
   const { data: accounts = [] } = usePortalAccounts();
-  const [commPrefs, setCommPrefs] = useState<Record<string, boolean>>({});
 
   const handleSave = (field: string, value: string | number) => {
     if (!preferences) return;
@@ -488,10 +487,12 @@ function PreferencesTab({ customerId }: { customerId: number }) {
     });
   };
 
-  const toggleComm = useCallback((category: string, channel: string) => {
-    const key = `${category}-${channel}`;
-    setCommPrefs((prev) => ({ ...prev, [key]: !prev[key] }));
-    toast.success('Communication preference updated');
+  // Communication preferences are read-only at this time.
+  // The backend (PortalService.updatePreferences) does not yet support per-channel
+  // notification preferences — only language and statement delivery channel are persisted.
+  // toggleComm is intentionally disabled until the backend endpoint is extended.
+  const toggleComm = useCallback((_category: string, _channel: string) => {
+    toast.error('Communication preference changes are not yet supported. Contact your bank to update notification settings.');
   }, []);
 
   if (isLoading) {
@@ -524,8 +525,7 @@ function PreferencesTab({ customerId }: { customerId: number }) {
                     {cat.mandatory && <span title="Cannot disable — mandatory"><Lock className="w-3 h-3 text-muted-foreground" /></span>}
                   </td>
                   {COMM_CHANNELS.map((ch) => {
-                    const key = `${cat.key}-${ch}`;
-                    const enabled = cat.mandatory ? true : (commPrefs[key] !== false);
+                    const enabled = true; // preferences not yet persisted by backend; always show enabled
                     return (
                       <td key={ch} className="px-4 py-3 text-center">
                         <button

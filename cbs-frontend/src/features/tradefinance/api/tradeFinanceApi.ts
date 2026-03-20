@@ -23,12 +23,12 @@ export interface DocumentaryCollection {
 }
 
 export const tradeFinanceApi = {
-  getLcs: (filters?: Record<string, unknown>) => apiGet<LetterOfCredit[]>('/api/v1/trade-finance/lc', filters).catch(() => []),
+  getLcs: (filters?: Record<string, unknown>) => apiGet<LetterOfCredit[]>('/api/v1/trade-finance/lc', filters),
   getLc: (id: number) => apiGet<LetterOfCredit>(`/api/v1/trade-finance/lc/${id}`),
   createLc: (data: Record<string, unknown>) => apiPost<LetterOfCredit>('/api/v1/trade-finance/lc', data),
 
-  getGuarantees: (filters?: Record<string, unknown>) => apiGet<BankGuarantee[]>('/api/v1/trade-finance/guarantees', filters).catch(() => []),
+  getGuarantees: (filters?: Record<string, unknown>) => apiGet<BankGuarantee[]>('/api/v1/trade-finance/guarantees', filters),
   getGuarantee: (id: number) => apiGet<BankGuarantee>(`/api/v1/trade-finance/guarantees/${id}`),
 
-  getCollections: () => apiGet<DocumentaryCollection[]>('/api/v1/trade-finance/collections').catch(() => []),
+  getCollections: () => apiGet<DocumentaryCollection[]>('/api/v1/trade-finance/collections'),
 };

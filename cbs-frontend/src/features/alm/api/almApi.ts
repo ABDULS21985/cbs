@@ -217,7 +217,7 @@ export const almApi = {
     apiGet<AlmGapReport>(`/api/v1/alm/gap-report/${date}`),
 
   getGapReports: () =>
-    apiGet<AlmGapReport[]>('/api/v1/alm/gap-report').catch(() => []),
+    apiGet<AlmGapReport[]>('/api/v1/alm/gap-report'),
 
   generateGapReport: (payload: {
     asOfDate: string;
@@ -237,10 +237,10 @@ export const almApi = {
 
   // Scenarios
   getScenarios: () =>
-    apiGet<AlmScenario[]>('/api/v1/alm/scenarios').catch(() => []),
+    apiGet<AlmScenario[]>('/api/v1/alm/scenarios'),
 
   getRegulatoryScenarios: () =>
-    apiGet<AlmScenario[]>('/api/v1/alm/scenarios/regulatory').catch(() => []),
+    apiGet<AlmScenario[]>('/api/v1/alm/scenarios/regulatory'),
 
   createScenario: (payload: {
     name: string;
@@ -251,14 +251,14 @@ export const almApi = {
 
   // Full ALM Positions (returns array of rows, one per bucket)
   getAlmPositions: (date: string, currency: string) =>
-    apiGet<AlmPositionRow[]>(`/api/v1/alm-full/${date}/${currency}`).catch(() => []),
+    apiGet<AlmPositionRow[]>(`/api/v1/alm-full/${date}/${currency}`),
 
   calculateAlmPosition: (payload: { asOfDate: string; currency: string }) =>
     apiPost<AlmPositionRow>('/api/v1/alm-full', payload),
 
   // ALCO Pack
   getAlcoPacks: () =>
-    apiGet<AlcoPack[]>('/api/v1/alm/alco-packs').catch(() => []),
+    apiGet<AlcoPack[]>('/api/v1/alm/alco-packs'),
 
   getAlcoPack: (id: number) =>
     apiGet<AlcoPack>(`/api/v1/alm/alco-packs/${id}`),
@@ -282,14 +282,14 @@ export const almApi = {
     apiPost<AlcoPack>(`/api/v1/alm/alco-packs/${id}/distribute`),
 
   getAlcoPackVersions: (month: string) =>
-    apiGet<AlcoPackVersion[]>(`/api/v1/alm/alco-packs/month/${month}/versions`).catch(() => []),
+    apiGet<AlcoPackVersion[]>(`/api/v1/alm/alco-packs/month/${month}/versions`),
 
   generateExecutiveSummary: (month: string) =>
     apiPost<{ summary: string }>(`/api/v1/alm/alco-packs/generate-summary`, { month }),
 
   // Action Items
   getActionItems: () =>
-    apiGet<AlcoActionItem[]>('/api/v1/alm/action-items').catch(() => []),
+    apiGet<AlcoActionItem[]>('/api/v1/alm/action-items'),
 
   createActionItem: (payload: Omit<AlcoActionItem, 'id' | 'itemNumber' | 'createdAt' | 'updatedAt'>) =>
     apiPost<AlcoActionItem>('/api/v1/alm/action-items', payload),
@@ -299,7 +299,7 @@ export const almApi = {
 
   // Regulatory Returns
   getRegulatoryReturns: () =>
-    apiGet<RegulatoryReturn[]>('/api/v1/alm/regulatory-returns').catch(() => []),
+    apiGet<RegulatoryReturn[]>('/api/v1/alm/regulatory-returns'),
 
   getRegulatoryReturn: (id: number) =>
     apiGet<RegulatoryReturnDetail>(`/api/v1/alm/regulatory-returns/${id}`),
@@ -311,10 +311,10 @@ export const almApi = {
     apiPost<RegulatorySubmission>(`/api/v1/alm/regulatory-returns/${id}/submit`),
 
   getReturnSubmissions: (returnId: number) =>
-    apiGet<RegulatorySubmission[]>(`/api/v1/alm/regulatory-returns/${returnId}/submissions`).catch(() => []),
+    apiGet<RegulatorySubmission[]>(`/api/v1/alm/regulatory-returns/${returnId}/submissions`),
 
   getAllSubmissions: () =>
-    apiGet<RegulatorySubmission[]>('/api/v1/alm/regulatory-submissions').catch(() => []),
+    apiGet<RegulatorySubmission[]>('/api/v1/alm/regulatory-submissions'),
 
   // Stress Testing
   runScenario: (scenarioId: number) =>

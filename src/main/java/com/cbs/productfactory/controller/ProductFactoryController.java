@@ -1,6 +1,5 @@
 package com.cbs.productfactory.controller;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.productfactory.entity.ProductTemplate;
@@ -24,7 +23,6 @@ public class ProductFactoryController {
 
     private final ProductFactoryService productFactoryService;
     private final ProductTemplateRepository productTemplateRepository;
-    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping("/templates")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -41,7 +39,7 @@ public class ProductFactoryController {
     @PostMapping("/templates/{id}/approve")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<ProductTemplate>> approve(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(productFactoryService.approveTemplate(id, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(productFactoryService.approveTemplate(id)));
     }
 
     @PostMapping("/templates/{id}/activate")

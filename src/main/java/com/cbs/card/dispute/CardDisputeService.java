@@ -1,7 +1,12 @@
 package com.cbs.card.dispute;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,6 +29,9 @@ public class CardDisputeService {
 
     private final CardDisputeRepository disputeRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+    private final CurrentActorProvider currentActorProvider;
+    private final CbsProperties cbsProperties;
 
     /**
      * Initiates a dispute with scheme-compliant deadlines.
@@ -31,12 +40,12 @@ public class CardDisputeService {
      */
     @Transactional
     public CardDispute initiateDispute(Long cardId, Long customerId, Long accountId, Long transactionId,
-                                         String transactionRef, LocalDate transactionDate,
-                                         BigDecimal transactionAmount, String transactionCurrency,
-                                         String merchantName, String merchantId,
-                                         DisputeType disputeType, String disputeReason,
-                                         BigDecimal disputeAmount, String cardScheme,
-                                         String createdBy) {
+                                       String transactionRef, LocalDate transactionDate,
+                                       BigDecimal transactionAmount, String transactionCurrency,
+                                       String merchantName, String merchantId,
+                                       DisputeType disputeType, String disputeReason,
+                                       BigDecimal disputeAmount, String cardScheme) {
+        String createdBy = currentActorProvider.getCurrentActor();
         // Calculate scheme-compliant deadlines
         int filingDays = disputeType == DisputeType.FRAUD ? 540 : 120;
         LocalDate filingDeadline = transactionDate.plusDays(filingDays);
@@ -72,8 +81,9 @@ public class CardDisputeService {
      * Regulation E (US) / scheme rules require this within 10 business days for most disputes.
      */
     @Transactional
-    public CardDispute issueProvisionalCredit(Long disputeId, String performedBy) {
+    public CardDispute issueProvisionalCredit(Long disputeId) {
         CardDispute dispute = findDisputeOrThrow(disputeId);
+        String performedBy = currentActorProvider.getCurrentActor();
 
         if (dispute.getProvisionalCreditAmount() != null) {
             throw new BusinessException("Provisional credit already issued", "PROV_CREDIT_EXISTS");
@@ -82,11 +92,21 @@ public class CardDisputeService {
         Account account = accountRepository.findById(dispute.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", dispute.getAccountId()));
 
-        account.credit(dispute.getDisputeAmount());
-        accountRepository.save(account);
+        accountPostingService.postCreditAgainstGl(
+                account,
+                TransactionType.ADJUSTMENT,
+                dispute.getDisputeAmount(),
+                "Card dispute provisional credit " + dispute.getDisputeRef(),
+                TransactionChannel.SYSTEM,
+                dispute.getDisputeRef() + ":PROV",
+                resolveDisputeSettlementGlCode(),
+                "CARD_DISPUTE",
+                dispute.getDisputeRef()
+        );
 
         dispute.setProvisionalCreditAmount(dispute.getDisputeAmount());
         dispute.setProvisionalCreditDate(LocalDate.now());
+        dispute.setUpdatedBy(performedBy);
 
         DisputeStatus prev = dispute.getStatus();
         dispute.setStatus(DisputeStatus.INVESTIGATION);
@@ -101,8 +121,9 @@ public class CardDisputeService {
      * Files a chargeback with the card scheme (Visa/Mastercard).
      */
     @Transactional
-    public CardDispute fileChargeback(Long disputeId, String schemeCaseId, String schemeReasonCode, String performedBy) {
+    public CardDispute fileChargeback(Long disputeId, String schemeCaseId, String schemeReasonCode) {
         CardDispute dispute = findDisputeOrThrow(disputeId);
+        String performedBy = currentActorProvider.getCurrentActor();
 
         if (dispute.getStatus() != DisputeStatus.INITIATED && dispute.getStatus() != DisputeStatus.INVESTIGATION) {
             throw new BusinessException("Dispute must be in INITIATED or INVESTIGATION to file chargeback", "INVALID_STATE");
@@ -112,6 +133,7 @@ public class CardDisputeService {
         dispute.setSchemeCaseId(schemeCaseId);
         dispute.setSchemeReasonCode(schemeReasonCode);
         dispute.setStatus(DisputeStatus.CHARGEBACK_FILED);
+        dispute.setUpdatedBy(performedBy);
         dispute.addTimelineEntry("Chargeback filed: case=" + schemeCaseId + " reason=" + schemeReasonCode,
                 prev, DisputeStatus.CHARGEBACK_FILED, performedBy, null);
 
@@ -123,8 +145,9 @@ public class CardDisputeService {
      * Records merchant representment (merchant disputes the chargeback).
      */
     @Transactional
-    public CardDispute recordRepresentment(Long disputeId, String merchantResponse, String performedBy) {
+    public CardDispute recordRepresentment(Long disputeId, String merchantResponse) {
         CardDispute dispute = findDisputeOrThrow(disputeId);
+        String performedBy = currentActorProvider.getCurrentActor();
 
         if (dispute.getStatus() != DisputeStatus.CHARGEBACK_FILED) {
             throw new BusinessException("Chargeback must be filed before representment", "INVALID_STATE");
@@ -134,6 +157,7 @@ public class CardDisputeService {
         dispute.setMerchantResponse(merchantResponse);
         dispute.setMerchantResponseDate(LocalDate.now());
         dispute.setStatus(DisputeStatus.REPRESENTMENT);
+        dispute.setUpdatedBy(performedBy);
         dispute.addTimelineEntry("Merchant representment received", prev, DisputeStatus.REPRESENTMENT, performedBy, merchantResponse);
 
         return disputeRepository.save(dispute);
@@ -143,12 +167,14 @@ public class CardDisputeService {
      * Escalates to pre-arbitration or arbitration.
      */
     @Transactional
-    public CardDispute escalateToArbitration(Long disputeId, boolean preArbitration, String performedBy, String notes) {
+    public CardDispute escalateToArbitration(Long disputeId, boolean preArbitration, String notes) {
         CardDispute dispute = findDisputeOrThrow(disputeId);
+        String performedBy = currentActorProvider.getCurrentActor();
 
         DisputeStatus prev = dispute.getStatus();
         DisputeStatus next = preArbitration ? DisputeStatus.PRE_ARBITRATION : DisputeStatus.ARBITRATION;
         dispute.setStatus(next);
+        dispute.setUpdatedBy(performedBy);
         dispute.addTimelineEntry("Escalated to " + next, prev, next, performedBy, notes);
 
         return disputeRepository.save(dispute);
@@ -159,27 +185,42 @@ public class CardDisputeService {
      */
     @Transactional
     public CardDispute resolveDispute(Long disputeId, String resolutionType, BigDecimal resolutionAmount,
-                                        String notes, String performedBy) {
+                                      String notes) {
         CardDispute dispute = findDisputeOrThrow(disputeId);
+        String performedBy = currentActorProvider.getCurrentActor();
 
         DisputeStatus prev = dispute.getStatus();
-        DisputeStatus resolved = "CUSTOMER_FAVOUR".equals(resolutionType) ?
-                DisputeStatus.RESOLVED_CUSTOMER :
-                "WITHDRAWN".equals(resolutionType) ? DisputeStatus.WITHDRAWN : DisputeStatus.RESOLVED_MERCHANT;
+        String normalizedResolution = resolutionType != null ? resolutionType.trim().toUpperCase() : "";
+        DisputeStatus resolved = switch (normalizedResolution) {
+            case "CUSTOMER_FAVOR", "CUSTOMER_FAVOUR" -> DisputeStatus.RESOLVED_CUSTOMER;
+            case "WITHDRAWN" -> DisputeStatus.WITHDRAWN;
+            case "SPLIT" -> DisputeStatus.RESOLVED_MERCHANT;
+            default -> DisputeStatus.RESOLVED_MERCHANT;
+        };
 
         dispute.setResolutionType(resolutionType);
         dispute.setResolutionAmount(resolutionAmount);
         dispute.setResolutionDate(LocalDate.now());
         dispute.setResolutionNotes(notes);
         dispute.setStatus(resolved);
+        dispute.setUpdatedBy(performedBy);
 
         // If resolved in merchant's favour and provisional credit was issued, reverse it
         if (resolved == DisputeStatus.RESOLVED_MERCHANT && dispute.getProvisionalCreditAmount() != null
                 && !Boolean.TRUE.equals(dispute.getProvisionalCreditReversed())) {
             Account account = accountRepository.findById(dispute.getAccountId())
                     .orElseThrow(() -> new ResourceNotFoundException("Account", "id", dispute.getAccountId()));
-            account.debit(dispute.getProvisionalCreditAmount());
-            accountRepository.save(account);
+            accountPostingService.postDebitAgainstGl(
+                    account,
+                    TransactionType.ADJUSTMENT,
+                    dispute.getProvisionalCreditAmount(),
+                    "Card dispute provisional credit reversal " + dispute.getDisputeRef(),
+                    TransactionChannel.SYSTEM,
+                    dispute.getDisputeRef() + ":PROV-REV",
+                    resolveDisputeSettlementGlCode(),
+                    "CARD_DISPUTE",
+                    dispute.getDisputeRef()
+            );
             dispute.setProvisionalCreditReversed(true);
             log.info("Provisional credit reversed: dispute={}, amount={}", dispute.getDisputeRef(), dispute.getProvisionalCreditAmount());
         }
@@ -226,6 +267,15 @@ public class CardDisputeService {
 
     private CardDispute findDisputeOrThrow(Long id) {
         return disputeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("CardDispute", "id", id));
+    }
+
+    private String resolveDisputeSettlementGlCode() {
+        String glCode = cbsProperties.getLedger().getExternalClearingGlCode();
+        if (!StringUtils.hasText(glCode)) {
+            throw new BusinessException("CBS_LEDGER_EXTERNAL_CLEARING_GL is required for card dispute postings",
+                    "MISSING_CARD_DISPUTE_SETTLEMENT_GL");
+        }
+        return glCode;
     }
 
     public record DisputeDashboard(long initiated, long investigation, long chargebackFiled, long representment, long arbitration) {}

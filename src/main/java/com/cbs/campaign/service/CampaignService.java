@@ -1,4 +1,5 @@
 package com.cbs.campaign.service;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.campaign.entity.MarketingCampaign;
@@ -10,15 +11,17 @@ import java.math.BigDecimal; import java.math.RoundingMode; import java.time.Ins
 @Service @RequiredArgsConstructor @Slf4j @Transactional(readOnly = true)
 public class CampaignService {
     private final MarketingCampaignRepository campaignRepository;
+    private final CurrentActorProvider currentActorProvider;
     @Transactional
     public MarketingCampaign create(MarketingCampaign campaign) {
         campaign.setCampaignCode("CMP-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
         return campaignRepository.save(campaign);
     }
     @Transactional
-    public MarketingCampaign approve(String campaignCode, String approvedBy) {
+    public MarketingCampaign approve(String campaignCode) {
         MarketingCampaign c = getCampaign(campaignCode);
         if (!"DRAFT".equals(c.getStatus())) throw new BusinessException("Only DRAFT campaigns can be approved");
+        String approvedBy = currentActorProvider.getCurrentActor();
         c.setStatus("APPROVED"); c.setApprovedBy(approvedBy); c.setUpdatedAt(Instant.now());
         return campaignRepository.save(c);
     }

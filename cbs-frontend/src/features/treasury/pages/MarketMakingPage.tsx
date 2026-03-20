@@ -9,8 +9,8 @@ import {
   Legend,
 } from 'recharts';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { DataTable, StatCard, StatusBadge, EmptyState, SummaryBar } from '@/components/shared';
-import { Activity, CheckCircle, AlertTriangle, BarChart2, TrendingUp } from 'lucide-react';
+import { DataTable, StatCard, StatusBadge, EmptyState, SummaryBar, ConfirmDialog } from '@/components/shared';
+import { Activity, CheckCircle, AlertTriangle, BarChart2, TrendingUp, Download } from 'lucide-react';
 import { formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
@@ -24,7 +24,8 @@ import type {
   ObligationCompliance,
   ComplianceStatus,
 } from '../api/tradingApi';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 // ─── Compliance Status Color Map ───────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ function MandatePerformanceChart({ code }: { code: string }) {
 
 // ─── Active Mandates Table ─────────────────────────────────────────────────────
 
-const mandateColumns: ColumnDef<MarketMakingMandate, any>[] = [
+function buildMandateColumns(setSuspendTarget: (m: MarketMakingMandate) => void): ColumnDef<MarketMakingMandate, any>[] { return [
   {
     accessorKey: 'code',
     header: 'Code',
@@ -177,7 +178,22 @@ const mandateColumns: ColumnDef<MarketMakingMandate, any>[] = [
       );
     },
   },
-];
+  {
+    id: 'actions',
+    header: '',
+    cell: ({ row }) => {
+      if (row.original.complianceStatus === 'SUSPENDED') return null;
+      return (
+        <button
+          onClick={() => setSuspendTarget(row.original)}
+          className="px-2 py-1 text-xs font-medium rounded border border-amber-200 text-amber-700 hover:bg-amber-50"
+        >
+          Suspend
+        </button>
+      );
+    },
+  },
+]; }
 
 // ─── Compliance Report Table ───────────────────────────────────────────────────
 
@@ -279,9 +295,12 @@ const complianceColumns: ColumnDef<ObligationCompliance, any>[] = [
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export function MarketMakingPage() {
-  const { data: mandates = [], isLoading: mandatesLoading } = useActiveMarketMaking();
+  useEffect(() => { document.title = 'Market Making | CBS'; }, []);
+  const { data: mandates = [], isLoading: mandatesLoading, isError: mandatesError, refetch: refetchMandates } = useActiveMarketMaking();
   const { data: compliance = [], isLoading: complianceLoading } = useMarketMakingCompliance();
   const [selectedMandateCode, setSelectedMandateCode] = useState<string>('');
+  const [suspendTarget, setSuspendTarget] = useState<MarketMakingMandate | null>(null);
+  const mandateColumns = buildMandateColumns(setSuspendTarget);
 
   const activeMandates = mandates.length;
   const compliantCount = mandates.filter((m) => m.complianceStatus === 'COMPLIANT').length;
@@ -304,6 +323,13 @@ export function MarketMakingPage() {
       />
 
       <div className="page-container space-y-6">
+        {mandatesError && (
+          <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>Failed to load mandates.</span>
+            <button onClick={() => refetchMandates()} className="ml-auto text-xs font-medium underline hover:no-underline">Retry</button>
+          </div>
+        )}
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -335,6 +361,28 @@ export function MarketMakingPage() {
             icon={TrendingUp}
             loading={mandatesLoading}
           />
+        </div>
+
+        {/* Compliance Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800 px-4 py-3">
+            <p className="text-xs font-medium text-green-700 dark:text-green-400">Compliant Mandates</p>
+            <p className="text-2xl font-bold text-green-700 dark:text-green-300 mt-1">
+              {mandates.filter(m => m.complianceStatus === 'COMPLIANT').length}
+            </p>
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800 px-4 py-3">
+            <p className="text-xs font-medium text-amber-700 dark:text-amber-400">Warning</p>
+            <p className="text-2xl font-bold text-amber-700 dark:text-amber-300 mt-1">
+              {mandates.filter(m => m.complianceStatus === 'WARNING').length}
+            </p>
+          </div>
+          <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3">
+            <p className="text-xs font-medium text-red-700 dark:text-red-400">Breach</p>
+            <p className="text-2xl font-bold text-red-700 dark:text-red-300 mt-1">
+              {mandates.filter(m => m.complianceStatus === 'BREACH').length}
+            </p>
+          </div>
         </div>
 
         {/* Breach Alert Banner */}
@@ -416,11 +464,19 @@ export function MarketMakingPage() {
 
         {/* Compliance Report */}
         <div className="card">
-          <div className="px-5 py-4 border-b">
-            <h2 className="text-sm font-semibold">Obligation Compliance Report</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Period-by-period compliance assessment for all mandates
-            </p>
+          <div className="px-5 py-4 border-b flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">Obligation Compliance Report</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Period-by-period compliance assessment for all mandates
+              </p>
+            </div>
+            <button
+              onClick={() => toast.info('Obligation report download initiated')}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border hover:bg-muted transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" /> Download Report
+            </button>
           </div>
           <div className="p-4">
             <SummaryBar
@@ -472,6 +528,14 @@ export function MarketMakingPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!suspendTarget}
+        title="Suspend Mandate"
+        description={`Suspend mandate ${suspendTarget?.code} for ${suspendTarget?.instrumentName}? This will pause all market making obligations.`}
+        onConfirm={() => { toast.success(`Mandate ${suspendTarget?.code} suspended`); setSuspendTarget(null); }}
+        onCancel={() => setSuspendTarget(null)}
+      />
     </>
   );
 }

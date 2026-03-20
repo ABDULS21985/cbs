@@ -82,7 +82,6 @@ export function CardDisputeDetailPage() {
   const [arbNotes, setArbNotes] = useState('');
 
   const fc = 'w-full px-3 py-2 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
-  const performer = 'ADMIN';
 
   if (isLoading) return (
     <><PageHeader title="Dispute Detail" backTo="/cards/disputes" />
@@ -165,7 +164,7 @@ export function CardDisputeDetailPage() {
             <div className="flex items-center gap-3">
               <p className="text-sm text-muted-foreground">No provisional credit issued.</p>
               {canCredit && (
-                <button onClick={() => provisionalCredit.mutate({ id: dispute.id, performedBy: performer }, {
+                <button onClick={() => provisionalCredit.mutate({ id: dispute.id }, {
                   onSuccess: () => { toast.success('Provisional credit issued'); refetch(); },
                   onError: () => toast.error('Failed to issue credit'),
                 })} disabled={provisionalCredit.isPending}
@@ -237,7 +236,7 @@ export function CardDisputeDetailPage() {
               <input value={cbForm.schemeReasonCode} onChange={e => setCbForm(p => ({ ...p, schemeReasonCode: e.target.value }))} placeholder="e.g. 10.4" className={fc} /></div>
             <div className="flex gap-2 pt-2 border-t">
               <button onClick={() => setShowChargeback(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-              <button onClick={() => fileChargeback.mutate({ id: dispute.id, ...cbForm, performedBy: performer }, { onSuccess: () => { toast.success('Chargeback filed'); setShowChargeback(false); refetch(); }, onError: () => toast.error('Failed') })}
+              <button onClick={() => fileChargeback.mutate({ id: dispute.id, ...cbForm }, { onSuccess: () => { toast.success('Chargeback filed'); setShowChargeback(false); refetch(); }, onError: () => toast.error('Failed') })}
                 disabled={!cbForm.schemeCaseId || !cbForm.schemeReasonCode || fileChargeback.isPending}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-60">
                 {fileChargeback.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />} File
@@ -257,7 +256,7 @@ export function CardDisputeDetailPage() {
               <textarea value={repForm.merchantResponse} onChange={e => setRepForm(p => ({ ...p, merchantResponse: e.target.value }))} rows={4} className={fc} placeholder="Merchant's evidence and response..." /></div>
             <div className="flex gap-2 pt-2 border-t">
               <button onClick={() => setShowRepresentment(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-              <button onClick={() => submitRepresentment.mutate({ id: dispute.id, ...repForm, performedBy: performer }, { onSuccess: () => { toast.success('Representment submitted'); setShowRepresentment(false); refetch(); }, onError: () => toast.error('Failed') })}
+              <button onClick={() => submitRepresentment.mutate({ id: dispute.id, ...repForm }, { onSuccess: () => { toast.success('Representment submitted'); setShowRepresentment(false); refetch(); }, onError: () => toast.error('Failed') })}
                 disabled={!repForm.merchantResponse || submitRepresentment.isPending}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600 disabled:opacity-60">
                 {submitRepresentment.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Scale className="w-4 h-4" />} Submit
@@ -278,7 +277,7 @@ export function CardDisputeDetailPage() {
               <textarea value={arbNotes} onChange={e => setArbNotes(e.target.value)} rows={3} className={fc} placeholder="Reason for escalation..." /></div>
             <div className="flex gap-2 pt-2 border-t">
               <button onClick={() => setShowArbitration(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-              <button onClick={() => escalateArbitration.mutate({ id: dispute.id, performedBy: performer, notes: arbNotes }, { onSuccess: () => { toast.success('Escalated to arbitration'); setShowArbitration(false); refetch(); }, onError: () => toast.error('Failed') })}
+              <button onClick={() => escalateArbitration.mutate({ id: dispute.id, notes: arbNotes }, { onSuccess: () => { toast.success('Escalated to arbitration'); setShowArbitration(false); refetch(); }, onError: () => toast.error('Failed') })}
                 disabled={escalateArbitration.isPending}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60">
                 {escalateArbitration.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpRight className="w-4 h-4" />} Escalate
@@ -307,7 +306,7 @@ export function CardDisputeDetailPage() {
               <textarea value={resForm.notes} onChange={e => setResForm(p => ({ ...p, notes: e.target.value }))} rows={3} className={fc} /></div>
             <div className="flex gap-2 pt-2 border-t">
               <button onClick={() => setShowResolve(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-              <button onClick={() => resolveDispute.mutate({ id: dispute.id, ...resForm, performedBy: performer }, { onSuccess: () => { toast.success('Dispute resolved'); setShowResolve(false); refetch(); }, onError: () => toast.error('Failed') })}
+              <button onClick={() => resolveDispute.mutate({ id: dispute.id, ...resForm }, { onSuccess: () => { toast.success('Dispute resolved'); setShowResolve(false); refetch(); }, onError: () => toast.error('Failed') })}
                 disabled={!resForm.resolutionType || resolveDispute.isPending}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-60">
                 {resolveDispute.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Resolve

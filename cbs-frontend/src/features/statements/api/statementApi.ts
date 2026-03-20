@@ -145,7 +145,7 @@ export const statementApi = {
     apiGet<AccountConfirmationData>('/api/v1/statements/confirmation', { accountId, purpose, addressedTo }),
 
   getSubscriptions: (accountId: string): Promise<StatementSubscription[]> =>
-    apiGet<StatementSubscription[]>('/api/v1/statements/subscriptions', { accountId }).catch(() => []),
+    apiGet<StatementSubscription[]>('/api/v1/statements/subscriptions', { accountId }),
 
   createSubscription: (data: CreateSubscriptionData): Promise<StatementSubscription> =>
     apiPost<StatementSubscription>('/api/v1/statements/subscriptions', data),

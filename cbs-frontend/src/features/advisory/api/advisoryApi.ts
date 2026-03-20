@@ -295,13 +295,13 @@ export interface AcknowledgeDisclosurePayload {
 export const advisoryApi = {
   // Corporate Finance
   getCorporateFinanceActive: () =>
-    apiGet<CorporateFinanceEngagement[]>('/api/v1/corporate-finance/active').catch(() => []),
+    apiGet<CorporateFinanceEngagement[]>('/api/v1/corporate-finance/active'),
   getCorporateFinancePipeline: () =>
-    apiGet<CorporateFinancePipelineItem[]>('/api/v1/corporate-finance/pipeline').catch(() => []),
+    apiGet<CorporateFinancePipelineItem[]>('/api/v1/corporate-finance/pipeline'),
   getCorporateFinanceRevenue: (from: string, to: string) =>
-    apiGet<CorporateFinanceRevenueItem[]>('/api/v1/corporate-finance/revenue', { from, to }).catch(() => []),
+    apiGet<CorporateFinanceRevenueItem[]>('/api/v1/corporate-finance/revenue', { from, to }),
   getCorporateFinanceCapacity: () =>
-    apiGet<CorporateFinanceCapacity[]>('/api/v1/corporate-finance/capacity').catch(() => []),
+    apiGet<CorporateFinanceCapacity[]>('/api/v1/corporate-finance/capacity'),
   createCorporateFinanceEngagement: (payload: CreateEngagementPayload) =>
     apiPost<CorporateFinanceEngagement>('/api/v1/corporate-finance', payload),
   deliverDraft: (code: string, payload: DeliverDraftPayload) =>
@@ -317,9 +317,9 @@ export const advisoryApi = {
 
   // Project Finance
   getProjectFacilities: (status?: ProjectFinanceStatus) =>
-    apiGet<ProjectFacility[]>(`/api/v1/project-finance/status/${status ?? 'ACTIVE'}`).catch(() => []),
+    apiGet<ProjectFacility[]>(`/api/v1/project-finance/status/${status ?? 'ACTIVE'}`),
   getFacilityMilestones: (code: string) =>
-    apiGet<ProjectMilestone[]>(`/api/v1/project-finance/${code}/milestones`).catch(() => []),
+    apiGet<ProjectMilestone[]>(`/api/v1/project-finance/${code}/milestones`),
   createProjectFacility: (payload: CreateProjectFacilityPayload) =>
     apiPost<ProjectFacility>('/api/v1/project-finance', payload),
   addMilestone: (code: string, payload: AddMilestonePayload) =>
@@ -329,13 +329,13 @@ export const advisoryApi = {
 
   // M&A Advisory
   getMaAdvisoryActive: () =>
-    apiGet<MaEngagement[]>('/api/v1/ma-advisory/active').catch(() => []),
+    apiGet<MaEngagement[]>('/api/v1/ma-advisory/active'),
   getMaAdvisoryPipeline: () =>
-    apiGet<MaPipelineStage[]>('/api/v1/ma-advisory/pipeline').catch(() => []),
+    apiGet<MaPipelineStage[]>('/api/v1/ma-advisory/pipeline'),
   getMaAdvisoryRevenue: (from: string, to: string) =>
-    apiGet<MaRevenueItem[]>('/api/v1/ma-advisory/revenue', { from, to }).catch(() => []),
+    apiGet<MaRevenueItem[]>('/api/v1/ma-advisory/revenue', { from, to }),
   getMaAdvisoryWorkload: () =>
-    apiGet<MaWorkloadItem[]>('/api/v1/ma-advisory/workload').catch(() => []),
+    apiGet<MaWorkloadItem[]>('/api/v1/ma-advisory/workload'),
   createMaEngagement: (payload: CreateMaEngagementPayload) =>
     apiPost<MaEngagement>('/api/v1/ma-advisory', payload),
   updateMaMilestone: (code: string, payload: UpdateMaMilestonePayload) =>
@@ -347,11 +347,11 @@ export const advisoryApi = {
 
   // Tax Advisory
   getTaxAdvisoryActive: () =>
-    apiGet<TaxEngagement[]>('/api/v1/tax-advisory/active').catch(() => []),
+    apiGet<TaxEngagement[]>('/api/v1/tax-advisory/active'),
   getTaxAdvisoryByJurisdiction: (country: string) =>
-    apiGet<TaxEngagement[]>(`/api/v1/tax-advisory/jurisdiction/${country}`).catch(() => []),
+    apiGet<TaxEngagement[]>(`/api/v1/tax-advisory/jurisdiction/${country}`),
   getTaxAdvisoryRevenue: (from: string, to: string) =>
-    apiGet<TaxRevenueItem[]>('/api/v1/tax-advisory/revenue', { from, to }).catch(() => []),
+    apiGet<TaxRevenueItem[]>('/api/v1/tax-advisory/revenue', { from, to }),
   createTaxEngagement: (payload: CreateTaxEngagementPayload) =>
     apiPost<TaxEngagement>('/api/v1/tax-advisory', payload),
   deliverOpinion: (code: string, payload: DeliverOpinionPayload) =>
@@ -363,7 +363,7 @@ export const advisoryApi = {
   getSuitabilityProfile: (customerId: number) =>
     apiGet<SuitabilityProfile>(`/api/v1/suitability/profiles/customer/${customerId}`),
   getExpiredProfiles: () =>
-    apiGet<SuitabilityProfile[]>('/api/v1/suitability/profiles/expired').catch(() => []),
+    apiGet<SuitabilityProfile[]>('/api/v1/suitability/profiles/expired'),
   createSuitabilityProfile: (payload: CreateSuitabilityProfilePayload) =>
     apiPost<SuitabilityProfile>('/api/v1/suitability/profiles', payload),
   updateSuitabilityProfile: (code: string, payload: UpdateSuitabilityProfilePayload) =>

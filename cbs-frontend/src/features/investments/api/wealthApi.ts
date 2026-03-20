@@ -36,5 +36,5 @@ export const wealthApi = {
   activate: (code: string) => apiPost<WealthManagementPlan>(`/api/v1/wealth-management/${code}/activate`),
   getByCustomer: (customerId: number) => apiGet<WealthManagementPlan[]>(`/api/v1/wealth-management/customer/${customerId}`),
   getByAdvisor: (advisorId: string) => apiGet<WealthManagementPlan[]>(`/api/v1/wealth-management/advisor/${advisorId}`),
-  listAdvisors: () => apiGet<WealthAdvisor[]>('/api/v1/wealth-management/advisors').catch(() => []),
+  listAdvisors: () => apiGet<WealthAdvisor[]>('/api/v1/wealth-management/advisors'),
 };

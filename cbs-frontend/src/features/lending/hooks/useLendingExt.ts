@@ -173,7 +173,7 @@ export function useHighLtvMortgages() {
     queryKey: [...KEYS.mortgages.all, 'high-ltv'],
     queryFn: async () => {
       const { apiGet } = await import('@/lib/api');
-      return apiGet<any[]>('/api/v1/mortgages/high-ltv').catch(() => []);
+      return apiGet<any[]>('/api/v1/mortgages/high-ltv');
     },
     staleTime: 60_000,
   });
@@ -184,7 +184,7 @@ export function useFixedRateExpiring() {
     queryKey: [...KEYS.mortgages.all, 'fixed-expiring'],
     queryFn: async () => {
       const { apiGet } = await import('@/lib/api');
-      return apiGet<any[]>('/api/v1/mortgages/fixed-rate-expiring').catch(() => []);
+      return apiGet<any[]>('/api/v1/mortgages/fixed-rate-expiring');
     },
     staleTime: 60_000,
   });
@@ -195,7 +195,7 @@ export function useCorporateLeases(params?: Record<string, unknown>) {
     queryKey: [...KEYS.corporateLeases.all, 'list', params],
     queryFn: async () => {
       const { apiGet } = await import('@/lib/api');
-      return apiGet<any[]>('/api/v1/corporate-leases', params).catch(() => []);
+      return apiGet<any[]>('/api/v1/corporate-leases', params);
     },
     staleTime: 30_000,
   });

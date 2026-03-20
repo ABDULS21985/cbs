@@ -30,7 +30,45 @@ export interface BookDealRequest {
   amount: number;
   rate: number;
   maturityDate: string;
+  valueDate?: string;
   deskId: string;
+}
+
+export interface AmendDealRequest {
+  newAmount?: number;
+  newRate?: number;
+  newMaturityDate?: string;
+  reason: string;
+  amendedBy: string;
+}
+
+export interface DealAuditEvent {
+  event: string;
+  timestamp: string;
+  user: string;
+  details: string;
+}
+
+export interface DealAuditTrail {
+  dealRef: string;
+  events: DealAuditEvent[];
+  lastAmendment?: {
+    previousAmount: number;
+    previousRate: number;
+    previousMaturityDate: string;
+    reason: string;
+    amendedBy: string;
+    amendedAt: string;
+  };
+  amendmentCount?: number;
+}
+
+export interface DealCashFlow {
+  date: string;
+  direction: 'PAY' | 'RECEIVE';
+  amount: number;
+  currency: string;
+  status: 'PROJECTED' | 'SETTLED' | 'OVERDUE';
 }
 
 export interface TreasuryDealsParams {
@@ -340,6 +378,10 @@ export const tradingApi = {
     apiPost<TreasuryDeal>(`/api/v1/treasury/deals/${id}/confirm`),
   settleDeal: (id: string) =>
     apiPost<TreasuryDeal>(`/api/v1/treasury/deals/${id}/settle`),
+  amendDeal: (id: string, data: AmendDealRequest) =>
+    apiPost<TreasuryDeal>(`/api/v1/treasury/deals/${id}/amend`, data),
+  getDealAuditTrail: (id: string) =>
+    apiGet<DealAuditTrail>(`/api/v1/treasury/deals/${id}/audit-trail`),
 
   // Analytics
   recordAnalytics: (data: RecordAnalyticsRequest) =>

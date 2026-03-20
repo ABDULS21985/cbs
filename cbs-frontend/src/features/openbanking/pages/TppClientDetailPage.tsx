@@ -15,9 +15,7 @@ import {
   EyeOff,
   Key,
   Loader2,
-  RefreshCw,
   Shield,
-  Users,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -32,7 +30,7 @@ import {
 } from 'recharts';
 
 import { useTppClients, useConsents } from '../hooks/useOpenBanking';
-import type { TppClientType, TppClientStatus } from '../api/openBankingApi';
+import type { TppClientType } from '../api/openBankingApi';
 import { TppScopeSelector } from '../components/tpp/TppScopeSelector';
 import { TppStatusActions } from '../components/tpp/TppStatusActions';
 import { ConsentTable } from '../components/consent/ConsentTable';

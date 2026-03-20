@@ -167,19 +167,19 @@ export function ValuationPage() {
 
   const { data: models = [], isLoading: modelsLoading } = useQuery({
     queryKey: ['val-models'],
-    queryFn: () => apiGet<ValModel[]>('/api/v1/valuations/models').catch(() => []),
+    queryFn: () => apiGet<ValModel[]>('/api/v1/valuations/models'),
   });
 
   const { data: runs = [], isLoading: runsLoading } = useQuery({
     queryKey: ['val-runs'],
-    queryFn: () => apiGet<ValRun[]>('/api/v1/valuations/runs').catch(() => []),
+    queryFn: () => apiGet<ValRun[]>('/api/v1/valuations/runs'),
   });
 
   const latestRef = useMemo(() => (runs.length > 0 ? runs[0].runRef : null), [runs]);
 
   const { data: exceptions = [] } = useQuery({
     queryKey: ['val-exceptions', latestRef],
-    queryFn: () => apiGet<InstrValuation[]>(`/api/v1/valuations/runs/${latestRef}/exceptions`).catch(() => []),
+    queryFn: () => apiGet<InstrValuation[]>(`/api/v1/valuations/runs/${latestRef}/exceptions`),
     enabled: !!latestRef,
   });
 

@@ -4,7 +4,7 @@ import type { PosTerminal } from '../types/posTerminal';
 export const posTerminalsApi = {
   /** GET /v1/pos-terminals */
   getAll: () =>
-    apiGet<PosTerminal[]>('/api/v1/pos-terminals').catch(() => []),
+    apiGet<PosTerminal[]>('/api/v1/pos-terminals'),
 
   /** GET /v1/pos-terminals/{terminalId} */
   getById: (terminalId: string) =>
@@ -20,7 +20,7 @@ export const posTerminalsApi = {
 
   /** GET /v1/pos-terminals/merchant/{merchantId} */
   byMerchant: (merchantId: number) =>
-    apiGet<PosTerminal[]>(`/api/v1/pos-terminals/merchant/${merchantId}`).catch(() => []),
+    apiGet<PosTerminal[]>(`/api/v1/pos-terminals/merchant/${merchantId}`),
 
   /** POST /v1/pos-terminals (deploy new terminal) */
   deploy: (payload: {

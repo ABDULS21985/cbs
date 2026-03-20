@@ -59,10 +59,10 @@ export interface CreateGoalInput {
 export const goalApi = {
   // Goals
   getGoals: (params?: { page?: number; size?: number; status?: string }) =>
-    apiGet<SavingsGoal[]>('/api/v1/goals', params as Record<string, unknown>).catch(() => []),
+    apiGet<SavingsGoal[]>('/api/v1/goals', params as Record<string, unknown>),
 
   getCustomerGoals: (customerId: number, params?: { page?: number; size?: number }) =>
-    apiGet<SavingsGoal[]>(`/api/v1/goals/customer/${customerId}`, params as Record<string, unknown>).catch(() => []),
+    apiGet<SavingsGoal[]>(`/api/v1/goals/customer/${customerId}`, params as Record<string, unknown>),
 
   getGoalById: (goalId: string) =>
     apiGet<SavingsGoal>(`/api/v1/goals/${goalId}`),
@@ -89,14 +89,14 @@ export const goalApi = {
     apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/auto-debit`, config),
 
   getContributions: (goalId: string, params?: { page?: number; size?: number }) =>
-    apiGet<GoalContribution[]>(`/api/v1/goals/${goalId}/contributions`, params as Record<string, unknown>).catch(() => []),
+    apiGet<GoalContribution[]>(`/api/v1/goals/${goalId}/contributions`, params as Record<string, unknown>),
 
   processAutoDebits: () =>
     apiPost<{ processed: number }>('/api/v1/goals/batch/auto-debits'),
 
   // Recurring Deposits
   getRecurringDeposits: () =>
-    apiGet<RecurringDeposit[]>('/api/v1/goals/recurring-deposits').catch(() => []),
+    apiGet<RecurringDeposit[]>('/api/v1/goals/recurring-deposits'),
 
   getRecurringDepositById: (id: string) =>
     apiGet<RecurringDeposit>(`/api/v1/goals/recurring-deposits/${id}`),

@@ -1,7 +1,11 @@
 package com.cbs.trade.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
@@ -14,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -36,6 +41,8 @@ public class TradeFinanceService {
     private final TradeDocumentRepository tradeDocRepository;
     private final CustomerRepository customerRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+    private final CbsProperties cbsProperties;
 
     // ========================================================================
     // CAPABILITY 47: LETTERS OF CREDIT
@@ -79,7 +86,19 @@ public class TradeFinanceService {
                 throw new BusinessException("Insufficient balance for LC margin + commission", "INSUFFICIENT_BALANCE");
             }
             marginAccount.placeLien(marginAmt);
-            marginAccount.debit(commissionAmt);
+            if (commissionAmt.compareTo(BigDecimal.ZERO) > 0) {
+                accountPostingService.postDebitAgainstGl(
+                        marginAccount,
+                        TransactionType.FEE_DEBIT,
+                        commissionAmt,
+                        "LC commission " + lcNumber,
+                        TransactionChannel.SYSTEM,
+                        lcNumber + ":COMM",
+                        resolveTradeFinanceCommissionIncomeGlCode(),
+                        "TRADE_FINANCE",
+                        lcNumber
+                );
+            }
             accountRepository.save(marginAccount);
             lc.setMarginAccount(marginAccount);
         }
@@ -106,7 +125,17 @@ public class TradeFinanceService {
             BigDecimal marginRelease = claimedAmount.multiply(lc.getMarginPercentage())
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             lc.getMarginAccount().releaseLien(marginRelease);
-            lc.getMarginAccount().debit(claimedAmount);
+            accountPostingService.postDebitAgainstGl(
+                    lc.getMarginAccount(),
+                    TransactionType.DEBIT,
+                    claimedAmount,
+                    "LC settlement " + lc.getLcNumber(),
+                    TransactionChannel.SYSTEM,
+                    lc.getLcNumber() + ":SETTLE",
+                    resolveTradeFinanceSettlementGlCode(),
+                    "TRADE_FINANCE",
+                    lc.getLcNumber()
+            );
             accountRepository.save(lc.getMarginAccount());
         }
 
@@ -178,7 +207,17 @@ public class TradeFinanceService {
                     .orElseThrow(() -> new ResourceNotFoundException("Account", "id", marginAccountId));
             marginAccount.placeLien(marginAmt);
             if (bg.getCommissionAmount().compareTo(BigDecimal.ZERO) > 0) {
-                marginAccount.debit(bg.getCommissionAmount());
+                accountPostingService.postDebitAgainstGl(
+                        marginAccount,
+                        TransactionType.FEE_DEBIT,
+                        bg.getCommissionAmount(),
+                        "Guarantee commission " + bgNumber,
+                        TransactionChannel.SYSTEM,
+                        bgNumber + ":COMM",
+                        resolveTradeFinanceCommissionIncomeGlCode(),
+                        "TRADE_FINANCE",
+                        bgNumber
+                );
             }
             accountRepository.save(marginAccount);
             bg.setMarginAccount(marginAccount);
@@ -202,7 +241,17 @@ public class TradeFinanceService {
 
         if (bg.getMarginAccount() != null) {
             bg.getMarginAccount().releaseLien(claimAmount.min(bg.getMarginAmount()));
-            bg.getMarginAccount().debit(claimAmount);
+            accountPostingService.postDebitAgainstGl(
+                    bg.getMarginAccount(),
+                    TransactionType.DEBIT,
+                    claimAmount,
+                    "Guarantee claim " + bg.getGuaranteeNumber(),
+                    TransactionChannel.SYSTEM,
+                    bg.getGuaranteeNumber() + ":CLAIM",
+                    resolveTradeFinanceSettlementGlCode(),
+                    "TRADE_FINANCE",
+                    bg.getGuaranteeNumber()
+            );
             accountRepository.save(bg.getMarginAccount());
         }
 
@@ -240,6 +289,24 @@ public class TradeFinanceService {
         }
 
         return expired.size() + forExtension.size();
+    }
+
+    private String resolveTradeFinanceSettlementGlCode() {
+        String glCode = cbsProperties.getLedger().getTradeFinanceSettlementGlCode();
+        if (!StringUtils.hasText(glCode)) {
+            throw new BusinessException("CBS_LEDGER_TRADE_FINANCE_SETTLEMENT_GL or CBS_LEDGER_EXTERNAL_CLEARING_GL is required",
+                    "MISSING_TRADE_FINANCE_SETTLEMENT_GL");
+        }
+        return glCode;
+    }
+
+    private String resolveTradeFinanceCommissionIncomeGlCode() {
+        String glCode = cbsProperties.getLedger().getTradeFinanceCommissionIncomeGlCode();
+        if (!StringUtils.hasText(glCode)) {
+            throw new BusinessException("CBS_LEDGER_TRADE_FINANCE_COMMISSION_GL is required",
+                    "MISSING_TRADE_FINANCE_COMMISSION_GL");
+        }
+        return glCode;
     }
 
     // ========================================================================

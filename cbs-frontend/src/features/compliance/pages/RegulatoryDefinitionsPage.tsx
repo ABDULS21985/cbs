@@ -7,7 +7,6 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge, TabsPage } from '@/components/shared';
 import { formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/stores/authStore';
 import {
   useRegulatoryDefinitions,
   useRegulatoryRuns,
@@ -94,12 +93,11 @@ function CreateDefinitionDialog({ onClose }: { onClose: () => void }) {
 
 function GenerateReportDialog({ reportCode, onClose }: { reportCode: string; onClose: () => void }) {
   const queryClient = useQueryClient();
-  const user = useAuthStore((s) => s.user);
   const [form, setForm] = useState({ periodStart: '', periodEnd: '' });
   const [result, setResult] = useState<RegulatoryReportRun | null>(null);
 
   const generateMut = useMutation({
-    mutationFn: () => regulatoryApi.generate(reportCode, { ...form, generatedBy: user?.displayName ?? 'System' }),
+    mutationFn: () => regulatoryApi.generate(reportCode, form),
     onSuccess: (data) => {
       setResult(data);
       queryClient.invalidateQueries({ queryKey: ['compliance', 'regulatory'] });

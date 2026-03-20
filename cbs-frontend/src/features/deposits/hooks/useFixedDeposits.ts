@@ -68,7 +68,7 @@ interface CustomerAccount {
 export function useCustomerSearch(query: string) {
   return useQuery<CustomerSummary[]>({
     queryKey: ['customers', 'search', query],
-    queryFn: () => apiGet<CustomerSummary[]>('/api/v1/customers', { search: query, page: 0, size: 10 } as Record<string, unknown>).catch(() => []),
+    queryFn: () => apiGet<CustomerSummary[]>('/api/v1/customers', { search: query, page: 0, size: 10 } as Record<string, unknown>),
     enabled: query.length >= 2,
     staleTime: 15_000,
   });
@@ -77,7 +77,7 @@ export function useCustomerSearch(query: string) {
 export function useCustomerAccounts(customerId: number) {
   return useQuery<CustomerAccount[]>({
     queryKey: ['accounts', 'customer', customerId],
-    queryFn: () => apiGet<CustomerAccount[]>(`/api/v1/accounts/customer/${customerId}`).catch(() => []),
+    queryFn: () => apiGet<CustomerAccount[]>(`/api/v1/accounts/customer/${customerId}`),
     enabled: customerId > 0,
     staleTime: 30_000,
   });

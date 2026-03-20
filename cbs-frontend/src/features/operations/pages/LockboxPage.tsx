@@ -10,7 +10,6 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage, DataTable, StatCard, StatusBadge } from '@/components/shared';
 import { formatMoney, formatDate, formatDateTime } from '@/lib/formatters';
 import { apiGet, apiPost } from '@/lib/api';
-import { lockboxesApi } from '../api/lockboxApi';
 import type { LockboxItem } from '../types/lockbox';
 import {
   useLockboxException,

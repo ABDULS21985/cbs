@@ -23,7 +23,7 @@ export function MfaChallengePage() {
         </div>
 
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          This route no longer accepts demo OTP codes. Restart sign-in and complete MFA in the hosted login experience.
+          This route does not accept OTP codes directly. Restart sign-in and complete MFA in the hosted login experience.
         </div>
 
         <button

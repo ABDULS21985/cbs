@@ -36,7 +36,7 @@ export function CallbackPage() {
 
   const { data: callbacks = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['contact-center', 'callbacks', statusFilter],
-    queryFn: () => apiGet<CallbackRequest[]>('/api/v1/contact-routing/callbacks').catch(() => []),
+    queryFn: () => apiGet<CallbackRequest[]>('/api/v1/contact-routing/callbacks'),
     staleTime: 15_000,
   });
 

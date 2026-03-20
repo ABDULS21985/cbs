@@ -204,7 +204,8 @@ export function ChartOfAccountsTree({ accounts }: ChartOfAccountsTreeProps) {
             Collapse All
           </button>
           <button
-            onClick={() => { toast.info('COA import feature coming soon. Please prepare your file in the required template.'); }}
+            type="button"
+            onClick={() => { toast.error('COA import is not wired to a backend endpoint in this build.'); }}
             className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border hover:bg-muted transition-colors"
           >
             <Upload className="w-4 h-4" />

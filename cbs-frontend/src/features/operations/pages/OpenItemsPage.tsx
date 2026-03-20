@@ -15,7 +15,6 @@ import type { OpenItem } from '../types/openItem';
 
 type ItemType = 'RECON_BREAK' | 'UNMATCHED_TXN' | 'SUSPENSE' | 'EXCEPTION' | 'INVESTIGATION';
 type Priority = 'HIGH' | 'MEDIUM' | 'LOW';
-type ItemStatus = 'OPEN' | 'ASSIGNED' | 'IN_PROGRESS' | 'RESOLVED' | 'ESCALATED';
 type ResolutionType = 'CORRECTED' | 'WRITTEN_OFF' | 'REVERSED' | 'RECLASSIFIED' | 'OTHER';
 
 interface CreateItemRequest {

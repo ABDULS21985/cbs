@@ -56,7 +56,7 @@ export interface SettlementBatch {
 export const custodyApi = {
   // Custody Accounts
   getAllCustodyAccounts: () =>
-    apiGet<CustodyAccount[]>('/api/v1/custody').catch(() => []),
+    apiGet<CustodyAccount[]>('/api/v1/custody'),
 
   openCustodyAccount: (payload: {
     customerId: string;
@@ -77,7 +77,7 @@ export const custodyApi = {
 
   // Settlement Instructions
   getInstructions: () =>
-    apiGet<SettlementInstruction[]>('/api/v1/settlements/instructions').catch(() => []),
+    apiGet<SettlementInstruction[]>('/api/v1/settlements/instructions'),
 
   getSettlementInstruction: (ref: string) =>
     apiGet<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}`),
@@ -102,11 +102,11 @@ export const custodyApi = {
 
   // Failed Settlements
   getFailedSettlements: () =>
-    apiGet<SettlementInstruction[]>('/api/v1/settlements/failed').catch(() => []),
+    apiGet<SettlementInstruction[]>('/api/v1/settlements/failed'),
 
   // Batches
   getBatches: () =>
-    apiGet<SettlementBatch[]>('/api/v1/settlements/batches').catch(() => []),
+    apiGet<SettlementBatch[]>('/api/v1/settlements/batches'),
 
   createSettlementBatch: (instructionRefs: string[]) =>
     apiPost<SettlementBatch>('/api/v1/settlements/batches', { instructionRefs }),

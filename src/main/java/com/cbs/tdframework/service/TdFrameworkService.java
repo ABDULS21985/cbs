@@ -1,5 +1,6 @@
 package com.cbs.tdframework.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.tdframework.entity.TdFrameworkAgreement;
@@ -17,6 +18,7 @@ import java.util.*;
 public class TdFrameworkService {
 
     private final TdFrameworkAgreementRepository agreementRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public TdFrameworkAgreement create(TdFrameworkAgreement agreement) {
@@ -29,10 +31,11 @@ public class TdFrameworkService {
     }
 
     @Transactional
-    public TdFrameworkAgreement approve(String agreementNumber, String approvedBy) {
+    public TdFrameworkAgreement approve(String agreementNumber) {
         TdFrameworkAgreement a = getByNumber(agreementNumber);
         if (!"DRAFT".equals(a.getStatus()) && !"PENDING_APPROVAL".equals(a.getStatus()))
             throw new BusinessException("Only DRAFT/PENDING agreements can be approved");
+        String approvedBy = currentActorProvider.getCurrentActor();
         a.setStatus("ACTIVE");
         a.setApprovedBy(approvedBy);
         a.setUpdatedAt(Instant.now());

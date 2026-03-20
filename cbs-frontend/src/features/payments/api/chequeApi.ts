@@ -91,7 +91,7 @@ export const RETURN_REASON_CODES: { code: string; label: string }[] = [
 
 export const chequeApi = {
   getChequeBooks: (params?: Record<string, unknown>): Promise<ChequeBook[]> =>
-    apiGet<ChequeBook[]>('/api/v1/cheques/books', params).catch(() => []),
+    apiGet<ChequeBook[]>('/api/v1/cheques/books', params),
 
   getChequeBook: (id: string): Promise<ChequeBook> =>
     apiGet<ChequeBook>(`/api/v1/cheques/books/${id}`),
@@ -105,7 +105,7 @@ export const chequeApi = {
     apiPost<ChequeBook>('/api/v1/cheques/books', data),
 
   getClearingQueue: (params?: Record<string, unknown>): Promise<ClearingCheque[]> =>
-    apiGet<ClearingCheque[]>('/api/v1/cheques/clearing', params).catch(() => []),
+    apiGet<ClearingCheque[]>('/api/v1/cheques/clearing', params),
 
   clearCheque: (id: string): Promise<void> =>
     apiPost<void>(`/api/v1/cheques/clearing/${id}/clear`),
@@ -117,11 +117,11 @@ export const chequeApi = {
     apiPost<void>(`/api/v1/cheques/clearing/${id}/hold`, { reason }),
 
   getStopPayments: (params?: Record<string, unknown>): Promise<StopPayment[]> =>
-    apiGet<StopPayment[]>('/api/v1/cheques/stop-payments', params).catch(() => []),
+    apiGet<StopPayment[]>('/api/v1/cheques/stop-payments', params),
 
   createStopPayment: (data: StopPaymentRequest): Promise<StopPayment> =>
     apiPost<StopPayment>('/api/v1/cheques/stop-payments', data),
 
   getReturns: (params?: Record<string, unknown>): Promise<ReturnedCheque[]> =>
-    apiGet<ReturnedCheque[]>('/api/v1/cheques/returns', params).catch(() => []),
+    apiGet<ReturnedCheque[]>('/api/v1/cheques/returns', params),
 };

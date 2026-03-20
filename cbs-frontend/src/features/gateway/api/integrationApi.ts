@@ -90,7 +90,7 @@ export const integrationApi = {
 
   /** GET /v1/integration/open-banking/clients */
   getApiClients: () =>
-    apiGet<ApiClientRegistration[]>('/api/v1/integration/open-banking/clients').catch(() => []),
+    apiGet<ApiClientRegistration[]>('/api/v1/integration/open-banking/clients'),
 
   /** POST /v1/integration/open-banking/clients */
   registerApiClient: (data: Partial<ApiClientRegistration>) =>
@@ -104,7 +104,7 @@ export const integrationApi = {
 
   /** GET /v1/integration/open-banking/consents */
   getConsents: (params?: Record<string, unknown>) =>
-    apiGet<OpenBankingConsent[]>('/api/v1/integration/open-banking/consents', params).catch(() => []),
+    apiGet<OpenBankingConsent[]>('/api/v1/integration/open-banking/consents', params),
 
   /** POST /v1/integration/open-banking/consents */
   createConsent: (data: Partial<OpenBankingConsent>) =>

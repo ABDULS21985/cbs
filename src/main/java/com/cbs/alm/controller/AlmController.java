@@ -2,7 +2,6 @@ package com.cbs.alm.controller;
 
 import com.cbs.alm.entity.*;
 import com.cbs.alm.service.AlmService;
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,7 +23,6 @@ import java.util.Map;
 public class AlmController {
 
     private final AlmService almService;
-    private final CurrentActorProvider currentActorProvider;
 
     @GetMapping("/gap-report")
     @Operation(summary = "List all ALM gap reports")
@@ -41,17 +39,16 @@ public class AlmController {
             @RequestParam BigDecimal totalRsa, @RequestParam BigDecimal totalRsl,
             @RequestBody List<Map<String, Object>> buckets,
             @RequestParam(required = false) BigDecimal avgAssetDuration,
-            @RequestParam(required = false) BigDecimal avgLiabDuration,
-            @RequestParam String generatedBy) {
+            @RequestParam(required = false) BigDecimal avgLiabDuration) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
                 almService.generateGapReport(reportDate, currencyCode, totalRsa, totalRsl, buckets,
-                        avgAssetDuration, avgLiabDuration, generatedBy)));
+                        avgAssetDuration, avgLiabDuration)));
     }
 
     @PostMapping("/gap-report/{id}/approve")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<AlmGapReport>> approve(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(almService.approveReport(id, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(almService.approveReport(id)));
     }
 
     @GetMapping("/gap-report/{date}")

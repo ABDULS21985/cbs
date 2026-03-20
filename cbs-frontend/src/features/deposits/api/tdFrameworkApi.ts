@@ -4,7 +4,7 @@ import type { TdFrameworkAgreement } from '../types/tdFramework';
 export const tdFrameworksApi = {
   /** GET /v1/td-frameworks */
   getAll: () =>
-    apiGet<TdFrameworkAgreement[]>('/api/v1/td-frameworks').catch(() => []),
+    apiGet<TdFrameworkAgreement[]>('/api/v1/td-frameworks'),
 
   /** GET /v1/td-frameworks/{number} */
   getByNumber: (number: string) =>

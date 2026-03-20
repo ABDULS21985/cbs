@@ -1,5 +1,6 @@
 package com.cbs.governance.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.governance.entity.*;
@@ -17,6 +18,7 @@ public class ParameterService {
 
     private final SystemParameterRepository parameterRepository;
     private final ParameterAuditRepository auditRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     /**
      * Hierarchical lookup: tenant-specific → global.
@@ -41,7 +43,8 @@ public class ParameterService {
     public boolean getBoolValue(String key) { return Boolean.parseBoolean(getValue(key)); }
 
     @Transactional
-    public SystemParameter createParameter(SystemParameter param, String createdBy) {
+    public SystemParameter createParameter(SystemParameter param) {
+        String createdBy = currentActorProvider.getCurrentActor();
         param.setLastModifiedBy(createdBy);
         param.setApprovalStatus("APPROVED"); // auto-approve on creation
         SystemParameter saved = parameterRepository.save(param);
@@ -53,9 +56,10 @@ public class ParameterService {
     }
 
     @Transactional
-    public SystemParameter updateParameter(Long parameterId, String newValue, String changedBy, String reason) {
+    public SystemParameter updateParameter(Long parameterId, String newValue, String reason) {
         SystemParameter param = parameterRepository.findById(parameterId)
                 .orElseThrow(() -> new ResourceNotFoundException("SystemParameter", "id", parameterId));
+        String changedBy = currentActorProvider.getCurrentActor();
 
         String oldValue = param.getParamValue();
         validateType(newValue, param.getValueType());
@@ -75,9 +79,10 @@ public class ParameterService {
     }
 
     @Transactional
-    public SystemParameter approveParameter(Long parameterId, String approvedBy) {
+    public SystemParameter approveParameter(Long parameterId) {
         SystemParameter param = parameterRepository.findById(parameterId)
                 .orElseThrow(() -> new ResourceNotFoundException("SystemParameter", "id", parameterId));
+        String approvedBy = currentActorProvider.getCurrentActor();
         if (!"PENDING_APPROVAL".equals(param.getApprovalStatus())) {
             throw new BusinessException("Parameter is not pending approval: " + param.getApprovalStatus());
         }

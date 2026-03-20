@@ -1,6 +1,5 @@
 package com.cbs.governance.controller;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.governance.entity.*;
 import com.cbs.governance.service.ParameterService;
@@ -15,26 +14,25 @@ import java.util.List;
 @Tag(name = "Parameter Management", description = "Centralised system parameters with hierarchical lookup, maker-checker, audit trail")
 public class ParameterController {
     private final ParameterService service;
-    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<SystemParameter>> create(@RequestBody SystemParameter param) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createParameter(param, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createParameter(param)));
     }
 
     @PatchMapping("/{id}")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<SystemParameter>> update(
-            @PathVariable Long id, @RequestParam String newValue, @RequestParam String changedBy,
+            @PathVariable Long id, @RequestParam String newValue,
             @RequestParam(required = false) String reason) {
-        return ResponseEntity.ok(ApiResponse.ok(service.updateParameter(id, newValue, changedBy, reason)));
+        return ResponseEntity.ok(ApiResponse.ok(service.updateParameter(id, newValue, reason)));
     }
 
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<SystemParameter>> approve(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(service.approveParameter(id, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(service.approveParameter(id)));
     }
 
     @GetMapping("/key/{key}")

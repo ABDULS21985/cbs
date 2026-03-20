@@ -1,7 +1,11 @@
 package com.cbs.lending.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -26,6 +30,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -48,12 +53,14 @@ public class LoanOriginationService {
     private final CollateralRepository collateralRepository;
     private final CustomerRepository customerRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
     private final CreditScoringModelRepository scoringModelRepository;
     private final CreditDecisionLogRepository decisionLogRepository;
     private final CreditDecisionEngine creditEngine;
     private final RepaymentScheduleGenerator scheduleGenerator;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
+    private final CurrentActorProvider currentActorProvider;
 
     // ========================================================================
     // APPLICATION WORKFLOW
@@ -196,9 +203,10 @@ public class LoanOriginationService {
     }
 
     @Transactional
-    public LoanApplicationResponse approveApplication(Long applicationId, LoanApprovalRequest approval, String approvedBy) {
+    public LoanApplicationResponse approveApplication(Long applicationId, LoanApprovalRequest approval) {
         LoanApplication app = applicationRepository.findByIdWithDetails(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("LoanApplication", "id", applicationId));
+        String approvedBy = currentActorProvider.getCurrentActor();
 
         if (app.getStatus() != LoanApplicationStatus.UNDER_REVIEW &&
                 app.getStatus() != LoanApplicationStatus.CREDIT_CHECK) {
@@ -311,10 +319,18 @@ public class LoanOriginationService {
         }
         loanAccountRepository.save(savedLoan);
 
-        // Credit disbursement account
         Account disbAccount = app.getDisbursementAccount();
-        disbAccount.credit(app.getApprovedAmount());
-        accountRepository.save(disbAccount);
+        accountPostingService.postCreditAgainstGl(
+                disbAccount,
+                TransactionType.CREDIT,
+                app.getApprovedAmount(),
+                "Loan disbursement " + loanNumber,
+                TransactionChannel.SYSTEM,
+                loanNumber + ":DISB",
+                requireLoanAssetGlCode(app.getLoanProduct()),
+                "LENDING",
+                loanNumber
+        );
 
         // Update application status
         app.setStatus(LoanApplicationStatus.DISBURSED);
@@ -443,11 +459,45 @@ public class LoanOriginationService {
         loan.updateDelinquency();
         loanAccountRepository.save(loan);
 
-        // Debit repayment account
-        if (loan.getRepaymentAccount() != null) {
+        BigDecimal amountPaid = amount.subtract(remaining);
+        if (loan.getRepaymentAccount() != null && amountPaid.compareTo(BigDecimal.ZERO) > 0) {
             Account repaymentAccount = loan.getRepaymentAccount();
-            repaymentAccount.debit(amount.subtract(remaining));
-            accountRepository.save(repaymentAccount);
+            List<AccountPostingService.GlPostingLeg> repaymentLegs = new java.util.ArrayList<>();
+            if (principalPayment.compareTo(BigDecimal.ZERO) > 0) {
+                repaymentLegs.add(accountPostingService.balanceLeg(
+                        requireLoanAssetGlCode(loan.getLoanProduct()),
+                        AccountPostingService.EntrySide.CREDIT,
+                        principalPayment,
+                        repaymentAccount.getCurrencyCode(),
+                        BigDecimal.ONE,
+                        "Loan principal repayment " + loan.getLoanNumber(),
+                        repaymentAccount.getId(),
+                        repaymentAccount.getCustomer() != null ? repaymentAccount.getCustomer().getId() : null
+                ));
+            }
+            if (interestPayment.compareTo(BigDecimal.ZERO) > 0) {
+                repaymentLegs.add(accountPostingService.balanceLeg(
+                        requireInterestIncomeGlCode(loan.getLoanProduct()),
+                        AccountPostingService.EntrySide.CREDIT,
+                        interestPayment,
+                        repaymentAccount.getCurrencyCode(),
+                        BigDecimal.ONE,
+                        "Loan interest repayment " + loan.getLoanNumber(),
+                        repaymentAccount.getId(),
+                        repaymentAccount.getCustomer() != null ? repaymentAccount.getCustomer().getId() : null
+                ));
+            }
+            accountPostingService.postDebitAgainstGl(
+                    repaymentAccount,
+                    TransactionType.DEBIT,
+                    amountPaid,
+                    "Loan repayment " + loan.getLoanNumber(),
+                    TransactionChannel.SYSTEM,
+                    loan.getLoanNumber() + ":REPAY:" + installment.getInstallmentNumber(),
+                    repaymentLegs,
+                    "LENDING",
+                    loan.getLoanNumber()
+            );
         }
 
         log.info("Loan repayment processed: loan={}, installment={}, principal={}, interest={}, remaining={}",
@@ -542,6 +592,20 @@ public class LoanOriginationService {
             throw new BusinessException("Requested tenure exceeds product maximum: " +
                     product.getMaxTenureMonths() + " months", "EXCEEDS_MAX_TENURE");
         }
+    }
+
+    private String requireLoanAssetGlCode(LoanProduct product) {
+        if (product == null || !StringUtils.hasText(product.getGlLoanAssetCode())) {
+            throw new BusinessException("Loan product asset GL code is required", "MISSING_LOAN_ASSET_GL");
+        }
+        return product.getGlLoanAssetCode();
+    }
+
+    private String requireInterestIncomeGlCode(LoanProduct product) {
+        if (product == null || !StringUtils.hasText(product.getGlInterestIncomeCode())) {
+            throw new BusinessException("Loan product interest income GL code is required", "MISSING_LOAN_INTEREST_GL");
+        }
+        return product.getGlInterestIncomeCode();
     }
 
     // ========================================================================

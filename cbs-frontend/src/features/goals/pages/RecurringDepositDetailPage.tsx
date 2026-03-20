@@ -39,7 +39,7 @@ export function RecurringDepositDetailPage() {
   const [showPay, setShowPay] = useState(false);
 
   const { data: rd, isLoading } = useQuery({ queryKey: ['recurring-deposit', id], queryFn: () => getRecurringDepositById(id!), enabled: !!id });
-  const { data: rdDetail } = useQuery({ queryKey: ['recurring-deposit-detail', id], queryFn: () => recurringDepositApi.getDetail(id!).catch(() => null), enabled: !!id });
+  const { data: rdDetail } = useQuery({ queryKey: ['recurring-deposit-detail', id], queryFn: () => recurringDepositApi.getDetail(id!), enabled: !!id });
 
   const schedule = useMemo(() => {
     if (rdDetail?.installments?.length) return rdDetail.installments;

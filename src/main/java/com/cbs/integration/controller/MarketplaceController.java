@@ -1,6 +1,5 @@
 package com.cbs.integration.controller;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.integration.entity.*;
 import com.cbs.integration.service.MarketplaceService;
@@ -19,7 +18,6 @@ import java.util.Map;
 public class MarketplaceController {
 
     private final MarketplaceService marketplaceService;
-    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping("/products")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -69,7 +67,7 @@ public class MarketplaceController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<MarketplaceSubscription>> approve(
             @PathVariable String subscriptionId) {
-        return ResponseEntity.ok(ApiResponse.ok(marketplaceService.approveSubscription(subscriptionId, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(marketplaceService.approveSubscription(subscriptionId)));
     }
 
     @GetMapping("/usage")

@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
-import { PageHeader } from '@/components/layout/PageHeader';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
 import { AuthCallbackPage } from '@/features/auth/pages/AuthCallbackPage';
 import { MfaChallengePage } from '@/features/auth/pages/MfaChallengePage';
@@ -71,6 +70,7 @@ import {
   FixedDepositListPage,
   DepositOperationsPage,
   FixedIncomePage,
+  FtpPage,
   FraudManagementPage,
   GatewayConsolePage,
   GatewayHubPage,
@@ -127,7 +127,7 @@ import {
   PortalDashboard,
   PortalProfilePage,
   PortalServiceRequestsPage,
-  PortalNotificationsPage,
+  PortalSelfServiceNotificationsPage,
   PortalHelpPage,
   PortalBillPaymentPage,
   PortalAirtimePage,
@@ -202,7 +202,6 @@ import {
   RoutingRulesPage,
   ChannelConfigPage,
   CommsPreferencesPage,
-  PortalNotificationsPage,
   CollateralRegisterPage,
   CollateralDetailPage,
   ComplianceReportsPage,
@@ -211,6 +210,7 @@ import {
   TreasuryHomePage,
   TreasuryDashboardPage,
   TreasuryDealsPage,
+  DealDetailPage,
   TradingDeskPage,
   MarketMakingPage,
   CapitalMarketsDashboardPage,
@@ -321,20 +321,6 @@ import {
   IssuedDevicesPage,
 } from './lazyRoutes';
 
-// Placeholder page — used for all unimplemented modules
-function PlaceholderPage({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <>
-      <PageHeader title={title} subtitle={subtitle || 'This module will be implemented in a subsequent prompt.'} />
-      <div className="page-container">
-        <div className="rounded-lg border border-dashed border-border/60 p-12 text-center text-muted-foreground">
-          <p className="text-lg font-medium">Module Coming Soon</p>
-          <p className="text-sm mt-1">Navigate using the sidebar to explore available modules.</p>
-        </div>
-      </div>
-    </>
-  );
-}
 
 // Inline DashboardPage and NotFoundPage removed — now imported from feature modules
 
@@ -464,11 +450,13 @@ export function AppRouter() {
           <Route index element={<TreasuryHomePage />} />
           <Route path="overview" element={<TreasuryDashboardPage />} />
           <Route path="deals" element={<TreasuryDealsPage />} />
+          <Route path="deals/:dealId" element={<DealDetailPage />} />
           <Route path="trading-desk" element={<TradingDeskPage />} />
           <Route path="market-making" element={<MarketMakingPage />} />
           <Route path="positions" element={<TreasuryPositionsPage />} />
           <Route path="fx" element={<FxRatesPage />} />
           <Route path="fixed-income" element={<FixedIncomePage />} />
+          <Route path="ftp" element={<FtpPage />} />
           <Route path="market-data" element={<MarketDataPage />} />
           <Route path="orders" element={<OrderManagementPage />} />
           <Route path="trade-ops" element={<TradeOpsPage />} />
@@ -784,7 +772,7 @@ export function AppRouter() {
           <Route path="beneficiaries" element={<PortalBeneficiariesPage />} />
           <Route path="cards" element={<PortalCardControlsPage />} />
           <Route path="requests" element={<PortalServiceRequestsPage />} />
-          <Route path="notifications" element={<PortalNotificationsPage />} />
+          <Route path="notifications" element={<PortalSelfServiceNotificationsPage />} />
           <Route path="bills" element={<PortalBillPaymentPage />} />
           <Route path="airtime" element={<PortalAirtimePage />} />
           <Route path="help" element={<PortalHelpPage />} />

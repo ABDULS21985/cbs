@@ -84,8 +84,8 @@ public class ChequeController {
     @PostMapping("/stop")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<ChequeLeaf>> stop(@RequestParam Long accountId, @RequestParam String chequeNumber,
-            @RequestParam String reason, @RequestParam String stoppedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(chequeService.stopCheque(accountId, chequeNumber, reason, stoppedBy)));
+            @RequestParam String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(chequeService.stopCheque(accountId, chequeNumber, reason)));
     }
 
     @GetMapping("/account/{accountId}")

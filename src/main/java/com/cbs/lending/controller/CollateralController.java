@@ -105,7 +105,7 @@ public class CollateralController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> restructureLoan(
             @PathVariable Long loanId, @Valid @RequestBody LoanRestructureRequest request) {
-        restructuringService.restructureLoan(loanId, request, currentActorProvider.getCurrentActor());
+        restructuringService.restructureLoan(loanId, request);
         return ResponseEntity.ok(ApiResponse.ok(null, "Loan restructured"));
     }
 

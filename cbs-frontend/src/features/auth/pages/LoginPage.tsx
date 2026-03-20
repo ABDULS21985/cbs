@@ -124,7 +124,7 @@ export function LoginPage() {
           </form>
 
           <p className="text-xs text-center text-muted-foreground mt-8">
-            Authentication uses hosted identity-provider pages. Demo credentials are disabled.
+            Authentication uses hosted identity-provider pages. Local test credentials are disabled here.
           </p>
         </div>
       </div>

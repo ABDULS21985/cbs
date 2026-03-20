@@ -31,7 +31,7 @@ export function useDashboardStats() {
 export function useRecentTransactions() {
   return useQuery({
     queryKey: queryKeys.dashboard.recentTransactions,
-    queryFn: () => apiGet<any[]>('/api/v1/payments', { page: 0, size: 10, sort: 'createdAt', direction: 'DESC' }).catch(() => []),
+    queryFn: () => apiGet<any[]>('/api/v1/payments', { page: 0, size: 10, sort: 'createdAt', direction: 'DESC' }),
     staleTime: 30_000,
   });
 }

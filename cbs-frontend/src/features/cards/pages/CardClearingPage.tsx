@@ -113,7 +113,7 @@ function SettlementPositionTab() {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useQuery({
       queryKey: ['card-clearing', 'positions', date, network],
-      queryFn: () => cardClearingApi.positions(date, network).catch(() => []),
+      queryFn: () => cardClearingApi.positions(date, network),
       staleTime: 30_000,
     }),
   );
@@ -454,7 +454,7 @@ function InterchangeTab() {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useQuery({
       queryKey: ['card-clearing', 'positions', today, network],
-      queryFn: () => cardClearingApi.positions(today, network).catch(() => []),
+      queryFn: () => cardClearingApi.positions(today, network),
       staleTime: 30_000,
     }),
   );
@@ -589,7 +589,7 @@ function ReconciliationTab() {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useQuery({
       queryKey: ['card-clearing', 'positions', today, network],
-      queryFn: () => cardClearingApi.positions(today, network).catch(() => []),
+      queryFn: () => cardClearingApi.positions(today, network),
       staleTime: 30_000,
     }),
   );
@@ -743,7 +743,7 @@ export function CardClearingPage() {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useQuery({
       queryKey: ['card-clearing', 'positions', today, network],
-      queryFn: () => cardClearingApi.positions(today, network).catch(() => []),
+      queryFn: () => cardClearingApi.positions(today, network),
       staleTime: 30_000,
     }),
   );

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LineChart,
@@ -19,6 +20,7 @@ import {
   ShieldCheck,
   Plus,
   Inbox,
+  AlertTriangle,
 } from 'lucide-react';
 import { formatMoney, formatPercent, formatDate, formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -198,9 +200,10 @@ function KpiSkeleton() {
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export function TreasuryDashboardPage() {
+  useEffect(() => { document.title = 'Treasury Dashboard | CBS'; }, []);
   const navigate = useNavigate();
-  const { data: deals = [], isLoading: dealsLoading } = useTreasuryDeals();
-  const { data: desks = [], isLoading: desksLoading } = useDealerDesks();
+  const { data: deals = [], isLoading: dealsLoading, isError: dealsError, refetch: refetchDeals } = useTreasuryDeals();
+  const { data: desks = [], isLoading: desksLoading, isError: desksError, refetch: refetchDesks } = useDealerDesks();
 
   const totalVolume = deals.reduce((s, d) => s + d.amount, 0);
   const openPositions = desks.reduce((s, d) => s + d.positionCount, 0);
@@ -229,6 +232,13 @@ export function TreasuryDashboardPage() {
       />
 
       <div className="page-container space-y-6">
+        {(dealsError || desksError) && (
+          <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>Failed to load dashboard data.</span>
+            <button onClick={() => { refetchDeals(); refetchDesks(); }} className="ml-auto text-xs font-medium underline hover:no-underline">Retry</button>
+          </div>
+        )}
         {/* KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {dealsLoading || desksLoading ? (

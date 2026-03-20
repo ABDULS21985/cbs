@@ -1,7 +1,10 @@
 package com.cbs.overdraft.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -15,6 +18,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -30,6 +34,7 @@ public class OverdraftService {
     private final CreditFacilityRepository facilityRepository;
     private final FacilityUtilizationLogRepository utilizationLogRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
 
@@ -103,10 +108,18 @@ public class OverdraftService {
 
         facility.drawdown(amount);
 
-        // Credit the linked account
         Account account = facility.getAccount();
-        account.credit(amount);
-        accountRepository.save(account);
+        accountPostingService.postCreditAgainstGl(
+                account,
+                TransactionType.CREDIT,
+                amount,
+                narration != null ? narration : "Facility drawdown " + facility.getFacilityNumber(),
+                TransactionChannel.SYSTEM,
+                facility.getFacilityNumber() + ":DRWDN",
+                resolveOverdraftAssetGlCode(),
+                "OVERDRAFT",
+                facility.getFacilityNumber()
+        );
 
         logUtilization(facility, UtilizationType.DRAWDOWN, amount, narration);
         facilityRepository.save(facility);
@@ -127,10 +140,18 @@ public class OverdraftService {
 
         facility.repay(amount);
 
-        // Debit the linked account
         Account account = facility.getAccount();
-        account.debit(amount);
-        accountRepository.save(account);
+        accountPostingService.postDebitAgainstGl(
+                account,
+                TransactionType.DEBIT,
+                amount,
+                narration != null ? narration : "Facility repayment " + facility.getFacilityNumber(),
+                TransactionChannel.SYSTEM,
+                facility.getFacilityNumber() + ":REPAY",
+                resolveOverdraftAssetGlCode(),
+                "OVERDRAFT",
+                facility.getFacilityNumber()
+        );
 
         logUtilization(facility, UtilizationType.REPAYMENT, amount, narration);
         facilityRepository.save(facility);
@@ -233,6 +254,15 @@ public class OverdraftService {
                 .runningAvailable(facility.getAvailableLimit())
                 .narration(narration).build();
         utilizationLogRepository.save(logEntry);
+    }
+
+    private String resolveOverdraftAssetGlCode() {
+        String glCode = cbsProperties.getLedger().getOverdraftAssetGlCode();
+        if (!StringUtils.hasText(glCode)) {
+            throw new BusinessException("CBS_LEDGER_OVERDRAFT_ASSET_GL is required for facility postings",
+                    "MISSING_OVERDRAFT_ASSET_GL");
+        }
+        return glCode;
     }
 
     private FacilityResponse toResponse(CreditFacility f) {

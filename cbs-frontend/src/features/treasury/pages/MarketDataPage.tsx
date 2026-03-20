@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage, StatusBadge } from '@/components/shared';
 import { cn } from '@/lib/utils';
@@ -130,6 +131,7 @@ function FeedStatusTab() {
 }
 
 export function MarketDataPage() {
+  useEffect(() => { document.title = 'Market Data | CBS'; }, []);
   const { data: feeds = [] } = useMarketDataFeeds();
   const degradedCount = feeds.filter((f) => f.status !== 'ONLINE').length;
 

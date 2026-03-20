@@ -328,11 +328,9 @@ function FormDialog({
 function CreateVaultDialog({
   open,
   onClose,
-  vaults,
 }: {
   open: boolean;
   onClose: () => void;
-  vaults: Vault[];
 }) {
   const [vaultCode, setVaultCode] = useState('');
   const [vaultName, setVaultName] = useState('');
@@ -871,7 +869,6 @@ export function VaultOperationsPage() {
       <CreateVaultDialog
         open={showCreateVault}
         onClose={() => setShowCreateVault(false)}
-        vaults={vaults}
       />
       <CashActionDialog
         open={!!cashInTarget}

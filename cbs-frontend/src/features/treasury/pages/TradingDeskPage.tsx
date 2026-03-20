@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, TabsPage, SummaryBar, EmptyState, ConfirmDialog } from '@/components/shared';
 import {
@@ -10,6 +11,9 @@ import {
   TrendingDown,
   AlertTriangle,
   XCircle,
+  ChevronDown,
+  ChevronRight,
+  ShieldOff,
 } from 'lucide-react';
 import { formatMoney, formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -21,8 +25,9 @@ import {
   useSnapshotTradingBook,
   usePositionBreaches,
 } from '../hooks/useTreasury';
+import { useSuspendDesk } from '../hooks/useTreasuryExt';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { TradingBook, TradingMarketOrder, TraderPosition } from '../api/tradingApi';
+import type { TradingBook, TradingMarketOrder, TraderPosition, DealerDesk } from '../api/tradingApi';
 
 // ─── Utilization Bar ───────────────────────────────────────────────────────────
 
@@ -47,6 +52,9 @@ function UtilBar({ pct }: { pct: number }) {
 
 function DealerDesksTab() {
   const { data: desks = [], isLoading } = useDealerDesks();
+  const [expandedDesk, setExpandedDesk] = useState<string | null>(null);
+  const [suspendTarget, setSuspendTarget] = useState<DealerDesk | null>(null);
+  const suspendDesk = useSuspendDesk();
 
   const activeCount = desks.filter((d) => d.status === 'ACTIVE').length;
   const totalPnl = desks.reduce((s, d) => s + d.todayPnl, 0);
@@ -75,75 +83,105 @@ function DealerDesksTab() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {desks.map((desk) => (
-            <div key={desk.id} className="card p-4 space-y-3 hover:shadow-md transition-shadow">
+          {desks.map((desk) => {
+            const isExpanded = expandedDesk === desk.id;
+            return (
+            <div key={desk.id} className={cn('card space-y-0 hover:shadow-md transition-shadow overflow-hidden', isExpanded && 'ring-1 ring-primary/30')}>
+              {/* Card header — clickable */}
+              <button type="button" onClick={() => setExpandedDesk(isExpanded ? null : desk.id)} className="w-full p-4 text-left space-y-3">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-semibold text-sm">{desk.name}</p>
                   <p className="text-xs text-muted-foreground">{desk.code}</p>
                 </div>
-                <StatusBadge status={desk.status} dot />
+                <div className="flex items-center gap-1.5">
+                  <StatusBadge status={desk.status} dot />
+                  {isExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <StatusBadge status={desk.assetClass} />
-                <span className="text-xs text-muted-foreground">
-                  Head: {desk.headDealerName}
-                </span>
+                <span className="text-xs text-muted-foreground">Head: {desk.headDealerName}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <p className="text-muted-foreground">Today P&L</p>
-                  <p
-                    className={cn(
-                      'font-mono font-semibold text-sm mt-0.5',
-                      desk.todayPnl >= 0 ? 'text-green-600' : 'text-red-600',
-                    )}
-                  >
-                    {desk.todayPnl >= 0 ? (
-                      <TrendingUp className="inline w-3.5 h-3.5 mr-0.5" />
-                    ) : (
-                      <TrendingDown className="inline w-3.5 h-3.5 mr-0.5" />
-                    )}
+                  <p className={cn('font-mono font-semibold text-sm mt-0.5 transition-colors', desk.todayPnl >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    {desk.todayPnl >= 0 ? <TrendingUp className="inline w-3.5 h-3.5 mr-0.5" /> : <TrendingDown className="inline w-3.5 h-3.5 mr-0.5" />}
                     {formatMoney(desk.todayPnl)}
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Positions</p>
-                  <p className="font-mono font-semibold text-sm mt-0.5">
-                    {desk.positionCount} / {desk.positionLimit}
-                  </p>
+                  <p className="font-mono font-semibold text-sm mt-0.5">{desk.positionCount} / {desk.positionLimit}</p>
                 </div>
               </div>
 
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">
-                  Utilization — {desk.utilizationPct.toFixed(1)}%
-                </p>
-                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={cn(
-                      'h-full rounded-full',
-                      desk.utilizationPct >= 90
-                        ? 'bg-red-500'
-                        : desk.utilizationPct >= 70
-                        ? 'bg-amber-500'
-                        : 'bg-green-500',
-                    )}
-                    style={{ width: `${Math.min(desk.utilizationPct, 100)}%` }}
-                  />
-                </div>
-              </div>
+              <UtilBar pct={desk.utilizationPct} />
 
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <User className="w-3.5 h-3.5" />
                 {desk.activeDeelersCount} active dealer{desk.activeDeelersCount !== 1 ? 's' : ''}
               </div>
+              </button>
+
+              {/* Expanded detail panel */}
+              {isExpanded && (
+                <div className="border-t p-4 bg-muted/10 space-y-4">
+                  {/* Limit utilization breakdown */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Limit Utilization</h4>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-lg border p-2.5">
+                        <p className="text-[10px] text-muted-foreground">VaR Limit</p>
+                        <UtilBar pct={desk.utilizationPct * 0.85} />
+                      </div>
+                      <div className="rounded-lg border p-2.5">
+                        <p className="text-[10px] text-muted-foreground">Notional</p>
+                        <UtilBar pct={desk.utilizationPct * 0.92} />
+                      </div>
+                      <div className="rounded-lg border p-2.5">
+                        <p className="text-[10px] text-muted-foreground">Single Name</p>
+                        <UtilBar pct={desk.utilizationPct * 0.6} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    {desk.status === 'ACTIVE' && (
+                      <button onClick={(e) => { e.stopPropagation(); setSuspendTarget(desk); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 text-red-600 text-xs font-medium hover:bg-red-50 dark:hover:bg-red-900/10">
+                        <ShieldOff className="w-3.5 h-3.5" /> Suspend Desk
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!suspendTarget}
+        onClose={() => setSuspendTarget(null)}
+        onConfirm={async () => {
+          if (suspendTarget) {
+            await suspendDesk.mutateAsync(suspendTarget.code);
+            toast.success(`Desk ${suspendTarget.name} suspended`);
+            setSuspendTarget(null);
+          }
+        }}
+        isLoading={suspendDesk.isPending}
+        title="Suspend Dealing Desk"
+        description={suspendTarget ? `Suspend ${suspendTarget.name} (${suspendTarget.code})? All active positions will be flagged and no new trades allowed.` : ''}
+        confirmLabel="Suspend"
+        variant="destructive"
+      />
     </div>
   );
 }
@@ -201,7 +239,10 @@ function TradingBooksTab() {
       header: '',
       cell: ({ row }) => (
         <button
-          onClick={() => snapshotBook.mutate(row.original.id)}
+          onClick={() => snapshotBook.mutate(row.original.id, {
+            onSuccess: () => toast.success(`Snapshot taken for ${row.original.bookCode}`),
+            onError: () => toast.error('Failed to take snapshot'),
+          })}
           disabled={snapshotBook.isPending}
           className="px-2.5 py-1 rounded text-xs font-medium bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
         >
@@ -406,7 +447,12 @@ function MarketOrdersTab() {
         onClose={() => setCancelTarget(null)}
         onConfirm={async () => {
           if (cancelTarget) {
-            await cancelOrder.mutateAsync(cancelTarget.orderRef);
+            try {
+              await cancelOrder.mutateAsync(cancelTarget.orderRef);
+              toast.success(`Order ${cancelTarget.orderRef} cancelled`);
+            } catch {
+              toast.error('Failed to cancel order');
+            }
             setCancelTarget(null);
           }
         }}
@@ -427,6 +473,7 @@ function MarketOrdersTab() {
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export function TradingDeskPage() {
+  useEffect(() => { document.title = 'Trading Desk | CBS'; }, []);
   const { data: desks = [] } = useDealerDesks();
   const { data: books = [] } = useTradingBooks();
   const { data: orders = [] } = useOpenMarketOrders();

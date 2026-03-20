@@ -40,7 +40,7 @@ function FileDisputeDialog({ onClose }: { onClose: () => void }) {
     transactionAmount: 0, transactionCurrency: 'NGN',
     merchantName: '', merchantId: '',
     disputeType: 'UNAUTHORIZED', disputeReason: '', disputeAmount: 0,
-    cardScheme: 'VISA', createdBy: 'ADMIN',
+    cardScheme: 'VISA',
   });
 
   const fc = 'w-full px-3 py-2 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';

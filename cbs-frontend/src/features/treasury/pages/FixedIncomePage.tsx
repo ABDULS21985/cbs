@@ -5,7 +5,10 @@ import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  ResponsiveContainer, Tooltip, Legend,
 } from 'recharts';
+import { Landmark, TrendingUp, Clock, Loader2, Play } from 'lucide-react';
+import { toast } from 'sonner';
 import { useSecurityHoldings, useCouponCalendar } from '../hooks/useTreasuryData';
 import {
   useRunBatchAccrual,
@@ -272,7 +275,7 @@ export function FixedIncomePage() {
                     title="Daily Accrual"
                     description="Calculate daily interest accrual for all active holdings"
                     lastRun="Today"
-                    onRun={() => batchAccrual.mutate()}
+                    onRun={() => batchAccrual.mutate(undefined, { onSuccess: () => toast.success('Daily accrual completed'), onError: () => toast.error('Accrual failed') })}
                     isPending={batchAccrual.isPending}
                   />
                   <BatchOperationCard
@@ -280,21 +283,21 @@ export function FixedIncomePage() {
                     description="Process due coupon payments and update payment records"
                     lastRun={coupons.length > 0 ? formatDate(coupons[0].eventDate) : undefined}
                     extraInfo={`${coupons.filter((c) => c.eventType === 'COUPON' && c.status === 'PENDING').length} coupons pending`}
-                    onRun={() => batchCoupons.mutate()}
+                    onRun={() => batchCoupons.mutate(undefined, { onSuccess: () => toast.success('Coupon processing completed'), onError: () => toast.error('Coupon processing failed') })}
                     isPending={batchCoupons.isPending}
                   />
                   <BatchOperationCard
                     title="Mark-to-Market"
                     description="Revalue all holdings at current market prices"
                     extraInfo={`Unrealized P&L: ${formatMoney(totalUnrealized)}`}
-                    onRun={() => batchMtm.mutate()}
+                    onRun={() => batchMtm.mutate(undefined, { onSuccess: () => toast.success('Mark-to-market completed'), onError: () => toast.error('Mark-to-market failed') })}
                     isPending={batchMtm.isPending}
                   />
                   <BatchOperationCard
                     title="Maturity Processing"
                     description="Process matured securities and settle principal"
                     extraInfo={`${maturingIn30.length} maturing within 30 days`}
-                    onRun={() => batchMaturity.mutate()}
+                    onRun={() => batchMaturity.mutate(undefined, { onSuccess: () => toast.success('Maturity processing completed'), onError: () => toast.error('Maturity processing failed') })}
                     isPending={batchMaturity.isPending}
                   />
                 </div>

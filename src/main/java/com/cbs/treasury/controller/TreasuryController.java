@@ -62,14 +62,14 @@ public class TreasuryController {
 
     @PostMapping("/deals/{id}/confirm")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<TreasuryDeal>> confirm(@PathVariable Long id, @RequestParam String confirmedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(treasuryService.confirmDeal(id, confirmedBy)));
+    public ResponseEntity<ApiResponse<TreasuryDeal>> confirm(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(treasuryService.confirmDeal(id)));
     }
 
     @PostMapping("/deals/{id}/settle")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<TreasuryDeal>> settle(@PathVariable Long id, @RequestParam String settledBy) {
-        return ResponseEntity.ok(ApiResponse.ok(treasuryService.settleDeal(id, settledBy)));
+    public ResponseEntity<ApiResponse<TreasuryDeal>> settle(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(treasuryService.settleDeal(id)));
     }
 
     @GetMapping("/deals")
@@ -83,6 +83,46 @@ public class TreasuryController {
         }
         Page<TreasuryDeal> result = treasuryService.getDealsByStatus(status, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @PostMapping("/deals/{id}/amend")
+    @Operation(summary = "Amend a treasury deal")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<TreasuryDeal>> amendDeal(
+            @PathVariable Long id,
+            @RequestParam(required = false) java.math.BigDecimal newAmount,
+            @RequestParam(required = false) java.math.BigDecimal newRate,
+            @RequestParam(required = false) LocalDate newMaturityDate,
+            @RequestParam String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                treasuryService.amendDeal(id, newAmount, newRate, newMaturityDate, reason)));
+    }
+
+    @GetMapping("/deals/{id}/audit-trail")
+    @Operation(summary = "Get deal audit trail from metadata amendments")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDealAuditTrail(@PathVariable Long id) {
+        TreasuryDeal deal = treasuryService.getDeal(id);
+        Map<String, Object> trail = new java.util.LinkedHashMap<>();
+        trail.put("dealRef", deal.getDealNumber());
+        trail.put("events", new java.util.ArrayList<>(java.util.List.of(
+                Map.of("event", "BOOKED", "timestamp", deal.getCreatedAt() != null ? deal.getCreatedAt().toString() : "",
+                        "user", deal.getDealer() != null ? deal.getDealer() : "", "details", "Deal booked"),
+                deal.getConfirmedAt() != null
+                        ? Map.of("event", "CONFIRMED", "timestamp", deal.getConfirmedAt().toString(),
+                                "user", deal.getConfirmedBy() != null ? deal.getConfirmedBy() : "", "details", "Deal confirmed")
+                        : null,
+                deal.getSettledAt() != null
+                        ? Map.of("event", "SETTLED", "timestamp", deal.getSettledAt().toString(),
+                                "user", deal.getSettledBy() != null ? deal.getSettledBy() : "", "details", "Deal settled")
+                        : null
+        ).stream().filter(java.util.Objects::nonNull).collect(Collectors.toList())));
+        // Include amendment history from metadata
+        if (deal.getMetadata() != null && deal.getMetadata().containsKey("lastAmendment")) {
+            trail.put("lastAmendment", deal.getMetadata().get("lastAmendment"));
+            trail.put("amendmentCount", deal.getMetadata().getOrDefault("amendmentCount", 0));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(trail));
     }
 
     @GetMapping("/deals/batch/maturity")

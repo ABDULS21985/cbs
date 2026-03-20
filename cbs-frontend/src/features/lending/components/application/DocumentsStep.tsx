@@ -136,7 +136,8 @@ export function DocumentsStep({ state, updateField, onNext, onBack }: DocumentsS
                     </div>
                   </div>
                   <button
-                    onClick={() => toast.info('Document upload coming soon — mark as received for now')}
+                    type="button"
+                    onClick={() => toast.error('Document upload is not wired to a backend service from this application flow.')}
                     className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border hover:bg-muted"
                   >
                     <Upload className="w-3 h-3" /> Upload

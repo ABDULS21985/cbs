@@ -472,6 +472,10 @@ export const FixedIncomePage = lazyNamed(
   () => import('@/features/treasury/pages/FixedIncomePage'),
   'FixedIncomePage',
 );
+export const FtpPage = lazyNamed(
+  () => import('@/features/treasury/pages/FtpPage'),
+  'FtpPage',
+);
 export const MarketDataPage = lazyNamed(
   () => import('@/features/treasury/pages/MarketDataPage'),
   'MarketDataPage',
@@ -794,6 +798,10 @@ export const TreasuryDashboardPage = lazyNamed(
 export const TreasuryDealsPage = lazyNamed(
   () => import('@/features/treasury/pages/TreasuryDealsPage'),
   'TreasuryDealsPage',
+);
+export const DealDetailPage = lazyNamed(
+  () => import('@/features/treasury/pages/DealDetailPage'),
+  'DealDetailPage',
 );
 export const TradingDeskPage = lazyNamed(
   () => import('@/features/treasury/pages/TradingDeskPage'),

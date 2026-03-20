@@ -3,6 +3,7 @@ package com.cbs.lifecycle.service;
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.AccountStatus;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.lifecycle.dto.LifecycleEventDto;
@@ -30,6 +31,7 @@ public class AccountLifecycleService {
     private final AccountRepository accountRepository;
     private final AccountLifecycleEventRepository lifecycleEventRepository;
     private final CbsProperties cbsProperties;
+    private final CurrentActorProvider currentActorProvider;
 
     /**
      * Scans all active accounts and marks those without transactions
@@ -71,9 +73,10 @@ public class AccountLifecycleService {
      * Reactivates a dormant account (triggered by a new transaction or manual action).
      */
     @Transactional
-    public void reactivateAccount(Long accountId, String performedBy) {
+    public void reactivateAccount(Long accountId) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
+        String performedBy = currentActorProvider.getCurrentActor();
 
         if (account.getStatus() != AccountStatus.DORMANT) {
             return; // Only dormant accounts can be reactivated

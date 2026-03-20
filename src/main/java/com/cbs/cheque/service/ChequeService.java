@@ -1,7 +1,12 @@
 package com.cbs.cheque.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.cheque.entity.*;
 import com.cbs.cheque.repository.*;
 import com.cbs.common.exception.BusinessException;
@@ -12,6 +17,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -27,6 +33,9 @@ public class ChequeService {
     private final ChequeBookRepository bookRepository;
     private final ChequeLeafRepository leafRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+    private final CurrentActorProvider currentActorProvider;
+    private final CbsProperties cbsProperties;
 
     @Transactional
     public ChequeBook issueBook(Long accountId, String seriesPrefix, int startNumber, int totalLeaves) {
@@ -108,8 +117,17 @@ public class ChequeService {
         }
 
         Account account = leaf.getAccount();
-        account.debit(leaf.getAmount());
-        accountRepository.save(account);
+        accountPostingService.postDebitAgainstGl(
+                account,
+                TransactionType.DEBIT,
+                leaf.getAmount(),
+                "Cheque clearing " + leaf.getChequeNumber(),
+                TransactionChannel.CHEQUE,
+                leaf.getChequeNumber(),
+                resolveChequeClearingGlCode(),
+                "CHEQUE",
+                leaf.getChequeNumber()
+        );
 
         leaf.setStatus(ChequeStatus.CLEARED);
         leaf.setClearingDate(LocalDate.now());
@@ -124,9 +142,10 @@ public class ChequeService {
     }
 
     @Transactional
-    public ChequeLeaf stopCheque(Long accountId, String chequeNumber, String reason, String stoppedBy) {
+    public ChequeLeaf stopCheque(Long accountId, String chequeNumber, String reason) {
         ChequeLeaf leaf = leafRepository.findByAccountIdAndChequeNumber(accountId, chequeNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("ChequeLeaf", "chequeNumber", chequeNumber));
+        String stoppedBy = currentActorProvider.getCurrentActor();
 
         if (leaf.getStatus() == ChequeStatus.CLEARED || leaf.getStatus() == ChequeStatus.RETURNED) {
             throw new BusinessException("Cannot stop a cheque that is already " + leaf.getStatus(), "CANNOT_STOP");
@@ -146,5 +165,14 @@ public class ChequeService {
 
     public List<ChequeBook> getActiveBooks(Long accountId) {
         return bookRepository.findByAccountIdAndStatus(accountId, "ACTIVE");
+    }
+
+    private String resolveChequeClearingGlCode() {
+        String glCode = cbsProperties.getLedger().getExternalClearingGlCode();
+        if (!StringUtils.hasText(glCode)) {
+            throw new BusinessException("CBS_LEDGER_EXTERNAL_CLEARING_GL is required for cheque clearing",
+                    "MISSING_CHEQUE_CLEARING_GL");
+        }
+        return glCode;
     }
 }

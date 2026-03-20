@@ -1,7 +1,11 @@
 package com.cbs.billing.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.billing.entity.*;
 import com.cbs.billing.repository.*;
 import com.cbs.common.exception.BusinessException;
@@ -12,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -26,6 +31,8 @@ public class BillPaymentService {
     private final BillerRepository billerRepository;
     private final BillPaymentRepository billPaymentRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+    private final CbsProperties cbsProperties;
 
     // ========================================================================
     // BILLER MANAGEMENT
@@ -102,19 +109,48 @@ public class BillPaymentService {
                 .currencyCode(biller.getCurrencyCode())
                 .status("PROCESSING").build();
 
-        // Debit account
-        debitAccount.debit(totalAmount);
-        accountRepository.save(debitAccount);
-
-        // Credit biller settlement account if local
         if (biller.getSettlementAccount() != null) {
             Account settlement = biller.getSettlementAccount();
-            settlement.credit(amount);
-            accountRepository.save(settlement);
+            accountPostingService.postTransfer(
+                    debitAccount,
+                    settlement,
+                    amount,
+                    amount,
+                    "Bill payment " + paymentRef,
+                    "Bill settlement " + paymentRef,
+                    TransactionChannel.SYSTEM,
+                    paymentRef,
+                    "BILL_PAYMENT",
+                    paymentRef
+            );
+            if (fee.compareTo(BigDecimal.ZERO) > 0 && "CUSTOMER".equals(biller.getFeeBearer())) {
+                accountPostingService.postDebitAgainstGl(
+                        debitAccount,
+                        TransactionType.FEE_DEBIT,
+                        fee,
+                        "Bill payment fee " + paymentRef,
+                        TransactionChannel.SYSTEM,
+                        paymentRef + ":FEE",
+                        resolveBillSettlementGlCode(),
+                        "BILL_PAYMENT",
+                        paymentRef
+                );
+            }
             payment.setStatus("COMPLETED");
             payment.setBillerConfirmationRef("CONF-" + paymentRef);
         } else {
-            payment.setStatus("COMPLETED"); // Simplified; production would route to biller API
+            accountPostingService.postDebitAgainstGl(
+                    debitAccount,
+                    TransactionType.DEBIT,
+                    totalAmount,
+                    "Bill payment " + paymentRef,
+                    TransactionChannel.SYSTEM,
+                    paymentRef,
+                    resolveBillSettlementGlCode(),
+                    "BILL_PAYMENT",
+                    paymentRef
+            );
+            payment.setStatus("COMPLETED");
         }
 
         BillPayment saved = billPaymentRepository.save(payment);
@@ -129,5 +165,14 @@ public class BillPaymentService {
 
     public Page<BillPayment> getCustomerPayments(Long customerId, Pageable pageable) {
         return billPaymentRepository.findByCustomerIdOrderByCreatedAtDesc(customerId, pageable);
+    }
+
+    private String resolveBillSettlementGlCode() {
+        String glCode = cbsProperties.getLedger().getExternalClearingGlCode();
+        if (!StringUtils.hasText(glCode)) {
+            throw new BusinessException("CBS_LEDGER_EXTERNAL_CLEARING_GL is required for bill payment settlement",
+                    "MISSING_BILL_PAYMENT_SETTLEMENT_GL");
+        }
+        return glCode;
     }
 }

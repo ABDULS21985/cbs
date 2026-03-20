@@ -26,7 +26,7 @@ export function LeasedAssetPage() {
 
   const { data: allAssets = [], isLoading } = useQuery({
     queryKey: ['leased-assets', 'all'],
-    queryFn: () => apiGet<LeasedAsset[]>('/api/v1/leased-assets').catch(() => []),
+    queryFn: () => apiGet<LeasedAsset[]>('/api/v1/leased-assets'),
     staleTime: 30_000,
   });
   const { data: dueAssets = [], isLoading: dueLoading } = useLeasedAssetsDueInspection();
@@ -95,7 +95,7 @@ export function LeasedAssetPage() {
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
             <div className="bg-card rounded-xl shadow-2xl border w-full max-w-md p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
               <h3 className="font-semibold">Register Leased Asset</h3>
-              <p className="text-sm text-muted-foreground">Asset registration form — coming soon. Use the API directly.</p>
+              <p className="text-sm text-muted-foreground">Asset registration is not wired to a backend endpoint from this dialog. Do not use this path for production booking.</p>
               <div className="flex justify-end"><button onClick={() => setShowRegister(false)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Close</button></div>
             </div>
           </div>

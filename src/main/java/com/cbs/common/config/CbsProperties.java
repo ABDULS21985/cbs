@@ -113,6 +113,14 @@ public class CbsProperties {
         private String fixedDepositControlGlCode = "";
         /** Control GL for recurring deposit liabilities. */
         private String recurringDepositControlGlCode = "";
+        /** Control GL for savings-goal liabilities. */
+        private String savingsGoalControlGlCode = "";
+        /** Asset GL for overdraft/credit-facility utilization. */
+        private String overdraftAssetGlCode = "";
+        /** Settlement GL for trade-finance claim utilization. */
+        private String tradeFinanceSettlementGlCode = "";
+        /** Income GL for trade-finance commissions. */
+        private String tradeFinanceCommissionIncomeGlCode = "";
     }
 
     @Getter @Setter

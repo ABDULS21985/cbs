@@ -1,6 +1,5 @@
 package com.cbs.vault.controller;
 
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.vault.entity.*;
@@ -23,7 +22,6 @@ import java.util.List;
 public class VaultController {
 
     private final VaultService vaultService;
-    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -51,21 +49,21 @@ public class VaultController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<VaultTransaction>> cashIn(@PathVariable Long id, @RequestParam BigDecimal amount,
             @RequestParam(required = false) String reference, @RequestParam(required = false) String narration) {
-        return ResponseEntity.ok(ApiResponse.ok(vaultService.cashIn(id, amount, reference, narration, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(vaultService.cashIn(id, amount, reference, narration)));
     }
 
     @PostMapping("/{id}/cash-out")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<VaultTransaction>> cashOut(@PathVariable Long id, @RequestParam BigDecimal amount,
             @RequestParam(required = false) String reference, @RequestParam(required = false) String narration) {
-        return ResponseEntity.ok(ApiResponse.ok(vaultService.cashOut(id, amount, reference, narration, currentActorProvider.getCurrentActor())));
+        return ResponseEntity.ok(ApiResponse.ok(vaultService.cashOut(id, amount, reference, narration)));
     }
 
     @PostMapping("/transfer")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> transfer(@RequestParam Long fromVaultId, @RequestParam Long toVaultId,
             @RequestParam BigDecimal amount) {
-        vaultService.vaultTransfer(fromVaultId, toVaultId, amount, currentActorProvider.getCurrentActor());
+        vaultService.vaultTransfer(fromVaultId, toVaultId, amount);
         return ResponseEntity.ok(ApiResponse.ok(null, "Transfer completed"));
     }
 

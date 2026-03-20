@@ -146,6 +146,10 @@ cbs:
     remittance-settlement-gl-code: ${CBS_LEDGER_REMITTANCE_SETTLEMENT_GL:${CBS_LEDGER_EXTERNAL_CLEARING_GL:}}
     fixed-deposit-control-gl-code: ${CBS_LEDGER_FIXED_DEPOSIT_GL:}
     recurring-deposit-control-gl-code: ${CBS_LEDGER_RECURRING_DEPOSIT_GL:}
+    savings-goal-control-gl-code: ${CBS_LEDGER_SAVINGS_GOAL_GL:}
+    overdraft-asset-gl-code: ${CBS_LEDGER_OVERDRAFT_ASSET_GL:}
+    trade-finance-settlement-gl-code: ${CBS_LEDGER_TRADE_FINANCE_SETTLEMENT_GL:${CBS_LEDGER_EXTERNAL_CLEARING_GL:}}
+    trade-finance-commission-income-gl-code: ${CBS_LEDGER_TRADE_FINANCE_COMMISSION_GL:}
 
   kyc:
     provider: ${CBS_KYC_PROVIDER:}

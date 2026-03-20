@@ -95,7 +95,7 @@ export function getApprovalHistory(params?: {
 }
 
 export function getApprovalById(id: string): Promise<ApprovalRequest | null> {
-  return apiGet<ApprovalRequest>(`/api/v1/approvals/${id}`).catch(() => null);
+  return apiGet<ApprovalRequest>(`/api/v1/approvals/${id}`);
 }
 
 export function approveRequest(id: string, comments?: string): Promise<ApprovalRequest> {

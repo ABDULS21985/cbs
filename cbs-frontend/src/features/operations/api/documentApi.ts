@@ -87,7 +87,7 @@ export function getDocuments(folder?: DocumentFolder, search?: string): Promise<
 }
 
 export function getDocumentById(id: string): Promise<DocumentFile | null> {
-  return apiGet<DocumentFile>(`/api/v1/documents/${id}`).catch(() => null);
+  return apiGet<DocumentFile>(`/api/v1/documents/${id}`);
 }
 
 export function uploadDocument(
@@ -123,7 +123,7 @@ export function getOcrQueue(): Promise<OcrQueueItem[]> {
 }
 
 export function getOcrItem(id: string): Promise<OcrQueueItem | null> {
-  return apiGet<OcrQueueItem>(`/api/v1/documents/ocr-queue/${id}`).catch(() => null);
+  return apiGet<OcrQueueItem>(`/api/v1/documents/ocr-queue/${id}`);
 }
 
 export function submitOcrCorrection(id: string, correctedText: string): Promise<OcrQueueItem> {

@@ -9,7 +9,6 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge, ConfirmDialog } from '@/components/shared';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { apiGet, apiPost } from '@/lib/api';
-import { bankDraftsApi } from '../api/bankDraftApi';
 import type { BankDraft } from '../types/bankDraft';
 import {
   usePresentBankDraft,
@@ -210,7 +209,7 @@ export function BankDraftPage() {
         id: 'actions',
         header: 'Actions',
         cell: ({ row }) => {
-          const { status, draftNumber } = row.original;
+          const { status } = row.original;
           return (
             <div className="flex gap-1.5">
               {status === 'ISSUED' && (

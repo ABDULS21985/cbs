@@ -87,9 +87,8 @@ public class ApprovalController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<WorkflowInstance>> approve(
             @PathVariable Long id,
-            @RequestParam String actionBy,
             @RequestParam(required = false) String comments) {
-        return ResponseEntity.ok(ApiResponse.ok(workflowService.approveStep(id, actionBy, comments)));
+        return ResponseEntity.ok(ApiResponse.ok(workflowService.approveStep(id, comments)));
     }
 
     @PostMapping("/{id}/reject")
@@ -97,9 +96,8 @@ public class ApprovalController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<WorkflowInstance>> reject(
             @PathVariable Long id,
-            @RequestParam String actionBy,
             @RequestParam String comments) {
-        return ResponseEntity.ok(ApiResponse.ok(workflowService.rejectStep(id, actionBy, comments)));
+        return ResponseEntity.ok(ApiResponse.ok(workflowService.rejectStep(id, comments)));
     }
 
     @PostMapping("/{id}/return")
@@ -107,9 +105,8 @@ public class ApprovalController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<WorkflowInstance>> returnToMaker(
             @PathVariable Long id,
-            @RequestParam String actionBy,
             @RequestParam String comments) {
-        return ResponseEntity.ok(ApiResponse.ok(workflowService.rejectStep(id, actionBy, "RETURNED: " + comments)));
+        return ResponseEntity.ok(ApiResponse.ok(workflowService.rejectStep(id, "RETURNED: " + comments)));
     }
 
     @PostMapping("/{id}/delegate")
@@ -131,13 +128,12 @@ public class ApprovalController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> bulkApprove(
             @RequestBody List<Long> ids,
-            @RequestParam String actionBy,
             @RequestParam(required = false) String comments) {
         int approved = 0;
         int failed = 0;
         for (Long id : ids) {
             try {
-                workflowService.approveStep(id, actionBy, comments);
+                workflowService.approveStep(id, comments);
                 approved++;
             } catch (Exception e) {
                 failed++;

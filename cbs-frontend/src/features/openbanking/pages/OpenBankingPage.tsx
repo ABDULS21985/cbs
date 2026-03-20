@@ -1,14 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatCard, TabsPage, DataTable, StatusBadge } from '@/components/shared';
+import { StatCard, TabsPage, StatusBadge } from '@/components/shared';
 import { formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   Plus,
   ShieldCheck,
-  Users,
   CheckCircle2,
   Ban,
   KeyRound,
@@ -16,17 +15,13 @@ import {
   Search,
   Loader2,
 } from 'lucide-react';
-import type { ColumnDef } from '@tanstack/react-table';
 import {
   BarChart,
   Bar,
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 
@@ -38,7 +33,7 @@ import {
   useRevokeConsent,
   useCustomerConsents,
 } from '../hooks/useOpenBanking';
-import type { TppClient, ApiConsent, TppClientType, ConsentStatus } from '../api/openBankingApi';
+import type { ApiConsent, TppClientType, ConsentStatus } from '../api/openBankingApi';
 import { OpenBankingStatsRow } from '../components/dashboard/OpenBankingStatsRow';
 import { ComplianceStatusBanner } from '../components/dashboard/ComplianceStatusBanner';
 import { RegisterTppSheet } from '../components/tpp/RegisterTppSheet';
@@ -47,64 +42,11 @@ import { ConsentTable } from '../components/consent/ConsentTable';
 import { AuthoriseConsentDialog } from '../components/consent/AuthoriseConsentDialog';
 import { RevokeConsentDialog } from '../components/consent/RevokeConsentDialog';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-const CLIENT_TYPE_STYLES: Record<TppClientType, string> = {
-  TPP_AISP: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  TPP_PISP: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  TPP_BOTH: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
-};
-
-const CLIENT_TYPE_LABEL: Record<TppClientType, string> = {
-  TPP_AISP: 'AISP',
-  TPP_PISP: 'PISP',
-  TPP_BOTH: 'BOTH',
-};
-
-function generateConsentTrendData() {
-  const data = [];
-  const now = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    data.push({
-      date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-      granted: Math.floor(Math.random() * 15) + 2,
-      revoked: Math.floor(Math.random() * 5),
-    });
-  }
-  return data;
-}
-
-function generateApiTrafficData(clients: TppClient[]) {
-  const data = [];
-  const now = new Date();
-  const tppNames = clients.slice(0, 5).map((c) => c.name);
-  if (tppNames.length === 0) tppNames.push('No TPPs');
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const point: Record<string, string | number> = {
-      date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-    };
-    tppNames.forEach((name) => {
-      point[name] = Math.floor(Math.random() * 500) + 50;
-    });
-    data.push(point);
-  }
-  return data;
-}
-
-function generateErrorRateData(clients: TppClient[]) {
-  return clients.slice(0, 8).map((c) => ({
-    name: c.name,
-    clientId: c.clientId,
-    totalCalls: Math.floor(Math.random() * 10000) + 500,
-    errors: Math.floor(Math.random() * 50) + 1,
-    errorRate: (Math.random() * 2.5).toFixed(2),
-    avgResponse: Math.floor(Math.random() * 200) + 50,
-  }));
-}
+// NOTE: Consent trend, API traffic, and error rate analytics charts have been removed.
+// Synthetic/random data was previously generated for these charts, which is misleading in production.
+// Wire a dedicated backend analytics endpoint (e.g. GET /api/v1/open-banking/analytics/consent-trend,
+// /api/v1/open-banking/analytics/api-traffic, /api/v1/open-banking/analytics/error-rates) and
+// add hooks here before re-enabling these charts.
 
 // ── PSD2 Compliance Checklist ────────────────────────────────────────────────
 
@@ -179,15 +121,10 @@ export function OpenBankingPage() {
     return result;
   }, [consents, consentStatusFilter, consentTppFilter, consentSearch]);
 
-  // Chart data (memoized with mock data)
-  const consentTrendData = useMemo(() => generateConsentTrendData(), []);
-  const apiTrafficData = useMemo(() => generateApiTrafficData(clients), [clients]);
-  const errorRateData = useMemo(() => generateErrorRateData(clients), [clients]);
-
-  // Top TPPs bar data
+  // Top TPPs bar data — uses only real backend-provided apiCalls30d; falls back to 0 if not available
   const topTpps = useMemo(() => {
     return clients
-      .map((c) => ({ name: c.name, calls: c.apiCalls30d ?? Math.floor(Math.random() * 5000) + 200 }))
+      .map((c) => ({ name: c.name, calls: c.apiCalls30d ?? 0 }))
       .sort((a, b) => b.calls - a.calls)
       .slice(0, 8);
   }, [clients]);
@@ -217,27 +154,6 @@ export function OpenBankingPage() {
       },
     );
   };
-
-  // Error rate columns
-  const errorRateCols: ColumnDef<any, unknown>[] = [
-    { accessorKey: 'name', header: 'TPP Name', cell: ({ row }) => <span className="text-sm font-medium">{row.original.name}</span> },
-    { accessorKey: 'clientId', header: 'Client ID', cell: ({ row }) => <code className="text-xs font-mono text-muted-foreground">{row.original.clientId}</code> },
-    { accessorKey: 'totalCalls', header: 'Total Calls', cell: ({ row }) => <span className="font-mono text-sm">{Number(row.original.totalCalls).toLocaleString()}</span> },
-    { accessorKey: 'errors', header: 'Errors', cell: ({ row }) => <span className="font-mono text-sm text-red-600">{row.original.errors}</span> },
-    {
-      accessorKey: 'errorRate',
-      header: 'Error Rate',
-      cell: ({ row }) => {
-        const rate = Number(row.original.errorRate);
-        return (
-          <span className={cn('font-mono text-sm font-medium', rate > 1.5 ? 'text-red-600' : rate > 0.5 ? 'text-amber-600' : 'text-green-600')}>
-            {row.original.errorRate}%
-          </span>
-        );
-      },
-    },
-    { accessorKey: 'avgResponse', header: 'Avg Response', cell: ({ row }) => <span className="font-mono text-sm">{row.original.avgResponse}ms</span> },
-  ];
 
   // PSD2 compliance state
   const [checklist, setChecklist] = useState(PSD2_CHECKLIST);
@@ -295,27 +211,16 @@ export function OpenBankingPage() {
             <StatCard label="Expired" value={consents.filter((c) => c.status === 'EXPIRED').length} format="number" icon={KeyRound} />
           </div>
 
-          {/* Consent trend chart */}
+          {/* Consent trend chart — not yet available */}
           <div className="rounded-xl border bg-card p-5">
             <h3 className="text-sm font-semibold mb-4">Consent Trends (30 days)</h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={consentTrendData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                <Bar dataKey="granted" name="New Consents" stackId="a" fill="#10b981" radius={[2, 2, 0, 0]} />
-                <Bar dataKey="revoked" name="Revocations" stackId="a" fill="#ef4444" radius={[2, 2, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm border border-dashed rounded-lg">
+              Consent trend analytics are not yet available. Wire{' '}
+              <code className="mx-1 text-xs bg-muted px-1 py-0.5 rounded">
+                GET /api/v1/open-banking/analytics/consent-trend
+              </code>{' '}
+              to enable this chart.
+            </div>
           </div>
 
           {/* Customer consent search */}
@@ -401,48 +306,27 @@ export function OpenBankingPage() {
       label: 'API Analytics',
       content: (
         <div className="p-4 space-y-6">
-          {/* API Traffic Chart */}
+          {/* API Traffic Chart — not yet available */}
           <div className="rounded-xl border bg-card p-5">
             <h3 className="text-sm font-semibold mb-4">API Traffic (30 days, by TPP)</h3>
-            <ResponsiveContainer width="100%" height={320}>
-              <AreaChart data={apiTrafficData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: '12px' }} />
-                {Object.keys(apiTrafficData[0] || {})
-                  .filter((k) => k !== 'date')
-                  .map((key, i) => (
-                    <Area
-                      key={key}
-                      type="monotone"
-                      dataKey={key}
-                      stackId="1"
-                      stroke={['#3b82f6', '#8b5cf6', '#06b6d4', '#f59e0b', '#ef4444'][i % 5]}
-                      fill={['#3b82f6', '#8b5cf6', '#06b6d4', '#f59e0b', '#ef4444'][i % 5]}
-                      fillOpacity={0.3}
-                    />
-                  ))}
-              </AreaChart>
-            </ResponsiveContainer>
+            <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm border border-dashed rounded-lg">
+              API traffic analytics are not yet available. Wire{' '}
+              <code className="mx-1 text-xs bg-muted px-1 py-0.5 rounded">
+                GET /api/v1/open-banking/analytics/api-traffic
+              </code>{' '}
+              to enable this chart.
+            </div>
           </div>
 
-          {/* Top TPPs horizontal bar */}
+          {/* Top TPPs horizontal bar — uses real apiCalls30d from backend */}
           <div className="rounded-xl border bg-card p-5">
-            <h3 className="text-sm font-semibold mb-4">Top TPPs by API Calls</h3>
+            <h3 className="text-sm font-semibold mb-4">Top TPPs by API Calls (30 days)</h3>
+            {topTpps.every((t) => t.calls === 0) ? (
+              <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm border border-dashed rounded-lg">
+                No API call data available. The backend must populate{' '}
+                <code className="mx-1 text-xs bg-muted px-1 py-0.5 rounded">apiCalls30d</code> on TPP records.
+              </div>
+            ) : (
             <ResponsiveContainer width="100%" height={Math.max(topTpps.length * 40, 200)}>
               <BarChart data={topTpps} layout="vertical" margin={{ top: 5, right: 20, left: 100, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
@@ -472,14 +356,21 @@ export function OpenBankingPage() {
                 <Bar dataKey="calls" fill="#3b82f6" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </div>
 
-          {/* Error rate table */}
+          {/* Error rate table — not yet available */}
           <div className="rounded-xl border bg-card overflow-hidden">
             <div className="px-5 py-4 border-b">
               <h3 className="text-sm font-semibold">Error Rates by TPP</h3>
             </div>
-            <DataTable columns={errorRateCols} data={errorRateData} emptyMessage="No error data" />
+            <div className="flex items-center justify-center h-[120px] text-muted-foreground text-sm p-4 text-center">
+              Error rate data is not yet available. Wire{' '}
+              <code className="mx-1 text-xs bg-muted px-1 py-0.5 rounded">
+                GET /api/v1/open-banking/analytics/error-rates
+              </code>{' '}
+              to enable this table.
+            </div>
           </div>
         </div>
       ),

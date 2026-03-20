@@ -4,7 +4,7 @@ import type { InterbankRelationship } from '../types/interbank';
 export const interbankRelationshipsApi = {
   /** GET /v1/interbank-relationships */
   getAll: () =>
-    apiGet<InterbankRelationship[]>('/api/v1/interbank-relationships').catch(() => []),
+    apiGet<InterbankRelationship[]>('/api/v1/interbank-relationships'),
 
   /** GET /v1/interbank-relationships/type/{type} */
   byType: (type: string) =>

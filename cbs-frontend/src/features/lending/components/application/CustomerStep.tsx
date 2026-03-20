@@ -47,7 +47,7 @@ export function CustomerStep({ state, updateField, onNext, onBack }: CustomerSte
 
   const { data: searchResults = [], isFetching: searching } = useQuery({
     queryKey: ['customers', 'search', searchQuery],
-    queryFn: () => apiGet<CustomerSnapshot[]>('/api/v1/customers', { search: searchQuery, page: 0, size: 10 } as Record<string, unknown>).catch(() => []),
+    queryFn: () => apiGet<CustomerSnapshot[]>('/api/v1/customers', { search: searchQuery, page: 0, size: 10 } as Record<string, unknown>),
     enabled: searchQuery.length >= 2,
     staleTime: 15_000,
   });
@@ -60,7 +60,7 @@ export function CustomerStep({ state, updateField, onNext, onBack }: CustomerSte
 
   const { data: existingLoans = [] } = useQuery({
     queryKey: ['loans', 'customer', state.customerId],
-    queryFn: () => apiGet<ExistingLoan[]>(`/api/v1/loans/customer/${state.customerId}`).catch(() => []),
+    queryFn: () => apiGet<ExistingLoan[]>(`/api/v1/loans/customer/${state.customerId}`),
     enabled: !!state.customerId,
   });
 

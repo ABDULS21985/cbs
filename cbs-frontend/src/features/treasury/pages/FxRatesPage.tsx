@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpDown, TrendingUp, TrendingDown, Minus, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -49,11 +50,24 @@ function RateCard({ rate }: { rate: FxRate }) {
 }
 
 export function FxRatesPage() {
+  useEffect(() => { document.title = 'FX Rates | CBS'; }, []);
   const { data: rates = [], isLoading, refetch } = useQuery({
     queryKey: ['fx-rates'],
     queryFn: () => treasuryApi.getFxRates(),
     refetchInterval: 30_000,
   });
+
+  // Keyboard shortcut: Ctrl+R → refresh rates
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        refetch();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [refetch]);
 
   const majors = rates.filter((r) => ['USD/NGN', 'EUR/NGN', 'GBP/NGN', 'EUR/USD'].includes(r.pair));
   const avgSpread =

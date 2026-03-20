@@ -20,7 +20,7 @@ import {
   type TopObligor,
 } from '../api/loanAnalyticsApi';
 import { LoanStatsCards } from '../components/loans/LoanStatsCards';
-import { DpdHeatmapMatrix, type DpdMatrixRow } from '../components/loans/DpdHeatmapMatrix';
+// DpdHeatmapMatrix removed — awaiting GET /api/v1/reports/loans/dpd-matrix backend endpoint
 import { DpdAgingChart } from '../components/loans/DpdAgingChart';
 import { DpdAgingTable } from '../components/loans/DpdAgingTable';
 import { VintageAnalysisChart, type VintageCohort } from '../components/loans/VintageAnalysisChart';
@@ -66,26 +66,10 @@ function StatsSkeleton() {
 
 // ─── Helpers for derived data ─────────────────────────────────────────────────
 
-const GEOGRAPHIC_COLORS = ['#3b82f6', '#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#ec4899'];
-
-function buildDpdMatrix(buckets: DpdBucket[]): DpdMatrixRow[] {
-  // Build synthetic product-level DPD matrix from bucket data
-  const products = ['Term Loans', 'Overdrafts', 'Mortgages', 'SME Loans', 'Personal Loans'];
-  return products.map((product, idx) => {
-    const factor = 0.15 + idx * 0.05;
-    const currentBucket = buckets.find((b) => b.bucket === 'Current') || buckets[0];
-    const base = currentBucket ? currentBucket.amount * factor : 1e9;
-    return {
-      product,
-      current: { count: Math.round(1200 * (1 - idx * 0.1)), amount: base * 0.7 },
-      dpd1_30: { count: Math.round(180 * (1 + idx * 0.15)), amount: base * 0.12 },
-      dpd31_60: { count: Math.round(80 * (1 + idx * 0.2)), amount: base * 0.07 },
-      dpd61_90: { count: Math.round(45 * (1 + idx * 0.25)), amount: base * 0.04 },
-      dpd91_180: { count: Math.round(30 * (1 + idx * 0.3)), amount: base * 0.04 },
-      dpd180plus: { count: Math.round(15 * (1 + idx * 0.35)), amount: base * 0.03 },
-    };
-  });
-}
+// buildDpdMatrix was removed: it generated synthetic product-level DPD counts using hardcoded
+// proportions (Math.round(1200 * ...) etc.) rather than real backend data.
+// Wire GET /api/v1/reports/loans/dpd-matrix (product × bucket breakdown) to re-enable
+// the DpdHeatmapMatrix component.
 
 function buildVintageCohorts(vintage: VintageCell[]): VintageCohort[] {
   const cohortMap: Record<string, { months: number[]; rates: number[] }> = {};
@@ -118,14 +102,9 @@ function buildConcentrationData(
     color: s.color,
   }));
 
-  const geographicData: GeographicItem[] = [
-    { region: 'Lagos', amount: 450e9, pct: 32, color: GEOGRAPHIC_COLORS[0] },
-    { region: 'Abuja', amount: 210e9, pct: 15, color: GEOGRAPHIC_COLORS[1] },
-    { region: 'South-West', amount: 195e9, pct: 14, color: GEOGRAPHIC_COLORS[2] },
-    { region: 'South-East', amount: 140e9, pct: 10, color: GEOGRAPHIC_COLORS[3] },
-    { region: 'North-Central', amount: 126e9, pct: 9, color: GEOGRAPHIC_COLORS[4] },
-    { region: 'Others', amount: 280e9, pct: 20, color: GEOGRAPHIC_COLORS[5] },
-  ];
+  // Geographic concentration data removed — it was hardcoded Nigeria-specific placeholder values.
+  // Wire GET /api/v1/reports/loans/geographic-concentration to provide real data.
+  const geographicData: GeographicItem[] = [];
 
   const obligorData: ObligorItem[] = obligors.map((o) => ({
     rank: o.rank,
@@ -200,7 +179,6 @@ export function LoanAnalyticsPage() {
   }
 
   // Derived data
-  const dpdMatrix = useMemo(() => buildDpdMatrix(dpdBuckets), [dpdBuckets]);
   const vintageCohorts = useMemo(() => buildVintageCohorts(vintage), [vintage]);
   const concentrationData = useMemo(
     () => buildConcentrationData(sectors, products, obligors),
@@ -263,17 +241,18 @@ export function LoanAnalyticsPage() {
           <LoanStatsCards stats={stats} />
         )}
 
-        {/* DPD Heatmap Matrix (replaces old DPD chart + table) */}
-        {loading || dpdBuckets.length === 0 ? (
-          <SectionSkeleton height={400} />
-        ) : (
-          <DpdHeatmapMatrix
-            data={dpdMatrix}
-            onCellClick={(product, bucket) => {
-              console.info(`[DPD Drilldown] Product: ${product}, Bucket: ${bucket}`);
-            }}
-          />
-        )}
+        {/* DPD Heatmap Matrix — not yet available (backend product×bucket breakdown needed) */}
+        <div className="bg-card rounded-lg border border-border p-6">
+          <div className="font-semibold text-sm mb-1">DPD Heatmap Matrix</div>
+          <div className="text-xs text-muted-foreground mb-4">Product × delinquency bucket breakdown</div>
+          <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm border border-dashed rounded-lg">
+            Product-level DPD matrix is not available. Wire{' '}
+            <code className="mx-1 text-xs bg-muted px-1 py-0.5 rounded">
+              GET /api/v1/reports/loans/dpd-matrix
+            </code>{' '}
+            to enable this component.
+          </div>
+        </div>
 
         {/* DPD Aging — Chart + Table (kept as secondary view) */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

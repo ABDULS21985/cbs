@@ -236,13 +236,13 @@ export const portalApi = {
 
   // ─── Notifications ────────────────────────────────────────────────────
   getNotifications: (page = 0, size = 20) =>
-    apiGet<Record<string, unknown>[]>('/api/v1/portal/notifications', { page, size } as Record<string, unknown>).catch(() => []),
+    apiGet<Record<string, unknown>[]>('/api/v1/portal/notifications', { page, size } as Record<string, unknown>),
   markNotificationsRead: (ids: number[]) =>
     apiPost<Record<string, unknown>>('/api/v1/portal/notifications/mark-read', { ids }),
 
   // ─── Bills & Airtime ──────────────────────────────────────────────────
   getBillers: () =>
-    apiGet<Record<string, unknown>[]>('/api/v1/portal/billers').catch(() => []),
+    apiGet<Record<string, unknown>[]>('/api/v1/portal/billers'),
   validateBiller: (billerId: number, customerRef: string) =>
     apiPost<Record<string, unknown>>('/api/v1/portal/billers/validate', { billerId, customerRef }),
   payBill: (data: { billerId: number; billerName: string; customerRef: string; amount: number; accountId: number }) =>
@@ -258,7 +258,7 @@ export const portalApi = {
 
   // ─── Help ─────────────────────────────────────────────────────────────
   getFaq: () =>
-    apiGet<{ q: string; a: string }[]>('/api/v1/portal/help/faq').catch(() => []),
+    apiGet<{ q: string; a: string }[]>('/api/v1/portal/help/faq'),
   submitContactForm: (data: { name: string; email: string; subject: string; message: string }) =>
     apiPost<Record<string, unknown>>('/api/v1/portal/help/contact', data),
 

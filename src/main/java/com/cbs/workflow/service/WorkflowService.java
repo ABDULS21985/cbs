@@ -1,5 +1,6 @@
 package com.cbs.workflow.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.workflow.entity.*;
@@ -25,11 +26,12 @@ public class WorkflowService {
 
     private final WorkflowDefinitionRepository definitionRepository;
     private final WorkflowInstanceRepository instanceRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public WorkflowInstance initiateWorkflow(String entityType, String triggerEvent, Long entityId,
-                                               String entityRef, BigDecimal amount, String currencyCode,
-                                               String initiatedBy) {
+                                             String entityRef, BigDecimal amount, String currencyCode) {
+        String initiatedBy = currentActorProvider.getCurrentActor();
         List<WorkflowDefinition> defs = definitionRepository
                 .findByEntityTypeAndTriggerEventAndIsActiveTrue(entityType, triggerEvent);
 
@@ -78,7 +80,8 @@ public class WorkflowService {
     }
 
     @Transactional
-    public WorkflowInstance approveStep(Long instanceId, String actionBy, String comments) {
+    public WorkflowInstance approveStep(Long instanceId, String comments) {
+        String actionBy = currentActorProvider.getCurrentActor();
         WorkflowInstance instance = findInstanceOrThrow(instanceId);
 
         if (instance.getStatus() != WorkflowStatus.PENDING && instance.getStatus() != WorkflowStatus.IN_PROGRESS) {
@@ -106,7 +109,8 @@ public class WorkflowService {
     }
 
     @Transactional
-    public WorkflowInstance rejectStep(Long instanceId, String actionBy, String comments) {
+    public WorkflowInstance rejectStep(Long instanceId, String comments) {
+        String actionBy = currentActorProvider.getCurrentActor();
         WorkflowInstance instance = findInstanceOrThrow(instanceId);
 
         WorkflowStepAction currentStep = instance.getStepActions().stream()

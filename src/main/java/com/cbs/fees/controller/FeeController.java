@@ -138,8 +138,8 @@ public class FeeController {
     @Operation(summary = "Waive a previously charged fee")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<FeeChargeLog>> waiveFee(
-            @PathVariable Long chargeLogId, @RequestParam String waivedBy, @RequestParam String reason) {
-        return ResponseEntity.ok(ApiResponse.ok(feeService.waiveFee(chargeLogId, waivedBy, reason)));
+            @PathVariable Long chargeLogId, @RequestParam String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(feeService.waiveFee(chargeLogId, reason)));
     }
 
     @GetMapping("/history/account/{accountId}")

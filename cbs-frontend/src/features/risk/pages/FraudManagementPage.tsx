@@ -91,8 +91,8 @@ export function FraudManagementPage() {
         <div className="p-6">
           <EmptyState
             icon={BarChart2}
-            title="Pattern analysis coming soon"
-            description="Behavioral pattern analysis and anomaly detection reports will appear here."
+            title="Pattern analysis unavailable"
+            description="This view is not wired to a backend fraud-pattern analytics feed in the current build."
           />
         </div>
       ),
@@ -105,8 +105,8 @@ export function FraudManagementPage() {
         <div className="p-6">
           <EmptyState
             icon={FileText}
-            title="Fraud reports coming soon"
-            description="MTD fraud summary, SAR reports, and regulatory submissions will appear here."
+            title="Fraud reports unavailable"
+            description="This reporting view is not wired to backend fraud-report generation in the current build."
           />
         </div>
       ),

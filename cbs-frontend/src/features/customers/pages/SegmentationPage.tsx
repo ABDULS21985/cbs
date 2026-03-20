@@ -95,7 +95,7 @@ function SegmentCard({
   segment: CustomerSegment;
   analytics?: { customerCount: number; totalBalance: number; avgBalance: number };
   onView: () => void;
-  onEdit: () => void;
+  onEdit?: () => void;
 }) {
   const color = segment.colorCode || '#6b7280';
 
@@ -139,9 +139,11 @@ function SegmentCard({
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground">Priority: {segment.priority}</span>
         <div className="flex items-center gap-1.5">
-          <button onClick={onEdit} className="text-xs px-2 py-1 rounded hover:bg-muted transition-colors">
-            <Pencil className="w-3 h-3" />
-          </button>
+          {onEdit && (
+            <button onClick={onEdit} className="text-xs px-2 py-1 rounded hover:bg-muted transition-colors">
+              <Pencil className="w-3 h-3" />
+            </button>
+          )}
           <button onClick={onView} className="text-xs px-2 py-1 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
             <Eye className="w-3 h-3" />
           </button>
@@ -216,7 +218,6 @@ export default function SegmentationPage() {
                   segment={segment}
                   analytics={analyticsMap.get(segment.code)}
                   onView={() => navigate(`/customers/segments/${segment.code}`)}
-                  onEdit={() => toast.info('Edit segment functionality coming soon')}
                 />
               ))}
             </div>

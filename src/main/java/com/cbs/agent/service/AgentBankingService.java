@@ -1,9 +1,13 @@
 package com.cbs.agent.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.agent.entity.*;
 import com.cbs.agent.repository.*;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -26,6 +31,8 @@ public class AgentBankingService {
     private final BankingAgentRepository agentRepository;
     private final AgentTransactionRepository txnRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+    private final CbsProperties cbsProperties;
 
     @Transactional
     public BankingAgent onboardAgent(BankingAgent agent) {
@@ -77,14 +84,33 @@ public class AgentBankingService {
             Account account = accountRepository.findById(accountId)
                     .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
             if ("CASH_IN".equals(transactionType)) {
-                account.credit(amount);
+                accountPostingService.postCreditAgainstGl(
+                        account,
+                        TransactionType.CREDIT,
+                        amount,
+                        "Agent cash-in " + agentCode,
+                        TransactionChannel.AGENT,
+                        agentCode + ":" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(),
+                        resolveAgentSettlementGlCode(),
+                        "AGENT_BANKING",
+                        agentCode
+                );
             } else if ("CASH_OUT".equals(transactionType)) {
                 if (account.getAvailableBalance().compareTo(amount) < 0) {
                     throw new BusinessException("Insufficient customer balance", "INSUFFICIENT_BALANCE");
                 }
-                account.debit(amount);
+                accountPostingService.postDebitAgainstGl(
+                        account,
+                        TransactionType.DEBIT,
+                        amount,
+                        "Agent cash-out " + agentCode,
+                        TransactionChannel.AGENT,
+                        agentCode + ":" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(),
+                        resolveAgentSettlementGlCode(),
+                        "AGENT_BANKING",
+                        agentCode
+                );
             }
-            accountRepository.save(account);
         }
 
         // Calculate commission
@@ -93,8 +119,17 @@ public class AgentBankingService {
         // Credit commission to agent's commission account
         if (commission.compareTo(BigDecimal.ZERO) > 0 && agent.getCommissionAccountId() != null) {
             accountRepository.findById(agent.getCommissionAccountId()).ifPresent(commAcct -> {
-                commAcct.credit(commission);
-                accountRepository.save(commAcct);
+                accountPostingService.postCreditAgainstGl(
+                        commAcct,
+                        TransactionType.ADJUSTMENT,
+                        commission,
+                        "Agent commission " + agentCode,
+                        TransactionChannel.AGENT,
+                        agentCode + ":COMM:" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(),
+                        resolveAgentSettlementGlCode(),
+                        "AGENT_BANKING",
+                        agentCode
+                );
             });
         }
 
@@ -135,5 +170,14 @@ public class AgentBankingService {
 
     private BankingAgent findAgentOrThrow(String code) {
         return agentRepository.findByAgentCode(code).orElseThrow(() -> new ResourceNotFoundException("BankingAgent", "agentCode", code));
+    }
+
+    private String resolveAgentSettlementGlCode() {
+        String glCode = cbsProperties.getLedger().getExternalClearingGlCode();
+        if (!StringUtils.hasText(glCode)) {
+            throw new BusinessException("CBS_LEDGER_EXTERNAL_CLEARING_GL is required for agent banking settlement",
+                    "MISSING_AGENT_SETTLEMENT_GL");
+        }
+        return glCode;
     }
 }

@@ -167,8 +167,8 @@ export function TrustDetailPage() {
     if (!code) return;
     setLoading(true);
     Promise.all([
-      apiGet<TrustAccount>(`/api/v1/trusts/${code}`).catch(() => null),
-      apiGet<DistributionRecord[]>(`/api/v1/trusts/${code}/distributions`).catch(() => []),
+      apiGet<TrustAccount>(`/api/v1/trusts/${code}`),
+      apiGet<DistributionRecord[]>(`/api/v1/trusts/${code}/distributions`),
     ]).then(([t, d]) => {
       setTrust(t);
       setDistributions(d);

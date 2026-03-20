@@ -89,7 +89,7 @@ function SessionDetailPanel({ session, onClose }: { session: DialogueSession; on
 
   const { data: messages = [] } = useQuery({
     queryKey: ['dialogue', 'messages', session.sessionCode],
-    queryFn: () => apiGet<DialogueMessage[]>(`/api/v1/dialogue/${session.sessionCode}/messages`).catch(() => []),
+    queryFn: () => apiGet<DialogueMessage[]>(`/api/v1/dialogue/${session.sessionCode}/messages`),
     enabled: !!session.sessionCode,
     refetchInterval: session.status === 'ACTIVE' ? 5_000 : undefined,
   });
@@ -186,7 +186,7 @@ export function ChatSessionsPage() {
 
   const { data: sessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['dialogue', 'sessions', statusFilter],
-    queryFn: () => apiGet<DialogueSession[]>('/api/v1/dialogue/sessions', statusFilter ? { status: statusFilter } : undefined).catch(() => []),
+    queryFn: () => apiGet<DialogueSession[]>('/api/v1/dialogue/sessions', statusFilter ? { status: statusFilter } : undefined),
     refetchInterval: 10_000,
   });
 

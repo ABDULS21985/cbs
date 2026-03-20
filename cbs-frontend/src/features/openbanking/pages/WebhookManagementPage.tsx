@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
-import { Plus, ArrowLeft, Loader2 } from 'lucide-react';
+import { Plus, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { Webhook, WebhookDelivery } from '../api/marketplaceApi';
@@ -165,7 +165,7 @@ export function WebhookManagementPage() {
   }, []);
 
   const handleSendTest = useCallback(
-    async (_webhookId: number, event: string) => {
+    async (_webhookId: number, _event: string) => {
       await new Promise((r) => setTimeout(r, 1200));
       const success = Math.random() > 0.2;
       return {

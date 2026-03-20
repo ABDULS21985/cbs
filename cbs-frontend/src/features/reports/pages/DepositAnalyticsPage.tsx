@@ -61,19 +61,23 @@ function buildStabilityFactors(stats: any): StabilityFactor[] {
 
 function buildRolloverData(maturityProfile: any[]): MaturityRolloverRow[] {
   if (!maturityProfile || maturityProfile.length === 0) return [];
-  return maturityProfile.map((bucket: any) => {
-    const rolloverRate = bucket.rolloverPct || 70;
-    const predictedRollover = bucket.amount * (rolloverRate / 100);
-    const predictedWithdrawal = bucket.amount - predictedRollover;
-    return {
-      month: bucket.month,
-      maturing: bucket.amount,
-      predictedRollover,
-      predictedWithdrawal,
-      rolloverRatePct: rolloverRate,
-      liquidityRisk: rolloverRate < 60,
-    };
-  });
+  return maturityProfile
+    .filter((bucket: any) => bucket.rolloverPct != null)
+    .map((bucket: any) => {
+      // rolloverPct must come from the backend; rows without it are excluded above
+      // rather than assuming a hardcoded fallback of 70%.
+      const rolloverRate = bucket.rolloverPct;
+      const predictedRollover = bucket.amount * (rolloverRate / 100);
+      const predictedWithdrawal = bucket.amount - predictedRollover;
+      return {
+        month: bucket.month,
+        maturing: bucket.amount,
+        predictedRollover,
+        predictedWithdrawal,
+        rolloverRatePct: rolloverRate,
+        liquidityRisk: rolloverRate < 60,
+      };
+    });
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────

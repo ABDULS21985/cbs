@@ -1,5 +1,6 @@
 package com.cbs.productfactory.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.productfactory.entity.ProductTemplate;
@@ -16,6 +17,7 @@ import java.util.List;
 public class ProductFactoryService {
 
     private final ProductTemplateRepository templateRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public ProductTemplate createTemplate(ProductTemplate template) {
@@ -37,9 +39,10 @@ public class ProductFactoryService {
     }
 
     @Transactional
-    public ProductTemplate approveTemplate(Long templateId, String approvedBy) {
+    public ProductTemplate approveTemplate(Long templateId) {
         ProductTemplate template = findOrThrow(templateId);
         if (!"PENDING_APPROVAL".equals(template.getStatus())) throw new BusinessException("Template not pending approval", "NOT_PENDING");
+        String approvedBy = currentActorProvider.getCurrentActor();
         template.setStatus("APPROVED");
         template.setApprovedBy(approvedBy);
         template.setApprovedAt(Instant.now());

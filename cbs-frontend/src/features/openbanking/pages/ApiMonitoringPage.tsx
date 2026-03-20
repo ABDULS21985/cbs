@@ -8,7 +8,6 @@ import {
   RefreshCw,
   Clock,
   AlertTriangle,
-  BarChart3,
   Shield,
   Wifi,
 } from 'lucide-react';
@@ -42,7 +41,6 @@ function generateTimeLabels(count: number): string[] {
 
 export function ApiMonitoringPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const refetchInterval = autoRefresh ? 30_000 : undefined;
 
   const {
     data: usageData = [],

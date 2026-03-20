@@ -142,7 +142,7 @@ export interface TrustCreateRequest {
 export const wealthApi = {
   // ── Plans ──
   getPlans: (filters?: Record<string, unknown>): Promise<WealthPlan[]> =>
-    apiGet<WealthPlan[]>('/api/v1/wealth-management', filters).catch(() => []),
+    apiGet<WealthPlan[]>('/api/v1/wealth-management', filters),
 
   getPlan: (code: string): Promise<WealthPlan> =>
     apiGet<WealthPlan>(`/api/v1/wealth-management/${code}`),
@@ -161,21 +161,21 @@ export const wealthApi = {
 
   // ── Advisors ──
   getAdvisors: (): Promise<Advisor[]> =>
-    apiGet<Advisor[]>('/api/v1/wealth-management/advisors').catch(() => []),
+    apiGet<Advisor[]>('/api/v1/wealth-management/advisors'),
 
   getAdvisor: (id: string): Promise<Advisor> =>
     apiGet<Advisor>(`/api/v1/wealth-management/advisors/${id}`),
 
   // ── Analytics ──
   getAumTrend: (months = 12): Promise<AumDataPoint[]> =>
-    apiGet<AumDataPoint[]>('/api/v1/wealth-management/analytics/aum-trend', { months }).catch(() => []),
+    apiGet<AumDataPoint[]>('/api/v1/wealth-management/analytics/aum-trend', { months }),
 
   getPlanPerformance: (code: string): Promise<PlanPerformance> =>
     apiGet<PlanPerformance>(`/api/v1/wealth-management/${code}/performance`),
 
   // ── Trusts ──
   getTrusts: (filters?: Record<string, unknown>): Promise<TrustAccount[]> =>
-    apiGet<TrustAccount[]>('/api/v1/trusts', filters).catch(() => []),
+    apiGet<TrustAccount[]>('/api/v1/trusts', filters),
 
   getTrust: (code: string): Promise<TrustAccount> =>
     apiGet<TrustAccount>(`/api/v1/trusts/${code}`),
@@ -190,7 +190,7 @@ export const wealthApi = {
     apiPost<DistributionRecord>(`/api/v1/trusts/${code}/distribute`, { amount, beneficiary }),
 
   getDistributions: (code: string): Promise<DistributionRecord[]> =>
-    apiGet<DistributionRecord[]>(`/api/v1/trusts/${code}/distributions`).catch(() => []),
+    apiGet<DistributionRecord[]>(`/api/v1/trusts/${code}/distributions`),
 
   // ── Goals ──
   addGoal: (code: string, goal: Omit<WealthGoal, 'id'>): Promise<WealthGoal> =>
@@ -213,5 +213,5 @@ export const wealthApi = {
   getDocuments: (code: string): Promise<{ id: string; name: string; type: string; uploadedBy: string; uploadDate: string; url: string }[]> =>
     apiGet<{ id: string; name: string; type: string; uploadedBy: string; uploadDate: string; url: string }[]>(
       `/api/v1/wealth-management/${code}/documents`
-    ).catch(() => []),
+    ),
 };

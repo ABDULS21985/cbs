@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 import { useConsents, useCreateConsent, useAuthoriseConsent, useRevokeConsent, useTppClients } from '../hooks/useOpenBanking';
-import type { ConsentStatus } from '../api/openBankingApi';
+import type { ApiConsent, ConsentStatus } from '../api/openBankingApi';
 import { ConsentTable } from '../components/consent/ConsentTable';
 import { CreateConsentSheet } from '../components/consent/CreateConsentSheet';
 import { AuthoriseConsentDialog } from '../components/consent/AuthoriseConsentDialog';
@@ -37,9 +37,9 @@ export function ConsentManagementPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [tppFilter, setTppFilter] = useState<string>('ALL');
   const [createOpen, setCreateOpen] = useState(false);
-  const [authoriseConsent, setAuthoriseConsent] = useState<ReturnType<typeof useConsents>['data'][0] | null>(null);
-  const [revokeConsent, setRevokeConsent] = useState<ReturnType<typeof useConsents>['data'][0] | null>(null);
-  const [selectedConsents, setSelectedConsents] = useState<ReturnType<typeof useConsents>['data']>([]);
+  const [authoriseConsent, setAuthoriseConsent] = useState<ApiConsent | null>(null);
+  const [revokeConsent, setRevokeConsent] = useState<ApiConsent | null>(null);
+  const [selectedConsents, setSelectedConsents] = useState<ApiConsent[]>([]);
 
   const { data: consents = [], isLoading, refetch, isFetching } = useConsents();
   const { data: tppClients = [] } = useTppClients();

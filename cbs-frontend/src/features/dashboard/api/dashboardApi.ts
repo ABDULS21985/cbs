@@ -81,25 +81,25 @@ export interface PendingDocumentSummary {
 
 export const dashboardApi = {
   getBankCashFlow: () =>
-    apiGet<CashFlowForecast>('/api/v1/intelligence/cashflow/BANK/HEAD_OFFICE').catch(() => null),
+    apiGet<CashFlowForecast>('/api/v1/intelligence/cashflow/BANK/HEAD_OFFICE'),
 
   getAccountSummary: () =>
     apiGet<AccountSummary>('/api/v1/accounts/summary')
-      .catch(() => apiGet<AccountSummary>('/api/v1/dashboard/stats').catch(() => null)),
+      .catch(() => apiGet<AccountSummary>('/api/v1/dashboard/stats')),
 
   getTreasuryMetrics: (currency = 'NGN') =>
-    apiGet<TreasuryAnalytics>(`/api/v1/treasury-analytics/${currency}`).catch(() => null),
+    apiGet<TreasuryAnalytics>(`/api/v1/treasury-analytics/${currency}`),
 
   getDealerDesks: () =>
-    apiGet<DealerDesk[]>('/api/v1/dealer-desks').catch(() => [] as DealerDesk[]),
+    apiGet<DealerDesk[]>('/api/v1/dealer-desks'),
 
   getAlmScenarios: () =>
-    apiGet<AlmScenario[]>('/api/v1/alm/scenarios').catch(() => [] as AlmScenario[]),
+    apiGet<AlmScenario[]>('/api/v1/alm/scenarios'),
 
   getOverdueComplianceReports: () =>
     apiGet<{ count: number; items?: unknown[] }>('/api/v1/compliance-reports/overdue')
       .catch(() => ({ count: 0 })),
 
   getPendingDocuments: () =>
-    apiGet<PendingDocumentSummary>('/api/v1/intelligence/documents/pending-review').catch(() => null),
+    apiGet<PendingDocumentSummary>('/api/v1/intelligence/documents/pending-review'),
 };

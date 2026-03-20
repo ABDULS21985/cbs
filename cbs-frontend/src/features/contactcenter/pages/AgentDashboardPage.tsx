@@ -196,7 +196,7 @@ export function AgentDashboardPage() {
       <div className="page-container space-y-6">
         {missingAgentMapping && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            The authenticated user is not mapped to a contact-center agent record. This page no longer falls back to a hardcoded demo agent.
+            The authenticated user is not mapped to a contact-center agent record. This page does not fall back to a hardcoded agent.
           </div>
         )}
         {(queueError || callbacksError) && (

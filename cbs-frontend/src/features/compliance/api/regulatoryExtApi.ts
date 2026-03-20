@@ -18,7 +18,7 @@ export const regulatoryApi = {
   getRuns: (reportCode: string) =>
     apiGet<RegulatoryReportRun[]>(`/api/v1/regulatory/runs/${reportCode}`),
 
-  /** POST /v1/regulatory/definitions/{reportCode}/generate */
-  generate: (reportCode: string, data: { periodStart: string; periodEnd: string; generatedBy: string }) =>
-    apiPost<RegulatoryReportRun>(`/api/v1/regulatory/definitions/${reportCode}/generate`, data),
+  /** POST /v1/regulatory/generate */
+  generate: (reportCode: string, data: { periodStart: string; periodEnd: string }) =>
+    apiPost<RegulatoryReportRun>(`/api/v1/regulatory/generate?reportCode=${encodeURIComponent(reportCode)}&periodStart=${encodeURIComponent(data.periodStart)}&periodEnd=${encodeURIComponent(data.periodEnd)}`),
 };

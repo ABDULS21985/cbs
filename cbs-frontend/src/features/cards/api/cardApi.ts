@@ -26,7 +26,7 @@ export const cardApi = {
 
   getTransactions: (filters?: Record<string, unknown>) => apiGet<CardTransaction[]>('/api/v1/card-switch', filters),
 
-  getMerchants: (filters?: Record<string, unknown>) => apiGet<Merchant[]>('/api/v1/merchants', filters).catch(() => []),
+  getMerchants: (filters?: Record<string, unknown>) => apiGet<Merchant[]>('/api/v1/merchants', filters),
   getMerchant: (id: number) => apiGet<Merchant>(`/api/v1/merchants/${id}`),
   onboardMerchant: (data: {
     merchantName: string;
@@ -41,5 +41,5 @@ export const cardApi = {
     settlementFrequency?: string;
   }) => apiPost<Merchant>('/api/v1/merchants', data),
 
-  getTerminals: () => apiGet<PosTerminal[]>('/api/v1/pos-terminals').catch(() => []),
+  getTerminals: () => apiGet<PosTerminal[]>('/api/v1/pos-terminals'),
 };

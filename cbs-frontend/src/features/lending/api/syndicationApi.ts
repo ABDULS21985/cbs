@@ -24,11 +24,11 @@ export interface ProjectMilestone {
 }
 
 export const syndicationApi = {
-  getSyndicatedLoans: () => apiGet<SyndicatedLoan[]>('/api/v1/syndication').catch(() => []),
+  getSyndicatedLoans: () => apiGet<SyndicatedLoan[]>('/api/v1/syndication'),
   getSyndicatedLoan: (id: number) => apiGet<SyndicatedLoan>(`/api/v1/syndication/${id}`),
-  getParticipants: (id: number) => apiGet<Participant[]>(`/api/v1/syndication/${id}/participants`).catch(() => []),
+  getParticipants: (id: number) => apiGet<Participant[]>(`/api/v1/syndication/${id}/participants`),
 
-  getProjects: () => apiGet<ProjectFinance[]>('/api/v1/project-finance').catch(() => []),
+  getProjects: () => apiGet<ProjectFinance[]>('/api/v1/project-finance'),
   getProject: (id: number) => apiGet<ProjectFinance>(`/api/v1/project-finance/${id}`),
-  getMilestones: (id: number) => apiGet<ProjectMilestone[]>(`/api/v1/project-finance/${id}/milestones`).catch(() => []),
+  getMilestones: (id: number) => apiGet<ProjectMilestone[]>(`/api/v1/project-finance/${id}/milestones`),
 };

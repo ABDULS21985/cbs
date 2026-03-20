@@ -1,5 +1,6 @@
 package com.cbs.regulatory.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,6 +36,7 @@ public class RegulatoryReportingService {
     private final RegulatoryReportRunRepository runRepository;
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public RegulatoryReportDefinition createDefinition(RegulatoryReportDefinition def) {
@@ -52,9 +54,10 @@ public class RegulatoryReportingService {
     }
 
     @Transactional
-    public RegulatoryReportRun generateReport(String reportCode, LocalDate periodStart, LocalDate periodEnd, String generatedBy) {
+    public RegulatoryReportRun generateReport(String reportCode, LocalDate periodStart, LocalDate periodEnd) {
         RegulatoryReportDefinition def = definitionRepository.findByReportCode(reportCode)
                 .orElseThrow(() -> new ResourceNotFoundException("ReportDefinition", "reportCode", reportCode));
+        String generatedBy = currentActorProvider.getCurrentActor();
 
         long startTime = System.currentTimeMillis();
 
@@ -122,9 +125,10 @@ public class RegulatoryReportingService {
     }
 
     @Transactional
-    public RegulatoryReportRun submitReport(Long runId, String submittedBy) {
+    public RegulatoryReportRun submitReport(Long runId) {
         RegulatoryReportRun run = runRepository.findById(runId)
                 .orElseThrow(() -> new ResourceNotFoundException("ReportRun", "id", runId));
+        String submittedBy = currentActorProvider.getCurrentActor();
 
         if (!"COMPLETED".equals(run.getStatus())) {
             throw new BusinessException("Report must be in COMPLETED status to submit", "REPORT_NOT_COMPLETED");

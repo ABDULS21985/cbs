@@ -150,9 +150,15 @@ export const navigationItems: NavSection[] = [
         children: [
           { label: 'Dashboard', path: '/treasury' },
           { label: 'Deals', path: '/treasury/deals' },
+          { label: 'Trading Desk', path: '/treasury/trading-desk' },
           { label: 'Positions', path: '/treasury/positions' },
           { label: 'FX Rates', path: '/treasury/fx' },
-          { label: 'Investments', path: '/treasury/investments' },
+          { label: 'Fixed Income', path: '/treasury/fixed-income' },
+          { label: 'FTP', path: '/treasury/ftp' },
+          { label: 'Market Making', path: '/treasury/market-making' },
+          { label: 'Orders', path: '/treasury/orders' },
+          { label: 'Trade Ops', path: '/treasury/trade-ops' },
+          { label: 'Market Data', path: '/treasury/market-data' },
         ],
       },
       {

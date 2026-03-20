@@ -48,7 +48,7 @@ export function LoanDashboardPage() {
 
   const { data: allLoans = [], isLoading } = useQuery({
     queryKey: ['loans', 'all'],
-    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans').catch(() => []),
+    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans'),
     staleTime: 30_000,
   });
 

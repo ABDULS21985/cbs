@@ -24,7 +24,7 @@ export function ActiveLoansPage() {
 
   const { data: loans = [], isLoading } = useQuery({
     queryKey: ['loans', 'active'],
-    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans', { status: 'ACTIVE' }).catch(() => []),
+    queryFn: () => apiGet<LoanAccount[]>('/api/v1/loans', { status: 'ACTIVE' }),
     staleTime: 30_000,
   });
 

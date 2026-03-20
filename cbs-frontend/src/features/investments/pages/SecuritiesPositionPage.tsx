@@ -54,17 +54,17 @@ export function SecuritiesPositionPage() {
 
   const { data: positions = [], isLoading: positionsLoading } = useQuery({
     queryKey: ['sec-positions'],
-    queryFn: () => apiGet<SecPosition[]>('/api/v1/securities-positions').catch(() => []),
+    queryFn: () => apiGet<SecPosition[]>('/api/v1/securities-positions'),
   });
 
   const { data: movements = [], isLoading: movementsLoading } = useQuery({
     queryKey: ['sec-movements'],
-    queryFn: () => apiGet<SecMovement[]>('/api/v1/securities-positions/movements').catch(() => []),
+    queryFn: () => apiGet<SecMovement[]>('/api/v1/securities-positions/movements'),
   });
 
   const { data: portfolioData, isLoading: portfolioLoading } = useQuery({
     queryKey: ['sec-portfolio', portfolioCode],
-    queryFn: () => apiGet<PortfolioSummary>(`/api/v1/securities-positions/portfolio/${portfolioCode}`).catch(() => null),
+    queryFn: () => apiGet<PortfolioSummary>(`/api/v1/securities-positions/portfolio/${portfolioCode}`),
     enabled: !!portfolioCode,
   });
 

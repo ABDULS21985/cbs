@@ -76,7 +76,7 @@ export function NewGoalPage() {
   // Accounts
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts-for-goals'],
-    queryFn: () => apiGet<SourceAccount[]>('/api/v1/accounts').catch(() => []),
+    queryFn: () => apiGet<SourceAccount[]>('/api/v1/accounts'),
   });
 
   // Create mutation

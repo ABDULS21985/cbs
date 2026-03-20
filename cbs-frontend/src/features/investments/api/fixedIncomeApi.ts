@@ -50,17 +50,17 @@ export interface BatchResult {
 
 export const fixedIncomeApi = {
   // Holdings
-  getHoldings: () => apiGet<BondHolding[]>('/api/v1/fixed-income/holdings').catch(() => []),
+  getHoldings: () => apiGet<BondHolding[]>('/api/v1/fixed-income/holdings'),
   getHolding: (id: number) => apiGet<BondHolding>(`/api/v1/fixed-income/holdings/${id}`),
   addHolding: (data: Partial<BondHolding>) => apiPost<BondHolding>('/api/v1/fixed-income/holdings', data),
-  getPortfolioHoldings: (code: string) => apiGet<BondHolding[]>(`/api/v1/fixed-income/portfolio/${code}`).catch(() => []),
+  getPortfolioHoldings: (code: string) => apiGet<BondHolding[]>(`/api/v1/fixed-income/portfolio/${code}`),
   getPortfolioFaceValue: (code: string) => apiGet<{ totalFaceValue: number }>(`/api/v1/fixed-income/portfolio/${code}/face-value`),
 
   // Batch operations
-  getBatchAccrualStatus: () => apiGet<BatchResult>('/api/v1/fixed-income/batch/accrual').catch(() => null),
-  getBatchMtmStatus: () => apiGet<BatchResult>('/api/v1/fixed-income/batch/mtm').catch(() => null),
-  getBatchMaturityStatus: () => apiGet<BatchResult>('/api/v1/fixed-income/batch/maturity').catch(() => null),
-  getBatchCouponStatus: () => apiGet<BatchResult>('/api/v1/fixed-income/batch/coupons').catch(() => null),
+  getBatchAccrualStatus: () => apiGet<BatchResult>('/api/v1/fixed-income/batch/accrual'),
+  getBatchMtmStatus: () => apiGet<BatchResult>('/api/v1/fixed-income/batch/mtm'),
+  getBatchMaturityStatus: () => apiGet<BatchResult>('/api/v1/fixed-income/batch/maturity'),
+  getBatchCouponStatus: () => apiGet<BatchResult>('/api/v1/fixed-income/batch/coupons'),
   runBatchAccrual: () => apiPost<BatchResult>('/api/v1/fixed-income/batch/accrual'),
   runBatchMtm: () => apiPost<BatchResult>('/api/v1/fixed-income/batch/mtm'),
   runBatchMaturity: () => apiPost<BatchResult>('/api/v1/fixed-income/batch/maturity'),
@@ -68,7 +68,7 @@ export const fixedIncomeApi = {
 };
 
 export const bankPortfolioApi = {
-  getAll: () => apiGet<BankPortfolio[]>('/api/v1/bank-portfolios').catch(() => []),
+  getAll: () => apiGet<BankPortfolio[]>('/api/v1/bank-portfolios'),
   create: (data: Partial<BankPortfolio>) => apiPost<BankPortfolio>('/api/v1/bank-portfolios', data),
-  getByType: (type: string) => apiGet<BankPortfolio[]>(`/api/v1/bank-portfolios/type/${type}`).catch(() => []),
+  getByType: (type: string) => apiGet<BankPortfolio[]>(`/api/v1/bank-portfolios/type/${type}`),
 };

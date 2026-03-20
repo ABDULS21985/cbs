@@ -179,7 +179,7 @@ export default function MortgageDetailPage() {
               <span className="ml-auto text-xs text-muted-foreground">Pending</span>
             </div>
           ))}
-          <p className="text-xs text-muted-foreground italic mt-4">Document upload coming soon.</p>
+          <p className="text-xs text-muted-foreground italic mt-4">Document upload is not wired to a backend document service from this mortgage view.</p>
         </div>
       ),
     },

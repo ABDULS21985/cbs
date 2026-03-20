@@ -14,7 +14,6 @@ import {
   ExternalLink,
   FileCode,
   Github,
-  Globe,
   Key,
   Lightbulb,
   MessageSquare,
@@ -72,7 +71,7 @@ const RESOURCES = [
   { icon: Shield, title: 'Security Guide', desc: 'OAuth2 flows, SCA requirements, and certificate management' },
   { icon: FileCode, title: 'OpenAPI Spec', desc: 'Download the OpenAPI 3.1 specification for all products', badge: 'JSON / YAML' },
   { icon: MessageSquare, title: 'Community Forum', desc: 'Ask questions and share solutions with other developers' },
-  { icon: Github, title: 'Sample Apps', desc: 'Reference implementations and demo applications on GitHub' },
+  { icon: Github, title: 'Sample Apps', desc: 'Reference implementations and example applications on GitHub' },
   { icon: Lightbulb, title: 'Changelog', desc: 'Track API changes, deprecations and new feature announcements' },
 ];
 
@@ -357,7 +356,7 @@ const consent = await client.consents.create({
               <p className="text-sm font-medium mb-3">Sandbox Credentials</p>
               <div className="space-y-2">
                 {[
-                  { label: 'Client ID', value: 'sandbox_client_demo_001' },
+                  { label: 'Client ID', value: 'sandbox_client_ref_001' },
                   { label: 'Client Secret', value: 'sandbox_secret_••••••••••••' },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between p-2.5 rounded border bg-muted/30">

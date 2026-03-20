@@ -136,8 +136,8 @@ export function MarketingAnalyticsPage() {
             <div className="rounded-lg border bg-card">
               <EmptyState
                 icon={BarChart2}
-                title="Brand Metrics Coming Soon"
-                description="Brand awareness tracking, share of voice, and sentiment analysis will be available in an upcoming release."
+                title="Brand Metrics Unavailable"
+                description="Brand awareness, share-of-voice, and sentiment analytics are not wired to backend data sources in this build."
               />
             </div>
           </Tabs.Content>

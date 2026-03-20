@@ -1,7 +1,11 @@
 package com.cbs.card.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.*;
 import com.cbs.common.exception.BusinessException;
@@ -12,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.security.MessageDigest;
@@ -30,6 +35,8 @@ public class CardService {
     private final CardRepository cardRepository;
     private final CardTransactionRepository txnRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+    private final CbsProperties cbsProperties;
 
     @Transactional
     public Card issueCard(Long accountId, CardType cardType, CardScheme cardScheme,
@@ -192,8 +199,17 @@ public class CardService {
                 txnRepository.save(txn);
                 return txn;
             }
-            account.debit(amount);
-            accountRepository.save(account);
+            accountPostingService.postDebitAgainstGl(
+                    account,
+                    TransactionType.DEBIT,
+                    amount,
+                    "Card authorization " + txnRef,
+                    resolveChannel(channel),
+                    txnRef,
+                    resolveCardSettlementGlCode(),
+                    "CARDS",
+                    txnRef
+            );
         } else if (card.getCardType() == CardType.CREDIT) {
             if (card.getAvailableCredit() == null || card.getAvailableCredit().compareTo(amount) < 0) {
                 txn.setStatus("DECLINED");
@@ -279,5 +295,25 @@ public class CardService {
         } catch (Exception e) {
             throw new RuntimeException("PAN hashing failed", e);
         }
+    }
+
+    private TransactionChannel resolveChannel(String channel) {
+        if (!StringUtils.hasText(channel)) {
+            return TransactionChannel.SYSTEM;
+        }
+        try {
+            return TransactionChannel.valueOf(channel.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return TransactionChannel.SYSTEM;
+        }
+    }
+
+    private String resolveCardSettlementGlCode() {
+        String glCode = cbsProperties.getLedger().getExternalClearingGlCode();
+        if (!StringUtils.hasText(glCode)) {
+            throw new BusinessException("CBS_LEDGER_EXTERNAL_CLEARING_GL is required for card postings",
+                    "MISSING_CARD_SETTLEMENT_GL");
+        }
+        return glCode;
     }
 }

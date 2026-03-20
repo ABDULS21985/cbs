@@ -3,8 +3,6 @@ import { subDays } from 'date-fns';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
 import { DateRangePicker } from '@/components/shared/DateRangePicker';
-import { cn } from '@/lib/utils';
-import { formatMoney } from '@/lib/formatters';
 import {
   Activity,
   Users,
@@ -25,7 +23,7 @@ import { TopEndpointsTable } from '../components/analytics/TopEndpointsTable';
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function OpenBankingAnalyticsPage() {
-  const [dateRange, setDateRange] = useState({
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({
     from: subDays(new Date(), 29),
     to: new Date(),
   });

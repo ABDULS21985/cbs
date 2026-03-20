@@ -176,7 +176,7 @@ export function StaffScheduleCalendar({ branchId }: StaffScheduleCalendarProps) 
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => toast.info('Add staff dialog coming soon')}
+            onClick={() => toast.error('Staff creation is not wired to a backend workflow from this calendar view.')}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
           >
             <Plus className="w-4 h-4" />

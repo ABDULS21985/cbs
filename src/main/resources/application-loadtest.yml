@@ -1,8 +1,16 @@
+# ⚠️  WARNING: This profile (loadtest) disables ALL JWT authentication and grants every
+# request ROLE_CBS_ADMIN via a synthetic principal.  It MUST NOT be activated in any
+# environment that holds real customer data or is reachable from the internet.
+# Activate only on isolated, ephemeral load-test infrastructure with no production data.
+# Required env vars (no safe defaults — the app will fail to start if unset):
+#   CBS_LOADTEST_DB_URL, CBS_LOADTEST_DB_USERNAME, CBS_LOADTEST_DB_PASSWORD
+
 spring:
   datasource:
     url: ${CBS_LOADTEST_DB_URL:jdbc:postgresql://localhost:5432/cbs}
     username: ${CBS_LOADTEST_DB_USERNAME:cbs_admin}
-    password: ${CBS_LOADTEST_DB_PASSWORD:cbs_password}
+    # No default password — must be supplied explicitly via CBS_LOADTEST_DB_PASSWORD
+    password: ${CBS_LOADTEST_DB_PASSWORD}
     driver-class-name: ${CBS_LOADTEST_DB_DRIVER:org.postgresql.Driver}
 
   jpa:
@@ -35,6 +43,9 @@ spring:
     oauth2:
       resourceserver:
         jwt:
+          # Intentionally blank — LoadTestSecurityConfig (@Profile("loadtest")) disables
+          # OAuth2 resource-server entirely and uses a synthetic principal instead.
+          # Do not fill in a real issuer-uri here; that would create a false sense of security.
           issuer-uri:
 
 server:

@@ -1,5 +1,6 @@
 package com.cbs.integration.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.integration.entity.*;
@@ -20,6 +21,7 @@ public class MarketplaceService {
     private final MarketplaceApiProductRepository productRepository;
     private final MarketplaceSubscriptionRepository subscriptionRepository;
     private final MarketplaceUsageLogRepository usageLogRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     // ── API Product Catalog ──────────────────────────────────
 
@@ -97,12 +99,13 @@ public class MarketplaceService {
     }
 
     @Transactional
-    public MarketplaceSubscription approveSubscription(String subscriptionId, String approvedBy) {
+    public MarketplaceSubscription approveSubscription(String subscriptionId) {
         MarketplaceSubscription sub = subscriptionRepository.findBySubscriptionId(subscriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("MarketplaceSubscription", "subscriptionId", subscriptionId));
         if (!"PENDING".equals(sub.getStatus())) {
             throw new BusinessException("Only PENDING subscriptions can be approved");
         }
+        String approvedBy = currentActorProvider.getCurrentActor();
         sub.setStatus("ACTIVE");
         sub.setApprovedBy(approvedBy);
         sub.setApprovedAt(Instant.now());

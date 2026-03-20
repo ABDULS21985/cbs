@@ -45,9 +45,9 @@ public class WorkflowController {
     public ResponseEntity<ApiResponse<WorkflowInstance>> initiate(
             @RequestParam String entityType, @RequestParam String triggerEvent, @RequestParam Long entityId,
             @RequestParam(required = false) String entityRef, @RequestParam(required = false) BigDecimal amount,
-            @RequestParam(required = false) String currencyCode, @RequestParam String initiatedBy) {
+            @RequestParam(required = false) String currencyCode) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
-                workflowService.initiateWorkflow(entityType, triggerEvent, entityId, entityRef, amount, currencyCode, initiatedBy)));
+                workflowService.initiateWorkflow(entityType, triggerEvent, entityId, entityRef, amount, currencyCode)));
     }
 
     @GetMapping("/instances/{id}")
@@ -71,15 +71,15 @@ public class WorkflowController {
     @PostMapping("/instances/{id}/approve")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<WorkflowInstance>> approve(@PathVariable Long id,
-            @RequestParam String actionBy, @RequestParam(required = false) String comments) {
-        return ResponseEntity.ok(ApiResponse.ok(workflowService.approveStep(id, actionBy, comments)));
+            @RequestParam(required = false) String comments) {
+        return ResponseEntity.ok(ApiResponse.ok(workflowService.approveStep(id, comments)));
     }
 
     @PostMapping("/instances/{id}/reject")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<WorkflowInstance>> reject(@PathVariable Long id,
-            @RequestParam String actionBy, @RequestParam String comments) {
-        return ResponseEntity.ok(ApiResponse.ok(workflowService.rejectStep(id, actionBy, comments)));
+            @RequestParam String comments) {
+        return ResponseEntity.ok(ApiResponse.ok(workflowService.rejectStep(id, comments)));
     }
 
     @GetMapping("/sla-check")
