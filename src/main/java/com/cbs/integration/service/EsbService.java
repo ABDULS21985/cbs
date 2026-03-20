@@ -7,6 +7,7 @@ import com.cbs.integration.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -61,8 +62,7 @@ public class EsbService {
         if (("HTTP".equalsIgnoreCase(protocol) || "HTTPS".equalsIgnoreCase(protocol))
                 && route.getEndpointUrl() != null && !route.getEndpointUrl().isBlank()) {
             try {
-                RestTemplate restTemplate = new RestTemplate();
-                // Use a short timeout (5 s) for health checks
+                RestTemplate restTemplate = buildRestTemplate(Math.min(resolveTimeoutMs(route, 5000), 5000));
                 ResponseEntity<String> response = restTemplate.getForEntity(route.getEndpointUrl(), String.class);
                 if (response.getStatusCode().is2xxSuccessful()) {
                     route.setHealthStatus("HEALTHY");
@@ -122,6 +122,7 @@ public class EsbService {
                 .direction("OUTBOUND").messageType(messageType).contentType(contentType)
                 .payloadHash(payloadHash).payloadSizeBytes(payload != null ? (long) payload.length() : 0)
                 .headers(headers).status("RECEIVED").build();
+        message = messageRepository.save(message);
 
         long startTime = System.currentTimeMillis();
         try {
@@ -139,9 +140,14 @@ public class EsbService {
             message.setStatus("ROUTING");
             deliverMessage(message, route, payload);
 
-            // deliverMessage sets status to DELIVERED or FAILED on the message object;
-            // only override to DELIVERED if deliverMessage left it in a terminal success state.
-            if (!"FAILED".equals(message.getStatus()) && !"DEAD_LETTER".equals(message.getStatus())) {
+            if ("FAILED".equals(message.getStatus()) || "DEAD_LETTER".equals(message.getStatus())) {
+                sendToDeadLetter(
+                        message,
+                        route,
+                        Optional.ofNullable(message.getErrorMessage()).orElse("Message delivery failed"),
+                        payload
+                );
+            } else {
                 message.setStatus("DELIVERED");
                 message.setDeliveredAt(Instant.now());
             }
@@ -153,8 +159,7 @@ public class EsbService {
             message.setErrorMessage(e.getMessage());
             message.setProcessingTimeMs((int)(System.currentTimeMillis() - startTime));
 
-            // Send to dead letter queue
-            sendToDeadLetter(message, route, e.getMessage());
+            sendToDeadLetter(message, route, e.getMessage(), payload);
             log.error("Message failed: id={}, route={}, error={}", messageId, route.getRouteCode(), e.getMessage());
         }
 
@@ -192,7 +197,7 @@ public class EsbService {
                 return;
             }
 
-            RestTemplate restTemplate = new RestTemplate();
+            RestTemplate restTemplate = buildRestTemplate(resolveTimeoutMs(route, 30000));
             HttpHeaders httpHeaders = new HttpHeaders();
             httpHeaders.setContentType(MediaType.APPLICATION_JSON);
 
@@ -241,16 +246,17 @@ public class EsbService {
     // ── Dead Letter Queue ────────────────────────────────────
 
     @Transactional
-    void sendToDeadLetter(IntegrationMessage message, IntegrationRoute route, String reason) {
-        @SuppressWarnings("unchecked")
+    void sendToDeadLetter(IntegrationMessage message, IntegrationRoute route, String reason, String originalPayload) {
         Map<String, Object> retryPolicy = route.getRetryPolicy();
-        int maxRetries = retryPolicy != null ? ((Number) retryPolicy.getOrDefault("max_retries", 3)).intValue() : 3;
-        int backoffMs = retryPolicy != null ? ((Number) retryPolicy.getOrDefault("backoff_ms", 1000)).intValue() : 1000;
-
+        int maxRetries = intValue(retryPolicy, "max_retries", 3);
         DeadLetterQueue dlq = DeadLetterQueue.builder()
                 .messageId(message.getId()).routeId(route.getId())
-                .failureReason(reason).retryCount(0).maxRetries(maxRetries)
-                .nextRetryAt(Instant.now().plus(backoffMs, ChronoUnit.MILLIS)).build();
+                .failureReason(defaultFailureReason(reason))
+                .originalPayload(originalPayload)
+                .retryCount(0)
+                .maxRetries(maxRetries)
+                .nextRetryAt(calculateNextRetryAt(retryPolicy, 1))
+                .build();
         dlqRepository.save(dlq);
     }
 
@@ -274,29 +280,49 @@ public class EsbService {
             dlq.setStatus("RETRYING");
             dlqRepository.save(dlq);
 
-            // Re-deliver the original message
-            messageRepository.findById(dlq.getMessageId()).ifPresentOrElse(originalMessage -> {
-                routeRepository.findById(dlq.getRouteId()).ifPresentOrElse(route -> {
-                    // Use the stored original payload from the DLQ if available, else empty string
-                    String payload = dlq.getOriginalPayload() != null ? dlq.getOriginalPayload() : "";
-                    try {
-                        deliverMessage(originalMessage, route, payload);
-                        if ("DELIVERED".equals(originalMessage.getStatus())) {
-                            originalMessage.setDeliveredAt(Instant.now());
-                            messageRepository.save(originalMessage);
-                            dlq.setStatus("RESOLVED");
-                            dlq.setResolvedAt(Instant.now());
-                            dlqRepository.save(dlq);
-                            log.info("Dead-letter retry succeeded: dlqId={}, messageId={}", dlq.getId(), originalMessage.getMessageId());
-                        } else {
-                            log.warn("Dead-letter retry still failed: dlqId={}, messageId={}, status={}",
-                                    dlq.getId(), originalMessage.getMessageId(), originalMessage.getStatus());
-                        }
-                    } catch (Exception e) {
-                        log.error("Dead-letter retry exception: dlqId={}, error={}", dlq.getId(), e.getMessage());
-                    }
-                }, () -> log.warn("Route not found for DLQ entry dlqId={}, routeId={}", dlq.getId(), dlq.getRouteId()));
-            }, () -> log.warn("Message not found for DLQ entry dlqId={}, messageId={}", dlq.getId(), dlq.getMessageId()));
+            IntegrationMessage originalMessage = messageRepository.findById(dlq.getMessageId()).orElse(null);
+            if (originalMessage == null) {
+                dlq.setStatus("ABANDONED");
+                dlq.setFailureReason("Original message not found");
+                dlqRepository.save(dlq);
+                log.warn("Message not found for DLQ entry dlqId={}, messageId={}", dlq.getId(), dlq.getMessageId());
+                retried++;
+                continue;
+            }
+
+            IntegrationRoute route = routeRepository.findById(dlq.getRouteId()).orElse(null);
+            if (route == null) {
+                dlq.setStatus("ABANDONED");
+                dlq.setFailureReason("Route not found");
+                dlqRepository.save(dlq);
+                log.warn("Route not found for DLQ entry dlqId={}, routeId={}", dlq.getId(), dlq.getRouteId());
+                retried++;
+                continue;
+            }
+
+            String payload = dlq.getOriginalPayload() != null ? dlq.getOriginalPayload() : "";
+            try {
+                deliverMessage(originalMessage, route, payload);
+                if ("DELIVERED".equals(originalMessage.getStatus())) {
+                    originalMessage.setDeliveredAt(Instant.now());
+                    messageRepository.save(originalMessage);
+                    dlq.setStatus("RESOLVED");
+                    dlq.setResolvedAt(Instant.now());
+                    dlqRepository.save(dlq);
+                    log.info("Dead-letter retry succeeded: dlqId={}, messageId={}", dlq.getId(), originalMessage.getMessageId());
+                } else {
+                    messageRepository.save(originalMessage);
+                    rescheduleDeadLetter(dlq, route, originalMessage.getErrorMessage());
+                    log.warn("Dead-letter retry still failed: dlqId={}, messageId={}, status={}",
+                            dlq.getId(), originalMessage.getMessageId(), originalMessage.getStatus());
+                }
+            } catch (Exception e) {
+                originalMessage.setStatus("FAILED");
+                originalMessage.setErrorMessage(e.getMessage());
+                messageRepository.save(originalMessage);
+                rescheduleDeadLetter(dlq, route, e.getMessage());
+                log.error("Dead-letter retry exception: dlqId={}, error={}", dlq.getId(), e.getMessage());
+            }
 
             retried++;
         }
@@ -322,5 +348,61 @@ public class EsbService {
             MessageDigest d = MessageDigest.getInstance("SHA-256");
             return Base64.getEncoder().encodeToString(d.digest(input.getBytes(StandardCharsets.UTF_8)));
         } catch (Exception e) { throw new RuntimeException(e); }
+    }
+
+    private RestTemplate buildRestTemplate(int timeoutMs) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(timeoutMs);
+        requestFactory.setReadTimeout(timeoutMs);
+        return new RestTemplate(requestFactory);
+    }
+
+    private int resolveTimeoutMs(IntegrationRoute route, int fallbackTimeoutMs) {
+        Integer timeoutMs = route.getTimeoutMs();
+        if (timeoutMs == null || timeoutMs <= 0) {
+            return fallbackTimeoutMs;
+        }
+        return timeoutMs;
+    }
+
+    private void rescheduleDeadLetter(DeadLetterQueue dlq, IntegrationRoute route, String reason) {
+        dlq.setFailureReason(defaultFailureReason(reason));
+        if (dlq.getRetryCount() >= dlq.getMaxRetries()) {
+            dlq.setStatus("ABANDONED");
+            dlq.setNextRetryAt(null);
+        } else {
+            dlq.setStatus("PENDING");
+            dlq.setNextRetryAt(calculateNextRetryAt(route.getRetryPolicy(), dlq.getRetryCount() + 1));
+        }
+        dlqRepository.save(dlq);
+    }
+
+    private Instant calculateNextRetryAt(Map<String, Object> retryPolicy, int attemptNumber) {
+        int baseBackoffMs = intValue(retryPolicy, "backoff_ms", 1000);
+        double multiplier = doubleValue(retryPolicy, "backoff_multiplier", 2.0d);
+        double safeMultiplier = multiplier < 1.0d ? 1.0d : multiplier;
+        long delayMs = Math.round(baseBackoffMs * Math.pow(safeMultiplier, Math.max(attemptNumber - 1, 0)));
+        long boundedDelayMs = Math.max(1_000L, Math.min(delayMs, Integer.MAX_VALUE));
+        return Instant.now().plus(boundedDelayMs, ChronoUnit.MILLIS);
+    }
+
+    private int intValue(Map<String, Object> values, String key, int fallback) {
+        if (values == null) {
+            return fallback;
+        }
+        Object value = values.get(key);
+        return value instanceof Number number ? number.intValue() : fallback;
+    }
+
+    private double doubleValue(Map<String, Object> values, String key, double fallback) {
+        if (values == null) {
+            return fallback;
+        }
+        Object value = values.get(key);
+        return value instanceof Number number ? number.doubleValue() : fallback;
+    }
+
+    private String defaultFailureReason(String reason) {
+        return reason != null && !reason.isBlank() ? reason : "Message delivery failed";
     }
 }

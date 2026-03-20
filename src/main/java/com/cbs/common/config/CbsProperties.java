@@ -57,10 +57,19 @@ public class CbsProperties {
     @Getter @Setter
     public static class Security {
         private Cors cors = new Cors();
+        private Jwt jwt = new Jwt();
         private List<String> publicPaths = new ArrayList<>();
         @Getter @Setter
         public static class Cors {
-            private String allowedOrigins = "http://localhost:3000";
+            private String allowedOrigins = "";
+        }
+        @Getter @Setter
+        public static class Jwt {
+            /**
+             * Comma-separated audiences or client IDs that this API accepts.
+             * For Keycloak public clients, azp is validated against the same set.
+             */
+            private String acceptedAudiences = "cbs-app";
         }
     }
 
@@ -90,7 +99,7 @@ public class CbsProperties {
     @Getter @Setter
     public static class KycConfig {
         /** INTERNAL, ONFIDO, JUMIO, SUMSUB, or deployment-specific providers */
-        private String provider = "INTERNAL";
+        private String provider = "";
         private String providerBaseUrl = "";
         private int providerTimeoutSeconds = 30;
         private List<IdTypeConfig> idTypes = new ArrayList<>();

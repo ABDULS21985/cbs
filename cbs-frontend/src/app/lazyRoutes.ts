@@ -117,6 +117,10 @@ export const NewGoalPage = lazyNamed(
   () => import('@/features/goals/pages/NewGoalPage'),
   'NewGoalPage',
 );
+export const PfmDashboardPage = lazyNamed(
+  () => import('@/features/goals/pages/PfmDashboardPage'),
+  'PfmDashboardPage',
+);
 export const RecurringDepositListPage = lazyNamed(
   () => import('@/features/goals/pages/RecurringDepositListPage'),
   'RecurringDepositListPage',
@@ -442,6 +446,18 @@ export const FraudAlertDetailPage = lazyNamed(
 export const GatewayConsolePage = lazyNamed(
   () => import('@/features/gateway/pages/GatewayConsolePage'),
   'GatewayConsolePage',
+);
+export const GatewayDetailPage = lazyNamed(
+  () => import('@/features/gateway/pages/GatewayDetailPage'),
+  'GatewayDetailPage',
+);
+export const MessageDetailPage = lazyNamed(
+  () => import('@/features/gateway/pages/MessageDetailPage'),
+  'MessageDetailPage',
+);
+export const IntegrationHubPage = lazyNamed(
+  () => import('@/features/gateway/pages/IntegrationHubPage'),
+  'IntegrationHubPage',
 );
 export const EodConsolePage = lazyNamed(
   () => import('@/features/operations/pages/EodConsolePage'),

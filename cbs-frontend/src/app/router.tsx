@@ -69,6 +69,7 @@ import {
   FixedIncomePage,
   FraudManagementPage,
   GatewayConsolePage,
+  IntegrationHubPage,
   GeneralLedgerPage,
   GoalDetailPage,
   GoalListPage,
@@ -93,6 +94,7 @@ import {
   NewFeeDefinitionPage,
   NewFixedDepositPage,
   NewGoalPage,
+  PfmDashboardPage,
   NewTransferPage,
   NotificationCenterPage,
   OperationalReportsPage,
@@ -303,6 +305,7 @@ export function AppRouter() {
           <Route path="goals/:id" element={<GoalDetailPage />} />
           <Route path="recurring-deposits" element={<RecurringDepositListPage />} />
           <Route path="recurring-deposits/:id" element={<RecurringDepositDetailPage />} />
+          <Route path="pfm" element={<PfmDashboardPage />} />
           <Route path=":id" element={<AccountDetailPage />} />
           <Route path=":id/maintenance" element={<AccountMaintenancePage />} />
           <Route path="reconciliation" element={<ReconciliationWorkbenchPage />} />

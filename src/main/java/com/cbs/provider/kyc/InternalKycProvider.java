@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
  * For production, swap to Onfido, Jumio, SumSub, or a country-specific provider.
  */
 @Component
-@ConditionalOnProperty(name = "cbs.kyc.provider", havingValue = "INTERNAL", matchIfMissing = true)
+@ConditionalOnProperty(name = "cbs.kyc.provider", havingValue = "INTERNAL")
 @RequiredArgsConstructor
 @Slf4j
 public class InternalKycProvider implements KycProvider {

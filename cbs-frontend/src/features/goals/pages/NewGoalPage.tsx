@@ -1,376 +1,339 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Check, Loader2, ChevronRight, ChevronLeft } from 'lucide-react';
-import { PageHeader } from '@/components/layout/PageHeader';
-import { SavingsCalculator } from '../components/SavingsCalculator';
-import { AutoDebitConfigForm } from '../components/AutoDebitConfigForm';
+import { Check, Loader2, ArrowLeft, ArrowRight, Target, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { formatMoney } from '@/lib/formatters';
+import { toast } from 'sonner';
 import { createGoal } from '../api/goalApi';
 import type { AutoDebitConfig } from '../api/goalApi';
-import { cn } from '@/lib/utils';
 import { apiGet } from '@/lib/api';
 
-const GOAL_EMOJIS = ['🏠', '📚', '✈️', '🚗', '💍', '🏥', '💻', '🎓'];
+// ── Constants ───────────────────────────────────────────────────────────────
 
-// Step 1 schema
-const step1Schema = z.object({
-  name: z.string().min(2, 'Goal name must be at least 2 characters'),
-  icon: z.string().min(1, 'Select an icon'),
-  targetAmount: z.coerce.number().min(1000, 'Minimum target is ₦1,000'),
-});
+const STEP_LABELS = ['Type', 'Amount', 'Timeline', 'Funding', 'Review'];
 
-// Step 2 schema
-const step2Schema = z.object({
-  targetDate: z.string().min(1, 'Select a target date'),
-});
+const GOAL_TEMPLATES = [
+  { icon: '🏠', name: 'Home Down Payment', category: 'Home', suggestedRange: [5_000_000, 20_000_000], quickAmounts: [2_000_000, 5_000_000, 10_000_000, 20_000_000], context: 'Average down payment in Lagos: ₦8M–₦15M' },
+  { icon: '🎓', name: 'Education Fund', category: 'Education', suggestedRange: [500_000, 5_000_000], quickAmounts: [500_000, 1_000_000, 2_000_000, 5_000_000], context: 'Annual tuition at top Nigerian universities: ₦500K–₦3M' },
+  { icon: '🚗', name: 'New Vehicle', category: 'Vehicle', suggestedRange: [2_000_000, 15_000_000], quickAmounts: [2_000_000, 5_000_000, 8_000_000, 15_000_000], context: 'New sedan range: ₦5M–₦12M' },
+  { icon: '✈️', name: 'Dream Trip', category: 'Travel', suggestedRange: [200_000, 2_000_000], quickAmounts: [200_000, 500_000, 1_000_000, 2_000_000], context: 'International holiday: ₦300K–₦1.5M' },
+  { icon: '🏥', name: 'Health Fund', category: 'Medical', suggestedRange: [200_000, 2_000_000], quickAmounts: [200_000, 500_000, 1_000_000, 2_000_000], context: 'HMO premium + emergency buffer' },
+  { icon: '💍', name: 'Wedding Fund', category: 'Wedding', suggestedRange: [1_000_000, 10_000_000], quickAmounts: [1_000_000, 3_000_000, 5_000_000, 10_000_000], context: 'Average Nigerian wedding: ₦2M–₦8M' },
+  { icon: '🛡️', name: 'Emergency Fund', category: 'Emergency', suggestedRange: [500_000, 5_000_000], quickAmounts: [500_000, 1_500_000, 3_000_000, 5_000_000], context: 'Recommended: 3–6 months of expenses' },
+  { icon: '🎯', name: 'Custom Goal', category: 'Custom', suggestedRange: [10_000, 100_000_000], quickAmounts: [100_000, 500_000, 1_000_000, 5_000_000], context: 'Set your own target' },
+];
 
-// Step 3 schema
-const step3Schema = z.object({
-  sourceAccountId: z.string().min(1, 'Select a source account'),
-  fundingMethod: z.enum(['MANUAL', 'AUTO_DEBIT']),
-});
+const ALL_ICONS = ['🏠', '🎓', '🚗', '✈️', '🏥', '💍', '🛡️', '🎯', '💰', '📱', '🏖️', '👶', '🎸', '🏋️', '📚', '🎮', '🐕', '🌍', '💻', '🏪', '🎭', '⛵', '🎨', '🧘'];
 
-type Step1Values = z.infer<typeof step1Schema>;
-type Step2Values = z.infer<typeof step2Schema>;
-type Step3Values = z.infer<typeof step3Schema>;
+interface SourceAccount { id: string; number: string; name: string; balance: number; }
 
-const STEPS = ['Goal Info', 'Timeline', 'Funding'];
+// ── Stepper ─────────────────────────────────────────────────────────────────
 
-interface SourceAccount {
-  id: string;
-  number: string;
-  name: string;
-  balance: number;
+function WizardStepper({ steps, current }: { steps: string[]; current: number }) {
+  return (
+    <div className="flex items-center gap-0 mb-6">
+      {steps.map((label, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <div key={i} className="flex items-center flex-1">
+            <div className="flex flex-col items-center gap-1">
+              <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2',
+                done ? 'bg-green-500 border-green-500 text-white' : active ? 'border-primary text-primary bg-background ring-2 ring-primary/20' : 'border-muted-foreground/30 text-muted-foreground bg-background')}>
+                {done ? <Check className="w-4 h-4" /> : i + 1}
+              </div>
+              <span className={cn('text-[10px] whitespace-nowrap', active ? 'text-primary font-semibold' : done ? 'text-foreground' : 'text-muted-foreground')}>{label}</span>
+            </div>
+            {i < steps.length - 1 && <div className={cn('h-0.5 flex-1 mx-1.5', done ? 'bg-green-500' : 'bg-muted')} />}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
+// ── Main Page ───────────────────────────────────────────────────────────────
+
 export function NewGoalPage() {
+  useEffect(() => { document.title = 'New Savings Goal | CBS'; }, []);
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
 
-  const { data: sourceAccounts = [] } = useQuery({
-    queryKey: ['accounts', 'source-list'],
-    queryFn: () => apiGet<SourceAccount[]>('/api/v1/accounts?type=SAVINGS,CURRENT').catch(() => []),
-  });
-  const [selectedIcon, setSelectedIcon] = useState('🏠');
-  const [autoDebitConfig, setAutoDebitConfig] = useState<AutoDebitConfig | undefined>();
+  // Form state
+  const [goalName, setGoalName] = useState('');
+  const [goalIcon, setGoalIcon] = useState('🎯');
+  const [selectedTemplate, setSelectedTemplate] = useState<typeof GOAL_TEMPLATES[0] | null>(null);
+  const [targetAmount, setTargetAmount] = useState(0);
+  const [targetDate, setTargetDate] = useState('');
+  const [sourceAccountId, setSourceAccountId] = useState('');
+  const [fundingMethod, setFundingMethod] = useState<'MANUAL' | 'AUTO_DEBIT'>('AUTO_DEBIT');
+  const [autoDebitAmount, setAutoDebitAmount] = useState(0);
+  const [autoDebitFreq, setAutoDebitFreq] = useState<'MONTHLY' | 'WEEKLY' | 'DAILY'>('MONTHLY');
+  const [autoDebitStart, setAutoDebitStart] = useState(new Date().toISOString().slice(0, 10));
+  const [showIconPicker, setShowIconPicker] = useState(false);
 
-  // Collected form data across steps
-  const [step1Data, setStep1Data] = useState<Step1Values | null>(null);
-  const [step2Data, setStep2Data] = useState<Step2Values | null>(null);
-
-  const step1Form = useForm<Step1Values>({
-    resolver: zodResolver(step1Schema),
-    defaultValues: { name: '', icon: '🏠', targetAmount: undefined },
-  });
-
-  const step2Form = useForm<Step2Values>({
-    resolver: zodResolver(step2Schema),
-    defaultValues: { targetDate: '' },
+  // Accounts
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['accounts-for-goals'],
+    queryFn: () => apiGet<SourceAccount[]>('/api/v1/accounts').catch(() => []),
   });
 
-  const step3Form = useForm<Step3Values>({
-    resolver: zodResolver(step3Schema),
-    defaultValues: { sourceAccountId: '', fundingMethod: 'MANUAL' },
+  // Create mutation
+  const createMut = useMutation({
+    mutationFn: () => createGoal({
+      name: goalName, icon: goalIcon, targetAmount, targetDate,
+      sourceAccountId, sourceAccountNumber: accounts.find(a => a.id === sourceAccountId)?.number ?? '',
+      fundingMethod,
+      ...(fundingMethod === 'AUTO_DEBIT' ? { autoDebit: { amount: autoDebitAmount, frequency: autoDebitFreq, startDate: autoDebitStart, status: 'ACTIVE' as const } } : {}),
+    }),
+    onSuccess: (goal) => { toast.success('Goal created!'); navigate(`/accounts/goals/${goal.id}`); },
+    onError: () => toast.error('Failed to create goal'),
   });
 
-  const fundingMethod = step3Form.watch('fundingMethod');
+  // Calculations
+  const monthsToGoal = useMemo(() => {
+    if (!targetDate) return 0;
+    const target = new Date(targetDate);
+    const now = new Date();
+    return Math.max(1, Math.round((target.getTime() - now.getTime()) / (30.44 * 86400000)));
+  }, [targetDate]);
 
-  const createMutation = useMutation({
-    mutationFn: createGoal,
-    onSuccess: () => navigate('/accounts/goals'),
-  });
+  const monthlyRequired = targetAmount > 0 && monthsToGoal > 0 ? Math.ceil(targetAmount / monthsToGoal) : 0;
+  const weeklyRequired = monthlyRequired > 0 ? Math.ceil(monthlyRequired / 4.33) : 0;
+  const dailyRequired = monthlyRequired > 0 ? Math.ceil(monthlyRequired / 30.44) : 0;
 
-  function goNext() {
-    if (step === 0) {
-      step1Form.handleSubmit((data) => {
-        setStep1Data({ ...data, icon: selectedIcon });
-        setStep(1);
-      })();
-    } else if (step === 1) {
-      step2Form.handleSubmit((data) => {
-        setStep2Data(data);
-        setStep(2);
-      })();
-    }
-  }
+  useEffect(() => { if (monthlyRequired > 0) setAutoDebitAmount(monthlyRequired); }, [monthlyRequired]);
 
-  function goBack() {
-    setStep((s) => Math.max(0, s - 1));
-  }
+  const selectedAccount = accounts.find(a => a.id === sourceAccountId);
 
-  function handleSubmit() {
-    step3Form.handleSubmit((step3Data) => {
-      if (!step1Data || !step2Data) return;
-
-      createMutation.mutate({
-        name: step1Data.name,
-        icon: step1Data.icon,
-        targetAmount: step1Data.targetAmount,
-        targetDate: step2Data.targetDate,
-        sourceAccountId: step3Data.sourceAccountId,
-        sourceAccountNumber:
-          sourceAccounts.find((a) => a.id === step3Data.sourceAccountId)?.number ?? '',
-        fundingMethod: step3Data.fundingMethod,
-        autoDebit: step3Data.fundingMethod === 'AUTO_DEBIT' ? autoDebitConfig : undefined,
-      });
-    })();
-  }
+  const fc = 'w-full px-3 py-2 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
 
   return (
-    <>
-      <PageHeader
-        title="Create Savings Goal"
-        subtitle="Set up a new goal-based savings plan"
-        backTo="/accounts/goals"
-      />
+    <div className="max-w-2xl mx-auto py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <button onClick={() => step > 0 ? setStep(s => s - 1) : navigate(-1)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-4 h-4" /> {step > 0 ? 'Back' : 'Cancel'}
+        </button>
+        <h1 className="text-lg font-semibold">Create New Savings Goal</h1>
+        <div className="w-16" />
+      </div>
 
-      <div className="page-container max-w-2xl">
-        {/* Step indicator */}
-        <div className="flex items-center gap-0 mb-8">
-          {STEPS.map((label, i) => (
-            <div key={label} className="flex items-center flex-1">
-              <div className="flex flex-col items-center gap-1.5">
-                <div
-                  className={cn(
-                    'w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-colors',
-                    i < step
-                      ? 'bg-primary border-primary text-primary-foreground'
-                      : i === step
-                      ? 'border-primary text-primary bg-primary/10'
-                      : 'border-border text-muted-foreground',
-                  )}
-                >
-                  {i < step ? <Check className="w-4 h-4" /> : i + 1}
-                </div>
-                <span
-                  className={cn(
-                    'text-xs font-medium whitespace-nowrap',
-                    i === step ? 'text-primary' : 'text-muted-foreground',
-                  )}
-                >
-                  {label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div
-                  className={cn(
-                    'flex-1 h-0.5 mx-2 mb-5 transition-colors',
-                    i < step ? 'bg-primary' : 'bg-border',
-                  )}
-                />
-              )}
-            </div>
-          ))}
-        </div>
+      <WizardStepper steps={STEP_LABELS} current={step} />
 
-        {/* Step 1: Goal Info */}
+      <div className="bg-card rounded-xl border p-6">
+        {/* ── Step 1: Type ──────────────────────────────────────────── */}
         {step === 0 && (
-          <div className="bg-card rounded-xl border p-6 space-y-5">
-            <h2 className="text-base font-semibold">Goal Information</h2>
-
-            {/* Icon selector */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Choose an Icon</label>
-              <div className="flex flex-wrap gap-2">
-                {GOAL_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => { setSelectedIcon(emoji); step1Form.setValue('icon', emoji); }}
-                    className={cn(
-                      'w-12 h-12 rounded-xl text-2xl flex items-center justify-center border-2 transition-all hover:scale-110',
-                      selectedIcon === emoji
-                        ? 'border-primary bg-primary/10 scale-110'
-                        : 'border-border hover:border-muted-foreground',
-                    )}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+          <div className="space-y-5">
+            <h3 className="text-sm font-semibold">What are you saving for?</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {GOAL_TEMPLATES.map(t => (
+                <button key={t.category} onClick={() => { setSelectedTemplate(t); setGoalName(t.name); setGoalIcon(t.icon); }}
+                  className={cn('p-4 rounded-xl border-2 text-left transition-all hover:border-primary/50',
+                    selectedTemplate?.category === t.category ? 'border-primary bg-primary/5' : 'border-border')}>
+                  <div className="text-2xl mb-2">{t.icon}</div>
+                  <div className="text-sm font-semibold">{t.category}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{formatMoney(t.suggestedRange[0])}–{formatMoney(t.suggestedRange[1])}</div>
+                </button>
+              ))}
             </div>
-
-            {/* Name */}
-            <div>
-              <label className="text-sm font-medium mb-1 block">
-                Goal Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                {...step1Form.register('name')}
-                placeholder="e.g. New House, Family Vacation..."
-                className={cn(
-                  'w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30',
-                  step1Form.formState.errors.name && 'border-red-500',
-                )}
-              />
-              {step1Form.formState.errors.name && (
-                <p className="text-xs text-red-500 mt-0.5">{step1Form.formState.errors.name.message}</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setShowIconPicker(!showIconPicker)} className="text-3xl hover:scale-110 transition-transform" title="Change icon">{goalIcon}</button>
+                <input value={goalName} onChange={e => setGoalName(e.target.value)} placeholder="Goal name" className={cn(fc, 'flex-1 text-base font-medium')} />
+              </div>
+              {showIconPicker && (
+                <div className="grid grid-cols-8 gap-2 p-3 rounded-lg border bg-muted/20">
+                  {ALL_ICONS.map(icon => (
+                    <button key={icon} onClick={() => { setGoalIcon(icon); setShowIconPicker(false); }}
+                      className={cn('text-2xl p-1 rounded hover:bg-primary/10 transition-colors', goalIcon === icon && 'bg-primary/20 ring-2 ring-primary')}>
+                      {icon}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
-
-            {/* Target Amount */}
-            <div>
-              <label className="text-sm font-medium mb-1 block">
-                Target Amount <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">₦</span>
-                <input
-                  type="number"
-                  {...step1Form.register('targetAmount')}
-                  placeholder="5,000,000"
-                  className={cn(
-                    'w-full rounded-lg border bg-background pl-7 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30',
-                    step1Form.formState.errors.targetAmount && 'border-red-500',
-                  )}
-                />
-              </div>
-              {step1Form.formState.errors.targetAmount && (
-                <p className="text-xs text-red-500 mt-0.5">{step1Form.formState.errors.targetAmount.message}</p>
-              )}
+            <div className="flex justify-end">
+              <button onClick={() => setStep(1)} disabled={!goalName}
+                className="flex items-center gap-1 px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                Next <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         )}
 
-        {/* Step 2: Timeline */}
+        {/* ── Step 2: Amount ─────────────────────────────────────────── */}
         {step === 1 && (
-          <div className="bg-card rounded-xl border p-6 space-y-5">
-            <h2 className="text-base font-semibold">Set Your Timeline</h2>
-
-            <div>
-              <label className="text-sm font-medium mb-1 block">
-                Target Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                {...step2Form.register('targetDate')}
-                min={new Date().toISOString().split('T')[0]}
-                className={cn(
-                  'w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30',
-                  step2Form.formState.errors.targetDate && 'border-red-500',
-                )}
-              />
-              {step2Form.formState.errors.targetDate && (
-                <p className="text-xs text-red-500 mt-0.5">{step2Form.formState.errors.targetDate.message}</p>
-              )}
+          <div className="space-y-5">
+            <h3 className="text-sm font-semibold">How much do you need?</h3>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Target Amount</label>
+              <input type="number" value={targetAmount || ''} onChange={e => setTargetAmount(Number(e.target.value))}
+                placeholder="0" className={cn(fc, 'text-2xl font-bold font-mono')} />
             </div>
-
-            <SavingsCalculator
-              targetAmount={step1Data?.targetAmount}
-              targetDate={step2Form.watch('targetDate')}
-              readOnly
-            />
+            {selectedTemplate && (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTemplate.quickAmounts.map(a => (
+                    <button key={a} onClick={() => setTargetAmount(a)}
+                      className={cn('px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors',
+                        targetAmount === a ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted')}>
+                      {formatMoney(a)}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground italic">💡 {selectedTemplate.context}</p>
+              </>
+            )}
+            <div className="flex justify-between">
+              <button onClick={() => setStep(0)} className="flex items-center gap-1 px-4 py-2 text-sm border rounded-lg hover:bg-muted"><ArrowLeft className="w-4 h-4" /> Back</button>
+              <button onClick={() => setStep(2)} disabled={targetAmount < 1000}
+                className="flex items-center gap-1 px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                Next <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Step 3: Funding */}
+        {/* ── Step 3: Timeline ───────────────────────────────────────── */}
         {step === 2 && (
-          <div className="bg-card rounded-xl border p-6 space-y-5">
-            <h2 className="text-base font-semibold">Funding Configuration</h2>
-
-            {/* Source account */}
-            <div>
-              <label className="text-sm font-medium mb-1 block">
-                Source Account <span className="text-red-500">*</span>
-              </label>
-              <select
-                {...step3Form.register('sourceAccountId')}
-                className={cn(
-                  'w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30',
-                  step3Form.formState.errors.sourceAccountId && 'border-red-500',
-                )}
-              >
-                <option value="">Select account...</option>
-                {sourceAccounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.number} – {acc.name} (₦{acc.balance.toLocaleString()})
-                  </option>
-                ))}
-              </select>
-              {step3Form.formState.errors.sourceAccountId && (
-                <p className="text-xs text-red-500 mt-0.5">{step3Form.formState.errors.sourceAccountId.message}</p>
-              )}
+          <div className="space-y-5">
+            <h3 className="text-sm font-semibold">When do you need it?</h3>
+            <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)}
+              min={new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)} className={fc} />
+            <div className="flex flex-wrap gap-2">
+              {[{ label: '6 months', months: 6 }, { label: '1 year', months: 12 }, { label: '2 years', months: 24 }, { label: '3 years', months: 36 }].map(t => {
+                const d = new Date(); d.setMonth(d.getMonth() + t.months);
+                return (
+                  <button key={t.label} onClick={() => setTargetDate(d.toISOString().slice(0, 10))}
+                    className="px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors">{t.label}</button>
+                );
+              })}
             </div>
-
-            {/* Funding method */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Funding Method</label>
-              <div className="grid grid-cols-2 gap-3">
-                {(['MANUAL', 'AUTO_DEBIT'] as const).map((method) => (
-                  <button
-                    key={method}
-                    type="button"
-                    onClick={() => step3Form.setValue('fundingMethod', method)}
-                    className={cn(
-                      'p-4 rounded-xl border-2 text-left transition-all',
-                      fundingMethod === method
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-muted-foreground',
-                    )}
-                  >
-                    <div className="font-semibold text-sm">{method === 'MANUAL' ? 'Manual' : 'Auto-Debit'}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {method === 'MANUAL' ? 'Contribute at your own pace' : 'Set automatic recurring debits'}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Auto-debit config */}
-            {fundingMethod === 'AUTO_DEBIT' && (
-              <div className="border rounded-xl p-4 bg-muted/20">
-                <AutoDebitConfigForm
-                  config={autoDebitConfig}
-                  onSave={(config) => {
-                    setAutoDebitConfig(config);
-                  }}
-                  onCancel={() => {}}
-                />
+            {targetDate && targetAmount > 0 && (
+              <div className="rounded-lg border bg-primary/5 p-4 space-y-2">
+                <p className="text-xs font-semibold text-primary">Savings Calculator</p>
+                <p className="text-sm">At {formatMoney(targetAmount)} in {monthsToGoal} months, you need:</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-card border p-3 text-center">
+                    <div className="text-lg font-bold font-mono">{formatMoney(monthlyRequired)}</div>
+                    <div className="text-[10px] text-muted-foreground">per month</div>
+                  </div>
+                  <div className="rounded-lg bg-card border p-3 text-center">
+                    <div className="text-lg font-bold font-mono">{formatMoney(weeklyRequired)}</div>
+                    <div className="text-[10px] text-muted-foreground">per week</div>
+                  </div>
+                  <div className="rounded-lg bg-card border p-3 text-center">
+                    <div className="text-lg font-bold font-mono">{formatMoney(dailyRequired)}</div>
+                    <div className="text-[10px] text-muted-foreground">per day</div>
+                  </div>
+                </div>
               </div>
             )}
+            <div className="flex justify-between">
+              <button onClick={() => setStep(1)} className="flex items-center gap-1 px-4 py-2 text-sm border rounded-lg hover:bg-muted"><ArrowLeft className="w-4 h-4" /> Back</button>
+              <button onClick={() => setStep(3)} disabled={!targetDate}
+                className="flex items-center gap-1 px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                Next <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Navigation buttons */}
-        <div className="flex gap-3 mt-6">
-          {step > 0 && (
-            <button
-              type="button"
-              onClick={goBack}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Back
-            </button>
-          )}
-          <div className="flex-1" />
-          {step < STEPS.length - 1 ? (
-            <button
-              type="button"
-              onClick={goNext}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
-              Next
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={createMutation.isPending}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              <Check className="w-4 h-4" />
-              Create Goal
-            </button>
-          )}
-        </div>
+        {/* ── Step 4: Funding ────────────────────────────────────────── */}
+        {step === 3 && (
+          <div className="space-y-5">
+            <h3 className="text-sm font-semibold">How will you fund it?</h3>
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Source Account</p>
+              {(accounts as SourceAccount[]).map(a => (
+                <button key={a.id} onClick={() => setSourceAccountId(a.id)}
+                  className={cn('w-full flex items-center justify-between p-4 rounded-lg border-2 text-left transition-all',
+                    sourceAccountId === a.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30')}>
+                  <div><div className="text-sm font-medium">{a.name}</div><div className="text-xs text-muted-foreground font-mono">****{a.number?.slice(-4)}</div></div>
+                  <div className="text-sm font-mono font-semibold">{formatMoney(a.balance)}</div>
+                </button>
+              ))}
+              {accounts.length === 0 && <p className="text-sm text-muted-foreground py-4">No accounts found.</p>}
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Funding Method</p>
+              <button onClick={() => setFundingMethod('AUTO_DEBIT')}
+                className={cn('w-full p-4 rounded-lg border-2 text-left transition-all',
+                  fundingMethod === 'AUTO_DEBIT' ? 'border-primary bg-primary/5' : 'border-border')}>
+                <div className="flex items-center gap-2 mb-1"><span className="text-lg">🤖</span><span className="text-sm font-semibold">Auto-Debit (Recommended)</span></div>
+                <p className="text-xs text-muted-foreground">Set it and forget it — we'll automatically save for you</p>
+                {fundingMethod === 'AUTO_DEBIT' && (
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div className="space-y-1"><label className="text-[10px] font-medium text-muted-foreground">Amount</label>
+                      <input type="number" value={autoDebitAmount || ''} onChange={e => setAutoDebitAmount(Number(e.target.value))} className={cn(fc, 'font-mono')} /></div>
+                    <div className="space-y-1"><label className="text-[10px] font-medium text-muted-foreground">Frequency</label>
+                      <select value={autoDebitFreq} onChange={e => setAutoDebitFreq(e.target.value as 'MONTHLY')} className={fc}>
+                        <option value="MONTHLY">Monthly</option><option value="WEEKLY">Weekly</option><option value="DAILY">Daily</option>
+                      </select></div>
+                  </div>
+                )}
+              </button>
+              <button onClick={() => setFundingMethod('MANUAL')}
+                className={cn('w-full p-4 rounded-lg border-2 text-left transition-all',
+                  fundingMethod === 'MANUAL' ? 'border-primary bg-primary/5' : 'border-border')}>
+                <div className="flex items-center gap-2 mb-1"><span className="text-lg">💵</span><span className="text-sm font-semibold">Manual</span></div>
+                <p className="text-xs text-muted-foreground">Contribute whenever you want, on your own schedule</p>
+                <p className="text-[10px] text-amber-600 mt-1">⚠️ Manual savings are 3x less likely to reach the goal on time</p>
+              </button>
+            </div>
+            <div className="flex justify-between">
+              <button onClick={() => setStep(2)} className="flex items-center gap-1 px-4 py-2 text-sm border rounded-lg hover:bg-muted"><ArrowLeft className="w-4 h-4" /> Back</button>
+              <button onClick={() => setStep(4)} disabled={!sourceAccountId}
+                className="flex items-center gap-1 px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                Next <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 5: Review ─────────────────────────────────────────── */}
+        {step === 4 && (
+          <div className="space-y-5">
+            <div className="rounded-xl border p-6 bg-muted/20 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="text-4xl">{goalIcon}</span>
+                <div><h3 className="text-lg font-bold">{goalName}</h3><p className="text-xs text-muted-foreground">{selectedTemplate?.category}</p></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-xs text-muted-foreground">Target</p><p className="font-bold font-mono text-lg">{formatMoney(targetAmount)}</p></div>
+                <div><p className="text-xs text-muted-foreground">Timeline</p><p className="font-medium">{monthsToGoal} months ({targetDate})</p></div>
+                <div><p className="text-xs text-muted-foreground">Funding</p><p className="font-medium">{fundingMethod === 'AUTO_DEBIT' ? `Auto-debit ${formatMoney(autoDebitAmount)}/${autoDebitFreq.toLowerCase()}` : 'Manual'}</p></div>
+                <div><p className="text-xs text-muted-foreground">Source</p><p className="font-medium font-mono">****{selectedAccount?.number?.slice(-4) || '—'}</p></div>
+              </div>
+              {monthsToGoal > 0 && (
+                <div className="border-t pt-3 space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground">Milestones</p>
+                  {[25, 50, 75, 100].map(pct => {
+                    const milestone = (targetAmount * pct) / 100;
+                    const monthsToMilestone = Math.ceil((pct / 100) * monthsToGoal);
+                    const d = new Date(); d.setMonth(d.getMonth() + monthsToMilestone);
+                    return (
+                      <div key={pct} className="flex items-center justify-between text-xs">
+                        <span>{pct}% ({formatMoney(milestone)})</span>
+                        <span className="text-muted-foreground">~{d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-between">
+              <button onClick={() => setStep(3)} className="flex items-center gap-1 px-4 py-2 text-sm border rounded-lg hover:bg-muted"><ArrowLeft className="w-4 h-4" /> Back</button>
+              <button onClick={() => createMut.mutate()} disabled={createMut.isPending}
+                className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                {createMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
+                Create Goal
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }

@@ -15,11 +15,10 @@ public class AccountLifecycleScheduler {
     private final AccountLifecycleService lifecycleService;
     private final AccountService accountService;
 
-    /**
-     * Daily: Accrue interest on all interest-bearing accounts.
-     * Runs at 00:30 WAT (23:30 UTC previous day).
-     */
-    @Scheduled(cron = "0 30 23 * * *", zone = "UTC")
+    @Scheduled(
+            cron = "#{@cbsProperties.lifecycle.interestAccrualCron}",
+            zone = "#{@cbsProperties.deployment.timezone}"
+    )
     public void dailyInterestAccrual() {
         log.info("Starting daily interest accrual batch...");
         try {
@@ -30,11 +29,10 @@ public class AccountLifecycleScheduler {
         }
     }
 
-    /**
-     * Daily: Detect dormant accounts.
-     * Runs at 01:00 WAT (00:00 UTC).
-     */
-    @Scheduled(cron = "0 0 0 * * *", zone = "UTC")
+    @Scheduled(
+            cron = "#{@cbsProperties.lifecycle.dormancyDetectionCron}",
+            zone = "#{@cbsProperties.deployment.timezone}"
+    )
     public void dailyDormancyDetection() {
         log.info("Starting dormancy detection...");
         try {
@@ -45,11 +43,10 @@ public class AccountLifecycleScheduler {
         }
     }
 
-    /**
-     * Monthly: Detect escheatment candidates.
-     * Runs 1st of each month at 02:00 WAT (01:00 UTC).
-     */
-    @Scheduled(cron = "0 0 1 1 * *", zone = "UTC")
+    @Scheduled(
+            cron = "#{@cbsProperties.lifecycle.escheatmentDetectionCron}",
+            zone = "#{@cbsProperties.deployment.timezone}"
+    )
     public void monthlyEscheatmentDetection() {
         log.info("Starting escheatment detection...");
         try {

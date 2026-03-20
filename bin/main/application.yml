@@ -57,7 +57,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${CBS_OAUTH2_ISSUER_URI:http://localhost:8180/realms/cbs}
+          issuer-uri: ${CBS_OAUTH2_ISSUER_URI:}
 
   cache:
     type: ${CBS_CACHE_TYPE:redis}
@@ -139,7 +139,7 @@ cbs:
     accrue-on-holidays: true
 
   kyc:
-    provider: ${CBS_KYC_PROVIDER:INTERNAL}
+    provider: ${CBS_KYC_PROVIDER:}
     provider-base-url: ${CBS_KYC_URL:}
     provider-timeout-seconds: 30
     require-verified-id: false
@@ -158,7 +158,9 @@ cbs:
 
   security:
     cors:
-      allowed-origins: ${CBS_CORS_ORIGINS:http://localhost:3000}
+      allowed-origins: ${CBS_CORS_ORIGINS:}
+    jwt:
+      accepted-audiences: ${CBS_OAUTH2_ACCEPTED_AUDIENCES:cbs-app}
     public-paths:
       - /v3/api-docs/**
       - /swagger-ui/**

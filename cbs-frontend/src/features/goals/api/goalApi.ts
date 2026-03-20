@@ -10,12 +10,7 @@ export interface SavingsGoal {
   sourceAccountId: string;
   sourceAccountNumber: string;
   fundingMethod: 'MANUAL' | 'AUTO_DEBIT';
-  autoDebit?: {
-    amount: number;
-    frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
-    startDate: string;
-    status: 'ACTIVE' | 'PAUSED';
-  };
+  autoDebit?: AutoDebitConfig;
   status: 'ACTIVE' | 'COMPLETED' | 'PAUSED';
   createdAt: string;
 }
@@ -51,36 +46,133 @@ export interface AutoDebitConfig {
   status: 'ACTIVE' | 'PAUSED';
 }
 
-// ---- API Functions ----
-
-export function getGoals(): Promise<SavingsGoal[]> {
-  return apiGet<SavingsGoal[]>('/api/v1/goals').catch(() => []);
+export interface CreateGoalInput {
+  name: string;
+  icon: string;
+  targetAmount: number;
+  targetDate: string;
+  sourceAccountId: string;
+  fundingMethod: 'MANUAL' | 'AUTO_DEBIT';
+  autoDebit?: Partial<AutoDebitConfig>;
 }
 
-export function getGoalById(id: string): Promise<SavingsGoal | undefined> {
-  return apiGet<SavingsGoal>(`/api/v1/goals/${id}`).catch(() => undefined);
+export const goalApi = {
+  // Goals
+  getGoals: (params?: { page?: number; size?: number; status?: string }) =>
+    apiGet<SavingsGoal[]>('/api/v1/goals', params as Record<string, unknown>).catch(() => []),
+
+  getCustomerGoals: (customerId: number, params?: { page?: number; size?: number }) =>
+    apiGet<SavingsGoal[]>(`/api/v1/goals/customer/${customerId}`, params as Record<string, unknown>).catch(() => []),
+
+  getGoalById: (goalId: string) =>
+    apiGet<SavingsGoal>(`/api/v1/goals/${goalId}`),
+
+  createGoal: (data: CreateGoalInput) =>
+    apiPost<SavingsGoal>('/api/v1/goals', data),
+
+  createGoalForCustomer: (customerId: number, data: CreateGoalInput) =>
+    apiPost<SavingsGoal>(`/api/v1/goals/customer/${customerId}`, data),
+
+  contribute: (goalId: string, payload: { amount: number; sourceAccountId?: string }) =>
+    apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/contribute`, payload),
+
+  fund: (goalId: string, payload: { amount: number }) =>
+    apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/fund`, payload),
+
+  withdraw: (goalId: string, payload: { amount: number }) =>
+    apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/withdraw`, payload),
+
+  cancel: (goalId: string) =>
+    apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/cancel`),
+
+  configureAutoDebit: (goalId: string, config: AutoDebitConfig) =>
+    apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/auto-debit`, config),
+
+  getContributions: (goalId: string, params?: { page?: number; size?: number }) =>
+    apiGet<GoalContribution[]>(`/api/v1/goals/${goalId}/contributions`, params as Record<string, unknown>).catch(() => []),
+
+  processAutoDebits: () =>
+    apiPost<{ processed: number }>('/api/v1/goals/batch/auto-debits'),
+
+  // Recurring Deposits
+  getRecurringDeposits: () =>
+    apiGet<RecurringDeposit[]>('/api/v1/goals/recurring-deposits').catch(() => []),
+
+  getRecurringDepositById: (id: string) =>
+    apiGet<RecurringDeposit>(`/api/v1/goals/recurring-deposits/${id}`),
+};
+
+// Legacy named exports for backward compatibility
+export const getGoals = goalApi.getGoals;
+export const getGoalById = goalApi.getGoalById;
+export const createGoal = goalApi.createGoal;
+export const contributeToGoal = (id: string, amount: number) => goalApi.contribute(id, { amount });
+export const updateAutoDebit = goalApi.configureAutoDebit;
+export const getGoalContributions = goalApi.getContributions;
+export const getRecurringDeposits = goalApi.getRecurringDeposits;
+export const getRecurringDepositById = goalApi.getRecurringDepositById;
+
+// ── Deposit Module API (real recurring deposit endpoints) ───────────────────
+
+export interface RDInstallment {
+  id: number;
+  installmentNumber: number;
+  dueDate: string;
+  paidDate: string | null;
+  amountDue: number;
+  amountPaid: number;
+  penaltyAmount: number;
+  status: string;
+  transactionRef: string | null;
+  overdue: boolean;
 }
 
-export function createGoal(data: Omit<SavingsGoal, 'id' | 'currentAmount' | 'createdAt' | 'status'>): Promise<SavingsGoal> {
-  return apiPost<SavingsGoal>('/api/v1/goals', data);
+export interface RecurringDepositDetail {
+  id: number;
+  depositNumber: string;
+  accountId: number;
+  accountNumber: string;
+  customerId: number;
+  customerDisplayName: string;
+  productCode: string;
+  currencyCode: string;
+  installmentAmount: number;
+  frequency: string;
+  totalInstallments: number;
+  completedInstallments: number;
+  missedInstallments: number;
+  nextDueDate: string;
+  totalDeposited: number;
+  accruedInterest: number;
+  totalInterestEarned: number;
+  currentValue: number;
+  interestRate: number;
+  startDate: string;
+  maturityDate: string;
+  totalPenalties: number;
+  maturityAction: string;
+  autoDebit: boolean;
+  status: string;
+  installments: RDInstallment[];
+  createdAt: string;
 }
 
-export function contributeToGoal(id: string, amount: number): Promise<SavingsGoal> {
-  return apiPost<SavingsGoal>(`/api/v1/goals/${id}/contribute`, { amount });
+export interface CreateRecurringDepositInput {
+  customerId: number;
+  amount: number;
+  frequency: string;
+  totalInstallments: number;
+  startDate: string;
+  sourceAccountId?: number;
 }
 
-export function updateAutoDebit(id: string, config: AutoDebitConfig): Promise<SavingsGoal> {
-  return apiPost<SavingsGoal>(`/api/v1/goals/${id}/auto-debit`, config);
-}
+export const recurringDepositApi = {
+  getDetail: (id: string | number) => apiGet<RecurringDepositDetail>(`/api/v1/deposits/recurring/${id}`),
 
-export function getGoalContributions(id: string): Promise<GoalContribution[]> {
-  return apiGet<GoalContribution[]>(`/api/v1/goals/${id}/contributions`).catch(() => []);
-}
+  create: (data: CreateRecurringDepositInput) => apiPost<RecurringDepositDetail>('/api/v1/deposits/recurring', data),
 
-export function getRecurringDeposits(): Promise<RecurringDeposit[]> {
-  return apiGet<RecurringDeposit[]>('/api/v1/goals/recurring-deposits').catch(() => []);
-}
+  payInstallment: (depositId: number, installmentNumber: number) =>
+    apiPost<RDInstallment>(`/api/v1/deposits/recurring/${depositId}/installments/${installmentNumber}/pay`),
 
-export function getRecurringDepositById(id: string): Promise<RecurringDeposit | undefined> {
-  return apiGet<RecurringDeposit>(`/api/v1/goals/recurring-deposits/${id}`).catch(() => undefined);
-}
+  processAutoDebits: () => apiPost<{ processed: number; failed: number }>('/api/v1/deposits/recurring/batch/auto-debit'),
+};
