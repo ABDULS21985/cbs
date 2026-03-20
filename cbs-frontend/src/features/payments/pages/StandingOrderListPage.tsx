@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, AlertTriangle } from 'lucide-react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable } from '@/components/shared/DataTable';
@@ -27,12 +27,12 @@ export function StandingOrderListPage() {
   const [tab, setTab] = useState<'standing' | 'direct-debit'>('standing');
   const [showNew, setShowNew] = useState(false);
 
-  const { data: orders = [], isLoading: ordersLoading } = useQuery({
+  const { data: orders = [], isLoading: ordersLoading, isError: ordersError, refetch: refetchOrders } = useQuery({
     queryKey: ['standing-orders'],
     queryFn: () => standingOrderApi.getAll(),
   });
 
-  const { data: mandates = [], isLoading: mandatesLoading } = useQuery({
+  const { data: mandates = [], isLoading: mandatesLoading, isError: mandatesError, refetch: refetchMandates } = useQuery({
     queryKey: ['direct-debits'],
     queryFn: () => standingOrderApi.getDirectDebits(),
   });
@@ -60,6 +60,12 @@ export function StandingOrderListPage() {
         }
       />
       <div className="page-container space-y-6">
+        {(tab === 'standing' ? ordersError : mandatesError) && (
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-600" /><p className="text-sm text-red-700 dark:text-red-400">Failed to load standing orders.</p></div>
+            <button onClick={() => tab === 'standing' ? refetchOrders() : refetchMandates()} className="text-xs font-medium text-red-700 underline hover:no-underline">Retry</button>
+          </div>
+        )}
         <div className="flex gap-1 border-b">
           {[{ key: 'standing' as const, label: 'Standing Orders' }, { key: 'direct-debit' as const, label: 'Direct Debits' }].map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === t.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>

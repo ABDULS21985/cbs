@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Smartphone } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { QrGenerator } from '../components/qr/QrGenerator';
 import { QrCodeDisplay } from '../components/qr/QrCodeDisplay';
@@ -65,6 +66,16 @@ export function QrPaymentPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Scan QR Code placeholder */}
+        <div className="rounded-xl border bg-card p-8 text-center space-y-3">
+          <Smartphone className="w-12 h-12 text-muted-foreground/40 mx-auto" />
+          <p className="text-sm font-medium">Scan QR Code</p>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            QR code scanning is available on the mobile banking app. Open the CBS Mobile app and tap "Scan to Pay".
+          </p>
+          {/* TODO: Integrate QR scanner library (e.g., html5-qrcode or @yudiel/react-qr-scanner) for web scanning */}
         </div>
 
         <div className="rounded-xl border bg-card p-4">

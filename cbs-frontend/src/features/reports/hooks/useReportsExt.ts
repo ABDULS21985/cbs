@@ -53,6 +53,12 @@ const KEYS = {
   },
 } as const;
 
+// ─── Cache tuning ─────────────────────────────────────────────────────────────
+// Reports data changes infrequently; cache aggressively to reduce server load.
+
+const STALE_TIME = 5 * 60 * 1000;  // 5 minutes
+const GC_TIME = 30 * 60 * 1000;    // 30 minutes
+
 // ─── Financial Statements ────────────────────────────────────────────────────
 
 export function useFinancialStatementsByCustomer(id: number) {
@@ -60,7 +66,8 @@ export function useFinancialStatementsByCustomer(id: number) {
     queryKey: KEYS.financialStatements.byCustomer(id),
     queryFn: () => financialStatementsApi.getByCustomer(id),
     enabled: !!id,
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -69,7 +76,8 @@ export function useFinancialStatementRatios(code: string) {
     queryKey: KEYS.financialStatements.ratios(code),
     queryFn: () => financialStatementsApi.getRatios(code),
     enabled: !!code,
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -100,7 +108,8 @@ export function useFinancialPositionsByType(type: string, date: string) {
     queryKey: KEYS.financialPositions.byType(type, date),
     queryFn: () => financialPositionsApi.getByType(type, date),
     enabled: !!type && !!date,
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -108,7 +117,8 @@ export function useFinancialPositionBreaches(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: KEYS.financialPositions.breaches(params),
     queryFn: () => financialPositionsApi.getBreaches(params),
-    staleTime: 30_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -119,7 +129,8 @@ export function useFinancialInstrument(code: string) {
     queryKey: KEYS.financialInstruments.byCode(code),
     queryFn: () => financialInstrumentsApi.getByCode(code),
     enabled: !!code,
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -128,7 +139,8 @@ export function useFinancialInstrumentsByType(type: string) {
     queryKey: KEYS.financialInstruments.byType(type),
     queryFn: () => financialInstrumentsApi.byType(type),
     enabled: !!type,
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -137,7 +149,8 @@ export function useFinancialInstrumentsByAssetClass(assetClass: string) {
     queryKey: KEYS.financialInstruments.byAssetClass(assetClass),
     queryFn: () => financialInstrumentsApi.byAssetClass(assetClass),
     enabled: !!assetClass,
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -147,7 +160,8 @@ export function useOverdueReceivables(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: KEYS.receivables.overdue(params),
     queryFn: () => receivablesApi.getOverdue(params),
-    staleTime: 30_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -156,7 +170,8 @@ export function useReceivablesByCustomer(id: number) {
     queryKey: KEYS.receivables.byCustomer(id),
     queryFn: () => receivablesApi.getByCustomer(id),
     enabled: !!id,
-    staleTime: 30_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -187,7 +202,8 @@ export function useBusinessContributionByUnit(bu: string) {
     queryKey: KEYS.businessContribution.byBusinessUnit(bu),
     queryFn: () => businessContributionApi.byBusinessUnit(bu),
     enabled: !!bu,
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -196,7 +212,8 @@ export function useBusinessContributionByProduct(family: string) {
     queryKey: KEYS.businessContribution.byProduct(family),
     queryFn: () => businessContributionApi.byProduct(family),
     enabled: !!family,
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -205,7 +222,8 @@ export function useBusinessContributionByRegion(region: string) {
     queryKey: KEYS.businessContribution.byRegion(region),
     queryFn: () => businessContributionApi.byRegion(region),
     enabled: !!region,
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -213,7 +231,8 @@ export function useTopContributors(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: KEYS.businessContribution.top(params),
     queryFn: () => businessContributionApi.topContributors(params),
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }
 
@@ -221,6 +240,7 @@ export function useUnderperformers(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: KEYS.businessContribution.underperformers(params),
     queryFn: () => businessContributionApi.underperformers(params),
-    staleTime: 60_000,
+    staleTime: STALE_TIME,
+    gcTime: GC_TIME,
   });
 }

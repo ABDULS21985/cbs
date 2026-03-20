@@ -1,0 +1,103 @@
+@media print {
+  /* Hide navigation chrome */
+  .no-print,
+  nav,
+  aside,
+  header.app-header,
+  .sidebar,
+  .topbar,
+  button:not(.print-visible),
+  [role="navigation"] {
+    display: none !important;
+  }
+
+  /* Show print-only elements */
+  .print-only {
+    display: block !important;
+  }
+
+  /* BellBank letterhead */
+  .print-header {
+    display: block !important;
+    border-bottom: 2pt solid #1E40AF;
+    padding-bottom: 12pt;
+    margin-bottom: 16pt;
+  }
+
+  /* Tables */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 10pt !important;
+    page-break-inside: auto;
+  }
+
+  th {
+    background-color: #1E40AF !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    padding: 6pt 8pt !important;
+  }
+
+  tr:nth-child(even) {
+    background-color: #F3F4F6 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  td {
+    padding: 4pt 8pt !important;
+    border-bottom: 0.5pt solid #e5e7eb !important;
+  }
+
+  /* Page breaks */
+  .page-break-before { page-break-before: always; }
+  .page-break-after { page-break-after: always; }
+  .avoid-break { page-break-inside: avoid; }
+
+  /* Charts */
+  .recharts-wrapper { max-width: 100% !important; }
+
+  /* Body */
+  body {
+    font-size: 10pt !important;
+    color: black !important;
+  }
+
+  /* Page footer */
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 8pt;
+    color: #6b7280;
+    border-top: 0.5pt solid #e5e7eb;
+    padding: 4pt;
+  }
+
+  /* Headings */
+  h1 { font-size: 18pt !important; }
+  h2 { font-size: 14pt !important; }
+  h3 { font-size: 12pt !important; }
+
+  /* Remove shadows and borders that look bad in print */
+  .shadow,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+
+  /* Ensure full width */
+  .container,
+  main,
+  .main-content {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}

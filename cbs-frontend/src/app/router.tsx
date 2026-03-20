@@ -138,6 +138,9 @@ import {
   ReconciliationWorkbenchPage,
   NostroPositionsPage,
   CorrespondentBankPage,
+  StatementImportPage,
+  BreakManagementPage,
+  ReconciliationReportsPage,
   RecurringDepositDetailPage,
   NewRecurringDepositPage,
   RecurringDepositListPage,
@@ -296,6 +299,17 @@ import {
   GovernancePage,
   NotificationManagementPage,
   NotificationHistoryPage,
+  ApprovalWorkbenchPage,
+  AtmManagementPage,
+  VaultOperationsPage,
+  BranchNetworkPage,
+  BranchPerformancePage,
+  AgentBankingPage,
+  BankDraftPage,
+  LockboxPage,
+  ReconciliationPage,
+  OpenItemsPage,
+  IssuedDevicesPage,
 } from './lazyRoutes';
 
 // Placeholder page — used for all unimplemented modules
@@ -367,6 +381,9 @@ export function AppRouter() {
           <Route path="reconciliation/workbench" element={<ReconciliationWorkbenchPage />} />
           <Route path="reconciliation/positions" element={<NostroPositionsPage />} />
           <Route path="reconciliation/banks" element={<CorrespondentBankPage />} />
+          <Route path="reconciliation/import" element={<StatementImportPage />} />
+          <Route path="reconciliation/breaks" element={<BreakManagementPage />} />
+          <Route path="reconciliation/reports" element={<ReconciliationReportsPage />} />
           <Route path="virtual-accounts" element={<VirtualAccountListPage />} />
           <Route path="virtual-accounts/:id" element={<VirtualAccountDetailPage />} />
           <Route path="cash-pooling" element={<CashPoolPage />} />
@@ -606,6 +623,17 @@ export function AppRouter() {
           <Route path="gateway/data-lake" element={<DataLakePage />} />
           <Route path="ach" element={<AchOperationsPage />} />
           <Route path="documents" element={<DocumentManagementPage />} />
+          <Route path="approval-workbench" element={<ApprovalWorkbenchPage />} />
+          <Route path="atm" element={<AtmManagementPage />} />
+          <Route path="vaults" element={<VaultOperationsPage />} />
+          <Route path="branch-network" element={<BranchNetworkPage />} />
+          <Route path="branch-performance" element={<BranchPerformancePage />} />
+          <Route path="agent-banking" element={<AgentBankingPage />} />
+          <Route path="bank-drafts" element={<BankDraftPage />} />
+          <Route path="lockbox" element={<LockboxPage />} />
+          <Route path="reconciliation" element={<ReconciliationPage />} />
+          <Route path="open-items" element={<OpenItemsPage />} />
+          <Route path="devices" element={<IssuedDevicesPage />} />
         </Route>
 
         {/* Reports */}

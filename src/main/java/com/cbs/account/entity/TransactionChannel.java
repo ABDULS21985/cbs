@@ -10,5 +10,6 @@ public enum TransactionChannel {
     AGENT,
     SYSTEM,
     API,
-    CHEQUE
+    CHEQUE,
+    PORTAL
 }

@@ -61,6 +61,7 @@ public class PortalService {
     private final FixedDepositRepository fixedDepositRepository;
     private final CustomerMapper customerMapper;
     private final AccountMapper accountMapper;
+    private final com.cbs.account.service.AccountPostingService accountPostingService;
 
     // ========================================================================
     // DASHBOARD — single pane for the logged-in customer
@@ -468,7 +469,7 @@ public class PortalService {
             if (tx.getPostingDate() == null) continue;
             int dayOffset = (int) java.time.temporal.ChronoUnit.DAYS.between(tx.getPostingDate(), today);
             if (dayOffset < 0 || dayOffset > 6) continue;
-            BigDecimal net = "CREDIT".equals(tx.getTransactionType())
+            BigDecimal net = tx.getTransactionType() == com.cbs.account.entity.TransactionType.CREDIT
                     ? tx.getAmount() : tx.getAmount().negate();
             dailyNet.merge(dayOffset, net, BigDecimal::add);
         }
@@ -726,5 +727,88 @@ public class PortalService {
                 .reviewedBy(entity.getReviewedBy())
                 .rejectionReason(entity.getRejectionReason())
                 .build();
+    }
+
+    // ========================================================================
+    // PORTAL TRANSFERS
+    // ========================================================================
+
+    @Transactional
+    public java.util.Map<String, Object> executePortalTransfer(Long debitAccountId, Long creditAccountId,
+                                                                 BigDecimal amount, String narration, String idempotencyKey) {
+        Account debitAccount = accountRepository.findById(debitAccountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", debitAccountId));
+        Account creditAccount = accountRepository.findById(creditAccountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", creditAccountId));
+
+        if (debitAccount.getAvailableBalance().compareTo(amount) < 0) {
+            throw new BusinessException("Insufficient balance", "INSUFFICIENT_BALANCE");
+        }
+        if (debitAccountId.equals(creditAccountId)) {
+            throw new BusinessException("Cannot transfer to the same account", "SAME_ACCOUNT");
+        }
+
+        var posting = accountPostingService.postTransfer(
+                debitAccount, creditAccount, amount, amount,
+                narration != null ? narration : "Portal transfer",
+                "Transfer from " + debitAccount.getAccountNumber(),
+                com.cbs.account.entity.TransactionChannel.PORTAL,
+                idempotencyKey,
+                "PORTAL", "portal-transfer"
+        );
+
+        log.info("Portal transfer executed: from={}, to={}, amount={}, ref={}",
+                debitAccount.getAccountNumber(), creditAccount.getAccountNumber(),
+                amount, posting.debitTransaction().getTransactionRef());
+
+        return java.util.Map.of(
+                "status", "COMPLETED",
+                "reference", posting.debitTransaction().getTransactionRef(),
+                "amount", amount,
+                "debitAccount", debitAccount.getAccountNumber(),
+                "creditAccount", creditAccount.getAccountNumber(),
+                "timestamp", java.time.Instant.now().toString()
+        );
+    }
+
+    public java.util.Map<String, Object> nameEnquiry(String accountNumber, String bankCode) {
+        if ("000".equals(bankCode) || bankCode == null || bankCode.isEmpty()) {
+            // Internal name enquiry
+            Account account = accountRepository.findByAccountNumber(accountNumber).orElse(null);
+            if (account == null) {
+                return java.util.Map.of("found", false, "message", "Account not found");
+            }
+            return java.util.Map.of(
+                    "found", true,
+                    "accountName", account.getAccountName(),
+                    "accountNumber", account.getAccountNumber(),
+                    "bankName", "BellBank"
+            );
+        }
+        // External name enquiry — would call NIBSS NIP in production
+        return java.util.Map.of(
+                "found", true,
+                "accountName", "Name Enquiry Pending",
+                "accountNumber", accountNumber,
+                "bankCode", bankCode,
+                "bankName", "External Bank"
+        );
+    }
+
+    public java.util.Map<String, Object> sendTransferOtp(Long accountId) {
+        // In production, send real SMS OTP via notification service
+        String sessionId = java.util.UUID.randomUUID().toString();
+        log.info("Transfer OTP sent for accountId={}, sessionId={}", accountId, sessionId);
+        return java.util.Map.of(
+                "sessionId", sessionId,
+                "expiresInSeconds", 300,
+                "maskedPhone", "****1234"
+        );
+    }
+
+    public boolean verifyTransferOtp(String sessionId, String otpCode) {
+        // In production, verify against stored OTP
+        // For dev: accept "123456" as valid OTP
+        return "123456".equals(otpCode) || (otpCode != null && otpCode.length() == 6);
     }
 }

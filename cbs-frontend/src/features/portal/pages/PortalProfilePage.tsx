@@ -27,12 +27,10 @@ import {
 } from '../hooks/usePortalProfile';
 import {
   portalApi,
-  type ProfileUpdateRequest,
   type CustomerProfile,
   type LoginHistoryEntry,
   type ActiveSession,
   type ActivityLogEntry,
-  type PortalPreferences,
 } from '../api/portalApi';
 import { formatDateTime, formatRelative } from '@/lib/formatters';
 
@@ -523,7 +521,7 @@ function PreferencesTab({ customerId }: { customerId: number }) {
                 <tr key={cat.key} className="border-b last:border-0 hover:bg-muted/10">
                   <td className="px-4 py-3 text-sm font-medium flex items-center gap-2">
                     {cat.label}
-                    {cat.mandatory && <Lock className="w-3 h-3 text-muted-foreground" title="Cannot disable — mandatory" />}
+                    {cat.mandatory && <span title="Cannot disable — mandatory"><Lock className="w-3 h-3 text-muted-foreground" /></span>}
                   </td>
                   {COMM_CHANNELS.map((ch) => {
                     const key = `${cat.key}-${ch}`;

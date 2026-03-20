@@ -53,6 +53,18 @@ export const CorrespondentBankPage = lazyNamed(
   () => import('@/features/reconciliation/pages/CorrespondentBankPage'),
   'CorrespondentBankPage',
 );
+export const StatementImportPage = lazyNamed(
+  () => import('@/features/reconciliation/pages/StatementImportPage'),
+  'StatementImportPage',
+);
+export const BreakManagementPage = lazyNamed(
+  () => import('@/features/reconciliation/pages/BreakManagementPage'),
+  'BreakManagementPage',
+);
+export const ReconciliationReportsPage = lazyNamed(
+  () => import('@/features/reconciliation/pages/ReconciliationReportsPage'),
+  'ReconciliationReportsPage',
+);
 export const VirtualAccountListPage = lazyNamed(
   () => import('@/features/accounts/pages/VirtualAccountListPage'),
   'VirtualAccountListPage',

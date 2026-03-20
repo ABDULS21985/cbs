@@ -6,6 +6,9 @@ import {
   TrendingUp, Clock, CheckCircle2, AlertTriangle,
   ArrowDownLeft, ArrowUpRight, CalendarClock, QrCode,
 } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, EmptyState } from '@/components/shared';
 import { apiGet } from '@/lib/api';
@@ -64,6 +67,19 @@ export function PaymentsDashboardPage() {
 
   // Recent transfers from the shared hook
   const { data: recentTransfers, isLoading: transfersLoading } = useRecentTransfers();
+
+  // Group transfers by date for volume chart
+  const volumeData = useMemo(() => {
+    const groups: Record<string, { date: string; count: number; value: number }> = {};
+    (recentTransfers ?? []).forEach(t => {
+      const d = t.date?.split('T')[0] ?? '';
+      if (!d) return;
+      if (!groups[d]) groups[d] = { date: d, count: 0, value: 0 };
+      groups[d].count += 1;
+      groups[d].value += t.amount ?? 0;
+    });
+    return Object.values(groups).sort((a, b) => a.date.localeCompare(b.date)).slice(-7);
+  }, [recentTransfers]);
 
   // Derived stats from recent transfers
   const { todayCount, todayValue, failedCount } = useMemo(() => {
@@ -147,6 +163,24 @@ export function PaymentsDashboardPage() {
             icon={Clock}
             loading={isLoading}
           />
+        </div>
+
+        {/* Payment Volume Chart */}
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-sm font-medium mb-3">Payment Volume (Last 7 Days)</p>
+          {volumeData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={volumeData}>
+                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ fontSize: 12 }} />
+                <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} name="Transactions" />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-60 flex items-center justify-center text-sm text-muted-foreground">No transaction data available</div>
+          )}
         </div>
 
         {/* Recent Activity + Quick Actions two-column layout */}

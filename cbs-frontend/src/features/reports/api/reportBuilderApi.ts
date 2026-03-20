@@ -83,6 +83,30 @@ export interface ReportResult {
   columns: { key: string; label: string; type: string }[];
   rows: Record<string, unknown>[];
   summary?: Record<string, number>;
+  executionId?: number;
+  durationMs?: number;
+}
+
+export interface ReportExecutionRecord {
+  id: number;
+  reportId: number;
+  status: 'RUNNING' | 'COMPLETED' | 'FAILED';
+  rowCount?: number;
+  durationMs?: number;
+  outputUrl?: string;
+  errorMessage?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface SchedulePayload {
+  frequency: ScheduleType;
+  time?: string;
+  day?: string;
+  timezone?: string;
+  formats?: string[];
+  recipients?: string[];
+  onlyIfChanged?: boolean;
 }
 
 // ─── Exported API ─────────────────────────────────────────────────────────────
@@ -95,16 +119,25 @@ export const reportBuilderApi = {
     apiGet<SavedReport>(`/api/v1/reports/custom/${id}`),
 
   createReport: (data: CreateReportRequest): Promise<SavedReport> =>
-    apiPost<SavedReport>('/api/v1/reports/custom', data),
+    apiPost<SavedReport>('/api/v1/reports/custom/save', data),
 
   updateReport: (id: string, data: Partial<CreateReportRequest>): Promise<SavedReport> =>
-    apiPut<SavedReport>(`/api/v1/reports/custom/${id}`, data),
+    apiPost<SavedReport>('/api/v1/reports/custom/save', { id, ...data }),
 
   deleteReport: (id: string): Promise<void> =>
     apiDelete<void>(`/api/v1/reports/custom/${id}`),
 
   runReport: (id: string, params?: Record<string, string>): Promise<ReportResult> =>
     apiPost<ReportResult>(`/api/v1/reports/custom/${id}/run`, params),
+
+  getMyReports: (): Promise<SavedReport[]> =>
+    apiGet<SavedReport[]>('/api/v1/reports/custom/mine'),
+
+  getRunHistory: (id: string): Promise<ReportExecutionRecord[]> =>
+    apiGet<ReportExecutionRecord[]>(`/api/v1/reports/custom/${id}/history`),
+
+  updateSchedule: (id: string, schedule: SchedulePayload): Promise<SavedReport> =>
+    apiPost<SavedReport>(`/api/v1/reports/custom/${id}/schedule`, schedule),
 
   getDataSources: (): Promise<DataSource[]> =>
     apiGet<DataSource[]>('/api/v1/reports/custom/data-sources'),
@@ -114,4 +147,11 @@ export const reportBuilderApi = {
 
   generatePreview: (config: ReportConfig): Promise<ReportResult> =>
     apiPost<ReportResult>('/api/v1/reports/custom/preview', config),
+
+  cloneReport: (id: string): Promise<SavedReport> =>
+    apiPost<SavedReport>(`/api/v1/reports/custom/${id}/clone`, {}),
+
+  // Alias used by the 6-step wizard
+  saveReport: (data: CreateReportRequest): Promise<SavedReport> =>
+    apiPost<SavedReport>('/api/v1/reports/custom/save', data),
 };

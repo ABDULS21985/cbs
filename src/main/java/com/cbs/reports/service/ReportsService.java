@@ -125,8 +125,8 @@ public class ReportsService {
     // EXECUTIVE REPORTS
     // ========================================================================
 
-    @Cacheable("reports-executive-kpis")
-    public ExecutiveKpis getExecutiveKpis() {
+    @Cacheable(value = "reports-executive-kpis", key = "#from?.toString() + '-' + #to?.toString()")
+    public ExecutiveKpis getExecutiveKpis(LocalDate from, LocalDate to) {
         List<Account> allAccounts = safe(accountRepository.findAll());
         List<LoanAccount> allLoans = safe(loanAccountRepository.findAll());
 
@@ -880,8 +880,9 @@ public class ReportsService {
         }).collect(Collectors.toList());
     }
 
+    @Cacheable("reports-deposit-rate-sensitivity")
     public List<RateSensitivityEntry> getDepositRateSensitivity() {
-        List<FixedDeposit> active = fixedDepositRepository.findAllActive();
+        List<FixedDeposit> active = safe(fixedDepositRepository.findAllActive());
         LocalDate now = LocalDate.now();
 
         String[] buckets = {"0-30 days", "31-90 days", "91-180 days", "181-365 days", "365+ days"};
@@ -911,8 +912,9 @@ public class ReportsService {
         return result;
     }
 
+    @Cacheable("reports-deposit-retention")
     public List<RetentionVintageEntry> getDepositRetentionVintage() {
-        List<Account> allAccounts = accountRepository.findAll();
+        List<Account> allAccounts = safe(accountRepository.findAll());
 
         Map<String, List<Account>> byCohort = allAccounts.stream()
                 .filter(a -> a.getOpenedDate() != null)
@@ -936,7 +938,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<Account> allAccounts = accountRepository.findAll();
+        List<Account> allAccounts = safe(accountRepository.findAll());
 
         return months.stream().map(m -> {
             LocalDate start = LocalDate.parse(m + "-01");
@@ -954,7 +956,7 @@ public class ReportsService {
     // ========================================================================
 
     public PaymentStats getPaymentStats(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -978,7 +980,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
 
         return months.stream().map(m -> {
             LocalDate start = LocalDate.parse(m + "-01");
@@ -994,7 +996,7 @@ public class ReportsService {
     }
 
     public List<ChannelBreakdownEntry> getPaymentChannelBreakdown(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -1019,7 +1021,7 @@ public class ReportsService {
     }
 
     public List<PaymentRailEntry> getPaymentRails(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -1041,7 +1043,7 @@ public class ReportsService {
     }
 
     public List<PaymentFailureEntry> getPaymentFailures(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -1065,7 +1067,7 @@ public class ReportsService {
     }
 
     public ReconciliationSummary getReconciliation(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -1109,7 +1111,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<Customer> all = customerRepository.findAll();
+        List<Customer> all = safe(customerRepository.findAll());
 
         return months.stream().map(m -> {
             LocalDate end = LocalDate.parse(m + "-01").withDayOfMonth(LocalDate.parse(m + "-01").lengthOfMonth());
@@ -1127,7 +1129,7 @@ public class ReportsService {
     }
 
     public List<CustomerSegmentEntry> getCustomerSegments() {
-        List<Customer> all = customerRepository.findAll();
+        List<Customer> all = safe(customerRepository.findAll());
         long total = all.size();
 
         Map<String, Long> byType = all.stream()
@@ -1141,7 +1143,7 @@ public class ReportsService {
     }
 
     public List<LifecycleStageEntry> getCustomerLifecycle() {
-        List<Customer> all = customerRepository.findAll();
+        List<Customer> all = safe(customerRepository.findAll());
         long total = all.size();
 
         Map<String, Long> byStatus = all.stream()
@@ -1155,8 +1157,8 @@ public class ReportsService {
     }
 
     public List<ProductPenetrationEntry> getProductPenetration() {
-        List<Customer> customers = customerRepository.findAll();
-        List<Account> accounts = accountRepository.findAll();
+        List<Customer> customers = safe(customerRepository.findAll());
+        List<Account> accounts = safe(accountRepository.findAll());
 
         Map<Long, Long> acctCountByCustomer = accounts.stream()
                 .filter(a -> a.getCustomer() != null && a.getStatus() == AccountStatus.ACTIVE)
@@ -1178,8 +1180,8 @@ public class ReportsService {
     }
 
     public List<LtvBucket> getCustomerLtv() {
-        List<Customer> customers = customerRepository.findAll();
-        List<Account> accounts = accountRepository.findAll();
+        List<Customer> customers = safe(customerRepository.findAll());
+        List<Account> accounts = safe(accountRepository.findAll());
 
         Map<Long, BigDecimal> balanceByCustomer = accounts.stream()
                 .filter(a -> a.getCustomer() != null && a.getStatus() == AccountStatus.ACTIVE)
@@ -1220,7 +1222,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<Customer> all = customerRepository.findAll();
+        List<Customer> all = safe(customerRepository.findAll());
 
         return months.stream().map(m -> {
             LocalDate start = LocalDate.parse(m + "-01");
@@ -1241,10 +1243,10 @@ public class ReportsService {
     }
 
     public List<CrossSellOpportunity> getCrossSellOpportunities() {
-        List<Customer> customers = customerRepository.findAll().stream()
+        List<Customer> customers = safe(customerRepository.findAll()).stream()
                 .filter(c -> c.getStatus() == CustomerStatus.ACTIVE)
                 .collect(Collectors.toList());
-        List<Account> accounts = accountRepository.findAll();
+        List<Account> accounts = safe(accountRepository.findAll());
 
         Map<Long, Set<String>> productsByCustomer = accounts.stream()
                 .filter(a -> a.getCustomer() != null && a.getStatus() == AccountStatus.ACTIVE && a.getProduct() != null)
@@ -1319,7 +1321,7 @@ public class ReportsService {
     }
 
     public List<ChannelVolumeEntry> getChannelVolumes(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -1340,7 +1342,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
 
         return months.stream().map(m -> {
             LocalDate start = LocalDate.parse(m + "-01");
@@ -1365,7 +1367,7 @@ public class ReportsService {
     }
 
     public List<ChannelSuccessRateEntry> getChannelSuccessRates(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -1389,7 +1391,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
 
         List<ChannelSuccessTrendEntry> result = new ArrayList<>();
         for (String m : months) {
@@ -1412,7 +1414,7 @@ public class ReportsService {
     }
 
     public DigitalAdoption getDigitalAdoption(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -1446,7 +1448,7 @@ public class ReportsService {
     }
 
     public List<ChannelTransactionTypeEntry> getChannelTransactionTypes(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -1469,7 +1471,7 @@ public class ReportsService {
     }
 
     public List<HeatmapCell> getChannelHeatmap(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -1528,7 +1530,7 @@ public class ReportsService {
     }
 
     public List<DurationAnalysisEntry> getDurationAnalysis() {
-        List<TreasuryDeal> deals = treasuryDealRepository.findAll().stream()
+        List<TreasuryDeal> deals = safe(treasuryDealRepository.findAll()).stream()
                 .filter(d -> d.getStatus() == DealStatus.CONFIRMED || d.getStatus() == DealStatus.SETTLED)
                 .collect(Collectors.toList());
 
@@ -1563,7 +1565,7 @@ public class ReportsService {
     }
 
     public List<FxExposureEntry> getFxExposure() {
-        List<TreasuryDeal> fxDeals = treasuryDealRepository.findAll().stream()
+        List<TreasuryDeal> fxDeals = safe(treasuryDealRepository.findAll()).stream()
                 .filter(d -> d.getDealType() == DealType.FX_SPOT || d.getDealType() == DealType.FX_FORWARD || d.getDealType() == DealType.FX_SWAP)
                 .filter(d -> d.getStatus() == DealStatus.CONFIRMED || d.getStatus() == DealStatus.SETTLED)
                 .collect(Collectors.toList());
@@ -1607,7 +1609,7 @@ public class ReportsService {
     }
 
     public NiiSensitivity getNiiSensitivity() {
-        List<LoanAccount> activeLoans = loanAccountRepository.findAllActiveLoans();
+        List<LoanAccount> activeLoans = safe(loanAccountRepository.findAllActiveLoans());
         BigDecimal loanPortfolio = activeLoans.stream().map(LoanAccount::getOutstandingPrincipal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -1636,7 +1638,7 @@ public class ReportsService {
     }
 
     public RateOutlook getRateOutlook() {
-        List<LoanAccount> activeLoans = loanAccountRepository.findAllActiveLoans();
+        List<LoanAccount> activeLoans = safe(loanAccountRepository.findAllActiveLoans());
         BigDecimal avgLendingRate = BigDecimal.ZERO;
         if (!activeLoans.isEmpty()) {
             avgLendingRate = activeLoans.stream().map(LoanAccount::getInterestRate)
@@ -1669,7 +1671,7 @@ public class ReportsService {
     // ========================================================================
 
     public OperationsStats getOperationsStats(LocalDate from, LocalDate to) {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         Instant fi = toStartOfDay(defaultFrom(from));
         Instant ti = toEndOfDay(defaultTo(to));
 
@@ -1689,7 +1691,7 @@ public class ReportsService {
     }
 
     public List<SlaEntry> getSlaByServiceType() {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
 
         Map<String, List<PaymentInstruction>> byType = all.stream()
                 .collect(Collectors.groupingBy(p -> p.getPaymentType() != null ? p.getPaymentType().name() : "UNKNOWN"));
@@ -1707,7 +1709,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
 
         return months.stream().map(m -> {
             LocalDate start = LocalDate.parse(m + "-01");
@@ -1727,7 +1729,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
 
         return months.stream().map(m -> {
             LocalDate start = LocalDate.parse(m + "-01");
@@ -1776,7 +1778,7 @@ public class ReportsService {
     }
 
     public AutomationMetrics getAutomationMetrics() {
-        List<PaymentInstruction> all = paymentInstructionRepository.findAll();
+        List<PaymentInstruction> all = safe(paymentInstructionRepository.findAll());
         long total = all.size();
         long completed = all.stream().filter(p -> p.getStatus() == PaymentStatus.COMPLETED).count();
         long failed = all.stream().filter(p -> p.getStatus() == PaymentStatus.FAILED || p.getStatus() == PaymentStatus.REJECTED).count();
@@ -1800,7 +1802,7 @@ public class ReportsService {
         long leads = allLeads.size();
         long conversions = allLeads.stream().filter(l -> "CONVERTED".equals(l.getStage())).count();
 
-        List<CustomerSurvey> surveys = customerSurveyRepository.findAll();
+        List<CustomerSurvey> surveys = safe(customerSurveyRepository.findAll());
         Integer nps = surveys.stream()
                 .map(CustomerSurvey::getNpsScore)
                 .filter(Objects::nonNull)
@@ -1814,7 +1816,7 @@ public class ReportsService {
     }
 
     public List<CampaignPerformance> getCampaignPerformance() {
-        List<MarketingCampaign> all = marketingCampaignRepository.findAll();
+        List<MarketingCampaign> all = safe(marketingCampaignRepository.findAll());
 
         return all.stream().map(c ->
                 CampaignPerformance.builder()
@@ -1831,7 +1833,7 @@ public class ReportsService {
     }
 
     public List<SurveyStats> getSurveyStats() {
-        List<CustomerSurvey> surveys = customerSurveyRepository.findAll();
+        List<CustomerSurvey> surveys = safe(customerSurveyRepository.findAll());
 
         return surveys.stream().map(s ->
                 SurveyStats.builder()
@@ -1847,7 +1849,7 @@ public class ReportsService {
         LocalDate f = defaultFrom(from);
         LocalDate t = defaultTo(to);
         List<String> months = monthRange(f, t);
-        List<SurveyResponse> allResponses = surveyResponseRepository.findAll();
+        List<SurveyResponse> allResponses = safe(surveyResponseRepository.findAll());
 
         return months.stream().map(m -> {
             LocalDate start = LocalDate.parse(m + "-01");
@@ -1871,7 +1873,7 @@ public class ReportsService {
     }
 
     public List<LeadFunnelStage> getLeadFunnel() {
-        List<SalesLead> all = salesLeadRepository.findAll();
+        List<SalesLead> all = safe(salesLeadRepository.findAll());
         long total = all.size();
 
         Map<String, Long> byStage = all.stream()

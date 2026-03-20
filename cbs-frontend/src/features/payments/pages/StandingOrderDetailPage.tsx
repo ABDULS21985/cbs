@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Pause, Play, XCircle, AlertTriangle } from 'lucide-react';
@@ -55,6 +55,8 @@ export function StandingOrderDetailPage() {
     onError: () => toast.error('Failed to retry execution'),
   });
 
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
   const lastExecution = executions.length > 0 ? executions[executions.length - 1] : null;
   const lastFailed = lastExecution?.status === 'FAILED' ? lastExecution : null;
 
@@ -80,7 +82,7 @@ export function StandingOrderDetailPage() {
               </button>
             )}
             {(order.status === 'ACTIVE' || order.status === 'PAUSED') && (
-              <button onClick={() => cancelMutation.mutate()} className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-200 text-red-600 rounded-md text-sm hover:bg-red-50">
+              <button onClick={() => setShowCancelConfirm(true)} className="inline-flex items-center gap-1.5 px-3 py-2 border border-red-200 text-red-600 rounded-md text-sm hover:bg-red-50">
                 <XCircle className="w-4 h-4" /> Cancel
               </button>
             )}
@@ -125,6 +127,19 @@ export function StandingOrderDetailPage() {
           />
         </FormSection>
       </div>
+
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-background rounded-xl shadow-xl p-6 max-w-sm w-full space-y-4">
+            <h3 className="text-lg font-semibold">Cancel Standing Order?</h3>
+            <p className="text-sm text-muted-foreground">This action cannot be undone. The standing order will be permanently cancelled.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Keep Active</button>
+              <button onClick={() => { cancelMutation.mutate(); setShowCancelConfirm(false); }} className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700">Cancel Order</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -29,6 +29,10 @@ public final class ReportDTOs {
         @Builder.Default private BigDecimal totalRevenue = BigDecimal.ZERO;
         @Builder.Default private BigDecimal nplRatio = BigDecimal.ZERO;
         @Builder.Default private BigDecimal costToIncomeRatio = BigDecimal.ZERO;
+        // Period comparison fields
+        private Double priorPeriodRevenue;
+        private Double changePercent;
+        private String changeDirection; // "UP", "DOWN", "FLAT"
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -144,6 +148,10 @@ public final class ReportDTOs {
         @Builder.Default private BigDecimal nplRatio = BigDecimal.ZERO;
         @Builder.Default private BigDecimal provisionCoverage = BigDecimal.ZERO;
         @Builder.Default private BigDecimal totalProvisions = BigDecimal.ZERO;
+        // Period comparison fields
+        private Double priorPeriodValue;
+        private Double changePercent;
+        private String changeDirection; // "UP", "DOWN", "FLAT"
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -215,6 +223,10 @@ public final class ReportDTOs {
         @Builder.Default private long accountCount = 0;
         @Builder.Default private BigDecimal averageBalance = BigDecimal.ZERO;
         @Builder.Default private BigDecimal concentrationRatio = BigDecimal.ZERO;
+        // Period comparison fields
+        private Double priorPeriodValue;
+        private Double changePercent;
+        private String changeDirection; // "UP", "DOWN", "FLAT"
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -348,6 +360,10 @@ public final class ReportDTOs {
         @Builder.Default private long dormant = 0;
         @Builder.Default private long newMtd = 0;
         @Builder.Default private long closedMtd = 0;
+        // Period comparison fields
+        private Double priorPeriodValue;
+        private Double changePercent;
+        private String changeDirection; // "UP", "DOWN", "FLAT"
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor

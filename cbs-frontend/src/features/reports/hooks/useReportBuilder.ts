@@ -222,3 +222,39 @@ export function useReportBuilder(editReport?: SavedReport) {
     savedReport: saveMutation.data,
   };
 }
+
+// ─── Stand-alone mutation hooks ────────────────────────────────────────────────
+
+export function useRunReport() {
+  return useMutation({
+    mutationFn: ({ id, params }: { id: string; params?: Record<string, string> }) =>
+      reportBuilderApi.runReport(id, params),
+    onSuccess: () => toast.success('Report run started'),
+    onError: () => toast.error('Failed to run report'),
+  });
+}
+
+export function useScheduleReport() {
+  return useMutation({
+    mutationFn: ({ id, schedule }: { id: string; schedule: import('../api/reportBuilderApi').SchedulePayload }) =>
+      reportBuilderApi.updateSchedule(id, schedule),
+    onSuccess: () => toast.success('Schedule updated'),
+    onError: () => toast.error('Failed to update schedule'),
+  });
+}
+
+export function useDeleteReport() {
+  return useMutation({
+    mutationFn: (id: string) => reportBuilderApi.deleteReport(id),
+    onSuccess: () => toast.success('Report deleted'),
+    onError: () => toast.error('Failed to delete report'),
+  });
+}
+
+export function useCloneReport() {
+  return useMutation({
+    mutationFn: (id: string) => reportBuilderApi.cloneReport(id),
+    onSuccess: () => toast.success('Report cloned'),
+    onError: () => toast.error('Failed to clone report'),
+  });
+}

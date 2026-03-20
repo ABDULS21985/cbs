@@ -11,6 +11,7 @@ import { ComplianceChecks } from '../components/international/ComplianceChecks';
 import { TransferTracker } from '../components/international/TransferTracker';
 import { SwiftMessageViewer } from '../components/international/SwiftMessageViewer';
 import { internationalPaymentApi, type InternationalTransferRequest, type InternationalTransferResponse } from '../api/internationalPaymentApi';
+import { useAccounts } from '../hooks/useTransfer';
 
 type Step = 'form' | 'review' | 'tracking';
 
@@ -18,6 +19,7 @@ export function InternationalTransferPage() {
   useEffect(() => { document.title = 'International Transfer | CBS'; }, []);
   const [step, setStep] = useState<Step>('form');
   const [result, setResult] = useState<InternationalTransferResponse | null>(null);
+  const { data: accounts = [] } = useAccounts();
   const [form, setForm] = useState({
     fromAccountId: '', sendingCurrency: 'NGN', sendingAmount: 0, receivingCurrency: 'USD',
     beneficiaryName: '', beneficiaryAccountIban: '', beneficiaryBankName: '', beneficiarySwiftBic: '',
@@ -122,7 +124,10 @@ export function InternationalTransferPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">From Account</label>
-              <input value={form.fromAccountId} onChange={(e) => update('fromAccountId', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" placeholder="Account ID" />
+              <select value={form.fromAccountId} onChange={(e) => update('fromAccountId', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm">
+                <option value="">Select account...</option>
+                {accounts.map(a => <option key={a.id} value={String(a.id)}>{a.accountNumber} — {a.accountName} ({a.currency})</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Sending Currency</label>

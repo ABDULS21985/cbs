@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { formatMoney, formatMoneyCompact, formatPercent } from '@/lib/formatters';
+import { formatMoneyCompact, formatPercent } from '@/lib/formatters';
 import type { LucideIcon } from 'lucide-react';
 
 // ─── Sparkline ────────────────────────────────────────────────────────────────
@@ -35,11 +35,15 @@ function MiniSparkline({ data, positive }: { data: number[]; positive: boolean }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type ChangeDirection = 'UP' | 'DOWN' | 'FLAT';
+
 export interface KpiDrilldownCardProps {
   label: string;
   value: number;
   format: 'money' | 'number' | 'percent';
   change: number;
+  /** Explicit direction override; defaults to UP when change >= 0, DOWN otherwise */
+  changeDirection?: ChangeDirection;
   changePeriod?: string;
   sparklineData?: number[];
   drilldownPath?: string;
@@ -69,16 +73,23 @@ export function KpiDrilldownCard({
   value,
   format: fmt,
   change,
+  changeDirection,
   changePeriod = 'vs prior period',
   sparklineData,
   drilldownPath,
   icon: Icon,
 }: KpiDrilldownCardProps) {
   const navigate = useNavigate();
-  const isPositive = change >= 0;
-  const changeColor = isPositive
-    ? 'text-green-600 dark:text-green-400'
-    : 'text-red-600 dark:text-red-400';
+  // Determine direction: explicit changeDirection takes priority, then fall back to sign of change
+  const effectiveDirection: ChangeDirection =
+    changeDirection ?? (change > 0 ? 'UP' : change < 0 ? 'DOWN' : 'FLAT');
+  const isPositive = effectiveDirection === 'UP' || effectiveDirection === 'FLAT';
+  const changeColor =
+    effectiveDirection === 'UP'
+      ? 'text-green-600 dark:text-green-400'
+      : effectiveDirection === 'DOWN'
+      ? 'text-red-600 dark:text-red-400'
+      : 'text-muted-foreground';
 
   const handleClick = () => {
     if (drilldownPath) {
@@ -90,7 +101,7 @@ export function KpiDrilldownCard({
     <div
       role={drilldownPath ? 'button' : undefined}
       tabIndex={drilldownPath ? 0 : undefined}
-      aria-label={`${label}: ${formatValue(value, fmt)}, ${isPositive ? 'up' : 'down'} ${Math.abs(change).toFixed(1)}% ${changePeriod}`}
+      aria-label={`${label}: ${formatValue(value, fmt)}, ${effectiveDirection.toLowerCase()} ${Math.abs(change).toFixed(1)}% ${changePeriod}`}
       onClick={handleClick}
       onKeyDown={(e) => {
         if (drilldownPath && (e.key === 'Enter' || e.key === ' ')) {
@@ -128,8 +139,8 @@ export function KpiDrilldownCard({
       {/* Change indicator */}
       <div className="flex items-center gap-1.5">
         <span className={cn('flex items-center gap-0.5 text-xs font-medium', changeColor)}>
-          {isPositive ? '\u25B2' : '\u25BC'}
-          {isPositive ? '+' : ''}
+          {effectiveDirection === 'UP' ? '\u25B2' : effectiveDirection === 'DOWN' ? '\u25BC' : '\u25A0'}
+          {change > 0 ? '+' : ''}
           {change.toFixed(1)}%
         </span>
         <span className="text-xs text-muted-foreground">{changePeriod}</span>

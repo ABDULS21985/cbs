@@ -7,9 +7,19 @@ import {
   Globe,
   CreditCard,
   FileText,
-  Headphones,
   AlertTriangle,
   ChevronRight,
+  MonitorCheck,
+  Landmark,
+  Users,
+  FileCheck,
+  Archive,
+  RefreshCw,
+  Inbox,
+  Smartphone,
+  BarChart3,
+  ClipboardList,
+  Network,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useWorkflowTasks } from '../hooks/useWorkflowTasks';
@@ -47,11 +57,53 @@ const QUICK_LINKS: QuickLink[] = [
     accent: 'text-green-500',
   },
   {
+    icon: Network,
+    name: 'Branch Network',
+    description: 'Branch hierarchy, regions, and network map',
+    href: '/operations/branch-network',
+    accent: 'text-emerald-500',
+  },
+  {
+    icon: BarChart3,
+    name: 'Branch Performance',
+    description: 'KPI rankings, targets, and trend analysis',
+    href: '/operations/branch-performance',
+    accent: 'text-lime-500',
+  },
+  {
     icon: CheckCircle,
     name: 'Approval Queue',
     description: 'Review and action workflow approval requests',
     href: '/operations/approvals',
     accent: 'text-amber-500',
+  },
+  {
+    icon: ClipboardList,
+    name: 'Approval Workbench',
+    description: 'Multi-step approvals with SLA tracking and history',
+    href: '/operations/approval-workbench',
+    accent: 'text-yellow-500',
+  },
+  {
+    icon: MonitorCheck,
+    name: 'ATM Fleet',
+    description: 'Terminal health, low cash alerts, replenishment',
+    href: '/operations/atm',
+    accent: 'text-sky-500',
+  },
+  {
+    icon: Landmark,
+    name: 'Vault & Cash',
+    description: 'Vault balances, cash movements, denominations',
+    href: '/operations/vaults',
+    accent: 'text-indigo-500',
+  },
+  {
+    icon: Users,
+    name: 'Agent Banking',
+    description: 'Agent network, transactions, float management',
+    href: '/operations/agent-banking',
+    accent: 'text-purple-500',
   },
   {
     icon: Globe,
@@ -68,18 +120,46 @@ const QUICK_LINKS: QuickLink[] = [
     accent: 'text-pink-500',
   },
   {
+    icon: FileCheck,
+    name: 'Bank Drafts',
+    description: 'Issue, stop, pay, and reissue bank drafts',
+    href: '/operations/bank-drafts',
+    accent: 'text-rose-500',
+  },
+  {
+    icon: Archive,
+    name: 'Lockbox',
+    description: 'Lockbox receipts, item processing, exceptions',
+    href: '/operations/lockbox',
+    accent: 'text-fuchsia-500',
+  },
+  {
+    icon: RefreshCw,
+    name: 'Reconciliation',
+    description: 'Nostro/vostro matching, break resolution',
+    href: '/operations/reconciliation',
+    accent: 'text-teal-500',
+  },
+  {
+    icon: Inbox,
+    name: 'Open Items',
+    description: 'Aging suspense items, assignment and escalation',
+    href: '/operations/open-items',
+    accent: 'text-orange-500',
+  },
+  {
+    icon: Smartphone,
+    name: 'Issued Devices',
+    description: 'POS terminals, tokens, device lifecycle tracking',
+    href: '/operations/devices',
+    accent: 'text-red-500',
+  },
+  {
     icon: FileText,
     name: 'Document Management',
     description: 'Document library, OCR review, retention policies',
     href: '/operations/documents',
-    accent: 'text-orange-500',
-  },
-  {
-    icon: Headphones,
-    name: 'Contact Center',
-    description: 'Agent console, case routing, customer support',
-    href: '/operations/contact-center',
-    accent: 'text-teal-500',
+    accent: 'text-slate-500',
   },
 ];
 
@@ -122,7 +202,7 @@ export function OperationsHomePage() {
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
             Quick Access
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {QUICK_LINKS.map((link) => {
               const Icon = link.icon;
               return (

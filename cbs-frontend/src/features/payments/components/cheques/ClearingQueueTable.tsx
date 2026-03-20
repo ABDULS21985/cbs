@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { CheckCircle, PauseCircle, ChevronDown } from 'lucide-react';
+import { CheckCircle, PauseCircle, ChevronDown, AlertTriangle } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { chequeApi, type ClearingCheque, RETURN_REASON_CODES } from '../../api/chequeApi';
 import { DataTable, StatusBadge, ConfirmDialog } from '@/components/shared';
@@ -76,6 +76,7 @@ export function ClearingQueueTable() {
   const [viewCheque, setViewCheque] = useState<ClearingCheque | null>(null);
   const [confirmAction, setConfirmAction] = useState<ActionState | null>(null);
   const [returnFormCheque, setReturnFormCheque] = useState<ClearingCheque | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -119,7 +120,52 @@ export function ClearingQueueTable() {
 
   const isActionPending = clearMutation.isPending || holdMutation.isPending;
 
+  const handleBulkClear = async () => {
+    for (const id of selectedIds) {
+      await clearMutation.mutateAsync(id);
+    }
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkReturn = () => {
+    const first = (data ?? []).find(d => selectedIds.has(d.id));
+    if (first) setReturnFormCheque(first);
+  };
+
+  const isSLABreach = (receivedDate: string) => {
+    const received = new Date(receivedDate).getTime();
+    const now = Date.now();
+    return now - received > 24 * 60 * 60 * 1000;
+  };
+
   const columns: ColumnDef<ClearingCheque>[] = [
+    {
+      id: 'select',
+      header: () => (
+        <input
+          type="checkbox"
+          onChange={(e) => {
+            if (e.target.checked) setSelectedIds(new Set((data ?? []).map(d => d.id)));
+            else setSelectedIds(new Set());
+          }}
+          checked={selectedIds.size > 0 && selectedIds.size === (data ?? []).length}
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.has(row.original.id)}
+          onChange={(e) => {
+            e.stopPropagation();
+            const next = new Set(selectedIds);
+            if (e.target.checked) next.add(row.original.id);
+            else next.delete(row.original.id);
+            setSelectedIds(next);
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+    },
     {
       accessorKey: 'chequeNumber',
       header: 'Cheque #',
@@ -154,6 +200,20 @@ export function ClearingQueueTable() {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    {
+      id: 'sla',
+      header: 'SLA',
+      cell: ({ row }) => {
+        const breach = isSLABreach(row.original.receivedDate);
+        if (!breach) return <span className="text-xs text-green-600 font-medium">Within SLA</span>;
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs font-medium">
+            <AlertTriangle className="w-3 h-3" />
+            SLA Breach
+          </span>
+        );
+      },
     },
     {
       id: 'actions',
@@ -206,6 +266,14 @@ export function ClearingQueueTable() {
         <h3 className="text-base font-semibold">Clearing Queue</h3>
         <p className="text-sm text-muted-foreground">Cheques awaiting clearing decisions. Auto-refreshes every 30 seconds.</p>
       </div>
+
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs text-muted-foreground">{selectedIds.size} selected</span>
+          <button onClick={() => handleBulkClear()} className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium">Clear Selected</button>
+          <button onClick={() => handleBulkReturn()} className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium">Return Selected</button>
+        </div>
+      )}
 
       <DataTable
         columns={columns}

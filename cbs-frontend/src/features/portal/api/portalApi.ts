@@ -233,4 +233,44 @@ export const portalApi = {
   // ─── Enhanced Dashboard ────────────────────────────────────────────────
   getEnhancedDashboard: (customerId: number) =>
     apiGet<EnhancedDashboard>(`/api/v1/portal/dashboard/enhanced/${customerId}`),
+
+  // ─── Notifications ────────────────────────────────────────────────────
+  getNotifications: (page = 0, size = 20) =>
+    apiGet<Record<string, unknown>[]>('/api/v1/portal/notifications', { page, size } as Record<string, unknown>).catch(() => []),
+  markNotificationsRead: (ids: number[]) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/notifications/mark-read', { ids }),
+
+  // ─── Bills & Airtime ──────────────────────────────────────────────────
+  getBillers: () =>
+    apiGet<Record<string, unknown>[]>('/api/v1/portal/billers').catch(() => []),
+  validateBiller: (billerId: number, customerRef: string) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/billers/validate', { billerId, customerRef }),
+  payBill: (data: { billerId: number; billerName: string; customerRef: string; amount: number; accountId: number }) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/billers/pay', data),
+  purchaseAirtime: (data: { network: string; phone: string; amount: number; type: string; accountId: number }) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/airtime/purchase', data),
+
+  // ─── Card Extras ──────────────────────────────────────────────────────
+  freezeCard: (cardId: number, freeze: boolean) =>
+    apiPost<PortalCard>(`/api/v1/portal/cards/${cardId}/freeze?freeze=${freeze}`),
+  setTravelNotice: (cardId: number, data: { country: string; fromDate: string; toDate: string }) =>
+    apiPost<Record<string, unknown>>(`/api/v1/portal/cards/${cardId}/travel-notice`, data),
+
+  // ─── Help ─────────────────────────────────────────────────────────────
+  getFaq: () =>
+    apiGet<{ q: string; a: string }[]>('/api/v1/portal/help/faq').catch(() => []),
+  submitContactForm: (data: { name: string; email: string; subject: string; message: string }) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/help/contact', data),
+
+  // ─── Transfers ────────────────────────────────────────────────────────
+  executeTransfer: (data: { debitAccountId: number; creditAccountId: number; amount: number; narration: string; idempotencyKey: string }) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/transfers/internal', data),
+  validateTransfer: (accountNumber: string, bankCode?: string) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/transfers/validate', { accountNumber, bankCode: bankCode || '000' }),
+  sendOtp: (accountId: number) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/transfers/otp/send', { accountId }),
+  verifyOtp: (sessionId: string, otpCode: string) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/transfers/otp/verify', { sessionId, otpCode }),
+  getTransferLimits: () =>
+    apiGet<Record<string, unknown>>('/api/v1/portal/transfers/limits'),
 };
