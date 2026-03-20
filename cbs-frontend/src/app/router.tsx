@@ -69,9 +69,16 @@ import {
   FixedIncomePage,
   FraudManagementPage,
   GatewayConsolePage,
+  GatewayHubPage,
   GatewayDetailPage,
   MessageDetailPage,
+  GatewayOpenBankingPage,
+  GatewayPsd2Page,
   IntegrationHubPage,
+  Iso20022Page,
+  ApiMarketplacePage,
+  DomainEventsPage,
+  DataLakePage,
   GeneralLedgerPage,
   GoalAnalyticsPage,
   GoalDetailPage,
@@ -511,10 +518,17 @@ export function AppRouter() {
           <Route path="gl" element={<GeneralLedgerPage />} />
           <Route path="branches" element={<BranchOpsPage />} />
           <Route path="approvals" element={<ApprovalQueuePage />} />
-          <Route path="gateway" element={<GatewayConsolePage />} />
+          <Route path="gateway" element={<GatewayHubPage />} />
+          <Route path="gateway/console" element={<GatewayConsolePage />} />
           <Route path="gateway/gateways/:id" element={<GatewayDetailPage />} />
           <Route path="gateway/messages/:ref" element={<MessageDetailPage />} />
           <Route path="gateway/integration" element={<IntegrationHubPage />} />
+          <Route path="gateway/open-banking" element={<GatewayOpenBankingPage />} />
+          <Route path="gateway/psd2" element={<GatewayPsd2Page />} />
+          <Route path="gateway/iso20022" element={<Iso20022Page />} />
+          <Route path="gateway/marketplace" element={<ApiMarketplacePage />} />
+          <Route path="gateway/events" element={<DomainEventsPage />} />
+          <Route path="gateway/data-lake" element={<DataLakePage />} />
           <Route path="ach" element={<AchOperationsPage />} />
           <Route path="documents" element={<DocumentManagementPage />} />
         </Route>

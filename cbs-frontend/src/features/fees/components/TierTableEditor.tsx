@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FeeTier } from '../api/feeApi';
@@ -9,11 +10,29 @@ interface TierTableEditorProps {
   readOnly?: boolean;
 }
 
+function validateTiers(tiers: FeeTier[]): { valid: boolean; errors: Map<number, string> } {
+  const errors = new Map<number, string>();
+  for (let i = 0; i < tiers.length; i++) {
+    if (tiers[i].fromAmount >= tiers[i].toAmount) {
+      errors.set(i, 'From must be less than To');
+    }
+    if (i > 0) {
+      const expectedFrom = tiers[i - 1].toAmount + 0.01;
+      if (Math.abs(tiers[i].fromAmount - expectedFrom) > 0.02) {
+        errors.set(i, `Gap or overlap — expected from ₦${expectedFrom.toLocaleString()}`);
+      }
+    }
+  }
+  return { valid: errors.size === 0, errors };
+}
+
 export function TierTableEditor({ tiers, onChange, type, readOnly }: TierTableEditorProps) {
+  const validation = useMemo(() => validateTiers(tiers), [tiers]);
+
   const addRow = () => {
     const last = tiers[tiers.length - 1];
-    const newFrom = last ? last.toAmount + 1 : 0;
-    onChange([...tiers, { fromAmount: newFrom, toAmount: newFrom + 9999, rate: 0, flatFee: 0 }]);
+    const newFrom = last ? Math.round((last.toAmount + 0.01) * 100) / 100 : 0;
+    onChange([...tiers, { fromAmount: newFrom, toAmount: newFrom + 9999.99, rate: 0, flatFee: 0 }]);
   };
 
   const removeRow = (index: number) => {

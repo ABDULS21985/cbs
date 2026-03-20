@@ -4,3 +4,5 @@ export { FeePreviewCalculator } from './FeePreviewCalculator';
 export { FeeWaiverForm } from './FeeWaiverForm';
 export { BulkFeePostingWizard } from './BulkFeePostingWizard';
 export { FeeChargeHistoryTable } from './FeeChargeHistoryTable';
+export { FeeImpactSimulator } from './FeeImpactSimulator';
+export { FeeComparisonPanel } from './FeeComparisonPanel';

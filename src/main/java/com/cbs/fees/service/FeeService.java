@@ -177,4 +177,67 @@ public class FeeService {
         return feeChargeLogRepository.findAll(pageable);
     }
 
+    @Transactional
+    public FeeDefinition updateFeeDefinition(FeeDefinition fee) {
+        FeeDefinition existing = feeDefinitionRepository.findById(fee.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("FeeDefinition", "id", fee.getId()));
+        // Copy updatable fields
+        if (fee.getFeeName() != null) existing.setFeeName(fee.getFeeName());
+        if (fee.getFeeCategory() != null) existing.setFeeCategory(fee.getFeeCategory());
+        if (fee.getFlatAmount() != null) existing.setFlatAmount(fee.getFlatAmount());
+        if (fee.getPercentage() != null) existing.setPercentage(fee.getPercentage());
+        if (fee.getMinFee() != null) existing.setMinFee(fee.getMinFee());
+        if (fee.getMaxFee() != null) existing.setMaxFee(fee.getMaxFee());
+        return feeDefinitionRepository.save(existing);
+    }
+
+    public FeeDefinition getFeeById(Long id) {
+        return feeDefinitionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("FeeDefinition", "id", id));
+    }
+
+    public List<FeeChargeLog> getPendingWaivers() {
+        // Return charge logs with PENDING status as waiver candidates
+        return feeChargeLogRepository.findAll().stream()
+                .filter(c -> "PENDING".equals(c.getStatus()))
+                .toList();
+    }
+
+    @Transactional
+    public FeeChargeLog rejectWaiver(Long chargeLogId, String reason) {
+        FeeChargeLog log = feeChargeLogRepository.findById(chargeLogId)
+                .orElseThrow(() -> new ResourceNotFoundException("FeeChargeLog", "id", chargeLogId));
+        log.setStatus("REJECTED");
+        return feeChargeLogRepository.save(log);
+    }
+
+    public java.util.Map<String, Object> createBulkPostingJob(String feeId, String scheduledDate) {
+        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("id", "BFJ-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        result.put("feeId", feeId);
+        result.put("feeName", feeDefinitionRepository.findById(Long.valueOf(feeId)).map(FeeDefinition::getFeeName).orElse("Unknown"));
+        result.put("affectedAccounts", accountRepository.count());
+        result.put("totalAmount", BigDecimal.ZERO);
+        result.put("processedCount", 0);
+        result.put("failedCount", 0);
+        result.put("status", "PENDING");
+        result.put("scheduledDate", scheduledDate);
+        result.put("createdAt", java.time.Instant.now().toString());
+        return result;
+    }
+
+    public List<java.util.Map<String, Object>> getBulkJobs() {
+        return List.of();
+    }
+
+    public java.util.Map<String, Object> previewBulkPost(String feeId) {
+        long accountCount = accountRepository.count();
+        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("feeId", feeId);
+        result.put("feeName", feeDefinitionRepository.findById(Long.valueOf(feeId)).map(FeeDefinition::getFeeName).orElse("Unknown"));
+        result.put("affectedAccounts", accountCount);
+        result.put("totalAmount", 0);
+        result.put("sampleAccounts", List.of());
+        return result;
+    }
 }

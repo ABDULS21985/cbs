@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPut } from '@/lib/api';
 import api from '@/lib/api';
 import type { ApiResponse } from '@/types/common';
 
@@ -129,7 +129,7 @@ interface BackendFeeResult {
 
 // GET /v1/fees/definitions
 export function getFeeDefinitions(): Promise<FeeDefinition[]> {
-  return apiGet<FeeDefinition[]>('/api/v1/fees/definitions').catch(() => []);
+  return apiGet<FeeDefinition[]>('/api/v1/fees/definitions');
 }
 
 // GET /v1/fees/definitions (find by id from list — no dedicated endpoint)
@@ -146,9 +146,9 @@ export function createFeeDefinition(data: Omit<FeeDefinition, 'id' | 'createdAt'
   return apiPost<FeeDefinition>('/api/v1/fees/definitions', data);
 }
 
-// No dedicated update endpoint — not supported by backend
-export function updateFeeDefinition(_id: string, _data: Partial<FeeDefinition>): Promise<FeeDefinition> {
-  return Promise.reject(new Error('Fee definition updates are not supported by the current API version'));
+// PUT /v1/fees/definitions/{id}
+export function updateFeeDefinition(id: string, data: Partial<FeeDefinition>): Promise<FeeDefinition> {
+  return apiPut<FeeDefinition>(`/api/v1/fees/definitions/${id}`, data);
 }
 
 // GET /v1/fees/preview/{feeCode}?amount=X
@@ -216,7 +216,7 @@ export async function waiveFee(chargeLogId: string, waivedBy: string, reason: st
 
 // GET /v1/fees/history/account/{accountId}
 export function getAccountFeeHistory(accountId: string): Promise<FeeCharge[]> {
-  return apiGet<FeeCharge[]>(`/api/v1/fees/history/account/${accountId}`).catch(() => []);
+  return apiGet<FeeCharge[]>(`/api/v1/fees/history/account/${accountId}`);
 }
 
 // Backward-compat alias — maps feeId to getAccountFeeHistory if numeric, else returns empty
@@ -225,9 +225,9 @@ export function getFeeChargeHistory(feeId?: string): Promise<FeeCharge[]> {
   return getAccountFeeHistory(feeId);
 }
 
-// No backend endpoint — pending waivers list not available
+// GET /v1/fees/waivers/pending
 export function getPendingWaivers(): Promise<FeeWaiver[]> {
-  return Promise.resolve([]);
+  return apiGet<FeeWaiver[]>('/api/v1/fees/waivers/pending');
 }
 
 // Backend waive = approve; route through waiveFee
@@ -246,24 +246,34 @@ export function approveWaiver(waiverId: string, authorizedBy: string): Promise<F
   }));
 }
 
-// No reject endpoint on backend
-export function rejectWaiver(_waiverId: string, _authorizedBy: string): Promise<FeeWaiver> {
-  return Promise.reject(new Error('Waiver rejection is not supported by the current API version'));
+// POST /v1/fees/waivers/{waiverId}/reject
+export function rejectWaiver(waiverId: string, reason: string): Promise<FeeWaiver> {
+  return apiPost<FeeWaiver>(`/api/v1/fees/waivers/${waiverId}/reject`, { reason });
 }
 
-// No backend endpoint — bulk fee jobs not available
-export function createBulkFeeJob(_feeId: string, _scheduledDate: string): Promise<BulkFeeJob> {
-  return Promise.reject(new Error('Bulk fee posting is not available in the current API version'));
+// POST /v1/fees/bulk-post
+export function createBulkFeeJob(feeId: string, scheduledDate: string): Promise<BulkFeeJob> {
+  return apiPost<BulkFeeJob>('/api/v1/fees/bulk-post', { feeId, scheduledDate });
 }
 
-// No backend endpoint
+// GET /v1/fees/bulk-jobs
 export function getBulkFeeJobs(): Promise<BulkFeeJob[]> {
-  return Promise.resolve([]);
+  return apiGet<BulkFeeJob[]>('/api/v1/fees/bulk-jobs');
 }
 
-// No backend endpoint
-export function previewBulkFeeJob(_feeId: string): Promise<BulkFeePreview> {
-  return Promise.reject(new Error('Bulk fee preview is not available in the current API version'));
+// GET /v1/fees/bulk-post/preview?feeId=X
+export function previewBulkFeeJob(feeId: string): Promise<BulkFeePreview> {
+  return apiGet<BulkFeePreview>(`/api/v1/fees/bulk-post/preview?feeId=${feeId}`);
+}
+
+// POST /v1/fees/charges/{chargeLogId}/reverse
+export function reverseFeeCharge(chargeLogId: string): Promise<FeeCharge> {
+  return apiPost<FeeCharge>(`/api/v1/fees/charges/${chargeLogId}/reverse`);
+}
+
+// GET /v1/fees/waivers — all waivers (not just pending)
+export function getAllWaivers(): Promise<FeeWaiver[]> {
+  return apiGet<FeeWaiver[]>('/api/v1/fees/waivers');
 }
 
 export const feeApi = {
@@ -278,8 +288,10 @@ export const feeApi = {
   getAccountFeeHistory,
   getFeeChargeHistory,
   getPendingWaivers,
+  getAllWaivers,
   approveWaiver,
   rejectWaiver,
+  reverseFeeCharge,
   createBulkFeeJob,
   getBulkFeeJobs,
   previewBulkFeeJob,

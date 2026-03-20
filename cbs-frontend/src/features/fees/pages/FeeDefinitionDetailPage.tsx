@@ -1,10 +1,13 @@
+import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Clock, Ban, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { FileText, Clock, Ban, Calculator, Loader2, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage } from '@/components/shared';
 import { FeeCalculationEditor } from '../components/FeeCalculationEditor';
 import { FeeChargeHistoryTable } from '../components/FeeChargeHistoryTable';
+import { FeePreviewCalculator } from '../components/FeePreviewCalculator';
 import {
   getFeeById,
   getFeeChargeHistory,
@@ -30,19 +33,20 @@ function WaiversTab({ feeId }: { feeId: string }) {
 
   const approveMutation = useMutation({
     mutationFn: ({ id, by }: { id: string; by: string }) => approveWaiver(id, by),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pending-waivers'] }),
+    onSuccess: () => { toast.success('Waiver approved'); queryClient.invalidateQueries({ queryKey: ['pending-waivers'] }); },
+    onError: () => toast.error('Failed to approve waiver'),
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, by }: { id: string; by: string }) => rejectWaiver(id, by),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pending-waivers'] }),
+    onSuccess: () => { toast.success('Waiver rejected'); queryClient.invalidateQueries({ queryKey: ['pending-waivers'] }); },
+    onError: () => toast.error('Failed to reject waiver'),
   });
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
-        <Loader2 className="w-5 h-5 animate-spin" />
-        Loading waivers...
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />)}
       </div>
     );
   }
@@ -161,32 +165,50 @@ export function FeeDefinitionDetailPage() {
   const updateMutation = useMutation({
     mutationFn: (data: Partial<FeeDefinition>) => updateFeeDefinition(id!, data),
     onSuccess: () => {
+      toast.success('Fee definition updated');
       queryClient.invalidateQueries({ queryKey: ['fee-definition', id] });
       queryClient.invalidateQueries({ queryKey: ['fee-definitions'] });
     },
+    onError: () => toast.error('Failed to update fee definition'),
   });
+
+  useEffect(() => {
+    document.title = fee ? `Fee - ${fee.name} | CBS` : 'Fee Detail | CBS';
+  }, [fee]);
 
   if (isLoading) {
     return (
       <>
         <PageHeader title="Loading..." backTo="/admin/fees" />
-        <div className="page-container flex items-center justify-center py-16 text-muted-foreground gap-2">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          Loading fee definition...
+        <div className="page-container space-y-4">
+          <div className="h-8 w-48 bg-muted animate-pulse rounded-lg" />
+          <div className="h-5 w-32 bg-muted animate-pulse rounded-lg" />
+          <div className="h-10 w-full bg-muted animate-pulse rounded-lg" />
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => <div key={i} className="h-12 w-full bg-muted animate-pulse rounded-lg" />)}
+          </div>
         </div>
       </>
     );
   }
 
   if (isError || !fee) {
+    const is404 = (error as any)?.response?.status === 404 || (error as any)?.message?.includes('not found');
     return (
       <>
-        <PageHeader title="Fee Not Found" backTo="/admin/fees" />
+        <PageHeader title={is404 ? 'Fee Not Found' : 'Error'} backTo="/admin/fees" />
         <div className="page-container">
-          <div className="rounded-xl border bg-destructive/10 border-destructive/20 p-6 text-center">
+          <div className="rounded-xl border bg-destructive/10 border-destructive/20 p-8 text-center">
+            <AlertTriangle className="w-8 h-8 text-destructive mx-auto mb-2" />
             <p className="text-sm text-destructive font-medium">
-              This fee definition could not be found.
+              {is404 ? 'This fee definition could not be found.' : 'Failed to load fee definition.'}
             </p>
+            {!is404 && (
+              <button onClick={() => queryClient.invalidateQueries({ queryKey: ['fee-definition', id] })}
+                className="mt-3 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+                Retry
+              </button>
+            )}
           </div>
         </div>
       </>
@@ -235,6 +257,16 @@ export function FeeDefinitionDetailPage() {
       content: (
         <div className="p-6">
           <WaiversTab feeId={id!} />
+        </div>
+      ),
+    },
+    {
+      id: 'calculator',
+      label: 'Calculator',
+      icon: Calculator,
+      content: (
+        <div className="p-6">
+          <FeePreviewCalculator feeCode={fee.code} />
         </div>
       ),
     },

@@ -40,6 +40,58 @@ public class FeeController {
         return ResponseEntity.ok(ApiResponse.ok(feeService.getAllActiveFees()));
     }
 
+    @PutMapping("/definitions/{id}")
+    @Operation(summary = "Update a fee definition")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<FeeDefinition>> updateDefinition(@PathVariable Long id, @RequestBody FeeDefinition fee) {
+        fee.setId(id);
+        return ResponseEntity.ok(ApiResponse.ok(feeService.updateFeeDefinition(fee)));
+    }
+
+    @GetMapping("/definitions/{id}")
+    @Operation(summary = "Get fee definition by ID")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<FeeDefinition>> getDefinition(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(feeService.getFeeById(id)));
+    }
+
+    @GetMapping("/waivers/pending")
+    @Operation(summary = "List pending fee waivers")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<FeeChargeLog>>> getPendingWaivers() {
+        return ResponseEntity.ok(ApiResponse.ok(feeService.getPendingWaivers()));
+    }
+
+    @PostMapping("/waivers/{waiverId}/reject")
+    @Operation(summary = "Reject a fee waiver request")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<FeeChargeLog>> rejectWaiver(@PathVariable Long waiverId, @RequestBody java.util.Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.ok(feeService.rejectWaiver(waiverId, body.getOrDefault("reason", ""))));
+    }
+
+    @PostMapping("/bulk-post")
+    @Operation(summary = "Create a bulk fee posting job")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> createBulkJob(@RequestBody java.util.Map<String, Object> body) {
+        String feeId = String.valueOf(body.get("feeId"));
+        String date = String.valueOf(body.get("scheduledDate"));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(feeService.createBulkPostingJob(feeId, date)));
+    }
+
+    @GetMapping("/bulk-jobs")
+    @Operation(summary = "List bulk fee posting jobs")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> getBulkJobs() {
+        return ResponseEntity.ok(ApiResponse.ok(feeService.getBulkJobs()));
+    }
+
+    @GetMapping("/bulk-post/preview")
+    @Operation(summary = "Preview bulk fee posting impact")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> previewBulkPost(@RequestParam String feeId) {
+        return ResponseEntity.ok(ApiResponse.ok(feeService.previewBulkPost(feeId)));
+    }
+
     @GetMapping("/preview/{feeCode}")
     @Operation(summary = "Preview fee calculation without charging")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER','PORTAL_USER')")

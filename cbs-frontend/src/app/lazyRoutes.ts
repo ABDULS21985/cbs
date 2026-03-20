@@ -66,6 +66,10 @@ export const NewFeeDefinitionPage = lazyNamed(
   () => import('@/features/fees/pages/NewFeeDefinitionPage'),
   'NewFeeDefinitionPage',
 );
+export const FeeWaiverDashboardPage = lazyNamed(
+  () => import('@/features/fees/pages/FeeWaiverDashboardPage'),
+  'FeeWaiverDashboardPage',
+);
 
 export const ProductFactoryPage = lazyNamed(
   () => import('@/features/admin/pages/ProductFactoryPage'),
@@ -463,9 +467,37 @@ export const MessageDetailPage = lazyNamed(
   () => import('@/features/gateway/pages/MessageDetailPage'),
   'MessageDetailPage',
 );
+export const GatewayOpenBankingPage = lazyNamed(
+  () => import('@/features/gateway/pages/OpenBankingPage'),
+  'OpenBankingPage',
+);
+export const GatewayPsd2Page = lazyNamed(
+  () => import('@/features/gateway/pages/Psd2CompliancePage'),
+  'Psd2CompliancePage',
+);
 export const IntegrationHubPage = lazyNamed(
   () => import('@/features/gateway/pages/IntegrationHubPage'),
   'IntegrationHubPage',
+);
+export const Iso20022Page = lazyNamed(
+  () => import('@/features/gateway/pages/Iso20022Page'),
+  'Iso20022Page',
+);
+export const ApiMarketplacePage = lazyNamed(
+  () => import('@/features/gateway/pages/ApiMarketplacePage'),
+  'ApiMarketplacePage',
+);
+export const GatewayHubPage = lazyNamed(
+  () => import('@/features/gateway/pages/GatewayHubPage'),
+  'GatewayHubPage',
+);
+export const DomainEventsPage = lazyNamed(
+  () => import('@/features/gateway/pages/DomainEventsPage'),
+  'DomainEventsPage',
+);
+export const DataLakePage = lazyNamed(
+  () => import('@/features/gateway/pages/DataLakePage'),
+  'DataLakePage',
 );
 export const EodConsolePage = lazyNamed(
   () => import('@/features/operations/pages/EodConsolePage'),

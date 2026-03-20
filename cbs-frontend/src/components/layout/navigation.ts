@@ -223,7 +223,21 @@ export const navigationItems: NavSection[] = [
           { label: 'Branch Ops', path: '/operations/branches' },
           { label: 'Approvals', path: '/operations/approvals' },
           { label: 'Documents', path: '/operations/documents' },
-          { label: 'Gateway Console', path: '/operations/gateway' },
+          { label: 'Gateway Console', path: '/operations/gateway/console' },
+        ],
+      },
+      {
+        label: 'Gateway & Integration', icon: Settings2, path: '/operations/gateway', roles: ['CBS_ADMIN'],
+        children: [
+          { label: 'Hub', path: '/operations/gateway' },
+          { label: 'Console', path: '/operations/gateway/console' },
+          { label: 'Integration', path: '/operations/gateway/integration' },
+          { label: 'Open Banking', path: '/operations/gateway/open-banking' },
+          { label: 'PSD2', path: '/operations/gateway/psd2' },
+          { label: 'ISO 20022', path: '/operations/gateway/iso20022' },
+          { label: 'Marketplace', path: '/operations/gateway/marketplace' },
+          { label: 'Events', path: '/operations/gateway/events' },
+          { label: 'Data Lake', path: '/operations/gateway/data-lake' },
         ],
       },
       {

@@ -1,12 +1,13 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, History, Edit2, Layers } from 'lucide-react';
+import { Plus, History, Edit2, Layers, FileText, CheckCircle, ArrowRightLeft, AlertTriangle, RefreshCw } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { DataTable } from '@/components/shared';
+import { DataTable, StatCard } from '@/components/shared';
 import { cn } from '@/lib/utils';
 import { getFeeDefinitions, type FeeDefinition, type FeeCategory, type FeeCalcType } from '../api/feeApi';
+import { FeeComparisonPanel } from '../components/FeeComparisonPanel';
 
 // ─── Local badge helper ───────────────────────────────────────────────────────
 
@@ -92,11 +93,15 @@ export function FeeScheduleListPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [calcTypeFilter, setCalcTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
+  const [showCompare, setShowCompare] = useState(false);
 
-  const { data: fees = [], isLoading } = useQuery({
+  const { data: fees = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['fee-definitions'],
     queryFn: getFeeDefinitions,
   });
+
+  useEffect(() => { document.title = 'Fees & Charges | CBS'; }, []);
 
   const filtered = useMemo(() => {
     return fees.filter((fee) => {
@@ -226,7 +231,29 @@ export function FeeScheduleListPage() {
         }
       />
 
-      <div className="page-container">
+      <div className="page-container space-y-4">
+        {/* Revenue summary stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <StatCard label="Total Fee Definitions" value={fees.length} format="number" icon={FileText} />
+          <StatCard label="Active Fees" value={fees.filter((f) => f.status === 'ACTIVE').length} format="number" icon={CheckCircle} />
+          <StatCard label="Monthly Revenue" value="—" />
+          <StatCard label="Waiver Rate" value="—" />
+        </div>
+
+        {/* Compare bar */}
+        {selectedForCompare.length >= 2 && (
+          <div className="flex items-center gap-3 rounded-lg border bg-primary/5 px-4 py-2">
+            <ArrowRightLeft className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">{selectedForCompare.length} fees selected</span>
+            <button onClick={() => setShowCompare(true)}
+              className="ml-auto px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
+              Compare Selected
+            </button>
+            <button onClick={() => setSelectedForCompare([])}
+              className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
+          </div>
+        )}
+
         {/* Filter bar */}
         <div className="flex flex-wrap items-center gap-3 mb-4 p-4 rounded-xl border bg-card">
           <select
@@ -284,15 +311,34 @@ export function FeeScheduleListPage() {
           </span>
         </div>
 
-        <DataTable
-          columns={columns}
-          data={filtered}
-          isLoading={isLoading}
-          enableGlobalFilter
-          onRowClick={(row: FeeDefinition) => navigate(`/admin/fees/${row.id}`)}
-          emptyMessage="No fee definitions found. Create your first fee definition."
-        />
+        {isError ? (
+          <div className="rounded-xl border p-8 text-center">
+            <AlertTriangle className="w-8 h-8 text-destructive mx-auto mb-2" />
+            <p className="text-sm font-medium text-destructive">Failed to load fee definitions</p>
+            <button onClick={() => refetch()} className="mt-3 flex items-center gap-1.5 mx-auto px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+              <RefreshCw className="w-4 h-4" /> Retry
+            </button>
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filtered}
+            isLoading={isLoading}
+            enableGlobalFilter
+            enableRowSelection
+            onRowSelectionChange={(rows: FeeDefinition[]) => setSelectedForCompare(rows.map((r) => r.id))}
+            onRowClick={(row: FeeDefinition) => navigate(`/admin/fees/${row.id}`)}
+            emptyMessage="No fee definitions found. Create your first fee definition."
+          />
+        )}
       </div>
+
+      {showCompare && (
+        <FeeComparisonPanel
+          fees={fees.filter((f) => selectedForCompare.includes(f.id))}
+          onClose={() => setShowCompare(false)}
+        />
+      )}
     </>
   );
 }
