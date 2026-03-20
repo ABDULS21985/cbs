@@ -18,6 +18,10 @@ export const contactRoutingApi = {
   updateAgentState: (agentId: string | number, newState: string) =>
     apiPut<AgentState>(`/api/v1/contact-routing/agents/${agentId}/state?newState=${encodeURIComponent(newState)}`),
 
+  /** GET /v1/contact-routing/agents/{agentId} */
+  getAgentById: (agentId: string | number) =>
+    apiGet<AgentState>(`/api/v1/contact-routing/agents/${agentId}`),
+
   /** GET /v1/contact-routing/agents/center/{centerId} */
   getAgentPerformance: (centerId: number) =>
     apiGet<AgentState[]>(`/api/v1/contact-routing/agents/center/${centerId}`),

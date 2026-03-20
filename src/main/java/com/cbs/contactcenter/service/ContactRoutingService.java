@@ -92,6 +92,11 @@ public class ContactRoutingService {
         return contactQueueRepository.findByCenterIdAndStatus(centerId, "ACTIVE");
     }
 
+    public AgentState getAgentProfile(String agentId) {
+        return agentStateRepository.findByAgentId(agentId)
+                .orElseThrow(() -> new ResourceNotFoundException("AgentState", "agentId", agentId));
+    }
+
     public List<AgentState> getAgentPerformance(Long centerId) {
         List<AgentState> agents = new ArrayList<>(agentStateRepository.findByCenterIdAndCurrentStateIn(centerId,
                 List.of("AVAILABLE", "BUSY", "WRAP_UP", "OFFLINE")));

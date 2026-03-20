@@ -197,7 +197,6 @@ function QualityTab({ agent, interactions }: { agent: RoutingAgentState; interac
 
 export function AgentDetailPage() {
   const { agentId = '' } = useParams<{ agentId: string }>();
-  const centerId = 1; // Default center
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageSubject, setMessageSubject] = useState('Supervisor Message');
   const [messageBody, setMessageBody] = useState('');
@@ -210,9 +209,10 @@ export function AgentDetailPage() {
     refetchInterval: 10_000,
   });
 
-  const { data: routingAgents = [] } = useQuery({
-    queryKey: ['contact-center', 'routing', 'agents', 'center', centerId],
-    queryFn: () => contactRoutingApi.getAgentPerformance(centerId),
+  const { data: routingAgent } = useQuery({
+    queryKey: ['contact-center', 'routing', 'agent', agentId],
+    queryFn: () => contactRoutingApi.getAgentById(agentId),
+    enabled: !!agentId,
     staleTime: 15_000,
   });
   const { data: interactions = [], isLoading: interactionsLoading } = useQuery({
@@ -223,7 +223,6 @@ export function AgentDetailPage() {
   });
 
   const agent = allAgents.find((a) => a.agentId === agentId);
-  const routingAgent = routingAgents.find((a) => a.agentId === agentId);
   const activeInteraction = interactions.find((interaction) => interaction.status === 'ACTIVE' || interaction.status === 'QUEUED') ?? null;
   const messageMutation = useMutation({
     mutationFn: () => contactCenterApi.sendSupervisorMessage(agentId, agent?.agentName ?? agentId, messageSubject, messageBody),
@@ -404,16 +403,12 @@ export function AgentDetailPage() {
               {
                 id: 'skills',
                 label: 'Skills & Config',
-                content: routingAgent ? <SkillsTab agent={routingAgent} /> : (
-                  <div className="p-4 text-center text-muted-foreground py-12">Agent routing data not available</div>
-                ),
+                content: routingAgent ? <SkillsTab agent={routingAgent} /> : <div className="p-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>,
               },
               {
                 id: 'quality',
                 label: 'Quality Metrics',
-                content: routingAgent ? <QualityTab agent={routingAgent} interactions={interactions} /> : (
-                  <div className="p-4 text-center text-muted-foreground py-12">Agent routing data not available</div>
-                ),
+                content: routingAgent ? <QualityTab agent={routingAgent} interactions={interactions} /> : <div className="p-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>,
               },
             ]}
           />

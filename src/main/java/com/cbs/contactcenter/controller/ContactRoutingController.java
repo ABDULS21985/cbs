@@ -53,6 +53,12 @@ public class ContactRoutingController {
         return ResponseEntity.ok(ApiResponse.ok(service.updateAgentState(agentId, newState)));
     }
 
+    @GetMapping("/agents/{agentId}")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<AgentState>> getAgentProfile(@PathVariable String agentId) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAgentProfile(agentId)));
+    }
+
     @GetMapping("/agents/center/{centerId}")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<AgentState>>> getAgentPerformance(@PathVariable Long centerId) {
