@@ -12,13 +12,24 @@ import { toast } from 'sonner';
 import {
   useFtpProfitability, useAddFtpRatePoint, useFtpAllocate,
 } from '../hooks/useTreasuryExt';
+import { ftpApi } from '../api/ftpApi';
 import type { FtpAllocation } from '../types/ftp';
+import { useQuery } from '@tanstack/react-query';
 
 export function FtpPage() {
   useEffect(() => { document.title = 'Funds Transfer Pricing | CBS'; }, []);
   const [entityType, setEntityType] = useState('BRANCH');
+  const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
+  const [tenor, setTenor] = useState('1M');
+  const [rate, setRate] = useState('');
+  const [effectiveDate, setEffectiveDate] = useState(new Date().toISOString().slice(0, 10));
 
   const { data: profitability = [], isLoading: profLoading } = useFtpProfitability(entityType);
+  const { data: curve = [], isLoading: curveLoading } = useQuery({
+    queryKey: ['ftp', 'curve'],
+    queryFn: () => ftpApi.getCurve('NGN'),
+    staleTime: 60_000,
+  });
   const addRatePoint = useAddFtpRatePoint();
   const allocate = useFtpAllocate();
 
@@ -38,20 +49,17 @@ export function FtpPage() {
     netMargin: a.netMargin ?? 0,
   }));
 
-  // Mock FTP curve data (would come from API in production)
-  const curveData = [
-    { tenor: 'O/N', days: 1, rate: 4.5 }, { tenor: '1W', days: 7, rate: 5.0 },
-    { tenor: '1M', days: 30, rate: 5.5 }, { tenor: '3M', days: 90, rate: 6.2 },
-    { tenor: '6M', days: 180, rate: 7.0 }, { tenor: '1Y', days: 365, rate: 8.5 },
-    { tenor: '2Y', days: 730, rate: 9.5 }, { tenor: '3Y', days: 1095, rate: 10.2 },
-    { tenor: '5Y', days: 1825, rate: 11.0 }, { tenor: '10Y', days: 3650, rate: 12.5 },
-  ];
+  const curveData = curve.map((point) => ({
+    tenor: point.tenor ?? `${point.days ?? point.tenorDays}D`,
+    days: point.days ?? point.tenorDays,
+    rate: point.rate,
+  }));
 
   return (
     <>
       <PageHeader title="Funds Transfer Pricing" subtitle="Internal pricing framework, allocation, and profitability analysis"
         actions={
-          <button onClick={() => allocate.mutate(undefined as never, { onSuccess: () => toast.success('FTP allocation run completed') })}
+          <button onClick={() => allocate.mutate({ entityType, period }, { onSuccess: () => toast.success(`FTP allocation run completed for ${entityType}`) })}
             disabled={allocate.isPending}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
             {allocate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />} Run Allocation
@@ -74,21 +82,41 @@ export function FtpPage() {
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold">FTP Rate Curve (NGN)</h3>
-                <button onClick={() => addRatePoint.mutate(undefined as never, { onSuccess: () => toast.success('Rate point added') })}
-                  disabled={addRatePoint.isPending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted disabled:opacity-50">
-                  <Plus className="w-3.5 h-3.5" /> Add Rate Point
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select value={tenor} onChange={(event) => setTenor(event.target.value)} className="rounded-lg border bg-background px-2.5 py-1.5 text-xs">
+                    {['O/N', '1W', '1M', '3M', '6M', '1Y', '2Y', '5Y'].map((item) => (
+                      <option key={item} value={item}>{item}</option>
+                    ))}
+                  </select>
+                  <input value={rate} onChange={(event) => setRate(event.target.value)} type="number" min="0" step="0.0001" placeholder="Rate %" className="w-28 rounded-lg border bg-background px-2.5 py-1.5 text-xs" />
+                  <input value={effectiveDate} onChange={(event) => setEffectiveDate(event.target.value)} type="date" className="rounded-lg border bg-background px-2.5 py-1.5 text-xs" />
+                  <button
+                    onClick={() => addRatePoint.mutate({ tenor, rate: Number(rate), effectiveDate, currency: 'NGN' }, {
+                      onSuccess: () => {
+                        toast.success('Rate point added');
+                        setRate('');
+                      },
+                    })}
+                    disabled={addRatePoint.isPending || !rate}
+                    className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Rate Point
+                  </button>
+                </div>
               </div>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={curveData} margin={{ top: 8, right: 20, left: 20, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                  <XAxis dataKey="tenor" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} className="fill-muted-foreground" />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} className="fill-muted-foreground" />
-                  <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} />
-                  <Line type="monotone" dataKey="rate" name="FTP Rate" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              {curveLoading ? (
+                <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">Loading FTP curve…</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={curveData} margin={{ top: 8, right: 20, left: 20, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                    <XAxis dataKey="tenor" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} className="fill-muted-foreground" />
+                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `${v}%`} className="fill-muted-foreground" />
+                    <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} />
+                    <Line type="monotone" dataKey="rate" name="FTP Rate" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
           )},
 
@@ -99,8 +127,9 @@ export function FtpPage() {
                 <label className="text-xs font-medium text-muted-foreground">Entity Type</label>
                 <select value={entityType} onChange={e => setEntityType(e.target.value)}
                   className="px-3 py-1.5 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-                  {['BRANCH', 'DEPARTMENT', 'PRODUCT', 'SEGMENT'].map(t => <option key={t} value={t}>{t}</option>)}
+                  {['BRANCH', 'PRODUCT', 'CUSTOMER', 'ACCOUNT'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
+                <input value={period} onChange={(event) => setPeriod(event.target.value)} type="month" className="rounded-md border bg-background px-3 py-1.5 text-sm" />
               </div>
               <div className="rounded-lg border overflow-x-auto">
                 <table className="w-full text-sm">
@@ -143,7 +172,7 @@ export function FtpPage() {
                 <label className="text-xs font-medium text-muted-foreground">Entity Type</label>
                 <select value={entityType} onChange={e => setEntityType(e.target.value)}
                   className="px-3 py-1.5 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-                  {['BRANCH', 'DEPARTMENT', 'PRODUCT', 'SEGMENT'].map(t => <option key={t} value={t}>{t}</option>)}
+                  {['BRANCH', 'PRODUCT', 'CUSTOMER', 'ACCOUNT'].map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               {chartData.length > 0 ? (

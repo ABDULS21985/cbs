@@ -1,6 +1,6 @@
-
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { ReactNode } from 'react';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -12,9 +12,10 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   variant?: 'default' | 'destructive';
   isLoading?: boolean;
+  children?: ReactNode;
 }
 
-export function ConfirmDialog({ open, onClose, onConfirm, title, description, confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'default', isLoading }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, onClose, onConfirm, title, description, confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'default', isLoading, children }: ConfirmDialogProps) {
   if (!open) return null;
 
   const handleConfirm = async () => {
@@ -38,6 +39,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, description, co
               <p className="text-sm text-muted-foreground mt-1">{description}</p>
             </div>
           </div>
+          {children}
           <div className="flex gap-3 justify-end">
             <button onClick={onClose} disabled={isLoading} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50">
               {cancelLabel}

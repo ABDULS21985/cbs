@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fixedIncomeApi } from '../api/fixedIncomeApi';
-import { ftpApi } from '../api/ftpApi';
+import { ftpApi, type AddFtpRatePointRequest, type RunFtpAllocationRequest } from '../api/ftpApi';
 import { tradingModelsApi } from '../api/tradingModelApi';
 import { dealerDesksApi } from '../api/dealerDeskApi';
 import { traderPositionsApi } from '../api/traderPositionApi';
@@ -152,7 +152,7 @@ export function useFtpHistory(entityType: string, entityId: number) {
 export function useAddFtpRatePoint() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => ftpApi.addRatePoint(),
+    mutationFn: (data: AddFtpRatePointRequest) => ftpApi.addRatePoint(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TREASURY_EXT_KEYS.ftp });
     },
@@ -162,7 +162,7 @@ export function useAddFtpRatePoint() {
 export function useFtpAllocate() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => ftpApi.allocate(),
+    mutationFn: (data: RunFtpAllocationRequest) => ftpApi.allocate(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TREASURY_EXT_KEYS.ftp });
     },
@@ -247,9 +247,14 @@ export function useRevokeDealer() {
 export function useSuspendDesk() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => dealerDesksApi.suspendDesk(id),
+    mutationFn: (payload: number | { id: number; reason?: string }) => {
+      const request = typeof payload === 'number' ? { id: payload, reason: undefined } : payload;
+      return dealerDesksApi.suspendDesk(request.id, request.reason);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: TREASURY_EXT_KEYS.dealerDesks });
+      queryClient.invalidateQueries({ queryKey: ['dealer-desks'] });
+      queryClient.invalidateQueries({ queryKey: ['market-making'] });
     },
   });
 }

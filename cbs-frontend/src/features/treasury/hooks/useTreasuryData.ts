@@ -43,7 +43,41 @@ export function useMoneyMarketRates() {
 export function useOrders(status?: string) {
   return useQuery({
     queryKey: ['treasury', 'orders', status],
-    queryFn: () => apiGet<MarketOrder[]>('/api/v1/treasury/orders', status ? { status } : undefined),
+    queryFn: async () => {
+      const orders = await apiGet<Array<{
+        id: string;
+        orderRef: string;
+        instrument: string;
+        instrumentName: string;
+        side: 'BUY' | 'SELL';
+        quantity: number;
+        price: number | null;
+        orderType: 'MARKET' | 'LIMIT' | 'STOP' | 'STOP_LIMIT';
+        filledQuantity: number;
+        avgFillPrice: number | null;
+        deskId: string;
+        deskName?: string;
+        status: string;
+        createdAt: string;
+      }>>('/api/v1/treasury/orders', status ? { status } : undefined);
+
+      return orders.map((order) => ({
+        id: Number(order.id),
+        orderRef: order.orderRef,
+        orderType: order.orderType,
+        direction: order.side,
+        instrument: order.instrument,
+        instrumentName: order.instrumentName,
+        quantity: order.quantity,
+        price: order.price,
+        filledQuantity: order.filledQuantity,
+        avgFillPrice: order.avgFillPrice,
+        timeInForce: 'DAY',
+        status: (order.status === 'VALIDATED' || order.status === 'ROUTED') ? 'NEW' : order.status as MarketOrder['status'],
+        createdAt: order.createdAt,
+        account: order.deskName ?? order.deskId,
+      }));
+    },
   });
 }
 

@@ -1,10 +1,10 @@
-import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiDelete, apiGet, apiPost } from '@/lib/api';
 import type { DealingDesk, DeskDealer } from '../types/dealerDesk';
 
 export const dealerDesksApi = {
   /** GET /v1/dealer-desks/{id} */
   getDeskDashboard: (id: number) =>
-    apiGet<Record<string, unknown>>(`/api/v1/dealer-desks/${id}`),
+    apiGet<Record<string, unknown>>(`/api/v1/treasury/desks/${id}`),
 
   /** POST /v1/dealer-desks/{id}/dealers */
   authorizeDealer: (id: number, data: Partial<DeskDealer>) =>
@@ -14,8 +14,7 @@ export const dealerDesksApi = {
   revokeDealer: (id: number, dealerId: number) =>
     apiDelete<DeskDealer>(`/api/v1/dealer-desks/${id}/dealers/${dealerId}`),
 
-  /** PUT /v1/dealer-desks/{id}/suspend */
-  suspendDesk: (id: number) =>
-    apiPut<DealingDesk>(`/api/v1/dealer-desks/${id}/suspend`),
+  suspendDesk: (id: number, reason?: string) =>
+    apiPost<DealingDesk>(`/api/v1/treasury/desks/${id}/suspend`, reason ? { reason } : {}),
 
 };

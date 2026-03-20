@@ -8,6 +8,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +74,21 @@ public class DealingDesk extends AuditableEntity {
 
     @Column(name = "pnl_currency", length = 3)
     private String pnlCurrency;
+
+    @Column(name = "suspension_reason", length = 500)
+    private String suspensionReason;
+
+    @Column(name = "suspended_by", length = 100)
+    private String suspendedBy;
+
+    @Column(name = "suspended_at")
+    private Instant suspendedAt;
+
+    @Column(name = "activated_by", length = 100)
+    private String activatedBy;
+
+    @Column(name = "activated_at")
+    private Instant activatedAt;
 
     @Column(name = "status", nullable = false, length = 15)
     private String status;

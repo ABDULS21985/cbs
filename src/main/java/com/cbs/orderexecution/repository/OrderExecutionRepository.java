@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface OrderExecutionRepository extends JpaRepository<OrderExecution, Long> {
     Optional<OrderExecution> findByExecutionRef(String executionRef);
     List<OrderExecution> findByOrderIdOrderByExecutedAtDesc(Long orderId);
+    List<OrderExecution> findAllByOrderByExecutedAtDesc();
 }

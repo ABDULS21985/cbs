@@ -2,6 +2,7 @@ package com.cbs.dealerdesk.service;
 
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.dealerdesk.entity.DealingDesk;
 import com.cbs.dealerdesk.entity.DeskDealer;
 import com.cbs.dealerdesk.entity.DeskPnl;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -28,6 +30,7 @@ public class DealerDeskService {
     private final DealingDeskRepository deskRepository;
     private final DeskDealerRepository dealerRepository;
     private final DeskPnlRepository pnlRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public DealingDesk createDesk(DealingDesk desk) {
@@ -106,15 +109,98 @@ public class DealerDeskService {
         return deskRepository.findByStatus("ACTIVE");
     }
 
+    public List<DealingDesk> getAllDesks() {
+        return deskRepository.findAll();
+    }
+
+    public DealingDesk getDesk(Long deskId) {
+        return findDeskOrThrow(deskId);
+    }
+
     public List<DeskDealer> getDeskDealers(Long deskId) {
         return dealerRepository.findByDeskId(deskId);
     }
 
     @Transactional
     public DealingDesk suspendDesk(Long deskId) {
+        return suspendDesk(deskId, null);
+    }
+
+    @Transactional
+    public DealingDesk suspendDesk(Long deskId, String reason) {
         DealingDesk desk = findDeskOrThrow(deskId);
         desk.setStatus("SUSPENDED");
-        log.info("Desk {} suspended", desk.getDeskCode());
+        desk.setSuspensionReason(reason);
+        desk.setSuspendedBy(currentActorProvider.getCurrentActor());
+        desk.setSuspendedAt(Instant.now());
+        log.info("Desk {} suspended by {} with reason={}", desk.getDeskCode(), desk.getSuspendedBy(), reason);
+        return deskRepository.save(desk);
+    }
+
+    @Transactional
+    public DealingDesk activateDesk(Long deskId) {
+        DealingDesk desk = findDeskOrThrow(deskId);
+        desk.setStatus("ACTIVE");
+        desk.setActivatedBy(currentActorProvider.getCurrentActor());
+        desk.setActivatedAt(Instant.now());
+        desk.setSuspensionReason(null);
+        desk.setSuspendedBy(null);
+        desk.setSuspendedAt(null);
+        log.info("Desk {} activated by {}", desk.getDeskCode(), desk.getActivatedBy());
+        return deskRepository.save(desk);
+    }
+
+    @Transactional
+    public DealingDesk updateDesk(Long deskId, DealingDesk changes) {
+        DealingDesk desk = findDeskOrThrow(deskId);
+        if (changes.getDeskName() != null) {
+            desk.setDeskName(changes.getDeskName());
+        }
+        if (changes.getDeskType() != null) {
+            desk.setDeskType(changes.getDeskType());
+        }
+        if (changes.getHeadDealerName() != null) {
+            desk.setHeadDealerName(changes.getHeadDealerName());
+        }
+        if (changes.getHeadDealerEmployeeId() != null) {
+            desk.setHeadDealerEmployeeId(changes.getHeadDealerEmployeeId());
+        }
+        if (changes.getLocation() != null) {
+            desk.setLocation(changes.getLocation());
+        }
+        if (changes.getTimezone() != null) {
+            desk.setTimezone(changes.getTimezone());
+        }
+        if (changes.getTradingHoursStart() != null) {
+            desk.setTradingHoursStart(changes.getTradingHoursStart());
+        }
+        if (changes.getTradingHoursEnd() != null) {
+            desk.setTradingHoursEnd(changes.getTradingHoursEnd());
+        }
+        if (changes.getTradingDays() != null) {
+            desk.setTradingDays(changes.getTradingDays());
+        }
+        if (changes.getSupportedInstruments() != null) {
+            desk.setSupportedInstruments(changes.getSupportedInstruments());
+        }
+        if (changes.getSupportedCurrencies() != null) {
+            desk.setSupportedCurrencies(changes.getSupportedCurrencies());
+        }
+        if (changes.getMaxOpenPositionLimit() != null) {
+            desk.setMaxOpenPositionLimit(changes.getMaxOpenPositionLimit());
+        }
+        if (changes.getMaxSingleTradeLimit() != null) {
+            desk.setMaxSingleTradeLimit(changes.getMaxSingleTradeLimit());
+        }
+        if (changes.getDailyVarLimit() != null) {
+            desk.setDailyVarLimit(changes.getDailyVarLimit());
+        }
+        if (changes.getStopLossLimit() != null) {
+            desk.setStopLossLimit(changes.getStopLossLimit());
+        }
+        if (changes.getPnlCurrency() != null) {
+            desk.setPnlCurrency(changes.getPnlCurrency());
+        }
         return deskRepository.save(desk);
     }
 

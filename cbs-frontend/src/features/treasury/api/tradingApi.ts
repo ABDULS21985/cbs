@@ -289,12 +289,16 @@ export interface TradingMarketOrder {
 }
 
 export interface SubmitOrderRequest {
-  instrument: string;
+  instrumentCode: string;
+  instrumentName?: string;
   side: OrderSide;
   quantity: number;
   price?: number;
   orderType: OrderType;
-  deskId: string;
+  deskId: string | number;
+  timeInForce?: 'DAY' | 'GTC' | 'IOC' | 'FOK';
+  currency?: string;
+  instrumentType?: string;
 }
 
 // ─── Order Execution Types ─────────────────────────────────────────────────────
@@ -312,6 +316,14 @@ export interface OrderExecution {
   venue: string;
   fee: number;
   executedAt: string;
+}
+
+export interface InstrumentOption {
+  code: string;
+  name: string;
+  instrumentType: string;
+  assetClass: string;
+  currency: string;
 }
 
 // ─── Program Trading Types ─────────────────────────────────────────────────────
@@ -385,57 +397,57 @@ export const tradingApi = {
 
   // Analytics
   recordAnalytics: (data: RecordAnalyticsRequest) =>
-    apiPost<TreasuryAnalyticsRecord>('/api/v1/treasury-analytics', data),
+    apiPost<TreasuryAnalyticsRecord>('/api/v1/treasury/analytics/record', data),
   getAnalyticsByCurrency: (currency: string) =>
-    apiGet<TreasuryAnalyticsRecord[]>(`/api/v1/treasury-analytics/${currency}`),
+    apiGet<TreasuryAnalyticsRecord[]>('/api/v1/treasury/analytics', { currency }),
 
   // Dealer Desks
   listDealerDesks: () =>
-    apiGet<DealerDesk[]>('/api/v1/dealer-desks'),
+    apiGet<DealerDesk[]>('/api/v1/treasury/desks'),
   getDeskDashboard: (id: string) =>
-    apiGet<DeskDashboard>(`/api/v1/dealer-desks/${id}/dashboard`),
+    apiGet<DeskDashboard>(`/api/v1/treasury/desks/${id}`),
   recordDeskPnl: (id: string, data: RecordPnlRequest) =>
     apiPost<void>(`/api/v1/dealer-desks/${id}/pnl`, data),
 
   // Trader Positions
   getPositionsByDealer: (dealerId: string) =>
-    apiGet<TraderPosition[]>(`/api/v1/trader-positions/dealer/${dealerId}`),
+    apiGet<TraderPosition[]>(`/api/v1/treasury/positions/${dealerId}`),
   getPositionBreaches: (params: PositionBreachParams) =>
-    apiGet<TraderPosition[]>('/api/v1/trader-positions/breaches', params as unknown as Record<string, unknown>),
+    apiGet<TraderPosition[]>('/api/v1/treasury/positions/breaches', params as unknown as Record<string, unknown>),
   getOvernightPositions: (deskId: string) =>
     apiGet<OvernightPosition[]>(`/api/v1/trader-positions/overnight/${deskId}`),
 
   // Trading Books
   listTradingBooks: () =>
-    apiGet<TradingBook[]>('/api/v1/trading-books'),
+    apiGet<TradingBook[]>('/api/v1/treasury/trading-books'),
   getTradingBookDashboard: (id: string) =>
     apiGet<TradingBookDashboard>(`/api/v1/trading-books/${id}/dashboard`),
   getTradingBookCapital: (id: string) =>
     apiGet<BookCapital>(`/api/v1/trading-books/${id}/capital`),
   snapshotTradingBook: (id: string) =>
-    apiPost<void>(`/api/v1/trading-books/${id}/snapshot`),
+    apiPost<void>(`/api/v1/treasury/trading-books/${id}/snapshot`),
 
   // Market Making
   getActiveMarketMaking: () =>
-    apiGet<MarketMakingMandate[]>('/api/v1/market-making/active'),
+    apiGet<MarketMakingMandate[]>('/api/v1/treasury/market-making/mandates'),
   getObligationCompliance: () =>
-    apiGet<ObligationCompliance[]>('/api/v1/market-making/obligation-compliance'),
+    apiGet<ObligationCompliance[]>('/api/v1/treasury/market-making/compliance'),
   getMandatePerformance: (code: string) =>
-    apiGet<MandatePerformance>(`/api/v1/market-making/${code}/performance`),
+    apiGet<MandatePerformance>(`/api/v1/treasury/market-making/${code}/performance`),
 
   // Market Orders
   getOpenMarketOrders: () =>
-    apiGet<TradingMarketOrder[]>('/api/v1/market-orders/open'),
+    apiGet<TradingMarketOrder[]>('/api/v1/treasury/orders', { status: 'OPEN' }),
   getMarketOrder: (ref: string) =>
     apiGet<TradingMarketOrder>(`/api/v1/market-orders/${ref}`),
   submitMarketOrder: (data: SubmitOrderRequest) =>
-    apiPost<TradingMarketOrder>('/api/v1/market-orders', data),
-  cancelMarketOrder: (ref: string) =>
-    apiPost<void>(`/api/v1/market-orders/${ref}/cancel`),
+    apiPost<TradingMarketOrder>('/api/v1/treasury/orders', { ...data, deskId: Number(data.deskId) }),
+  cancelMarketOrder: (id: string | number, reason?: string) =>
+    apiPost<void>(`/api/v1/treasury/orders/${id}/cancel`, reason ? { reason } : {}),
 
   // Order Executions
   getExecutionsByOrder: (orderId: string) =>
-    apiGet<OrderExecution[]>(`/api/v1/order-executions/order/${orderId}`),
+    apiGet<OrderExecution[]>('/api/v1/treasury/executions', { orderId }),
 
   // Program Trading
   getActiveProgramExecutions: () =>
@@ -450,4 +462,7 @@ export const tradingApi = {
     apiGet<TradingModel[]>('/api/v1/trading-models'),
   getModelsDueForReview: () =>
     apiGet<TradingModel[]>('/api/v1/trading-models/due-for-review'),
+
+  searchInstruments: (q: string) =>
+    apiGet<InstrumentOption[]>('/api/v1/treasury/instruments', { q }),
 };

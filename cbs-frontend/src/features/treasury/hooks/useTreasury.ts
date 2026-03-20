@@ -276,6 +276,7 @@ export function useSubmitMarketOrder() {
     mutationFn: (data: SubmitOrderRequest) => tradingApi.submitMarketOrder(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['market-orders'] });
+      qc.invalidateQueries({ queryKey: ['treasury', 'orders'] });
     },
   });
 }
@@ -283,9 +284,10 @@ export function useSubmitMarketOrder() {
 export function useCancelMarketOrder() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (ref: string) => tradingApi.cancelMarketOrder(ref),
+    mutationFn: (ref: string | number) => tradingApi.cancelMarketOrder(ref),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['market-orders'] });
+      qc.invalidateQueries({ queryKey: ['treasury', 'orders'] });
     },
   });
 }

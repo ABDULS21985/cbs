@@ -26,6 +26,7 @@ import type {
 } from '../api/tradingApi';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { useSuspendDesk } from '../hooks/useTreasuryExt';
 
 // ─── Compliance Status Color Map ───────────────────────────────────────────────
 
@@ -300,6 +301,8 @@ export function MarketMakingPage() {
   const { data: compliance = [], isLoading: complianceLoading } = useMarketMakingCompliance();
   const [selectedMandateCode, setSelectedMandateCode] = useState<string>('');
   const [suspendTarget, setSuspendTarget] = useState<MarketMakingMandate | null>(null);
+  const [suspendReason, setSuspendReason] = useState('');
+  const suspendDesk = useSuspendDesk();
   const mandateColumns = buildMandateColumns(setSuspendTarget);
 
   const activeMandates = mandates.length;
@@ -531,10 +534,30 @@ export function MarketMakingPage() {
 
       <ConfirmDialog
         open={!!suspendTarget}
-        title="Suspend Mandate"
-        description={`Suspend mandate ${suspendTarget?.code} for ${suspendTarget?.instrumentName}? This will pause all market making obligations.`}
-        onConfirm={() => { toast.success(`Mandate ${suspendTarget?.code} suspended`); setSuspendTarget(null); }}
-        onClose={() => setSuspendTarget(null)}
+        title="Suspend Market-Making Desk"
+        description={`Suspend the desk behind mandate ${suspendTarget?.code} for ${suspendTarget?.instrumentName}. This will pause quote obligations for that mandate.`}
+        onConfirm={async () => {
+          if (!suspendTarget) return;
+          await suspendDesk.mutateAsync({ id: Number(suspendTarget.deskId), reason: suspendReason || `Market-making suspension for mandate ${suspendTarget.code}` });
+          toast.success(`Desk for mandate ${suspendTarget.code} suspended`);
+          setSuspendReason('');
+          setSuspendTarget(null);
+        }}
+        onClose={() => { setSuspendReason(''); setSuspendTarget(null); }}
+        isLoading={suspendDesk.isPending}
+        variant="destructive"
+        confirmLabel="Suspend Desk"
+      >
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-muted-foreground">Suspension Reason</label>
+          <textarea
+            value={suspendReason}
+            onChange={(event) => setSuspendReason(event.target.value)}
+            rows={3}
+            placeholder="State why this desk is being suspended"
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+        </div>
       />
     </>
   );
