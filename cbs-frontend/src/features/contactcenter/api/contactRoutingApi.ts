@@ -15,8 +15,8 @@ export const contactRoutingApi = {
     apiPost<Record<string, unknown>>('/api/v1/contact-routing/route'),
 
   /** PUT /v1/contact-routing/agents/{agentId}/state */
-  updateAgentState: (agentId: number) =>
-    apiPut<AgentState>(`/api/v1/contact-routing/agents/${agentId}/state`),
+  updateAgentState: (agentId: string | number, newState: string) =>
+    apiPut<AgentState>(`/api/v1/contact-routing/agents/${agentId}/state?newState=${encodeURIComponent(newState)}`),
 
   /** GET /v1/contact-routing/agents/center/{centerId} */
   getAgentPerformance: (centerId: number) =>

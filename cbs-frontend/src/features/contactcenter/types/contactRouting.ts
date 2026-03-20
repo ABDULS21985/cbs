@@ -16,8 +16,8 @@ export interface AgentState {
   qualityScore: number;
   maxConcurrentChats: number;
   activeChatCount: number;
-  shiftStart: LocalTime;
-  shiftEnd: LocalTime;
+  shiftStart: string;
+  shiftEnd: string;
 }
 
 export interface CallbackRequest {
@@ -69,4 +69,3 @@ export interface RoutingRule {
   effectiveFrom: string;
   effectiveTo: string;
 }
-

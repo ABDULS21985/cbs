@@ -53,7 +53,7 @@ public class ContactCenterService {
     }
 
     public List<ContactInteraction> getByCustomer(Long customerId) { return interactionRepository.findByCustomerIdOrderByCreatedAtDesc(customerId); }
-    public List<ContactInteraction> getAgentQueue(String agentId) { return interactionRepository.findByAgentIdAndStatusOrderByStartedAtDesc(agentId, "ACTIVE"); }
+    public List<ContactInteraction> getAgentInteractions(String agentId) { return interactionRepository.findByAgentIdOrderByStartedAtDesc(agentId); }
     public List<ContactCenter> getActiveCenters() { return centerRepository.findByIsActiveTrueOrderByCenterNameAsc(); }
     public List<ContactInteraction> getAllInteractions() { return interactionRepository.findAll(); }
 

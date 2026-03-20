@@ -141,9 +141,9 @@ export function useAdvanceMortgage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (number: string) => mortgagesApi.advance(number),
-    onSuccess: (_data, number) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.mortgages.all });
-      qc.invalidateQueries({ queryKey: KEYS.mortgages.detail(number) });
+      qc.invalidateQueries({ queryKey: ['mortgages'] });
     },
   });
 }
@@ -151,9 +151,10 @@ export function useAdvanceMortgage() {
 export function useOverpayMortgage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (number: string) => mortgagesApi.overpay(number),
-    onSuccess: (_data, number) => {
-      qc.invalidateQueries({ queryKey: KEYS.mortgages.detail(number) });
+    mutationFn: ({ number, amount }: { number: string; amount: number }) => mortgagesApi.overpay(number, amount),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.mortgages.all });
+      qc.invalidateQueries({ queryKey: ['mortgages'] });
     },
   });
 }
@@ -162,8 +163,9 @@ export function useRevertMortgageSvr() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (number: string) => mortgagesApi.revertSvr(number),
-    onSuccess: (_data, number) => {
-      qc.invalidateQueries({ queryKey: KEYS.mortgages.detail(number) });
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.mortgages.all });
+      qc.invalidateQueries({ queryKey: ['mortgages'] });
     },
   });
 }

@@ -514,14 +514,35 @@ public class ReportsService {
 
         return byProduct.entrySet().stream()
                 .map(e -> {
-                    BigDecimal amount = e.getValue().stream().map(LoanAccount::getOutstandingPrincipal)
+                    List<LoanAccount> loans = e.getValue();
+                    BigDecimal amount = loans.stream().map(LoanAccount::getOutstandingPrincipal)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal nplAmount = loans.stream()
+                            .filter(l -> l.getDaysPastDue() != null && l.getDaysPastDue() > 90)
+                            .map(LoanAccount::getOutstandingPrincipal)
+                            .filter(Objects::nonNull)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal weightedRateNumerator = loans.stream()
+                            .map(l -> safeDecimal(l.getInterestRate()).multiply(safeDecimal(l.getOutstandingPrincipal())))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal avgRate = amount.compareTo(BigDecimal.ZERO) > 0
+                            ? weightedRateNumerator.divide(amount, 2, RoundingMode.HALF_UP)
+                            : BigDecimal.ZERO;
+                    int avgTenorMonths = loans.isEmpty()
+                            ? 0
+                            : (int) Math.round(loans.stream()
+                                    .mapToInt(l -> l.getTenureMonths() != null ? l.getTenureMonths() : 0)
+                                    .average()
+                                    .orElse(0));
                     return ProductMixEntry.builder()
                             .productName(e.getKey())
-                            .productCode(e.getValue().get(0).getLoanProduct().getCode())
-                            .count(e.getValue().size())
+                            .productCode(loans.get(0).getLoanProduct().getCode())
+                            .count(loans.size())
                             .amount(amount)
                             .percentage(pct(amount, totalPortfolio))
+                            .nplPct(pct(nplAmount, amount))
+                            .avgRate(avgRate)
+                            .avgTenorMonths(avgTenorMonths)
                             .build();
                 })
                 .sorted(Comparator.comparing(ProductMixEntry::getAmount).reversed())
@@ -543,11 +564,18 @@ public class ReportsService {
 
         return bySector.entrySet().stream()
                 .map(e -> {
-                    BigDecimal exposure = e.getValue().stream().map(LoanAccount::getOutstandingPrincipal)
+                    List<LoanAccount> loans = e.getValue();
+                    BigDecimal exposure = loans.stream().map(LoanAccount::getOutstandingPrincipal)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal nplAmount = loans.stream()
+                            .filter(l -> l.getDaysPastDue() != null && l.getDaysPastDue() > 90)
+                            .map(LoanAccount::getOutstandingPrincipal)
+                            .filter(Objects::nonNull)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
                     return SectorExposureEntry.builder()
-                            .sector(e.getKey()).count(e.getValue().size())
+                            .sector(e.getKey()).count(loans.size())
                             .exposure(exposure).percentage(pct(exposure, totalPortfolio))
+                            .nplPct(pct(nplAmount, exposure))
                             .build();
                 })
                 .sorted(Comparator.comparing(SectorExposureEntry::getExposure).reversed())
@@ -569,8 +597,12 @@ public class ReportsService {
             List<LoanAccount> group = byBucket.getOrDefault(b, Collections.emptyList());
             BigDecimal amount = group.stream().map(LoanAccount::getOutstandingPrincipal)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal provision = group.stream().map(LoanAccount::getProvisionAmount)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
             result.add(DpdBucket.builder()
                     .bucket(b).count(group.size()).amount(amount).percentage(pct(amount, totalPortfolio))
+                    .provision(provision).coveragePct(pct(provision, amount))
                     .build());
         }
         return result;
@@ -639,6 +671,7 @@ public class ReportsService {
                             .max(Comparator.naturalOrder()).orElse("CURRENT");
                     return TopObligor.builder()
                             .customerName(c.getDisplayName()).cifNumber(c.getCifNumber())
+                            .sector(c.getSectorCode())
                             .exposure(exposure).percentage(pct(exposure, totalPortfolio))
                             .delinquencyBucket(worstBucket)
                             .build();
@@ -674,6 +707,130 @@ public class ReportsService {
                             .build();
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Cacheable("reports-loan-dpd-matrix")
+    public List<DpdMatrixRow> getLoanDpdMatrix() {
+        List<LoanAccount> active = safe(loanAccountRepository.findAllActiveLoans());
+        Map<String, List<LoanAccount>> byProduct = active.stream()
+                .filter(l -> l.getLoanProduct() != null)
+                .collect(Collectors.groupingBy(l -> l.getLoanProduct().getName()));
+
+        return byProduct.entrySet().stream()
+                .map(entry -> {
+                    Map<String, DpdMatrixCell> cells = createEmptyMatrixCells();
+                    for (LoanAccount loan : entry.getValue()) {
+                        String key = normalizeMatrixBucket(loan.getDelinquencyBucket());
+                        DpdMatrixCell existing = cells.get(key);
+                        cells.put(key, DpdMatrixCell.builder()
+                                .count(existing.getCount() + 1)
+                                .amount(existing.getAmount().add(safeDecimal(loan.getOutstandingPrincipal())))
+                                .build());
+                    }
+                    return DpdMatrixRow.builder()
+                            .product(entry.getKey())
+                            .current(cells.get("current"))
+                            .dpd1_30(cells.get("dpd1_30"))
+                            .dpd31_60(cells.get("dpd31_60"))
+                            .dpd61_90(cells.get("dpd61_90"))
+                            .dpd91_180(cells.get("dpd91_180"))
+                            .dpd180plus(cells.get("dpd180plus"))
+                            .build();
+                })
+                .sorted(Comparator.comparing(DpdMatrixRow::getProduct))
+                .collect(Collectors.toList());
+    }
+
+    @Cacheable("reports-loan-geographic-concentration")
+    public List<GeographicExposureEntry> getLoanGeographicConcentration() {
+        List<LoanAccount> active = safe(loanAccountRepository.findAllActiveLoans());
+        BigDecimal totalPortfolio = active.stream()
+                .map(LoanAccount::getOutstandingPrincipal)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Map<String, String> branchRegionMap = safe(branchRepository.findAll()).stream()
+                .collect(Collectors.toMap(
+                        Branch::getBranchCode,
+                        branch -> {
+                            if (branch.getStateProvince() != null && !branch.getStateProvince().isBlank()) return branch.getStateProvince();
+                            if (branch.getCity() != null && !branch.getCity().isBlank()) return branch.getCity();
+                            if (branch.getRegionCode() != null && !branch.getRegionCode().isBlank()) return branch.getRegionCode();
+                            return branch.getBranchCode();
+                        },
+                        (a, b) -> a
+                ));
+
+        Map<String, BigDecimal> exposureByRegion = new HashMap<>();
+        for (LoanAccount loan : active) {
+            String region = branchRegionMap.getOrDefault(loan.getBranchCode(), loan.getBranchCode() != null ? loan.getBranchCode() : "UNASSIGNED");
+            exposureByRegion.merge(region, safeDecimal(loan.getOutstandingPrincipal()), BigDecimal::add);
+        }
+
+        return exposureByRegion.entrySet().stream()
+                .map(entry -> GeographicExposureEntry.builder()
+                        .region(entry.getKey())
+                        .exposure(entry.getValue())
+                        .percentage(pct(entry.getValue(), totalPortfolio))
+                        .build())
+                .sorted(Comparator.comparing(GeographicExposureEntry::getExposure).reversed())
+                .collect(Collectors.toList());
+    }
+
+    @Cacheable("reports-loan-vintage-matrix")
+    public List<VintageCellEntry> getLoanVintageMatrix() {
+        List<LoanAccount> loans = safe(loanAccountRepository.findAll()).stream()
+                .filter(loan -> loan.getDisbursementDate() != null)
+                .collect(Collectors.toList());
+
+        int[] monthBuckets = {3, 6, 9, 12, 18, 24};
+        LocalDate today = LocalDate.now();
+        Map<String, List<LoanAccount>> byCohort = loans.stream()
+                .collect(Collectors.groupingBy(loan -> loan.getDisbursementDate().format(MONTH_FMT)));
+
+        List<VintageCellEntry> result = new ArrayList<>();
+        for (Map.Entry<String, List<LoanAccount>> cohortEntry : byCohort.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+            for (int monthBucket : monthBuckets) {
+                List<LoanAccount> eligible = cohortEntry.getValue().stream()
+                        .filter(loan -> ChronoUnit.MONTHS.between(loan.getDisbursementDate(), today) >= monthBucket)
+                        .collect(Collectors.toList());
+                if (eligible.isEmpty()) {
+                    continue;
+                }
+                long defaulted = eligible.stream()
+                        .filter(loan -> loan.getDaysPastDue() != null && loan.getDaysPastDue() > 90)
+                        .count();
+                result.add(VintageCellEntry.builder()
+                        .vintage(cohortEntry.getKey())
+                        .month("M" + monthBucket)
+                        .defaultRate(pct(defaulted, eligible.size()))
+                        .build());
+            }
+        }
+        return result;
+    }
+
+    private Map<String, DpdMatrixCell> createEmptyMatrixCells() {
+        Map<String, DpdMatrixCell> cells = new HashMap<>();
+        for (String key : List.of("current", "dpd1_30", "dpd31_60", "dpd61_90", "dpd91_180", "dpd180plus")) {
+            cells.put(key, DpdMatrixCell.builder().build());
+        }
+        return cells;
+    }
+
+    private String normalizeMatrixBucket(String bucket) {
+        if (bucket == null || bucket.isBlank() || "CURRENT".equalsIgnoreCase(bucket)) return "current";
+        return switch (bucket) {
+            case "1-30" -> "dpd1_30";
+            case "31-60" -> "dpd31_60";
+            case "61-90" -> "dpd61_90";
+            case "91-180" -> "dpd91_180";
+            default -> "dpd180plus";
+        };
+    }
+
+    private BigDecimal safeDecimal(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 
     // ========================================================================

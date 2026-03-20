@@ -3,12 +3,12 @@ import type { MortgageLoan } from '../types/mortgageExt';
 
 export const mortgagesApi = {
   /** POST /v1/mortgages/{number}/advance */
-  advance: (number: string) =>
-    apiPost<MortgageLoan>(`/api/v1/mortgages/${number}/advance`),
+  advance: (number: string, status?: string) =>
+    apiPost<MortgageLoan>(`/api/v1/mortgages/${number}/advance${status ? `?status=${encodeURIComponent(status)}` : ''}`),
 
   /** POST /v1/mortgages/{number}/overpayment */
-  overpay: (number: string) =>
-    apiPost<MortgageLoan>(`/api/v1/mortgages/${number}/overpayment`),
+  overpay: (number: string, amount: number) =>
+    apiPost<MortgageLoan>(`/api/v1/mortgages/${number}/overpayment`, { amount }),
 
   /** POST /v1/mortgages/{number}/revert-svr */
   revertSvr: (number: string) =>

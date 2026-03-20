@@ -335,6 +335,11 @@ public class ReportsController {
         return ResponseEntity.ok(ApiResponse.ok(reportsService.getDpdBuckets()));
     }
 
+    @GetMapping("/loans/dpd-matrix")
+    public ResponseEntity<ApiResponse<List<DpdMatrixRow>>> getLoanDpdMatrix() {
+        return ResponseEntity.ok(ApiResponse.ok(reportsService.getLoanDpdMatrix()));
+    }
+
     @GetMapping("/loans/npl-trend")
     public ResponseEntity<ApiResponse<List<NplTrendEntry>>> getNplTrend(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -357,6 +362,16 @@ public class ReportsController {
     @GetMapping("/loans/vintage")
     public ResponseEntity<ApiResponse<List<VintageEntry>>> getLoanVintage() {
         return ResponseEntity.ok(ApiResponse.ok(reportsService.getLoanVintage()));
+    }
+
+    @GetMapping("/loans/vintage-matrix")
+    public ResponseEntity<ApiResponse<List<VintageCellEntry>>> getLoanVintageMatrix() {
+        return ResponseEntity.ok(ApiResponse.ok(reportsService.getLoanVintageMatrix()));
+    }
+
+    @GetMapping("/loans/geographic-concentration")
+    public ResponseEntity<ApiResponse<List<GeographicExposureEntry>>> getLoanGeographicConcentration() {
+        return ResponseEntity.ok(ApiResponse.ok(reportsService.getLoanGeographicConcentration()));
     }
 
     // ========================================================================

@@ -161,6 +161,9 @@ public final class ReportDTOs {
         @Builder.Default private long count = 0;
         @Builder.Default private BigDecimal amount = BigDecimal.ZERO;
         @Builder.Default private BigDecimal percentage = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal nplPct = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal avgRate = BigDecimal.ZERO;
+        @Builder.Default private Integer avgTenorMonths = 0;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -169,6 +172,7 @@ public final class ReportDTOs {
         @Builder.Default private long count = 0;
         @Builder.Default private BigDecimal exposure = BigDecimal.ZERO;
         @Builder.Default private BigDecimal percentage = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal nplPct = BigDecimal.ZERO;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -177,6 +181,8 @@ public final class ReportDTOs {
         @Builder.Default private long count = 0;
         @Builder.Default private BigDecimal amount = BigDecimal.ZERO;
         @Builder.Default private BigDecimal percentage = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal provision = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal coveragePct = BigDecimal.ZERO;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -199,6 +205,7 @@ public final class ReportDTOs {
     public static class TopObligor {
         private String customerName;
         private String cifNumber;
+        private String sector;
         @Builder.Default private BigDecimal exposure = BigDecimal.ZERO;
         @Builder.Default private BigDecimal percentage = BigDecimal.ZERO;
         private String delinquencyBucket;
@@ -211,6 +218,37 @@ public final class ReportDTOs {
         @Builder.Default private BigDecimal disbursedAmount = BigDecimal.ZERO;
         @Builder.Default private BigDecimal outstandingAmount = BigDecimal.ZERO;
         @Builder.Default private BigDecimal nplRate = BigDecimal.ZERO;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class DpdMatrixCell {
+        @Builder.Default private long count = 0;
+        @Builder.Default private BigDecimal amount = BigDecimal.ZERO;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class DpdMatrixRow {
+        private String product;
+        private DpdMatrixCell current;
+        private DpdMatrixCell dpd1_30;
+        private DpdMatrixCell dpd31_60;
+        private DpdMatrixCell dpd61_90;
+        private DpdMatrixCell dpd91_180;
+        private DpdMatrixCell dpd180plus;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class GeographicExposureEntry {
+        private String region;
+        @Builder.Default private BigDecimal exposure = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal percentage = BigDecimal.ZERO;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class VintageCellEntry {
+        private String vintage;
+        private String month;
+        @Builder.Default private BigDecimal defaultRate = BigDecimal.ZERO;
     }
 
     // ========================================================================

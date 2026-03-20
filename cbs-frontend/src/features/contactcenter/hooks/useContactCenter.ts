@@ -16,7 +16,7 @@ export const CONTACT_CENTER_KEYS = {
   interactions: ['contact-center', 'interactions'] as const,
   interactionsByCustomer: (customerId: number) =>
     [...CONTACT_CENTER_KEYS.interactions, 'customer', customerId] as const,
-  interactionsByAgent: (agentId: number) =>
+  interactionsByAgent: (agentId: string | number) =>
     [...CONTACT_CENTER_KEYS.interactions, 'agent', agentId] as const,
 
   // Routing
@@ -53,7 +53,7 @@ export function useCustomerInteractions(customerId: number) {
   });
 }
 
-export function useAgentInteractions(agentId: number) {
+export function useAgentInteractions(agentId: string | number) {
   return useQuery({
     queryKey: CONTACT_CENTER_KEYS.interactionsByAgent(agentId),
     queryFn: () => contactCenterApi.getInteractionsByAgent(agentId),
@@ -128,7 +128,7 @@ export function useRouteContact() {
 export function useUpdateAgentState() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (agentId: number) => contactRoutingApi.updateAgentState(agentId),
+    mutationFn: ({ agentId, newState }: { agentId: string | number; newState: string }) => contactRoutingApi.updateAgentState(agentId, newState),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.routing });
     },

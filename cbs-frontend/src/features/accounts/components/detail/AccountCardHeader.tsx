@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
-  ArrowRightLeft, FileText, Info,
+  ArrowRightLeft, FileText, Settings,
 } from 'lucide-react';
 import { MoneyDisplay, StatusBadge } from '@/components/shared';
 import { formatAccountNumber, formatDate } from '@/lib/formatters';
@@ -91,10 +91,13 @@ export function AccountCardHeader({ account }: AccountCardHeaderProps) {
           <FileText className="w-4 h-4" />
           Statements
         </Link>
-        <div className="ml-auto inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-primary-foreground/80">
-          <Info className="w-3.5 h-3.5" />
-          Use teller and servicing workbenches for cash operations and account maintenance.
-        </div>
+        <Link
+          to={`/accounts/${account.id}/maintenance`}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition-colors"
+        >
+          <Settings className="w-4 h-4" />
+          Account Maintenance
+        </Link>
       </div>
     </div>
   );

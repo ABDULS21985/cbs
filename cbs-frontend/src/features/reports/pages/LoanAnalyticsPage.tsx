@@ -4,7 +4,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import {
   getLoanPortfolioStats,
   getDpdBuckets,
+  getDpdMatrix,
   getSectorExposure,
+  getGeographicConcentration,
   getProductMix,
   getVintageData,
   getNplTrend,
@@ -12,7 +14,9 @@ import {
   getTopObligors,
   type LoanPortfolioStats,
   type DpdBucket,
+  type DpdMatrixRow,
   type SectorExposure,
+  type GeographicConcentration,
   type ProductMix,
   type VintageCell,
   type NplTrendPoint,
@@ -22,6 +26,7 @@ import {
 import { LoanStatsCards } from '../components/loans/LoanStatsCards';
 import { DpdAgingChart } from '../components/loans/DpdAgingChart';
 import { DpdAgingTable } from '../components/loans/DpdAgingTable';
+import { DpdHeatmapMatrix } from '../components/loans/DpdHeatmapMatrix';
 import { VintageAnalysisChart, type VintageCohort } from '../components/loans/VintageAnalysisChart';
 import { ConcentrationDashboard, type SectorItem, type GeographicItem, type ObligorItem, type ProductItem } from '../components/loans/ConcentrationDashboard';
 import { ProductMixDonut } from '../components/loans/ProductMixDonut';
@@ -65,11 +70,6 @@ function StatsSkeleton() {
 
 // ─── Helpers for derived data ─────────────────────────────────────────────────
 
-// buildDpdMatrix was removed: it generated synthetic product-level DPD counts using hardcoded
-// proportions (Math.round(1200 * ...) etc.) rather than real backend data.
-// Wire GET /api/v1/reports/loans/dpd-matrix (product × bucket breakdown) to re-enable
-// the DpdHeatmapMatrix component.
-
 function buildVintageCohorts(vintage: VintageCell[]): VintageCohort[] {
   const cohortMap: Record<string, { months: number[]; rates: number[] }> = {};
   for (const cell of vintage) {
@@ -91,6 +91,7 @@ function buildVintageCohorts(vintage: VintageCell[]): VintageCohort[] {
 
 function buildConcentrationData(
   sectors: SectorExposure[],
+  geography: GeographicConcentration[],
   products: ProductMix[],
   obligors: TopObligor[],
 ) {
@@ -101,9 +102,12 @@ function buildConcentrationData(
     color: s.color,
   }));
 
-  // Geographic concentration data removed — it was hardcoded Nigeria-specific placeholder values.
-  // Wire GET /api/v1/reports/loans/geographic-concentration to provide real data.
-  const geographicData: GeographicItem[] = [];
+  const geographicData: GeographicItem[] = geography.map((g) => ({
+    region: g.region,
+    amount: g.amount,
+    pct: g.portfolioPct,
+    color: g.color,
+  }));
 
   const obligorData: ObligorItem[] = obligors.map((o) => ({
     rank: o.rank,
@@ -132,7 +136,9 @@ export function LoanAnalyticsPage() {
 
   const [stats, setStats] = useState<LoanPortfolioStats | null>(null);
   const [dpdBuckets, setDpdBuckets] = useState<DpdBucket[]>([]);
+  const [dpdMatrix, setDpdMatrix] = useState<DpdMatrixRow[]>([]);
   const [sectors, setSectors] = useState<SectorExposure[]>([]);
+  const [geography, setGeography] = useState<GeographicConcentration[]>([]);
   const [products, setProducts] = useState<ProductMix[]>([]);
   const [vintage, setVintage] = useState<VintageCell[]>([]);
   const [nplTrend, setNplTrend] = useState<NplTrendPoint[]>([]);
@@ -144,10 +150,12 @@ export function LoanAnalyticsPage() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [s, dpd, sec, prod, vint, npl, wf, obl] = await Promise.all([
+      const [s, dpd, matrix, sec, geo, prod, vint, npl, wf, obl] = await Promise.all([
         getLoanPortfolioStats(),
         getDpdBuckets(),
+        getDpdMatrix(),
         getSectorExposure(),
+        getGeographicConcentration(),
         getProductMix(),
         getVintageData(),
         getNplTrend(),
@@ -156,7 +164,9 @@ export function LoanAnalyticsPage() {
       ]);
       setStats(s);
       setDpdBuckets(dpd);
+      setDpdMatrix(matrix);
       setSectors(sec);
+      setGeography(geo);
       setProducts(prod);
       setVintage(vint);
       setNplTrend(npl);
@@ -180,8 +190,8 @@ export function LoanAnalyticsPage() {
   // Derived data
   const vintageCohorts = useMemo(() => buildVintageCohorts(vintage), [vintage]);
   const concentrationData = useMemo(
-    () => buildConcentrationData(sectors, products, obligors),
-    [sectors, products, obligors],
+    () => buildConcentrationData(sectors, geography, products, obligors),
+    [sectors, geography, products, obligors],
   );
 
   return (
@@ -240,18 +250,11 @@ export function LoanAnalyticsPage() {
           <LoanStatsCards stats={stats} />
         )}
 
-        {/* DPD Heatmap Matrix — not yet available (backend product×bucket breakdown needed) */}
-        <div className="bg-card rounded-lg border border-border p-6">
-          <div className="font-semibold text-sm mb-1">DPD Heatmap Matrix</div>
-          <div className="text-xs text-muted-foreground mb-4">Product × delinquency bucket breakdown</div>
-          <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm border border-dashed rounded-lg">
-            Product-level DPD matrix is not available. Wire{' '}
-            <code className="mx-1 text-xs bg-muted px-1 py-0.5 rounded">
-              GET /api/v1/reports/loans/dpd-matrix
-            </code>{' '}
-            to enable this component.
-          </div>
-        </div>
+        {loading || dpdMatrix.length === 0 ? (
+          <SectionSkeleton height={300} />
+        ) : (
+          <DpdHeatmapMatrix data={dpdMatrix} />
+        )}
 
         {/* DPD Aging — Chart + Table (kept as secondary view) */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

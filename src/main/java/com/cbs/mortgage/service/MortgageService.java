@@ -71,18 +71,23 @@ public class MortgageService {
                 "DEFAULT", List.of("FORECLOSURE", "ACTIVE")
         );
 
-        if (!validTransitions.getOrDefault(current, List.of()).contains(newStatus)) {
-            throw new BusinessException("Invalid transition: " + current + " → " + newStatus);
+        String targetStatus = (newStatus == null || newStatus.isBlank())
+                ? validTransitions.getOrDefault(current, List.of()).stream().findFirst()
+                        .orElseThrow(() -> new BusinessException("No next status available from " + current))
+                : newStatus;
+
+        if (!validTransitions.getOrDefault(current, List.of()).contains(targetStatus)) {
+            throw new BusinessException("Invalid transition: " + current + " → " + targetStatus);
         }
 
-        m.setStatus(newStatus);
-        if ("COMPLETION".equals(newStatus)) m.setCompletionDate(LocalDate.now());
-        if ("ACTIVE".equals(newStatus) && m.getFirstPaymentDate() == null) {
+        m.setStatus(targetStatus);
+        if ("COMPLETION".equals(targetStatus)) m.setCompletionDate(LocalDate.now());
+        if ("ACTIVE".equals(targetStatus) && m.getFirstPaymentDate() == null) {
             m.setFirstPaymentDate(LocalDate.now().plusMonths(1).withDayOfMonth(1));
             m.setMaturityDate(m.getFirstPaymentDate().plusMonths(m.getTermMonths()));
         }
         m.setUpdatedAt(Instant.now());
-        log.info("Mortgage status advanced: {} → {}, mortgage={}", current, newStatus, mortgageNumber);
+        log.info("Mortgage status advanced: {} → {}, mortgage={}", current, targetStatus, mortgageNumber);
         return mortgageRepository.save(m);
     }
 
@@ -90,10 +95,12 @@ public class MortgageService {
     public MortgageLoan makeOverpayment(String mortgageNumber, BigDecimal amount) {
         MortgageLoan m = getByNumber(mortgageNumber);
         if (!"ACTIVE".equals(m.getStatus())) throw new BusinessException("Mortgage not active");
+        if (amount == null || amount.signum() <= 0) throw new BusinessException("Overpayment amount must be positive");
+        if (amount.compareTo(m.getCurrentBalance()) > 0) throw new BusinessException("Overpayment exceeds current balance");
 
         BigDecimal maxOverpayment = m.getPrincipalAmount()
                 .multiply(m.getAnnualOverpaymentPct()).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-        BigDecimal newYtd = m.getOverpaymentsYtd().add(amount);
+        BigDecimal newYtd = defaultValue(m.getOverpaymentsYtd()).add(amount);
 
         if (newYtd.compareTo(maxOverpayment) > 0 && m.getEarlyRepaymentCharge() != null) {
             log.warn("Overpayment exceeds annual allowance: ytd={}, max={}, ERC may apply", newYtd, maxOverpayment);
@@ -102,6 +109,11 @@ public class MortgageService {
         m.setCurrentBalance(m.getCurrentBalance().subtract(amount));
         m.setOverpaymentsYtd(newYtd);
         m.setCurrentLtv(m.calculateCurrentLtv());
+        if (m.getRemainingMonths() != null && m.getRemainingMonths() > 0 && m.getMonthlyPayment() != null && m.getMonthlyPayment().signum() > 0) {
+            BigDecimal monthsLeft = m.getCurrentBalance()
+                    .divide(m.getMonthlyPayment(), 0, RoundingMode.CEILING);
+            m.setRemainingMonths(Math.max(0, monthsLeft.intValue()));
+        }
         m.setUpdatedAt(Instant.now());
         log.info("Mortgage overpayment: mortgage={}, amount={}, newBalance={}", mortgageNumber, amount, m.getCurrentBalance());
         return mortgageRepository.save(m);
@@ -125,6 +137,37 @@ public class MortgageService {
     public List<MortgageLoan> getFixedRateExpiring() { return mortgageRepository.findFixedRateExpiring(); }
     public List<MortgageLoan> getHighLtvMortgages(BigDecimal maxLtv) { return mortgageRepository.findHighLtvMortgages(maxLtv); }
     public List<MortgageLoan> getByCustomer(Long customerId) { return mortgageRepository.findByCustomerIdOrderByCreatedAtDesc(customerId); }
+    public MortgageLoan getById(Long id) {
+        return mortgageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("MortgageLoan", "id", id));
+    }
+
+    public List<Map<String, Object>> getLtvHistory(Long id) {
+        MortgageLoan mortgage = getById(id);
+        List<Map<String, Object>> history = new ArrayList<>();
+
+        history.add(Map.of(
+                "date", mortgage.getValuationDate() != null ? mortgage.getValuationDate().toString() : mortgage.getCreatedAt().toString(),
+                "ltv", defaultValue(mortgage.getLtvAtOrigination()),
+                "outstanding", defaultValue(mortgage.getPrincipalAmount()),
+                "propertyValue", defaultValue(mortgage.getPropertyValuation())
+        ));
+
+        LocalDate currentDate = mortgage.getUpdatedAt() != null
+                ? mortgage.getUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                : LocalDate.now();
+        String openingDate = history.get(0).get("date").toString();
+        if (!currentDate.toString().equals(openingDate)) {
+            history.add(Map.of(
+                    "date", currentDate.toString(),
+                    "ltv", defaultValue(mortgage.getCurrentLtv()),
+                    "outstanding", defaultValue(mortgage.getCurrentBalance()),
+                    "propertyValue", defaultValue(mortgage.getPropertyValuation())
+            ));
+        }
+
+        return history;
+    }
 
     private MortgageLoan getByNumber(String number) {
         return mortgageRepository.findByMortgageNumber(number)
@@ -139,6 +182,10 @@ public class MortgageService {
 
     public java.util.List<MortgageLoan> getAllMortgages() {
         return mortgageRepository.findAll();
+    }
+
+    private BigDecimal defaultValue(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 
 }

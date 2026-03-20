@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import { CreditCard, FileText, Building2, BarChart3, Loader2 } from 'lucide-react';
+import { CreditCard, FileText, Building2, BarChart3, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage, EmptyState, StatCard, InfoGrid } from '@/components/shared';
 import { FormSection } from '@/components/shared/FormSection';
-import { formatMoney, formatPercent, formatDate } from '@/lib/formatters';
+import { formatMoney, formatPercent, formatDate, formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useMortgage, useMortgageLtvHistory } from '../hooks/useMortgages';
 import { useAdvanceMortgage, useOverpayMortgage, useRevertMortgageSvr } from '../hooks/useLendingExt';
@@ -13,6 +14,7 @@ import { PropertyDetailsCard } from '../components/mortgage/PropertyDetailsCard'
 import { LtvTrackingChart } from '../components/mortgage/LtvTrackingChart';
 import { MortgageCalculator } from '../components/mortgage/MortgageCalculator';
 import { DisbursementMilestones } from '../components/mortgage/DisbursementMilestones';
+import { mortgageApi } from '../api/mortgageApi';
 
 const statusColor = (s: string) => s === 'ACTIVE' ? 'bg-green-100 text-green-800' : s === 'OVERDUE' || s === 'DEFAULT' ? 'bg-red-100 text-red-800' : s === 'CLOSED' ? 'bg-gray-100 text-gray-700' : 'bg-amber-100 text-amber-800';
 
@@ -20,27 +22,56 @@ export default function MortgageDetailPage() {
   useEffect(() => { document.title = 'Mortgage Detail | CBS'; }, []);
   const { id } = useParams<{ id: string }>();
   const loanId = Number(id);
+  const queryClient = useQueryClient();
   const [showOverpay, setShowOverpay] = useState(false);
   const [overpayAmount, setOverpayAmount] = useState(0);
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [documentType, setDocumentType] = useState('OTHER');
+  const [documentDescription, setDocumentDescription] = useState('');
 
   const { data: loan, isLoading } = useMortgage(loanId);
   const { data: ltvHistory } = useMortgageLtvHistory(loanId);
+  const { data: documents = [], isLoading: documentsLoading } = useQuery({
+    queryKey: ['mortgages', loanId, 'documents'],
+    queryFn: () => mortgageApi.listDocuments(loanId),
+    enabled: !!loanId,
+  });
   const advanceMutation = useAdvanceMortgage();
   const overpayMutation = useOverpayMortgage();
   const revertMutation = useRevertMortgageSvr();
+  const uploadDocumentMutation = useMutation({
+    mutationFn: () => {
+      if (!documentFile) {
+        throw new Error('Document file is required');
+      }
+      return mortgageApi.uploadDocument(loanId, {
+        file: documentFile,
+        type: documentType,
+        description: documentDescription,
+      });
+    },
+    onSuccess: () => {
+      setDocumentFile(null);
+      setDocumentType('OTHER');
+      setDocumentDescription('');
+      queryClient.invalidateQueries({ queryKey: ['mortgages', loanId, 'documents'] });
+      toast.success('Mortgage document uploaded');
+    },
+    onError: () => toast.error('Failed to upload document'),
+  });
 
   if (isLoading) return <div className="p-6 space-y-4 animate-pulse"><div className="h-8 w-64 bg-muted rounded" /><div className="h-64 bg-muted rounded-lg" /></div>;
   if (!loan) return <EmptyState title="Mortgage not found" description="The requested mortgage could not be found." />;
 
   const ext = loan as any;
   const isActive = loan.status === 'ACTIVE';
-  const isPreActive = ['APPLICATION', 'OFFER', 'EXCHANGE', 'COMPLETION'].includes(loan.status);
+  const isPreActive = ['APPLICATION', 'VALUATION', 'OFFER', 'LEGAL', 'COMPLETION'].includes(loan.status);
   const fixedExpired = ext.fixedRateEndDate && new Date(ext.fixedRateEndDate) < new Date();
-  const overpayLimit = (ext.annualOverpaymentPct ?? 0.1) * (ext.principalAmount ?? loan.disbursedAmount);
+  const overpayLimit = ((ext.annualOverpaymentPct ?? 10) / 100) * (ext.principalAmount ?? loan.disbursedAmount);
   const overpayRemaining = Math.max(0, overpayLimit - (ext.overpaymentsYtd ?? 0));
 
   const handleOverpay = () => {
-    overpayMutation.mutate(ext.mortgageNumber ?? loan.loanNumber, {
+    overpayMutation.mutate({ number: ext.mortgageNumber ?? loan.loanNumber, amount: overpayAmount }, {
       onSuccess: () => { toast.success('Overpayment recorded'); setShowOverpay(false); },
       onError: () => toast.error('Failed'),
     });
@@ -170,11 +201,68 @@ export default function MortgageDetailPage() {
     {
       id: 'documents', label: 'Documents', icon: FileText,
       content: (
-        <div className="p-6">
-          <EmptyState
-            title="No mortgage document records"
-            description="The mortgage detail response does not include document metadata for this case. Review supporting files in the lending document repository."
-          />
+        <div className="p-6 space-y-6">
+          <div className="rounded-xl border bg-card p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">Upload Mortgage Document</h3>
+              <p className="text-xs text-muted-foreground mt-1">Attach valuation, title, insurance, or other supporting files directly to this mortgage.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <select value={documentType} onChange={(e) => setDocumentType(e.target.value)} className="w-full rounded-lg border bg-background px-3 py-2 text-sm">
+                {['COLLATERAL_DOC', 'LOAN_AGREEMENT', 'BANK_STATEMENT', 'INCOME_PROOF', 'OTHER'].map((type) => (
+                  <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+              <input type="text" value={documentDescription} onChange={(e) => setDocumentDescription(e.target.value)} placeholder="Description"
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm md:col-span-2" />
+              <input type="file" onChange={(e) => setDocumentFile(e.target.files?.[0] ?? null)}
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm md:col-span-2" />
+              <button onClick={() => uploadDocumentMutation.mutate()} disabled={uploadDocumentMutation.isPending || !documentFile}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                {uploadDocumentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                Upload
+              </button>
+            </div>
+          </div>
+
+          {documentsLoading ? (
+            <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">Loading documents...</div>
+          ) : documents.length === 0 ? (
+            <EmptyState
+              title="No mortgage documents yet"
+              description="Upload the first supporting document for this mortgage."
+            />
+          ) : (
+            <div className="rounded-xl border bg-card overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Document</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-left font-medium text-muted-foreground">Uploaded</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((document) => (
+                    <tr key={document.id} className="border-t">
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{document.fileName}</div>
+                        <div className="text-xs text-muted-foreground">{document.description || document.documentRef}</div>
+                      </td>
+                      <td className="px-4 py-3 text-xs">{document.documentType.replace(/_/g, ' ')}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${document.verificationStatus === 'VERIFIED' ? 'bg-green-100 text-green-800' : document.verificationStatus === 'REJECTED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
+                          {document.verificationStatus}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{formatDateTime(document.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       ),
     },
