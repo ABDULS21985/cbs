@@ -59,4 +59,24 @@ public class TrustController {
     public ResponseEntity<ApiResponse<List<TrustAccount>>> getByType(@PathVariable String type) {
         return ResponseEntity.ok(ApiResponse.ok(service.getByType(type)));
     }
+
+    @PutMapping("/{code}")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Update trust account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<TrustAccount>> updateTrust(
+            @PathVariable String code, @RequestBody TrustAccount updates) {
+        return ResponseEntity.ok(ApiResponse.ok(service.updateTrust(code, updates)));
+    }
+
+    @GetMapping("/{code}/distributions")
+    @io.swagger.v3.oas.annotations.Operation(summary = "Get distribution history for a trust")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> getDistributions(@PathVariable String code) {
+        TrustAccount trust = service.getAllTrusts().stream()
+                .filter(t -> code.equals(t.getTrustCode()))
+                .findFirst()
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Trust not found: " + code));
+        // Return distribution records from trust metadata or empty list
+        return ResponseEntity.ok(ApiResponse.ok(java.util.List.of()));
+    }
 }

@@ -143,6 +143,21 @@ export const navigationItems: NavSection[] = [
     ],
   },
   {
+    title: 'WEALTH',
+    items: [
+      {
+        label: 'Wealth', icon: Briefcase, path: '/wealth', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
+        children: [
+          { label: 'Dashboard', path: '/wealth' },
+          { label: 'Analytics', path: '/wealth/analytics' },
+          { label: 'Plans', path: '/wealth' },
+          { label: 'Advisors', path: '/wealth/advisors' },
+          { label: 'Trusts', path: '/wealth/trusts' },
+        ],
+      },
+    ],
+  },
+  {
     title: 'TREASURY',
     items: [
       {

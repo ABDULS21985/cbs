@@ -1,4 +1,4 @@
-import { AlertTriangle, DollarSign, ShieldCheck, TrendingDown, Target } from 'lucide-react';
+import { AlertTriangle, Clock3, Search, ShieldCheck, Target } from 'lucide-react';
 import { StatCard } from '@/components/shared';
 import type { FraudStats } from '../../types/fraud';
 
@@ -11,40 +11,36 @@ export function FraudStatsCards({ stats, isLoading }: Props) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 px-6 py-4">
       <StatCard
-        label="Active Alerts"
-        value={stats?.activeAlerts ?? 0}
+        label="Total Alerts"
+        value={stats?.totalAlerts ?? 0}
         format="number"
         icon={AlertTriangle}
         loading={isLoading}
       />
       <StatCard
-        label="Confirmed Fraud MTD"
-        value={stats?.confirmedFraudMtd ?? 0}
-        format="money"
-        compact
-        icon={DollarSign}
+        label="New Alerts"
+        value={stats?.newAlerts ?? 0}
+        format="number"
+        icon={Clock3}
         loading={isLoading}
       />
       <StatCard
-        label="Prevented MTD"
-        value={stats?.preventedMtd ?? 0}
-        format="money"
-        compact
+        label="Investigating"
+        value={stats?.investigatingAlerts ?? 0}
+        format="number"
+        icon={Search}
+        loading={isLoading}
+      />
+      <StatCard
+        label="Resolved"
+        value={stats?.resolvedAlerts ?? 0}
+        format="number"
         icon={ShieldCheck}
-        trend="up"
         loading={isLoading}
       />
       <StatCard
-        label="Loss MTD"
-        value={stats?.lossMtd ?? 0}
-        format="money"
-        compact
-        icon={TrendingDown}
-        loading={isLoading}
-      />
-      <StatCard
-        label="Detection Rate"
-        value={stats?.detectionRate ?? 0}
+        label="Resolution Rate"
+        value={stats?.resolutionRate ?? 0}
         format="percent"
         icon={Target}
         loading={isLoading}

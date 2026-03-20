@@ -137,6 +137,167 @@ export interface TrustCreateRequest {
   beneficiaries: Omit<Beneficiary, 'id'>[];
 }
 
+// ─── Advisor Performance Types ──────────────────────────────────────────────
+
+export interface AdvisorPerformance {
+  advisorId: string;
+  monthlyReturns: { month: string; return: number; benchmark: number }[];
+  clientRetentionRate: number;
+  avgAlpha: number;
+  aumByAssetClass: { month: string; equities: number; fixedIncome: number; alternatives: number; cash: number }[];
+  satisfactionScores: { month: string; score: number }[];
+}
+
+export interface AdvisorClient {
+  id: string;
+  clientName: string;
+  planCode: string;
+  planType: string;
+  aum: number;
+  ytdReturn: number;
+  lastReviewDate: string;
+  goalStatus: 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK';
+  riskProfile: string;
+}
+
+export interface AdvisorReview {
+  id: string;
+  clientName: string;
+  planCode: string;
+  dateTime: string;
+  reviewType: 'ANNUAL_REVIEW' | 'MID_YEAR' | 'AD_HOC' | 'QUARTERLY_UPDATE' | 'REBALANCING';
+  status: 'SCHEDULED' | 'CONFIRMED' | 'OVERDUE' | 'COMPLETED';
+  notes?: string;
+}
+
+export interface AdvisorCertification {
+  id: string;
+  name: string;
+  issuingBody: string;
+  expiryDate: string;
+  status: 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED';
+}
+
+export interface ClientMatchRequest {
+  aum: number;
+  riskTolerance: string;
+  goals: string[];
+}
+
+export interface ClientMatchResult {
+  advisorId: string;
+  advisorName: string;
+  matchScore: number;
+  reasons: string[];
+}
+
+// ─── Trust Beneficiary CRUD Types ───────────────────────────────────────────
+
+export interface BeneficiaryCreateRequest {
+  name: string;
+  relationship: string;
+  sharePercent: number;
+  contactInfo: string;
+}
+
+export interface ScheduledDistribution {
+  id: string;
+  beneficiaryId: string;
+  beneficiaryName: string;
+  amount: number;
+  frequency: 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
+  nextDate: string;
+  type: 'INCOME' | 'PRINCIPAL' | 'SPECIAL';
+  status: 'ACTIVE' | 'PAUSED';
+}
+
+export interface TrustComplianceItem {
+  id: string;
+  name: string;
+  type: 'DEED_REVIEW' | 'REGULATORY_FILING' | 'IPS_COMPLIANCE' | 'FEE_SCHEDULE';
+  dueDate: string;
+  status: 'COMPLIANT' | 'DUE_SOON' | 'OVERDUE' | 'PENDING';
+  lastCompleted?: string;
+}
+
+// ─── Analytics Types (W4) ───────────────────────────────────────────────────
+
+export interface AumWaterfallPoint {
+  category: string;
+  amount: number;
+  type: 'positive' | 'negative' | 'total';
+}
+
+export interface AumSegmentPoint {
+  month: string;
+  hnwi: number;
+  uhnwi: number;
+  massAffluent: number;
+  institutional: number;
+}
+
+export interface ConcentrationRisk {
+  clientName: string;
+  aum: number;
+  percentOfTotal: number;
+  planCode: string;
+}
+
+export interface FlowAnalysisPoint {
+  month: string;
+  inflows: number;
+  outflows: number;
+  netFlow: number;
+}
+
+export interface PerformanceAttribution {
+  advisorId: string;
+  advisorName: string;
+  excessReturn: number;
+  aumManaged: number;
+  sharpeRatio: number;
+}
+
+export interface ClientSegment {
+  segment: string;
+  count: number;
+  totalAum: number;
+  avgReturn: number;
+}
+
+export interface RiskHeatmapCell {
+  assetClass: string;
+  market: number;
+  credit: number;
+  liquidity: number;
+  fx: number;
+}
+
+export interface StressScenario {
+  scenario: string;
+  description: string;
+  aumImpact: number;
+  returnImpact: number;
+  goalImpactPct: number;
+  assetImpacts: { assetClass: string; impact: number }[];
+}
+
+export interface FeeRevenuePoint {
+  month: string;
+  advisoryFees: number;
+  managementFees: number;
+  performanceFees: number;
+}
+
+export interface PredictiveInsight {
+  id: string;
+  type: 'OPPORTUNITY' | 'RISK' | 'ACTION' | 'TREND';
+  title: string;
+  description: string;
+  metric?: string;
+  metricValue?: string;
+}
+
 // ─── API Functions ────────────────────────────────────────────────────────────
 
 export const wealthApi = {
@@ -214,4 +375,87 @@ export const wealthApi = {
     apiGet<{ id: string; name: string; type: string; uploadedBy: string; uploadDate: string; url: string }[]>(
       `/api/v1/wealth-management/${code}/documents`
     ),
+
+  // ── Advisor Performance & Clients (W3) ──
+  getAdvisorPerformance: (id: string): Promise<AdvisorPerformance> =>
+    apiGet<AdvisorPerformance>(`/api/v1/wealth-management/advisors/${id}/performance`),
+
+  getAdvisorClients: (id: string): Promise<AdvisorClient[]> =>
+    apiGet<AdvisorClient[]>(`/api/v1/wealth-management/advisor/${id}`),
+
+  assignAdvisor: (planCode: string, advisorId: string): Promise<WealthPlan> =>
+    apiPost<WealthPlan>(`/api/v1/wealth-management/${planCode}/assign-advisor`, { advisorId }),
+
+  getAdvisorReviews: (id: string): Promise<AdvisorReview[]> =>
+    apiGet<AdvisorReview[]>(`/api/v1/wealth-management/advisors/${id}/reviews`),
+
+  scheduleReview: (advisorId: string, data: Omit<AdvisorReview, 'id' | 'status'>): Promise<AdvisorReview> =>
+    apiPost<AdvisorReview>(`/api/v1/wealth-management/advisors/${advisorId}/reviews`, data),
+
+  getAdvisorCertifications: (id: string): Promise<AdvisorCertification[]> =>
+    apiGet<AdvisorCertification[]>(`/api/v1/wealth-management/advisors/${id}/certifications`),
+
+  matchClient: (data: ClientMatchRequest): Promise<ClientMatchResult[]> =>
+    apiPost<ClientMatchResult[]>('/api/v1/wealth-management/advisors/match-client', data),
+
+  // ── Trust Beneficiary CRUD (W3) ──
+  addBeneficiary: (trustCode: string, data: BeneficiaryCreateRequest): Promise<Beneficiary> =>
+    apiPost<Beneficiary>(`/api/v1/trusts/${trustCode}/beneficiaries`, data),
+
+  updateBeneficiary: (trustCode: string, beneficiaryId: string, data: Partial<BeneficiaryCreateRequest>): Promise<Beneficiary> =>
+    apiPut<Beneficiary>(`/api/v1/trusts/${trustCode}/beneficiaries/${beneficiaryId}`, data),
+
+  removeBeneficiary: (trustCode: string, beneficiaryId: string): Promise<void> =>
+    apiDelete<void>(`/api/v1/trusts/${trustCode}/beneficiaries/${beneficiaryId}`),
+
+  // ── Trust Distributions (W3) ──
+  getScheduledDistributions: (trustCode: string): Promise<ScheduledDistribution[]> =>
+    apiGet<ScheduledDistribution[]>(`/api/v1/trusts/${trustCode}/scheduled-distributions`),
+
+  scheduleDistribution: (trustCode: string, data: Omit<ScheduledDistribution, 'id' | 'status'>): Promise<ScheduledDistribution> =>
+    apiPost<ScheduledDistribution>(`/api/v1/trusts/${trustCode}/scheduled-distributions`, data),
+
+  // ── Trust Compliance (W3) ──
+  getTrustCompliance: (trustCode: string): Promise<TrustComplianceItem[]> =>
+    apiGet<TrustComplianceItem[]>(`/api/v1/trusts/${trustCode}/compliance`),
+
+  // ── Analytics (W4) ──
+  getAumWaterfall: (period?: string): Promise<AumWaterfallPoint[]> =>
+    apiGet<AumWaterfallPoint[]>('/api/v1/wealth-management/analytics/aum-waterfall', { period }),
+
+  getAumBySegment: (months?: number): Promise<AumSegmentPoint[]> =>
+    apiGet<AumSegmentPoint[]>('/api/v1/wealth-management/analytics/aum-by-segment', { months }),
+
+  getConcentrationRisk: (): Promise<ConcentrationRisk[]> =>
+    apiGet<ConcentrationRisk[]>('/api/v1/wealth-management/analytics/concentration-risk'),
+
+  getFlowAnalysis: (months?: number): Promise<FlowAnalysisPoint[]> =>
+    apiGet<FlowAnalysisPoint[]>('/api/v1/wealth-management/analytics/flow-analysis', { months }),
+
+  getPerformanceAttribution: (): Promise<PerformanceAttribution[]> =>
+    apiGet<PerformanceAttribution[]>('/api/v1/wealth-management/analytics/performance-attribution'),
+
+  getClientSegments: (): Promise<ClientSegment[]> =>
+    apiGet<ClientSegment[]>('/api/v1/wealth-management/analytics/client-segments'),
+
+  getRiskHeatmap: (): Promise<RiskHeatmapCell[]> =>
+    apiGet<RiskHeatmapCell[]>('/api/v1/wealth-management/analytics/risk-heatmap'),
+
+  getStressScenarios: (): Promise<StressScenario[]> =>
+    apiGet<StressScenario[]>('/api/v1/wealth-management/analytics/stress-scenarios'),
+
+  getFeeRevenue: (months?: number): Promise<FeeRevenuePoint[]> =>
+    apiGet<FeeRevenuePoint[]>('/api/v1/wealth-management/analytics/fee-revenue', { months }),
+
+  getPredictiveInsights: (): Promise<PredictiveInsight[]> =>
+    apiGet<PredictiveInsight[]>('/api/v1/wealth-management/analytics/insights'),
+
+  // ── Trust Analytics (W3) ──
+  getTrustAnalytics: (): Promise<{
+    distributionsByType: { type: string; amount: number }[];
+    corpusGrowth: { month: string; revocable: number; irrevocable: number; testamentary: number; charitable: number }[];
+    beneficiaryDistribution: { range: string; count: number }[];
+    feeIncomeTrend: { month: string; feeIncome: number }[];
+  }> =>
+    apiGet('/api/v1/trusts/analytics'),
 };

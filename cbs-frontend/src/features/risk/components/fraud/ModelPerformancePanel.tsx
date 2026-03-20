@@ -1,18 +1,39 @@
-import { useState } from 'react';
-import { FlaskConical, RefreshCw } from 'lucide-react';
-import { formatDate, formatPercent } from '@/lib/formatters';
-import { useModelPerformance } from '../../hooks/useFraud';
-import { ConfusionMatrixViz } from './ConfusionMatrixViz';
+import { useMemo } from 'react';
+import { Activity, AlertTriangle, ShieldCheck, Target, TrendingDown } from 'lucide-react';
+import { formatPercent } from '@/lib/formatters';
+import { useFraudAlerts, useModelPerformance } from '../../hooks/useFraud';
 import { ScoreDistributionChart } from './ScoreDistributionChart';
+
+function buildDistribution(alerts: Array<{ score: number; status: string }>) {
+  const buckets = Array.from({ length: 10 }, (_, index) => {
+    const start = index * 10;
+    const end = start + 10;
+    return {
+      bucket: `${start}-${end}`,
+      open: 0,
+      resolved: 0,
+    };
+  });
+
+  for (const alert of alerts) {
+    const index = Math.min(Math.floor(Math.max(alert.score, 0) / 10), 9);
+    if (alert.status === 'NEW' || alert.status === 'INVESTIGATING') {
+      buckets[index].open += 1;
+    } else {
+      buckets[index].resolved += 1;
+    }
+  }
+
+  return buckets;
+}
 
 export function ModelPerformancePanel() {
   const { data: model, isLoading } = useModelPerformance();
-  const [toast, setToast] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
+  const { data: alertsData } = useFraudAlerts({ page: 0, size: 100 });
+  const scoreDistribution = useMemo(
+    () => buildDistribution((alertsData?.items ?? []).map((alert) => ({ score: alert.score, status: alert.status }))),
+    [alertsData?.items],
+  );
 
   if (isLoading) {
     return (
@@ -33,57 +54,57 @@ export function ModelPerformancePanel() {
 
   return (
     <div className="rounded-lg border bg-card p-6 space-y-6">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-50 rounded-lg bg-foreground text-background px-4 py-2.5 text-sm font-medium shadow-lg">
-          {toast}
-        </div>
-      )}
-
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-base font-semibold">{model.modelName}</h3>
+          <h3 className="text-base font-semibold">Fraud Detection Performance</h3>
           <div className="text-xs text-muted-foreground mt-0.5">
-            Version {model.version} · Last trained {formatDate(model.lastTrained)}
+            Read-only snapshot based on the live fraud alert backlog and closed-case outcomes.
           </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => showToast('Model retraining is not wired to a backend workflow in this build')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border hover:bg-muted transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Retrain Model
-          </button>
-          <button
-            onClick={() => showToast('A/B model testing is not wired to a backend workflow in this build')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border hover:bg-muted transition-colors"
-          >
-            <FlaskConical className="w-3.5 h-3.5" />
-            A/B Test New Model
-          </button>
+        <div className="rounded-lg border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          Model lifecycle operations are controlled outside this console.
         </div>
       </div>
 
-      {/* Key metrics */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="rounded-lg border bg-muted/20 px-4 py-3 text-center">
-          <div className="text-xs text-muted-foreground">AUC-ROC</div>
-          <div className="text-xl font-bold mt-1">{model.aucRoc.toFixed(3)}</div>
+          <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <Activity className="w-3.5 h-3.5" />
+            Total Alerts
+          </div>
+          <div className="text-xl font-bold mt-1">{model.totalAlerts.toLocaleString()}</div>
         </div>
         <div className="rounded-lg border bg-muted/20 px-4 py-3 text-center">
-          <div className="text-xs text-muted-foreground">Precision</div>
-          <div className="text-xl font-bold mt-1">{formatPercent(model.precision * 100)}</div>
+          <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Resolved
+          </div>
+          <div className="text-xl font-bold mt-1">{model.resolvedAlerts.toLocaleString()}</div>
         </div>
         <div className="rounded-lg border bg-muted/20 px-4 py-3 text-center">
-          <div className="text-xs text-muted-foreground">Recall</div>
-          <div className="text-xl font-bold mt-1">{formatPercent(model.recall * 100)}</div>
+          <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            False Positives
+          </div>
+          <div className="text-xl font-bold mt-1">{model.falsePositives.toLocaleString()}</div>
+        </div>
+        <div className="rounded-lg border bg-muted/20 px-4 py-3 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <Target className="w-3.5 h-3.5" />
+            Detection Rate
+          </div>
+          <div className="text-xl font-bold mt-1">{formatPercent(model.detectionRate)}</div>
+        </div>
+        <div className="rounded-lg border bg-muted/20 px-4 py-3 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+            <TrendingDown className="w-3.5 h-3.5" />
+            False Positive Rate
+          </div>
+          <div className="text-xl font-bold mt-1">{formatPercent(model.falsePositiveRate)}</div>
         </div>
       </div>
 
-      <ConfusionMatrixViz model={model} />
-      <ScoreDistributionChart />
+      <ScoreDistributionChart data={scoreDistribution} />
     </div>
   );
 }

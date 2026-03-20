@@ -4,7 +4,7 @@ import { fraudApi } from '../api/fraudApi';
 export function useFraudStats() {
   return useQuery({
     queryKey: ['fraud', 'stats'],
-    queryFn: () => fraudApi.getStats().then((r) => r.data.data),
+    queryFn: () => fraudApi.getStats(),
     staleTime: 30_000,
   });
 }
@@ -12,7 +12,7 @@ export function useFraudStats() {
 export function useFraudTrend(days?: number) {
   return useQuery({
     queryKey: ['fraud', 'trend', days],
-    queryFn: () => fraudApi.getTrend(days).then((r) => r.data.data),
+    queryFn: () => fraudApi.getTrend(days),
     staleTime: 60_000,
   });
 }
@@ -20,7 +20,7 @@ export function useFraudTrend(days?: number) {
 export function useFraudAlerts(params?: { status?: string; severity?: string; page?: number; size?: number }) {
   return useQuery({
     queryKey: ['fraud', 'alerts', params],
-    queryFn: () => fraudApi.listAlerts(params).then((r) => r.data.data),
+    queryFn: () => fraudApi.listAlerts(params),
     staleTime: 30_000,
   });
 }
@@ -28,7 +28,7 @@ export function useFraudAlerts(params?: { status?: string; severity?: string; pa
 export function useFraudAlert(id: number | null) {
   return useQuery({
     queryKey: ['fraud', 'alert', id],
-    queryFn: () => fraudApi.getAlert(id!).then((r) => r.data.data),
+    queryFn: () => fraudApi.getAlert(id!),
     enabled: id !== null,
     staleTime: 30_000,
   });
@@ -37,7 +37,7 @@ export function useFraudAlert(id: number | null) {
 export function useFraudAlertTransactions(alertId: number | null, enabled: boolean) {
   return useQuery({
     queryKey: ['fraud', 'alert-transactions', alertId],
-    queryFn: () => fraudApi.getAlertTransactions(alertId!).then((r) => r.data.data),
+    queryFn: () => fraudApi.getAlertTransactions(alertId!),
     enabled: enabled && alertId !== null,
     staleTime: 30_000,
   });
@@ -87,7 +87,7 @@ export function useFileFraudCase() {
 export function useFraudRules() {
   return useQuery({
     queryKey: ['fraud', 'rules'],
-    queryFn: () => fraudApi.listRules().then((r) => r.data.data),
+    queryFn: () => fraudApi.listRules(),
     staleTime: 60_000,
   });
 }
@@ -95,7 +95,7 @@ export function useFraudRules() {
 export function useModelPerformance() {
   return useQuery({
     queryKey: ['fraud', 'model-performance'],
-    queryFn: () => fraudApi.getModelPerformance().then((r) => r.data.data),
+    queryFn: () => fraudApi.getModelPerformance(),
     staleTime: 300_000,
   });
 }

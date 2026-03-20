@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared';
 import { cn } from '@/lib/utils';
-import { formatPercent } from '@/lib/formatters';
 import type { FraudRule } from '../../types/fraud';
 import { useToggleFraudRule } from '../../hooks/useFraud';
 
@@ -17,58 +16,57 @@ export function FraudRuleTable({ rules, isLoading }: Props) {
   const columns = useMemo<ColumnDef<FraudRule>[]>(
     () => [
       {
-        accessorKey: 'rule',
+        accessorKey: 'ruleCode',
+        header: 'Rule Code',
+        cell: ({ row }) => (
+          <span className="text-sm font-medium font-mono">{row.original.ruleCode}</span>
+        ),
+      },
+      {
+        accessorKey: 'ruleName',
         header: 'Rule',
         cell: ({ row }) => (
-          <span className="text-sm font-medium font-mono">{row.original.rule}</span>
+          <div>
+            <div className="text-sm font-medium">{row.original.ruleName}</div>
+            <div className="text-xs text-muted-foreground">{row.original.description}</div>
+          </div>
         ),
       },
       {
-        accessorKey: 'description',
-        header: 'Description',
-        cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">{row.original.description}</span>
-        ),
-      },
-      {
-        accessorKey: 'type',
-        header: 'Type',
+        accessorKey: 'category',
+        header: 'Category',
         cell: ({ row }) => {
-          const isModel = row.original.type === 'ML_MODEL';
           return (
             <span
               className={cn(
                 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-                isModel
-                  ? 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                  : 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
               )}
             >
-              {isModel ? 'ML Model' : 'Rule'}
+              {row.original.category.replace(/_/g, ' ')}
             </span>
           );
         },
       },
       {
-        accessorKey: 'alertsMtd',
-        header: 'Alerts MTD',
+        accessorKey: 'severity',
+        header: 'Severity',
         cell: ({ row }) => (
-          <span className="text-sm font-medium">{row.original.alertsMtd.toLocaleString()}</span>
+          <span className="text-sm font-medium">{row.original.severity}</span>
         ),
       },
       {
-        accessorKey: 'truePositiveRate',
-        header: 'True Positive Rate',
+        accessorKey: 'scoreWeight',
+        header: 'Score Weight',
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-green-500"
-                style={{ width: `${row.original.truePositiveRate}%` }}
-              />
-            </div>
-            <span className="text-sm">{formatPercent(row.original.truePositiveRate)}</span>
-          </div>
+          <span className="text-sm font-medium">{row.original.scoreWeight}</span>
+        ),
+      },
+      {
+        accessorKey: 'applicableChannels',
+        header: 'Channels',
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">{row.original.applicableChannels}</span>
         ),
       },
       {

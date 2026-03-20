@@ -5,7 +5,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ReferenceLine,
   ResponsiveContainer,
   ReferenceArea,
@@ -35,17 +34,7 @@ export function NpsTrendChart({ data }: NpsTrendChartProps) {
     <div className="rounded-lg border bg-card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">NPS Trend (12 Months)</h3>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-0.5 bg-green-500 rounded" /> Excellent (&gt;60)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-0.5 bg-amber-400 rounded" /> Good (30–60)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-0.5 bg-red-400 rounded" /> Poor (&lt;30)
-          </span>
-        </div>
+        <div className="text-xs text-muted-foreground">Customer sentiment from survey responses returned by the backend.</div>
       </div>
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
@@ -69,7 +58,6 @@ export function NpsTrendChart({ data }: NpsTrendChartProps) {
             width={36}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
 
           {/* Zone reference lines */}
           <ReferenceLine y={60} stroke="#16a34a" strokeDasharray="4 4" strokeWidth={1} strokeOpacity={0.6} />
@@ -84,16 +72,6 @@ export function NpsTrendChart({ data }: NpsTrendChartProps) {
             strokeWidth={2.5}
             dot={{ r: 3.5, fill: '#3b82f6', strokeWidth: 0 }}
             activeDot={{ r: 5 }}
-          />
-          <Line
-            type="monotone"
-            dataKey="benchmark"
-            name="Industry Benchmark"
-            stroke="#9ca3af"
-            strokeWidth={1.5}
-            strokeDasharray="5 3"
-            dot={false}
-            activeDot={{ r: 4 }}
           />
         </LineChart>
       </ResponsiveContainer>

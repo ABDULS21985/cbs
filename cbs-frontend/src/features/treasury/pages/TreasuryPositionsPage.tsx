@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
-import { BarChart2, AlertTriangle, TrendingUp, Radio, Clock } from 'lucide-react';
+import { BarChart2, AlertTriangle, TrendingUp } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge } from '@/components/shared';
-import { formatMoney, formatRelative } from '@/lib/formatters';
+import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { tradingApi, type TraderPosition } from '../api/tradingApi';
 

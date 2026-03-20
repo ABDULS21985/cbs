@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
@@ -7,14 +6,13 @@ import {
 import { Plus, Play, Loader2, TrendingUp, DollarSign, BarChart3, Percent } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, TabsPage } from '@/components/shared';
-import { formatMoney, formatPercent } from '@/lib/formatters';
+import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   useFtpProfitability, useAddFtpRatePoint, useFtpAllocate,
 } from '../hooks/useTreasuryExt';
-import { ftpApi } from '../api/ftpApi';
-import type { FtpAllocation, FtpRateCurve } from '../types/ftp';
+import type { FtpAllocation } from '../types/ftp';
 
 export function FtpPage() {
   useEffect(() => { document.title = 'Funds Transfer Pricing | CBS'; }, []);

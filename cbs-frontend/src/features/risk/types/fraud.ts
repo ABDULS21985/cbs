@@ -1,37 +1,38 @@
 export type FraudAlertSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-export type FraudAlertStatus = 'OPEN' | 'INVESTIGATING' | 'CONFIRMED' | 'DISMISSED' | 'ALLOWED';
+export type FraudAlertStatus = 'NEW' | 'INVESTIGATING' | 'CONFIRMED_FRAUD' | 'FALSE_POSITIVE';
 
 export interface FraudAlert {
   id: number;
   alertNumber: string;
   severity: FraudAlertSeverity;
   type: string;
-  customerId: number;
-  customerName: string;
-  maskedPan?: string;
-  amount: number;
-  merchantName?: string;
+  customerLabel: string;
+  accountLabel?: string;
   location?: string;
   score: number;
   rules: string[];
   createdAt: string;
   status: FraudAlertStatus;
-  currency: string;
+  channel?: string;
+  assignedTo?: string | null;
+  description: string;
+  actionTaken?: string | null;
+  transactionRef?: string | null;
 }
 
 export interface FraudStats {
-  activeAlerts: number;
-  confirmedFraudMtd: number;
-  preventedMtd: number;
-  lossMtd: number;
-  detectionRate: number;
+  totalAlerts: number;
+  newAlerts: number;
+  investigatingAlerts: number;
+  resolvedAlerts: number;
+  resolutionRate: number;
 }
 
 export interface FraudTrendPoint {
   date: string;
   alertCount: number;
-  confirmedAmount: number;
-  falsePositiveRate: number;
+  investigatingCount: number;
+  averageRiskScore: number;
 }
 
 export interface FraudTransaction {
@@ -47,23 +48,26 @@ export interface FraudTransaction {
 
 export interface FraudRule {
   id: number;
-  rule: string;
+  ruleCode: string;
+  ruleName: string;
   description: string;
-  type: 'RULE' | 'ML_MODEL';
-  alertsMtd: number;
-  truePositiveRate: number;
+  category: string;
+  severity: FraudAlertSeverity;
+  scoreWeight: number;
+  applicableChannels: string;
   active: boolean;
 }
 
 export interface ModelPerformance {
-  modelName: string;
-  version: string;
-  aucRoc: number;
-  precision: number;
-  recall: number;
-  truePositive: number;
-  falsePositive: number;
-  falseNegative: number;
-  trueNegative: number;
-  lastTrained: string;
+  totalAlerts: number;
+  resolvedAlerts: number;
+  falsePositives: number;
+  detectionRate: number;
+  falsePositiveRate: number;
+}
+
+export interface ScoreDistributionBucket {
+  bucket: string;
+  open: number;
+  resolved: number;
 }

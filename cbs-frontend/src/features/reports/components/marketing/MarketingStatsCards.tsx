@@ -1,6 +1,5 @@
-import { Megaphone, Users, TrendingUp, DollarSign, BarChart2, Star } from 'lucide-react';
+import { Megaphone, Users, TrendingUp, BarChart2, Star } from 'lucide-react';
 import { StatCard } from '@/components/shared';
-import { formatMoney } from '@/lib/formatters';
 import type { MarketingStats } from '../../api/marketingAnalyticsApi';
 
 interface MarketingStatsCardsProps {
@@ -12,15 +11,16 @@ export function MarketingStatsCards({ stats, isLoading }: MarketingStatsCardsPro
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
       <StatCard
-        label="Active Campaigns"
-        value={stats?.activeCampaigns ?? 0}
+        label="Campaigns"
+        value={stats?.totalCampaigns ?? 0}
         format="number"
         icon={Megaphone}
         loading={isLoading}
       />
       <StatCard
-        label="Leads MTD"
-        value={stats ? stats.leadsGeneratedMtd.toLocaleString() : '0'}
+        label="Total Leads"
+        value={stats?.totalLeads ?? 0}
+        format="number"
         icon={Users}
         loading={isLoading}
       />
@@ -32,14 +32,16 @@ export function MarketingStatsCards({ stats, isLoading }: MarketingStatsCardsPro
         loading={isLoading}
       />
       <StatCard
-        label="Campaign Spend MTD"
-        value={stats ? formatMoney(stats.campaignSpendMtd) : '₦0.00'}
-        icon={DollarSign}
+        label="Conversions"
+        value={stats?.totalConversions ?? 0}
+        format="number"
+        icon={TrendingUp}
         loading={isLoading}
       />
       <StatCard
-        label="ROI"
-        value={stats ? `${stats.roi.toFixed(1)}x` : '0x'}
+        label="Avg Leads / Campaign"
+        value={stats?.averageLeadsPerCampaign ?? 0}
+        format="number"
         icon={BarChart2}
         loading={isLoading}
       />

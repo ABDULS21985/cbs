@@ -250,7 +250,7 @@ export function TreasuryDealsPage() {
     { label: 'Total Deals', value: filtered.length, format: 'number' as const },
     { label: 'Total Notional', value: filtered.reduce((s, d) => s + d.amount, 0), format: 'money' as const, currency: 'NGN' },
     { label: 'Pending Confirmation', value: filtered.filter((d) => d.status === 'BOOKED').length, format: 'number' as const, color: 'warning' as const },
-    { label: 'Pending Settlement', value: filtered.filter((d) => d.status === 'CONFIRMED').length, format: 'number' as const, color: 'info' as const },
+    { label: 'Pending Settlement', value: filtered.filter((d) => d.status === 'CONFIRMED').length, format: 'number' as const },
   ], [filtered]);
 
   const hasActiveFilters = statusFilter !== 'ALL' || typeFilter !== 'ALL' || deskFilter !== 'ALL'

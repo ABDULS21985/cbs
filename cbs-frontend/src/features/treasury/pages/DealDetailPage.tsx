@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, TabsPage } from '@/components/shared';
 import { formatMoney, formatPercent, formatDate, formatDateTime } from '@/lib/formatters';
 import {
-  ArrowLeft, CheckCircle2, Clock, Loader2, Edit2,
+  CheckCircle2, Clock, Loader2, Edit2,
   FileText, Banknote, Shield, BarChart2, History,
   ArrowDownLeft, ArrowUpRight, XCircle,
 } from 'lucide-react';
@@ -566,17 +566,9 @@ export function DealDetailPage() {
   return (
     <>
       <PageHeader
-        title={
-          <div className="flex items-center gap-3">
-            <Link to="/treasury/deals" className="text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <span className="font-mono">{deal.dealRef}</span>
-            <StatusBadge status={deal.type} />
-            <StatusBadge status={deal.status} dot />
-          </div>
-        }
-        subtitle={deal.counterparty}
+        title={deal.dealRef}
+        backTo="/treasury/deals"
+        subtitle={`${deal.counterparty} · ${deal.type} · ${deal.status}`}
         actions={
           <div className="flex items-center gap-2">
             {canAmend && (

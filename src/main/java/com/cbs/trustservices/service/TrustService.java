@@ -54,8 +54,20 @@ public class TrustService {
         return trustRepository.findByTrustTypeAndStatusOrderByTrustNameAsc(trustType, "ACTIVE");
     }
 
-    public java.util.List<TrustAccount> getAllTrusts() {
+    public List<TrustAccount> getAllTrusts() {
         return trustRepository.findAll();
     }
 
+    @Transactional
+    public TrustAccount updateTrust(String code, TrustAccount updates) {
+        TrustAccount trust = getByCode(code);
+        if (updates.getTrustName() != null) trust.setTrustName(updates.getTrustName());
+        if (updates.getTrusteeName() != null) trust.setTrusteeName(updates.getTrusteeName());
+        if (updates.getTrusteeType() != null) trust.setTrusteeType(updates.getTrusteeType());
+        if (updates.getInvestmentPolicy() != null) trust.setInvestmentPolicy(updates.getInvestmentPolicy());
+        if (updates.getDistributionRules() != null) trust.setDistributionRules(updates.getDistributionRules());
+        if (updates.getBeneficiaries() != null) trust.setBeneficiaries(updates.getBeneficiaries());
+        log.info("Trust updated: {}", code);
+        return trustRepository.save(trust);
+    }
 }

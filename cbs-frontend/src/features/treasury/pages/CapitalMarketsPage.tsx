@@ -136,9 +136,6 @@ export function CapitalMarketsPage() {
     ['MANDATED', 'BOOKBUILDING', 'ALLOCATED'].includes(d.stage),
   ).length;
   const closedYtd = deals.filter((d) => d.stage === 'CLOSED').length;
-  const closedValue = deals
-    .filter((d) => d.stage === 'CLOSED')
-    .reduce((s, d) => s + d.targetAmount, 0);
 
   return (
     <>
@@ -183,7 +180,6 @@ export function CapitalMarketsPage() {
             format="number"
             icon={CheckCircle}
             loading={isLoading}
-            description={closedValue > 0 ? formatMoney(closedValue) : undefined}
           />
         </div>
 

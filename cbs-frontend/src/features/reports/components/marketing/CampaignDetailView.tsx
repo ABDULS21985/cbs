@@ -1,21 +1,9 @@
-import { X, Calendar, Tag, Radio } from 'lucide-react';
+import { X, BarChart2 } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
 import { StatCard, StatusBadge } from '@/components/shared';
-import { formatDate, formatMoney } from '@/lib/formatters';
-import { cn } from '@/lib/utils';
+import { formatMoney, formatPercent } from '@/lib/formatters';
 import type { CampaignDetail } from '../../api/marketingAnalyticsApi';
 import { CampaignFunnelChart } from './CampaignFunnelChart';
-import { AbTestResultCard } from './AbTestResultCard';
 
 interface CampaignDetailViewProps {
   campaign: CampaignDetail | null;
@@ -23,35 +11,8 @@ interface CampaignDetailViewProps {
   onClose: () => void;
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  ACQUISITION: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  CROSS_SELL: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  RETENTION: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  REACTIVATION: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  BRAND_AWARENESS: 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400',
-};
-
-function CustomTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-lg border bg-popover shadow-lg px-3 py-2 text-xs space-y-1">
-      <p className="font-semibold text-foreground">{label}</p>
-      {payload.map((entry: any) => (
-        <p key={entry.dataKey} style={{ color: entry.color }}>
-          {entry.name}: <span className="font-medium">{entry.value.toLocaleString()}</span>
-        </p>
-      ))}
-    </div>
-  );
-}
-
 export function CampaignDetailView({ campaign, open, onClose }: CampaignDetailViewProps) {
   if (!campaign) return null;
-
-  const reachPercent =
-    campaign.targetCount > 0
-      ? ((campaign.reachedCount / campaign.targetCount) * 100).toFixed(1)
-      : '0';
 
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
@@ -65,19 +26,8 @@ export function CampaignDetailView({ campaign, open, onClose }: CampaignDetailVi
                 {campaign.name}
               </Dialog.Title>
               <div className="flex flex-wrap items-center gap-2">
-                <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', TYPE_COLORS[campaign.type] ?? 'bg-gray-100 text-gray-600')}>
-                  <Tag className="w-3 h-3 mr-1" />
-                  {campaign.type.replace(/_/g, ' ')}
-                </span>
                 <StatusBadge status={campaign.status} dot />
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Radio className="w-3 h-3" />
-                  {campaign.channel}
-                </span>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="w-3 h-3" />
-                  {formatDate(campaign.startDate)} — {formatDate(campaign.endDate)}
-                </span>
+                <span className="text-xs font-mono text-muted-foreground">{campaign.code}</span>
               </div>
             </div>
             <Dialog.Close asChild>
@@ -89,27 +39,37 @@ export function CampaignDetailView({ campaign, open, onClose }: CampaignDetailVi
 
           {/* Scrollable body */}
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-            {/* Stat Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <StatCard
-                label="Target Reached"
-                value={`${reachPercent}%`}
+                label="Delivered"
+                value={campaign.deliveredCount}
+                format="number"
               />
               <StatCard
-                label="Conversions"
-                value={campaign.conversions.toLocaleString()}
+                label="Opened"
+                value={campaign.openedCount}
+                format="number"
               />
               <StatCard
-                label="Total Cost"
-                value={formatMoney(campaign.cost)}
+                label="Clicked"
+                value={campaign.clickedCount}
+                format="number"
               />
               <StatCard
-                label="ROI"
-                value={campaign.roi > 0 ? `${campaign.roi.toFixed(2)}x` : '—'}
+                label="Converted"
+                value={campaign.convertedCount}
+                format="number"
+              />
+              <StatCard
+                label="Revenue"
+                value={formatMoney(campaign.revenueGenerated)}
+              />
+              <StatCard
+                label="Conversion Rate"
+                value={formatPercent(campaign.conversionRate, 1)}
               />
             </div>
 
-            {/* Funnel */}
             {campaign.funnelSteps.length > 0 && (
               <div className="rounded-lg border bg-card p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-foreground">Campaign Funnel</h3>
@@ -117,67 +77,26 @@ export function CampaignDetailView({ campaign, open, onClose }: CampaignDetailVi
               </div>
             )}
 
-            {/* A/B Test */}
-            {campaign.abTestVariants && campaign.abTestVariants.length >= 2 && (
-              <AbTestResultCard variants={campaign.abTestVariants} />
-            )}
-
-            {/* Daily Performance */}
-            {campaign.dailyPerformance.length > 0 && (
-              <div className="rounded-lg border bg-card p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-foreground">Daily Performance</h3>
-                <ResponsiveContainer width="100%" height={220}>
-                  <LineChart data={campaign.dailyPerformance} margin={{ top: 4, right: 16, bottom: 4, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                      axisLine={false}
-                      tickLine={false}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis
-                      yAxisId="left"
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={36}
-                    />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={40}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey="conversions"
-                      name="Conversions"
-                      stroke="#3b82f6"
-                      strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 4 }}
-                    />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="clicks"
-                      name="Clicks"
-                      stroke="#8b5cf6"
-                      strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 4 }}
-                      strokeDasharray="4 2"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+            <div className="rounded-lg border bg-card p-4">
+              <div className="flex items-center gap-2 mb-2 text-sm font-semibold">
+                <BarChart2 className="w-4 h-4 text-muted-foreground" />
+                Live Delivery Snapshot
               </div>
-            )}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <div className="text-muted-foreground">Delivery Rate</div>
+                  <div className="font-semibold">{formatPercent(campaign.deliveryRate, 1)}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Open Rate</div>
+                  <div className="font-semibold">{formatPercent(campaign.openRate, 1)}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Click-Through Rate</div>
+                  <div className="font-semibold">{formatPercent(campaign.clickThroughRate, 1)}</div>
+                </div>
+              </div>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

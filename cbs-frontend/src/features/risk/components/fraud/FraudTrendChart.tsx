@@ -32,9 +32,18 @@ export function FraudTrendChart({ data, isLoading }: Props) {
     dateLabel: formatDate(d.date),
   }));
 
+  if (formatted.length === 0) {
+    return (
+      <div className="mx-6 rounded-lg border bg-card p-4">
+        <div className="text-sm font-semibold mb-1">Fraud Alert Trend</div>
+        <div className="text-sm text-muted-foreground">No recent fraud alerts were returned for the selected period.</div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-6 rounded-lg border bg-card p-4">
-      <div className="text-sm font-semibold mb-3">Fraud Trend (Last 30 Days)</div>
+      <div className="text-sm font-semibold mb-3">Fraud Alert Trend</div>
       <ResponsiveContainer width="100%" height={200}>
         <ComposedChart data={formatted} margin={{ top: 4, right: 40, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -59,7 +68,7 @@ export function FraudTrendChart({ data, isLoading }: Props) {
             tickLine={false}
             axisLine={false}
             width={50}
-            label={{ value: 'Amount / Rate', angle: 90, position: 'insideRight', style: { fontSize: 10 } }}
+            label={{ value: 'Investigations / Score', angle: 90, position: 'insideRight', style: { fontSize: 10 } }}
           />
           <Tooltip
             contentStyle={{
@@ -82,17 +91,17 @@ export function FraudTrendChart({ data, isLoading }: Props) {
           <Line
             yAxisId="right"
             type="monotone"
-            dataKey="confirmedAmount"
-            name="Confirmed Amount"
-            stroke="#ef4444"
+            dataKey="investigatingCount"
+            name="Investigating"
+            stroke="#f97316"
             strokeWidth={2}
             dot={false}
           />
           <Line
             yAxisId="right"
             type="monotone"
-            dataKey="falsePositiveRate"
-            name="False Positive Rate"
+            dataKey="averageRiskScore"
+            name="Avg. Risk Score"
             stroke="#9ca3af"
             strokeWidth={1.5}
             strokeDasharray="4 2"

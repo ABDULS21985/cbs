@@ -534,7 +534,7 @@ export function MarketMakingPage() {
         title="Suspend Mandate"
         description={`Suspend mandate ${suspendTarget?.code} for ${suspendTarget?.instrumentName}? This will pause all market making obligations.`}
         onConfirm={() => { toast.success(`Mandate ${suspendTarget?.code} suspended`); setSuspendTarget(null); }}
-        onCancel={() => setSuspendTarget(null)}
+        onClose={() => setSuspendTarget(null)}
       />
     </>
   );

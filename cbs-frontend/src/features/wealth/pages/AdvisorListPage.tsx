@@ -7,6 +7,8 @@ import { formatMoney, formatMoneyCompact, formatDate, formatPercent } from '@/li
 import { cn } from '@/lib/utils';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Users, TrendingUp, Briefcase, Award, LayoutGrid, List, X, Plus } from 'lucide-react';
+import { AdvisorLeaderboard } from '../components/advisors/AdvisorLeaderboard';
+import { ClientMatchingEngine } from '../components/advisors/ClientMatchingEngine';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -360,6 +362,14 @@ export function AdvisorListPage() {
             <p className="stat-value text-green-600 dark:text-green-400">{loading ? '—' : formatPercent(topReturn, 1)}</p>
           </div>
         </div>
+
+        {/* Leaderboard + Client Matching */}
+        {!loading && advisors.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AdvisorLeaderboard advisors={advisors} />
+            <ClientMatchingEngine advisors={advisors} />
+          </div>
+        )}
 
         {/* Card / Table view */}
         {loading ? (

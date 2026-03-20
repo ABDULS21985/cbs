@@ -171,7 +171,7 @@ function DealerDesksTab() {
         onClose={() => setSuspendTarget(null)}
         onConfirm={async () => {
           if (suspendTarget) {
-            await suspendDesk.mutateAsync(suspendTarget.code);
+            await suspendDesk.mutateAsync(Number(suspendTarget.id));
             toast.success(`Desk ${suspendTarget.name} suspended`);
             setSuspendTarget(null);
           }

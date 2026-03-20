@@ -58,8 +58,7 @@ export function useMarketingAnalytics() {
     campaigns: campaignsQuery.data ?? [],
     campaignsLoading: campaignsQuery.isLoading,
 
-    csatTouchpoints: surveyQuery.data?.csatTouchpoints ?? [],
-    npsDistribution: surveyQuery.data?.npsDistribution ?? [],
+    surveys: surveyQuery.data ?? [],
     surveyLoading: surveyQuery.isLoading,
 
     npsTrend: npsTrendQuery.data ?? [],

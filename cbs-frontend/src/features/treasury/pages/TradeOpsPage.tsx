@@ -566,7 +566,7 @@ export function TradeOpsPage() {
           <StatCard label="Pending Confirmations" value={pendingConfs} format="number" icon={FileCheck} />
           <StatCard label="Unmatched" value={unmatchedConfs} format="number" icon={AlertTriangle} />
           <StatCard label="Failed Settlements" value={fails.length} format="number" icon={XCircle} />
-          <StatCard label="Total Penalties" value={totalPenalties} format="currency" icon={DollarSign} />
+          <StatCard label="Total Penalties" value={totalPenalties} format="money" icon={DollarSign} />
         </div>
 
         <TabsPage syncWithUrl tabs={[

@@ -1,9 +1,8 @@
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { formatMoney } from '@/lib/formatters';
-import { Search, CreditCard, CheckCircle, XCircle } from 'lucide-react';
+import { Search, CheckCircle, XCircle } from 'lucide-react';
 import type { FraudAlert } from '../../types/fraud';
-import { useBlockCard, useAllowTransaction, useDismissAlert } from '../../hooks/useFraud';
+import { useAllowTransaction, useDismissAlert } from '../../hooks/useFraud';
 
 interface Props {
   alert: FraudAlert;
@@ -39,7 +38,6 @@ const severityConfig = {
 
 export function AlertTriageCard({ alert, onInvestigate }: Props) {
   const config = severityConfig[alert.severity];
-  const blockCard = useBlockCard();
   const allowTransaction = useAllowTransaction();
   const dismissAlert = useDismissAlert();
 
@@ -67,29 +65,20 @@ export function AlertTriageCard({ alert, onInvestigate }: Props) {
 
         {/* Row 1: Customer + PAN */}
         <div className="flex items-center gap-2 text-sm">
-          <span className="font-medium">{alert.customerName}</span>
-          {alert.maskedPan && (
-            <>
-              <span className="text-muted-foreground">·</span>
-              <span className="font-mono text-xs text-muted-foreground">{alert.maskedPan}</span>
-            </>
+          <span className="font-medium">{alert.customerLabel}</span>
+          {alert.accountLabel && (
+            <span className="text-muted-foreground">· {alert.accountLabel}</span>
           )}
         </div>
 
-        {/* Row 2: Amount + Merchant + Location */}
-        <div className="text-sm">
-          <span className="font-semibold text-base">{formatMoney(alert.amount, alert.currency)}</span>
-          {alert.merchantName && (
-            <span className="text-muted-foreground"> at {alert.merchantName}</span>
-          )}
-          {alert.location && (
-            <span className="text-muted-foreground text-xs"> ({alert.location})</span>
-          )}
+        <div className="text-sm text-muted-foreground">
+          {alert.description}
         </div>
 
         {/* Row 3: Score + Rules */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span>Score: <span className="font-semibold text-foreground">{alert.score}/100</span></span>
+          {alert.channel && <span>Channel: <span className="font-medium text-foreground">{alert.channel}</span></span>}
           {alert.rules.length > 0 && (
             <span>Rules: <span className="font-medium text-foreground">{alert.rules.slice(0, 3).join(', ')}{alert.rules.length > 3 ? ` +${alert.rules.length - 3}` : ''}</span></span>
           )}
@@ -107,16 +96,6 @@ export function AlertTriageCard({ alert, onInvestigate }: Props) {
             <Search className="w-3 h-3" />
             Investigate
           </button>
-          {alert.maskedPan && (
-            <button
-              onClick={() => blockCard.mutate(alert.id)}
-              disabled={blockCard.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium hover:bg-red-50 hover:text-red-700 hover:border-red-200 disabled:opacity-50 transition-colors"
-            >
-              <CreditCard className="w-3 h-3" />
-              Block Card
-            </button>
-          )}
           <button
             onClick={() => allowTransaction.mutate(alert.id)}
             disabled={allowTransaction.isPending}

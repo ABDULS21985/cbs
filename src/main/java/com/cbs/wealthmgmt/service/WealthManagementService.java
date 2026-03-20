@@ -7,8 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -47,8 +46,45 @@ public class WealthManagementService {
         return planRepository.findByAdvisorIdAndStatusOrderByPlanCodeAsc(advisorId, "ACTIVE");
     }
 
-    public java.util.List<WealthManagementPlan> getAllPlans() {
+    public List<WealthManagementPlan> getAllPlans() {
         return planRepository.findAll();
     }
 
+    @Transactional
+    public WealthManagementPlan updatePlan(String code, WealthManagementPlan updates) {
+        WealthManagementPlan plan = getByCode(code);
+        if (updates.getPlanType() != null) plan.setPlanType(updates.getPlanType());
+        if (updates.getAdvisorId() != null) plan.setAdvisorId(updates.getAdvisorId());
+        if (updates.getTotalNetWorth() != null) plan.setTotalNetWorth(updates.getTotalNetWorth());
+        if (updates.getTotalInvestableAssets() != null) plan.setTotalInvestableAssets(updates.getTotalInvestableAssets());
+        if (updates.getAnnualIncome() != null) plan.setAnnualIncome(updates.getAnnualIncome());
+        if (updates.getTaxBracketPct() != null) plan.setTaxBracketPct(updates.getTaxBracketPct());
+        if (updates.getRecommendedAllocation() != null) plan.setRecommendedAllocation(updates.getRecommendedAllocation());
+        if (updates.getFinancialGoals() != null) plan.setFinancialGoals(updates.getFinancialGoals());
+        if (updates.getNextReviewDate() != null) plan.setNextReviewDate(updates.getNextReviewDate());
+        if (updates.getEstatePlanSummary() != null) plan.setEstatePlanSummary(updates.getEstatePlanSummary());
+        if (updates.getTaxStrategy() != null) plan.setTaxStrategy(updates.getTaxStrategy());
+        log.info("Wealth plan updated: {}", code);
+        return planRepository.save(plan);
+    }
+
+    @Transactional
+    public WealthManagementPlan closePlan(String code) {
+        WealthManagementPlan plan = getByCode(code);
+        plan.setStatus("CLOSED");
+        log.info("Wealth plan closed: {}", code);
+        return planRepository.save(plan);
+    }
+
+    @Transactional
+    public WealthManagementPlan addGoal(String code, Map<String, Object> goal) {
+        WealthManagementPlan plan = getByCode(code);
+        List<Map<String, Object>> goals = plan.getFinancialGoals();
+        if (goals == null) goals = new ArrayList<>();
+        goal.put("id", UUID.randomUUID().toString().substring(0, 8));
+        goals.add(goal);
+        plan.setFinancialGoals(goals);
+        log.info("Goal added to plan {}: {}", code, goal.get("name"));
+        return planRepository.save(plan);
+    }
 }

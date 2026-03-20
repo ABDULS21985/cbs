@@ -1,17 +1,14 @@
 import { useState } from 'react';
-import { CreditCard, ShieldOff, Briefcase, Phone, Eye, AlertTriangle, X } from 'lucide-react';
+import { ShieldOff, Briefcase, Eye, AlertTriangle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatMoney } from '@/lib/formatters';
 import {
   useFraudAlert,
   useFraudAlertTransactions,
-  useBlockCard,
   useBlockAccount,
   useFileFraudCase,
   useAllowTransaction,
 } from '../../hooks/useFraud';
 import { TransactionTimelineViz } from './TransactionTimelineViz';
-import { DeviceFingerprintCard } from './DeviceFingerprintCard';
 
 interface Props {
   alertId: number;
@@ -23,7 +20,6 @@ export function FraudInvestigationView({ alertId }: Props) {
   const { data: alert, isLoading: alertLoading } = useFraudAlert(alertId);
   const { data: transactions, isLoading: txnsLoading } = useFraudAlertTransactions(alertId, true);
 
-  const blockCard = useBlockCard();
   const blockAccount = useBlockAccount();
   const fileFraudCase = useFileFraudCase();
   const allowTransaction = useAllowTransaction();
@@ -46,9 +42,6 @@ export function FraudInvestigationView({ alertId }: Props) {
 
   const handleAction = async (action: string) => {
     switch (action) {
-      case 'block-card':
-        await blockCard.mutateAsync(alert.id);
-        break;
       case 'block-account':
         await blockAccount.mutateAsync(alert.id);
         break;
@@ -74,25 +67,25 @@ export function FraudInvestigationView({ alertId }: Props) {
             <div className="text-xs text-muted-foreground mt-0.5">{alert.alertNumber}</div>
           </div>
           <div className="text-right">
-            <div className="text-lg font-bold">{formatMoney(alert.amount, alert.currency)}</div>
-            <div className="text-xs text-muted-foreground">Score: {alert.score}/100</div>
+            <div className="text-lg font-bold">Risk Score {alert.score}/100</div>
+            <div className="text-xs text-muted-foreground">{alert.status.replace(/_/g, ' ')}</div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <span className="text-muted-foreground">Customer: </span>
-            <span className="font-medium">{alert.customerName}</span>
+            <span className="font-medium">{alert.customerLabel}</span>
           </div>
-          {alert.maskedPan && (
+          {alert.accountLabel && (
             <div>
-              <span className="text-muted-foreground">Card: </span>
-              <span className="font-mono">{alert.maskedPan}</span>
+              <span className="text-muted-foreground">Account: </span>
+              <span className="font-mono">{alert.accountLabel}</span>
             </div>
           )}
-          {alert.merchantName && (
+          {alert.channel && (
             <div>
-              <span className="text-muted-foreground">Merchant: </span>
-              <span>{alert.merchantName}</span>
+              <span className="text-muted-foreground">Channel: </span>
+              <span>{alert.channel}</span>
             </div>
           )}
           {alert.location && (
@@ -101,6 +94,21 @@ export function FraudInvestigationView({ alertId }: Props) {
               <span>{alert.location}</span>
             </div>
           )}
+          {alert.assignedTo && (
+            <div>
+              <span className="text-muted-foreground">Assigned To: </span>
+              <span>{alert.assignedTo}</span>
+            </div>
+          )}
+          {alert.transactionRef && (
+            <div>
+              <span className="text-muted-foreground">Transaction Ref: </span>
+              <span className="font-mono">{alert.transactionRef}</span>
+            </div>
+          )}
+        </div>
+        <div className="mt-3 rounded-lg bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+          {alert.description}
         </div>
         {alert.rules.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
@@ -129,25 +137,10 @@ export function FraudInvestigationView({ alertId }: Props) {
         )}
       </div>
 
-      {/* Device fingerprint */}
-      <DeviceFingerprintCard
-        knownDevices={[]}
-        currentDevice={undefined}
-      />
-
       {/* Action buttons */}
       <div className="rounded-lg border bg-card p-4">
         <h4 className="text-sm font-semibold mb-3">Actions</h4>
         <div className="flex flex-wrap gap-2">
-          {alert.maskedPan && (
-            <button
-              onClick={() => setConfirmAction('block-card')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 transition-colors"
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              Block Card
-            </button>
-          )}
           <button
             onClick={() => setConfirmAction('block-account')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 transition-colors"
@@ -161,13 +154,6 @@ export function FraudInvestigationView({ alertId }: Props) {
           >
             <Briefcase className="w-3.5 h-3.5" />
             File Fraud Case
-          </button>
-          <button
-            onClick={() => {}}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border hover:bg-muted transition-colors"
-          >
-            <Phone className="w-3.5 h-3.5" />
-            Contact Customer
           </button>
           <button
             onClick={() => setConfirmAction('allow')}
@@ -195,7 +181,6 @@ export function FraudInvestigationView({ alertId }: Props) {
               <div>
                 <div className="font-semibold text-sm">Confirm Action</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  {confirmAction === 'block-card' && 'This will immediately block the customer\'s card.'}
                   {confirmAction === 'block-account' && 'This will immediately block the customer\'s account from all transactions.'}
                   {confirmAction === 'file-case' && 'This will file a formal fraud case and notify the fraud investigation team.'}
                   {confirmAction === 'allow' && 'This will allow the transaction and add it to the monitoring watchlist.'}
@@ -211,7 +196,7 @@ export function FraudInvestigationView({ alertId }: Props) {
               </button>
               <button
                 onClick={() => handleAction(confirmAction)}
-                disabled={blockCard.isPending || blockAccount.isPending || fileFraudCase.isPending || allowTransaction.isPending}
+                disabled={blockAccount.isPending || fileFraudCase.isPending || allowTransaction.isPending}
                 className="px-4 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 Confirm
