@@ -25,8 +25,8 @@ const feeSchema = z.object({
   vatRate: z.number().min(0).max(100).optional(),
   schedule: z.enum(['PER_TRANSACTION', 'MONTHLY', 'QUARTERLY', 'ANNUAL']),
   waiverAuthority: z.enum(['OFFICER', 'MANAGER', 'ADMIN']),
-  glIncomeAccount: z.string().min(1, 'GL Income Account is required'),
-  glReceivableAccount: z.string().min(1, 'GL Receivable Account is required'),
+  glIncomeAccount: z.string().min(1, 'GL Income Account is required').regex(/^\d{6,12}$/, 'Must be 6-12 digits'),
+  glReceivableAccount: z.string().min(1, 'GL Receivable Account is required').regex(/^\d{6,12}$/, 'Must be 6-12 digits'),
   status: z.enum(['ACTIVE', 'INACTIVE']),
 });
 
@@ -268,7 +268,7 @@ export function FeeCalculationEditor({ initialData, mode: initialMode, onSubmit,
                 {CALC_TYPE_OPTIONS.find((o) => o.value === calcType)?.label}
               </p>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2" role="radiogroup" aria-label="Fee calculation type">
                 {CALC_TYPE_OPTIONS.map((opt) => (
                   <label
                     key={opt.value}
@@ -491,24 +491,34 @@ export function FeeCalculationEditor({ initialData, mode: initialMode, onSubmit,
       <FormSection title="GL Account Mapping" description="General Ledger accounts for posting">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={labelCls}>GL Income Account *</label>
+            <label htmlFor="glIncomeAccount" className={labelCls}>GL Income Account *</label>
             <input
+              id="glIncomeAccount"
               {...register('glIncomeAccount')}
               disabled={isReadOnly}
               placeholder="e.g. 4100001"
+              aria-required="true"
+              aria-describedby={errors.glIncomeAccount ? 'gl-income-error' : 'gl-income-hint'}
+              aria-invalid={!!errors.glIncomeAccount}
               className={inputCls(isReadOnly)}
             />
-            {errors.glIncomeAccount && <p className={errorCls}>{errors.glIncomeAccount.message}</p>}
+            <p id="gl-income-hint" className="text-xs text-muted-foreground mt-0.5">Fee Income — 6-12 digits only</p>
+            {errors.glIncomeAccount && <p id="gl-income-error" className={errorCls} role="alert">{errors.glIncomeAccount.message}</p>}
           </div>
           <div>
-            <label className={labelCls}>GL Receivable Account *</label>
+            <label htmlFor="glReceivableAccount" className={labelCls}>GL Receivable Account *</label>
             <input
+              id="glReceivableAccount"
               {...register('glReceivableAccount')}
               disabled={isReadOnly}
               placeholder="e.g. 1300001"
+              aria-required="true"
+              aria-describedby={errors.glReceivableAccount ? 'gl-recv-error' : 'gl-recv-hint'}
+              aria-invalid={!!errors.glReceivableAccount}
               className={inputCls(isReadOnly)}
             />
-            {errors.glReceivableAccount && <p className={errorCls}>{errors.glReceivableAccount.message}</p>}
+            <p id="gl-recv-hint" className="text-xs text-muted-foreground mt-0.5">Customer Account / Receivable — 6-12 digits only</p>
+            {errors.glReceivableAccount && <p id="gl-recv-error" className={errorCls} role="alert">{errors.glReceivableAccount.message}</p>}
           </div>
         </div>
       </FormSection>

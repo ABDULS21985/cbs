@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tdFrameworksApi } from '../api/tdFrameworkApi';
 import { tdFrameworkSummaryApi } from '../api/tdFrameworkSummaryApi';
+import type { TdFrameworkAgreement } from '../types/tdFramework';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
 const KEYS = {
   tdFrameworks: {
     all: ['deposits', 'td-frameworks'] as const,
+    detail: (number: string) => ['deposits', 'td-frameworks', 'detail', number] as const,
     rate: (number: string) => ['deposits', 'td-frameworks', number, 'rate'] as const,
     byCustomer: (customerId: number) =>
       ['deposits', 'td-frameworks', 'customer', customerId] as const,
@@ -25,6 +27,33 @@ const KEYS = {
 } as const;
 
 // ─── TD Framework ────────────────────────────────────────────────────────────
+
+export function useTdFrameworks() {
+  return useQuery({
+    queryKey: KEYS.tdFrameworks.all,
+    queryFn: () => tdFrameworksApi.getAll(),
+    staleTime: 30_000,
+  });
+}
+
+export function useTdFramework(number: string) {
+  return useQuery({
+    queryKey: KEYS.tdFrameworks.detail(number),
+    queryFn: () => tdFrameworksApi.getByNumber(number),
+    enabled: !!number,
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateTdFramework() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<TdFrameworkAgreement>) => tdFrameworksApi.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.tdFrameworks.all });
+    },
+  });
+}
 
 export function useTdFrameworkRate(number: string) {
   return useQuery({

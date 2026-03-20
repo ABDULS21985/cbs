@@ -8,7 +8,7 @@ export interface CustomerSurvey {
   description: string;
   targetSegment: string;
   deliveryChannel: string;
-  questions: Map<String, Object[];
+  questions: Record<string, unknown>[];
   startDate: string;
   endDate: string;
   totalSent: number;
@@ -18,7 +18,7 @@ export interface CustomerSurvey {
   npsScore: number;
   scoreDistribution: Record<string, unknown>;
   keyThemes: string[];
-  actionItems: Map<String, Object[];
+  actionItems: Record<string, unknown>[];
   status: string;
 }
 
@@ -28,7 +28,7 @@ export interface SurveyResponse {
   surveyId: number;
   customerId: number;
   channel: string;
-  answers: Map<String, Object[];
+  answers: Record<string, unknown>[];
   overallScore: number;
   npsCategory: string;
   sentiment: string;

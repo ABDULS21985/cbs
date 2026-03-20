@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
 import { NotificationItem } from '../components/NotificationItem';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Trash2, CheckCheck } from 'lucide-react';
+import { Trash2, CheckCheck, Loader2 } from 'lucide-react';
 
 const TABS = ['All', 'Unread', 'Alerts', 'Approvals', 'System'] as const;
 
 export function NotificationCenterPage() {
-  const { notifications, unreadCount, markAllAsRead, clearAll } = useNotifications();
+  const { notifications, unreadCount, markAllAsRead, clearAll, isLoading } = useNotifications();
   const [activeTab, setActiveTab] = useState<string>('All');
 
   const filtered = notifications.filter((n) => {
@@ -47,7 +47,12 @@ export function NotificationCenterPage() {
           ))}
         </div>
         <div className="rounded-lg border bg-card divide-y">
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <div className="py-12 flex flex-col items-center text-muted-foreground">
+              <Loader2 className="w-6 h-6 animate-spin mb-2" />
+              <p className="text-sm">Loading notifications...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground text-sm">No notifications</div>
           ) : (
             filtered.map((n) => <NotificationItem key={n.id} notification={n} />)

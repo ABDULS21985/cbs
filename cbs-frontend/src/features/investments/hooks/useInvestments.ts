@@ -54,6 +54,100 @@ export function useCreateInvestmentPortfolio() {
   });
 }
 
+// ─── Customer Portfolios (InvestmentPortfolioController) ─────────────────────
+
+export function usePortfolios() {
+  return useQuery({
+    queryKey: ['investment-portfolios', 'all'],
+    queryFn: async () => {
+      const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
+      return capitalMarketsApi.getPortfolios();
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function usePortfolioDetail(code: string) {
+  return useQuery({
+    queryKey: ['investment-portfolios', code],
+    queryFn: async () => {
+      const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
+      return capitalMarketsApi.getPortfolioDetail(code);
+    },
+    enabled: !!code,
+    staleTime: 30_000,
+  });
+}
+
+export function usePortfolioHoldings(code: string) {
+  return useQuery({
+    queryKey: ['investment-portfolios', code, 'holdings'],
+    queryFn: async () => {
+      const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
+      return capitalMarketsApi.getHoldings(code);
+    },
+    enabled: !!code,
+    staleTime: 30_000,
+  });
+}
+
+export function useCustomerPortfolios(customerId: number) {
+  return useQuery({
+    queryKey: ['investment-portfolios', 'customer', customerId],
+    queryFn: async () => {
+      const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
+      return capitalMarketsApi.getPortfolios(customerId);
+    },
+    enabled: customerId > 0,
+    staleTime: 30_000,
+  });
+}
+
+export function useCreatePortfolio() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { customerId: number; type: string; name: string; currency: string; benchmark?: string; manager?: string }) => {
+      const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
+      return capitalMarketsApi.createPortfolio(input as any);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['investment-portfolios'] }); },
+  });
+}
+
+export function useAddHolding(code: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { instrumentCode: string; instrumentName: string; holdingType: string; quantity: number; costPrice: number; currency: string }) => {
+      const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
+      return capitalMarketsApi.addHolding(code, input as any);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['investment-portfolios', code] }); },
+  });
+}
+
+export function useValuatePortfolio() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
+      return capitalMarketsApi.valuatePortfolio(code);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['investment-portfolios'] }); },
+  });
+}
+
+export function useAccountingSummary(code: string, date: string) {
+  return useQuery({
+    queryKey: ['investment-accounting', 'summary', code, date],
+    queryFn: async () => {
+      const { apiGet } = await import('@/lib/api');
+      return apiGet<Record<string, unknown>>(`/api/v1/investment-accounting/summary/${code}/${date}`);
+    },
+    enabled: !!code && !!date,
+    staleTime: 60_000,
+  });
+}
+
 // ─── Bank Portfolios ─────────────────────────────────────────────────────────
 
 export function useBankPortfolioByType(type: string) {

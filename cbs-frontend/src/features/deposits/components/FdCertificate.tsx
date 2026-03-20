@@ -1,4 +1,6 @@
-import { Printer } from 'lucide-react';
+import { useState } from 'react';
+import { Printer, Download } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
 import type { FixedDeposit } from '../api/fixedDepositApi';
 
@@ -7,20 +9,36 @@ interface FdCertificateProps {
 }
 
 export function FdCertificate({ fd }: FdCertificateProps) {
+  const [watermark, setWatermark] = useState<'ORIGINAL' | 'COPY'>('ORIGINAL');
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold">Fixed Deposit Certificate</h3>
-        <button
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors print:hidden"
-        >
-          <Printer className="w-4 h-4" />
-          Print Certificate
-        </button>
+      <div className="flex items-center justify-between mb-3 print:hidden">
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-semibold">Fixed Deposit Certificate</h3>
+          <div className="flex gap-1">
+            {(['ORIGINAL', 'COPY'] as const).map((w) => (
+              <button key={w} onClick={() => setWatermark(w)} className={cn('px-2 py-0.5 text-[10px] font-medium rounded', watermark === w ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                {w}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+            <Printer className="w-4 h-4" /> Print
+          </button>
+          <button onClick={() => window.print()} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+            <Download className="w-4 h-4" /> Download PDF
+          </button>
+        </div>
       </div>
 
-      <div id="fd-certificate" className="rounded-xl border-2 border-gray-800 dark:border-gray-400 bg-white dark:bg-gray-950 p-8 space-y-6 print:border-black print:shadow-none">
+      <div id="fd-certificate" className="rounded-xl border-2 border-gray-800 dark:border-gray-400 bg-white dark:bg-gray-950 p-8 space-y-6 print:border-black print:shadow-none relative overflow-hidden">
+        {/* Watermark */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none print:block" aria-hidden>
+          <span className="text-[120px] font-black text-gray-100 dark:text-gray-900/30 rotate-[-30deg] tracking-[0.3em]">{watermark}</span>
+        </div>
         {/* Header */}
         <div className="text-center border-b-2 border-gray-800 dark:border-gray-400 pb-6">
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
@@ -134,10 +152,21 @@ export function FdCertificate({ fd }: FdCertificateProps) {
           </div>
         </div>
 
+        {/* QR Code Area */}
+        <div className="flex items-center justify-between pt-2">
+          <div className="w-20 h-20 border-2 border-gray-400 rounded flex items-center justify-center text-[8px] text-gray-400 text-center leading-tight">
+            QR Code<br />{fd.fdNumber}<br />{formatMoney(fd.principalAmount, fd.currency)}
+          </div>
+          <div className="text-right text-xs text-gray-500">
+            <p>Serial: {fd.fdNumber}-{watermark.charAt(0)}</p>
+            <p>Verification: scan QR code</p>
+          </div>
+        </div>
+
         {/* Footer */}
-        <div className="text-center border-t border-gray-200 dark:border-gray-700 pt-4">
+        <div className="text-center border-t border-gray-200 dark:border-gray-700 pt-4 relative z-10">
           <p className="text-xs text-gray-400">
-            Issued on {formatDate(fd.startDate)} · Certificate No. {fd.fdNumber}
+            Issued on {formatDate(fd.startDate)} · Certificate No. {fd.fdNumber} · {watermark}
           </p>
         </div>
       </div>

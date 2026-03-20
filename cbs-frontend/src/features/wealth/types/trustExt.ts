@@ -12,7 +12,7 @@ export interface TrustAccount {
   corpusValue: number;
   incomeYtd: number;
   distributionsYtd: number;
-  beneficiaries: Map<String, Object[];
+  beneficiaries: Record<string, unknown>[];
   distributionRules: Record<string, unknown>;
   investmentPolicy: string;
   annualFeePct: number;

@@ -3,7 +3,7 @@
 export interface SecurityHolding {
   id: number;
   holdingRef: string;
-  securityType: SecurityType;
+  securityType: string;
   isinCode: string;
   securityName: string;
   issuerName: string;

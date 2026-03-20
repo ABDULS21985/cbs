@@ -1,5 +1,9 @@
 // Auto-generated from backend entities
 
+export type NotificationChannel = 'EMAIL' | 'SMS' | 'PUSH' | 'IN_APP';
+
+export type NotificationStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
+
 export interface NotificationLog {
   id: number;
   templateCode: string;
@@ -10,7 +14,7 @@ export interface NotificationLog {
   recipientName: string;
   subject: string;
   body: string;
-  status: string;
+  status: NotificationStatus;
   provider: string;
   providerMessageId: string;
   failureReason: string;
@@ -33,3 +37,20 @@ export interface NotificationPreference {
   updatedAt?: string;
 }
 
+export interface NotificationTemplate {
+  id: number;
+  code: string;
+  channel: NotificationChannel;
+  subject: string;
+  bodyTemplate: string;
+  eventType: string;
+  [key: string]: unknown;
+}
+
+export interface DeliveryStats {
+  totalSent: number;
+  totalDelivered: number;
+  totalFailed: number;
+  deliveryRate: number;
+  [key: string]: unknown;
+}

@@ -13,9 +13,9 @@ export interface BusinessRiskAssessment {
   riskRating: string;
   riskAppetiteStatus: string;
   description: string;
-  keyRiskIndicators: Map<String, Object[];
+  keyRiskIndicators: Record<string, unknown>[];
   riskDrivers: string[];
-  mitigationActions: Map<String, Object[];
+  mitigationActions: Record<string, unknown>[];
   impactAssessment: Record<string, unknown>;
   nextReviewDate: string;
   status: string;

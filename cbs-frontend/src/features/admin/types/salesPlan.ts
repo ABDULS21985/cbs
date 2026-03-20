@@ -16,7 +16,7 @@ export interface SalesPlan {
   productTargets: Record<string, unknown>;
   teamLead: string;
   teamMembers: string[];
-  territoryAssignments: Map<String, Object[];
+  territoryAssignments: Record<string, unknown>[];
   achievementPct: number;
   status: string;
 }

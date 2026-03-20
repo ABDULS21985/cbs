@@ -12,7 +12,7 @@ export interface WealthManagementPlan {
   taxBracketPct: number;
   retirementTargetAge: number;
   retirementIncomeGoal: number;
-  financialGoals: Map<String, Object[];
+  financialGoals: Record<string, unknown>[];
   recommendedAllocation: Record<string, unknown>;
   insuranceNeeds: Record<string, unknown>;
   estatePlanSummary: string;

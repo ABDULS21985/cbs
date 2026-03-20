@@ -72,7 +72,7 @@ export function TierTableEditor({ tiers, onChange, type, readOnly }: TierTableEd
               </tr>
             )}
             {tiers.map((tier, idx) => (
-              <tr key={idx} className="border-b last:border-0">
+              <tr key={idx} className={cn('border-b last:border-0', !readOnly && validation.errors.has(idx) && 'bg-red-50/50 dark:bg-red-900/10')}>
                 <td className="px-3 py-2">
                   {readOnly ? (
                     <span>₦{tier.fromAmount.toLocaleString()}</span>
@@ -135,14 +135,21 @@ export function TierTableEditor({ tiers, onChange, type, readOnly }: TierTableEd
       </div>
 
       {!readOnly && (
-        <button
-          type="button"
-          onClick={addRow}
-          className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add {type === 'TIERED' ? 'Tier' : 'Slab'}
-        </button>
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={addRow}
+            className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add {type === 'TIERED' ? 'Tier' : 'Slab'}
+          </button>
+          {!validation.valid && (
+            <p className="text-xs text-destructive font-medium">
+              Tier ranges have gaps or overlaps — fix before saving
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

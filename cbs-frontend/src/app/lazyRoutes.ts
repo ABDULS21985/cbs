@@ -28,6 +28,14 @@ export const FixedDepositDetailPage = lazyNamed(
   () => import('@/features/deposits/pages/FixedDepositDetailPage'),
   'FixedDepositDetailPage',
 );
+export const DepositOperationsPage = lazyNamed(
+  () => import('@/features/deposits/pages/DepositOperationsPage'),
+  'DepositOperationsPage',
+);
+export const DepositDashboardPage = lazyNamed(
+  () => import('@/features/deposits/pages/DepositDashboardPage'),
+  'DepositDashboardPage',
+);
 
 export const ReconciliationWorkbenchPage = lazyNamed(
   () => import('@/features/reconciliation/pages/ReconciliationWorkbenchPage'),

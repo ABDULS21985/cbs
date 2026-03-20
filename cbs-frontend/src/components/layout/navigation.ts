@@ -260,6 +260,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Parameters', path: '/admin/parameters' },
           { label: 'Products', path: '/admin/products' },
           { label: 'Fees & Charges', path: '/admin/fees' },
+          { label: 'Fee Waivers', path: '/admin/fees/waivers' },
           { label: 'Providers', path: '/admin/providers' },
           { label: 'Notifications', path: '/admin/notifications' },
           { label: 'Campaigns', path: '/admin/campaigns' },

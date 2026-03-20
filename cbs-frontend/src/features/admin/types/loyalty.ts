@@ -28,7 +28,7 @@ export interface LoyaltyProgram {
   pointValue: number;
   minRedemptionPoints: number;
   expiryMonths: number;
-  tierLevels: Map<String, Object[];
+  tierLevels: Record<string, unknown>[];
   isActive: boolean;
   createdAt: string;
 }

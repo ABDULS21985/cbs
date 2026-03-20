@@ -10,7 +10,7 @@ export interface SyndicateArrangement {
   currency: string;
   ourCommitment: number;
   ourSharePct: number;
-  participants: Map<String, Object[];
+  participants: Record<string, unknown>[];
   borrowerName: string;
   purpose: string;
   tenorMonths: number;

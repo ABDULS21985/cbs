@@ -20,9 +20,14 @@ export function NotificationItem({ notification: n, onClick }: NotificationItemP
   const { markAsRead } = useNotifications();
   const { icon: Icon, color } = typeConfig[n.type] || typeConfig.info;
 
+  const handleClick = () => {
+    if (!n.read) markAsRead(n.id);
+    onClick?.();
+  };
+
   return (
     <button
-      onClick={() => { if (!n.read) markAsRead(n.id); onClick?.(); }}
+      onClick={handleClick}
       className={cn('flex items-start gap-3 w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors', !n.read && 'bg-primary/5')}
     >
       <Icon className={cn('w-5 h-5 mt-0.5 flex-shrink-0', color)} />

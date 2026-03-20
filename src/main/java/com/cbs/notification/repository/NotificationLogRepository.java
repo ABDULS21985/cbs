@@ -15,4 +15,6 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
     @Query("SELECT n FROM NotificationLog n WHERE n.status = 'PENDING' AND n.retryCount < n.maxRetries")
     List<NotificationLog> findPendingForRetry();
     long countByStatus(String status);
+    long countByStatusNot(String status);
+    List<NotificationLog> findByStatusIn(List<String> statuses);
 }

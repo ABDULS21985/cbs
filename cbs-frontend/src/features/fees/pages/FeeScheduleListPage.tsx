@@ -1,12 +1,13 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Plus, History, Edit2, Layers, FileText, CheckCircle, ArrowRightLeft, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, History, Edit2, Layers, FileText, CheckCircle, ArrowRightLeft, AlertTriangle, RefreshCw, Download, Upload, X, Loader2 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard } from '@/components/shared';
 import { cn } from '@/lib/utils';
-import { getFeeDefinitions, type FeeDefinition, type FeeCategory, type FeeCalcType } from '../api/feeApi';
+import { toast } from 'sonner';
+import { getFeeDefinitions, createFeeDefinition, type FeeDefinition, type FeeCategory, type FeeCalcType } from '../api/feeApi';
 import { FeeComparisonPanel } from '../components/FeeComparisonPanel';
 
 // ─── Local badge helper ───────────────────────────────────────────────────────
@@ -88,13 +89,158 @@ const CALC_TYPE_OPTIONS: { value: string; label: string }[] = [
 const selectCls =
   'px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-colors';
 
+// ─── Export Helper ───────────────────────────────────────────────────────────
+
+function exportFeesToCsv(fees: FeeDefinition[]) {
+  const headers = ['code', 'name', 'category', 'calcType', 'flatAmount', 'percentage', 'minFee', 'maxFee', 'vatApplicable', 'vatRate', 'schedule', 'waiverAuthority', 'status'];
+  const rows = fees.map((f) => headers.map((h) => {
+    const val = f[h as keyof FeeDefinition];
+    return typeof val === 'boolean' ? (val ? 'true' : 'false') : String(val ?? '');
+  }));
+  const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fee-definitions-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportFeesToJson(fees: FeeDefinition[]) {
+  const blob = new Blob([JSON.stringify(fees, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fee-definitions-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Import Dialog ──────────────────────────────────────────────────────────
+
+function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported: () => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importedFees, setImportedFees] = useState<Partial<FeeDefinition>[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState<{ success: number; failed: number } | null>(null);
+
+  const handleFile = async (file: File) => {
+    const text = await file.text();
+    try {
+      let parsed: Partial<FeeDefinition>[];
+      if (file.name.endsWith('.json')) {
+        parsed = JSON.parse(text);
+      } else {
+        // CSV parsing
+        const lines = text.trim().split('\n');
+        const headers = lines[0].split(',');
+        parsed = lines.slice(1).map((line) => {
+          const vals = line.split(',');
+          const obj: Record<string, unknown> = {};
+          headers.forEach((h, i) => { obj[h.trim()] = vals[i]?.trim(); });
+          if (obj.flatAmount) obj.flatAmount = Number(obj.flatAmount);
+          if (obj.percentage) obj.percentage = Number(obj.percentage);
+          if (obj.minFee) obj.minFee = Number(obj.minFee);
+          if (obj.maxFee) obj.maxFee = Number(obj.maxFee);
+          if (obj.vatRate) obj.vatRate = Number(obj.vatRate);
+          if (obj.vatApplicable) obj.vatApplicable = obj.vatApplicable === 'true';
+          return obj as Partial<FeeDefinition>;
+        });
+      }
+      // Validate
+      const errs: string[] = [];
+      parsed.forEach((f, i) => {
+        if (!f.code) errs.push(`Row ${i + 1}: Missing fee code`);
+        if (!f.name) errs.push(`Row ${i + 1}: Missing fee name`);
+        if (!f.category) errs.push(`Row ${i + 1}: Missing category`);
+      });
+      setImportedFees(parsed);
+      setErrors(errs);
+    } catch {
+      setErrors(['Invalid file format']);
+    }
+  };
+
+  const handleImport = async () => {
+    const valid = importedFees.filter((f) => f.code && f.name && f.category);
+    setImporting(true);
+    let success = 0;
+    let failed = 0;
+    for (const fee of valid) {
+      try {
+        await createFeeDefinition(fee as Omit<FeeDefinition, 'id' | 'createdAt'>);
+        success++;
+      } catch {
+        failed++;
+      }
+    }
+    setImportResults({ success, failed });
+    setImporting(false);
+    if (success > 0) onImported();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+        <h2 className="text-lg font-semibold mb-1">Import Fee Definitions</h2>
+        <p className="text-sm text-muted-foreground mb-4">Upload a CSV or JSON file</p>
+
+        {importResults ? (
+          <div className="space-y-4">
+            <div className="rounded-lg bg-green-50 dark:bg-green-900/10 p-4 text-center">
+              <p className="text-sm font-semibold text-green-700 dark:text-green-300">{importResults.success} fee(s) imported</p>
+              {importResults.failed > 0 && <p className="text-xs text-red-600 mt-1">{importResults.failed} failed</p>}
+            </div>
+            <button onClick={onClose} className="w-full btn-primary">Done</button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div
+              onClick={() => fileRef.current?.click()}
+              className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            >
+              <input ref={fileRef} type="file" accept=".csv,.json" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+              <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Drop CSV or JSON file here</p>
+            </div>
+
+            {importedFees.length > 0 && (
+              <div className="rounded-lg border p-3 text-sm">
+                <p className="font-medium">{importedFees.length} fee(s) found</p>
+                {errors.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {errors.slice(0, 5).map((e, i) => <p key={i} className="text-xs text-red-600">{e}</p>)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button onClick={onClose} className="btn-secondary">Cancel</button>
+              <button onClick={handleImport} disabled={importedFees.length === 0 || importing} className="btn-primary flex items-center gap-2">
+                {importing && <Loader2 className="w-4 h-4 animate-spin" />}
+                Import {importedFees.filter((f) => f.code && f.name).length} Fees
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function FeeScheduleListPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [categoryFilter, setCategoryFilter] = useState('');
   const [calcTypeFilter, setCalcTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
   const [showCompare, setShowCompare] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const { data: fees = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['fee-definitions'],
@@ -221,13 +367,27 @@ export function FeeScheduleListPage() {
         title="Fees & Charges"
         subtitle="Manage fee definitions, charge history, and waivers"
         actions={
-          <button
-            onClick={() => navigate('/admin/fees/new')}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Fee Definition
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowImport(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+              <Upload className="w-4 h-4" /> Import
+            </button>
+            <div className="relative group">
+              <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+                <Download className="w-4 h-4" /> Export
+              </button>
+              <div className="absolute right-0 top-full mt-1 bg-background rounded-lg border shadow-lg z-10 hidden group-hover:block">
+                <button onClick={() => exportFeesToCsv(fees)} className="w-full px-4 py-2 text-sm text-left hover:bg-muted">Export CSV</button>
+                <button onClick={() => exportFeesToJson(fees)} className="w-full px-4 py-2 text-sm text-left hover:bg-muted">Export JSON</button>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/admin/fees/new')}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Fee Definition
+            </button>
+          </div>
         }
       />
 
@@ -337,6 +497,13 @@ export function FeeScheduleListPage() {
         <FeeComparisonPanel
           fees={fees.filter((f) => selectedForCompare.includes(f.id))}
           onClose={() => setShowCompare(false)}
+        />
+      )}
+
+      {showImport && (
+        <ImportDialog
+          onClose={() => setShowImport(false)}
+          onImported={() => queryClient.invalidateQueries({ queryKey: ['fee-definitions'] })}
         />
       )}
     </>

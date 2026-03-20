@@ -511,7 +511,7 @@ public class AdminController {
     public ResponseEntity<ApiResponse<ProviderHealthLog>> healthCheck(@PathVariable Long id) {
         ServiceProvider provider = serviceProviderRepository.findById(id)
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Provider not found: " + id));
-        ProviderHealthLog log = providerManagementService.healthCheck(provider.getProviderCode());
+        ProviderHealthLog log = providerManagementService.healthCheck(id, 0, 200, true, null);
         return ResponseEntity.ok(ApiResponse.ok(log));
     }
 
@@ -519,9 +519,9 @@ public class AdminController {
     @Operation(summary = "Trigger failover for a provider")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<ServiceProvider>> failover(@PathVariable Long id) {
-        ServiceProvider provider = serviceProviderRepository.findById(id)
+        serviceProviderRepository.findById(id)
                 .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Provider not found: " + id));
-        return ResponseEntity.ok(ApiResponse.ok(providerManagementService.triggerFailover(provider.getProviderCode())));
+        return ResponseEntity.ok(ApiResponse.ok(providerManagementService.triggerFailover(id)));
     }
 
     @PostMapping("/providers/{id}/suspend")

@@ -1,53 +1,149 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { notificationsApi } from '../api/notificationExtApi';
+import { notificationApi } from '../api/notificationApi';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
 const KEYS = {
-  notifications: {
-    all: ['notifications'] as const,
-    preferences: (customerId: number) =>
-      ['notifications', 'preferences', customerId] as const,
-  },
+  all: ['notifications'] as const,
+  templates: ['notifications', 'templates'] as const,
+  channels: ['notifications', 'channels'] as const,
+  deliveryStats: ['notifications', 'delivery-stats'] as const,
+  failures: (page: number, size: number) => ['notifications', 'failures', page, size] as const,
+  scheduled: (page: number, size: number) => ['notifications', 'scheduled', page, size] as const,
+  preferences: (customerId: number) => ['notifications', 'preferences', customerId] as const,
+  customer: (customerId: number) => ['notifications', 'customer', customerId] as const,
 } as const;
 
-// ─── Notification Preferences ────────────────────────────────────────────────
+// ─── Templates ────────────────────────────────────────────────────────────────
+
+export function useNotificationTemplates() {
+  return useQuery({
+    queryKey: KEYS.templates,
+    queryFn: () => notificationApi.getTemplates(),
+    staleTime: 60_000,
+  });
+}
+
+// ─── Channels ─────────────────────────────────────────────────────────────────
+
+export function useNotificationChannels() {
+  return useQuery({
+    queryKey: KEYS.channels,
+    queryFn: () => notificationApi.getChannels(),
+    staleTime: 60_000,
+  });
+}
+
+// ─── Delivery Stats ───────────────────────────────────────────────────────────
+
+export function useDeliveryStats() {
+  return useQuery({
+    queryKey: KEYS.deliveryStats,
+    queryFn: () => notificationApi.getDeliveryStats(),
+    staleTime: 30_000,
+  });
+}
+
+// ─── Failures ─────────────────────────────────────────────────────────────────
+
+export function useNotificationFailures(page = 0, size = 20) {
+  return useQuery({
+    queryKey: KEYS.failures(page, size),
+    queryFn: () => notificationApi.getFailures(page, size),
+    staleTime: 15_000,
+  });
+}
+
+// ─── Scheduled ────────────────────────────────────────────────────────────────
+
+export function useScheduledNotifications(page = 0, size = 20) {
+  return useQuery({
+    queryKey: KEYS.scheduled(page, size),
+    queryFn: () => notificationApi.getScheduled(page, size),
+    staleTime: 15_000,
+  });
+}
+
+// ─── Send Notification ────────────────────────────────────────────────────────
+
+export function useSendNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      eventType: string;
+      customerId: number;
+      email?: string;
+      phone?: string;
+      name?: string;
+      extraParams?: Record<string, string>;
+    }) =>
+      notificationApi.sendEvent(
+        params.eventType,
+        params.customerId,
+        params.email,
+        params.phone,
+        params.name,
+        params.extraParams,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
+// ─── Preferences ──────────────────────────────────────────────────────────────
 
 export function useNotificationPreferences(customerId: number) {
   return useQuery({
-    queryKey: KEYS.notifications.preferences(customerId),
-    queryFn: () => notificationsApi.getPreferences(customerId),
+    queryKey: KEYS.preferences(customerId),
+    queryFn: () => notificationApi.getPreferences(customerId),
     enabled: !!customerId,
     staleTime: 60_000,
   });
 }
 
-export function useSendNotificationEvent() {
+export function useUpdatePreference() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) => notificationsApi.sendEvent(data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.notifications.all });
+    mutationFn: (params: {
+      customerId: number;
+      channel: string;
+      eventType: string;
+      enabled: boolean;
+    }) =>
+      notificationApi.updatePreference(
+        params.customerId,
+        params.channel,
+        params.eventType,
+        params.enabled,
+      ),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({
+        queryKey: KEYS.preferences(variables.customerId),
+      });
     },
   });
 }
 
-export function useUpdateNotificationPreference() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: () => notificationsApi.updatePreference(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.notifications.all });
-    },
-  });
-}
+// ─── Retry Failed ─────────────────────────────────────────────────────────────
 
 export function useRetryNotifications() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => notificationsApi.retry(),
+    mutationFn: () => notificationApi.retry(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.notifications.all });
+      qc.invalidateQueries({ queryKey: KEYS.all });
     },
+  });
+}
+
+// ─── Customer Notifications ───────────────────────────────────────────────────
+
+export function useCustomerNotifications(customerId: number, page = 0, size = 20) {
+  return useQuery({
+    queryKey: [...KEYS.customer(customerId), page, size],
+    queryFn: () => notificationApi.getCustomerNotifications(customerId, page, size),
+    enabled: !!customerId,
+    staleTime: 15_000,
   });
 }

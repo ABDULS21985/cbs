@@ -6,7 +6,7 @@ export interface WorkflowDefinition {
   workflowName: string;
   entityType: string;
   triggerEvent: string;
-  stepsConfig: Map<String, Object[];
+  stepsConfig: Record<string, unknown>[];
   autoApproveBelow: number;
   slaHours: number;
   isActive: boolean;

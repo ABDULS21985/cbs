@@ -105,4 +105,22 @@ export const fixedDepositApi = {
 
   getStats: (): Promise<FdStats> =>
     apiGet<FdStats>('/api/v1/deposits/fixed/stats'),
+
+  partialLiquidate: (id: string, amount: number, reason: string): Promise<void> =>
+    apiPost<void>(`/api/v1/deposits/fixed/${id}/partial-liquidate`, { amount, reason }),
+
+  terminate: (id: string, reason: string): Promise<void> =>
+    apiPost<void>(`/api/v1/deposits/fixed/${id}/terminate`, { reason }),
+
+  getCustomerFds: (customerId: string): Promise<FixedDeposit[]> =>
+    apiGet<FixedDeposit[]>(`/api/v1/deposits/fixed/customer/${customerId}`).catch(() => []),
+
+  batchProcessMaturity: (): Promise<{ processed: number; rolledOver: number; liquidated: number; failed: number }> =>
+    apiPost<{ processed: number; rolledOver: number; liquidated: number; failed: number }>('/api/v1/deposits/fixed/batch/maturity'),
+
+  batchAccrueInterest: (): Promise<{ accrued: number; totalInterest: number; exceptions: number }> =>
+    apiPost<{ accrued: number; totalInterest: number; exceptions: number }>('/api/v1/deposits/fixed/batch/accrue'),
+
+  getByNumber: (depositNumber: string): Promise<FixedDeposit> =>
+    apiGet<FixedDeposit>(`/api/v1/deposits/fixed/${depositNumber}`),
 };

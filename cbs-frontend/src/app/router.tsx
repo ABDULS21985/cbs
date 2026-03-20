@@ -64,8 +64,10 @@ import {
   FeeScheduleListPage,
   FinancialReportsPage,
   FixedDepositDetailPage,
+  DepositDashboardPage,
   SegmentDetailPage,
   FixedDepositListPage,
+  DepositOperationsPage,
   FixedIncomePage,
   FraudManagementPage,
   GatewayConsolePage,
@@ -102,6 +104,7 @@ import {
   MortgageListPage,
   NewCasePage,
   NewFeeDefinitionPage,
+  FeeWaiverDashboardPage,
   NewFixedDepositPage,
   NewGoalPage,
   PfmDashboardPage,
@@ -310,6 +313,8 @@ export function AppRouter() {
           <Route path="open" element={<AccountOpeningPage />} />
           <Route path="fixed-deposits" element={<FixedDepositListPage />} />
           <Route path="fixed-deposits/new" element={<NewFixedDepositPage />} />
+          <Route path="fixed-deposits/dashboard" element={<DepositDashboardPage />} />
+          <Route path="fixed-deposits/operations" element={<DepositOperationsPage />} />
           <Route path="fixed-deposits/:id" element={<FixedDepositDetailPage />} />
           <Route path="goals" element={<GoalListPage />} />
           <Route path="goals/new" element={<NewGoalPage />} />
@@ -561,6 +566,7 @@ export function AppRouter() {
           <Route path="products/:id" element={<ProductDetailPage />} />
           <Route path="fees" element={<FeeScheduleListPage />} />
           <Route path="fees/new" element={<NewFeeDefinitionPage />} />
+          <Route path="fees/waivers" element={<FeeWaiverDashboardPage />} />
           <Route path="fees/:id" element={<FeeDefinitionDetailPage />} />
           <Route path="providers" element={<ServiceProviderPage />} />
           <Route path="providers/:id" element={<ProviderDetailPage />} />

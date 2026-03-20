@@ -9,8 +9,8 @@ export interface DealingDesk {
   headDealerEmployeeId: string;
   location: string;
   timezone: string;
-  tradingHoursStart: LocalTime;
-  tradingHoursEnd: LocalTime;
+  tradingHoursStart: string;
+  tradingHoursEnd: string;
   tradingDays: string[];
   supportedInstruments: string[];
   supportedCurrencies: string[];

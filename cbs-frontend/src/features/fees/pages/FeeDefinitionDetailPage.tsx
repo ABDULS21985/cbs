@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, Clock, Ban, Calculator, Loader2, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { FileText, Clock, Ban, Calculator, Loader2, CheckCircle2, XCircle, AlertTriangle, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage } from '@/components/shared';
@@ -142,6 +142,7 @@ function WaiversTab({ feeId }: { feeId: string }) {
 
 export function FeeDefinitionDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: fee, isLoading, isError } = useQuery({
@@ -284,9 +285,27 @@ export function FeeDefinitionDetailPage() {
         subtitle={`${fee.code} · ${fee.category.replace(/_/g, ' ')}`}
         backTo="/admin/fees"
         actions={
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[fee.status]}`}>
-            {fee.status}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const cloneData = {
+                  ...fee,
+                  id: undefined,
+                  code: `${fee.code}-COPY`,
+                  name: `${fee.name} (Copy)`,
+                  status: 'INACTIVE' as const,
+                  createdAt: undefined,
+                };
+                navigate('/admin/fees/new', { state: { cloneData } });
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
+            >
+              <Copy className="w-3.5 h-3.5" /> Clone Fee
+            </button>
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[fee.status]}`}>
+              {fee.status}
+            </span>
+          </div>
         }
       />
 

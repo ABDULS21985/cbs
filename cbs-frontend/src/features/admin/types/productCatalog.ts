@@ -10,7 +10,7 @@ export interface ProductCatalogEntry {
   targetSegment: string;
   availableChannels: string[];
   eligibilityCriteria: Record<string, unknown>;
-  keyFeatures: Map<String, Object[];
+  keyFeatures: Record<string, unknown>[];
   feeSchedule: Record<string, unknown>;
   interestRates: Record<string, unknown>;
   termsAndConditions: string;

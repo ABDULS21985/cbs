@@ -144,7 +144,7 @@ public class CustomerAnalyticsController {
         // Active loans (reduces churn)
         boolean hasActiveLoan = false;
         try {
-            List<LoanAccount> loans = loanAccountRepository.findByCustomerId(id);
+            List<LoanAccount> loans = loanAccountRepository.findByCustomerId(id, org.springframework.data.domain.Pageable.unpaged()).getContent();
             hasActiveLoan = loans.stream().anyMatch(l -> "ACTIVE".equals(l.getStatus()) || "DISBURSED".equals(l.getStatus()));
         } catch (Exception ignored) {}
 

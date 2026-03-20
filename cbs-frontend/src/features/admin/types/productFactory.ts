@@ -8,7 +8,7 @@ export interface ProductTemplate {
   interestConfig: Record<string, unknown>;
   feeConfig: Record<string, unknown>;
   limitConfig: Record<string, unknown>;
-  eligibilityRules: Map<String, Object[];
+  eligibilityRules: Record<string, unknown>[];
   lifecycleRules: Record<string, unknown>;
   glMapping: Record<string, unknown>;
   status: string;

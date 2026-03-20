@@ -19,10 +19,10 @@ export interface BizDevInitiative {
   plannedEndDate: string;
   actualStartDate: string;
   actualEndDate: string;
-  milestones: Map<String, Object[];
+  milestones: Record<string, unknown>[];
   progressPct: number;
   kpis: Record<string, unknown>;
-  risks: Map<String, Object[];
+  risks: Record<string, unknown>[];
   status: string;
 }
 

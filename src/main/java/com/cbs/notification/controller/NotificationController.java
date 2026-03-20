@@ -5,6 +5,7 @@ import com.cbs.common.dto.PageMeta;
 import com.cbs.notification.entity.*;
 import com.cbs.notification.repository.NotificationLogRepository;
 import com.cbs.notification.service.NotificationService;
+import com.cbs.common.exception.ResourceNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -221,15 +222,24 @@ public class NotificationController {
     @Operation(summary = "Mark all notifications as read for a customer")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> markAllRead(
-            @RequestParam Long customerId) {
-        Page<NotificationLog> notifications = notificationService.getCustomerNotifications(customerId,
-                PageRequest.of(0, 1000));
+            @RequestParam(required = false) Long customerId) {
         int marked = 0;
-        for (NotificationLog log : notifications.getContent()) {
-            if (!"READ".equals(log.getStatus()) && "DELIVERED".equals(log.getStatus())) {
+        if (customerId == null) {
+            List<NotificationLog> unread = notificationLogRepository.findByStatusIn(List.of("PENDING", "SENT", "DELIVERED"));
+            for (NotificationLog log : unread) {
                 log.setStatus("READ");
                 notificationLogRepository.save(log);
                 marked++;
+            }
+        } else {
+            Page<NotificationLog> notifications = notificationService.getCustomerNotifications(customerId,
+                    PageRequest.of(0, 1000));
+            for (NotificationLog log : notifications.getContent()) {
+                if (!"READ".equals(log.getStatus()) && ("PENDING".equals(log.getStatus()) || "SENT".equals(log.getStatus()) || "DELIVERED".equals(log.getStatus()))) {
+                    log.setStatus("READ");
+                    notificationLogRepository.save(log);
+                    marked++;
+                }
             }
         }
         return ResponseEntity.ok(ApiResponse.ok(Map.of("markedAsRead", marked)));
@@ -255,7 +265,8 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUnreadCount(
             @RequestParam(required = false) Long customerId) {
         if (customerId == null) {
-            return ResponseEntity.ok(ApiResponse.ok(Map.of("unreadCount", 0L)));
+            long unread = notificationLogRepository.countByStatusNot("READ");
+            return ResponseEntity.ok(ApiResponse.ok(Map.of("unreadCount", unread)));
         }
         Page<NotificationLog> notifications = notificationService.getCustomerNotifications(customerId,
                 PageRequest.of(0, 10000));
@@ -422,5 +433,28 @@ public class NotificationController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> toggleScheduled(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id, "toggled", true)));
+    }
+
+    // ========================================================================
+    // SINGLE NOTIFICATION ACTIONS
+    // ========================================================================
+
+    @PostMapping("/{id}/read")
+    @Operation(summary = "Mark a single notification as read")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> markAsRead(@PathVariable Long id) {
+        NotificationLog log = notificationLogRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification", "id", id));
+        log.setStatus("READ");
+        notificationLogRepository.save(log);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "READ")));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a notification")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> deleteNotification(@PathVariable Long id) {
+        notificationLogRepository.deleteById(id);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "deleted", "true")));
     }
 }

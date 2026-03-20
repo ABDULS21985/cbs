@@ -12,7 +12,7 @@ export interface TdFrameworkAgreement {
   maxTenorDays: number;
   rateStructure: string;
   baseRate: number;
-  rateTiers: Map<String, Object[];
+  rateTiers: Record<string, unknown>[];
   benchmarkReference: string;
   spreadOverBenchmark: number;
   autoRolloverEnabled: boolean;
