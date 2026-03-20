@@ -115,6 +115,7 @@ import {
   PfmDashboardPage,
   NewTransferPage,
   NotificationCenterPage,
+  NotificationPreferencesPage,
   OperationalReportsPage,
   OperationalRiskPage,
   OrderManagementPage,

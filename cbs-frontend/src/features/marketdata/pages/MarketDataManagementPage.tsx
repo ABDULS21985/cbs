@@ -9,8 +9,6 @@ import {
   useMarketSignals,
   usePublishedResearch,
   useMarketAnalysis,
-  usePublishResearch,
-  useCreateAnalysis,
 } from '../hooks/useMarketData';
 import type {
   DataFeed,
@@ -19,7 +17,6 @@ import type {
   ResearchReport,
   MarketAnalysis,
   AnalysisType,
-  Recommendation,
 } from '../types';
 import { formatDate, formatDateTime } from '@/lib/formatters';
 import {
@@ -29,33 +26,17 @@ import {
   AlertTriangle,
   Search,
   Plus,
-  X,
   RefreshCw,
-  Loader2,
 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import { FeedStatusDot } from '../components/FeedStatusDot';
 import { SignalBadge } from '../components/SignalBadge';
+import { RecommendationBadge } from '../components/RecommendationBadge';
 import { RegisterFeedDialog } from '../components/RegisterFeedDialog';
+import { PublishResearchDialog } from '../components/PublishResearchDialog';
+import { NewAnalysisDialog } from '../components/NewAnalysisDialog';
 import { PriceCard } from '../components/PriceCard';
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function RecommendationBadge({ rec }: { rec: string }) {
-  const cls =
-    rec === 'BUY'
-      ? 'bg-green-50 text-green-700'
-      : rec === 'SELL'
-        ? 'bg-red-50 text-red-700'
-        : 'bg-amber-50 text-amber-700';
-  return (
-    <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-semibold', cls)} aria-label={`Recommendation: ${rec}`}>
-      {rec}
-    </span>
-  );
-}
 
 // ─── Publish Research Dialog ──────────────────────────────────────────────────
 
