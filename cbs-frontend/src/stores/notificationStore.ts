@@ -10,50 +10,27 @@ export interface AppNotification {
   actionUrl?: string;
 }
 
-interface NotificationState {
-  notifications: AppNotification[];
-  unreadCount: number;
-  addNotification: (n: Omit<AppNotification, 'id' | 'read' | 'createdAt'>) => void;
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
-  removeNotification: (id: string) => void;
-  clearAll: () => void;
+/** Toast-only store — transient in-session notifications. Backend-synced data uses React Query. */
+interface ToastState {
+  activeToasts: AppNotification[];
+  addToast: (n: Omit<AppNotification, 'id' | 'read' | 'createdAt'>) => void;
+  dismissToast: (id: string) => void;
 }
 
-export const useNotificationStore = create<NotificationState>((set) => ({
-  notifications: [],
-  unreadCount: 0,
+export const useNotificationStore = create<ToastState>((set) => ({
+  activeToasts: [],
 
-  addNotification: (n) => {
-    const notification: AppNotification = {
-      ...n,
-      id: crypto.randomUUID(),
-      read: false,
-      createdAt: new Date().toISOString(),
-    };
-    set((s) => ({
-      notifications: [notification, ...s.notifications].slice(0, 100),
-      unreadCount: s.unreadCount + 1,
-    }));
+  addToast: (n) => {
+    const id = crypto.randomUUID();
+    const toast: AppNotification = { ...n, id, read: false, createdAt: new Date().toISOString() };
+    set((s) => ({ activeToasts: [...s.activeToasts, toast].slice(-5) }));
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      set((s) => ({ activeToasts: s.activeToasts.filter((t) => t.id !== id) }));
+    }, 5000);
   },
 
-  markAsRead: (id) => set((s) => ({
-    notifications: s.notifications.map((n) => n.id === id ? { ...n, read: true } : n),
-    unreadCount: Math.max(0, s.unreadCount - (s.notifications.find((n) => n.id === id && !n.read) ? 1 : 0)),
+  dismissToast: (id) => set((s) => ({
+    activeToasts: s.activeToasts.filter((t) => t.id !== id),
   })),
-
-  markAllAsRead: () => set((s) => ({
-    notifications: s.notifications.map((n) => ({ ...n, read: true })),
-    unreadCount: 0,
-  })),
-
-  removeNotification: (id) => set((s) => {
-    const n = s.notifications.find((n) => n.id === id);
-    return {
-      notifications: s.notifications.filter((n) => n.id !== id),
-      unreadCount: n && !n.read ? s.unreadCount - 1 : s.unreadCount,
-    };
-  }),
-
-  clearAll: () => set({ notifications: [], unreadCount: 0 }),
 }));

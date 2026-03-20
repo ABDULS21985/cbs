@@ -87,7 +87,7 @@ function PublishResearchDialog({ onClose }: { onClose: () => void }) {
         targetPrice: parseFloat(form.targetPrice) || 0,
         reportUrl: form.reportUrl || undefined,
       },
-      { onSuccess: onClose },
+      { onSuccess: () => { toast.success('Research published'); onClose(); }, onError: () => toast.error('Failed to publish research') },
     );
   };
 
@@ -171,7 +171,7 @@ function NewAnalysisDialog({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     createAnalysis.mutate(
       { ...form, instrument: form.instrument || undefined, sector: form.sector || undefined },
-      { onSuccess: onClose },
+      { onSuccess: () => { toast.success('Analysis created'); onClose(); }, onError: () => toast.error('Failed to create analysis') },
     );
   };
 

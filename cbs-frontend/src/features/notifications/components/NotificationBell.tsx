@@ -1,14 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bell } from 'lucide-react';
-
+import { cn } from '@/lib/utils';
 import { NotificationDropdown } from './NotificationDropdown';
 import { useNotifications } from '../hooks/useNotifications';
 
 export function NotificationBell() {
-  const { unreadCount } = useNotifications();
+  const { unreadCount, countIncreased } = useNotifications();
   const [open, setOpen] = useState(false);
+  const [pulse, setPulse] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Click outside to close
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -17,12 +19,27 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Pulse animation when count increases
+  useEffect(() => {
+    if (countIncreased && unreadCount > 0) {
+      setPulse(true);
+      const timer = setTimeout(() => setPulse(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [countIncreased, unreadCount]);
+
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)} className="p-2 rounded-md hover:bg-muted transition-colors relative">
-        <Bell className="w-4 h-4" />
+      <button
+        onClick={() => setOpen(!open)}
+        className="p-2 rounded-md hover:bg-muted transition-colors relative"
+      >
+        <Bell className={cn('w-4 h-4', pulse && 'animate-bounce')} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
+          <span className={cn(
+            'absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1 transition-transform',
+            pulse && 'animate-pulse scale-110',
+          )}>
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}

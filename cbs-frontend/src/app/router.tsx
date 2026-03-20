@@ -278,6 +278,7 @@ import {
   SurveyManagementPage,
   GovernancePage,
   NotificationManagementPage,
+  NotificationHistoryPage,
 } from './lazyRoutes';
 
 // Placeholder page — used for all unimplemented modules
@@ -519,6 +520,8 @@ export function AppRouter() {
           <Route path="prices" element={<PricesPage />} />
           <Route path="research" element={<ResearchPage />} />
           <Route path="analysis" element={<AnalysisPage />} />
+          <Route path="market-making" element={<MarketMakingMgmtPage />} />
+          <Route path="switch" element={<SwitchDashboardPage />} />
         </Route>
         <Route path="/market-data-mgmt" element={<Navigate to="/market-data" replace />} />
 
@@ -687,6 +690,7 @@ export function AppRouter() {
 
         {/* Notifications */}
         <Route path="/notifications" element={<NotificationCenterPage />} />
+        <Route path="/notifications/history" element={<NotificationHistoryPage />} />
 
         {/* Error pages */}
         <Route path="/forbidden" element={<ForbiddenPage />} />

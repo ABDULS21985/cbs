@@ -112,6 +112,10 @@ export const NotificationCenterPage = lazyNamed(
   () => import('@/features/notifications/pages/NotificationCenterPage'),
   'NotificationCenterPage',
 );
+export const NotificationPreferencesPage = lazyNamed(
+  () => import('@/features/notifications/pages/NotificationPreferencesPage'),
+  'NotificationPreferencesPage',
+);
 export const TransactionSearchPage = lazyNamed(
   () => import('@/features/transactions/pages/TransactionSearchPage'),
   'TransactionSearchPage',
@@ -913,6 +917,14 @@ export const AnalysisPage = lazyNamed(
   () => import('@/features/marketdata/pages/AnalysisPage'),
   'AnalysisPage',
 );
+export const MarketMakingMgmtPage = lazyNamed(
+  () => import('@/features/marketdata/pages/MarketMakingPage'),
+  'MarketMakingPage',
+);
+export const SwitchDashboardPage = lazyNamed(
+  () => import('@/features/marketdata/pages/SwitchDashboardPage'),
+  'SwitchDashboardPage',
+);
 
 export const TradeFinanceHubPage = lazyNamed(
   () => import('@/features/tradefinance/pages/TradeFinanceHubPage'),
@@ -1038,4 +1050,9 @@ export const GovernancePage = lazyNamed(
 export const NotificationManagementPage = lazyNamed(
   () => import('@/features/admin/pages/NotificationManagementPage'),
   'NotificationManagementPage',
+);
+
+export const NotificationHistoryPage = lazyNamed(
+  () => import('@/features/notifications/pages/NotificationHistoryPage'),
+  'NotificationHistoryPage',
 );

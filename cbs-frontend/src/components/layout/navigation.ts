@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Landmark, HandCoins, ArrowLeftRight, CreditCard,
   TrendingUp, ShieldAlert, Scale, Settings2, BarChart3, Shield,
-  FileText, MessageSquare, Headphones, Activity, Building2,
+  FileText, MessageSquare, Headphones, Activity, Building2, Briefcase,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -58,11 +58,20 @@ export const navigationItems: NavSection[] = [
       {
         label: 'Lending', icon: HandCoins, path: '/lending', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
         children: [
+          { label: 'Dashboard', path: '/lending' },
           { label: 'Applications', path: '/lending/applications' },
           { label: 'Active Loans', path: '/lending/active' },
           { label: 'Credit Facilities', path: '/lending/facilities' },
+          { label: 'Collateral', path: '/lending/collateral' },
           { label: 'Collections', path: '/lending/collections' },
           { label: 'ECL Dashboard', path: '/lending/ecl' },
+          { label: 'Mortgages', path: '/lending/mortgages' },
+          { label: 'Leases', path: '/lending/leases' },
+          { label: 'Leased Assets', path: '/lending/leased-assets' },
+          { label: 'Corporate Leases', path: '/lending/corporate-leases' },
+          { label: 'Syndication', path: '/lending/syndication' },
+          { label: 'POS Lending', path: '/lending/pos-loans' },
+          { label: 'Credit Margin', path: '/lending/credit-margin' },
         ],
       },
       {
@@ -144,6 +153,20 @@ export const navigationItems: NavSection[] = [
           { label: 'Positions', path: '/treasury/positions' },
           { label: 'FX Rates', path: '/treasury/fx' },
           { label: 'Investments', path: '/treasury/investments' },
+        ],
+      },
+      {
+        label: 'Investments', icon: Briefcase, path: '/investments', roles: ['CBS_ADMIN', 'TREASURY'],
+        children: [
+          { label: 'Portfolios', path: '/investments' },
+          { label: 'Funds', path: '/investments/funds' },
+          { label: 'Fixed Income', path: '/investments/fixed-income' },
+          { label: 'Bank Portfolios', path: '/investments/bank-portfolios' },
+          { label: 'Wealth Mgmt', path: '/investments/advisory' },
+          { label: 'Positions', path: '/investments/positions' },
+          { label: 'Valuations', path: '/investments/valuations' },
+          { label: 'Interbank', path: '/investments/interbank' },
+          { label: 'Analytics', path: '/investments/analytics' },
         ],
       },
       {
