@@ -112,6 +112,10 @@ export const NotificationCenterPage = lazyNamed(
   () => import('@/features/notifications/pages/NotificationCenterPage'),
   'NotificationCenterPage',
 );
+export const ComposeNotificationPage = lazyNamed(
+  () => import('@/features/notifications/pages/ComposeNotificationPage'),
+  'ComposeNotificationPage',
+);
 export const NotificationPreferencesPage = lazyNamed(
   () => import('@/features/notifications/pages/NotificationPreferencesPage'),
   'NotificationPreferencesPage',

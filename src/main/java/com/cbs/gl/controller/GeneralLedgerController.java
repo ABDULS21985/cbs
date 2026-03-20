@@ -1,7 +1,9 @@
 package com.cbs.gl.controller;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
+import com.cbs.gl.dto.PostJournalRequest;
 import com.cbs.gl.entity.*;
 import com.cbs.gl.repository.ChartOfAccountsRepository;
 import com.cbs.gl.repository.GlBalanceRepository;
@@ -33,6 +35,7 @@ public class GeneralLedgerController {
     private final GlBalanceRepository glBalanceRepository;
     private final JournalEntryRepository journalEntryRepository;
     private final SubledgerReconRunRepository subledgerReconRunRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping("/accounts")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -55,13 +58,27 @@ public class GeneralLedgerController {
     @PostMapping("/journals")
     @Operation(summary = "Post a journal entry (validates double-entry)")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<JournalEntry>> postJournal(
-            @RequestParam String journalType, @RequestParam String description,
-            @RequestParam(required = false) String sourceModule, @RequestParam(required = false) String sourceRef,
-            @RequestParam(required = false) LocalDate valueDate, @RequestParam String createdBy,
-            @RequestBody List<GeneralLedgerService.JournalLineRequest> lines) {
+    public ResponseEntity<ApiResponse<JournalEntry>> postJournal(@RequestBody PostJournalRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
-                glService.postJournal(journalType, description, sourceModule, sourceRef, valueDate, createdBy, lines)));
+                glService.postJournal(
+                        request.journalType(),
+                        request.description(),
+                        request.sourceModule(),
+                        request.sourceRef(),
+                        request.valueDate(),
+                        request.lines().stream()
+                                .map(line -> new GeneralLedgerService.JournalLineRequest(
+                                        line.glCode(),
+                                        line.debitAmount(),
+                                        line.creditAmount(),
+                                        line.currencyCode(),
+                                        line.fxRate(),
+                                        line.narration(),
+                                        line.costCentre(),
+                                        line.branchCode(),
+                                        line.accountId(),
+                                        line.customerId()))
+                                .toList())));
     }
 
     @GetMapping("/journals/{id}")
@@ -73,8 +90,8 @@ public class GeneralLedgerController {
     @PostMapping("/journals/{id}/reverse")
     @Operation(summary = "Reverse a posted journal")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<JournalEntry>> reverseJournal(@PathVariable Long id, @RequestParam String reversedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(glService.reverseJournal(id, reversedBy)));
+    public ResponseEntity<ApiResponse<JournalEntry>> reverseJournal(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(glService.reverseJournal(id, currentActorProvider.getCurrentActor())));
     }
 
     @GetMapping("/journals")
@@ -107,8 +124,11 @@ public class GeneralLedgerController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<SubledgerReconRun>> runRecon(
             @RequestParam String subledgerType, @RequestParam String glCode,
-            @RequestParam BigDecimal subledgerBalance, @RequestParam LocalDate reconDate) {
-        return ResponseEntity.ok(ApiResponse.ok(glService.runReconciliation(subledgerType, glCode, subledgerBalance, reconDate)));
+            @RequestParam LocalDate reconDate,
+            @RequestParam(required = false) String branchCode,
+            @RequestParam(required = false) String currencyCode) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                glService.runReconciliation(subledgerType, glCode, reconDate, branchCode, currencyCode)));
     }
 
     @GetMapping("/reconciliation/{date}")

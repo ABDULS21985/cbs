@@ -1,6 +1,11 @@
 package com.cbs.gl;
 
+import com.cbs.account.repository.AccountRepository;
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
+import com.cbs.deposit.repository.FixedDepositRepository;
+import com.cbs.deposit.repository.RecurringDepositRepository;
 import com.cbs.gl.entity.*;
 import com.cbs.gl.repository.*;
 import com.cbs.gl.service.GeneralLedgerService;
@@ -29,6 +34,11 @@ class GeneralLedgerServiceTest {
     @Mock private JournalEntryRepository journalRepository;
     @Mock private GlBalanceRepository balanceRepository;
     @Mock private SubledgerReconRunRepository reconRepository;
+    @Mock private AccountRepository accountRepository;
+    @Mock private FixedDepositRepository fixedDepositRepository;
+    @Mock private RecurringDepositRepository recurringDepositRepository;
+    @Mock private CurrentActorProvider currentActorProvider;
+    @Mock private CbsProperties cbsProperties;
 
     @InjectMocks private GeneralLedgerService glService;
 
@@ -43,6 +53,7 @@ class GeneralLedgerServiceTest {
         depositGl = ChartOfAccounts.builder().id(2L).glCode("2001").glName("Customer Deposits")
                 .glCategory(GlCategory.LIABILITY).normalBalance(NormalBalance.CREDIT)
                 .isPostable(true).isActive(true).build();
+        when(currentActorProvider.getCurrentActor()).thenReturn("tester");
     }
 
     @Test
@@ -151,12 +162,22 @@ class GeneralLedgerServiceTest {
     @Test
     @DisplayName("Sub-ledger reconciliation: detects mismatch")
     void reconDetectsMismatch() {
-        GlBalance bal = GlBalance.builder().closingBalance(new BigDecimal("1000000")).build();
-        when(balanceRepository.findByGlCodeAndBranchCodeAndCurrencyCodeAndBalanceDate("2001", "HEAD", "USD", LocalDate.now()))
-                .thenReturn(Optional.of(bal));
+        GlBalance bal = GlBalance.builder()
+                .closingBalance(new BigDecimal("1000000"))
+                .branchCode("HEAD")
+                .currencyCode("USD")
+                .build();
+        when(balanceRepository.findByGlCodeAndBalanceDate("2001", LocalDate.now()))
+                .thenReturn(List.of(bal));
+        when(accountRepository.sumBookBalanceByProductGlCode("2001", "USD", "HEAD"))
+                .thenReturn(new BigDecimal("999500"));
+        when(fixedDepositRepository.sumCurrentValueByProductGlCode("2001", "USD", "HEAD"))
+                .thenReturn(BigDecimal.ZERO);
+        when(recurringDepositRepository.sumCurrentValueByProductGlCode("2001", "USD", "HEAD"))
+                .thenReturn(BigDecimal.ZERO);
         when(reconRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        SubledgerReconRun result = glService.runReconciliation("DEPOSITS", "2001", new BigDecimal("999500"), LocalDate.now());
+        SubledgerReconRun result = glService.runReconciliation("DEPOSITS", "2001", LocalDate.now(), "HEAD", "USD");
 
         assertThat(result.getIsBalanced()).isFalse();
         assertThat(result.getDifference()).isEqualByComparingTo(new BigDecimal("500"));

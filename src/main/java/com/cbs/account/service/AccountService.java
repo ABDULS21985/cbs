@@ -34,7 +34,6 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -61,8 +60,7 @@ public class AccountService {
     private final AccountNumberGenerator numberGenerator;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
-
-    private static final DateTimeFormatter TXN_DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private final AccountPostingService accountPostingService;
 
     // ========================================================================
     // ACCOUNT OPENING
@@ -136,10 +134,17 @@ public class AccountService {
         Account saved = accountRepository.save(account);
 
         if (request.getInitialDeposit() != null && request.getInitialDeposit().compareTo(BigDecimal.ZERO) > 0) {
-            saved.credit(request.getInitialDeposit());
-            accountRepository.save(saved);
-            postTransaction(saved, TransactionType.OPENING_BALANCE, request.getInitialDeposit(),
-                    "Opening balance deposit", TransactionChannel.BRANCH, null);
+            accountPostingService.postCreditAgainstGl(
+                    saved,
+                    TransactionType.OPENING_BALANCE,
+                    request.getInitialDeposit(),
+                    "Opening balance deposit",
+                    TransactionChannel.BRANCH,
+                    null,
+                    cbsProperties.getLedger().getOpeningBalanceContraGlCode(),
+                    "ACCOUNT",
+                    saved.getAccountNumber()
+            );
         }
 
         log.info("Account opened: number={}, product={}, customer={}, scheme={}",
@@ -194,15 +199,37 @@ public class AccountService {
     @Transactional
     public TransactionResponse postDebit(PostTransactionRequest request) {
         Account account = findAccountOrThrow(request.getAccountNumber());
-        accountValidator.validateDebit(account, request.getAmount());
-
-        account.debit(request.getAmount());
-        accountRepository.save(account);
-
-        TransactionJournal txn = postTransaction(account, request.getTransactionType(),
-                request.getAmount(), request.getNarration(),
-                request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
-                request.getExternalRef());
+        TransactionJournal txn;
+        if (StringUtils.hasText(request.getContraAccountNumber())) {
+            Account contraAccount = findAccountOrThrow(request.getContraAccountNumber());
+            txn = accountPostingService.postTransfer(
+                    account,
+                    contraAccount,
+                    request.getAmount(),
+                    request.getAmount(),
+                    request.getNarration(),
+                    String.format("Transfer from %s", account.getAccountNumber()),
+                    request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
+                    request.getExternalRef(),
+                    "ACCOUNT",
+                    account.getAccountNumber()
+            ).debitTransaction();
+        } else if (StringUtils.hasText(request.getContraGlCode())) {
+            txn = accountPostingService.postDebitAgainstGl(
+                    account,
+                    request.getTransactionType(),
+                    request.getAmount(),
+                    request.getNarration(),
+                    request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
+                    request.getExternalRef(),
+                    request.getContraGlCode(),
+                    "ACCOUNT",
+                    account.getAccountNumber()
+            );
+        } else {
+            throw new BusinessException("A contra account number or contra GL code is required for debit posting",
+                    "MISSING_CONTRA_REFERENCE");
+        }
 
         return accountMapper.toTransactionResponse(txn);
     }
@@ -210,15 +237,37 @@ public class AccountService {
     @Transactional
     public TransactionResponse postCredit(PostTransactionRequest request) {
         Account account = findAccountOrThrow(request.getAccountNumber());
-        accountValidator.validateCredit(account, request.getAmount());
-
-        account.credit(request.getAmount());
-        accountRepository.save(account);
-
-        TransactionJournal txn = postTransaction(account, request.getTransactionType(),
-                request.getAmount(), request.getNarration(),
-                request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
-                request.getExternalRef());
+        TransactionJournal txn;
+        if (StringUtils.hasText(request.getContraAccountNumber())) {
+            Account contraAccount = findAccountOrThrow(request.getContraAccountNumber());
+            txn = accountPostingService.postTransfer(
+                    contraAccount,
+                    account,
+                    request.getAmount(),
+                    request.getAmount(),
+                    String.format("Transfer to %s", account.getAccountNumber()),
+                    request.getNarration(),
+                    request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
+                    request.getExternalRef(),
+                    "ACCOUNT",
+                    account.getAccountNumber()
+            ).creditTransaction();
+        } else if (StringUtils.hasText(request.getContraGlCode())) {
+            txn = accountPostingService.postCreditAgainstGl(
+                    account,
+                    request.getTransactionType(),
+                    request.getAmount(),
+                    request.getNarration(),
+                    request.getChannel() != null ? request.getChannel() : TransactionChannel.SYSTEM,
+                    request.getExternalRef(),
+                    request.getContraGlCode(),
+                    "ACCOUNT",
+                    account.getAccountNumber()
+            );
+        } else {
+            throw new BusinessException("A contra account number or contra GL code is required for credit posting",
+                    "MISSING_CONTRA_REFERENCE");
+        }
 
         return accountMapper.toTransactionResponse(txn);
     }
@@ -229,29 +278,19 @@ public class AccountService {
         Account fromAccount = findAccountOrThrow(fromAccountNumber);
         Account toAccount = findAccountOrThrow(toAccountNumber);
 
-        accountValidator.validateDebit(fromAccount, amount);
-        accountValidator.validateCredit(toAccount, amount);
-
-        fromAccount.debit(amount);
-        toAccount.credit(amount);
-
-        String transferNarration = narration != null ? narration :
-                String.format("Transfer to %s", toAccountNumber);
-
-        TransactionJournal debitTxn = postTransaction(fromAccount, TransactionType.TRANSFER_OUT,
-                amount, transferNarration, channel, null);
-        debitTxn.setContraAccount(toAccount);
-        debitTxn.setContraAccountNumber(toAccountNumber);
-
-        TransactionJournal creditTxn = postTransaction(toAccount, TransactionType.TRANSFER_IN,
-                amount, String.format("Transfer from %s", fromAccountNumber), channel, null);
-        creditTxn.setContraAccount(fromAccount);
-        creditTxn.setContraAccountNumber(fromAccountNumber);
-
-        accountRepository.save(fromAccount);
-        accountRepository.save(toAccount);
-        transactionRepository.save(debitTxn);
-        transactionRepository.save(creditTxn);
+        String transferNarration = narration != null ? narration : String.format("Transfer to %s", toAccountNumber);
+        TransactionJournal debitTxn = accountPostingService.postTransfer(
+                fromAccount,
+                toAccount,
+                amount,
+                amount,
+                transferNarration,
+                String.format("Transfer from %s", fromAccountNumber),
+                channel,
+                null,
+                "ACCOUNT",
+                fromAccountNumber + "->" + toAccountNumber
+        ).debitTransaction();
 
         return accountMapper.toTransactionResponse(debitTxn);
     }
@@ -336,17 +375,22 @@ public class AccountService {
 
         int postingScale = cbsProperties.getInterest().getPostingScale();
         BigDecimal roundedInterest = interest.setScale(postingScale, RoundingMode.HALF_UP);
-
-        account.credit(roundedInterest);
         account.setAccruedInterest(BigDecimal.ZERO);
         account.setLastInterestPostDate(LocalDate.now());
 
-        TransactionJournal txn = postTransaction(account, TransactionType.INTEREST_POSTING,
+        TransactionJournal txn = accountPostingService.postCreditAgainstGl(
+                account,
+                TransactionType.INTEREST_POSTING,
                 roundedInterest,
                 String.format("Interest posting @ %s%% p.a. (%s)",
                         account.getApplicableInterestRate(),
                         cbsProperties.getInterest().getDayCountConvention()),
-                TransactionChannel.SYSTEM, null);
+                TransactionChannel.SYSTEM,
+                null,
+                requiredInterestExpenseGl(account),
+                "ACCOUNT",
+                account.getAccountNumber()
+        );
 
         accountRepository.save(account);
         return accountMapper.toTransactionResponse(txn);
@@ -424,34 +468,6 @@ public class AccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
     }
 
-    private TransactionJournal postTransaction(Account account, TransactionType type,
-                                                BigDecimal amount, String narration,
-                                                TransactionChannel channel, String externalRef) {
-        if (StringUtils.hasText(externalRef) && transactionRepository.existsByExternalRef(externalRef)) {
-            throw new DuplicateResourceException("Transaction", "externalRef", externalRef);
-        }
-
-        Long seq = transactionRepository.getNextTransactionRefSequence();
-        String txnRef = numberGenerator.generateTxnRef(seq, LocalDate.now().format(TXN_DATE_FMT));
-
-        TransactionJournal txn = TransactionJournal.builder()
-                .transactionRef(txnRef)
-                .account(account)
-                .transactionType(type)
-                .amount(amount)
-                .currencyCode(account.getCurrencyCode())
-                .runningBalance(account.getBookBalance())
-                .narration(narration)
-                .valueDate(LocalDate.now())
-                .postingDate(LocalDate.now())
-                .channel(channel)
-                .externalRef(externalRef)
-                .status("POSTED")
-                .build();
-
-        return transactionRepository.save(txn);
-    }
-
     private BigDecimal resolveBalanceForInterest(Account account, Product product) {
         String method = product.getInterestCalcMethod();
         if ("MINIMUM_BALANCE".equals(method)) {
@@ -470,6 +486,15 @@ public class AccountService {
         List<AccountSignatory> signatories = signatoryRepository.findByAccountIdWithCustomer(account.getId());
         response.setSignatories(accountMapper.toSignatoryDtoList(signatories));
         return response;
+    }
+
+    private String requiredInterestExpenseGl(Account account) {
+        Product product = account.getProduct();
+        if (product == null || !StringUtils.hasText(product.getGlInterestExpenseCode())) {
+            throw new BusinessException("Interest expense GL is required for product " +
+                    (product != null ? product.getCode() : "UNKNOWN"), "MISSING_INTEREST_EXPENSE_GL");
+        }
+        return product.getGlInterestExpenseCode();
     }
 
     public long countByStatus(AccountStatus status) {

@@ -5,7 +5,8 @@ import com.cbs.account.entity.AccountStatus;
 import com.cbs.account.entity.Product;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.ProductRepository;
-import com.cbs.account.service.AccountService;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
@@ -20,6 +21,7 @@ import com.cbs.deposit.repository.RecurringDepositInstallmentRepository;
 import com.cbs.deposit.repository.RecurringDepositRepository;
 import com.cbs.deposit.service.FixedDepositService;
 import com.cbs.deposit.service.RecurringDepositService;
+import com.cbs.gl.service.GeneralLedgerService;
 import com.cbs.goal.dto.GoalFundRequest;
 import com.cbs.goal.entity.GoalStatus;
 import com.cbs.goal.entity.SavingsGoal;
@@ -59,7 +61,9 @@ class DepositServiceTest {
         @Mock private FixedDepositRepository fdRepository;
         @Mock private AccountRepository accountRepository;
         @Mock private ProductRepository productRepository;
-        @Mock private AccountService accountService;
+        @Mock private AccountPostingService accountPostingService;
+        @Mock private GeneralLedgerService generalLedgerService;
+        @Mock private CurrentActorProvider currentActorProvider;
         @Mock private DayCountEngine dayCountEngine;
         @Mock private CbsProperties cbsProperties;
 
@@ -92,6 +96,8 @@ class DepositServiceTest {
             product.setCode("FD-12M");
             product.setName("12 Month Fixed Deposit");
             product.setCurrencyCode("USD");
+            product.setGlAccountCode("2300");
+            product.setGlInterestExpenseCode("5300");
             product.setIsActive(true);
         }
 
@@ -117,14 +123,19 @@ class DepositServiceTest {
                 fd.setId(1L);
                 return fd;
             });
-            when(accountRepository.save(any(Account.class))).thenReturn(account);
+            when(accountPostingService.postDebitAgainstGl(any(Account.class), any(com.cbs.account.entity.TransactionType.class),
+                    any(BigDecimal.class), anyString(), any(com.cbs.account.entity.TransactionChannel.class), anyString(),
+                    anyString(), anyString(), anyString())).thenReturn(new com.cbs.account.entity.TransactionJournal());
 
             FixedDepositResponse result = fixedDepositService.bookDeposit(request);
 
             assertThat(result).isNotNull();
             assertThat(result.getDepositNumber()).isEqualTo("FD000000000001");
             assertThat(result.getStatus()).isEqualTo(FixedDepositStatus.ACTIVE);
-            verify(accountRepository).save(any(Account.class));
+            verify(accountPostingService).postDebitAgainstGl(any(Account.class),
+                    eq(com.cbs.account.entity.TransactionType.DEBIT), eq(new BigDecimal("50000.00")),
+                    anyString(), eq(com.cbs.account.entity.TransactionChannel.SYSTEM), anyString(),
+                    eq("2300"), eq("FIXED_DEPOSIT"), anyString());
         }
 
         @Test

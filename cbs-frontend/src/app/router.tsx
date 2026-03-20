@@ -115,6 +115,7 @@ import {
   PfmDashboardPage,
   NewTransferPage,
   NotificationCenterPage,
+  ComposeNotificationPage,
   NotificationPreferencesPage,
   OperationalReportsPage,
   OperationalRiskPage,
@@ -521,7 +522,7 @@ export function AppRouter() {
           <Route path="prices" element={<PricesPage />} />
           <Route path="research" element={<ResearchPage />} />
           <Route path="analysis" element={<AnalysisPage />} />
-          <Route path="market-making" element={<MarketMakingMgmtPage />} />
+          <Route path="market-making" element={<MarketMakingPage />} />
           <Route path="switch" element={<SwitchDashboardPage />} />
         </Route>
         <Route path="/market-data-mgmt" element={<Navigate to="/market-data" replace />} />
@@ -691,6 +692,8 @@ export function AppRouter() {
 
         {/* Notifications */}
         <Route path="/notifications" element={<NotificationCenterPage />} />
+        <Route path="/notifications/compose" element={<ComposeNotificationPage />} />
+        <Route path="/notifications/settings" element={<NotificationPreferencesPage />} />
         <Route path="/notifications/history" element={<NotificationHistoryPage />} />
 
         {/* Error pages */}

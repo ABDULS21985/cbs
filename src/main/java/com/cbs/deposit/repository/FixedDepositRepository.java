@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +34,18 @@ public interface FixedDepositRepository extends JpaRepository<FixedDeposit, Long
 
     @Query(value = "SELECT nextval('cbs.fixed_deposit_seq')", nativeQuery = true)
     Long getNextDepositSequence();
+
+    @Query("""
+            SELECT COALESCE(SUM(fd.currentValue), 0)
+            FROM FixedDeposit fd JOIN fd.product p JOIN fd.account a
+            WHERE p.glAccountCode = :glCode
+            AND fd.currencyCode = :currencyCode
+            AND (:branchCode IS NULL OR a.branchCode = :branchCode)
+            AND fd.status <> 'CLOSED'
+            """)
+    BigDecimal sumCurrentValueByProductGlCode(@Param("glCode") String glCode,
+                                              @Param("currencyCode") String currencyCode,
+                                              @Param("branchCode") String branchCode);
 
     long countByCustomerIdAndStatus(Long customerId, FixedDepositStatus status);
 }

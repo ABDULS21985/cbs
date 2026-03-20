@@ -48,4 +48,5 @@ export type {
 // ─── Shared components ───────────────────────────────────────────────────────
 export { FeedStatusDot } from './components/FeedStatusDot';
 export { SignalBadge } from './components/SignalBadge';
+export { RecommendationBadge } from './components/RecommendationBadge';
 export { PriceCard } from './components/PriceCard';

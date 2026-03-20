@@ -3,6 +3,7 @@ package com.cbs.account.controller;
 import com.cbs.account.dto.TransactionResponse;
 import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +29,8 @@ import java.util.Map;
 public class TransactionController {
 
     private final TransactionJournalRepository transactionJournalRepository;
+    private final AccountPostingService accountPostingService;
+
     @GetMapping
     @Operation(summary = "Search transactions across all accounts")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
@@ -65,41 +68,10 @@ public class TransactionController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, String>>> reverseTransaction(
             @PathVariable Long id,
-            @RequestParam(required = false) String reason,
-            @RequestParam(required = false) String performedBy) {
-        TransactionJournal txn = transactionJournalRepository.findById(id)
-                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Transaction not found: " + id));
-
-        if (Boolean.TRUE.equals(txn.getIsReversed())) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Transaction already reversed"));
-        }
-
-        // Generate reversal ref
-        Long seq = transactionJournalRepository.getNextTransactionRefSequence();
-        String reversalRef = "REV" + String.format("%012d", seq);
-
-        txn.setIsReversed(true);
-        txn.setReversalRef(reversalRef);
-        transactionJournalRepository.save(txn);
-
-        // Create contra entry
-        TransactionJournal reversal = new TransactionJournal();
-        reversal.setTransactionRef(reversalRef);
-        reversal.setAccount(txn.getAccount());
-        reversal.setContraAccount(txn.getContraAccount());
-        reversal.setTransactionType(txn.getTransactionType());
-        reversal.setAmount(txn.getAmount().negate());
-        reversal.setCurrencyCode(txn.getCurrencyCode());
-        reversal.setRunningBalance(txn.getAccount().getBookBalance());
-        reversal.setNarration("REVERSAL: " + (reason != null ? reason : txn.getNarration()));
-        reversal.setStatus("POSTED");
-        reversal.setCreatedBy(performedBy != null ? performedBy : "SYSTEM");
-        reversal.setCreatedAt(Instant.now());
-        transactionJournalRepository.save(reversal);
-
+            @RequestParam(required = false) String reason) {
+        AccountPostingService.ReversalResult reversal = accountPostingService.reverseTransaction(id, reason);
         return ResponseEntity.ok(ApiResponse.ok(
-                Map.of("message", "Transaction reversed successfully", "reversalRef", reversalRef)));
+                Map.of("message", "Transaction reversed successfully", "reversalRef", reversal.reversalGroupRef())));
     }
 
     @GetMapping("/{id}/receipt")

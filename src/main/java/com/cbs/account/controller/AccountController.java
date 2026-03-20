@@ -6,6 +6,7 @@ import com.cbs.account.entity.ProductCategory;
 import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.service.AccountMaintenanceService;
 import com.cbs.account.service.AccountService;
+import com.cbs.common.audit.CurrentCustomerProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,6 +37,7 @@ public class AccountController {
 
     private final AccountService accountService;
     private final AccountMaintenanceService maintenanceService;
+    private final CurrentCustomerProvider currentCustomerProvider;
 
     // ========================================================================
     // ACCOUNT OPERATIONS
@@ -209,13 +211,10 @@ public class AccountController {
 
     @GetMapping("/my")
     @Operation(summary = "Get accounts for the authenticated user (portal)")
-    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER','PORTAL_USER')")
+    @PreAuthorize("hasRole('PORTAL_USER')")
     public ResponseEntity<ApiResponse<List<AccountResponse>>> getMyAccounts() {
-        // In production, extract customerId from SecurityContext / JWT claims
-        // For now, return all accounts (first page)
-        Pageable pageable = PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<AccountResponse> result = accountService.searchAccounts(null, null, pageable);
-        return ResponseEntity.ok(ApiResponse.ok(result.getContent()));
+        return ResponseEntity.ok(ApiResponse.ok(
+                accountService.getCustomerAccounts(currentCustomerProvider.getCurrentCustomer().getId())));
     }
 
     @GetMapping("/summary")

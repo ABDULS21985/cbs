@@ -10,6 +10,7 @@ import java.util.Optional;
 @Repository
 public interface GlBalanceRepository extends JpaRepository<GlBalance, Long> {
     Optional<GlBalance> findByGlCodeAndBranchCodeAndCurrencyCodeAndBalanceDate(String glCode, String branchCode, String currencyCode, LocalDate date);
+    List<GlBalance> findByGlCodeAndBalanceDate(String glCode, LocalDate date);
     List<GlBalance> findByBalanceDateOrderByGlCodeAsc(LocalDate date);
     List<GlBalance> findByGlCodeAndBalanceDateBetweenOrderByBalanceDateAsc(String glCode, LocalDate from, LocalDate to);
 }

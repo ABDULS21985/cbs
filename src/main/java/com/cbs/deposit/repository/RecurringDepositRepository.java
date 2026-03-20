@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,4 +32,16 @@ public interface RecurringDepositRepository extends JpaRepository<RecurringDepos
 
     @Query(value = "SELECT nextval('cbs.recurring_deposit_seq')", nativeQuery = true)
     Long getNextDepositSequence();
+
+    @Query("""
+            SELECT COALESCE(SUM(rd.currentValue), 0)
+            FROM RecurringDeposit rd JOIN rd.product p JOIN rd.account a
+            WHERE p.glAccountCode = :glCode
+            AND rd.currencyCode = :currencyCode
+            AND (:branchCode IS NULL OR a.branchCode = :branchCode)
+            AND rd.status <> 'CLOSED'
+            """)
+    BigDecimal sumCurrentValueByProductGlCode(@Param("glCode") String glCode,
+                                              @Param("currencyCode") String currencyCode,
+                                              @Param("branchCode") String branchCode);
 }

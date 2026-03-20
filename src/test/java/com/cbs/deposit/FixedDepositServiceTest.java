@@ -3,7 +3,8 @@ package com.cbs.deposit;
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.ProductRepository;
-import com.cbs.account.service.AccountService;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -14,6 +15,7 @@ import com.cbs.deposit.dto.FixedDepositResponse;
 import com.cbs.deposit.entity.*;
 import com.cbs.deposit.repository.FixedDepositRepository;
 import com.cbs.deposit.service.FixedDepositService;
+import com.cbs.gl.service.GeneralLedgerService;
 import com.cbs.provider.interest.DayCountEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +43,9 @@ class FixedDepositServiceTest {
     @Mock private FixedDepositRepository fdRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private ProductRepository productRepository;
-    @Mock private AccountService accountService;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private GeneralLedgerService generalLedgerService;
+    @Mock private CurrentActorProvider currentActorProvider;
     @Mock private DayCountEngine dayCountEngine;
     @Mock private CbsProperties cbsProperties;
 
@@ -56,7 +60,9 @@ class FixedDepositServiceTest {
         customer = Customer.builder().id(1L).firstName("Test").lastName("User")
                 .customerType(CustomerType.INDIVIDUAL).build();
         product = Product.builder().id(1L).code("FD-USD").name("Fixed Deposit USD")
-                .productCategory(ProductCategory.FIXED_DEPOSIT).currencyCode("USD").isActive(true).build();
+                .productCategory(ProductCategory.FIXED_DEPOSIT).currencyCode("USD")
+                .glAccountCode("2300").glInterestExpenseCode("5300")
+                .isActive(true).build();
         account = Account.builder().id(1L).accountNumber("1000000001").customer(customer).product(product)
                 .currencyCode("USD").status(AccountStatus.ACTIVE)
                 .bookBalance(new BigDecimal("100000")).availableBalance(new BigDecimal("100000"))
@@ -85,7 +91,9 @@ class FixedDepositServiceTest {
                 fd.setId(1L);
                 return fd;
             });
-            when(accountRepository.save(any())).thenReturn(account);
+            when(accountPostingService.postDebitAgainstGl(any(Account.class), any(TransactionType.class),
+                    any(BigDecimal.class), anyString(), any(TransactionChannel.class), anyString(),
+                    anyString(), anyString(), anyString())).thenReturn(new TransactionJournal());
 
             FixedDepositResponse result = fixedDepositService.bookDeposit(request);
 
@@ -93,7 +101,9 @@ class FixedDepositServiceTest {
             assertThat(result.getDepositNumber()).startsWith("FD");
             assertThat(result.getPrincipalAmount()).isEqualByComparingTo(new BigDecimal("50000"));
             assertThat(result.getStatus()).isEqualTo(FixedDepositStatus.ACTIVE);
-            verify(accountRepository).save(any()); // Funding account debited
+            verify(accountPostingService).postDebitAgainstGl(any(Account.class), eq(TransactionType.DEBIT),
+                    eq(new BigDecimal("50000")), anyString(), eq(TransactionChannel.SYSTEM), anyString(),
+                    eq("2300"), eq("FIXED_DEPOSIT"), anyString());
         }
 
         @Test
@@ -153,7 +163,9 @@ class FixedDepositServiceTest {
                     .rolloverCount(0).build();
 
             when(fdRepository.findMaturedDeposits(any())).thenReturn(List.of(fd));
-            when(accountRepository.save(any())).thenReturn(account);
+            when(accountPostingService.postCreditAgainstGl(any(Account.class), any(TransactionType.class),
+                    any(BigDecimal.class), anyString(), any(TransactionChannel.class), anyString(),
+                    anyList(), anyString(), anyString())).thenReturn(new TransactionJournal());
             when(fdRepository.save(any())).thenReturn(fd);
 
             int processed = fixedDepositService.processMaturedDeposits();
@@ -176,7 +188,9 @@ class FixedDepositServiceTest {
                     .rolloverCount(0).maxRollovers(3).build();
 
             when(fdRepository.findMaturedDeposits(any())).thenReturn(List.of(fd));
-            when(accountRepository.save(any())).thenReturn(account);
+            when(accountPostingService.postCreditAgainstGl(any(Account.class), any(TransactionType.class),
+                    any(BigDecimal.class), anyString(), any(TransactionChannel.class), anyString(),
+                    anyString(), anyString(), anyString())).thenReturn(new TransactionJournal());
             when(fdRepository.save(any())).thenReturn(fd);
 
             fixedDepositService.processMaturedDeposits();
@@ -207,7 +221,9 @@ class FixedDepositServiceTest {
                     .build();
 
             when(fdRepository.findByIdWithDetails(3L)).thenReturn(Optional.of(fd));
-            when(accountRepository.save(any())).thenReturn(account);
+            when(accountPostingService.postCreditAgainstGl(any(Account.class), any(TransactionType.class),
+                    any(BigDecimal.class), anyString(), any(TransactionChannel.class), anyString(),
+                    anyList(), anyString(), anyString())).thenReturn(new TransactionJournal());
             when(fdRepository.save(any())).thenReturn(fd);
 
             FixedDepositResponse result = fixedDepositService.earlyTerminate(3L, "Need funds urgently");

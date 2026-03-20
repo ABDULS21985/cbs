@@ -93,9 +93,8 @@ public class PaymentController {
     @PostMapping("/batch/{batchRef}/process")
     @Operation(summary = "Approve and process a batch payment")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<PaymentBatch>> processBatch(
-            @PathVariable String batchRef, @RequestParam String approvedBy) {
-        return ResponseEntity.ok(ApiResponse.ok(paymentService.processBatch(batchRef, approvedBy)));
+    public ResponseEntity<ApiResponse<PaymentBatch>> processBatch(@PathVariable String batchRef) {
+        return ResponseEntity.ok(ApiResponse.ok(paymentService.processBatch(batchRef)));
     }
 
     @GetMapping("/{id}")

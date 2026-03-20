@@ -25,15 +25,23 @@ public class GlBalance {
     @Column(name = "updated_at") @Builder.Default private Instant updatedAt = Instant.now();
     @Version @Column(name = "version") private Long version;
 
-    public void applyDebit(BigDecimal amount) {
+    public void applyDebit(BigDecimal amount, NormalBalance normalBalance) {
         this.debitTotal = this.debitTotal.add(amount);
-        this.closingBalance = this.openingBalance.add(this.debitTotal).subtract(this.creditTotal);
+        recalculateClosingBalance(normalBalance);
         this.transactionCount++;
     }
 
-    public void applyCredit(BigDecimal amount) {
+    public void applyCredit(BigDecimal amount, NormalBalance normalBalance) {
         this.creditTotal = this.creditTotal.add(amount);
-        this.closingBalance = this.openingBalance.add(this.debitTotal).subtract(this.creditTotal);
+        recalculateClosingBalance(normalBalance);
         this.transactionCount++;
+    }
+
+    private void recalculateClosingBalance(NormalBalance normalBalance) {
+        if (normalBalance == NormalBalance.DEBIT) {
+            this.closingBalance = this.openingBalance.add(this.debitTotal).subtract(this.creditTotal);
+            return;
+        }
+        this.closingBalance = this.openingBalance.subtract(this.debitTotal).add(this.creditTotal);
     }
 }

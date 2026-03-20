@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,6 +47,18 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
 
     @Query("SELECT COUNT(a) FROM Account a WHERE a.customer.id = :customerId")
     long countByCustomerId(@Param("customerId") Long customerId);
+
+    @Query("""
+            SELECT COALESCE(SUM(a.bookBalance), 0)
+            FROM Account a JOIN a.product p
+            WHERE p.glAccountCode = :glCode
+            AND a.currencyCode = :currencyCode
+            AND (:branchCode IS NULL OR a.branchCode = :branchCode)
+            AND a.status <> 'CLOSED'
+            """)
+    BigDecimal sumBookBalanceByProductGlCode(@Param("glCode") String glCode,
+                                             @Param("currencyCode") String currencyCode,
+                                             @Param("branchCode") String branchCode);
 
     // For dormancy detection (Capability 7)
     @Query("""

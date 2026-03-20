@@ -1,5 +1,6 @@
 package com.cbs.account.entity;
 
+import com.cbs.gl.entity.JournalEntry;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -66,6 +67,13 @@ public class TransactionJournal {
     @Column(name = "external_ref", length = 50)
     private String externalRef;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "journal_id")
+    private JournalEntry journal;
+
+    @Column(name = "posting_group_ref", length = 40)
+    private String postingGroupRef;
+
     @Column(name = "batch_id", length = 30)
     private String batchId;
 
@@ -82,6 +90,10 @@ public class TransactionJournal {
     @Column(name = "is_reversed", nullable = false)
     @Builder.Default
     private Boolean isReversed = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reversed_transaction_id")
+    private TransactionJournal reversedTransaction;
 
     @Column(name = "created_at", nullable = false)
     @Builder.Default

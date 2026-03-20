@@ -20,6 +20,8 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
 
     Page<TransactionJournal> findByAccountIdOrderByCreatedAtDesc(Long accountId, Pageable pageable);
 
+    List<TransactionJournal> findByPostingGroupRefOrderByCreatedAtAsc(String postingGroupRef);
+
     @Query("""
             SELECT t FROM TransactionJournal t
             WHERE t.account.id IN :accountIds

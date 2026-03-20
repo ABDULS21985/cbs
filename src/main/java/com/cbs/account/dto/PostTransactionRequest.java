@@ -33,6 +33,7 @@ public class PostTransactionRequest {
 
     private LocalDate valueDate;
     private String contraAccountNumber;
+    private String contraGlCode;
     private TransactionChannel channel;
     private String externalRef;
     private String instrumentNumber;

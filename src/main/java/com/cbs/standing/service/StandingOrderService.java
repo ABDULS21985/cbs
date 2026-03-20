@@ -1,7 +1,10 @@
 package com.cbs.standing.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.PaymentInstruction;
@@ -16,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -31,6 +35,8 @@ public class StandingOrderService {
     private final StandingExecutionLogRepository executionLogRepository;
     private final PaymentInstructionRepository paymentRepository;
     private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+    private final CbsProperties cbsProperties;
 
     @Transactional
     public StandingInstruction create(Long debitAccountId, InstructionType type,
@@ -139,20 +145,38 @@ public class StandingOrderService {
                     .paymentRail("STANDING").remittanceInfo(si.getNarration())
                     .status(PaymentStatus.PROCESSING).build();
 
-            debitAccount.debit(si.getAmount());
-
             // Check local credit
             Account localCredit = accountRepository.findByAccountNumber(si.getCreditAccountNumber()).orElse(null);
             if (localCredit != null) {
-                localCredit.credit(si.getAmount());
-                accountRepository.save(localCredit);
+                accountPostingService.postTransfer(
+                        debitAccount,
+                        localCredit,
+                        si.getAmount(),
+                        si.getAmount(),
+                        si.getNarration(),
+                        si.getNarration(),
+                        TransactionChannel.SYSTEM,
+                        ref,
+                        "STANDING_ORDER",
+                        si.getInstructionRef()
+                );
                 payment.setCreditAccount(localCredit);
                 payment.setStatus(PaymentStatus.COMPLETED);
             } else {
+                accountPostingService.postDebitAgainstGl(
+                        debitAccount,
+                        com.cbs.account.entity.TransactionType.DEBIT,
+                        si.getAmount(),
+                        si.getNarration(),
+                        TransactionChannel.SYSTEM,
+                        ref,
+                        requiredExternalClearingGl(),
+                        "STANDING_ORDER",
+                        si.getInstructionRef()
+                );
                 payment.setStatus(PaymentStatus.SUBMITTED);
             }
             payment.setExecutionDate(LocalDate.now());
-            accountRepository.save(debitAccount);
             paymentRepository.save(payment);
 
             // Log execution
@@ -205,5 +229,12 @@ public class StandingOrderService {
 
     public Page<StandingExecutionLog> getExecutionHistory(Long instructionId, Pageable pageable) {
         return executionLogRepository.findByInstructionIdOrderByExecutionDateDesc(instructionId, pageable);
+    }
+
+    private String requiredExternalClearingGl() {
+        if (!StringUtils.hasText(cbsProperties.getLedger().getExternalClearingGlCode())) {
+            throw new BusinessException("External clearing GL code must be configured", "MISSING_EXTERNAL_CLEARING_GL");
+        }
+        return cbsProperties.getLedger().getExternalClearingGlCode();
     }
 }

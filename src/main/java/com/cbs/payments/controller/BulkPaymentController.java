@@ -1,5 +1,6 @@
 package com.cbs.payments.controller;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,6 +23,7 @@ import java.util.*;
 public class BulkPaymentController {
 
     private final DataSource dataSource;
+    private final CurrentActorProvider currentActorProvider;
 
     @PostMapping("/upload")
     @Operation(summary = "Upload a bulk payment file")
@@ -39,15 +41,16 @@ public class BulkPaymentController {
                      "INSERT INTO cbs.bulk_payment_batch (batch_ref, batch_name, uploaded_by, upload_file_name, " +
                      "total_records, debit_account_number, batch_type, status, created_by, created_at, updated_at) " +
                      "VALUES (?, ?, ?, ?, ?, ?, ?, 'UPLOADED', ?, now(), now()) RETURNING id")) {
+            String actor = currentActorProvider.getCurrentActor();
 
             ps.setString(1, batchRef);
             ps.setString(2, batchName != null ? batchName : file.getOriginalFilename());
-            ps.setString(3, "SYSTEM");
+            ps.setString(3, actor);
             ps.setString(4, file.getOriginalFilename());
             ps.setInt(5, 0); // Will be updated during validation
             ps.setString(6, debitAccountNumber);
             ps.setString(7, batchType);
-            ps.setString(8, "SYSTEM");
+            ps.setString(8, actor);
 
             ResultSet rs = ps.executeQuery();
             long batchId = 0;
@@ -111,13 +114,12 @@ public class BulkPaymentController {
     @PostMapping("/{id}/approve")
     @Operation(summary = "Approve a submitted batch for processing")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> approve(
-            @PathVariable Long id, @RequestParam String approvedBy) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> approve(@PathVariable Long id) {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                      "UPDATE cbs.bulk_payment_batch SET status = 'APPROVED', approved_by = ?, " +
                      "approved_at = now(), updated_at = now() WHERE id = ?")) {
-            ps.setString(1, approvedBy);
+            ps.setString(1, currentActorProvider.getCurrentActor());
             ps.setLong(2, id);
             ps.executeUpdate();
         } catch (Exception ignored) {}
@@ -128,12 +130,12 @@ public class BulkPaymentController {
     @Operation(summary = "Reject a submitted batch")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> reject(
-            @PathVariable Long id, @RequestParam String rejectedBy, @RequestParam String reason) {
+            @PathVariable Long id, @RequestParam String reason) {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                      "UPDATE cbs.bulk_payment_batch SET status = 'REJECTED', rejected_by = ?, " +
                      "rejection_reason = ?, rejected_at = now(), updated_at = now() WHERE id = ?")) {
-            ps.setString(1, rejectedBy);
+            ps.setString(1, currentActorProvider.getCurrentActor());
             ps.setString(2, reason);
             ps.setLong(3, id);
             ps.executeUpdate();

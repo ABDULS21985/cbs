@@ -138,6 +138,13 @@ cbs:
     accrue-on-weekends: true
     accrue-on-holidays: true
 
+  ledger:
+    default-branch-code: ${CBS_LEDGER_BRANCH:HEAD}
+    opening-balance-contra-gl-code: ${CBS_LEDGER_OPENING_BALANCE_GL:}
+    external-clearing-gl-code: ${CBS_LEDGER_EXTERNAL_CLEARING_GL:}
+    fixed-deposit-control-gl-code: ${CBS_LEDGER_FIXED_DEPOSIT_GL:}
+    recurring-deposit-control-gl-code: ${CBS_LEDGER_RECURRING_DEPOSIT_GL:}
+
   kyc:
     provider: ${CBS_KYC_PROVIDER:}
     provider-base-url: ${CBS_KYC_URL:}

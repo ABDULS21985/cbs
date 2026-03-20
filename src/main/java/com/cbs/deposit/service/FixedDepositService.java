@@ -3,10 +3,10 @@ package com.cbs.deposit.service;
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.Product;
 import com.cbs.account.entity.TransactionChannel;
-import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.ProductRepository;
-import com.cbs.account.service.AccountService;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -14,6 +14,7 @@ import com.cbs.customer.entity.Customer;
 import com.cbs.deposit.dto.*;
 import com.cbs.deposit.entity.*;
 import com.cbs.deposit.repository.FixedDepositRepository;
+import com.cbs.gl.service.GeneralLedgerService;
 import com.cbs.provider.interest.DayCountEngine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -36,7 +38,9 @@ public class FixedDepositService {
     private final FixedDepositRepository fdRepository;
     private final AccountRepository accountRepository;
     private final ProductRepository productRepository;
-    private final AccountService accountService;
+    private final AccountPostingService accountPostingService;
+    private final GeneralLedgerService generalLedgerService;
+    private final CurrentActorProvider currentActorProvider;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
 
@@ -102,11 +106,18 @@ public class FixedDepositService {
             fd.setPayoutAccount(payoutAccount);
         }
 
-        // Debit funding account
-        account.debit(request.getPrincipalAmount());
-        accountRepository.save(account);
-
         FixedDeposit saved = fdRepository.save(fd);
+        accountPostingService.postDebitAgainstGl(
+                account,
+                com.cbs.account.entity.TransactionType.DEBIT,
+                request.getPrincipalAmount(),
+                "Fixed deposit funding " + depositNumber,
+                TransactionChannel.SYSTEM,
+                depositNumber,
+                requiredProductGl(product),
+                "FIXED_DEPOSIT",
+                depositNumber
+        );
         log.info("Fixed deposit booked: number={}, principal={}, rate={}%, tenure={}d, maturity={}",
                 depositNumber, request.getPrincipalAmount(), request.getInterestRate(),
                 request.getTenureDays(), maturityDate);
@@ -190,8 +201,18 @@ public class FixedDepositService {
         switch (fd.getMaturityAction()) {
             case CREDIT_ACCOUNT -> {
                 Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-                payoutAccount.credit(totalPayout);
-                accountRepository.save(payoutAccount);
+                accountPostingService.postCreditAgainstGl(
+                        payoutAccount,
+                        com.cbs.account.entity.TransactionType.CREDIT,
+                        totalPayout,
+                        "Fixed deposit maturity payout " + fd.getDepositNumber(),
+                        TransactionChannel.SYSTEM,
+                        fd.getDepositNumber() + ":MATURITY",
+                        maturityPayoutLegs(fd, interestEarned),
+                        "FIXED_DEPOSIT",
+                        fd.getDepositNumber()
+                );
+                settlePaidOutDeposit(fd);
                 fd.setStatus(FixedDepositStatus.MATURED);
                 fd.setClosedDate(LocalDate.now());
                 log.info("FD {} matured: {} credited to account {}", fd.getDepositNumber(), totalPayout, payoutAccount.getAccountNumber());
@@ -199,13 +220,34 @@ public class FixedDepositService {
             case ROLLOVER_PRINCIPAL -> {
                 if (fd.getMaxRollovers() != null && fd.getRolloverCount() >= fd.getMaxRollovers()) {
                     Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-                    payoutAccount.credit(totalPayout);
-                    accountRepository.save(payoutAccount);
+                    accountPostingService.postCreditAgainstGl(
+                            payoutAccount,
+                            com.cbs.account.entity.TransactionType.CREDIT,
+                            totalPayout,
+                            "Fixed deposit maturity payout " + fd.getDepositNumber(),
+                            TransactionChannel.SYSTEM,
+                            fd.getDepositNumber() + ":MATURITY",
+                            maturityPayoutLegs(fd, interestEarned),
+                            "FIXED_DEPOSIT",
+                            fd.getDepositNumber()
+                    );
+                    settlePaidOutDeposit(fd);
                     fd.setStatus(FixedDepositStatus.MATURED);
+                    fd.setClosedDate(LocalDate.now());
                 } else {
                     Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-                    payoutAccount.credit(interestEarned);
-                    accountRepository.save(payoutAccount);
+                    accountPostingService.postCreditAgainstGl(
+                            payoutAccount,
+                            com.cbs.account.entity.TransactionType.CREDIT,
+                            interestEarned,
+                            "Fixed deposit interest payout " + fd.getDepositNumber(),
+                            TransactionChannel.SYSTEM,
+                            fd.getDepositNumber() + ":ROLLOVER",
+                            requiredInterestExpenseGl(fd.getProduct()),
+                            "FIXED_DEPOSIT",
+                            fd.getDepositNumber()
+                    );
+                    fd.setPrincipalAmount(fd.getPrincipalAmount().setScale(2, RoundingMode.HALF_UP));
                     fd.setStartDate(LocalDate.now());
                     fd.setMaturityDate(LocalDate.now().plusDays(fd.getTenureDays()));
                     fd.setCurrentValue(fd.getPrincipalAmount());
@@ -217,10 +259,24 @@ public class FixedDepositService {
             case ROLLOVER_PRINCIPAL_INTEREST -> {
                 if (fd.getMaxRollovers() != null && fd.getRolloverCount() >= fd.getMaxRollovers()) {
                     Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-                    payoutAccount.credit(totalPayout);
-                    accountRepository.save(payoutAccount);
+                    accountPostingService.postCreditAgainstGl(
+                            payoutAccount,
+                            com.cbs.account.entity.TransactionType.CREDIT,
+                            totalPayout,
+                            "Fixed deposit maturity payout " + fd.getDepositNumber(),
+                            TransactionChannel.SYSTEM,
+                            fd.getDepositNumber() + ":MATURITY",
+                            maturityPayoutLegs(fd, interestEarned),
+                            "FIXED_DEPOSIT",
+                            fd.getDepositNumber()
+                    );
+                    settlePaidOutDeposit(fd);
                     fd.setStatus(FixedDepositStatus.MATURED);
+                    fd.setClosedDate(LocalDate.now());
                 } else {
+                    if (interestEarned.compareTo(BigDecimal.ZERO) > 0) {
+                        generalLedgerExpenseToControl(fd, interestEarned, "Fixed deposit rollover capitalization " + fd.getDepositNumber());
+                    }
                     fd.setPrincipalAmount(totalPayout);
                     fd.setCurrentValue(totalPayout);
                     fd.setStartDate(LocalDate.now());
@@ -258,11 +314,22 @@ public class FixedDepositService {
         if (payout.compareTo(BigDecimal.ZERO) < 0) payout = BigDecimal.ZERO;
 
         Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-        payoutAccount.credit(payout);
-        accountRepository.save(payoutAccount);
+        accountPostingService.postCreditAgainstGl(
+                payoutAccount,
+                com.cbs.account.entity.TransactionType.CREDIT,
+                payout,
+                "Fixed deposit early termination " + fd.getDepositNumber(),
+                TransactionChannel.SYSTEM,
+                fd.getDepositNumber() + ":BREAK",
+                earlyTerminationLegs(fd, penaltyAmount),
+                "FIXED_DEPOSIT",
+                fd.getDepositNumber()
+        );
 
         fd.setStatus(FixedDepositStatus.BROKEN);
         fd.setBrokenDate(LocalDate.now());
+        fd.setClosedDate(LocalDate.now());
+        settlePaidOutDeposit(fd);
         fd.setTotalInterestEarned(fd.getTotalInterestEarned().add(
                 fd.getAccruedInterest().setScale(2, RoundingMode.HALF_UP)));
         fd.setAccruedInterest(BigDecimal.ZERO);
@@ -289,8 +356,17 @@ public class FixedDepositService {
             throw new BusinessException("Remaining balance would fall below minimum", "BELOW_MIN_REMAINING");
 
         Account payoutAccount = fd.getPayoutAccount() != null ? fd.getPayoutAccount() : fd.getAccount();
-        payoutAccount.credit(amount);
-        accountRepository.save(payoutAccount);
+        accountPostingService.postCreditAgainstGl(
+                payoutAccount,
+                com.cbs.account.entity.TransactionType.CREDIT,
+                amount,
+                "Fixed deposit partial liquidation " + fd.getDepositNumber(),
+                TransactionChannel.SYSTEM,
+                fd.getDepositNumber() + ":PARTIAL",
+                requiredProductGl(fd.getProduct()),
+                "FIXED_DEPOSIT",
+                fd.getDepositNumber()
+        );
 
         fd.setPrincipalAmount(remaining);
         fd.setCurrentValue(remaining.add(fd.getAccruedInterest().setScale(2, RoundingMode.HALF_UP)));
@@ -320,6 +396,11 @@ public class FixedDepositService {
             }
             default -> BigDecimal.ZERO;
         };
+    }
+
+    private void settlePaidOutDeposit(FixedDeposit fd) {
+        fd.setPrincipalAmount(BigDecimal.ZERO);
+        fd.setCurrentValue(BigDecimal.ZERO);
     }
 
     private FixedDepositResponse toResponse(FixedDeposit fd) {
@@ -359,5 +440,127 @@ public class FixedDepositService {
                 .closedDate(fd.getClosedDate())
                 .createdAt(fd.getCreatedAt())
                 .build();
+    }
+
+    private List<AccountPostingService.GlPostingLeg> maturityPayoutLegs(FixedDeposit fd, BigDecimal interestEarned) {
+        List<AccountPostingService.GlPostingLeg> legs = new java.util.ArrayList<>();
+        BigDecimal principalComponent = fd.getPrincipalAmount().setScale(2, RoundingMode.HALF_UP);
+        if (principalComponent.compareTo(BigDecimal.ZERO) > 0) {
+            legs.add(accountPostingService.balanceLeg(
+                    requiredProductGl(fd.getProduct()),
+                    AccountPostingService.EntrySide.DEBIT,
+                    principalComponent,
+                    fd.getCurrencyCode(),
+                    BigDecimal.ONE,
+                    "Fixed deposit principal release",
+                    null,
+                    fd.getCustomer() != null ? fd.getCustomer().getId() : null
+            ));
+        }
+        if (interestEarned.compareTo(BigDecimal.ZERO) > 0) {
+            legs.add(accountPostingService.balanceLeg(
+                    requiredInterestExpenseGl(fd.getProduct()),
+                    AccountPostingService.EntrySide.DEBIT,
+                    interestEarned,
+                    fd.getCurrencyCode(),
+                    BigDecimal.ONE,
+                    "Fixed deposit interest expense",
+                    null,
+                    fd.getCustomer() != null ? fd.getCustomer().getId() : null
+            ));
+        }
+        return legs;
+    }
+
+    private List<AccountPostingService.GlPostingLeg> earlyTerminationLegs(FixedDeposit fd, BigDecimal penaltyAmount) {
+        List<AccountPostingService.GlPostingLeg> legs = new java.util.ArrayList<>();
+        BigDecimal principalComponent = fd.getPrincipalAmount().setScale(2, RoundingMode.HALF_UP);
+        if (principalComponent.compareTo(BigDecimal.ZERO) > 0) {
+            legs.add(accountPostingService.balanceLeg(
+                    requiredProductGl(fd.getProduct()),
+                    AccountPostingService.EntrySide.DEBIT,
+                    principalComponent,
+                    fd.getCurrencyCode(),
+                    BigDecimal.ONE,
+                    "Fixed deposit principal release",
+                    null,
+                    fd.getCustomer() != null ? fd.getCustomer().getId() : null
+            ));
+        }
+        BigDecimal netInterestExpense = fd.getAccruedInterest()
+                .setScale(2, RoundingMode.HALF_UP)
+                .subtract(penaltyAmount)
+                .max(BigDecimal.ZERO);
+        if (netInterestExpense.compareTo(BigDecimal.ZERO) > 0) {
+            legs.add(accountPostingService.balanceLeg(
+                    requiredInterestExpenseGl(fd.getProduct()),
+                    AccountPostingService.EntrySide.DEBIT,
+                    netInterestExpense,
+                    fd.getCurrencyCode(),
+                    BigDecimal.ONE,
+                    "Fixed deposit interest expense",
+                    null,
+                    fd.getCustomer() != null ? fd.getCustomer().getId() : null
+            ));
+        }
+        return legs;
+    }
+
+    private void generalLedgerExpenseToControl(FixedDeposit fd, BigDecimal amount, String description) {
+        generalLedgerService.postJournal(
+                "SYSTEM",
+                description,
+                "FIXED_DEPOSIT",
+                fd.getDepositNumber(),
+                LocalDate.now(),
+                currentActorProvider.getCurrentActor(),
+                List.of(
+                        new com.cbs.gl.service.GeneralLedgerService.JournalLineRequest(
+                                requiredInterestExpenseGl(fd.getProduct()),
+                                amount,
+                                BigDecimal.ZERO,
+                                fd.getCurrencyCode(),
+                                BigDecimal.ONE,
+                                description,
+                                null,
+                                branchCode(fd.getAccount()),
+                                fd.getAccount() != null ? fd.getAccount().getId() : null,
+                                fd.getCustomer() != null ? fd.getCustomer().getId() : null
+                        ),
+                        new com.cbs.gl.service.GeneralLedgerService.JournalLineRequest(
+                                requiredProductGl(fd.getProduct()),
+                                BigDecimal.ZERO,
+                                amount,
+                                fd.getCurrencyCode(),
+                                BigDecimal.ONE,
+                                description,
+                                null,
+                                branchCode(fd.getAccount()),
+                                fd.getAccount() != null ? fd.getAccount().getId() : null,
+                                fd.getCustomer() != null ? fd.getCustomer().getId() : null
+                        )
+                )
+        );
+    }
+
+    private String requiredProductGl(Product product) {
+        if (product == null || !StringUtils.hasText(product.getGlAccountCode())) {
+            throw new BusinessException("Deposit product GL account code is required", "MISSING_DEPOSIT_PRODUCT_GL");
+        }
+        return product.getGlAccountCode();
+    }
+
+    private String requiredInterestExpenseGl(Product product) {
+        if (product == null || !StringUtils.hasText(product.getGlInterestExpenseCode())) {
+            throw new BusinessException("Deposit product interest expense GL is required", "MISSING_DEPOSIT_INTEREST_GL");
+        }
+        return product.getGlInterestExpenseCode();
+    }
+
+    private String branchCode(Account account) {
+        if (account != null && StringUtils.hasText(account.getBranchCode())) {
+            return account.getBranchCode();
+        }
+        return cbsProperties.getLedger().getDefaultBranchCode();
     }
 }

@@ -26,6 +26,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long>, JpaSp
 
     boolean existsByEmail(String email);
 
+    Optional<Customer> findByEmail(String email);
+
     boolean existsByPhonePrimary(String phonePrimary);
 
     @Query("SELECT c FROM Customer c WHERE c.email = :email AND c.id <> :excludeId")

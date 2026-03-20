@@ -2,6 +2,8 @@ package com.cbs.payments;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
@@ -32,6 +34,8 @@ class PaymentServiceTest {
     @Mock private PaymentBatchRepository batchRepository;
     @Mock private FxRateRepository fxRateRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CbsProperties cbsProperties;
 
     @InjectMocks private PaymentService paymentService;
 
@@ -40,16 +44,19 @@ class PaymentServiceTest {
 
     @BeforeEach
     void setUp() {
+        CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
+        ledgerConfig.setExternalClearingGlCode("2100");
+        when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
         Customer c1 = Customer.builder().id(1L).firstName("Sender").lastName("User").customerType(CustomerType.INDIVIDUAL).build();
         Customer c2 = Customer.builder().id(2L).firstName("Receiver").lastName("User").customerType(CustomerType.INDIVIDUAL).build();
         debitAccount = Account.builder().id(1L).accountNumber("1000000001").customer(c1)
                 .currencyCode("USD").bookBalance(new BigDecimal("100000")).availableBalance(new BigDecimal("100000"))
                 .lienAmount(BigDecimal.ZERO).overdraftLimit(BigDecimal.ZERO)
-                .product(Product.builder().id(1L).code("CA-STD").build()).build();
+                .product(Product.builder().id(1L).code("CA-STD").glAccountCode("2001").glFeeIncomeCode("4001").build()).build();
         creditAccount = Account.builder().id(2L).accountNumber("1000000002").customer(c2)
                 .currencyCode("USD").bookBalance(new BigDecimal("5000")).availableBalance(new BigDecimal("5000"))
                 .lienAmount(BigDecimal.ZERO).overdraftLimit(BigDecimal.ZERO)
-                .product(Product.builder().id(1L).code("CA-STD").build()).build();
+                .product(Product.builder().id(1L).code("CA-STD").glAccountCode("2001").glFeeIncomeCode("4001").build()).build();
     }
 
     @Test
@@ -59,14 +66,18 @@ class PaymentServiceTest {
         when(accountRepository.findById(2L)).thenReturn(Optional.of(creditAccount));
         when(paymentRepository.getNextInstructionSequence()).thenReturn(1L);
         when(paymentRepository.save(any())).thenAnswer(inv -> { PaymentInstruction p = inv.getArgument(0); p.setId(1L); return p; });
-        when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(accountPostingService.postTransfer(any(Account.class), any(Account.class), any(BigDecimal.class),
+                any(BigDecimal.class), anyString(), anyString(), any(TransactionChannel.class), anyString(),
+                anyString(), anyString()))
+                .thenReturn(new AccountPostingService.TransferPosting(new TransactionJournal(), new TransactionJournal(), null));
 
         PaymentInstruction result = paymentService.executeInternalTransfer(1L, 2L, new BigDecimal("10000"), "Test transfer");
 
         assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
         assertThat(result.getPaymentType()).isEqualTo(PaymentType.INTERNAL_TRANSFER);
-        assertThat(debitAccount.getAvailableBalance()).isEqualByComparingTo(new BigDecimal("90000"));
-        assertThat(creditAccount.getAvailableBalance()).isEqualByComparingTo(new BigDecimal("15000"));
+        verify(accountPostingService).postTransfer(eq(debitAccount), eq(creditAccount), eq(new BigDecimal("10000")),
+                eq(new BigDecimal("10000")), eq("Test transfer"), eq("Test transfer"),
+                eq(TransactionChannel.API), anyString(), eq("PAYMENTS"), anyString());
     }
 
     @Test
@@ -103,7 +114,10 @@ class PaymentServiceTest {
         when(fxRateRepository.findLatestRate("USD", "EUR")).thenReturn(List.of(rate));
         when(paymentRepository.getNextInstructionSequence()).thenReturn(2L);
         when(paymentRepository.save(any())).thenAnswer(inv -> { PaymentInstruction p = inv.getArgument(0); p.setId(2L); return p; });
-        when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(accountPostingService.postTransfer(any(Account.class), any(Account.class), any(BigDecimal.class),
+                any(BigDecimal.class), anyString(), anyString(), any(TransactionChannel.class), anyString(),
+                any(BigDecimal.class), any(BigDecimal.class), anyString(), anyString()))
+                .thenReturn(new AccountPostingService.TransferPosting(new TransactionJournal(), new TransactionJournal(), null));
 
         PaymentInstruction result = paymentService.executeInternalTransfer(1L, 2L, new BigDecimal("10000"), "FX test");
 

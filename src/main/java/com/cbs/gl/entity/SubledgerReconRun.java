@@ -14,6 +14,8 @@ public class SubledgerReconRun {
     @Column(name = "recon_date", nullable = false) private LocalDate reconDate;
     @Column(name = "subledger_type", nullable = false, length = 20) private String subledgerType;
     @Column(name = "gl_code", nullable = false, length = 20) private String glCode;
+    @Column(name = "branch_code", nullable = false, length = 20) private String branchCode;
+    @Column(name = "currency_code", nullable = false, length = 3) private String currencyCode;
     @Column(name = "gl_balance", nullable = false, precision = 18, scale = 2) private BigDecimal glBalance;
     @Column(name = "subledger_balance", nullable = false, precision = 18, scale = 2) private BigDecimal subledgerBalance;
     @Column(name = "difference", nullable = false, precision = 18, scale = 2) private BigDecimal difference;

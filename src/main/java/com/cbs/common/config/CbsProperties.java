@@ -24,6 +24,7 @@ public class CbsProperties {
     private Security security = new Security();
     private AccountConfig account = new AccountConfig();
     private InterestConfig interest = new InterestConfig();
+    private LedgerConfig ledger = new LedgerConfig();
     private KycConfig kyc = new KycConfig();
     private LifecycleConfig lifecycle = new LifecycleConfig();
     private Simulation simulation = new Simulation();
@@ -94,6 +95,20 @@ public class CbsProperties {
         private int postingScale = 2;
         private boolean accrueOnWeekends = true;
         private boolean accrueOnHolidays = true;
+    }
+
+    @Getter @Setter
+    public static class LedgerConfig {
+        /** Default branch/cost center for GL lines when no branch is supplied by the source module. */
+        private String defaultBranchCode = "HEAD";
+        /** Contra GL for opening balance cash/till funding when a new account is opened with an initial deposit. */
+        private String openingBalanceContraGlCode = "";
+        /** Clearing GL for domestic/outbound payments that leave the bank. */
+        private String externalClearingGlCode = "";
+        /** Control GL for fixed deposit liabilities. */
+        private String fixedDepositControlGlCode = "";
+        /** Control GL for recurring deposit liabilities. */
+        private String recurringDepositControlGlCode = "";
     }
 
     @Getter @Setter

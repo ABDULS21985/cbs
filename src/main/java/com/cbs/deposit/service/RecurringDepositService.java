@@ -2,8 +2,10 @@ package com.cbs.deposit.service;
 
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.Product;
+import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.ProductRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
@@ -18,6 +20,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -34,6 +37,7 @@ public class RecurringDepositService {
     private final RecurringDepositInstallmentRepository installmentRepository;
     private final AccountRepository accountRepository;
     private final ProductRepository productRepository;
+    private final AccountPostingService accountPostingService;
     private final DayCountEngine dayCountEngine;
     private final CbsProperties cbsProperties;
 
@@ -155,8 +159,17 @@ public class RecurringDepositService {
             throw new BusinessException("Insufficient balance for installment", "INSUFFICIENT_BALANCE");
         }
 
-        debitAccount.debit(installment.getAmountDue());
-        accountRepository.save(debitAccount);
+        accountPostingService.postDebitAgainstGl(
+                debitAccount,
+                com.cbs.account.entity.TransactionType.DEBIT,
+                installment.getAmountDue(),
+                "Recurring deposit installment " + rd.getDepositNumber() + " #" + installmentNumber,
+                TransactionChannel.SYSTEM,
+                rd.getDepositNumber() + ":" + installmentNumber,
+                requiredProductGl(rd.getProduct()),
+                "RECURRING_DEPOSIT",
+                rd.getDepositNumber()
+        );
 
         installment.setAmountPaid(installment.getAmountDue());
         installment.setPaidDate(LocalDate.now());
@@ -209,8 +222,17 @@ public class RecurringDepositService {
             return;
         }
 
-        debitAccount.debit(installment.getAmountDue());
-        accountRepository.save(debitAccount);
+        accountPostingService.postDebitAgainstGl(
+                debitAccount,
+                com.cbs.account.entity.TransactionType.DEBIT,
+                installment.getAmountDue(),
+                "Recurring deposit installment " + rd.getDepositNumber() + " #" + installment.getInstallmentNumber(),
+                TransactionChannel.SYSTEM,
+                rd.getDepositNumber() + ":" + installment.getInstallmentNumber(),
+                requiredProductGl(rd.getProduct()),
+                "RECURRING_DEPOSIT",
+                rd.getDepositNumber()
+        );
 
         installment.setAmountPaid(installment.getAmountDue());
         installment.setPaidDate(LocalDate.now());
@@ -275,5 +297,13 @@ public class RecurringDepositService {
                 .penaltyAmount(i.getPenaltyAmount()).status(i.getStatus())
                 .transactionRef(i.getTransactionRef()).overdue(i.isOverdue())
                 .build();
+    }
+
+    private String requiredProductGl(Product product) {
+        if (product == null || !StringUtils.hasText(product.getGlAccountCode())) {
+            throw new BusinessException("Recurring deposit product GL account code is required",
+                    "MISSING_RECURRING_DEPOSIT_GL");
+        }
+        return product.getGlAccountCode();
     }
 }
