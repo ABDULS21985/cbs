@@ -25,13 +25,13 @@ export const sanctionsApi = {
 
   /** GET /v1/sanctions/pending */
   getPendingReview: (params?: Record<string, unknown>) =>
-    apiGet<ScreeningRequest[]>('/api/v1/sanctions/pending', params).catch(() => []),
+    apiGet<ScreeningRequest[]>('/api/v1/sanctions/pending', params),
 
   // ─── Listings ───────────────────────────────────────────────────────────────
 
   /** GET /v1/sanctions */
   listScreenings: (params?: Record<string, unknown>) =>
-    apiGet<ScreeningRequest[]>('/api/v1/sanctions', params).catch(() => []),
+    apiGet<ScreeningRequest[]>('/api/v1/sanctions', params),
 
   /** GET /v1/sanctions/stats */
   getStats: () =>
@@ -39,11 +39,11 @@ export const sanctionsApi = {
 
   /** GET /v1/sanctions/matches */
   getScreeningsWithMatches: (params?: Record<string, unknown>) =>
-    apiGet<ScreeningRequest[]>('/api/v1/sanctions/matches', params).catch(() => []),
+    apiGet<ScreeningRequest[]>('/api/v1/sanctions/matches', params),
 
   /** GET /v1/sanctions/watchlists */
   getWatchlists: (params?: Record<string, unknown>) =>
-    apiGet<Watchlist[]>('/api/v1/sanctions/watchlists', params).catch(() => []),
+    apiGet<Watchlist[]>('/api/v1/sanctions/watchlists', params),
 
   // ─── Match Actions ──────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ export const sanctionsApi = {
 
   /** GET /v1/sanctions/batch-screen */
   getBatchScreenJobs: (params?: Record<string, unknown>) =>
-    apiGet<Record<string, unknown>[]>('/api/v1/sanctions/batch-screen', params).catch(() => []),
+    apiGet<Record<string, unknown>[]>('/api/v1/sanctions/batch-screen', params),
 
   /** POST /v1/sanctions/batch-screen */
   batchScreen: (data: BatchScreenPayload) =>

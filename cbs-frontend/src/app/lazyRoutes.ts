@@ -399,6 +399,18 @@ export const SyndicationPage = lazyNamed(
   () => import('@/features/lending/pages/SyndicationPage'),
   'SyndicationPage',
 );
+export const SyndicationDetailPage = lazyNamed(
+  () => import('@/features/lending/pages/SyndicationDetailPage'),
+  'SyndicationDetailPage',
+);
+export const PosLendingPage = lazyNamed(
+  () => import('@/features/lending/pages/PosLendingPage'),
+  'PosLendingPage',
+);
+export const CreditMarginPage = lazyNamed(
+  () => import('@/features/lending/pages/CreditMarginPage'),
+  'CreditMarginPage',
+);
 export const CollectionCaseDetailPage = lazyNamed(
   () => import('@/features/lending/pages/CollectionCaseDetailPage'),
   'CollectionCaseDetailPage',
@@ -888,6 +900,18 @@ export const MerchantAcquiringPage = lazyNamed(
 export const MarketDataManagementPage = lazyNamed(
   () => import('@/features/marketdata/pages/MarketDataManagementPage'),
   'MarketDataManagementPage',
+);
+export const PricesPage = lazyNamed(
+  () => import('@/features/marketdata/pages/PricesPage'),
+  'PricesPage',
+);
+export const ResearchPage = lazyNamed(
+  () => import('@/features/marketdata/pages/ResearchPage'),
+  'ResearchPage',
+);
+export const AnalysisPage = lazyNamed(
+  () => import('@/features/marketdata/pages/AnalysisPage'),
+  'AnalysisPage',
 );
 
 export const TradeFinanceHubPage = lazyNamed(

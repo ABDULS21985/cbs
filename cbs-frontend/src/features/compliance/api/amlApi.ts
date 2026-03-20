@@ -17,7 +17,7 @@ export const amlApi = {
 
   /** GET /v1/aml/rules */
   getActiveRules: () =>
-    apiGet<AmlRule[]>('/api/v1/aml/rules').catch(() => []),
+    apiGet<AmlRule[]>('/api/v1/aml/rules'),
 
   /** PATCH /v1/aml/rules/{id}/toggle */
   toggleRule: (id: number) =>
@@ -31,11 +31,11 @@ export const amlApi = {
 
   /** GET /v1/aml/alerts */
   getAlerts: (params?: { status?: string; page?: number; size?: number }) =>
-    apiGet<AmlAlert[]>('/api/v1/aml/alerts', params as Record<string, unknown>).catch(() => []),
+    apiGet<AmlAlert[]>('/api/v1/aml/alerts', params as Record<string, unknown>),
 
   /** GET /v1/aml/alerts/customer/{customerId} */
   getCustomerAlerts: (customerId: number, params?: Record<string, unknown>) =>
-    apiGet<AmlAlert[]>(`/api/v1/aml/alerts/customer/${customerId}`, params).catch(() => []),
+    apiGet<AmlAlert[]>(`/api/v1/aml/alerts/customer/${customerId}`, params),
 
   /** POST /v1/aml/alerts/{id}/assign */
   assignAlert: (id: number, assignedTo: string) =>
@@ -65,11 +65,11 @@ export const amlApi = {
 
   /** GET /v1/aml/strs */
   getStrs: (params?: Record<string, unknown>) =>
-    apiGet<Record<string, unknown>[]>('/api/v1/aml/strs', params).catch(() => []),
+    apiGet<Record<string, unknown>[]>('/api/v1/aml/strs', params),
 
   /** GET /v1/aml/ctrs */
   getCtrs: (params?: Record<string, unknown>) =>
-    apiGet<Record<string, unknown>[]>('/api/v1/aml/ctrs', params).catch(() => []),
+    apiGet<Record<string, unknown>[]>('/api/v1/aml/ctrs', params),
 
   // ─── Dashboard & Stats ──────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ export const amlApi = {
 
   /** GET /v1/aml */
   listAll: (params?: Record<string, unknown>) =>
-    apiGet<AmlAlert[]>('/api/v1/aml', params).catch(() => []),
+    apiGet<AmlAlert[]>('/api/v1/aml', params),
 
   /** GET /v1/aml/stats */
   getStats: () =>

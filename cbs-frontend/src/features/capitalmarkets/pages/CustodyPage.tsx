@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/shared';
-import { Wallet, ShieldCheck, BarChart3, Plus, X } from 'lucide-react';
+import { Wallet, ShieldCheck, BarChart3, Plus, X, AlertTriangle } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cmCustodyApi, type CustodyAccount, type CustodyAccountType } from '../api/custodyApi';
 import { CustodyAccountTable } from '../components/custody/CustodyAccountTable';
@@ -115,7 +115,7 @@ export function CustodyPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<CustodyAccount | null>(null);
 
-  const { data: accounts = [], isLoading } = useQuery({
+  const { data: accounts = [], isLoading, isError } = useQuery({
     queryKey: KEYS.accounts(),
     queryFn: () => cmCustodyApi.getAccounts(),
     staleTime: 60_000,
@@ -137,11 +137,17 @@ export function CustodyPage() {
         }
       />
       <div className="page-container space-y-6">
+        {isError && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertTriangle className="h-4 w-4" />
+            Custody accounts could not be loaded from the backend.
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Accounts" value={accounts.length} format="number" icon={Wallet} />
-          <StatCard label="Active" value={activeAccounts.length} format="number" icon={ShieldCheck} />
-          <StatCard label="Total Assets" value={totalAssets} format="money" icon={BarChart3} compact />
-          <StatCard label="Securities Held" value={totalSecurities} format="number" icon={Wallet} />
+          <StatCard label="Total Accounts" value={isError ? '--' : accounts.length} format="number" icon={Wallet} />
+          <StatCard label="Active" value={isError ? '--' : activeAccounts.length} format="number" icon={ShieldCheck} />
+          <StatCard label="Total Assets" value={isError ? '--' : totalAssets} format="money" icon={BarChart3} compact />
+          <StatCard label="Securities Held" value={isError ? '--' : totalSecurities} format="number" icon={Wallet} />
         </div>
 
         <CustodyAccountTable

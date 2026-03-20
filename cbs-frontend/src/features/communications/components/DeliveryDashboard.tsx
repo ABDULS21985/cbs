@@ -14,8 +14,24 @@ const CHANNEL_COLORS: Record<string, string> = {
 };
 
 export function DeliveryDashboard() {
-  const { data: trend = [], isLoading: trendLoading } = useDeliveryTrend();
-  const { data: byChannel = [], isLoading: channelLoading } = useDeliveryByChannel();
+  const {
+    data: trend = [],
+    isLoading: trendLoading,
+    isError: trendError,
+  } = useDeliveryTrend();
+  const {
+    data: byChannel = [],
+    isLoading: channelLoading,
+    isError: channelError,
+  } = useDeliveryByChannel();
+
+  if (trendError || channelError) {
+    return (
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        Delivery dashboard data could not be loaded from the backend.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

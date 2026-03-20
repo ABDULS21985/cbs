@@ -74,7 +74,7 @@ export interface TradeReport {
 export const tradeOpsApi = {
   // Confirmations
   getConfirmations: (params?: { status?: string; dateFrom?: string; dateTo?: string; instrument?: string; counterparty?: string }) =>
-    apiGet<TradeConfirmation[]>('/api/v1/trade-ops/confirmations', params).catch(() => []),
+    apiGet<TradeConfirmation[]>('/api/v1/trade-ops/confirmations', params),
 
   submitConfirmation: (payload: {
     tradeDate: string;
@@ -91,11 +91,11 @@ export const tradeOpsApi = {
     apiPost<{ matched: boolean; matchRef: string }>('/api/v1/trade-ops/confirmations/match', { ourRef, theirRef }),
 
   getUnmatchedConfirmations: () =>
-    apiGet<TradeConfirmation[]>('/api/v1/trade-ops/confirmations/unmatched').catch(() => []),
+    apiGet<TradeConfirmation[]>('/api/v1/trade-ops/confirmations/unmatched'),
 
   // Allocations
   getAllocations: (parentOrderRef?: string) =>
-    apiGet<TradeAllocation[]>('/api/v1/trade-ops/allocations', parentOrderRef ? { parentOrderRef } : undefined).catch(() => []),
+    apiGet<TradeAllocation[]>('/api/v1/trade-ops/allocations', parentOrderRef ? { parentOrderRef } : undefined),
 
   submitAllocation: (payload: {
     parentOrderRef: string;
@@ -104,17 +104,17 @@ export const tradeOpsApi = {
 
   // Clearing
   getClearingQueue: () =>
-    apiGet<ClearingEntry[]>('/api/v1/trade-ops/clearing').catch(() => []),
+    apiGet<ClearingEntry[]>('/api/v1/trade-ops/clearing'),
 
   submitForClearing: (payload: { tradeRef: string; clearingHouse: string; priority: string }) =>
     apiPost<ClearingEntry>('/api/v1/trade-ops/clearing', payload),
 
   getPendingClearing: () =>
-    apiGet<ClearingEntry[]>('/api/v1/trade-ops/clearing/pending').catch(() => []),
+    apiGet<ClearingEntry[]>('/api/v1/trade-ops/clearing/pending'),
 
   // Reports
   getTradeReports: (params?: { dateFrom?: string; dateTo?: string; reportType?: string }) =>
-    apiGet<TradeReport[]>('/api/v1/trade-ops/reports', params).catch(() => []),
+    apiGet<TradeReport[]>('/api/v1/trade-ops/reports', params),
 
   submitTradeReport: (payload: { reportType: string; reportDate: string; tradeRefs: string[] }) =>
     apiPost<TradeReport>('/api/v1/trade-ops/reports', payload),

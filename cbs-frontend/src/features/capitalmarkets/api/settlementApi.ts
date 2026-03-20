@@ -75,7 +75,7 @@ export interface SettlementDashboardData {
 export const settlementApi = {
   // Instructions
   getInstructions: (params?: { status?: string; dateFrom?: string; dateTo?: string }) =>
-    apiGet<SettlementInstruction[]>('/api/v1/settlements/instructions', params).catch(() => []),
+    apiGet<SettlementInstruction[]>('/api/v1/settlements/instructions', params),
 
   createInstruction: (payload: {
     type: SettlementType;
@@ -102,14 +102,14 @@ export const settlementApi = {
 
   // Batches
   getBatches: (params?: { status?: string }) =>
-    apiGet<SettlementBatch[]>('/api/v1/settlements/batches', params).catch(() => []),
+    apiGet<SettlementBatch[]>('/api/v1/settlements/batches', params),
 
   createBatch: (payload: { instructionRefs: string[]; depository: string }) =>
     apiPost<SettlementBatch>('/api/v1/settlements/batches', payload),
 
   // Failed
   getFailedSettlements: () =>
-    apiGet<FailedSettlement[]>('/api/v1/settlements/failed').catch(() => []),
+    apiGet<FailedSettlement[]>('/api/v1/settlements/failed'),
 
   // Dashboard
   getDashboard: () =>

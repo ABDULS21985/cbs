@@ -257,9 +257,13 @@ interface ProductAccount {
 
 function AccountsTab({ product }: { product: BankingProduct }) {
   const navigate = useNavigate();
-  const { data: accounts = [], isLoading } = useQuery({
+  const {
+    data: accounts = [],
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['product-accounts', product.id],
-    queryFn: () => apiGet<ProductAccount[]>(`/api/v1/products/${product.id}/accounts`).catch(() => []),
+    queryFn: () => apiGet<ProductAccount[]>(`/api/v1/products/${product.id}/accounts`),
   });
 
   const accountStatusColors: Record<string, string> = {
@@ -290,6 +294,8 @@ function AccountsTab({ product }: { product: BankingProduct }) {
           <tbody className="divide-y divide-border">
             {isLoading ? (
               <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">Loading accounts...</td></tr>
+            ) : isError ? (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-destructive">Product accounts could not be loaded from the backend.</td></tr>
             ) : accounts.length === 0 ? (
               <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No accounts found for this product.</td></tr>
             ) : accounts.map((acc) => (
@@ -338,7 +344,10 @@ export function ProductDetailPage() {
     enabled: !!id,
   });
 
-  const { data: versions = [] } = useQuery({
+  const {
+    data: versions = [],
+    isError: versionsError,
+  } = useQuery({
     queryKey: ['product-versions', id],
     queryFn: () => getProductVersions(id!),
     enabled: !!id,
@@ -475,7 +484,15 @@ export function ProductDetailPage() {
         )}
         {activeTab === 'performance' && <ProductPerformanceTab product={product} />}
         {activeTab === 'accounts' && <AccountsTab product={product} />}
-        {activeTab === 'amendments' && <ProductVersionDiff versions={versions} />}
+        {activeTab === 'amendments' && (
+          versionsError ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              Product version history could not be loaded from the backend.
+            </div>
+          ) : (
+            <ProductVersionDiff versions={versions} />
+          )
+        )}
       </div>
 
       {/* Confirm Action Dialog */}

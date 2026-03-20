@@ -5,10 +5,22 @@ import { channelIcon } from './ChannelSelector';
 import { useScheduledNotifications } from '../hooks/useCommunications';
 
 export function ScheduledQueue() {
-  const { data: scheduled = [], isLoading } = useScheduledNotifications();
+  const {
+    data: scheduled = [],
+    isLoading,
+    isError,
+  } = useScheduledNotifications();
 
   if (isLoading) {
     return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>;
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        Scheduled notifications could not be loaded from the backend.
+      </div>
+    );
   }
 
   if (scheduled.length === 0) {

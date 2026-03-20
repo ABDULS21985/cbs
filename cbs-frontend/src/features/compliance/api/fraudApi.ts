@@ -28,7 +28,7 @@ export const fraudApi = {
 
   /** GET /v1/fraud/rules */
   getActiveRules: () =>
-    apiGet<FraudRule[]>('/api/v1/fraud/rules').catch(() => []),
+    apiGet<FraudRule[]>('/api/v1/fraud/rules'),
 
   /** PATCH /v1/fraud/rules/{id}/toggle */
   toggleRule: (id: number) =>
@@ -38,7 +38,7 @@ export const fraudApi = {
 
   /** GET /v1/fraud/alerts */
   getAlerts: (params?: { status?: string; page?: number; size?: number }) =>
-    apiGet<FraudAlert[]>('/api/v1/fraud/alerts', params as Record<string, unknown>).catch(() => []),
+    apiGet<FraudAlert[]>('/api/v1/fraud/alerts', params as Record<string, unknown>),
 
   /** GET /v1/fraud/alerts/{id} */
   getAlert: (id: number) =>
@@ -54,7 +54,7 @@ export const fraudApi = {
 
   /** GET /v1/fraud/alerts/{alertId}/transactions */
   getAlertTransactions: (alertId: number) =>
-    apiGet<Record<string, unknown>[]>(`/api/v1/fraud/alerts/${alertId}/transactions`).catch(() => []),
+    apiGet<Record<string, unknown>[]>(`/api/v1/fraud/alerts/${alertId}/transactions`),
 
   // ─── Alert Actions ──────────────────────────────────────────────────────────
 
@@ -82,7 +82,7 @@ export const fraudApi = {
 
   /** GET /v1/fraud */
   listAll: (params?: Record<string, unknown>) =>
-    apiGet<FraudAlert[]>('/api/v1/fraud', params).catch(() => []),
+    apiGet<FraudAlert[]>('/api/v1/fraud', params),
 
   /** GET /v1/fraud/stats */
   getStats: () =>

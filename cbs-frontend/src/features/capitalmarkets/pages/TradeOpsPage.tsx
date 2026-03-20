@@ -181,7 +181,7 @@ function NewReportForm({ onClose }: { onClose: () => void }) {
 
 function ConfirmationsTab() {
   const [showForm, setShowForm] = useState(false);
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError } = useQuery({
     queryKey: KEYS.confirmations(),
     queryFn: () => tradeOpsApi.getConfirmations(),
     staleTime: 30_000,
@@ -194,6 +194,11 @@ function ConfirmationsTab() {
           <Plus className="w-4 h-4" /> Submit Confirmation
         </button>
       </div>
+      {isError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Trade confirmations could not be loaded from the backend.
+        </div>
+      )}
       <ConfirmationTable data={data} isLoading={isLoading} />
       {showForm && <NewConfirmationForm onClose={() => setShowForm(false)} />}
     </div>
@@ -204,12 +209,12 @@ function ConfirmationsTab() {
 
 function MatchingTab() {
   const qc = useQueryClient();
-  const { data: confirmations = [], isLoading: confLoading } = useQuery({
+  const { data: confirmations = [], isLoading: confLoading, isError: confError } = useQuery({
     queryKey: KEYS.confirmations(),
     queryFn: () => tradeOpsApi.getConfirmations(),
     staleTime: 30_000,
   });
-  const { data: unmatched = [], isLoading: unmLoading } = useQuery({
+  const { data: unmatched = [], isLoading: unmLoading, isError: unmatchedError } = useQuery({
     queryKey: KEYS.unmatched(),
     queryFn: () => tradeOpsApi.getUnmatchedConfirmations(),
     staleTime: 30_000,
@@ -229,6 +234,11 @@ function MatchingTab() {
 
   return (
     <div className="p-4 space-y-4">
+      {(confError || unmatchedError) && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Matching data could not be loaded from the backend.
+        </div>
+      )}
       <UnmatchedTrades trades={ourUnmatched} isLoading={confLoading} />
       <ConfirmationMatchPanel
         ourConfirmations={ourUnmatched}
@@ -246,7 +256,7 @@ function MatchingTab() {
 function AllocationsTab() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError } = useQuery({
     queryKey: KEYS.allocations(),
     queryFn: () => tradeOpsApi.getAllocations(),
     staleTime: 30_000,
@@ -269,6 +279,11 @@ function AllocationsTab() {
           <Plus className="w-4 h-4" /> Allocate
         </button>
       </div>
+      {isError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Allocation data could not be loaded from the backend.
+        </div>
+      )}
 
       <div className="rounded-xl border overflow-hidden">
         <table className="w-full text-sm">
@@ -320,7 +335,7 @@ function AllocationsTab() {
 
 function ClearingTab() {
   const qc = useQueryClient();
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError } = useQuery({
     queryKey: KEYS.clearing(),
     queryFn: () => tradeOpsApi.getClearingQueue(),
     staleTime: 30_000,
@@ -337,6 +352,11 @@ function ClearingTab() {
 
   return (
     <div className="p-4">
+      {isError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Clearing queue could not be loaded from the backend.
+        </div>
+      )}
       <ClearingQueue
         data={data}
         isLoading={isLoading}
@@ -352,7 +372,7 @@ function ClearingTab() {
 
 function ReportsTab() {
   const [showForm, setShowForm] = useState(false);
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError } = useQuery({
     queryKey: KEYS.reports(),
     queryFn: () => tradeOpsApi.getTradeReports(),
     staleTime: 60_000,
@@ -365,6 +385,11 @@ function ReportsTab() {
           <Send className="w-4 h-4" /> Submit Report
         </button>
       </div>
+      {isError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Trade reports could not be loaded from the backend.
+        </div>
+      )}
       <TradeReportTable data={data} isLoading={isLoading} />
       {showForm && <NewReportForm onClose={() => setShowForm(false)} />}
     </div>
@@ -374,22 +399,22 @@ function ReportsTab() {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export function TradeOpsPage() {
-  const { data: confirmations = [] } = useQuery({
+  const { data: confirmations = [], isError: confirmationsError } = useQuery({
     queryKey: KEYS.confirmations(),
     queryFn: () => tradeOpsApi.getConfirmations(),
     staleTime: 30_000,
   });
-  const { data: unmatched = [] } = useQuery({
+  const { data: unmatched = [], isError: unmatchedError } = useQuery({
     queryKey: KEYS.unmatched(),
     queryFn: () => tradeOpsApi.getUnmatchedConfirmations(),
     staleTime: 30_000,
   });
-  const { data: pending = [] } = useQuery({
+  const { data: pending = [], isError: pendingError } = useQuery({
     queryKey: KEYS.pendingClearing(),
     queryFn: () => tradeOpsApi.getPendingClearing(),
     staleTime: 30_000,
   });
-  const { data: allocations = [] } = useQuery({
+  const { data: allocations = [], isError: allocationsError } = useQuery({
     queryKey: KEYS.allocations(),
     queryFn: () => tradeOpsApi.getAllocations(),
     staleTime: 30_000,
@@ -406,11 +431,16 @@ export function TradeOpsPage() {
         subtitle="Trade confirmation, matching, allocation, clearing, and regulatory reporting"
       />
       <div className="page-container space-y-6">
+        {(confirmationsError || unmatchedError || pendingError || allocationsError) && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            One or more trade-operations datasets could not be loaded from the backend.
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Confirmations Today" value={todayConfirmations.length} format="number" icon={CheckCircle2} />
-          <StatCard label="Unmatched" value={unmatched.length} format="number" icon={AlertTriangle} />
-          <StatCard label="Pending Clearing" value={pending.length} format="number" icon={Clock} />
-          <StatCard label="Allocated Today" value={todayAllocations.length} format="number" icon={BarChart3} />
+          <StatCard label="Confirmations Today" value={confirmationsError ? '--' : todayConfirmations.length} format="number" icon={CheckCircle2} />
+          <StatCard label="Unmatched" value={unmatchedError ? '--' : unmatched.length} format="number" icon={AlertTriangle} />
+          <StatCard label="Pending Clearing" value={pendingError ? '--' : pending.length} format="number" icon={Clock} />
+          <StatCard label="Allocated Today" value={allocationsError ? '--' : todayAllocations.length} format="number" icon={BarChart3} />
         </div>
 
         <div className="card overflow-hidden">

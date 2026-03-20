@@ -10,7 +10,11 @@ import { useFailedNotifications, useRetryFailed } from '../hooks/useCommunicatio
 import type { NotificationLog } from '../api/communicationApi';
 
 export function FailedMessagePanel() {
-  const { data: failures = [], isLoading } = useFailedNotifications();
+  const {
+    data: failures = [],
+    isLoading,
+    isError,
+  } = useFailedNotifications();
   const retryAll = useRetryFailed();
   const [selected, setSelected] = useState<NotificationLog | null>(null);
 
@@ -23,6 +27,14 @@ export function FailedMessagePanel() {
 
   if (isLoading) {
     return <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>;
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        Failed notifications could not be loaded from the backend.
+      </div>
+    );
   }
 
   if (failures.length === 0) {

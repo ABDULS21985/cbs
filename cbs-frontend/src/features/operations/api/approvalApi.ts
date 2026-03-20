@@ -74,15 +74,15 @@ export interface EscalationRule {
 // ─── API Functions ────────────────────────────────────────────────────────────
 
 export function getMyQueue(): Promise<ApprovalRequest[]> {
-  return apiGet<ApprovalRequest[]>('/api/v1/approvals/my-queue').catch(() => []);
+  return apiGet<ApprovalRequest[]>('/api/v1/approvals/my-queue');
 }
 
 export function getTeamQueue(): Promise<ApprovalRequest[]> {
-  return apiGet<ApprovalRequest[]>('/api/v1/approvals/team-queue').catch(() => []);
+  return apiGet<ApprovalRequest[]>('/api/v1/approvals/team-queue');
 }
 
 export function getDelegatedQueue(): Promise<ApprovalRequest[]> {
-  return apiGet<ApprovalRequest[]>('/api/v1/approvals/delegated-queue').catch(() => []);
+  return apiGet<ApprovalRequest[]>('/api/v1/approvals/delegated-queue');
 }
 
 export function getApprovalHistory(params?: {
@@ -91,7 +91,7 @@ export function getApprovalHistory(params?: {
   from?: string;
   to?: string;
 }): Promise<ApprovalRequest[]> {
-  return apiGet<ApprovalRequest[]>('/api/v1/approvals/history', params as Record<string, unknown>).catch(() => []);
+  return apiGet<ApprovalRequest[]>('/api/v1/approvals/history', params as Record<string, unknown>);
 }
 
 export function getApprovalById(id: string): Promise<ApprovalRequest | null> {
@@ -119,7 +119,7 @@ export function bulkApprove(ids: string[], comments?: string): Promise<ApprovalR
 }
 
 export function getDelegations(): Promise<Delegation[]> {
-  return apiGet<Delegation[]>('/api/v1/approvals/delegations').catch(() => []);
+  return apiGet<Delegation[]>('/api/v1/approvals/delegations');
 }
 
 export function createDelegation(data: Omit<Delegation, 'id' | 'active' | 'createdAt'>): Promise<Delegation> {
@@ -131,7 +131,7 @@ export function cancelDelegation(id: string): Promise<void> {
 }
 
 export function getEscalationRules(): Promise<EscalationRule[]> {
-  return apiGet<EscalationRule[]>('/api/v1/approvals/escalation-rules').catch(() => []);
+  return apiGet<EscalationRule[]>('/api/v1/approvals/escalation-rules');
 }
 
 export function updateEscalationRule(id: string, data: Partial<EscalationRule>): Promise<EscalationRule> {

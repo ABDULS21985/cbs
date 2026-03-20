@@ -61,7 +61,7 @@ export const complianceReportApi = {
     apiGet<ComplianceReportPage>(`/api/v1/compliance-reports/regulator/${regulator}`, params as Record<string, unknown>),
 
   getOverdue: () =>
-    apiGet<ComplianceReport[]>('/api/v1/compliance-reports/overdue').catch(() => [] as ComplianceReport[]),
+    apiGet<ComplianceReport[]>('/api/v1/compliance-reports/overdue'),
 
   create: (payload: CreateReportPayload) =>
     apiPost<ComplianceReport>('/api/v1/compliance-reports', payload),

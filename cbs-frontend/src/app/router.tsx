@@ -105,6 +105,7 @@ import {
   MerchantListPage,
   MobileMoneyPage,
   MortgageDetailPage,
+  MortgageOriginationPage,
   MortgageListPage,
   NewCasePage,
   NewFeeDefinitionPage,
@@ -146,6 +147,9 @@ import {
   StandingOrderListPage,
   StatementGeneratorPage,
   SyndicationPage,
+  SyndicationDetailPage,
+  PosLendingPage,
+  CreditMarginPage,
   SystemParametersPage,
   TemplateManagementPage,
   TradeFinancePage,
@@ -242,6 +246,9 @@ import {
   OpenBankingPage,
   MerchantAcquiringPage,
   MarketDataManagementPage,
+  PricesPage,
+  ResearchPage,
+  AnalysisPage,
   TradeFinanceHubPage,
   AccountListPage,
   WalletPage,
@@ -363,6 +370,7 @@ export function AppRouter() {
           <Route path="collections" element={<CollectionsPage />} />
           <Route path="collections/cases/:id" element={<CollectionCaseDetailPage />} />
           <Route path="mortgages" element={<MortgageListPage />} />
+          <Route path="mortgages/new" element={<MortgageOriginationPage />} />
           <Route path="mortgages/:id" element={<MortgageDetailPage />} />
           <Route path="leases" element={<LeaseListPage />} />
           <Route path="leases/:id" element={<LeaseDetailPage />} />
@@ -508,6 +516,9 @@ export function AppRouter() {
         {/* Market Data Management */}
         <Route path="/market-data" element={<Outlet />}>
           <Route index element={<MarketDataManagementPage />} />
+          <Route path="prices" element={<PricesPage />} />
+          <Route path="research" element={<ResearchPage />} />
+          <Route path="analysis" element={<AnalysisPage />} />
         </Route>
         <Route path="/market-data-mgmt" element={<Navigate to="/market-data" replace />} />
 
@@ -655,6 +666,9 @@ export function AppRouter() {
 
         {/* Syndication */}
         <Route path="/lending/syndication" element={<SyndicationPage />} />
+        <Route path="/lending/syndication/:code" element={<SyndicationDetailPage />} />
+        <Route path="/lending/pos-loans" element={<PosLendingPage />} />
+        <Route path="/lending/credit-margin" element={<CreditMarginPage />} />
 
         {/* Contact Center (top-level) */}
         <Route path="/contact-center" element={<Outlet />}>

@@ -65,32 +65,54 @@ export function useDepositAnalytics() {
   return {
     stats: statsQuery.data,
     statsLoading: statsQuery.isLoading,
+    statsError: statsQuery.isError,
 
     mix: mixQuery.data ?? [],
     mixLoading: mixQuery.isLoading,
+    mixError: mixQuery.isError,
 
     growthTrend: growthTrendQuery.data ?? [],
     growthTrendLoading: growthTrendQuery.isLoading,
+    growthTrendError: growthTrendQuery.isError,
 
     topDepositors: topDepositorsQuery.data ?? [],
     topDepositorsLoading: topDepositorsQuery.isLoading,
+    topDepositorsError: topDepositorsQuery.isError,
 
     maturityProfile: maturityProfileQuery.data ?? [],
     maturityProfileLoading: maturityProfileQuery.isLoading,
+    maturityProfileError: maturityProfileQuery.isError,
 
     rateBands: rateBandsQuery.data ?? [],
     rateBandsLoading: rateBandsQuery.isLoading,
+    rateBandsError: rateBandsQuery.isError,
 
     rateSensitivity: rateSensitivityQuery.data ?? [],
     rateSensitivityLoading: rateSensitivityQuery.isLoading,
+    rateSensitivityError: rateSensitivityQuery.isError,
 
     costOfFunds: costOfFundsQuery.data ?? [],
     costOfFundsLoading: costOfFundsQuery.isLoading,
+    costOfFundsError: costOfFundsQuery.isError,
 
     retentionVintage: retentionVintageQuery.data ?? [],
     retentionVintageLoading: retentionVintageQuery.isLoading,
+    retentionVintageError: retentionVintageQuery.isError,
 
     churnStats: churnQuery.data,
     churnLoading: churnQuery.isLoading,
+    churnError: churnQuery.isError,
+
+    hasLoadError:
+      statsQuery.isError ||
+      mixQuery.isError ||
+      growthTrendQuery.isError ||
+      topDepositorsQuery.isError ||
+      maturityProfileQuery.isError ||
+      rateBandsQuery.isError ||
+      rateSensitivityQuery.isError ||
+      costOfFundsQuery.isError ||
+      retentionVintageQuery.isError ||
+      churnQuery.isError,
   };
 }

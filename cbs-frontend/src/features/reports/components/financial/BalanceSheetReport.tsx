@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/formatters';
-import { X, Layers, Loader2 } from 'lucide-react';
+import { X, Layers, Loader2, AlertTriangle } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import { FinancialLineItemRow } from './FinancialLineItemRow';
 import { VarianceIndicator } from './VarianceIndicator';
@@ -24,9 +24,9 @@ interface GlAccountDetail {
 
 function DrillDownPanel({ item, onClose, currency }: DrillDownPanelProps) {
   const glIds = item.glAccountIds ?? [];
-  const { data: accounts = [], isLoading } = useQuery({
+  const { data: accounts = [], isLoading, isError } = useQuery({
     queryKey: ['gl-drill-down', item.code, glIds],
-    queryFn: () => apiGet<GlAccountDetail[]>('/api/v1/gl/line-item-accounts', { glCodes: glIds.join(',') }).catch(() => []),
+    queryFn: () => apiGet<GlAccountDetail[]>('/api/v1/gl/line-item-accounts', { glCodes: glIds.join(',') }),
     enabled: glIds.length > 0,
   });
 
@@ -59,6 +59,11 @@ function DrillDownPanel({ item, onClose, currency }: DrillDownPanelProps) {
           <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />
             <span className="text-sm">Loading GL accounts...</span>
+          </div>
+        ) : isError ? (
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertTriangle className="w-4 h-4" />
+            GL account breakdown could not be loaded from the backend.
           </div>
         ) : (
         <div className="space-y-2">

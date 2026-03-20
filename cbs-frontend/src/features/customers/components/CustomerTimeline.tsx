@@ -69,7 +69,11 @@ export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
     ...(eventFilter !== 'ALL' ? { eventType: eventFilter } : {}),
   };
 
-  const { data: events = [], isLoading } = useCustomerTimeline(customerId, params);
+  const {
+    data: events = [],
+    isLoading,
+    isError,
+  } = useCustomerTimeline(customerId, params);
 
   const grouped = useMemo(() => groupByDate(events), [events]);
 
@@ -79,6 +83,16 @@ export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />
         ))}
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-4">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          Customer timeline events could not be loaded from the backend.
+        </div>
       </div>
     );
   }

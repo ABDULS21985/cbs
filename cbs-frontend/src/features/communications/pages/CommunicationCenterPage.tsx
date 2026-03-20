@@ -30,7 +30,11 @@ function AllMessagesTab() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<NotificationLog | null>(null);
 
-  const { data: notifications = [], isLoading } = useNotifications({ search: search || undefined });
+  const {
+    data: notifications = [],
+    isLoading,
+    isError,
+  } = useNotifications({ search: search || undefined });
 
   const filtered = notifications.filter((n) => {
     if (channelFilter && n.channel !== channelFilter) return false;
@@ -108,14 +112,20 @@ function AllMessagesTab() {
             className="h-8 px-3 text-xs rounded-lg border bg-background w-52 focus:outline-none focus:ring-2 focus:ring-primary/30" />
         </div>
 
-        <DataTable
-          columns={columns}
-          data={filtered}
-          isLoading={isLoading}
-          onRowClick={setSelected}
-          enableGlobalFilter
-          emptyMessage="No messages found"
-        />
+        {isError ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            Notification messages could not be loaded from the backend.
+          </div>
+        ) : (
+          <DataTable
+            columns={columns}
+            data={filtered}
+            isLoading={isLoading}
+            onRowClick={setSelected}
+            enableGlobalFilter
+            emptyMessage="No messages found"
+          />
+        )}
       </div>
 
       <MessageDetailDrawer message={selected} onClose={() => setSelected(null)} />
@@ -130,10 +140,14 @@ export function CommunicationCenterPage() {
   const [showCompose, setShowCompose] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
 
-  const { data: stats } = useNotificationStats();
-  const { data: failures = [] } = useFailedNotifications();
-  const { data: scheduled = [] } = useScheduledNotifications();
+  const statsQuery = useNotificationStats();
+  const failuresQuery = useFailedNotifications();
+  const scheduledQuery = useScheduledNotifications();
+  const stats = statsQuery.data;
+  const failures = failuresQuery.data ?? [];
+  const scheduled = scheduledQuery.data ?? [];
   const retryAll = useRetryFailed();
+  const hasLoadError = statsQuery.isError || failuresQuery.isError || scheduledQuery.isError;
 
   const handleRetryAll = () => {
     retryAll.mutate(undefined, {
@@ -191,12 +205,18 @@ export function CommunicationCenterPage() {
       />
 
       <div className="page-container space-y-6">
+        {hasLoadError && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            One or more communication datasets failed to load. Backend errors are now surfaced instead of being shown as empty lists.
+          </div>
+        )}
+
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-          <StatCard label="Total Sent" value={stats?.total ?? 0} format="number" icon={Mail} />
-          <StatCard label="Delivered" value={stats?.delivered ?? 0} format="number" icon={CheckCircle} />
-          <StatCard label="Failed" value={stats?.failed ?? 0} format="number" icon={AlertCircle} />
-          <StatCard label="Pending" value={stats?.pending ?? 0} format="number" icon={Clock} />
+          <StatCard label="Total Sent" value={statsQuery.isError ? '--' : stats?.total ?? 0} format="number" icon={Mail} />
+          <StatCard label="Delivered" value={statsQuery.isError ? '--' : stats?.delivered ?? 0} format="number" icon={CheckCircle} />
+          <StatCard label="Failed" value={statsQuery.isError ? '--' : stats?.failed ?? 0} format="number" icon={AlertCircle} />
+          <StatCard label="Pending" value={statsQuery.isError ? '--' : stats?.pending ?? 0} format="number" icon={Clock} />
           <StatCard label="Delivery Rate" value={stats?.deliveryRatePct != null ? `${stats.deliveryRatePct.toFixed(1)}%` : '--'} icon={Percent} />
         </div>
 

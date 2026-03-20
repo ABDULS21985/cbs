@@ -25,11 +25,14 @@ import { toast } from 'sonner';
 function StrategiesTab() {
   const [showForm, setShowForm] = useState(false);
   const define = useDefineStrategy();
-  const { data: strategies = [], isLoading } = useQuery({
+  const {
+    data: strategies = [],
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: [...CAPITAL_MARKETS_EXT_KEYS.programTrading, 'strategies'],
-    queryFn: () => programTradingApi.defineStrategy({} as TradingStrategy).catch(() => [] as TradingStrategy[]),
+    queryFn: () => programTradingApi.listStrategies(),
     staleTime: 30_000,
-    enabled: false,
   });
 
   const [form, setForm] = useState({ strategyName: '', strategyType: 'VWAP', executionAlgorithm: 'VWAP', instrumentScope: '{}' });
@@ -52,7 +55,13 @@ function StrategiesTab() {
           <Plus className="w-4 h-4" /> Define Strategy
         </button>
       </div>
-      <DataTable columns={columns} data={strategies as TradingStrategy[]} isLoading={isLoading} pageSize={15} />
+      {isError ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          Trading strategies could not be loaded from the backend.
+        </div>
+      ) : (
+        <DataTable columns={columns} data={strategies as TradingStrategy[]} isLoading={isLoading} pageSize={15} />
+      )}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 relative">
@@ -74,9 +83,13 @@ function StrategiesTab() {
 // ── Live Executions Tab ─────────────────────────────────────────────────────
 
 function LiveExecutionsTab() {
-  const { data: executions = [], isLoading } = useQuery({
+  const {
+    data: executions = [],
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: [...CAPITAL_MARKETS_EXT_KEYS.programTrading, 'executions', 'live'],
-    queryFn: () => programTradingApi.getSlippageReport('__all__').catch(() => [] as ProgramExecution[]),
+    queryFn: () => programTradingApi.getActiveExecutions(),
     refetchInterval: 5000,
     staleTime: 5000,
   });
@@ -88,6 +101,11 @@ function LiveExecutionsTab() {
 
   return (
     <div className="p-4 space-y-4">
+      {isError && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          Active program-trading executions could not be loaded from the backend.
+        </div>
+      )}
       {isLoading && <div className="h-8 w-32 bg-muted animate-pulse rounded mx-auto" />}
       {live.length === 0 && !isLoading && <p className="text-sm text-muted-foreground text-center py-8">No live executions.</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

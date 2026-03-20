@@ -24,7 +24,7 @@ export function SystemParametersPage() {
   useEffect(() => { document.title = 'System Parameters | CBS'; }, []);
   const [activeTab, setActiveTab] = useState<TabId>('parameters');
 
-  const { data: rateTables = [] } = useQuery({
+  const { data: rateTables = [], isError: rateTablesError } = useQuery({
     queryKey: ['rate-tables'],
     queryFn: () => parameterApi.getRateTables(),
     enabled: activeTab === 'rate-tables',
@@ -78,6 +78,11 @@ export function SystemParametersPage() {
           </Tabs.Content>
 
           <Tabs.Content value="rate-tables" className="p-6 focus:outline-none">
+            {rateTablesError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                Rate tables could not be loaded from the backend.
+              </div>
+            )}
             <RateTableEditor rateTables={rateTables} />
           </Tabs.Content>
 

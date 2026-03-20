@@ -89,7 +89,7 @@ export interface ReportResult {
 
 export const reportBuilderApi = {
   getSavedReports: (params?: { owner?: 'mine' | 'shared' | 'all' }): Promise<SavedReport[]> =>
-    apiGet<SavedReport[]>('/api/v1/reports/custom', params as Record<string, unknown>).catch(() => []),
+    apiGet<SavedReport[]>('/api/v1/reports/custom', params as Record<string, unknown>),
 
   getReport: (id: string): Promise<SavedReport> =>
     apiGet<SavedReport>(`/api/v1/reports/custom/${id}`),
@@ -107,7 +107,7 @@ export const reportBuilderApi = {
     apiPost<ReportResult>(`/api/v1/reports/custom/${id}/run`, params),
 
   getDataSources: (): Promise<DataSource[]> =>
-    apiGet<DataSource[]>('/api/v1/reports/custom/data-sources').catch(() => []),
+    apiGet<DataSource[]>('/api/v1/reports/custom/data-sources'),
 
   shareReport: (id: string, emails: string[]): Promise<void> =>
     apiPost<void>(`/api/v1/reports/custom/${id}/share`, { emails }),

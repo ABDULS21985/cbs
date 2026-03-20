@@ -61,7 +61,7 @@ export interface FeeScheduleItem {
 
 export const cmCustodyApi = {
   getAccounts: () =>
-    apiGet<CustodyAccount[]>('/api/v1/custody').catch(() => []),
+    apiGet<CustodyAccount[]>('/api/v1/custody'),
 
   openAccount: (payload: {
     customerId: string;
@@ -74,5 +74,5 @@ export const cmCustodyApi = {
     apiGet<CustodyAccount>(`/api/v1/custody/${code}`),
 
   getCustomerAccounts: (customerId: string) =>
-    apiGet<CustodyAccount[]>(`/api/v1/custody/customer/${customerId}`).catch(() => []),
+    apiGet<CustodyAccount[]>(`/api/v1/custody/customer/${customerId}`),
 };

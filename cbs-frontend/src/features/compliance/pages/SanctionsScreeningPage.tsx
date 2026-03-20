@@ -290,13 +290,13 @@ export function SanctionsScreeningPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [batchInput, setBatchInput] = useState('');
 
-  const { data: stats, isLoading: statsLoading } = useSanctionsStats();
-  const { data: pending = [], isLoading: pendingLoading } = useSanctionsPending();
-  const { data: allScreenings = [], isLoading: screeningsLoading } = useSanctionsScreenings(
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useSanctionsStats();
+  const { data: pending = [], isLoading: pendingLoading, isError: pendingError } = useSanctionsPending();
+  const { data: allScreenings = [], isLoading: screeningsLoading, isError: screeningsError } = useSanctionsScreenings(
     statusFilter || typeFilter ? { ...(statusFilter && { status: statusFilter }), ...(typeFilter && { screeningType: typeFilter }) } : undefined,
   );
-  const { data: watchlists = [], isLoading: watchlistsLoading } = useWatchlists();
-  const { data: batchJobs = [] } = useBatchScreenJobs();
+  const { data: watchlists = [], isLoading: watchlistsLoading, isError: watchlistsError } = useWatchlists();
+  const { data: batchJobs = [], isError: batchJobsError } = useBatchScreenJobs();
 
   const confirmMatch = useConfirmMatch();
   const falsePositiveMatch = useFalsePositiveMatch();
@@ -414,6 +414,11 @@ export function SanctionsScreeningPage() {
       badge: pending.length || undefined,
       content: (
         <div className="p-4 space-y-2">
+          {pendingError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Pending sanctions reviews could not be loaded from the backend.
+            </div>
+          )}
           <DataTable
             columns={pendingCols}
             data={pending}
@@ -440,6 +445,11 @@ export function SanctionsScreeningPage() {
       label: 'All Screenings',
       content: (
         <div className="p-4 space-y-4">
+          {screeningsError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Sanctions screenings could not be loaded from the backend.
+            </div>
+          )}
           <div className="flex gap-3 flex-wrap">
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input text-xs w-40">
               <option value="">All Statuses</option>
@@ -465,6 +475,11 @@ export function SanctionsScreeningPage() {
       label: 'Watchlists',
       content: (
         <div className="p-4">
+          {watchlistsError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Watchlist data could not be loaded from the backend.
+            </div>
+          )}
           <DataTable columns={watchlistCols} data={watchlists} isLoading={watchlistsLoading} enableGlobalFilter enableExport exportFilename="watchlists" emptyMessage="No watchlist entries" />
         </div>
       ),
@@ -474,6 +489,11 @@ export function SanctionsScreeningPage() {
       label: 'Batch Screening',
       content: (
         <div className="p-6 space-y-6">
+          {batchJobsError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Batch-screening jobs could not be loaded from the backend.
+            </div>
+          )}
           <div className="rounded-lg border bg-card p-5 space-y-4">
             <h3 className="text-sm font-semibold">Batch Screen Names</h3>
             <p className="text-xs text-muted-foreground">Enter names to screen, one per line. Format: Name|TYPE|DOB|NATIONALITY</p>
@@ -516,6 +536,11 @@ export function SanctionsScreeningPage() {
       label: 'Analytics',
       content: (
         <div className="p-6 space-y-6">
+          {statsError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Sanctions analytics could not be loaded from the backend.
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="rounded-xl border bg-card p-5">
               <h3 className="text-sm font-semibold mb-4">Screenings by Outcome</h3>
@@ -587,6 +612,11 @@ export function SanctionsScreeningPage() {
       />
 
       <div className="page-container space-y-6">
+        {(statsError || pendingError || screeningsError || watchlistsError || batchJobsError) && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            One or more sanctions-screening datasets could not be loaded from the backend.
+          </div>
+        )}
         {/* Urgency banner */}
         {pending.length > 0 && (
           <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-800/40 dark:bg-amber-900/10 px-4 py-3">
@@ -600,12 +630,12 @@ export function SanctionsScreeningPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard label="Total Screenings" value={stats?.totalScreenings ?? 0} format="number" icon={FileSearch} loading={statsLoading} />
-          <StatCard label="Clear" value={stats?.clear ?? 0} format="number" icon={CheckCircle} loading={statsLoading} />
-          <StatCard label="Potential Matches" value={stats?.potentialMatch ?? 0} format="number" icon={AlertTriangle} loading={statsLoading} />
-          <StatCard label="Confirmed Matches" value={stats?.confirmedMatch ?? 0} format="number" icon={XCircle} loading={statsLoading} />
-          <StatCard label="Pending Review" value={stats?.pendingReview ?? 0} format="number" icon={Eye} loading={statsLoading} />
-          <StatCard label="Avg Time" value={`${stats?.avgScreeningTimeMs ?? 0}ms`} icon={Clock} loading={statsLoading} />
+          <StatCard label="Total Screenings" value={statsError ? '--' : stats?.totalScreenings ?? 0} format="number" icon={FileSearch} loading={statsLoading && !statsError} />
+          <StatCard label="Clear" value={statsError ? '--' : stats?.clear ?? 0} format="number" icon={CheckCircle} loading={statsLoading && !statsError} />
+          <StatCard label="Potential Matches" value={statsError ? '--' : stats?.potentialMatch ?? 0} format="number" icon={AlertTriangle} loading={statsLoading && !statsError} />
+          <StatCard label="Confirmed Matches" value={statsError ? '--' : stats?.confirmedMatch ?? 0} format="number" icon={XCircle} loading={statsLoading && !statsError} />
+          <StatCard label="Pending Review" value={statsError ? '--' : stats?.pendingReview ?? 0} format="number" icon={Eye} loading={statsLoading && !statsError} />
+          <StatCard label="Avg Time" value={statsError ? '--' : `${stats?.avgScreeningTimeMs ?? 0}ms`} icon={Clock} loading={statsLoading && !statsError} />
         </div>
 
         <div className="card overflow-hidden">

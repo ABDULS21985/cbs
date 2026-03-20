@@ -10,10 +10,8 @@ import {
 import type { ColumnDef } from '@tanstack/react-table';
 import {
   useInstrumentPrices, useMarketSignals, useRecordPrice, useRecordMarketSignal,
-} from '../hooks/useMarketDataManagement';
-import type { MarketPrice, MarketSignal } from '../api/marketDataManagementApi';
-import { marketDataManagementApi } from '../api/marketDataManagementApi';
-import { useQuery } from '@tanstack/react-query';
+} from '../hooks/useMarketData';
+import type { MarketPrice, MarketSignal } from '../types';
 import { toast } from 'sonner';
 
 const DEFAULT_WATCHLIST = ['NGN/USD', 'NGN/GBP', 'NGN/EUR', 'NGSE', 'TBILL-91', 'TBILL-182', 'TBILL-364'];
@@ -96,10 +94,10 @@ function RecordPriceDialog({ instrumentCode, onClose }: { instrumentCode: string
   const update = (f: string, v: unknown) => setForm((p) => ({ ...p, [f]: v }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="record-price-title">
       <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
-        <h2 className="text-lg font-semibold mb-4">Record Price</h2>
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted" aria-label="Close dialog"><X className="w-4 h-4" /></button>
+        <h2 id="record-price-title" className="text-lg font-semibold mb-4">Record Price</h2>
         <p className="text-xs text-muted-foreground font-mono mb-3">{instrumentCode}</p>
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
@@ -219,7 +217,7 @@ function MarketOverviewTable({ watchlist, onSelectInstrument }: { watchlist: str
 
   const allPrices = priceQueries.filter(Boolean) as MarketPrice[];
 
-  const columns: ColumnDef<MarketPrice, any>[] = [
+  const columns: ColumnDef<MarketPrice, any>[] = useMemo(() => [
     { accessorKey: 'instrumentCode', header: 'Instrument', cell: ({ row }) => <span className="font-mono text-xs font-medium text-primary">{row.original.instrumentCode}</span> },
     { accessorKey: 'bid', header: 'Bid', cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.bid?.toFixed(2) ?? '--'}</span> },
     { accessorKey: 'ask', header: 'Ask', cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.ask?.toFixed(2) ?? '--'}</span> },
@@ -247,7 +245,7 @@ function MarketOverviewTable({ watchlist, onSelectInstrument }: { watchlist: str
         );
       },
     },
-  ];
+  ], []);
 
   return (
     <DataTable

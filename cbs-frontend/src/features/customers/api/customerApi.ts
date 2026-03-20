@@ -599,7 +599,7 @@ export const customerApi = {
   },
 
   async listDrafts() {
-    return apiGet<{ id: number; customerType: string; displayLabel: string; currentStep: number; updatedAt: string }[]>('/api/v1/customers/drafts').catch(() => []);
+    return apiGet<{ id: number; customerType: string; displayLabel: string; currentStep: number; updatedAt: string }[]>('/api/v1/customers/drafts');
   },
 
   async verifyBvn(
@@ -682,13 +682,13 @@ export const customerApi = {
     return apiGet<import('../types/customer').SegmentCustomer[]>(
       `/api/v1/customers/segments/${code}/customers`,
       params as Record<string, unknown>,
-    ).catch(() => []);
+    );
   },
 
   getSegmentAnalytics() {
     return apiGet<import('../types/customer').SegmentAnalytics[]>(
       '/api/v1/customers/segments/analytics',
-    ).catch(() => []);
+    );
   },
 
   createSegment(data: import('../types/customer').CreateSegmentPayload) {
@@ -714,7 +714,7 @@ export const customerApi = {
   },
 
   getTimeline(id: number, params?: { page?: number; size?: number; eventType?: string }) {
-    return apiGet<import('../types/customer').TimelineEvent[]>(`/api/v1/customers/${id}/timeline`, params as Record<string, unknown>).catch(() => []);
+    return apiGet<import('../types/customer').TimelineEvent[]>(`/api/v1/customers/${id}/timeline`, params as Record<string, unknown>);
   },
 
   uploadPhoto(id: number, file: File) {

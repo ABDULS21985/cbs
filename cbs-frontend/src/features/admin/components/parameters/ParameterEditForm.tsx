@@ -30,7 +30,7 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
   const [pendingValues, setPendingValues] = useState<FormValues | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: history = [] } = useQuery({
+  const { data: history = [], isError: historyError } = useQuery({
     queryKey: ['parameter-history', parameter?.paramKey],
     queryFn: () => parameterApi.getParameterHistory(parameter!.paramKey),
     enabled: !!parameter?.paramKey && open,
@@ -185,6 +185,12 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
                   {parameter.description ?? 'No description'}
                 </div>
               </div>
+
+              {historyError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  Parameter audit history could not be loaded from the backend.
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium uppercase tracking-wide">Current Value</label>

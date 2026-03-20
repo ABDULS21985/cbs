@@ -109,12 +109,12 @@ export function AmlDashboardPage() {
   const [assignTo, setAssignTo] = useState('');
 
   // Data
-  const { data: dashboard } = useAmlDashboard();
-  const { data: stats } = useAmlStats();
-  const { data: alerts = [], isLoading: alertsLoading } = useAmlAlerts(statusFilter ? { status: statusFilter } : undefined);
-  const { data: rules = [], isLoading: rulesLoading } = useAmlActiveRules();
-  const { data: strs = [] } = useAmlStrs();
-  const { data: ctrs = [] } = useAmlCtrs();
+  const { data: dashboard, isError: dashboardError } = useAmlDashboard();
+  const { data: stats, isError: statsError } = useAmlStats();
+  const { data: alerts = [], isLoading: alertsLoading, isError: alertsError } = useAmlAlerts(statusFilter ? { status: statusFilter } : undefined);
+  const { data: rules = [], isLoading: rulesLoading, isError: rulesError } = useAmlActiveRules();
+  const { data: strs = [], isError: strsError } = useAmlStrs();
+  const { data: ctrs = [], isError: ctrsError } = useAmlCtrs();
 
   // Mutations
   const createRule = useCreateAmlRule();
@@ -199,6 +199,11 @@ export function AmlDashboardPage() {
       />
 
       <div className="page-container space-y-6">
+        {(dashboardError || statsError || alertsError || rulesError || strsError || ctrsError) && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            One or more AML datasets could not be loaded from the backend.
+          </div>
+        )}
         {/* Critical alert banner */}
         {criticalAlerts.length > 0 && (
           <div className="rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-900/20 px-5 py-4 flex items-center justify-between animate-pulse">
@@ -215,10 +220,10 @@ export function AmlDashboardPage() {
 
         {/* Dashboard stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button onClick={() => setStatusFilter('NEW')} className="text-left"><StatCard label="New Alerts" value={dashboard?.newAlerts ?? 0} format="number" icon={Bell} loading={!dashboard} /></button>
-          <button onClick={() => setStatusFilter('UNDER_REVIEW')} className="text-left"><StatCard label="Under Review" value={dashboard?.underReview ?? 0} format="number" icon={Eye} loading={!dashboard} /></button>
-          <button onClick={() => setStatusFilter('ESCALATED')} className="text-left"><StatCard label="Escalated" value={dashboard?.escalated ?? 0} format="number" icon={ArrowUpRight} loading={!dashboard} /></button>
-          <button onClick={() => setStatusFilter('SAR_FILED')} className="text-left"><StatCard label="SAR Filed" value={dashboard?.sarFiled ?? 0} format="number" icon={FileWarning} loading={!dashboard} /></button>
+          <button onClick={() => setStatusFilter('NEW')} className="text-left"><StatCard label="New Alerts" value={dashboardError ? '--' : dashboard?.newAlerts ?? 0} format="number" icon={Bell} loading={!dashboard && !dashboardError} /></button>
+          <button onClick={() => setStatusFilter('UNDER_REVIEW')} className="text-left"><StatCard label="Under Review" value={dashboardError ? '--' : dashboard?.underReview ?? 0} format="number" icon={Eye} loading={!dashboard && !dashboardError} /></button>
+          <button onClick={() => setStatusFilter('ESCALATED')} className="text-left"><StatCard label="Escalated" value={dashboardError ? '--' : dashboard?.escalated ?? 0} format="number" icon={ArrowUpRight} loading={!dashboard && !dashboardError} /></button>
+          <button onClick={() => setStatusFilter('SAR_FILED')} className="text-left"><StatCard label="SAR Filed" value={dashboardError ? '--' : dashboard?.sarFiled ?? 0} format="number" icon={FileWarning} loading={!dashboard && !dashboardError} /></button>
         </div>
 
         {/* Pipeline */}
@@ -228,6 +233,11 @@ export function AmlDashboardPage() {
         <TabsPage syncWithUrl tabs={[
           { id: 'alerts', label: 'Alerts', content: (
             <div className="p-4 space-y-4">
+              {alertsError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  AML alerts could not be loaded from the backend.
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 <button onClick={() => setStatusFilter('')} className={cn('px-3 py-1 text-xs font-medium rounded-lg border', !statusFilter ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted')}>All</button>
                 {ALL_STATUSES.map(s => (
@@ -241,6 +251,11 @@ export function AmlDashboardPage() {
 
           { id: 'rules', label: 'Rules', content: (
             <div className="p-4">
+              {rulesError && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  AML rules could not be loaded from the backend.
+                </div>
+              )}
               <div className="rounded-lg border overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr className="bg-muted/30 border-b">
@@ -278,6 +293,11 @@ export function AmlDashboardPage() {
 
           { id: 'str', label: 'STR/SAR Filing', content: (
             <div className="p-4">
+              {strsError && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  STR filings could not be loaded from the backend.
+                </div>
+              )}
               <DataTable columns={[
                 { accessorKey: 'strNumber', header: 'STR Ref', cell: ({ row }) => <span className="font-mono text-xs">{(row.original as Record<string, unknown>).strNumber as string ?? '—'}</span> },
                 { accessorKey: 'customerName', header: 'Customer' },
@@ -291,6 +311,11 @@ export function AmlDashboardPage() {
 
           { id: 'ctr', label: 'CTR', content: (
             <div className="p-4">
+              {ctrsError && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  CTR data could not be loaded from the backend.
+                </div>
+              )}
               <DataTable columns={[
                 { accessorKey: 'reportDate', header: 'Date', cell: ({ row }) => <span className="text-xs">{formatDate((row.original as Record<string, unknown>).reportDate as string ?? '')}</span> },
                 { accessorKey: 'customerName', header: 'Customer' },
@@ -304,6 +329,11 @@ export function AmlDashboardPage() {
 
           { id: 'analytics', label: 'Analytics', content: (
             <div className="p-4 space-y-6">
+              {statsError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  AML analytics could not be loaded from the backend.
+                </div>
+              )}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-card rounded-lg border p-6">
                   <h3 className="text-sm font-semibold mb-4">Alerts by Category</h3>

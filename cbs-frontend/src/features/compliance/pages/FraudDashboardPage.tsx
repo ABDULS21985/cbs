@@ -58,6 +58,14 @@ function riskScoreBg(score: number): string {
   return 'bg-green-500';
 }
 
+function LoadErrorPanel({ message }: { message: string }) {
+  return (
+    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {message}
+    </div>
+  );
+}
+
 // ── Threat Level Indicator ───────────────────────────────────────────────────
 
 function ThreatLevelIndicator({ alerts }: { alerts: FraudAlert[] }) {
@@ -100,9 +108,10 @@ function ThreatLevelIndicator({ alerts }: { alerts: FraudAlert[] }) {
 // ── Model Performance Cards ──────────────────────────────────────────────────
 
 function ModelPerformanceRow() {
-  const { data: perf, isLoading } = useFraudModelPerformance();
+  const { data: perf, isLoading, isError } = useFraudModelPerformance();
 
-  if (isLoading || !perf) return <div className="h-20 rounded-xl bg-muted animate-pulse" />;
+  if (isLoading) return <div className="h-20 rounded-xl bg-muted animate-pulse" />;
+  if (isError || !perf) return <LoadErrorPanel message="Fraud model performance could not be loaded from the backend." />;
 
   const detectionMet = perf.detectionRate >= 95;
   const fpMet = perf.falsePositiveRate <= 10;
@@ -370,7 +379,7 @@ function CreateRuleDialog({ onClose }: { onClose: () => void }) {
 
 function ActiveAlertsTab() {
   const navigate = useNavigate();
-  const { data: alerts = [], isLoading } = useFraudAlerts();
+  const { data: alerts = [], isLoading, isError } = useFraudAlerts();
   const blockCard = useBlockCardFromFraud();
   const blockAccount = useBlockAccountFromFraud();
   const allow = useAllowTransaction();
@@ -503,6 +512,9 @@ function ActiveAlertsTab() {
           <option>ONLINE</option><option>MOBILE</option><option>ATM</option><option>BRANCH</option>
         </select>
       </div>
+      {isError && (
+        <LoadErrorPanel message="Fraud alerts could not be loaded from the backend." />
+      )}
       <DataTable columns={columns} data={filtered} isLoading={isLoading} enableGlobalFilter emptyMessage="No fraud alerts" />
     </div>
   );
@@ -511,7 +523,7 @@ function ActiveAlertsTab() {
 // ── Rules Tab ────────────────────────────────────────────────────────────────
 
 function RulesTab() {
-  const { data: rules = [], isLoading } = useFraudActiveRules();
+  const { data: rules = [], isLoading, isError } = useFraudActiveRules();
   const toggle = useToggleFraudRule();
 
   const columns: ColumnDef<FraudRule, any>[] = [
@@ -560,6 +572,11 @@ function RulesTab() {
 
   return (
     <div className="p-4">
+      {isError && (
+        <div className="mb-4">
+          <LoadErrorPanel message="Fraud rules could not be loaded from the backend." />
+        </div>
+      )}
       <DataTable columns={columns} data={rules} isLoading={isLoading} enableGlobalFilter emptyMessage="No fraud rules configured" />
     </div>
   );
@@ -568,10 +585,17 @@ function RulesTab() {
 // ── Trend Analysis Tab ───────────────────────────────────────────────────────
 
 function TrendTab() {
-  const { data: trend, isLoading } = useFraudTrend();
-  const { data: stats } = useFraudStats();
+  const { data: trend, isLoading, isError: trendError } = useFraudTrend();
+  const { data: stats, isError: statsError } = useFraudStats();
 
   if (isLoading) return <div className="p-4"><div className="h-64 rounded-xl bg-muted animate-pulse" /></div>;
+  if (trendError || statsError) {
+    return (
+      <div className="p-4">
+        <LoadErrorPanel message="Fraud trend analytics could not be loaded from the backend." />
+      </div>
+    );
+  }
 
   const dailyData = useMemo(() => {
     if (!trend?.recentAlerts) return [];
@@ -670,7 +694,7 @@ function TrendTab() {
 
 function InvestigationsTab() {
   const navigate = useNavigate();
-  const { data: alerts = [], isLoading } = useFraudAlerts();
+  const { data: alerts = [], isLoading, isError } = useFraudAlerts();
 
   const investigations = alerts.filter((a) => a.status === 'INVESTIGATING' || a.status === 'CONFIRMED_FRAUD');
   const confirmedAmount = investigations
@@ -696,6 +720,9 @@ function InvestigationsTab() {
 
   return (
     <div className="p-4 space-y-4">
+      {isError && (
+        <LoadErrorPanel message="Fraud investigations could not be loaded from the backend." />
+      )}
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-lg border p-3">
           <p className="text-xs text-muted-foreground">Active Investigations</p>
@@ -722,9 +749,16 @@ function InvestigationsTab() {
 // ── Model Performance Tab ────────────────────────────────────────────────────
 
 function ModelPerformanceTab() {
-  const { data: perf, isLoading } = useFraudModelPerformance();
+  const { data: perf, isLoading, isError } = useFraudModelPerformance();
 
-  if (isLoading || !perf) return <div className="p-4"><div className="h-64 rounded-xl bg-muted animate-pulse" /></div>;
+  if (isLoading) return <div className="p-4"><div className="h-64 rounded-xl bg-muted animate-pulse" /></div>;
+  if (isError || !perf) {
+    return (
+      <div className="p-4">
+        <LoadErrorPanel message="Fraud model analytics could not be loaded from the backend." />
+      </div>
+    );
+  }
 
   // Simulated confusion matrix from available metrics
   const tp = Math.round(perf.totalProcessed * perf.detectionRate / 100 * (1 - perf.falsePositiveRate / 100));
@@ -791,8 +825,8 @@ export function FraudDashboardPage() {
   const [showTestTxn, setShowTestTxn] = useState(false);
   const [showCreateRule, setShowCreateRule] = useState(false);
 
-  const { data: stats } = useFraudStats();
-  const { data: alerts = [] } = useFraudAlerts();
+  const { data: stats, isError: statsError } = useFraudStats();
+  const { data: alerts = [], isError: alertsError } = useFraudAlerts();
 
   const newCount = stats?.byStatus?.NEW ?? 0;
   const investigatingCount = stats?.byStatus?.INVESTIGATING ?? 0;
@@ -816,15 +850,22 @@ export function FraudDashboardPage() {
         }
       />
       <div className="page-container space-y-6">
-        <ThreatLevelIndicator alerts={alerts} />
+        {(statsError || alertsError) && (
+          <LoadErrorPanel message="Fraud dashboard data could not be fully loaded from the backend." />
+        )}
+        {alertsError ? (
+          <LoadErrorPanel message="Threat-level data could not be loaded from the backend." />
+        ) : (
+          <ThreatLevelIndicator alerts={alerts} />
+        )}
         <ModelPerformanceRow />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <StatCard label="Total Alerts" value={stats?.totalAlerts ?? 0} format="number" icon={Shield} />
-          <StatCard label="New" value={newCount} format="number" icon={ShieldAlert} />
-          <StatCard label="Investigating" value={investigatingCount} format="number" icon={Eye} />
-          <StatCard label="Confirmed Fraud" value={confirmedCount} format="number" icon={XCircle} />
-          <StatCard label="False Positives" value={fpCount} format="number" icon={CheckCircle} />
+          <StatCard label="Total Alerts" value={statsError ? '--' : stats?.totalAlerts ?? 0} format="number" icon={Shield} />
+          <StatCard label="New" value={statsError ? '--' : newCount} format="number" icon={ShieldAlert} />
+          <StatCard label="Investigating" value={statsError ? '--' : investigatingCount} format="number" icon={Eye} />
+          <StatCard label="Confirmed Fraud" value={statsError ? '--' : confirmedCount} format="number" icon={XCircle} />
+          <StatCard label="False Positives" value={statsError ? '--' : fpCount} format="number" icon={CheckCircle} />
         </div>
 
         <div className="card overflow-hidden">

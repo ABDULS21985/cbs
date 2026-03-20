@@ -30,7 +30,7 @@ export function LookupCodeManager() {
 
   const queryClient = useQueryClient();
 
-  const { data: codes = [], isLoading } = useQuery({
+  const { data: codes = [], isLoading, isError } = useQuery({
     queryKey: ['lookup-codes', selectedCategory],
     queryFn: () =>
       parameterApi.getLookupCodes({
@@ -110,6 +110,11 @@ export function LookupCodeManager() {
 
   return (
     <div className="space-y-4">
+      {isError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Lookup codes could not be loaded from the backend.
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.map((cat) => (

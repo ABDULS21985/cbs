@@ -2,6 +2,10 @@ import { apiGet, apiPost } from '@/lib/api';
 import type { ProgramExecution, TradingStrategy } from '../types/programTrading';
 
 export const programTradingApi = {
+  /** GET /v1/program-trading/strategies */
+  listStrategies: () =>
+    apiGet<TradingStrategy[]>('/api/v1/program-trading/strategies'),
+
   /** POST /v1/program-trading/strategies */
   defineStrategy: (data: Partial<TradingStrategy>) =>
     apiPost<TradingStrategy>('/api/v1/program-trading/strategies', data),
@@ -25,5 +29,9 @@ export const programTradingApi = {
   /** GET /v1/program-trading/strategies/{code}/slippage */
   getSlippageReport: (code: string) =>
     apiGet<ProgramExecution[]>(`/api/v1/program-trading/strategies/${code}/slippage`),
+
+  /** GET /v1/program-trading/executions/active */
+  getActiveExecutions: () =>
+    apiGet<ProgramExecution[]>('/api/v1/program-trading/executions/active'),
 
 };

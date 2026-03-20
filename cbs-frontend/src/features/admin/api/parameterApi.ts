@@ -91,7 +91,7 @@ export interface SystemInfo {
 export const parameterApi = {
   // Parameters
   getParameters: (params?: { category?: string; search?: string }): Promise<SystemParameter[]> =>
-    apiGet<SystemParameter[]>('/api/v1/parameters', params as Record<string, unknown>).catch(() => []),
+    apiGet<SystemParameter[]>('/api/v1/parameters', params as Record<string, unknown>),
 
   getParameter: (code: string): Promise<SystemParameter> =>
     apiGet<SystemParameter>(`/api/v1/parameters/${code}`),
@@ -106,18 +106,18 @@ export const parameterApi = {
     apiPut<SystemParameter>(`/api/v1/parameters/${id}`, data),
 
   getParameterHistory: (code: string): Promise<ParameterAudit[]> =>
-    apiGet<ParameterAudit[]>(`/api/v1/parameters/${code}/history`).catch(() => []),
+    apiGet<ParameterAudit[]>(`/api/v1/parameters/${code}/history`),
 
   // Feature Flags
   getFeatureFlags: (): Promise<SystemParameter[]> =>
-    apiGet<SystemParameter[]>('/api/v1/parameters/feature-flags').catch(() => []),
+    apiGet<SystemParameter[]>('/api/v1/parameters/feature-flags'),
 
   toggleFeatureFlag: (code: string, enabled: boolean, reason: string): Promise<SystemParameter> =>
     apiPost<SystemParameter>(`/api/v1/parameters/feature-flags/${code}`, { enabled, reason }),
 
   // Rate Tables
   getRateTables: (): Promise<SystemParameter[]> =>
-    apiGet<SystemParameter[]>('/api/v1/parameters/rate-tables').catch(() => []),
+    apiGet<SystemParameter[]>('/api/v1/parameters/rate-tables'),
 
   getRateTable: (id: number): Promise<SystemParameter> =>
     apiGet<SystemParameter>(`/api/v1/parameters/rate-tables/${id}`),
@@ -130,7 +130,7 @@ export const parameterApi = {
 
   // Lookup Codes
   getLookupCodes: (params?: { category?: string }): Promise<SystemParameter[]> =>
-    apiGet<SystemParameter[]>('/api/v1/parameters/lookup-codes', params as Record<string, unknown>).catch(() => []),
+    apiGet<SystemParameter[]>('/api/v1/parameters/lookup-codes', params as Record<string, unknown>),
 
   createLookupCode: (data: CreateLookupRequest): Promise<SystemParameter> =>
     apiPost<SystemParameter>('/api/v1/parameters/lookup-codes', data),

@@ -63,6 +63,7 @@ export function NotificationManagementPage() {
   // Templates
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | undefined>(undefined);
   const [showEditor, setShowEditor] = useState(false);
   const [filterChannel, setFilterChannel] = useState<NotificationChannel | ''>('');
@@ -81,6 +82,7 @@ export function NotificationManagementPage() {
   // Channels
   const [channelConfigs, setChannelConfigs] = useState<ChannelConfig[]>([]);
   const [channelsLoading, setChannelsLoading] = useState(false);
+  const [channelsError, setChannelsError] = useState<string | null>(null);
 
   // Delivery
   const [deliveryStats, setDeliveryStats] = useState<DeliveryStats>({ total: 0, sent: 0, delivered: 0, failed: 0, pending: 0, deliveryRatePct: 0, failureRatePct: 0 });
@@ -88,15 +90,18 @@ export function NotificationManagementPage() {
   const [deliveryByChannel, setDeliveryByChannel] = useState<DeliveryByChannelEntry[]>([]);
   const [failureRecords, setFailureRecords] = useState<FailureRecord[]>([]);
   const [deliveryLoading, setDeliveryLoading] = useState(false);
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
 
   // Schedules
   const [schedules, setSchedules] = useState<ScheduledNotification[]>([]);
   const [schedulesLoading, setSchedulesLoading] = useState(false);
+  const [schedulesError, setSchedulesError] = useState<string | null>(null);
 
   // ── Loaders ───────────────────────────────────────────────────────────────
 
   const loadTemplates = useCallback(async () => {
     setTemplatesLoading(true);
+    setTemplatesError(null);
     try {
       let results = await getTemplates();
       if (filterChannel) results = results.filter(t => t.channel === filterChannel);
@@ -105,16 +110,22 @@ export function NotificationManagementPage() {
         results = results.filter(t => t.templateName.toLowerCase().includes(q) || t.templateCode.toLowerCase().includes(q));
       }
       setTemplates(results);
+    } catch (error) {
+      setTemplatesError(error instanceof Error ? error.message : 'Notification templates could not be loaded.');
     } finally { setTemplatesLoading(false); }
   }, [filterChannel, filterSearch]);
 
   const loadChannels = useCallback(async () => {
     setChannelsLoading(true);
-    try { setChannelConfigs(await getChannelConfigs()); } finally { setChannelsLoading(false); }
+    setChannelsError(null);
+    try { setChannelConfigs(await getChannelConfigs()); } catch (error) {
+      setChannelsError(error instanceof Error ? error.message : 'Notification channels could not be loaded.');
+    } finally { setChannelsLoading(false); }
   }, []);
 
   const loadDelivery = useCallback(async () => {
     setDeliveryLoading(true);
+    setDeliveryError(null);
     try {
       const [stats, trend, byChannel, failures] = await Promise.all([
         getDeliveryStats(), getDeliveryTrend(), getDeliveryByChannel(), getDeliveryFailures(),
@@ -123,12 +134,17 @@ export function NotificationManagementPage() {
       setDeliveryTrend(trend);
       setDeliveryByChannel(byChannel);
       setFailureRecords(failures);
+    } catch (error) {
+      setDeliveryError(error instanceof Error ? error.message : 'Notification delivery metrics could not be loaded.');
     } finally { setDeliveryLoading(false); }
   }, []);
 
   const loadSchedules = useCallback(async () => {
     setSchedulesLoading(true);
-    try { setSchedules(await getScheduledNotifications()); } finally { setSchedulesLoading(false); }
+    setSchedulesError(null);
+    try { setSchedules(await getScheduledNotifications()); } catch (error) {
+      setSchedulesError(error instanceof Error ? error.message : 'Scheduled notifications could not be loaded.');
+    } finally { setSchedulesLoading(false); }
   }, []);
 
   useEffect(() => { if (activeTab === 'templates') loadTemplates(); }, [activeTab, loadTemplates]);
@@ -261,6 +277,10 @@ export function NotificationManagementPage() {
               <div className="bg-card rounded-lg border border-border overflow-hidden">
                 {templatesLoading ? (
                   <div className="py-16 text-center"><div className="inline-flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div></div>
+                ) : templatesError ? (
+                  <div className="px-4 py-3 text-sm text-red-700">
+                    Notification templates could not be loaded from the backend: {templatesError}
+                  </div>
                 ) : (
                   <TemplateTable templates={templates} onEdit={handleEditTemplate} onArchive={handleArchiveTemplate}
                     onPreview={handlePreviewTemplate} onTestSend={handleTestSendOpen} />
@@ -290,6 +310,10 @@ export function NotificationManagementPage() {
         {activeTab === 'channels' && (
           channelsLoading ? (
             <div className="py-16 text-center"><div className="inline-flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div></div>
+          ) : channelsError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Notification channels could not be loaded from the backend: {channelsError}
+            </div>
           ) : (
             <ChannelConfigPanel configs={channelConfigs} onUpdate={handleUpdateChannel} onTest={handleTestChannel} />
           )
@@ -299,6 +323,10 @@ export function NotificationManagementPage() {
         {activeTab === 'delivery' && (
           deliveryLoading ? (
             <div className="py-16 text-center"><div className="inline-flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div></div>
+          ) : deliveryError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Notification delivery metrics could not be loaded from the backend: {deliveryError}
+            </div>
           ) : (
             <div className="space-y-6">
               <DeliveryDashboard stats={deliveryStats} trend={deliveryTrend} byChannel={deliveryByChannel} />
@@ -317,6 +345,10 @@ export function NotificationManagementPage() {
         {activeTab === 'schedules' && (
           schedulesLoading ? (
             <div className="py-16 text-center"><div className="inline-flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div></div>
+          ) : schedulesError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Scheduled notifications could not be loaded from the backend: {schedulesError}
+            </div>
           ) : (
             <div className="bg-card rounded-lg border border-border overflow-hidden">
               <div className="px-5 py-4 border-b border-border">

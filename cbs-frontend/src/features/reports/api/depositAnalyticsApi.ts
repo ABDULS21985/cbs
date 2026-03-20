@@ -90,28 +90,28 @@ export const depositAnalyticsApi = {
     apiGet<DepositStats>('/api/v1/reports/deposits/stats'),
 
   getDepositMix: (): Promise<DepositMixItem[]> =>
-    apiGet<DepositMixItem[]>('/api/v1/reports/deposits/mix').catch(() => []),
+    apiGet<DepositMixItem[]>('/api/v1/reports/deposits/mix'),
 
   getDepositGrowthTrend: (): Promise<DepositGrowthPoint[]> =>
-    apiGet<DepositGrowthPoint[]>('/api/v1/reports/deposits/growth-trend').catch(() => []),
+    apiGet<DepositGrowthPoint[]>('/api/v1/reports/deposits/growth-trend'),
 
   getTopDepositors: (): Promise<TopDepositor[]> =>
-    apiGet<TopDepositor[]>('/api/v1/reports/deposits/top-depositors').catch(() => []),
+    apiGet<TopDepositor[]>('/api/v1/reports/deposits/top-depositors'),
 
   getMaturityProfile: (): Promise<MaturityBucket[]> =>
-    apiGet<MaturityBucket[]>('/api/v1/reports/deposits/maturity-profile').catch(() => []),
+    apiGet<MaturityBucket[]>('/api/v1/reports/deposits/maturity-profile'),
 
   getRateBands: (): Promise<RateBand[]> =>
-    apiGet<RateBand[]>('/api/v1/reports/deposits/rate-bands').catch(() => []),
+    apiGet<RateBand[]>('/api/v1/reports/deposits/rate-bands'),
 
   getRateSensitivityData: (): Promise<RateSensitivityPoint[]> =>
-    apiGet<RateSensitivityPoint[]>('/api/v1/reports/deposits/rate-sensitivity').catch(() => []),
+    apiGet<RateSensitivityPoint[]>('/api/v1/reports/deposits/rate-sensitivity'),
 
   getCostOfFundsTrend: (): Promise<CostOfFundsPoint[]> =>
-    apiGet<CostOfFundsPoint[]>('/api/v1/reports/deposits/cost-of-funds').catch(() => []),
+    apiGet<CostOfFundsPoint[]>('/api/v1/reports/deposits/cost-of-funds'),
 
   getRetentionVintage: (): Promise<RetentionVintage[]> =>
-    apiGet<RetentionVintage[]>('/api/v1/reports/deposits/retention-vintage').catch(() => []),
+    apiGet<RetentionVintage[]>('/api/v1/reports/deposits/retention-vintage'),
 
   getChurnAnalysis: (): Promise<ChurnStat> =>
     apiGet<ChurnStat>('/api/v1/reports/deposits/churn'),

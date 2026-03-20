@@ -103,37 +103,54 @@ const EMPTY_PNL: PnlSummary = {
   roe: 0,
 };
 
+function SectionError({ message }: { message: string }) {
+  return (
+    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {message}
+    </div>
+  );
+}
+
 export function ExecutiveDashboardPage() {
   const [period, setPeriod] = useState('ytd-2026');
   const selectedLabel = PERIODS.find((p) => p.value === period)?.label ?? '';
-  const { data: kpis = [] } = useQuery({
+  const { data: kpis = [], isError: kpisError } = useQuery({
     queryKey: ['reports', 'executive', 'kpis'],
     queryFn: getExecutiveKpis,
   });
-  const { data: pnl = EMPTY_PNL } = useQuery({
+  const { data: pnl = EMPTY_PNL, isError: pnlError } = useQuery({
     queryKey: ['reports', 'executive', 'pnl-summary'],
-    queryFn: () => getPnlSummary().catch(() => EMPTY_PNL),
+    queryFn: getPnlSummary,
   });
-  const { data: monthlyPnl = [] } = useQuery({
+  const { data: monthlyPnl = [], isError: monthlyPnlError } = useQuery({
     queryKey: ['reports', 'executive', 'monthly-pnl'],
     queryFn: getMonthlyPnl,
   });
-  const { data: keyRatios = [] } = useQuery({
+  const { data: keyRatios = [], isError: keyRatiosError } = useQuery({
     queryKey: ['reports', 'executive', 'key-ratios'],
     queryFn: getKeyRatios,
   });
-  const { data: customerGrowth = [] } = useQuery({
+  const { data: customerGrowth = [], isError: customerGrowthError } = useQuery({
     queryKey: ['reports', 'executive', 'customer-growth'],
     queryFn: getCustomerGrowthData,
   });
-  const { data: depositLoanGrowth = [] } = useQuery({
+  const { data: depositLoanGrowth = [], isError: depositLoanGrowthError } = useQuery({
     queryKey: ['reports', 'executive', 'deposit-loan-growth'],
     queryFn: getDepositLoanGrowthData,
   });
-  const { data: topBranches = [] } = useQuery({
+  const { data: topBranches = [], isError: topBranchesError } = useQuery({
     queryKey: ['reports', 'executive', 'top-branches'],
     queryFn: getTopBranches,
   });
+
+  const hasLoadError =
+    kpisError ||
+    pnlError ||
+    monthlyPnlError ||
+    keyRatiosError ||
+    customerGrowthError ||
+    depositLoanGrowthError ||
+    topBranchesError;
 
   return (
     <>
@@ -152,26 +169,57 @@ export function ExecutiveDashboardPage() {
       />
 
       <div className="page-container space-y-6">
+        {hasLoadError && (
+          <SectionError message="One or more executive-report datasets could not be loaded from the backend." />
+        )}
         {/* Row 1 — KPI Cards */}
-        <ExecutiveKpiCards kpis={kpis} />
+        {kpisError ? (
+          <SectionError message="Executive KPIs could not be loaded from the backend." />
+        ) : (
+          <ExecutiveKpiCards kpis={kpis} />
+        )}
 
         {/* Row 2 — Income Statement + Monthly P&L Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-          <IncomeStatementSummary pnl={pnl} />
-          <MonthlyPnlTrendChart data={monthlyPnl} />
+          {pnlError ? (
+            <SectionError message="P&L summary could not be loaded from the backend." />
+          ) : (
+            <IncomeStatementSummary pnl={pnl} />
+          )}
+          {monthlyPnlError ? (
+            <SectionError message="Monthly P&L trend could not be loaded from the backend." />
+          ) : (
+            <MonthlyPnlTrendChart data={monthlyPnl} />
+          )}
         </div>
 
         {/* Row 3 — Key Ratios (full width) */}
-        <KeyRatiosBar ratios={keyRatios} />
+        {keyRatiosError ? (
+          <SectionError message="Key ratios could not be loaded from the backend." />
+        ) : (
+          <KeyRatiosBar ratios={keyRatios} />
+        )}
 
         {/* Row 4 — Customer Growth + Deposit/Loan Growth */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <CustomerGrowthChart data={customerGrowth} />
-          <DepositLoanGrowthChart data={depositLoanGrowth} />
+          {customerGrowthError ? (
+            <SectionError message="Customer growth data could not be loaded from the backend." />
+          ) : (
+            <CustomerGrowthChart data={customerGrowth} />
+          )}
+          {depositLoanGrowthError ? (
+            <SectionError message="Deposit-loan growth data could not be loaded from the backend." />
+          ) : (
+            <DepositLoanGrowthChart data={depositLoanGrowth} />
+          )}
         </div>
 
         {/* Row 5 — Top Branches Table */}
-        <TopBranchesTable branches={topBranches} />
+        {topBranchesError ? (
+          <SectionError message="Top-branch performance could not be loaded from the backend." />
+        ) : (
+          <TopBranchesTable branches={topBranches} />
+        )}
       </div>
     </>
   );

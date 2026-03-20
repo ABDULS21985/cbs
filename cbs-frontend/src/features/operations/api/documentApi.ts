@@ -83,7 +83,7 @@ export interface RetentionPolicy {
 // ---- API Functions ----
 
 export function getDocuments(folder?: DocumentFolder, search?: string): Promise<DocumentFile[]> {
-  return apiGet<DocumentFile[]>('/api/v1/documents', { folder, search }).catch(() => []);
+  return apiGet<DocumentFile[]>('/api/v1/documents', { folder, search });
 }
 
 export function getDocumentById(id: string): Promise<DocumentFile | null> {
@@ -119,7 +119,7 @@ export function linkToEntity(
 }
 
 export function getOcrQueue(): Promise<OcrQueueItem[]> {
-  return apiGet<OcrQueueItem[]>('/api/v1/documents/ocr-queue').catch(() => []);
+  return apiGet<OcrQueueItem[]>('/api/v1/documents/ocr-queue');
 }
 
 export function getOcrItem(id: string): Promise<OcrQueueItem | null> {
@@ -135,7 +135,7 @@ export function verifyOcrItem(id: string): Promise<OcrQueueItem> {
 }
 
 export function getDocumentTemplates(): Promise<DocumentTemplate[]> {
-  return apiGet<DocumentTemplate[]>('/api/v1/documents/templates').catch(() => []);
+  return apiGet<DocumentTemplate[]>('/api/v1/documents/templates');
 }
 
 export function generateFromTemplate(
@@ -147,7 +147,7 @@ export function generateFromTemplate(
 }
 
 export function getRetentionPolicies(): Promise<RetentionPolicy[]> {
-  return apiGet<RetentionPolicy[]>('/api/v1/documents/retention-policies').catch(() => []);
+  return apiGet<RetentionPolicy[]>('/api/v1/documents/retention-policies');
 }
 
 export function updateRetentionPolicy(

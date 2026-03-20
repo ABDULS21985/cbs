@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, TabsPage } from '@/components/shared';
-import { BarChart3, TrendingUp, ArrowLeftRight, Briefcase } from 'lucide-react';
+import { BarChart3, TrendingUp, ArrowLeftRight, Briefcase, AlertTriangle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { secPositionApi } from '../api/secPositionApi';
 import { formatMoney, formatMoneyCompact } from '@/lib/formatters';
@@ -25,7 +25,7 @@ function PositionsTab() {
   if (instrumentType) params.instrumentType = instrumentType;
   if (portfolioFilter) params.portfolioCode = portfolioFilter;
 
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError } = useQuery({
     queryKey: KEYS.positions(params),
     queryFn: () => secPositionApi.getPositions(Object.keys(params).length > 0 ? params : undefined),
     staleTime: 30_000,
@@ -59,6 +59,11 @@ function PositionsTab() {
           />
         </div>
       </div>
+      {isError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Positions could not be loaded from the backend.
+        </div>
+      )}
       <PositionTable data={data} isLoading={isLoading} />
     </div>
   );
@@ -76,7 +81,7 @@ function MovementsTab() {
   if (dateTo) params.dateTo = dateTo;
   if (typeFilter) params.type = typeFilter;
 
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError } = useQuery({
     queryKey: KEYS.movements(params),
     queryFn: () => secPositionApi.getMovements(Object.keys(params).length > 0 ? params : undefined),
     staleTime: 30_000,
@@ -118,6 +123,11 @@ function MovementsTab() {
           </select>
         </div>
       </div>
+      {isError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Securities movements could not be loaded from the backend.
+        </div>
+      )}
       <MovementTable data={data} isLoading={isLoading} />
     </div>
   );
@@ -128,7 +138,7 @@ function MovementsTab() {
 function ByPortfolioTab() {
   const [portfolioCode, setPortfolioCode] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: KEYS.portfolio(portfolioCode),
     queryFn: () => secPositionApi.getPortfolioPositions(portfolioCode),
     enabled: !!portfolioCode,
@@ -150,6 +160,11 @@ function ByPortfolioTab() {
           </div>
         </div>
       </div>
+      {portfolioCode && isError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Portfolio analytics could not be loaded from the backend.
+        </div>
+      )}
       <PortfolioPositionView data={data} isLoading={isLoading && !!portfolioCode} />
     </div>
   );
@@ -158,7 +173,7 @@ function ByPortfolioTab() {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export function SecuritiesPositionPage() {
-  const { data: positions = [] } = useQuery({
+  const { data: positions = [], isError } = useQuery({
     queryKey: KEYS.positions(),
     queryFn: () => secPositionApi.getPositions(),
     staleTime: 30_000,
@@ -174,15 +189,21 @@ export function SecuritiesPositionPage() {
         subtitle="Position tracking, securities movements, and portfolio analytics"
       />
       <div className="page-container space-y-6">
+        {isError && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertTriangle className="h-4 w-4" />
+            Securities position summaries could not be loaded from the backend.
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Positions" value={positions.length} format="number" icon={Briefcase} />
-          <StatCard label="Market Value" value={totalMarketValue} format="money" icon={BarChart3} compact />
+          <StatCard label="Total Positions" value={isError ? '--' : positions.length} format="number" icon={Briefcase} />
+          <StatCard label="Market Value" value={isError ? '--' : totalMarketValue} format="money" icon={BarChart3} compact />
           <StatCard
             label="Unrealized P&L"
-            value={totalPnl >= 0 ? `+${formatMoneyCompact(totalPnl)}` : formatMoneyCompact(totalPnl)}
+            value={isError ? '--' : totalPnl >= 0 ? `+${formatMoneyCompact(totalPnl)}` : formatMoneyCompact(totalPnl)}
             icon={TrendingUp}
           />
-          <StatCard label="Instruments" value={new Set(positions.map((p) => p.instrumentCode)).size} format="number" icon={ArrowLeftRight} />
+          <StatCard label="Instruments" value={isError ? '--' : new Set(positions.map((p) => p.instrumentCode)).size} format="number" icon={ArrowLeftRight} />
         </div>
 
         <div className="card overflow-hidden">

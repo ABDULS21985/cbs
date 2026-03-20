@@ -57,11 +57,11 @@ export interface PortfolioPositionSummary {
 export const secPositionApi = {
   // Positions
   getPositions: (params?: { instrumentType?: string; portfolioCode?: string }) =>
-    apiGet<SecuritiesPosition[]>('/api/v1/securities-positions', params).catch(() => []),
+    apiGet<SecuritiesPosition[]>('/api/v1/securities-positions', params),
 
   // Movements
   getMovements: (params?: { dateFrom?: string; dateTo?: string; type?: string; instrumentCode?: string }) =>
-    apiGet<SecuritiesMovement[]>('/api/v1/securities-positions/movements', params).catch(() => []),
+    apiGet<SecuritiesMovement[]>('/api/v1/securities-positions/movements', params),
 
   recordMovement: (payload: {
     instrumentCode: string;
@@ -81,5 +81,5 @@ export const secPositionApi = {
 
   // Position movements
   getPositionMovements: (positionId: number) =>
-    apiGet<SecuritiesMovement[]>(`/api/v1/securities-positions/${positionId}/movements`).catch(() => []),
+    apiGet<SecuritiesMovement[]>(`/api/v1/securities-positions/${positionId}/movements`),
 };

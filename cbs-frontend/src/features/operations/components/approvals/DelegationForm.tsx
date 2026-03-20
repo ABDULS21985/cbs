@@ -51,9 +51,9 @@ const REASONS = [
 const today = new Date().toISOString().split('T')[0];
 
 export function DelegationForm({ onSubmit, onCancel, loading = false }: DelegationFormProps) {
-  const { data: approvers = [] } = useQuery({
+  const { data: approvers = [], isError } = useQuery({
     queryKey: ['approvers-list'],
-    queryFn: () => apiGet<Approver[]>('/api/v1/approvals/approvers').catch(() => []),
+    queryFn: () => apiGet<Approver[]>('/api/v1/approvals/approvers'),
   });
 
   const [delegateTo, setDelegateTo] = useState('');
@@ -122,6 +122,11 @@ export function DelegationForm({ onSubmit, onCancel, loading = false }: Delegati
             </option>
           ))}
         </select>
+        {isError && (
+          <p className="mt-2 text-xs text-red-600">
+            Approvers could not be loaded from the backend right now.
+          </p>
+        )}
         {errors.delegateTo && <p className="text-xs text-red-500 mt-1">{errors.delegateTo}</p>}
       </div>
 

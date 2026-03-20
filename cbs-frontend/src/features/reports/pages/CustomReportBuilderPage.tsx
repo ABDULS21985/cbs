@@ -26,7 +26,7 @@ export function CustomReportBuilderPage() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
 
-  const { data: editReport } = useQuery({
+  const { data: editReport, isError: editReportError } = useQuery({
     queryKey: ['saved-report', editId],
     queryFn: () => reportBuilderApi.getReport(editId!),
     enabled: !!editId,
@@ -38,7 +38,9 @@ export function CustomReportBuilderPage() {
     selectedSources,
     availableFields,
     dataSources,
+    dataSourcesError,
     previewData,
+    previewError,
     isFetchingPreview,
     andOr,
     setAndOr,
@@ -133,6 +135,14 @@ export function CustomReportBuilderPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {(editReportError || dataSourcesError || previewError) && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {previewError ??
+              (editReportError
+                ? 'The selected saved report could not be loaded from the backend.'
+                : 'Report-builder data sources could not be loaded from the backend.')}
+          </div>
+        )}
         {currentStep === 1 && (
           <div className="space-y-4">
             <div>

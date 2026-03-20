@@ -32,10 +32,11 @@ export function useReportBuilder(editReport?: SavedReport) {
   const [config, setConfig] = useState<ReportConfig>(editReport?.config ?? DEFAULT_CONFIG);
   const [previewData, setPreviewData] = useState<ReportResult | null>(null);
   const [isFetchingPreview, setIsFetchingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [andOr, setAndOr] = useState<'AND' | 'OR'>('AND');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { data: dataSources = [] } = useQuery({
+  const { data: dataSources = [], isError: dataSourcesError } = useQuery({
     queryKey: ['report-builder', 'data-sources'],
     queryFn: () => reportBuilderApi.getDataSources(),
     staleTime: 10 * 60 * 1000,
@@ -48,15 +49,18 @@ export function useReportBuilder(editReport?: SavedReport) {
   const fetchPreview = useCallback(async (cfg: ReportConfig) => {
     if (cfg.columns.length === 0) {
       setPreviewData(null);
+      setPreviewError(null);
       return;
     }
     setIsFetchingPreview(true);
+    setPreviewError(null);
     try {
       await new Promise((r) => setTimeout(r, 300));
       const result = await reportBuilderApi.generatePreview(cfg);
       setPreviewData(result);
     } catch {
       setPreviewData(null);
+      setPreviewError('Preview could not be generated from the backend.');
     } finally {
       setIsFetchingPreview(false);
     }
@@ -195,7 +199,9 @@ export function useReportBuilder(editReport?: SavedReport) {
     selectedSources,
     availableFields,
     dataSources,
+    dataSourcesError,
     previewData,
+    previewError,
     isFetchingPreview,
     andOr,
     setAndOr,

@@ -53,7 +53,7 @@ export interface MatchPair {
 // ─── API Functions ────────────────────────────────────────────────────────────
 
 export function getNostroAccounts(): Promise<NostroAccount[]> {
-  return apiGet<NostroAccount[]>('/api/v1/reconciliation/nostro-accounts').catch(() => []);
+  return apiGet<NostroAccount[]>('/api/v1/reconciliation/nostro-accounts');
 }
 
 export function getReconciliationSession(
@@ -93,5 +93,5 @@ export function writeOffEntry(
 export function getReconciliationHistory(
   accountId: string,
 ): Promise<Array<{ date: string; status: ReconciliationSession['status']; difference: number; matchedCount: number }>> {
-  return apiGet<Array<{ date: string; status: ReconciliationSession['status']; difference: number; matchedCount: number }>>('/api/v1/reconciliation/history', { accountId }).catch(() => []);
+  return apiGet<Array<{ date: string; status: ReconciliationSession['status']; difference: number; matchedCount: number }>>('/api/v1/reconciliation/history', { accountId });
 }

@@ -29,7 +29,7 @@ export function SavedReportsTable({ onRun, onEdit }: SavedReportsTableProps) {
   const [shareTarget, setShareTarget] = useState<SavedReport | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: reports = [], isLoading } = useQuery({
+  const { data: reports = [], isLoading, isError } = useQuery({
     queryKey: ['saved-reports', ownerFilter],
     queryFn: () => reportBuilderApi.getSavedReports({ owner: ownerFilter }),
     staleTime: 2 * 60 * 1000,
@@ -140,6 +140,11 @@ export function SavedReportsTable({ onRun, onEdit }: SavedReportsTableProps) {
 
   return (
     <>
+      {isError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Saved reports could not be loaded from the backend.
+        </div>
+      )}
       <div className="flex gap-1 mb-4 p-1 rounded-lg bg-muted/50 w-fit">
         {(['all', 'mine', 'shared'] as OwnerFilter[]).map((f) => (
           <button

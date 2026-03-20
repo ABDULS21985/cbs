@@ -35,37 +35,55 @@ export function DocumentManagementPage() {
   // Library state
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
   const [docsLoading, setDocsLoading] = useState(true);
+  const [docsError, setDocsError] = useState<string | null>(null);
 
   // OCR state
   const [ocrItems, setOcrItems] = useState<OcrQueueItem[]>([]);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [selectedOcrItem, setSelectedOcrItem] = useState<OcrQueueItem | null>(null);
+  const [ocrError, setOcrError] = useState<string | null>(null);
 
   // Templates state
   const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
 
   // Retention state
   const [retentionPolicies, setRetentionPolicies] = useState<RetentionPolicy[]>([]);
   const [retentionLoading, setRetentionLoading] = useState(false);
+  const [retentionError, setRetentionError] = useState<string | null>(null);
 
   // Load documents on mount
   useEffect(() => {
     setDocsLoading(true);
-    getDocuments().then((docs) => {
-      setDocuments(docs);
-      setDocsLoading(false);
-    });
+    setDocsError(null);
+    getDocuments()
+      .then((docs) => {
+        setDocuments(docs);
+      })
+      .catch((error) => {
+        setDocsError(error instanceof Error ? error.message : 'Documents could not be loaded.');
+      })
+      .finally(() => {
+        setDocsLoading(false);
+      });
   }, []);
 
   // Load OCR queue when tab is active
   useEffect(() => {
     if (activeTab === 'ocr' && ocrItems.length === 0) {
       setOcrLoading(true);
-      getOcrQueue().then((items) => {
-        setOcrItems(items);
-        setOcrLoading(false);
-      });
+      setOcrError(null);
+      getOcrQueue()
+        .then((items) => {
+          setOcrItems(items);
+        })
+        .catch((error) => {
+          setOcrError(error instanceof Error ? error.message : 'OCR queue could not be loaded.');
+        })
+        .finally(() => {
+          setOcrLoading(false);
+        });
     }
   }, [activeTab]);
 
@@ -73,10 +91,17 @@ export function DocumentManagementPage() {
   useEffect(() => {
     if (activeTab === 'templates' && templates.length === 0) {
       setTemplatesLoading(true);
-      getDocumentTemplates().then((tpls) => {
-        setTemplates(tpls);
-        setTemplatesLoading(false);
-      });
+      setTemplatesError(null);
+      getDocumentTemplates()
+        .then((tpls) => {
+          setTemplates(tpls);
+        })
+        .catch((error) => {
+          setTemplatesError(error instanceof Error ? error.message : 'Document templates could not be loaded.');
+        })
+        .finally(() => {
+          setTemplatesLoading(false);
+        });
     }
   }, [activeTab]);
 
@@ -84,10 +109,17 @@ export function DocumentManagementPage() {
   useEffect(() => {
     if (activeTab === 'retention' && retentionPolicies.length === 0) {
       setRetentionLoading(true);
-      getRetentionPolicies().then((policies) => {
-        setRetentionPolicies(policies);
-        setRetentionLoading(false);
-      });
+      setRetentionError(null);
+      getRetentionPolicies()
+        .then((policies) => {
+          setRetentionPolicies(policies);
+        })
+        .catch((error) => {
+          setRetentionError(error instanceof Error ? error.message : 'Retention policies could not be loaded.');
+        })
+        .finally(() => {
+          setRetentionLoading(false);
+        });
     }
   }, [activeTab]);
 
@@ -198,6 +230,12 @@ export function DocumentManagementPage() {
                 <p className="text-sm">Loading documents…</p>
               </div>
             </div>
+          ) : docsError ? (
+            <div className="p-6">
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                Document library could not be loaded from the backend: {docsError}
+              </div>
+            </div>
           ) : (
             <DocumentLibrary documents={documents} onUpload={handleUpload} />
           )
@@ -232,6 +270,10 @@ export function DocumentManagementPage() {
                   <div className="flex items-center justify-center py-12">
                     <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
                   </div>
+                ) : ocrError ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    OCR queue could not be loaded from the backend: {ocrError}
+                  </div>
                 ) : (
                   <OcrQueueTable
                     items={ocrItems}
@@ -262,6 +304,10 @@ export function DocumentManagementPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
               </div>
+            ) : templatesError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                Document templates could not be loaded from the backend: {templatesError}
+              </div>
             ) : (
               <DocumentTemplateEditor
                 templates={templates}
@@ -285,6 +331,10 @@ export function DocumentManagementPage() {
               {retentionLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                </div>
+              ) : retentionError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  Retention policies could not be loaded from the backend: {retentionError}
                 </div>
               ) : (
                 <RetentionPolicyTable

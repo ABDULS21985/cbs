@@ -147,23 +147,23 @@ export interface NotificationPreference {
 export const communicationApi = {
   // Communications controller
   getAll: (filters?: Record<string, unknown>) =>
-    apiGet<Communication[]>('/api/v1/communications', filters).catch(() => []),
+    apiGet<Communication[]>('/api/v1/communications', filters),
   getStats: () =>
     apiGet<{ total: number; sent: number; delivered: number; failed: number; pending: number }>('/api/v1/communications/stats'),
   getScheduled: () =>
-    apiGet<Communication[]>('/api/v1/communications/schedule').catch(() => []),
+    apiGet<Communication[]>('/api/v1/communications/schedule'),
   getByCustomer: (customerId: number) =>
-    apiGet<Communication[]>(`/api/v1/communications/customer/${customerId}`).catch(() => []),
+    apiGet<Communication[]>(`/api/v1/communications/customer/${customerId}`),
 
   // Legacy template endpoints
   getTemplates: () =>
-    apiGet<CommTemplate[]>('/api/v1/communications/templates').catch(() => []),
+    apiGet<CommTemplate[]>('/api/v1/communications/templates'),
   getDeliveryStats: (params?: Record<string, unknown>) =>
     apiGet<DeliveryStats>('/api/v1/communications/stats', params),
 
   // Preferences
   getPreferences: (customerId: number) =>
-    apiGet<ChannelPreference[]>(`/api/v1/communications/preferences/${customerId}`).catch(() => []),
+    apiGet<ChannelPreference[]>(`/api/v1/communications/preferences/${customerId}`),
   updatePreference: (customerId: number, pref: ChannelPreference) =>
     apiPut<void>(`/api/v1/communications/preferences/${customerId}`, pref),
 };
@@ -173,7 +173,7 @@ export const communicationApi = {
 export const notificationApi = {
   // List
   list: (params?: { search?: string; page?: number; size?: number }) =>
-    apiGet<NotificationLog[]>('/api/v1/notifications', params as Record<string, unknown>).catch(() => []),
+    apiGet<NotificationLog[]>('/api/v1/notifications', params as Record<string, unknown>),
 
   // Send
   send: (params: { eventType: string; customerId?: number; email?: string; phone?: string; name?: string }, body: Record<string, string>) =>
@@ -192,21 +192,21 @@ export const notificationApi = {
 
   // Customer
   getCustomerNotifications: (customerId: number, page = 0, size = 20) =>
-    apiGet<NotificationLog[]>(`/api/v1/notifications/customer/${customerId}`, { page, size } as Record<string, unknown>).catch(() => []),
+    apiGet<NotificationLog[]>(`/api/v1/notifications/customer/${customerId}`, { page, size } as Record<string, unknown>),
 
   // Stats
   getDeliveryStats: () =>
     apiGet<DeliveryStats>('/api/v1/notifications/delivery-stats'),
   getDeliveryTrend: () =>
-    apiGet<TrendEntry[]>('/api/v1/notifications/delivery-stats/trend').catch(() => []),
+    apiGet<TrendEntry[]>('/api/v1/notifications/delivery-stats/trend'),
   getDeliveryByChannel: () =>
-    apiGet<ChannelStats[]>('/api/v1/notifications/delivery-stats/by-channel').catch(() => []),
+    apiGet<ChannelStats[]>('/api/v1/notifications/delivery-stats/by-channel'),
   getDeliveryFailures: () =>
-    apiGet<NotificationLog[]>('/api/v1/notifications/delivery-stats/failures').catch(() => []),
+    apiGet<NotificationLog[]>('/api/v1/notifications/delivery-stats/failures'),
 
   // Failures
   getFailures: (page = 0, size = 20) =>
-    apiGet<NotificationLog[]>('/api/v1/notifications/failures', { page, size } as Record<string, unknown>).catch(() => []),
+    apiGet<NotificationLog[]>('/api/v1/notifications/failures', { page, size } as Record<string, unknown>),
 
   // Retry
   retryFailed: () =>
@@ -214,7 +214,7 @@ export const notificationApi = {
 
   // Scheduled
   getScheduled: (page = 0, size = 20) =>
-    apiGet<NotificationLog[]>('/api/v1/notifications/scheduled', { page, size } as Record<string, unknown>).catch(() => []),
+    apiGet<NotificationLog[]>('/api/v1/notifications/scheduled', { page, size } as Record<string, unknown>),
 
   // Unread
   getUnreadCount: (customerId?: number) =>
@@ -226,11 +226,11 @@ export const notificationApi = {
 
   // Channels
   getChannels: () =>
-    apiGet<ChannelConfig[]>('/api/v1/notifications/channels').catch(() => []),
+    apiGet<ChannelConfig[]>('/api/v1/notifications/channels'),
 
   // Templates
   getTemplates: () =>
-    apiGet<NotificationTemplate[]>('/api/v1/notifications/templates').catch(() => []),
+    apiGet<NotificationTemplate[]>('/api/v1/notifications/templates'),
   getTemplate: (id: number) =>
     apiGet<NotificationTemplate>(`/api/v1/notifications/templates/${id}`),
   createTemplate: (data: Partial<NotificationTemplate>) =>
@@ -248,9 +248,9 @@ export const notificationApi = {
 
   // Preferences (notification-level)
   getNotificationPreferences: (customerId?: number) =>
-    apiGet<NotificationPreference[]>('/api/v1/notifications/preferences', customerId ? { customerId } as Record<string, unknown> : undefined).catch(() => []),
+    apiGet<NotificationPreference[]>('/api/v1/notifications/preferences', customerId ? { customerId } as Record<string, unknown> : undefined),
   getCustomerPreferences: (customerId: number) =>
-    apiGet<NotificationPreference[]>(`/api/v1/notifications/preferences/${customerId}`).catch(() => []),
+    apiGet<NotificationPreference[]>(`/api/v1/notifications/preferences/${customerId}`),
   updateNotificationPreference: (customerId: number, channel: string, eventType: string, enabled: boolean) =>
     apiPut<NotificationPreference>(`/api/v1/notifications/preferences?customerId=${customerId}&channel=${encodeURIComponent(channel)}&eventType=${encodeURIComponent(eventType)}&enabled=${enabled}`),
 };
@@ -259,7 +259,7 @@ export const notificationApi = {
 
 export const routingApi = {
   getRules: () =>
-    apiGet<RoutingRule[]>('/api/v1/contact-routing/rules').catch(() => []),
+    apiGet<RoutingRule[]>('/api/v1/contact-routing/rules'),
   createRule: (data: Partial<RoutingRule>) =>
     apiPost<RoutingRule>('/api/v1/contact-routing/rules', data),
   routeContact: (customerId: number, reason: string, channel: string) =>

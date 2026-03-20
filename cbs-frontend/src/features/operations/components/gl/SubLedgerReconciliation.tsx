@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { RefreshCw, X, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { RefreshCw, X, CheckCircle2, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { glApi } from '../../api/glApi';
 import { apiGet } from '@/lib/api';
 import type { SubLedgerRow } from '../../api/glApi';
@@ -16,9 +16,9 @@ interface BreakDetail {
 }
 
 function BreakDrillDownModal({ row, date, onClose }: { row: SubLedgerRow; date: string; onClose: () => void }) {
-  const { data: details = [], isLoading } = useQuery({
+  const { data: details = [], isLoading, isError } = useQuery({
     queryKey: ['gl-reconciliation-break', row.module, date],
-    queryFn: () => apiGet<BreakDetail[]>('/api/v1/gl/reconciliation/break-details', { module: row.module, date }).catch(() => []),
+    queryFn: () => apiGet<BreakDetail[]>('/api/v1/gl/reconciliation/break-details', { module: row.module, date }),
   });
 
   return (
@@ -43,6 +43,11 @@ function BreakDrillDownModal({ row, date, onClose }: { row: SubLedgerRow; date: 
               <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
                 <Loader2 className="w-5 h-5 animate-spin" />
                 Loading break details...
+              </div>
+            ) : isError ? (
+              <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <AlertTriangle className="w-4 h-4" />
+                Break details could not be loaded from the backend.
               </div>
             ) : (
             <table className="w-full text-sm">

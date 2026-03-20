@@ -96,7 +96,7 @@ export function getProducts(params?: {
   type?: ProductType;
   category?: ProductCategory;
 }): Promise<BankingProduct[]> {
-  return apiGet<BankingProduct[]>('/api/v1/products', params as Record<string, unknown>).catch(() => []);
+  return apiGet<BankingProduct[]>('/api/v1/products', params as Record<string, unknown>);
 }
 
 export function getProductById(id: string): Promise<BankingProduct> {
@@ -120,7 +120,7 @@ export function retireProduct(id: string): Promise<BankingProduct> {
 }
 
 export function getBundles(): Promise<ProductBundle[]> {
-  return apiGet<ProductBundle[]>('/api/v1/products/bundles').catch(() => []);
+  return apiGet<ProductBundle[]>('/api/v1/products/bundles');
 }
 
 export function createBundle(data: Partial<ProductBundle>): Promise<ProductBundle> {
@@ -128,5 +128,5 @@ export function createBundle(data: Partial<ProductBundle>): Promise<ProductBundl
 }
 
 export function getProductVersions(id: string): Promise<ProductVersion[]> {
-  return apiGet<ProductVersion[]>(`/api/v1/products/${id}/versions`).catch(() => []);
+  return apiGet<ProductVersion[]>(`/api/v1/products/${id}/versions`);
 }

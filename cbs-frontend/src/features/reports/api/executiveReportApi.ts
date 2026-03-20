@@ -79,7 +79,7 @@ export interface DepositLoanPoint {
 // ─── API Functions ────────────────────────────────────────────────────────────
 
 export function getExecutiveKpis(): Promise<ExecutiveKpi[]> {
-  return apiGet<ExecutiveKpi[]>('/api/v1/reports/executive/kpis').catch(() => []);
+  return apiGet<ExecutiveKpi[]>('/api/v1/reports/executive/kpis');
 }
 
 export function getPnlSummary(): Promise<PnlSummary> {
@@ -87,21 +87,21 @@ export function getPnlSummary(): Promise<PnlSummary> {
 }
 
 export function getMonthlyPnl(): Promise<MonthlyPnl[]> {
-  return apiGet<MonthlyPnl[]>('/api/v1/reports/executive/monthly-pnl').catch(() => []);
+  return apiGet<MonthlyPnl[]>('/api/v1/reports/executive/monthly-pnl');
 }
 
 export function getKeyRatios(): Promise<KeyRatio[]> {
-  return apiGet<KeyRatio[]>('/api/v1/reports/executive/key-ratios').catch(() => []);
+  return apiGet<KeyRatio[]>('/api/v1/reports/executive/key-ratios');
 }
 
 export function getCustomerGrowthData(): Promise<CustomerGrowthData[]> {
-  return apiGet<CustomerGrowthData[]>('/api/v1/reports/executive/customer-growth').catch(() => []);
+  return apiGet<CustomerGrowthData[]>('/api/v1/reports/executive/customer-growth');
 }
 
 export function getDepositLoanGrowthData(): Promise<DepositLoanPoint[]> {
-  return apiGet<DepositLoanPoint[]>('/api/v1/reports/executive/deposit-loan-growth').catch(() => []);
+  return apiGet<DepositLoanPoint[]>('/api/v1/reports/executive/deposit-loan-growth');
 }
 
 export function getTopBranches(): Promise<BranchPerformance[]> {
-  return apiGet<BranchPerformance[]>('/api/v1/reports/executive/top-branches').catch(() => []);
+  return apiGet<BranchPerformance[]>('/api/v1/reports/executive/top-branches');
 }

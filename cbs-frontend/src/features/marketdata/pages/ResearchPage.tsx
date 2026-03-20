@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import {
   FileText, Briefcase, TrendingUp, Lightbulb, Plus, X, Loader2,
@@ -16,8 +16,8 @@ import {
   usePublishResearch,
   useCompleteResearchProject,
   useCreateResearchProject,
-} from '../hooks/useMarketDataManagement';
-import type { ResearchReport, MarketResearchProject, Recommendation } from '../api/marketDataManagementApi';
+} from '../hooks/useMarketData';
+import type { ResearchReport, MarketResearchProject, Recommendation } from '../types';
 
 // ── Recommendation Badge ─────────────────────────────────────────────────────
 
@@ -102,10 +102,10 @@ function PublishResearchDialog({ onClose }: { onClose: () => void }) {
   const fc = 'w-full px-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="pub-research-dlg-title">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b"><h2 className="text-base font-semibold">Publish Research</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b"><h2 id="pub-research-dlg-title" className="text-base font-semibold">Publish Research</h2>
           <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button></div>
         <div className="px-6 py-5 space-y-3">
           <div><label className="text-xs font-medium text-muted-foreground">Title *</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={fc} required /></div>
@@ -144,10 +144,10 @@ function CreateProjectDialog({ onClose }: { onClose: () => void }) {
   const fc = 'w-full px-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="new-project-dlg-title">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b"><h2 className="text-base font-semibold">New Research Project</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b"><h2 id="new-project-dlg-title" className="text-base font-semibold">New Research Project</h2>
           <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button></div>
         <div className="px-6 py-5 space-y-3">
           <div><label className="text-xs font-medium text-muted-foreground">Project Name *</label><input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={fc} /></div>
@@ -191,7 +191,7 @@ export function ResearchPage() {
   const filteredResearch = recFilter === 'ALL' ? research : research.filter((r) => r.recommendation === recFilter);
   const buyCount = research.filter((r) => r.recommendation === 'BUY').length;
 
-  const researchColumns: ColumnDef<ResearchReport, unknown>[] = [
+  const researchColumns: ColumnDef<ResearchReport, unknown>[] = useMemo(() => [
     { accessorKey: 'title', header: 'Title', cell: ({ row }) => <span className="text-sm font-medium">{row.original.title}</span> },
     { accessorKey: 'analyst', header: 'Analyst', cell: ({ row }) => <span className="text-sm">{row.original.analyst}</span> },
     { accessorKey: 'instrumentCode', header: 'Instrument', cell: ({ row }) => <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">{row.original.instrumentCode}</span> },
@@ -202,7 +202,7 @@ export function ResearchPage() {
     )},
     { accessorKey: 'targetPrice', header: 'Target', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.targetPrice)}</span> },
     { accessorKey: 'publishedAt', header: 'Published', cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatDate(row.original.publishedAt)}</span> },
-  ];
+  ], []);
 
   return (
     <>

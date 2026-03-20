@@ -82,7 +82,7 @@ export function ParameterTable() {
   const [selectedParam, setSelectedParam] = useState<SystemParameter | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
-  const { data: parameters = [], isLoading, refetch } = useQuery({
+  const { data: parameters = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['parameters', selectedCategory, search],
     queryFn: () =>
       parameterApi.getParameters({
@@ -103,6 +103,11 @@ export function ParameterTable() {
 
   return (
     <div className="space-y-4">
+      {isError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          System parameters could not be loaded from the backend.
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
           {CATEGORIES.map((cat) => (

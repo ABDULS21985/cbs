@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge, TabsPage } from '@/components/shared';
 import {
@@ -9,10 +9,9 @@ import {
   useMarketSignals,
   usePublishedResearch,
   useMarketAnalysis,
-  useRegisterFeed,
   usePublishResearch,
   useCreateAnalysis,
-} from '../hooks/useMarketDataManagement';
+} from '../hooks/useMarketData';
 import type {
   DataFeed,
   FeedQualityMetric,
@@ -20,9 +19,8 @@ import type {
   ResearchReport,
   MarketAnalysis,
   AnalysisType,
-  FeedType,
   Recommendation,
-} from '../api/marketDataManagementApi';
+} from '../types';
 import { formatDate, formatDateTime } from '@/lib/formatters';
 import {
   Activity,
@@ -32,57 +30,18 @@ import {
   Search,
   Plus,
   X,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   RefreshCw,
   Loader2,
 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { FeedStatusDot } from '../components/FeedStatusDot';
+import { SignalBadge } from '../components/SignalBadge';
+import { RegisterFeedDialog } from '../components/RegisterFeedDialog';
+import { PriceCard } from '../components/PriceCard';
 
-// ─── Feed Status Helpers ──────────────────────────────────────────────────────
-
-function FeedStatusDot({ status }: { status: string }) {
-  const color =
-    status === 'ACTIVE'
-      ? 'bg-green-500'
-      : status === 'STALE'
-        ? 'bg-amber-500'
-        : 'bg-red-500';
-  return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={cn('w-2 h-2 rounded-full', color)} />
-      <span
-        className={cn(
-          'text-xs font-medium',
-          status === 'ACTIVE'
-            ? 'text-green-700'
-            : status === 'STALE'
-              ? 'text-amber-700'
-              : 'text-red-700',
-        )}
-      >
-        {status}
-      </span>
-    </span>
-  );
-}
-
-function SignalBadge({ signal }: { signal: string }) {
-  const cls =
-    signal === 'BUY'
-      ? 'bg-green-50 text-green-700 border-green-200'
-      : signal === 'SELL'
-        ? 'bg-red-50 text-red-700 border-red-200'
-        : 'bg-amber-50 text-amber-700 border-amber-200';
-  return (
-    <span className={cn('inline-flex px-2 py-0.5 rounded text-xs font-semibold border', cls)}>
-      {signal}
-    </span>
-  );
-}
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function RecommendationBadge({ rec }: { rec: string }) {
   const cls =
@@ -92,107 +51,9 @@ function RecommendationBadge({ rec }: { rec: string }) {
         ? 'bg-red-50 text-red-700'
         : 'bg-amber-50 text-amber-700';
   return (
-    <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-semibold', cls)}>
+    <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-semibold', cls)} aria-label={`Recommendation: ${rec}`}>
       {rec}
     </span>
-  );
-}
-
-// ─── Register Feed Dialog ─────────────────────────────────────────────────────
-
-function RegisterFeedDialog({ onClose }: { onClose: () => void }) {
-  const registerFeed = useRegisterFeed();
-  const [form, setForm] = useState({
-    provider: '',
-    assetClass: '',
-    feedType: 'REALTIME' as FeedType,
-    instrumentsRaw: '',
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const instruments = form.instrumentsRaw
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    registerFeed.mutate(
-      { provider: form.provider, assetClass: form.assetClass, feedType: form.feedType, instruments },
-      { onSuccess: onClose },
-    );
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"
-        >
-          <X className="w-4 h-4" />
-        </button>
-        <h2 className="text-lg font-semibold mb-4">Register Data Feed</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Provider</label>
-            <input
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              value={form.provider}
-              onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))}
-              placeholder="e.g. Bloomberg, Reuters"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Asset Class</label>
-            <input
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              value={form.assetClass}
-              onChange={(e) => setForm((f) => ({ ...f, assetClass: e.target.value }))}
-              placeholder="e.g. EQUITIES, FX, FIXED_INCOME"
-              required
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Feed Type</label>
-            <select
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              value={form.feedType}
-              onChange={(e) => setForm((f) => ({ ...f, feedType: e.target.value as FeedType }))}
-            >
-              <option value="REALTIME">Real-time</option>
-              <option value="EOD">End of Day</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">
-              Instruments (comma-separated)
-            </label>
-            <input
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              value={form.instrumentsRaw}
-              onChange={(e) => setForm((f) => ({ ...f, instrumentsRaw: e.target.value }))}
-              placeholder="DANGCEM, GTCO, ZENITH"
-            />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={registerFeed.isPending}
-              className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
-            >
-              {registerFeed.isPending ? 'Registering…' : 'Register Feed'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 }
 
@@ -200,6 +61,7 @@ function RegisterFeedDialog({ onClose }: { onClose: () => void }) {
 
 function PublishResearchDialog({ onClose }: { onClose: () => void }) {
   const publishResearch = usePublishResearch();
+  const firstInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     title: '',
     instrumentCode: '',
@@ -209,6 +71,13 @@ function PublishResearchDialog({ onClose }: { onClose: () => void }) {
     summary: '',
     reportUrl: '',
   });
+
+  useEffect(() => { firstInputRef.current?.focus(); }, []);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -223,108 +92,53 @@ function PublishResearchDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="pub-research-title">
       <div className="bg-background rounded-xl shadow-xl w-full max-w-lg p-6 relative max-h-[90vh] overflow-y-auto">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"
-        >
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted" aria-label="Close dialog">
           <X className="w-4 h-4" />
         </button>
-        <h2 className="text-lg font-semibold mb-4">Publish Research Report</h2>
+        <h2 id="pub-research-title" className="text-lg font-semibold mb-4">Publish Research Report</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Title</label>
-            <input
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              required
-            />
+            <label htmlFor="pr-title" className="text-sm font-medium text-muted-foreground">Title</label>
+            <input id="pr-title" ref={firstInputRef} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} required />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Instrument Code</label>
-              <input
-                className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                value={form.instrumentCode}
-                onChange={(e) => setForm((f) => ({ ...f, instrumentCode: e.target.value }))}
-                placeholder="e.g. DANGCEM"
-                required
-              />
+              <label htmlFor="pr-instrument" className="text-sm font-medium text-muted-foreground">Instrument Code</label>
+              <input id="pr-instrument" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" value={form.instrumentCode} onChange={(e) => setForm((f) => ({ ...f, instrumentCode: e.target.value }))} placeholder="e.g. DANGCEM" required />
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Analyst</label>
-              <input
-                className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                value={form.analyst}
-                onChange={(e) => setForm((f) => ({ ...f, analyst: e.target.value }))}
-                required
-              />
+              <label htmlFor="pr-analyst" className="text-sm font-medium text-muted-foreground">Analyst</label>
+              <input id="pr-analyst" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" value={form.analyst} onChange={(e) => setForm((f) => ({ ...f, analyst: e.target.value }))} required />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Recommendation</label>
-              <select
-                className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                value={form.recommendation}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, recommendation: e.target.value as Recommendation }))
-                }
-              >
+              <label htmlFor="pr-rec" className="text-sm font-medium text-muted-foreground">Recommendation</label>
+              <select id="pr-rec" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" value={form.recommendation} onChange={(e) => setForm((f) => ({ ...f, recommendation: e.target.value as Recommendation }))}>
                 <option value="BUY">BUY</option>
                 <option value="HOLD">HOLD</option>
                 <option value="SELL">SELL</option>
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Target Price</label>
-              <input
-                type="number"
-                step="0.01"
-                className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                value={form.targetPrice}
-                onChange={(e) => setForm((f) => ({ ...f, targetPrice: e.target.value }))}
-                required
-              />
+              <label htmlFor="pr-target" className="text-sm font-medium text-muted-foreground">Target Price</label>
+              <input id="pr-target" type="number" step="0.01" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" value={form.targetPrice} onChange={(e) => setForm((f) => ({ ...f, targetPrice: e.target.value }))} required />
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Summary</label>
-            <textarea
-              rows={3}
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-              value={form.summary}
-              onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))}
-              required
-            />
+            <label htmlFor="pr-summary" className="text-sm font-medium text-muted-foreground">Summary</label>
+            <textarea id="pr-summary" rows={3} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none" value={form.summary} onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))} required />
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">
-              Report URL (optional)
-            </label>
-            <input
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              value={form.reportUrl}
-              onChange={(e) => setForm((f) => ({ ...f, reportUrl: e.target.value }))}
-              placeholder="https://..."
-            />
+            <label htmlFor="pr-url" className="text-sm font-medium text-muted-foreground">Report URL (optional)</label>
+            <input id="pr-url" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" value={form.reportUrl} onChange={(e) => setForm((f) => ({ ...f, reportUrl: e.target.value }))} placeholder="https://..." />
           </div>
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={publishResearch.isPending}
-              className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
-            >
-              {publishResearch.isPending ? 'Publishing…' : 'Publish'}
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+            <button type="submit" disabled={publishResearch.isPending} className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+              {publishResearch.isPending ? 'Publishing\u2026' : 'Publish'}
             </button>
           </div>
         </form>
@@ -337,6 +151,7 @@ function PublishResearchDialog({ onClose }: { onClose: () => void }) {
 
 function NewAnalysisDialog({ onClose }: { onClose: () => void }) {
   const createAnalysis = useCreateAnalysis();
+  const firstInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     title: '',
     type: 'TECHNICAL' as AnalysisType,
@@ -345,45 +160,34 @@ function NewAnalysisDialog({ onClose }: { onClose: () => void }) {
     summary: '',
   });
 
+  useEffect(() => { firstInputRef.current?.focus(); }, []);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createAnalysis.mutate(
-      {
-        ...form,
-        instrument: form.instrument || undefined,
-        sector: form.sector || undefined,
-      },
+      { ...form, instrument: form.instrument || undefined, sector: form.sector || undefined },
       { onSuccess: onClose },
     );
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="new-analysis-title">
       <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"
-        >
-          <X className="w-4 h-4" />
-        </button>
-        <h2 className="text-lg font-semibold mb-4">New Market Analysis</h2>
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted" aria-label="Close dialog"><X className="w-4 h-4" /></button>
+        <h2 id="new-analysis-title" className="text-lg font-semibold mb-4">New Market Analysis</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Title</label>
-            <input
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              required
-            />
+            <label htmlFor="na-title" className="text-sm font-medium text-muted-foreground">Title</label>
+            <input id="na-title" ref={firstInputRef} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} required />
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Analysis Type</label>
-            <select
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              value={form.type}
-              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as AnalysisType }))}
-            >
+            <label htmlFor="na-type" className="text-sm font-medium text-muted-foreground">Analysis Type</label>
+            <select id="na-type" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as AnalysisType }))}>
               <option value="TECHNICAL">Technical</option>
               <option value="FUNDAMENTAL">Fundamental</option>
               <option value="SECTOR">Sector</option>
@@ -392,52 +196,22 @@ function NewAnalysisDialog({ onClose }: { onClose: () => void }) {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Instrument (optional)
-              </label>
-              <input
-                className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                value={form.instrument}
-                onChange={(e) => setForm((f) => ({ ...f, instrument: e.target.value }))}
-                placeholder="e.g. DANGCEM"
-              />
+              <label htmlFor="na-instrument" className="text-sm font-medium text-muted-foreground">Instrument (optional)</label>
+              <input id="na-instrument" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" value={form.instrument} onChange={(e) => setForm((f) => ({ ...f, instrument: e.target.value }))} placeholder="e.g. DANGCEM" />
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Sector (optional)
-              </label>
-              <input
-                className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                value={form.sector}
-                onChange={(e) => setForm((f) => ({ ...f, sector: e.target.value }))}
-                placeholder="e.g. Banking, Oil & Gas"
-              />
+              <label htmlFor="na-sector" className="text-sm font-medium text-muted-foreground">Sector (optional)</label>
+              <input id="na-sector" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary" value={form.sector} onChange={(e) => setForm((f) => ({ ...f, sector: e.target.value }))} placeholder="e.g. Banking, Oil & Gas" />
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground">Summary</label>
-            <textarea
-              rows={3}
-              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-              value={form.summary}
-              onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))}
-              required
-            />
+            <label htmlFor="na-summary" className="text-sm font-medium text-muted-foreground">Summary</label>
+            <textarea id="na-summary" rows={3} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary resize-none" value={form.summary} onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))} required />
           </div>
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createAnalysis.isPending}
-              className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
-            >
-              {createAnalysis.isPending ? 'Creating…' : 'Create'}
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+            <button type="submit" disabled={createAnalysis.isPending} className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+              {createAnalysis.isPending ? 'Creating\u2026' : 'Create'}
             </button>
           </div>
         </form>
@@ -446,7 +220,7 @@ function NewAnalysisDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Column Definitions ───────────────────────────────────────────────────────
+// ─── Column Definitions (stable module-level references) ─────────────────────
 
 const feedCols: ColumnDef<DataFeed, unknown>[] = [
   {
@@ -464,7 +238,7 @@ const feedCols: ColumnDef<DataFeed, unknown>[] = [
     accessorKey: 'lastReceivedAt',
     header: 'Last Received',
     cell: ({ row }) =>
-      row.original.lastReceivedAt ? formatDateTime(row.original.lastReceivedAt) : '—',
+      row.original.lastReceivedAt ? formatDateTime(row.original.lastReceivedAt) : '\u2014',
   },
   {
     accessorKey: 'latencyMs',
@@ -473,7 +247,7 @@ const feedCols: ColumnDef<DataFeed, unknown>[] = [
       row.original.latencyMs !== undefined ? (
         <span className="font-mono text-xs">{row.original.latencyMs}</span>
       ) : (
-        '—'
+        '\u2014'
       ),
   },
   {
@@ -559,7 +333,7 @@ const signalCols: ColumnDef<MarketSignal, unknown>[] = [
   {
     accessorKey: 'analyst',
     header: 'Analyst',
-    cell: ({ row }) => row.original.analyst ?? '—',
+    cell: ({ row }) => row.original.analyst ?? '\u2014',
   },
   {
     accessorKey: 'generatedAt',
@@ -621,13 +395,13 @@ const analysisCols: ColumnDef<MarketAnalysis, unknown>[] = [
       row.original.instrument ? (
         <span className="font-mono text-xs text-primary">{row.original.instrument}</span>
       ) : (
-        '—'
+        '\u2014'
       ),
   },
   {
     accessorKey: 'sector',
     header: 'Sector',
-    cell: ({ row }) => row.original.sector ?? '—',
+    cell: ({ row }) => row.original.sector ?? '\u2014',
   },
   {
     accessorKey: 'status',
@@ -689,18 +463,25 @@ function DataFeedsTab() {
 function PricesSignalsTab() {
   const [search, setSearch] = useState('');
   const [activeCode, setActiveCode] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
   const { data: price, isLoading: priceLoading } = useInstrumentPrices(activeCode);
   const { data: signals = [], isLoading: signalsLoading } = useMarketSignals(activeCode);
 
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const trimmed = value.trim().toUpperCase();
+      if (trimmed) setActiveCode(trimmed);
+    }, 300);
+  }, []);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    clearTimeout(debounceRef.current);
     setActiveCode(search.trim().toUpperCase());
   };
-
-  const changePct = price?.changePct ?? 0;
-  const isUp = changePct > 0;
-  const isDown = changePct < 0;
 
   return (
     <div className="p-4 space-y-6">
@@ -711,7 +492,8 @@ function PricesSignalsTab() {
             className="w-full border rounded-lg pl-9 pr-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
             placeholder="Instrument code (e.g. DANGCEM)"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            aria-label="Search instrument code"
           />
         </div>
         <button
@@ -723,59 +505,13 @@ function PricesSignalsTab() {
       </form>
 
       {activeCode && (
-        <div>
+        <div aria-live="polite">
           {priceLoading ? (
             <div className="h-24 flex items-center justify-center text-muted-foreground text-sm">
-              Loading prices…
+              Loading prices&hellip;
             </div>
           ) : price ? (
-            <div className="border rounded-xl p-5 bg-card space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-muted-foreground font-mono">{price.instrumentCode}</div>
-                  {price.instrumentName && (
-                    <div className="font-semibold text-lg">{price.instrumentName}</div>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {isUp ? (
-                    <TrendingUp className="w-5 h-5 text-green-600" />
-                  ) : isDown ? (
-                    <TrendingDown className="w-5 h-5 text-red-600" />
-                  ) : (
-                    <Minus className="w-5 h-5 text-muted-foreground" />
-                  )}
-                  <span
-                    className={cn(
-                      'text-sm font-semibold',
-                      isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-muted-foreground',
-                    )}
-                  >
-                    {changePct > 0 ? '+' : ''}{changePct.toFixed(2)}%
-                  </span>
-                </div>
-              </div>
-              <div className="grid grid-cols-4 gap-4">
-                {[
-                  { label: 'Bid', value: price.bid },
-                  { label: 'Ask', value: price.ask },
-                  { label: 'Last', value: price.last },
-                  { label: 'Volume', value: price.volume },
-                ].map(({ label, value }) => (
-                  <div key={label} className="text-center">
-                    <div className="text-xs text-muted-foreground mb-1">{label}</div>
-                    <div className="font-mono font-semibold text-sm">
-                      {value.toLocaleString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {price.source && (
-                <div className="text-xs text-muted-foreground">
-                  Source: {price.source} · {formatDateTime(price.recordedAt)}
-                </div>
-              )}
-            </div>
+            <PriceCard price={price} />
           ) : (
             <div className="text-center text-muted-foreground py-6 text-sm">
               No price data for <span className="font-mono">{activeCode}</span>
@@ -786,7 +522,7 @@ function PricesSignalsTab() {
 
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-          {activeCode ? `Signals — ${activeCode}` : 'Market Signals'}
+          {activeCode ? `Signals \u2014 ${activeCode}` : 'Market Signals'}
         </h3>
         <DataTable
           columns={signalCols}
@@ -846,10 +582,12 @@ function AnalysisTab() {
     <div className="p-4 space-y-4">
       {showNew && <NewAnalysisDialog onClose={() => setShowNew(false)} />}
       <div className="flex items-center justify-between">
-        <div className="flex gap-1 p-1 bg-muted rounded-lg">
+        <div className="flex gap-1 p-1 bg-muted rounded-lg" role="tablist" aria-label="Analysis type filter">
           {TYPES.map(({ label, value }) => (
             <button
               key={value}
+              role="tab"
+              aria-selected={activeType === value}
               onClick={() => setActiveType(value)}
               className={cn(
                 'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
@@ -887,7 +625,6 @@ export function MarketDataManagementPage() {
 
   const { data: dashboard, isLoading: dashLoading, isError: dashError, isFetching: dashFetching, refetch: dashRefetch } = useSwitchDashboard();
 
-  // Connection status indicator
   const connectionStatus = dashError ? 'disconnected' : dashFetching ? 'updating' : 'live';
 
   return (
@@ -899,22 +636,21 @@ export function MarketDataManagementPage() {
           <span className={cn('flex items-center gap-1.5 text-xs font-medium',
             connectionStatus === 'live' ? 'text-green-600' :
             connectionStatus === 'updating' ? 'text-amber-600' : 'text-red-600',
-          )}>
+          )} aria-live="polite">
             <span className={cn('w-2 h-2 rounded-full',
               connectionStatus === 'live' ? 'bg-green-500 animate-pulse' :
               connectionStatus === 'updating' ? 'bg-amber-500' : 'bg-red-500',
-            )} />
-            {connectionStatus === 'live' ? 'Live — refreshes every 60s' :
+            )} aria-hidden="true" />
+            {connectionStatus === 'live' ? 'Live \u2014 refreshes every 60s' :
              connectionStatus === 'updating' ? 'Updating...' : 'Disconnected'}
           </span>
         }
       />
       <div className="page-container space-y-6">
-        {/* Error banner */}
         {dashError && (
-          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 flex items-center justify-between">
+          <div role="alert" className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-600" />
+              <AlertTriangle className="w-4 h-4 text-red-600" aria-hidden="true" />
               <p className="text-sm text-red-700 dark:text-red-400">Unable to load market data. Check connectivity.</p>
             </div>
             <button onClick={() => dashRefetch()} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted">
@@ -923,35 +659,11 @@ export function MarketDataManagementPage() {
           </div>
         )}
 
-        {/* Switch Dashboard Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Total Feeds"
-            value={dashboard?.totalFeeds ?? 0}
-            format="number"
-            icon={Radio}
-            loading={dashLoading}
-          />
-          <StatCard
-            label="Active Feeds"
-            value={dashboard?.activeFeeds ?? 0}
-            format="number"
-            icon={Activity}
-            loading={dashLoading}
-          />
-          <StatCard
-            label="Messages / sec"
-            value={dashboard?.messagesPerSec ?? 0}
-            icon={Zap}
-            loading={dashLoading}
-          />
-          <StatCard
-            label="Error Rate"
-            value={dashboard?.errorRate ?? 0}
-            format="percent"
-            icon={AlertTriangle}
-            loading={dashLoading}
-          />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" aria-live="polite">
+          <StatCard label="Total Feeds" value={dashboard?.totalFeeds ?? 0} format="number" icon={Radio} loading={dashLoading} />
+          <StatCard label="Active Feeds" value={dashboard?.activeFeeds ?? 0} format="number" icon={Activity} loading={dashLoading} />
+          <StatCard label="Messages / sec" value={dashboard?.messagesPerSec ?? 0} icon={Zap} loading={dashLoading} />
+          <StatCard label="Error Rate" value={dashboard?.errorRate ?? 0} format="percent" icon={AlertTriangle} loading={dashLoading} />
         </div>
 
         <TabsPage

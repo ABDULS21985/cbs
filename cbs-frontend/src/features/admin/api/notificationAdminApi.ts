@@ -166,6 +166,6 @@ export function toggleSchedule(id: number | string): Promise<ScheduledNotificati
 export function sendNotification(data: { templateId: number; recipients: string[]; mergeData: Record<string, string> }): Promise<unknown> {
   return apiPost('/api/v1/notifications/send', data);
 }
-export const getTemplateVersions = (id: number) => apiGet<any[]>(`/api/v1/notifications/templates/${id}/versions`).catch(() => []);
-export const getFailureRecords = (page = 0, size = 20) => apiGet<any[]>("/api/v1/notifications/failures", { page, size }).catch(() => []);
+export const getTemplateVersions = (id: number) => apiGet<any[]>(`/api/v1/notifications/templates/${id}/versions`);
+export const getFailureRecords = (page = 0, size = 20) => apiGet<any[]>("/api/v1/notifications/failures", { page, size });
 export function createScheduledNotification(data: any): Promise<ScheduledNotification> { return apiPost("/api/v1/notifications/scheduled", data); }

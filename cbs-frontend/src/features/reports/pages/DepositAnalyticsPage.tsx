@@ -7,7 +7,6 @@ import { DepositStatsCards } from '../components/deposits/DepositStatsCards';
 import { DepositMixTreemap } from '../components/deposits/DepositMixTreemap';
 import { DepositGrowthTrend } from '../components/deposits/DepositGrowthTrend';
 import { DepositConcentrationTable } from '../components/deposits/DepositConcentrationTable';
-import { SegmentPieChart } from '../components/deposits/SegmentPieChart';
 import { MaturityProfileChart } from '../components/deposits/MaturityProfileChart';
 import { RolloverForecast } from '../components/deposits/RolloverForecast';
 import { RateSensitivityScatter } from '../components/deposits/RateSensitivityScatter';
@@ -19,13 +18,6 @@ const PERIOD_OPTIONS = [
   { value: 'qtd', label: 'QTD' },
   { value: 'ytd', label: 'YTD' },
   { value: '12m', label: '12 Months' },
-];
-
-const SEGMENT_DATA = [
-  { segment: 'Retail', amount: 30_240_000_000, pct: 45.0, color: '#3b82f6' },
-  { segment: 'SME', amount: 16_800_000_000, pct: 25.0, color: '#8b5cf6' },
-  { segment: 'Corporate', amount: 13_440_000_000, pct: 20.0, color: '#f59e0b' },
-  { segment: 'Government', amount: 6_720_000_000, pct: 10.0, color: '#10b981' },
 ];
 
 export function DepositAnalyticsPage() {
@@ -51,6 +43,7 @@ export function DepositAnalyticsPage() {
     retentionVintageLoading,
     churnStats,
     churnLoading,
+    hasLoadError,
   } = useDepositAnalytics();
 
   const asOf = format(new Date(), 'dd MMM yyyy');
@@ -89,6 +82,11 @@ export function DepositAnalyticsPage() {
       />
 
       <div className="page-container space-y-6">
+        {hasLoadError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            One or more deposit-analytics datasets could not be loaded from the backend.
+          </div>
+        )}
         {/* ── Stats cards ─────────────────────────────────────────── */}
         <DepositStatsCards stats={stats} isLoading={statsLoading} />
 
@@ -121,7 +119,9 @@ export function DepositAnalyticsPage() {
           {/* Right: segment pie */}
           <div className="bg-card rounded-lg border border-border p-6">
             <h2 className="text-sm font-semibold text-foreground mb-4">Deposits by Segment</h2>
-            <SegmentPieChart data={SEGMENT_DATA} />
+            <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
+              Backend segment-distribution data is not exposed for this page yet, so no synthetic chart is shown.
+            </div>
           </div>
         </div>
 

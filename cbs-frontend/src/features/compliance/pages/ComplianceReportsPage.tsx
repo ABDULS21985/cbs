@@ -312,8 +312,8 @@ export function ComplianceReportsPage() {
   const [reviewTarget, setReviewTarget] = useState<ComplianceReport | null>(null);
   const [submitTarget, setSubmitTarget] = useState<ComplianceReport | null>(null);
 
-  const { data: reportsPage, isLoading } = useComplianceReports(selectedRegulator);
-  const { data: overdueReports = [] } = useOverdueReports();
+  const { data: reportsPage, isLoading, isError: reportsError } = useComplianceReports(selectedRegulator);
+  const { data: overdueReports = [], isError: overdueError } = useOverdueReports();
   const createReport = useCreateReport();
   const submitForReview = useSubmitForReview();
   const submitToRegulator = useSubmitToRegulator();
@@ -348,8 +348,13 @@ export function ComplianceReportsPage() {
         }
       />
       <div className="page-container space-y-6">
+        {(reportsError || overdueError) && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Regulatory-report data could not be fully loaded from the backend.
+          </div>
+        )}
         {/* Overdue alert */}
-        {overdueCount > 0 && (
+        {!overdueError && overdueCount > 0 && (
           <div className="flex items-start gap-3 p-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30">
             <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
@@ -365,10 +370,10 @@ export function ComplianceReportsPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard label="Total Reports" value={totalReports} loading={isLoading} />
-          <StatCard label="Overdue" value={overdueCount} />
-          <StatCard label="Due This Week" value={dueThisWeekCount} />
-          <StatCard label="Submitted This Month" value={submittedThisMonth} />
+          <StatCard label="Total Reports" value={reportsError ? '--' : totalReports} loading={isLoading && !reportsError} />
+          <StatCard label="Overdue" value={overdueError ? '--' : overdueCount} />
+          <StatCard label="Due This Week" value={reportsError ? '--' : dueThisWeekCount} />
+          <StatCard label="Submitted This Month" value={reportsError ? '--' : submittedThisMonth} />
         </div>
 
         {/* Filters */}
@@ -431,6 +436,12 @@ export function ComplianceReportsPage() {
                       ))}
                     </tr>
                   ))
+                ) : reportsError ? (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-12 text-center text-red-700">
+                      Regulatory reports could not be loaded from the backend.
+                    </td>
+                  </tr>
                 ) : filteredReports.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
@@ -497,7 +508,7 @@ export function ComplianceReportsPage() {
         </div>
 
         {/* Overdue section */}
-        {overdueReports.length > 0 && (
+        {!overdueError && overdueReports.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-red-600 dark:text-red-400 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" /> Overdue Reports — Urgent Action Required

@@ -150,7 +150,7 @@ export function FeatureFlagToggles() {
   const [search, setSearch] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: flags = [], isLoading } = useQuery({
+  const { data: flags = [], isLoading, isError } = useQuery({
     queryKey: ['feature-flags'],
     queryFn: () => parameterApi.getFeatureFlags(),
   });
@@ -218,6 +218,11 @@ export function FeatureFlagToggles() {
   return (
     <>
       <div className="space-y-4">
+        {isError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Feature flags could not be loaded from the backend.
+          </div>
+        )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-sm font-semibold">Feature Flags</h3>

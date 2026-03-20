@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Filter, CheckSquare, Users2, UserCog, X } from 'lucide-react';
+import { Search, Filter, CheckSquare, Users2, UserCog, X, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiGet } from '@/lib/api';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -95,9 +95,9 @@ interface DelegateRequestDialogProps {
 }
 
 function DelegateRequestDialog({ open, onClose, onDelegate, loading }: DelegateRequestDialogProps) {
-  const { data: approversList = [] } = useQuery({
+  const { data: approversList = [], isError: approversError } = useQuery({
     queryKey: ['approvers-list'],
-    queryFn: () => apiGet<{ name: string; role: string }[]>('/api/v1/approvals/approvers').catch(() => []),
+    queryFn: () => apiGet<{ name: string; role: string }[]>('/api/v1/approvals/approvers'),
     enabled: open,
   });
   const [delegateTo, setDelegateTo] = useState('');
@@ -139,6 +139,12 @@ function DelegateRequestDialog({ open, onClose, onDelegate, loading }: DelegateR
                 <option key={a.name} value={a.name}>{a.name} — {a.role}</option>
               ))}
             </select>
+            {approversError && (
+              <div className="mt-2 flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Approvers could not be loaded from the backend.
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1.5">Reason</label>

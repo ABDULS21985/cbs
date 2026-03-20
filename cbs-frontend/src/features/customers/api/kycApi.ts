@@ -3,7 +3,7 @@ import { apiGet, apiPost, apiPatch } from '@/lib/api';
 export const kycApi = {
   // Existing endpoints (already in customerApi - re-export for convenience)
   getStats: () => apiGet<Record<string, number>>('/api/v1/customers/kyc/stats'),
-  getList: (params?: Record<string, unknown>) => apiGet('/api/v1/customers/kyc', params).catch(() => []),
+  getList: (params?: Record<string, unknown>) => apiGet('/api/v1/customers/kyc', params),
 
   // KYC decisions
   decide: (customerId: number, body: { decision: string; notes?: string; riskRating?: string }) =>
@@ -27,7 +27,7 @@ export const kycApi = {
 
   // Periodic Review
   getReviewsDue: () =>
-    apiGet('/api/v1/customers/kyc/reviews-due').catch(() => []),
+    apiGet('/api/v1/customers/kyc/reviews-due'),
   completeReview: (customerId: number, reviewedBy: string) =>
     apiPost(`/api/v1/customers/${customerId}/kyc/complete-review`, { reviewedBy }),
 };

@@ -29,7 +29,7 @@ const KEYS = {
 function InstructionsTab() {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError } = useQuery({
     queryKey: KEYS.instructions(),
     queryFn: () => settlementApi.getInstructions(),
     staleTime: 30_000,
@@ -67,6 +67,11 @@ function InstructionsTab() {
           <Plus className="w-4 h-4" /> New Instruction
         </button>
       </div>
+      {isError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Settlement instructions could not be loaded from the backend.
+        </div>
+      )}
       <InstructionTable
         data={data}
         isLoading={isLoading}
@@ -87,7 +92,7 @@ function InstructionsTab() {
 // ── Batches Tab ──────────────────────────────────────────────────────────────
 
 function BatchesTab() {
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError } = useQuery({
     queryKey: KEYS.batches(),
     queryFn: () => settlementApi.getBatches(),
     staleTime: 30_000,
@@ -95,6 +100,11 @@ function BatchesTab() {
 
   return (
     <div className="p-4">
+      {isError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Settlement batches could not be loaded from the backend.
+        </div>
+      )}
       <SettlementBatchTable data={data} isLoading={isLoading} />
     </div>
   );
@@ -103,7 +113,7 @@ function BatchesTab() {
 // ── Failed Tab ───────────────────────────────────────────────────────────────
 
 function FailedTab() {
-  const { data = [], isLoading } = useQuery({
+  const { data = [], isLoading, isError } = useQuery({
     queryKey: KEYS.failed(),
     queryFn: () => settlementApi.getFailedSettlements(),
     staleTime: 30_000,
@@ -111,6 +121,11 @@ function FailedTab() {
 
   return (
     <div className="p-4">
+      {isError && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Failed-settlement data could not be loaded from the backend.
+        </div>
+      )}
       <FailedSettlementPanel
         data={data}
         isLoading={isLoading}
@@ -125,7 +140,7 @@ function FailedTab() {
 // ── Dashboard Tab ────────────────────────────────────────────────────────────
 
 function DashboardTab() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: KEYS.dashboard(),
     queryFn: () => settlementApi.getDashboard(),
     staleTime: 60_000,
@@ -133,6 +148,11 @@ function DashboardTab() {
 
   return (
     <div className="p-4 space-y-6">
+      {isError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Settlement dashboard analytics could not be loaded from the backend.
+        </div>
+      )}
       <StpRateCard data={data} isLoading={isLoading} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SettlementRateChart data={data} isLoading={isLoading} />
@@ -146,12 +166,12 @@ function DashboardTab() {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export function SettlementPage() {
-  const { data: dashData } = useQuery({
+  const { data: dashData, isError: dashError } = useQuery({
     queryKey: KEYS.dashboard(),
     queryFn: () => settlementApi.getDashboard(),
     staleTime: 60_000,
   });
-  const { data: failed = [] } = useQuery({
+  const { data: failed = [], isError: failedError } = useQuery({
     queryKey: KEYS.failed(),
     queryFn: () => settlementApi.getFailedSettlements(),
     staleTime: 30_000,
@@ -164,14 +184,19 @@ export function SettlementPage() {
         subtitle="Settlement instructions, batching, failed settlement management, and analytics"
       />
       <div className="page-container space-y-6">
+        {(dashError || failedError) && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            One or more settlement datasets could not be loaded from the backend.
+          </div>
+        )}
         {/* Real-time dashboard strip */}
         <SettlementDashboardStrip data={dashData} isLoading={!dashData} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Today" value={dashData?.totalToday ?? 0} format="number" icon={BarChart3} />
-          <StatCard label="Settled" value={dashData?.settled ?? 0} format="number" icon={CheckCircle2} />
-          <StatCard label="Pending" value={dashData?.pending ?? 0} format="number" icon={Clock} />
-          <StatCard label="Failed" value={dashData?.failed ?? 0} format="number" icon={AlertTriangle} />
+          <StatCard label="Total Today" value={dashError ? '--' : dashData?.totalToday ?? 0} format="number" icon={BarChart3} />
+          <StatCard label="Settled" value={dashError ? '--' : dashData?.settled ?? 0} format="number" icon={CheckCircle2} />
+          <StatCard label="Pending" value={dashError ? '--' : dashData?.pending ?? 0} format="number" icon={Clock} />
+          <StatCard label="Failed" value={dashError ? '--' : dashData?.failed ?? 0} format="number" icon={AlertTriangle} />
         </div>
 
         <div className="card overflow-hidden">
