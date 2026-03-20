@@ -12,8 +12,9 @@ export interface User {
 }
 
 export interface LoginRequest {
-  username: string;
-  password: string;
+  username?: string;
+  password?: string;
+  returnTo?: string;
 }
 
 export interface LoginResponse {
@@ -34,6 +35,11 @@ export interface RefreshResponse {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
+}
+
+export interface AuthorizationCodeCallbackRequest {
+  code: string;
+  state: string;
 }
 
 export interface ForgotPasswordRequest {

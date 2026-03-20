@@ -158,6 +158,16 @@ export const navigationItems: NavSection[] = [
         ],
       },
       {
+        label: 'Custody & Settlement', icon: Shield, path: '/custody', roles: ['CBS_ADMIN', 'TREASURY'],
+        children: [
+          { label: 'Overview', path: '/custody' },
+          { label: 'Settlements', path: '/custody/settlements' },
+          { label: 'Fails', path: '/custody/fails' },
+          { label: 'Positions', path: '/custody/positions' },
+          { label: 'Counterparties', path: '/custody/counterparties' },
+        ],
+      },
+      {
         label: 'ALM', icon: Activity, path: '/alm', roles: ['CBS_ADMIN', 'TREASURY', 'RISK_OFFICER'],
         children: [
           { label: 'Dashboard', path: '/alm' },

@@ -117,13 +117,109 @@ export function useCustomerSegments() {
   });
 }
 
+export function useSegmentDetail(code: string) {
+  return useQuery({
+    queryKey: ['customers', 'segments', code],
+    queryFn: () => customerApi.getSegmentDetail(code),
+    enabled: !!code,
+    staleTime: 60_000,
+  });
+}
+
+export function useSegmentCustomers(code: string, params?: { page?: number; size?: number }) {
+  return useQuery({
+    queryKey: ['customers', 'segments', code, 'customers', params],
+    queryFn: () => customerApi.getSegmentCustomers(code, params),
+    enabled: !!code,
+    staleTime: 30_000,
+  });
+}
+
+export function useSegmentAnalytics() {
+  return useQuery({
+    queryKey: ['customers', 'segments', 'analytics'],
+    queryFn: () => customerApi.getSegmentAnalytics(),
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateSegment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('../types/customer').CreateSegmentPayload) => customerApi.createSegment(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['customers', 'segments'] }); },
+  });
+}
+
+export function useUpdateSegment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, ...data }: { code: string } & Partial<import('../types/customer').CreateSegmentPayload>) =>
+      customerApi.updateSegment(code, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['customers', 'segments'] }); },
+  });
+}
+
 export function useKycDecide() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ customerId, decision, notes }: { customerId: number; decision: 'approve' | 'reject' | 'request_docs'; notes?: string }) =>
-      customerApi.kycDecide(customerId, decision, notes),
+    mutationFn: ({ customerId, decision, notes, riskRating }: { customerId: number; decision: string; notes?: string; riskRating?: string }) =>
+      customerApi.kycDecide(customerId, decision, notes, riskRating),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kyc'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
+    },
+  });
+}
+
+export function useKycVerifyDocument() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, documentId, decision, reason }: { customerId: number; documentId: number; decision: 'VERIFIED' | 'REJECTED'; reason?: string }) =>
+      customerApi.kycVerifyDocument(customerId, documentId, decision, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kyc'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers.all });
+    },
+  });
+}
+
+export function useUploadIdentification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, data, file }: {
+      customerId: number;
+      data: { idType: string; idNumber: string; issueDate?: string; expiryDate?: string; issuingAuthority?: string; issuingCountry?: string };
+      file?: File;
+    }) => customerApi.uploadIdentification(customerId, data, file),
+    onSuccess: (_data, { customerId }) => {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.customers.detail(customerId), 'documents'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) });
+    },
+  });
+}
+
+export function useVerifyIdentification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, docId, decision, reason }: {
+      customerId: number; docId: number; decision: 'VERIFIED' | 'REJECTED'; reason?: string;
+    }) => customerApi.verifyIdentification(customerId, docId, decision, reason),
+    onSuccess: (_data, { customerId }) => {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.customers.detail(customerId), 'documents'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) });
+    },
+  });
+}
+
+export function useDeleteIdentification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, docId }: { customerId: number; docId: number }) =>
+      customerApi.deleteIdentification(customerId, docId),
+    onSuccess: (_data, { customerId }) => {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.customers.detail(customerId), 'documents'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) });
     },
   });
 }

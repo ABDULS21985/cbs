@@ -7,10 +7,14 @@ import com.cbs.card.service.CardService;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.customer.dto.*;
+import com.cbs.customer.entity.Customer;
+import com.cbs.customer.entity.CustomerIdentification;
 import com.cbs.customer.entity.CustomerStatus;
 import com.cbs.customer.entity.CustomerType;
 import com.cbs.customer.entity.RiskRating;
+import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.customer.service.CustomerService;
+import lombok.extern.slf4j.Slf4j;
 import com.cbs.lending.entity.LoanAccount;
 import com.cbs.segmentation.entity.Segment;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,10 +37,12 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/customers")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Customer Management", description = "360° Customer View, Onboarding, eKYC, and Account Structures")
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final CustomerRepository customerRepository;
     private final CardService cardService;
 
     // ========================================================================
@@ -389,6 +395,67 @@ public class CustomerController {
         return ResponseEntity.ok(ApiResponse.ok(segments));
     }
 
+    @PostMapping("/{id}/kyc/decide")
+    @Operation(summary = "Make KYC decision: approve, reject, or request additional documents")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> kycDecide(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", id));
+        String decision = body.getOrDefault("decision", "").toUpperCase();
+        String notes = body.getOrDefault("notes", "");
+        String riskRating = body.get("riskRating");
+
+        switch (decision) {
+            case "APPROVE":
+                customer.setStatus(CustomerStatus.ACTIVE);
+                if (riskRating != null) { try { customer.setRiskRating(RiskRating.valueOf(riskRating)); } catch (Exception ignored) {} }
+                // Mark all identifications as verified
+                customer.getIdentifications().forEach(id2 -> id2.setIsVerified(true));
+                break;
+            case "REJECT":
+                customer.setStatus(CustomerStatus.SUSPENDED);
+                break;
+            case "REQUEST_DOCUMENTS":
+                // Status stays as-is; notes communicate what's needed
+                break;
+            default:
+                return ResponseEntity.badRequest().body(ApiResponse.error("Invalid decision: " + decision));
+        }
+
+        customerRepository.save(customer);
+        log.info("KYC decision: customerId={}, decision={}, notes={}", id, decision, notes);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "decision", decision, "status", customer.getStatus().name())));
+    }
+
+    @PostMapping("/{id}/kyc/verify-document")
+    @Operation(summary = "Verify or reject a single identification document")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> kycVerifyDocument(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", id));
+        Number docId = (Number) body.get("documentId");
+        String decision = String.valueOf(body.getOrDefault("decision", "VERIFIED")).toUpperCase();
+        String reason = String.valueOf(body.getOrDefault("reason", ""));
+
+        CustomerIdentification doc = customer.getIdentifications().stream()
+                .filter(d -> d.getId().equals(docId.longValue()))
+                .findFirst()
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Identification", "id", docId));
+
+        doc.setIsVerified("VERIFIED".equals(decision));
+        if ("VERIFIED".equals(decision)) {
+            doc.setVerifiedAt(java.time.Instant.now());
+        }
+
+        customerRepository.save(customer);
+        log.info("Document verification: customerId={}, docId={}, decision={}", id, docId, decision);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("documentId", docId, "decision", decision, "reason", reason)));
+    }
+
     @PostMapping("/verify-bvn")
     @Operation(summary = "BVN verification (delegates to KYC verify with idType=BVN)")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -396,5 +463,53 @@ public class CustomerController {
             @Valid @RequestBody BvnVerificationRequest request) {
         KycVerificationResponse response = customerService.verifyBvnIdentification(request);
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    // ── Onboarding Drafts ───────────────────────────────────────────────────
+
+    private final com.cbs.customer.repository.OnboardingDraftRepository draftRepository;
+
+    @PostMapping("/drafts")
+    @Operation(summary = "Save onboarding draft")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<com.cbs.customer.entity.OnboardingDraft>> saveDraft(
+            @RequestBody com.cbs.customer.entity.OnboardingDraft draft) {
+        if (draft.getId() != null) {
+            com.cbs.customer.entity.OnboardingDraft existing = draftRepository.findById(draft.getId()).orElse(null);
+            if (existing != null) {
+                existing.setFormData(draft.getFormData());
+                existing.setCurrentStep(draft.getCurrentStep());
+                existing.setCustomerType(draft.getCustomerType());
+                existing.setDisplayLabel(draft.getDisplayLabel());
+                existing.setUpdatedAt(java.time.Instant.now());
+                return ResponseEntity.ok(ApiResponse.ok(draftRepository.save(existing)));
+            }
+        }
+        draft.setCreatedAt(java.time.Instant.now());
+        draft.setUpdatedAt(java.time.Instant.now());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(draftRepository.save(draft)));
+    }
+
+    @GetMapping("/drafts/{id}")
+    @Operation(summary = "Get draft by ID")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<com.cbs.customer.entity.OnboardingDraft>> getDraft(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(draftRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Draft not found: " + id))));
+    }
+
+    @GetMapping("/drafts")
+    @Operation(summary = "List user's drafts")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.List<com.cbs.customer.entity.OnboardingDraft>>> listDrafts() {
+        return ResponseEntity.ok(ApiResponse.ok(draftRepository.findByCreatedByOrderByUpdatedAtDesc("SYSTEM")));
+    }
+
+    @DeleteMapping("/drafts/{id}")
+    @Operation(summary = "Delete draft")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, String>>> deleteDraft(@PathVariable Long id) {
+        draftRepository.deleteById(id);
+        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("deleted", id.toString())));
     }
 }

@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/authStore';
 
 // Mock authApi to avoid axios interceptor side effects (401 → refresh loop)
 const mockLogin = vi.fn();
+const mockExchangeAuthorizationCode = vi.fn();
 const mockVerifyMfa = vi.fn();
 const mockRefresh = vi.fn();
 const mockLogout = vi.fn();
@@ -10,6 +11,7 @@ const mockLogout = vi.fn();
 vi.mock('@/features/auth/api/authApi', () => ({
   authApi: {
     login: (...args: unknown[]) => mockLogin(...args),
+    exchangeAuthorizationCode: (...args: unknown[]) => mockExchangeAuthorizationCode(...args),
     verifyMfa: (...args: unknown[]) => mockVerifyMfa(...args),
     refresh: (...args: unknown[]) => mockRefresh(...args),
     logout: (...args: unknown[]) => mockLogout(...args),
@@ -28,6 +30,7 @@ function resetStore() {
     refreshTokenValue: null,
     isAuthenticated: false,
     isLoading: false,
+    hasInitialized: false,
     mfaRequired: false,
     mfaSessionToken: null,
     tokenExpiresAt: null,
@@ -53,39 +56,24 @@ describe('Authentication Tests', () => {
     vi.clearAllMocks();
   });
 
-  // T6-AUTH-01: Login with valid credentials → JWT issued → stored in memory
-  describe('T6-AUTH-01: Valid login flow', () => {
-    it('should authenticate and store JWT in Zustand (memory) on valid credentials', async () => {
-      mockLogin.mockResolvedValueOnce({
-        accessToken: 'jwt-access-token-xyz',
-        refreshToken: 'jwt-refresh-token-abc',
-        mfaRequired: false,
-        expiresIn: 3600,
-        user: validUser,
-      });
+  // T6-AUTH-01: Hosted login initiation with Authorization Code + PKCE
+  describe('T6-AUTH-01: Hosted login flow', () => {
+    it('should initiate hosted sign-in and leave the store unauthenticated until callback completes', async () => {
+      mockLogin.mockResolvedValueOnce(undefined);
 
-      await useAuthStore.getState().login('admin', 'correct');
+      await useAuthStore.getState().login('admin', undefined, '/dashboard');
 
       const state = useAuthStore.getState();
-      expect(state.isAuthenticated).toBe(true);
-      expect(state.accessToken).toBe('jwt-access-token-xyz');
-      expect(state.refreshTokenValue).toBe('jwt-refresh-token-abc');
-      expect(state.user).toBeTruthy();
-      expect(state.user?.username).toBe('admin');
-      expect(state.user?.roles).toContain('CBS_ADMIN');
-      expect(state.tokenExpiresAt).toBeGreaterThan(Date.now());
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.accessToken).toBeNull();
+      expect(state.refreshTokenValue).toBeNull();
+      expect(mockLogin).toHaveBeenCalledWith({ username: 'admin', returnTo: '/dashboard' });
     });
 
     it('should NOT store JWT in localStorage', async () => {
-      mockLogin.mockResolvedValueOnce({
-        accessToken: 'jwt-access-token-xyz',
-        refreshToken: 'jwt-refresh-token-abc',
-        mfaRequired: false,
-        expiresIn: 3600,
-        user: validUser,
-      });
+      mockLogin.mockResolvedValueOnce(undefined);
 
-      await useAuthStore.getState().login('admin', 'correct');
+      await useAuthStore.getState().login('admin', undefined, '/dashboard');
 
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)!;
@@ -95,16 +83,10 @@ describe('Authentication Tests', () => {
       }
     });
 
-    it('should NOT store JWT in sessionStorage', async () => {
-      mockLogin.mockResolvedValueOnce({
-        accessToken: 'jwt-access-token-xyz',
-        refreshToken: 'jwt-refresh-token-abc',
-        mfaRequired: false,
-        expiresIn: 3600,
-        user: validUser,
-      });
+    it('should NOT store token values in sessionStorage during login initiation', async () => {
+      mockLogin.mockResolvedValueOnce(undefined);
 
-      await useAuthStore.getState().login('admin', 'correct');
+      await useAuthStore.getState().login('admin', undefined, '/dashboard');
 
       for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i)!;
@@ -113,53 +95,52 @@ describe('Authentication Tests', () => {
         expect(value).not.toContain('jwt-refresh-token');
       }
     });
+  });
 
-    it('should calculate tokenExpiresAt from expiresIn', async () => {
-      const before = Date.now();
-
-      mockLogin.mockResolvedValueOnce({
+  // T6-AUTH-02: Authorization callback completion
+  describe('T6-AUTH-02: Authorization callback flow', () => {
+    it('should exchange the authorization code and authenticate the session', async () => {
+      mockExchangeAuthorizationCode.mockResolvedValueOnce({
         accessToken: 'jwt-token',
         refreshToken: 'jwt-refresh',
         mfaRequired: false,
         expiresIn: 3600,
         user: validUser,
+        returnTo: '/dashboard',
       });
 
-      await useAuthStore.getState().login('admin', 'correct');
-
-      const after = Date.now();
-      const expiresAt = useAuthStore.getState().tokenExpiresAt!;
-      expect(expiresAt).toBeGreaterThanOrEqual(before + 3600 * 1000);
-      expect(expiresAt).toBeLessThanOrEqual(after + 3600 * 1000);
-    });
-  });
-
-  // T6-AUTH-02: Login with invalid credentials
-  describe('T6-AUTH-02: Invalid credentials', () => {
-    it('should throw error and leave store unauthenticated', async () => {
-      mockLogin.mockRejectedValueOnce(new Error('Invalid username or password.'));
-
-      await expect(useAuthStore.getState().login('wrong', 'wrong')).rejects.toThrow(
-        'Invalid username or password.',
-      );
+      await useAuthStore.getState().completeLogin({ code: 'auth-code', state: 'state-123' });
 
       const state = useAuthStore.getState();
-      expect(state.isAuthenticated).toBe(false);
-      expect(state.accessToken).toBeNull();
-      expect(state.user).toBeNull();
-      expect(state.isLoading).toBe(false);
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.accessToken).toBe('jwt-token');
+      expect(state.refreshTokenValue).toBe('jwt-refresh');
+      expect(state.user?.username).toBe('admin');
+      expect(state.tokenExpiresAt).toBeGreaterThan(Date.now());
+    });
+
+    it('should return to unauthenticated state if callback exchange fails', async () => {
+      mockExchangeAuthorizationCode.mockRejectedValueOnce(new Error('Sign-in validation failed.'));
+
+      await expect(
+        useAuthStore.getState().completeLogin({ code: 'bad-code', state: 'bad-state' }),
+      ).rejects.toThrow('Sign-in validation failed.');
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      expect(useAuthStore.getState().accessToken).toBeNull();
+      expect(useAuthStore.getState().isLoading).toBe(false);
     });
   });
 
-  // T6-AUTH-03: Login with locked account
-  describe('T6-AUTH-03: Locked account', () => {
-    it('should return account locked error', async () => {
+  // T6-AUTH-03 / T6-AUTH-04: Hosted login initiation failure
+  describe('T6-AUTH-03/04: Hosted login initiation failure', () => {
+    it('should throw if secure sign-in cannot be started', async () => {
       mockLogin.mockRejectedValueOnce(
-        new Error('Account is locked. Contact your administrator.'),
+        new Error('Unable to start secure sign-in.'),
       );
 
-      await expect(useAuthStore.getState().login('locked_user', 'pass')).rejects.toThrow(
-        'Account is locked',
+      await expect(useAuthStore.getState().login('admin')).rejects.toThrow(
+        'Unable to start secure sign-in.',
       );
 
       const state = useAuthStore.getState();
@@ -168,27 +149,8 @@ describe('Authentication Tests', () => {
     });
   });
 
-  // T6-AUTH-04 / T6-AUTH-05: MFA challenge
-  describe('T6-AUTH-04/05: MFA challenge flow', () => {
-    it('should set mfaRequired=true when backend requires MFA', async () => {
-      mockLogin.mockResolvedValueOnce({
-        accessToken: '',
-        refreshToken: '',
-        mfaRequired: true,
-        mfaSessionToken: 'mfa-session-token-123',
-        expiresIn: 0,
-        user: null,
-      });
-
-      await useAuthStore.getState().login('mfa_user', 'correct');
-
-      const state = useAuthStore.getState();
-      expect(state.mfaRequired).toBe(true);
-      expect(state.mfaSessionToken).toBe('mfa-session-token-123');
-      expect(state.isAuthenticated).toBe(false);
-      expect(state.accessToken).toBeNull();
-    });
-
+  // T6-AUTH-05: Legacy MFA challenge state handling
+  describe('T6-AUTH-05: MFA challenge flow', () => {
     it('should authenticate after successful MFA verification', async () => {
       useAuthStore.setState({
         mfaRequired: true,
@@ -309,14 +271,9 @@ describe('Authentication Tests', () => {
     });
   });
 
-  // T6-AUTH-11: Browser close → token gone (Zustand in-memory = not persisted)
-  describe('T6-AUTH-11: Token not persisted across sessions', () => {
-    it('should use Zustand without persist middleware (in-memory only)', () => {
-      useAuthStore.setState({
-        accessToken: 'some-token',
-        isAuthenticated: true,
-      });
-
+  // T6-AUTH-11: Token persistence is explicit and scoped to the current tab
+  describe('T6-AUTH-11: Token persistence model', () => {
+    it('should not use generic localStorage/sessionStorage auth persistence keys', () => {
       expect(localStorage.getItem('auth')).toBeNull();
       expect(localStorage.getItem('auth-storage')).toBeNull();
       expect(sessionStorage.getItem('auth')).toBeNull();
@@ -326,17 +283,11 @@ describe('Authentication Tests', () => {
 
   // Loading state management
   describe('Loading state management', () => {
-    it('should set isLoading=false after successful login', async () => {
-      mockLogin.mockResolvedValueOnce({
-        accessToken: 'token',
-        refreshToken: 'refresh',
-        mfaRequired: false,
-        expiresIn: 3600,
-        user: validUser,
-      });
+    it('should keep isLoading=true after hosted login is initiated', async () => {
+      mockLogin.mockResolvedValueOnce(undefined);
 
-      await useAuthStore.getState().login('admin', 'correct');
-      expect(useAuthStore.getState().isLoading).toBe(false);
+      await useAuthStore.getState().login('admin');
+      expect(useAuthStore.getState().isLoading).toBe(true);
     });
 
     it('should set isLoading=false after login failure', async () => {
@@ -357,18 +308,12 @@ describe('Authentication Tests', () => {
 
   // Login call validation
   describe('Login API call validation', () => {
-    it('should pass username and password to authApi.login', async () => {
-      mockLogin.mockResolvedValueOnce({
-        accessToken: 'token',
-        refreshToken: 'refresh',
-        mfaRequired: false,
-        expiresIn: 3600,
-        user: validUser,
-      });
+    it('should pass username and returnTo to authApi.login', async () => {
+      mockLogin.mockResolvedValueOnce(undefined);
 
-      await useAuthStore.getState().login('testuser', 'testpass');
+      await useAuthStore.getState().login('testuser', undefined, '/customers');
 
-      expect(mockLogin).toHaveBeenCalledWith({ username: 'testuser', password: 'testpass' });
+      expect(mockLogin).toHaveBeenCalledWith({ username: 'testuser', returnTo: '/customers' });
     });
   });
 });

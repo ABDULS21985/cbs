@@ -232,7 +232,7 @@ export interface CustomerDocument {
   documentType: string;
   documentName: string;
   documentNumber: string;
-  status: 'VERIFIED' | 'PENDING' | 'EXPIRED';
+  status: 'VERIFIED' | 'PENDING' | 'EXPIRED' | 'REJECTED';
   uploadedAt?: string | null;
   expiryDate?: string | null;
   url?: string | null;
@@ -342,6 +342,51 @@ export interface CustomerSegment {
   icon?: string | null;
 }
 
+export interface SegmentRule {
+  field: string;
+  operator: string;
+  value: string;
+}
+
+export interface SegmentDetail extends CustomerSegment {
+  rules: SegmentRule[];
+  customerCount: number;
+  totalBalance: number;
+  avgBalance: number;
+}
+
+export interface SegmentAnalytics {
+  code: string;
+  name: string;
+  colorCode: string | null;
+  customerCount: number;
+  totalBalance: number;
+  avgBalance: number;
+}
+
+export interface SegmentCustomer {
+  id: number;
+  customerNumber: string;
+  firstName: string;
+  lastName: string;
+  customerType: string;
+  status: string;
+  totalBalance: number;
+  productCount: number;
+  riskRating: string;
+  memberSince: string;
+}
+
+export interface CreateSegmentPayload {
+  code: string;
+  name: string;
+  description?: string;
+  segmentType: string;
+  priority: number;
+  colorCode?: string;
+  rules?: SegmentRule[];
+}
+
 export interface BvnVerifyResult {
   status: 'VERIFIED' | 'FAILED' | 'PENDING' | 'EXPIRED_DOCUMENT' | 'MISMATCH';
   verificationProvider?: string | null;
@@ -355,4 +400,66 @@ export interface KycStats {
   verified: number;
   expired: number;
   pending: number;
+}
+
+// ── Customer 360 Intelligence Types ─────────────────────────────────────────
+
+export interface HealthScoreFactor {
+  name: string;
+  score: number;
+  weight: number;
+  weightedScore: number;
+  description: string;
+}
+
+export interface HealthScore {
+  totalScore: number;
+  grade: 'EXCELLENT' | 'GOOD' | 'NEEDS_ATTENTION' | 'AT_RISK';
+  factors: HealthScoreFactor[];
+  computedAt: string;
+}
+
+export interface ProductRecommendation {
+  id: string;
+  product: string;
+  reason: string;
+  potentialRevenue: number;
+  peerAdoptionPct: number;
+  actionLabel: string;
+  icon: string;
+  priority: number;
+}
+
+export interface TimelineEvent {
+  id: string;
+  eventType: string;
+  module: string;
+  title: string;
+  description: string;
+  amount?: number;
+  currency?: string;
+  status?: string;
+  timestamp: string;
+  referenceId?: string;
+}
+
+export interface RelationshipNode {
+  id: number;
+  name: string;
+  type: string;
+  isPep: boolean;
+  isSanctioned: boolean;
+  riskRating: string;
+}
+
+export interface RelationshipEdge {
+  source: number;
+  target: number;
+  relationshipType: string;
+  ownershipPct?: number;
+}
+
+export interface RelationshipGraphData {
+  nodes: RelationshipNode[];
+  edges: RelationshipEdge[];
 }

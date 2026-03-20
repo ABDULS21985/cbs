@@ -7,6 +7,7 @@ import { act } from '@testing-library/react';
 vi.mock('@/features/auth/api/authApi', () => ({
   authApi: {
     login: vi.fn(),
+    exchangeAuthorizationCode: vi.fn(),
     verifyMfa: vi.fn(),
     refresh: vi.fn(),
     logout: vi.fn(),
@@ -22,6 +23,7 @@ import { authApi } from '@/features/auth/api/authApi';
 // ---------------------------------------------------------------------------
 const mockAuthApi = authApi as {
   login: ReturnType<typeof vi.fn>;
+  exchangeAuthorizationCode: ReturnType<typeof vi.fn>;
   verifyMfa: ReturnType<typeof vi.fn>;
   refresh: ReturnType<typeof vi.fn>;
   logout: ReturnType<typeof vi.fn>;
@@ -117,82 +119,33 @@ describe('authStore', () => {
   // login()
   // -------------------------------------------------------------------------
   describe('login()', () => {
-    it('sets isAuthenticated, accessToken, and user on successful login', async () => {
-      mockAuthApi.login.mockResolvedValue(MOCK_TOKEN_RESPONSE);
+    it('starts hosted login with the provided username hint and return path', async () => {
+      mockAuthApi.login.mockResolvedValue(undefined);
 
       await act(async () => {
-        await getState().login('jane.doe', 'password123');
+        await getState().login('jane.doe', undefined, '/customers');
       });
 
-      const state = getState();
-      expect(state.isAuthenticated).toBe(true);
-      expect(state.accessToken).toBe('access-abc123');
-      expect(state.user).toEqual(MOCK_USER);
-    });
-
-    it('sets refreshTokenValue on successful login', async () => {
-      mockAuthApi.login.mockResolvedValue(MOCK_TOKEN_RESPONSE);
-
-      await act(async () => {
-        await getState().login('jane.doe', 'password123');
-      });
-
-      expect(getState().refreshTokenValue).toBe('refresh-xyz789');
-    });
-
-    it('calls authApi.login with the provided credentials', async () => {
-      mockAuthApi.login.mockResolvedValue(MOCK_TOKEN_RESPONSE);
-
-      await act(async () => {
-        await getState().login('jane.doe', 'secret');
-      });
-
-      expect(mockAuthApi.login).toHaveBeenCalledWith({ username: 'jane.doe', password: 'secret' });
-    });
-
-    it('sets mfaRequired=true when server indicates MFA is needed', async () => {
-      mockAuthApi.login.mockResolvedValue({
-        mfaRequired: true,
-        mfaSessionToken: 'mfa-session-tok',
-      });
-
-      await act(async () => {
-        await getState().login('jane.doe', 'password');
-      });
-
-      const state = getState();
-      expect(state.mfaRequired).toBe(true);
-      expect(state.mfaSessionToken).toBe('mfa-session-tok');
-      expect(state.isAuthenticated).toBe(false);
-    });
-
-    it('does not authenticate when MFA is required', async () => {
-      mockAuthApi.login.mockResolvedValue({ mfaRequired: true, mfaSessionToken: 'tok' });
-
-      await act(async () => {
-        await getState().login('jane.doe', 'password');
-      });
-
+      expect(mockAuthApi.login).toHaveBeenCalledWith({ username: 'jane.doe', returnTo: '/customers' });
       expect(getState().isAuthenticated).toBe(false);
-      expect(getState().accessToken).toBeNull();
     });
 
-    it('resets isLoading to false after successful login', async () => {
-      mockAuthApi.login.mockResolvedValue(MOCK_TOKEN_RESPONSE);
+    it('keeps loading true after redirect-based login is initiated', async () => {
+      mockAuthApi.login.mockResolvedValue(undefined);
 
       await act(async () => {
-        await getState().login('jane.doe', 'password');
+        await getState().login('jane.doe');
       });
 
-      expect(getState().isLoading).toBe(false);
+      expect(getState().isLoading).toBe(true);
     });
 
     it('resets isLoading to false after failed login', async () => {
-      mockAuthApi.login.mockRejectedValue(new Error('Invalid credentials'));
+      mockAuthApi.login.mockRejectedValue(new Error('Unable to start secure sign-in.'));
 
       await act(async () => {
         try {
-          await getState().login('jane.doe', 'wrongpass');
+          await getState().login('jane.doe');
         } catch {
           // expected
         }
@@ -200,15 +153,54 @@ describe('authStore', () => {
 
       expect(getState().isLoading).toBe(false);
     });
+  });
 
-    it('throws or rejects on login failure', async () => {
-      mockAuthApi.login.mockRejectedValue(new Error('Invalid credentials'));
+  // -------------------------------------------------------------------------
+  // completeLogin()
+  // -------------------------------------------------------------------------
+  describe('completeLogin()', () => {
+    it('authenticates successfully after authorization code exchange', async () => {
+      mockAuthApi.exchangeAuthorizationCode.mockResolvedValue({
+        ...MOCK_TOKEN_RESPONSE,
+        returnTo: '/dashboard',
+      });
+
+      await act(async () => {
+        await getState().completeLogin({ code: 'auth-code', state: 'state-123' });
+      });
+
+      const state = getState();
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.accessToken).toBe('access-abc123');
+      expect(state.user).toEqual(MOCK_USER);
+      expect(state.refreshTokenValue).toBe('refresh-xyz789');
+    });
+
+    it('returns the requested post-login path after completing login', async () => {
+      mockAuthApi.exchangeAuthorizationCode.mockResolvedValue({
+        ...MOCK_TOKEN_RESPONSE,
+        returnTo: '/customers/42',
+      });
+
+      let returnTo = '';
+      await act(async () => {
+        returnTo = await getState().completeLogin({ code: 'auth-code', state: 'state-123' });
+      });
+
+      expect(returnTo).toBe('/customers/42');
+    });
+
+    it('throws or rejects on callback exchange failure', async () => {
+      mockAuthApi.exchangeAuthorizationCode.mockRejectedValue(new Error('Sign-in validation failed.'));
 
       await expect(
         act(async () => {
-          await getState().login('jane.doe', 'wrong');
+          await getState().completeLogin({ code: 'bad-code', state: 'state-123' });
         })
       ).rejects.toThrow();
+
+      expect(getState().isAuthenticated).toBe(false);
+      expect(getState().isLoading).toBe(false);
     });
   });
 

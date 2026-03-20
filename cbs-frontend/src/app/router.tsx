@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { LoginPage } from '@/features/auth/pages/LoginPage';
+import { AuthCallbackPage } from '@/features/auth/pages/AuthCallbackPage';
 import { MfaChallengePage } from '@/features/auth/pages/MfaChallengePage';
 import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage';
@@ -16,8 +17,10 @@ import CustomerListPage from '@/features/customers/pages/CustomerListPage';
 import Customer360Page from '@/features/customers/pages/Customer360Page';
 import OnboardingWizardPage from '@/features/customers/pages/OnboardingWizardPage';
 import KycDashboardPage from '@/features/customers/pages/KycDashboardPage';
+import { KycReviewPage } from '@/features/customers/pages/KycReviewPage';
 import SegmentationPage from '@/features/customers/pages/SegmentationPage';
 import { ForbiddenPage } from '@/pages/ForbiddenPage';
+// Lazy-loaded customer pages are in lazyRoutes.ts
 import { NotFoundPage as NotFoundPageFull } from '@/pages/NotFoundPage';
 import { ServerErrorPage } from '@/pages/ServerErrorPage';
 import {
@@ -60,6 +63,7 @@ import {
   FeeScheduleListPage,
   FinancialReportsPage,
   FixedDepositDetailPage,
+  SegmentDetailPage,
   FixedDepositListPage,
   FixedIncomePage,
   FraudManagementPage,
@@ -196,6 +200,15 @@ import {
   AlcoReportPage,
   RegulatorySubmissionPage,
   CustodySettlementPage,
+  CustodyHubPage,
+  SecuritiesFailsPage,
+  FailDetailPage,
+  CustodyPositionsPage,
+  CustodyPositionDetailPage,
+  CounterpartyPage,
+  CounterpartyDetailPage,
+  CustodyValuationPage,
+  CustodyValuationRunPage,
   ChannelManagementPage,
   OpenBankingPage,
   MerchantAcquiringPage,
@@ -255,6 +268,7 @@ export function AppRouter() {
       <Routes>
         {/* Auth routes — no shell */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/mfa" element={<MfaChallengePage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -269,7 +283,9 @@ export function AppRouter() {
           <Route index element={<CustomerListPage />} />
           <Route path="onboarding" element={<OnboardingWizardPage />} />
           <Route path="kyc" element={<KycDashboardPage />} />
+          <Route path="kyc/:id" element={<KycReviewPage />} />
           <Route path="segments" element={<SegmentationPage />} />
+          <Route path="segments/:code" element={<SegmentDetailPage />} />
           <Route path=":id" element={<Customer360Page />} />
         </Route>
 
@@ -415,7 +431,16 @@ export function AppRouter() {
 
         {/* Custody */}
         <Route path="/custody" element={<Outlet />}>
-          <Route index element={<CustodySettlementPage />} />
+          <Route index element={<CustodyHubPage />} />
+          <Route path="settlements" element={<CustodySettlementPage />} />
+          <Route path="fails" element={<SecuritiesFailsPage />} />
+          <Route path="fails/:ref" element={<FailDetailPage />} />
+          <Route path="positions" element={<CustodyPositionsPage />} />
+          <Route path="positions/:positionId" element={<CustodyPositionDetailPage />} />
+          <Route path="counterparties" element={<CounterpartyPage />} />
+          <Route path="counterparties/:code" element={<CounterpartyDetailPage />} />
+          <Route path="valuations" element={<CustodyValuationPage />} />
+          <Route path="valuations/runs/:ref" element={<CustodyValuationRunPage />} />
         </Route>
 
         {/* Channels */}

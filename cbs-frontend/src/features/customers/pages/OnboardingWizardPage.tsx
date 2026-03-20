@@ -1,600 +1,413 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, CheckCircle } from 'lucide-react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import {
+  ArrowLeft, ArrowRight, Save, CheckCircle, Loader2, AlertTriangle,
+  FileText, Clock, Trash2, X, User, Building2,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { WizardStepper } from '../components/onboarding/WizardStepper';
 import { useOnboardingWizard } from '../hooks/useOnboardingWizard';
 import { customerApi } from '../api/customerApi';
 import type { OnboardingFormData } from '../types/customer';
 
 const STEP_LABELS = ['Type', 'Personal', 'Address', 'ID/KYC', 'BVN', 'Employment', 'Account', 'Review'];
+const fc = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
-// ── BVN Verification sub-component ──────────────────────────────────────────
-function BvnVerificationStep({
-  formData,
-  onNext,
-  onBack,
-}: {
-  formData: OnboardingFormData;
-  onNext: (data: Partial<OnboardingFormData>) => void;
-  onBack: () => void;
-}) {
-  const [bvn, setBvn] = useState(formData.bvn ?? '');
-  const [result, setResult] = useState<{ matched: boolean; status?: string; failureReason?: string | null; verificationProvider?: string | null } | null>(null);
-  const [verifying, setVerifying] = useState(false);
+// ── Nav Buttons ─────────────────────────────────────────────────────────────
 
-  const handleVerify = async () => {
-    if (bvn.length !== 11) return;
-    setVerifying(true);
-    try {
-      const data = await customerApi.verifyBvn(bvn, undefined, {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        dateOfBirth: formData.dateOfBirth,
-      });
-      setResult({
-        matched: data.status === 'VERIFIED',
-        status: data.status,
-        failureReason: data.failureReason ?? null,
-        verificationProvider: data.verificationProvider ?? null,
-      });
-    } catch (error) {
-      setResult({
-        matched: false,
-        status: 'FAILED',
-        failureReason: error instanceof Error ? error.message : 'BVN verification failed',
-      });
-    } finally {
-      setVerifying(false);
-    }
-  };
-
+function NavButtons({ onBack, onNext, nextLabel, nextDisabled, isFirst }: { onBack: () => void; onNext?: () => void; nextLabel?: string; nextDisabled?: boolean; isFirst?: boolean }) {
   return (
-    <div className="space-y-5">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          BVN (11 digits)
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            maxLength={11}
-            value={bvn}
-            onChange={e => setBvn(e.target.value.replace(/\D/g, ''))}
-            placeholder="00000000000"
-            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            type="button"
-            onClick={handleVerify}
-            disabled={bvn.length !== 11 || verifying}
-            className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {verifying ? 'Verifying…' : 'Verify BVN'}
-          </button>
-        </div>
-      </div>
-
-      {result && (
-        <div
-          className={`p-4 rounded-lg text-sm ${
-            result.matched
-              ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-              : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-          }`}
-        >
-          {result.matched ? (
-            <div>
-              <div className="font-semibold mb-1 flex items-center gap-1.5">
-                <CheckCircle className="h-4 w-4" /> BVN Verified Successfully
-              </div>
-              {result.verificationProvider && <div>Provider: {result.verificationProvider}</div>}
-            </div>
-          ) : (
-            <div>{result.failureReason || `BVN verification failed${result.status ? ` (${result.status})` : ''}`}</div>
-          )}
-        </div>
-      )}
-
-      <div className="flex justify-between pt-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-        >
+    <div className="flex justify-between pt-4">
+      {!isFirst ? (
+        <button type="button" onClick={onBack} className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
-        <button
-          type="button"
-          onClick={() => onNext({ bvn, bvnVerified: result?.matched ?? false })}
-          className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          {result?.matched ? 'Next' : 'Skip'} <ArrowRight className="h-4 w-4" />
+      ) : <div />}
+      {onNext ? (
+        <button type={onNext ? 'button' : 'submit'} onClick={onNext} disabled={nextDisabled}
+          className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+          {nextLabel || 'Next'} <ArrowRight className="h-4 w-4" />
         </button>
-      </div>
+      ) : (
+        <button type="submit" disabled={nextDisabled}
+          className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+          {nextLabel || 'Next'} <ArrowRight className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }
 
-// ── Review section helper ────────────────────────────────────────────────────
-function ReviewSection({
-  title,
-  items,
-  onEdit,
-}: {
-  title: string;
-  items: { label: string; value: string }[];
-  onEdit: () => void;
-}) {
+// ── Review Section ──────────────────────────────────────────────────────────
+
+function ReviewSection({ title, items, onEdit }: { title: string; items: { label: string; value: string }[]; onEdit: () => void }) {
   return (
     <div className="border rounded-lg p-4 space-y-2">
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{title}</h4>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-        >
-          Edit
-        </button>
+        <h4 className="text-sm font-semibold">{title}</h4>
+        <button type="button" onClick={onEdit} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Edit</button>
       </div>
       {items.map(({ label, value }) => (
         <div key={label} className="flex justify-between text-sm">
-          <span className="text-gray-500 dark:text-gray-400">{label}</span>
-          <span className="text-gray-900 dark:text-gray-100 font-medium">{value}</span>
+          <span className="text-muted-foreground">{label}</span>
+          <span className="font-medium">{value || '—'}</span>
         </div>
       ))}
     </div>
   );
 }
 
-// ── Main page ────────────────────────────────────────────────────────────────
+// ── Main ────────────────────────────────────────────────────────────────────
+
 export default function OnboardingWizardPage() {
+  useEffect(() => { document.title = 'New Customer | CBS'; }, []);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const wizard = useOnboardingWizard();
   const returnUrl = searchParams.get('returnUrl');
+  const [showDraftPicker, setShowDraftPicker] = useState(wizard.existingDrafts.length > 0 && wizard.currentStep === 1);
+  const [bvn, setBvn] = useState(wizard.formData.bvn ?? '');
+  const [bvnResult, setBvnResult] = useState<{ matched: boolean; status?: string; failureReason?: string | null } | null>(null);
+  const [bvnVerifying, setBvnVerifying] = useState(false);
+  const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
 
+  // Redirect on success
   useEffect(() => {
     if (wizard.isSubmitSuccess && wizard.submittedCustomer) {
       if (returnUrl) {
-        const separator = returnUrl.includes('?') ? '&' : '?';
-        navigate(`${returnUrl}${separator}customerId=${wizard.submittedCustomer.id}`);
-        return;
+        const sep = returnUrl.includes('?') ? '&' : '?';
+        navigate(`${returnUrl}${sep}customerId=${wizard.submittedCustomer.id}`);
       }
-
-      navigate(`/customers/${wizard.submittedCustomer.id}`);
     }
   }, [navigate, returnUrl, wizard.isSubmitSuccess, wizard.submittedCustomer]);
 
-  const renderStep = () => {
-    const { currentStep, formData, nextStep, prevStep, updateStep, goToStep, submit, saveDraft, isSubmitting } = wizard;
-    const isCorporateCustomer = formData.customerType === 'CORPORATE' || formData.customerType === 'SME';
+  // Show draft picker when drafts exist
+  useEffect(() => {
+    if (wizard.existingDrafts.length > 0 && wizard.currentStep === 1 && !wizard.draftId) {
+      setShowDraftPicker(true);
+    }
+  }, [wizard.existingDrafts, wizard.currentStep, wizard.draftId]);
 
+  const { currentStep, formData, nextStep, prevStep, updateStep, goToStep, submit, saveDraft, isSubmitting, getStepValidation, getValidationIssues } = wizard;
+  const isCorp = formData.customerType === 'CORPORATE' || formData.customerType === 'SME';
+
+  // BVN verification handler
+  const handleVerifyBvn = async () => {
+    if (bvn.length !== 11) return;
+    setBvnVerifying(true);
+    try {
+      const data = await customerApi.verifyBvn(bvn, undefined, { firstName: formData.firstName, lastName: formData.lastName, dateOfBirth: formData.dateOfBirth });
+      setBvnResult({ matched: data.status === 'VERIFIED', status: data.status, failureReason: data.failureReason ?? null });
+    } catch (e) {
+      setBvnResult({ matched: false, status: 'FAILED', failureReason: e instanceof Error ? e.message : 'Verification failed' });
+    } finally { setBvnVerifying(false); }
+  };
+
+  // Success state
+  if (wizard.isSubmitSuccess && wizard.submittedCustomer) {
+    return (
+      <div className="max-w-lg mx-auto py-16 text-center space-y-6">
+        <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto">
+          <CheckCircle className="w-8 h-8 text-green-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold mb-2">Customer Created Successfully!</h2>
+          <p className="text-sm text-muted-foreground">Customer ID: <span className="font-mono font-semibold">{wizard.submittedCustomer.id}</span></p>
+        </div>
+        <div className="flex gap-3 justify-center">
+          <Link to={`/customers/${wizard.submittedCustomer.id}`} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">View Customer</Link>
+          <Link to="/accounts/open" className="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-muted">Open Account</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const renderStep = () => {
     switch (currentStep) {
-      // ── Step 1: Customer Type ──────────────────────────────────────────────
       case 1:
         return (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {(['INDIVIDUAL', 'CORPORATE', 'SME'] as const).map(type => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => nextStep({ customerType: type })}
-                className={`p-6 border-2 rounded-xl text-left transition-all hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 ${
-                  formData.customerType === type
-                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                    : 'border-gray-200 dark:border-gray-700'
-                }`}
-              >
-                <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">{type}</div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {type === 'INDIVIDUAL' ? 'Personal banking for individuals' :
-                   type === 'CORPORATE' ? 'Business accounts for companies' :
-                   'Small & medium enterprise accounts'}
+              <button key={type} type="button" onClick={() => nextStep({ customerType: type })}
+                className={cn('p-6 border-2 rounded-xl text-left transition-all hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20',
+                  formData.customerType === type ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700')}>
+                <div className="flex items-center gap-2 mb-1">
+                  {type === 'INDIVIDUAL' ? <User className="w-5 h-5" /> : <Building2 className="w-5 h-5" />}
+                  <span className="text-base font-semibold">{type}</span>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {type === 'INDIVIDUAL' ? 'Personal banking' : type === 'CORPORATE' ? 'Business accounts' : 'SME accounts'}
                 </div>
               </button>
             ))}
           </div>
         );
 
-      // ── Step 2: Personal Info ──────────────────────────────────────────────
       case 2:
         return (
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              const fd = new FormData(e.target as HTMLFormElement);
-              nextStep(Object.fromEntries(fd.entries()) as Partial<OnboardingFormData>);
-            }}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-          >
-            {(isCorporateCustomer
-              ? [
-                  { name: 'registeredName', label: 'Registered Name *', type: 'text', required: true },
-                  { name: 'tradingName', label: 'Trading Name', type: 'text' },
-                  { name: 'registrationNumber', label: 'Registration Number', type: 'text' },
-                  { name: 'registrationDate', label: 'Registration Date', type: 'date' },
-                  { name: 'nationality', label: 'Country of Registration', type: 'text', required: true },
-                ]
-              : [
-                  { name: 'firstName', label: 'First Name *', type: 'text', required: true },
-                  { name: 'lastName', label: 'Last Name *', type: 'text', required: true },
-                  { name: 'middleName', label: 'Middle Name', type: 'text' },
-                  { name: 'dateOfBirth', label: 'Date of Birth *', type: 'date', required: true },
-                  { name: 'nationality', label: 'Nationality *', type: 'text', required: true },
-                ]).map((f) => (
+          <form onSubmit={e => { e.preventDefault(); const fd = new FormData(e.target as HTMLFormElement); nextStep(Object.fromEntries(fd.entries()) as Partial<OnboardingFormData>); }}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {(isCorp ? [
+              { name: 'registeredName', label: 'Registered Name *', type: 'text', required: true },
+              { name: 'tradingName', label: 'Trading Name', type: 'text' },
+              { name: 'registrationNumber', label: 'Registration Number *', type: 'text', required: true },
+              { name: 'registrationDate', label: 'Registration Date', type: 'date' },
+              { name: 'nationality', label: 'Country of Registration *', type: 'text', required: true },
+            ] : [
+              { name: 'firstName', label: 'First Name *', type: 'text', required: true },
+              { name: 'lastName', label: 'Last Name *', type: 'text', required: true },
+              { name: 'middleName', label: 'Middle Name', type: 'text' },
+              { name: 'dateOfBirth', label: 'Date of Birth *', type: 'date', required: true },
+              { name: 'nationality', label: 'Nationality *', type: 'text', required: true },
+            ]).map(f => (
               <div key={f.name} className="space-y-1">
-                <label htmlFor={f.name} className="block text-sm font-medium text-gray-700 dark:text-gray-300">{f.label}</label>
-                <input
-                  id={f.name}
-                  name={f.name}
-                  type={f.type}
-                  required={f.required}
-                  defaultValue={
-                    (formData[f.name as keyof OnboardingFormData] as string | undefined) ??
-                    (f.name === 'nationality' ? 'NGA' : '')
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <label htmlFor={f.name} className="block text-sm font-medium">{f.label}</label>
+                <input id={f.name} name={f.name} type={f.type} required={f.required}
+                  defaultValue={(formData[f.name as keyof OnboardingFormData] as string) ?? (f.name === 'nationality' ? 'NGA' : '')} className={fc} />
               </div>
             ))}
-            <div className="sm:col-span-2 flex justify-between pt-2">
-              <button type="button" onClick={prevStep} className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                <ArrowLeft className="h-4 w-4" /> Back
-              </button>
-              <button type="submit" className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Next <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+            <div className="sm:col-span-2"><NavButtons onBack={prevStep} /></div>
           </form>
         );
 
-      // ── Step 3: Address & Contact ──────────────────────────────────────────
       case 3:
         return (
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              const fd = new FormData(e.target as HTMLFormElement);
-              nextStep(Object.fromEntries(fd.entries()) as Partial<OnboardingFormData>);
-            }}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-          >
-            <div className="sm:col-span-2 space-y-1">
-              <label htmlFor="residentialAddress" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Residential Address *</label>
-              <input id="residentialAddress" name="residentialAddress" required defaultValue={formData.residentialAddress}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone Number *</label>
-              <input id="phone" name="phone" type="tel" required placeholder="+234…" defaultValue={formData.phone}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address *</label>
-              <input id="email" name="email" type="email" required defaultValue={formData.email}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="sm:col-span-2 flex justify-between pt-2">
-              <button type="button" onClick={prevStep} className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                <ArrowLeft className="h-4 w-4" /> Back
-              </button>
-              <button type="submit" className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Next <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+          <form onSubmit={e => { e.preventDefault(); const fd = new FormData(e.target as HTMLFormElement); nextStep(Object.fromEntries(fd.entries()) as Partial<OnboardingFormData>); }}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2 space-y-1"><label className="block text-sm font-medium">Residential Address *</label>
+              <input name="residentialAddress" required defaultValue={formData.residentialAddress} className={fc} /></div>
+            <div className="space-y-1"><label className="block text-sm font-medium">Phone *</label>
+              <input name="phone" type="tel" required placeholder="+234..." defaultValue={formData.phone} className={fc} /></div>
+            <div className="space-y-1"><label className="block text-sm font-medium">Email *</label>
+              <input name="email" type="email" required defaultValue={formData.email} className={fc} /></div>
+            <div className="sm:col-span-2"><NavButtons onBack={prevStep} /></div>
           </form>
         );
 
-      // ── Step 4: ID / KYC Docs ─────────────────────────────────────────────
       case 4:
         return (
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              const fd = new FormData(e.target as HTMLFormElement);
-              nextStep(Object.fromEntries(fd.entries()) as Partial<OnboardingFormData>);
-            }}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-          >
-            <div className="space-y-1">
-              <label htmlFor="idType" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {isCorporateCustomer ? 'KYC Document Type' : 'ID Type *'}
-              </label>
-              <select id="idType" name="idType" required={!isCorporateCustomer} defaultValue={formData.idType ?? ''}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">{isCorporateCustomer ? 'Select document type' : 'Select ID type'}</option>
-                {[
-                  'NIN',
-                  "Driver's License",
-                  'International Passport',
-                  "Voter's Card",
-                  'Certificate of Incorporation',
-                  'TIN Certificate',
-                ].map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="idNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {isCorporateCustomer ? 'Document Number' : 'ID Number *'}
-              </label>
-              <input id="idNumber" name="idNumber" required={!isCorporateCustomer} defaultValue={formData.idNumber}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="idExpiry" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {isCorporateCustomer ? 'Document Expiry Date' : 'ID Expiry Date'}
-              </label>
-              <input id="idExpiry" name="idExpiry" type="date" defaultValue={formData.idExpiry}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="sm:col-span-2 flex justify-between pt-2">
-              <button type="button" onClick={prevStep} className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                <ArrowLeft className="h-4 w-4" /> Back
-              </button>
-              <button type="submit" className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Next <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+          <form onSubmit={e => { e.preventDefault(); const fd = new FormData(e.target as HTMLFormElement); nextStep(Object.fromEntries(fd.entries()) as Partial<OnboardingFormData>); }}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1"><label className="block text-sm font-medium">{isCorp ? 'Document Type' : 'ID Type *'}</label>
+              <select name="idType" required={!isCorp} defaultValue={formData.idType ?? ''} className={fc}>
+                <option value="">Select</option>
+                {(isCorp ? ['Certificate of Incorporation', 'TIN Certificate', 'Board Resolution', 'Memorandum of Association']
+                  : ['NIN', "Driver's License", 'International Passport', "Voter's Card"]).map(t => <option key={t} value={t}>{t}</option>)}
+              </select></div>
+            <div className="space-y-1"><label className="block text-sm font-medium">{isCorp ? 'Document Number' : 'ID Number *'}</label>
+              <input name="idNumber" required={!isCorp} defaultValue={formData.idNumber} className={fc} /></div>
+            <div className="space-y-1"><label className="block text-sm font-medium">Expiry Date</label>
+              <input name="idExpiry" type="date" defaultValue={formData.idExpiry} className={fc} /></div>
+            <div className="sm:col-span-2"><NavButtons onBack={prevStep} /></div>
           </form>
         );
 
-      // ── Step 5: BVN ───────────────────────────────────────────────────────
       case 5:
-        return isCorporateCustomer ? (
+        if (isCorp) return (
           <div className="space-y-5">
             <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
-              BVN verification applies to individual customers only. Corporate KYC continues after supporting documents are reviewed.
+              BVN verification applies to individual customers only.
             </div>
-            <div className="flex justify-between pt-2">
-              <button
-                type="button"
-                onClick={prevStep}
-                className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back
-              </button>
-              <button
-                type="button"
-                onClick={() => nextStep({ bvn: undefined, bvnVerified: false })}
-                className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Next <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+            <NavButtons onBack={prevStep} onNext={() => nextStep({ bvn: undefined, bvnVerified: false })} />
           </div>
-        ) : (
-          <BvnVerificationStep
-            formData={formData}
-            onNext={nextStep}
-            onBack={prevStep}
-          />
+        );
+        return (
+          <div className="space-y-5">
+            <div><label className="block text-sm font-medium mb-1">BVN (11 digits)</label>
+              <div className="flex gap-2">
+                <input type="text" maxLength={11} value={bvn} onChange={e => setBvn(e.target.value.replace(/\D/g, ''))} placeholder="00000000000" className={cn(fc, 'flex-1 font-mono')} />
+                <button type="button" onClick={handleVerifyBvn} disabled={bvn.length !== 11 || bvnVerifying}
+                  className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                  {bvnVerifying ? 'Verifying…' : 'Verify BVN'}
+                </button>
+              </div>
+              {bvn.length > 0 && bvn.length !== 11 && <p className="text-xs text-red-600 mt-1">BVN must be exactly 11 digits ({bvn.length}/11)</p>}
+            </div>
+            {bvnResult && (
+              <div className={cn('p-4 rounded-lg text-sm', bvnResult.matched ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400')}>
+                {bvnResult.matched ? <div className="flex items-center gap-1.5 font-semibold"><CheckCircle className="h-4 w-4" /> BVN Verified</div>
+                  : <div>{bvnResult.failureReason || 'BVN verification failed'}</div>}
+              </div>
+            )}
+            <NavButtons onBack={prevStep} onNext={() => nextStep({ bvn, bvnVerified: bvnResult?.matched ?? false })} nextLabel={bvnResult?.matched ? 'Next' : 'Skip'} />
+          </div>
         );
 
-      // ── Step 6: Employment ────────────────────────────────────────────────
       case 6:
+        if (isCorp) return (
+          <form onSubmit={e => { e.preventDefault(); const fd = new FormData(e.target as HTMLFormElement); nextStep(Object.fromEntries(fd.entries()) as Partial<OnboardingFormData>); }}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2 space-y-1"><label className="block text-sm font-medium">Business Activity</label>
+              <textarea name="businessActivity" rows={2} defaultValue={(formData as Record<string, unknown>).businessActivity as string ?? ''} className={fc} /></div>
+            <div className="space-y-1"><label className="block text-sm font-medium">Number of Employees</label>
+              <select name="employeeRange" defaultValue={(formData as Record<string, unknown>).employeeRange as string ?? ''} className={fc}>
+                <option value="">Select</option>{['1-10', '11-50', '51-200', '201-500', '500+'].map(r => <option key={r} value={r}>{r}</option>)}
+              </select></div>
+            <div className="space-y-1"><label className="block text-sm font-medium">Expected Monthly Turnover</label>
+              <select name="monthlyIncomeRange" defaultValue={formData.monthlyIncomeRange ?? ''} className={fc}>
+                <option value="">Select</option>{[['BELOW_50K', 'Below ₦50K'], ['50K_200K', '₦50K–₦200K'], ['200K_500K', '₦200K–₦500K'], ['500K_1M', '₦500K–₦1M'], ['ABOVE_1M', 'Above ₦1M']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select></div>
+            <div className="space-y-1"><label className="block text-sm font-medium">Source of Funds</label>
+              <select name="sourceOfFunds" defaultValue={formData.sourceOfFunds ?? ''} className={fc}>
+                <option value="">Select</option>{['BUSINESS_REVENUE', 'GRANTS', 'INVESTMENTS', 'LOANS'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+              </select></div>
+            <div className="sm:col-span-2"><NavButtons onBack={prevStep} /></div>
+          </form>
+        );
         return (
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              const fd = new FormData(e.target as HTMLFormElement);
-              nextStep(Object.fromEntries(fd.entries()) as Partial<OnboardingFormData>);
-            }}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-          >
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Employment Status</label>
-              <select name="employmentStatus" defaultValue={formData.employmentStatus ?? ''}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select status</option>
-                {['EMPLOYED', 'SELF_EMPLOYED', 'RETIRED', 'STUDENT', 'UNEMPLOYED'].map(s => (
-                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Employer Name</label>
-              <input name="employerName" defaultValue={formData.employerName}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Job Title</label>
-              <input name="jobTitle" defaultValue={formData.jobTitle}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Income Range</label>
-              <select name="monthlyIncomeRange" defaultValue={formData.monthlyIncomeRange ?? ''}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select range</option>
-                {[
-                  ['BELOW_50K', 'Below ₦50,000'],
-                  ['50K_200K', '₦50,000 – ₦200,000'],
-                  ['200K_500K', '₦200,000 – ₦500,000'],
-                  ['500K_1M', '₦500,000 – ₦1,000,000'],
-                  ['ABOVE_1M', 'Above ₦1,000,000'],
-                ].map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="sm:col-span-2 flex justify-between pt-2">
-              <button type="button" onClick={prevStep} className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                <ArrowLeft className="h-4 w-4" /> Back
-              </button>
-              <button type="submit" className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                Next <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+          <form onSubmit={e => { e.preventDefault(); const fd = new FormData(e.target as HTMLFormElement); nextStep(Object.fromEntries(fd.entries()) as Partial<OnboardingFormData>); }}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1"><label className="block text-sm font-medium">Employment Status</label>
+              <select name="employmentStatus" defaultValue={formData.employmentStatus ?? ''} className={fc}>
+                <option value="">Select</option>{['EMPLOYED', 'SELF_EMPLOYED', 'RETIRED', 'STUDENT', 'UNEMPLOYED'].map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+              </select></div>
+            <div className="space-y-1"><label className="block text-sm font-medium">Employer Name</label>
+              <input name="employerName" defaultValue={formData.employerName} className={fc} /></div>
+            <div className="space-y-1"><label className="block text-sm font-medium">Job Title</label>
+              <input name="jobTitle" defaultValue={formData.jobTitle} className={fc} /></div>
+            <div className="space-y-1"><label className="block text-sm font-medium">Monthly Income Range</label>
+              <select name="monthlyIncomeRange" defaultValue={formData.monthlyIncomeRange ?? ''} className={fc}>
+                <option value="">Select</option>{[['BELOW_50K', 'Below ₦50K'], ['50K_200K', '₦50K–₦200K'], ['200K_500K', '₦200K–₦500K'], ['500K_1M', '₦500K–₦1M'], ['ABOVE_1M', 'Above ₦1M']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select></div>
+            <div className="sm:col-span-2"><NavButtons onBack={prevStep} /></div>
           </form>
         );
 
-      // ── Step 7: Account Selection ─────────────────────────────────────────
       case 7: {
-        const productSelected = !!formData.accountProduct;
+        const hasProduct = !!formData.accountProduct;
         return (
           <div className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {([
-                ['SAVINGS', 'Earn interest on deposits, unlimited withdrawals'],
-                ['CURRENT', 'Unlimited transactions, chequebook available'],
-                ['DOMICILIARY', 'Hold foreign currencies (USD, GBP, EUR)'],
-              ] as const).map(([product, desc]) => (
-                <button
-                  key={product}
-                  type="button"
-                  onClick={() => updateStep({ accountProduct: product })}
-                  className={`p-5 border-2 rounded-xl text-left transition-all hover:border-blue-500 ${
-                    formData.accountProduct === product
-                      ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-200 dark:border-gray-700'
-                  }`}
-                >
-                  <div className="font-semibold text-gray-900 dark:text-gray-100 mb-1">{product}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{desc}</div>
+              {[['SAVINGS', 'Earn interest, unlimited withdrawals'], ['CURRENT', 'Unlimited transactions, chequebook'], ['DOMICILIARY', 'Hold foreign currencies']].map(([p, d]) => (
+                <button key={p} type="button" onClick={() => updateStep({ accountProduct: p })}
+                  className={cn('p-5 border-2 rounded-xl text-left transition-all hover:border-blue-500',
+                    formData.accountProduct === p ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700')}>
+                  <div className="font-semibold mb-1">{p}</div>
+                  <div className="text-xs text-muted-foreground">{d}</div>
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="acceptTerms"
-                checked={!!formData.acceptTerms}
-                onChange={e => updateStep({ acceptTerms: e.target.checked })}
-                className="w-4 h-4 rounded border-gray-300"
-              />
-              <label htmlFor="acceptTerms" className="text-sm text-gray-700 dark:text-gray-300">
-                I accept the terms and conditions of account opening
-              </label>
-            </div>
-            <div className="flex justify-between pt-2">
-              <button type="button" onClick={prevStep} className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                <ArrowLeft className="h-4 w-4" /> Back
-              </button>
-              <button
-                type="button"
-                onClick={() => productSelected && formData.acceptTerms && nextStep({})}
-                disabled={!productSelected || !formData.acceptTerms}
-                className="flex items-center gap-1 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={!!formData.acceptTerms} onChange={e => updateStep({ acceptTerms: e.target.checked })} className="w-4 h-4 rounded border-gray-300" />
+              <span className="text-sm">I accept the terms and conditions *</span>
+            </label>
+            {!formData.acceptTerms && formData.accountProduct && <p className="text-xs text-red-600">You must accept terms to proceed.</p>}
+            <NavButtons onBack={prevStep} onNext={() => hasProduct && formData.acceptTerms && nextStep({})} nextDisabled={!hasProduct || !formData.acceptTerms} />
           </div>
         );
       }
 
-      // ── Step 8: Review & Submit ───────────────────────────────────────────
-      case 8:
+      case 8: {
+        const issues = getValidationIssues();
         return (
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Review Your Application</h3>
+            {/* Validation summary */}
+            {issues.length > 0 ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-4">
+                <div className="flex items-center gap-2 mb-2"><AlertTriangle className="w-4 h-4 text-red-600" /><span className="text-sm font-semibold text-red-700 dark:text-red-400">{issues.length} issue(s) found</span></div>
+                <ul className="space-y-1">{issues.map((iss, i) => (
+                  <li key={i} className="text-xs text-red-600 flex items-center gap-2">
+                    <span>Step {iss.step} ({iss.label}): {iss.message}</span>
+                    <button onClick={() => goToStep(iss.step)} className="text-blue-600 hover:underline">Fix</button>
+                  </li>
+                ))}</ul>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20 p-4 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-600" /><span className="text-sm font-semibold text-green-700 dark:text-green-400">All fields complete — ready to submit</span>
+              </div>
+            )}
+
             <div className="grid sm:grid-cols-2 gap-3">
-              <ReviewSection
-                title={isCorporateCustomer ? 'Company' : 'Personal'}
-                items={isCorporateCustomer
-                  ? [
-                      { label: 'Registered Name', value: formData.registeredName ?? '—' },
-                      { label: 'Trading Name', value: formData.tradingName ?? '—' },
-                      { label: 'Registration Number', value: formData.registrationNumber ?? '—' },
-                    ]
-                  : [
-                      { label: 'Full Name', value: `${formData.firstName ?? ''} ${formData.lastName ?? ''}`.trim() || '—' },
-                      { label: 'Date of Birth', value: formData.dateOfBirth ?? '—' },
-                      { label: 'Nationality', value: formData.nationality ?? '—' },
-                    ]}
-                onEdit={() => goToStep(2)}
-              />
-              <ReviewSection
-                title="Contact"
-                items={[
-                  { label: 'Phone', value: formData.phone ?? '—' },
-                  { label: 'Email', value: formData.email ?? '—' },
-                  { label: 'Address', value: formData.residentialAddress ?? '—' },
-                ]}
-                onEdit={() => goToStep(3)}
-              />
-              <ReviewSection
-                title="Identification"
-                items={[
-                  { label: 'ID Type', value: formData.idType ?? '—' },
-                  { label: 'ID Number', value: formData.idNumber ?? '—' },
-                  { label: isCorporateCustomer ? 'BVN Check' : 'BVN Verified', value: isCorporateCustomer ? 'Not applicable' : formData.bvnVerified ? 'Yes' : 'No' },
-                ]}
-                onEdit={() => goToStep(4)}
-              />
-              <ReviewSection
-                title="Account"
-                items={[
-                  { label: 'Product', value: formData.accountProduct ?? '—' },
-                  { label: 'Currency', value: formData.currency ?? 'NGN' },
-                  { label: 'Employment', value: formData.employmentStatus ?? '—' },
-                ]}
-                onEdit={() => goToStep(7)}
-              />
+              <ReviewSection title={isCorp ? 'Company' : 'Personal'}
+                items={isCorp ? [{ label: 'Name', value: formData.registeredName ?? '' }, { label: 'Reg #', value: formData.registrationNumber ?? '' }]
+                  : [{ label: 'Name', value: `${formData.firstName ?? ''} ${formData.lastName ?? ''}`.trim() }, { label: 'DOB', value: formData.dateOfBirth ?? '' }, { label: 'Nationality', value: formData.nationality ?? '' }]}
+                onEdit={() => goToStep(2)} />
+              <ReviewSection title="Contact" items={[{ label: 'Phone', value: formData.phone ?? '' }, { label: 'Email', value: formData.email ?? '' }, { label: 'Address', value: formData.residentialAddress ?? '' }]} onEdit={() => goToStep(3)} />
+              <ReviewSection title="ID" items={[{ label: 'Type', value: formData.idType ?? '' }, { label: 'Number', value: formData.idNumber ?? '' }, { label: 'BVN', value: isCorp ? 'N/A' : formData.bvnVerified ? 'Verified' : 'Not verified' }]} onEdit={() => goToStep(4)} />
+              <ReviewSection title="Account" items={[{ label: 'Product', value: formData.accountProduct ?? '' }, { label: 'Employment', value: formData.employmentStatus ?? '' }, { label: 'Terms', value: formData.acceptTerms ? 'Accepted' : 'Not accepted' }]} onEdit={() => goToStep(7)} />
             </div>
+
             <div className="flex gap-3 justify-between pt-4 border-t">
-              <button type="button" onClick={prevStep} className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
-                <ArrowLeft className="h-4 w-4" /> Back
-              </button>
+              <button type="button" onClick={prevStep} className="flex items-center gap-1 px-4 py-2 text-sm border rounded-lg hover:bg-muted"><ArrowLeft className="h-4 w-4" /> Back</button>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={saveDraft}
-                  disabled
-                  className="flex items-center gap-1 px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  <Save className="h-4 w-4" /> Save Draft
+                <button type="button" onClick={saveDraft} disabled={wizard.isSavingDraft}
+                  className="flex items-center gap-1 px-4 py-2 text-sm border rounded-lg hover:bg-muted disabled:opacity-50">
+                  {wizard.isSavingDraft ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Draft
                 </button>
-                <button
-                  type="button"
-                  onClick={submit}
-                  disabled={isSubmitting}
-                  className="flex items-center gap-1 px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                <button type="button" onClick={() => setShowConfirmSubmit(true)} disabled={isSubmitting || issues.length > 0}
+                  className="flex items-center gap-1 px-5 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
                   {isSubmitting ? 'Submitting…' : 'Submit Application'}
                 </button>
               </div>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Draft save is unavailable until the backend exposes a live draft endpoint.
-            </p>
           </div>
         );
-
-      default:
-        return null;
+      }
+      default: return null;
     }
   };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 py-4">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">New Customer Onboarding</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Back</button>
+          <h1 className="text-xl font-semibold">New Customer Onboarding</h1>
+        </div>
+        {wizard.lastSavedAt && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="w-3.5 h-3.5" /> Draft saved at {wizard.lastSavedAt}
+          </div>
+        )}
       </div>
 
-      <WizardStepper
-        steps={STEP_LABELS}
-        currentStep={wizard.currentStep}
-        onStepClick={wizard.goToStep}
-      />
+      <WizardStepper steps={STEP_LABELS} currentStep={currentStep} onStepClick={goToStep} getStepValidation={getStepValidation} />
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-            Step {wizard.currentStep} of {STEP_LABELS.length}: {STEP_LABELS[wizard.currentStep - 1]}
-          </h2>
-        </div>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border">
+        <div className="px-6 py-4 border-b"><h2 className="text-base font-semibold">Step {currentStep} of {STEP_LABELS.length}: {STEP_LABELS[currentStep - 1]}</h2></div>
         <div className="p-6">{renderStep()}</div>
       </div>
+
+      {/* Draft picker */}
+      {showDraftPicker && wizard.existingDrafts.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDraftPicker(false)} />
+          <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
+            <div className="flex items-center justify-between"><h3 className="font-semibold">Resume Draft?</h3><button onClick={() => setShowDraftPicker(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
+            <p className="text-sm text-muted-foreground">You have saved drafts. Resume one or start fresh.</p>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {wizard.existingDrafts.map(d => (
+                <button key={d.id} onClick={() => { wizard.resumeDraft(d.id); setShowDraftPicker(false); }}
+                  className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-muted/30 text-left">
+                  <div><p className="text-sm font-medium">{d.displayLabel || `Draft #${d.id}`}</p><p className="text-xs text-muted-foreground">Step {d.currentStep} · {d.customerType}</p></div>
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowDraftPicker(false)} className="w-full px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Start Fresh</button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm submit */}
+      {showConfirmSubmit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowConfirmSubmit(false)} />
+          <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
+            <h3 className="font-semibold">Confirm Submission</h3>
+            <p className="text-sm text-muted-foreground">This will create a new customer record. Continue?</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowConfirmSubmit(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+              <button onClick={() => { submit(); setShowConfirmSubmit(false); }} disabled={isSubmitting}
+                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+                {isSubmitting ? 'Submitting…' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

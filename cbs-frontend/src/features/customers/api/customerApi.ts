@@ -1,4 +1,4 @@
-import api, { apiGet, apiPost } from '@/lib/api';
+import api, { apiGet, apiPost, apiPut, apiUpload } from '@/lib/api';
 import type { ApiResponse, PageMeta, PaginationParams } from '@/types/common';
 import type {
   BvnVerifyResult,
@@ -590,8 +590,16 @@ export const customerApi = {
     return mapCustomerDetail(await apiPost<BackendCustomerDetail>('/api/v1/customers', buildOnboardingPayload(data)));
   },
 
-  async saveDraft(): Promise<never> {
-    throw new Error('Customer draft save is not supported by the live backend.');
+  async saveDraft(data: { formData: Record<string, unknown>; currentStep: number; customerType?: string; displayLabel?: string; id?: number }) {
+    return apiPost<{ id: number; updatedAt: string }>('/api/v1/customers/drafts', data);
+  },
+
+  async getDraft(id: number) {
+    return apiGet<{ id: number; formData: Record<string, unknown>; currentStep: number; customerType: string; displayLabel: string; updatedAt: string }>(`/api/v1/customers/drafts/${id}`);
+  },
+
+  async listDrafts() {
+    return apiGet<{ id: number; customerType: string; displayLabel: string; currentStep: number; updatedAt: string }[]>('/api/v1/customers/drafts').catch(() => []);
   },
 
   async verifyBvn(
@@ -627,15 +635,67 @@ export const customerApi = {
     return mapKycStats(await apiGet<Record<string, number>>('/api/v1/customers/kyc/stats'));
   },
 
-  async kycVerifyDocument(_customerId: number, _documentId: number, _decision: 'VERIFIED' | 'REJECTED', _reason?: string): Promise<never> {
-    throw new Error('Document-level KYC approval is not exposed by the current backend.');
+  async kycVerifyDocument(customerId: number, documentId: number, decision: 'VERIFIED' | 'REJECTED', reason?: string): Promise<Record<string, unknown>> {
+    return apiPost<Record<string, unknown>>(`/api/v1/customers/${customerId}/kyc/verify-document`, { documentId, decision, reason: reason ?? '' });
   },
 
-  async kycDecide(_customerId: number, _decision: 'approve' | 'reject' | 'request_docs', _notes?: string): Promise<never> {
-    throw new Error('KYC decision actions are not exposed by the current backend.');
+  async kycDecide(customerId: number, decision: string, notes?: string, riskRating?: string): Promise<Record<string, unknown>> {
+    return apiPost<Record<string, unknown>>(`/api/v1/customers/${customerId}/kyc/decide`, { decision: decision.toUpperCase(), notes: notes ?? '', riskRating });
   },
 
   async getSegments(): Promise<CustomerSegment[]> {
     return (await apiGet<BackendSegmentResponse[]>('/api/v1/customers/segments')).map(mapSegment);
+  },
+
+  async uploadIdentification(
+    customerId: number,
+    data: { idType: string; idNumber: string; issueDate?: string; expiryDate?: string; issuingAuthority?: string; issuingCountry?: string },
+    file?: File,
+  ): Promise<CustomerIdentification> {
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      Object.entries(data).forEach(([key, val]) => { if (val) formData.append(key, val); });
+      const response = await api.post<{ data: CustomerIdentification }>(`/api/v1/customers/${customerId}/identifications`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return response.data.data;
+    }
+    return apiPost<CustomerIdentification>(`/api/v1/customers/${customerId}/identifications`, data);
+  },
+
+  async verifyIdentification(customerId: number, docId: number, decision: 'VERIFIED' | 'REJECTED', reason?: string): Promise<CustomerIdentification> {
+    return apiPost<CustomerIdentification>(`/api/v1/customers/${customerId}/identifications/${docId}/verify`, { decision, reason });
+  },
+
+  async deleteIdentification(customerId: number, docId: number): Promise<void> {
+    await api.delete(`/api/v1/customers/${customerId}/identifications/${docId}`);
+  },
+
+  // ── Segment Analytics ───────────────────────────────────────────────────
+
+  getSegmentDetail(code: string) {
+    return apiGet<import('../types/customer').SegmentDetail>(`/api/v1/customers/segments/${code}`);
+  },
+
+  getSegmentCustomers(code: string, params?: { page?: number; size?: number }) {
+    return apiGet<import('../types/customer').SegmentCustomer[]>(
+      `/api/v1/customers/segments/${code}/customers`,
+      params as Record<string, unknown>,
+    ).catch(() => []);
+  },
+
+  getSegmentAnalytics() {
+    return apiGet<import('../types/customer').SegmentAnalytics[]>(
+      '/api/v1/customers/segments/analytics',
+    ).catch(() => []);
+  },
+
+  createSegment(data: import('../types/customer').CreateSegmentPayload) {
+    return apiPost<CustomerSegment>('/api/v1/customers/segments', data);
+  },
+
+  updateSegment(code: string, data: Partial<import('../types/customer').CreateSegmentPayload>) {
+    return apiPut<CustomerSegment>(`/api/v1/customers/segments/${code}`, data);
   },
 };

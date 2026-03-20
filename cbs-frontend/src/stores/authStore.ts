@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { User } from '@/types/auth';
+import type { AuthorizationCodeCallbackRequest, User } from '@/types/auth';
 import { authApi } from '@/features/auth/api/authApi';
 
 const AUTH_SESSION_STORAGE_KEY = 'cbs-auth-session';
@@ -23,7 +23,8 @@ interface AuthState {
   mfaSessionToken: string | null;
   tokenExpiresAt: number | null;
 
-  login: (username: string, password: string) => Promise<void>;
+  login: (username?: string, password?: string, returnTo?: string) => Promise<void>;
+  completeLogin: (callback: AuthorizationCodeCallbackRequest) => Promise<string>;
   verifyMfa: (otp: string) => Promise<void>;
   refreshToken: () => Promise<void>;
   logout: () => void;
@@ -112,21 +113,20 @@ function buildAuthenticatedState(session: PersistedAuthSession, overrides?: Part
 export const useAuthStore = create<AuthState>((set, get) => ({
   ...unauthenticatedState,
 
-  login: async (username: string, password: string) => {
+  login: async (username?: string, _password?: string, returnTo?: string) => {
     set({ isLoading: true });
     try {
-      const res = await authApi.login({ username, password });
+      await authApi.login({ username, returnTo });
+    } catch (error) {
+      set({ isLoading: false, hasInitialized: true });
+      throw error;
+    }
+  },
 
-      if (res.mfaRequired) {
-        set({
-          mfaRequired: true,
-          mfaSessionToken: res.mfaSessionToken || null,
-          hasInitialized: true,
-          isLoading: false,
-        });
-        return;
-      }
-
+  completeLogin: async ({ code, state }: AuthorizationCodeCallbackRequest) => {
+    set({ isLoading: true });
+    try {
+      const res = await authApi.exchangeAuthorizationCode({ code, state });
       const session: PersistedAuthSession = {
         accessToken: res.accessToken,
         refreshTokenValue: res.refreshToken,
@@ -141,8 +141,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         user: res.user || null,
         tokenExpiresAt: Date.now() + res.expiresIn * 1000,
       }));
+      return res.returnTo || '/dashboard';
     } catch (error) {
-      set({ isLoading: false, hasInitialized: true });
+      persistSession(null);
+      set({ ...unauthenticatedState, hasInitialized: true });
       throw error;
     }
   },

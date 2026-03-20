@@ -11,6 +11,11 @@ function lazyNamed<TModule extends Record<string, unknown>>(
   });
 }
 
+export const SegmentDetailPage = lazyNamed(
+  () => import('@/features/customers/pages/SegmentDetailPage'),
+  'SegmentDetailPage',
+);
+
 export const FixedDepositListPage = lazyNamed(
   () => import('@/features/deposits/pages/FixedDepositListPage'),
   'FixedDepositListPage',
@@ -711,13 +716,42 @@ export const CustodySettlementPage = lazyNamed(
   () => import('@/features/custody/pages/CustodySettlementPage'),
   'CustodySettlementPage',
 );
-export const SecuritiesPositionPage = lazyNamed(
+export const CustodyHubPage = lazyNamed(
+  () => import('@/features/custody/pages/CustodyHubPage'),
+  'CustodyHubPage',
+);
+export const SecuritiesFailsPage = lazyNamed(
+  () => import('@/features/custody/pages/SecuritiesFailsPage'),
+  'SecuritiesFailsPage',
+);
+export const FailDetailPage = lazyNamed(
+  () => import('@/features/custody/pages/FailDetailPage'),
+  'FailDetailPage',
+);
+export const CustodyPositionsPage = lazyNamed(
   () => import('@/features/custody/pages/SecuritiesPositionPage'),
   'SecuritiesPositionPage',
 );
-export const PositionDetailPage = lazyNamed(
+export const CustodyPositionDetailPage = lazyNamed(
   () => import('@/features/custody/pages/PositionDetailPage'),
   'PositionDetailPage',
+);
+
+export const CounterpartyPage = lazyNamed(
+  () => import('@/features/custody/pages/CounterpartyPage'),
+  'CounterpartyPage',
+);
+export const CounterpartyDetailPage = lazyNamed(
+  () => import('@/features/custody/pages/CounterpartyDetailPage'),
+  'CounterpartyDetailPage',
+);
+export const CustodyValuationPage = lazyNamed(
+  () => import('@/features/custody/pages/ValuationPage'),
+  'ValuationPage',
+);
+export const CustodyValuationRunPage = lazyNamed(
+  () => import('@/features/custody/pages/ValuationRunPage'),
+  'ValuationRunPage',
 );
 
 export const ChannelManagementPage = lazyNamed(

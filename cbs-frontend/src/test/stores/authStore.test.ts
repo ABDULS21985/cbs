@@ -5,9 +5,11 @@ import { useAuthStore } from '@/stores/authStore';
 vi.mock('@/features/auth/api/authApi', () => ({
   authApi: {
     login: vi.fn(),
+    exchangeAuthorizationCode: vi.fn(),
     verifyMfa: vi.fn(),
     refresh: vi.fn(),
     logout: vi.fn(),
+    getMe: vi.fn(),
   },
 }));
 
@@ -32,6 +34,7 @@ beforeEach(() => {
     refreshTokenValue: null,
     isAuthenticated: false,
     isLoading: false,
+    hasInitialized: false,
     mfaRequired: false,
     mfaSessionToken: null,
     tokenExpiresAt: null,
@@ -40,24 +43,15 @@ beforeEach(() => {
 });
 
 describe('authStore — login', () => {
-  it('sets isAuthenticated and user on successful login', async () => {
-    vi.mocked(authApi.login).mockResolvedValueOnce({
-      accessToken: 'jwt-access',
-      refreshToken: 'jwt-refresh',
-      mfaRequired: false,
-      expiresIn: 3600,
-      user: mockUser,
-    });
+  it('initiates hosted login with the username hint', async () => {
+    vi.mocked(authApi.login).mockResolvedValueOnce(undefined);
 
-    await useAuthStore.getState().login('admin', 'correct');
+    await useAuthStore.getState().login('admin', undefined, '/dashboard');
     const state = useAuthStore.getState();
 
-    expect(state.isAuthenticated).toBe(true);
-    expect(state.user).toEqual(mockUser);
-    expect(state.accessToken).toBe('jwt-access');
-    expect(state.refreshTokenValue).toBe('jwt-refresh');
-    expect(state.isLoading).toBe(false);
-    expect(state.tokenExpiresAt).toBeGreaterThan(Date.now());
+    expect(state.isAuthenticated).toBe(false);
+    expect(state.isLoading).toBe(true);
+    expect(authApi.login).toHaveBeenCalledWith({ username: 'admin', returnTo: '/dashboard' });
   });
 
   it('sets isLoading true during login, false after', async () => {
@@ -65,45 +59,41 @@ describe('authStore — login', () => {
 
     vi.mocked(authApi.login).mockImplementationOnce(async () => {
       capturedLoading = useAuthStore.getState().isLoading;
-      return {
-        accessToken: 'jwt-access',
-        refreshToken: 'jwt-refresh',
-        mfaRequired: false,
-        expiresIn: 3600,
-        user: mockUser,
-      };
     });
 
     await useAuthStore.getState().login('admin', 'correct');
 
     expect(capturedLoading).toBe(true);
-    expect(useAuthStore.getState().isLoading).toBe(false);
-  });
-
-  it('sets mfaRequired when API returns mfa challenge', async () => {
-    vi.mocked(authApi.login).mockResolvedValueOnce({
-      accessToken: '',
-      refreshToken: '',
-      mfaRequired: true,
-      mfaSessionToken: 'mfa-session-abc',
-      expiresIn: 0,
-    });
-
-    await useAuthStore.getState().login('mfa_user', 'correct');
-    const state = useAuthStore.getState();
-
-    expect(state.mfaRequired).toBe(true);
-    expect(state.mfaSessionToken).toBe('mfa-session-abc');
-    expect(state.isAuthenticated).toBe(false);
-    expect(state.isLoading).toBe(false);
+    expect(useAuthStore.getState().isLoading).toBe(true);
   });
 
   it('throws on bad credentials and clears isLoading', async () => {
-    vi.mocked(authApi.login).mockRejectedValueOnce(new Error('Invalid credentials'));
+    vi.mocked(authApi.login).mockRejectedValueOnce(new Error('Unable to start secure sign-in.'));
 
-    await expect(useAuthStore.getState().login('bad', 'wrong')).rejects.toThrow('Invalid credentials');
+    await expect(useAuthStore.getState().login('bad', 'wrong')).rejects.toThrow('Unable to start secure sign-in.');
     expect(useAuthStore.getState().isLoading).toBe(false);
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+});
+
+describe('authStore — completeLogin', () => {
+  it('completes authentication after successful authorization-code exchange', async () => {
+    vi.mocked(authApi.exchangeAuthorizationCode).mockResolvedValueOnce({
+      accessToken: 'jwt-access',
+      refreshToken: 'jwt-refresh',
+      mfaRequired: false,
+      expiresIn: 3600,
+      user: mockUser,
+      returnTo: '/dashboard',
+    });
+
+    await useAuthStore.getState().completeLogin({ code: 'auth-code', state: 'state-123' });
+    const state = useAuthStore.getState();
+
+    expect(state.isAuthenticated).toBe(true);
+    expect(state.user).toEqual(mockUser);
+    expect(state.mfaRequired).toBe(false);
+    expect(state.accessToken).toBe('jwt-access');
   });
 });
 
