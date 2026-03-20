@@ -1,86 +1,676 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from 'recharts';
+import {
+  Phone, Users, Clock, HeadphonesIcon, Monitor, PhoneCall,
+  PhoneOff, Coffee, Radio, Loader2, CheckCircle2, AlertTriangle,
+  Plus, X, MessageSquare, Mail, Send,
+} from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatCard, DataTable, TabsPage } from '@/components/shared';
-import { contactCenterApi, type AgentState, type QueueStatus } from '../api/contactCenterApi';
-import type { ColumnDef } from '@tanstack/react-table';
+import { StatCard, DataTable, TabsPage, StatusBadge } from '@/components/shared';
+import { formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { Phone, Users, Clock, HeadphonesIcon } from 'lucide-react';
+import { toast } from 'sonner';
+import type { ColumnDef } from '@tanstack/react-table';
+import { contactCenterApi, type AgentState, type QueueStatus } from '../api/contactCenterApi';
+import { contactRoutingApi } from '../api/contactRoutingApi';
+import type { ContactInteraction } from '../types/contactCenterExt';
+import type { CallbackRequest, ContactQueue } from '../types/contactRouting';
+import { apiGet, apiPost, apiPut } from '@/lib/api';
 
-const stateColors: Record<string, string> = {
-  AVAILABLE: 'bg-green-500', ON_CALL: 'bg-blue-500', WRAP_UP: 'bg-amber-500', BREAK: 'bg-red-500', OFFLINE: 'bg-gray-400',
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const STATE_COLORS: Record<string, string> = {
+  AVAILABLE: 'bg-green-500',
+  ON_CALL: 'bg-red-500',
+  BUSY: 'bg-red-500',
+  WRAP_UP: 'bg-amber-500',
+  AFTER_CALL: 'bg-amber-500',
+  BREAK: 'bg-gray-400',
+  ON_BREAK: 'bg-gray-400',
+  TRAINING: 'bg-blue-500',
+  OFFLINE: 'bg-gray-600',
 };
 
-const agentCols: ColumnDef<AgentState, any>[] = [
-  { accessorKey: 'agentName', header: 'Agent', cell: ({ row }) => <span className="font-medium">{row.original.agentName}</span> },
-  { accessorKey: 'state', header: 'State', cell: ({ row }) => (
-    <span className="flex items-center gap-2 text-xs font-medium">
-      <span className={cn('w-2.5 h-2.5 rounded-full', stateColors[row.original.state] || 'bg-gray-400')} />
-      {row.original.state.replace(/_/g, ' ')}
-    </span>
-  )},
-  { accessorKey: 'callsToday', header: 'Calls Today' },
-  { accessorKey: 'avgHandleTimeSec', header: 'AHT', cell: ({ row }) => { const m = Math.floor(row.original.avgHandleTimeSec / 60); const s = row.original.avgHandleTimeSec % 60; return <span className="font-mono text-sm">{m}:{s.toString().padStart(2, '0')}</span>; } },
-  { accessorKey: 'fcrPct', header: 'FCR %', cell: ({ row }) => <span className={cn('font-mono text-sm', row.original.fcrPct >= 80 ? 'text-green-600' : 'text-amber-600')}>{row.original.fcrPct.toFixed(0)}%</span> },
-  { accessorKey: 'qualityScore', header: 'Quality', cell: ({ row }) => <span className={cn('font-mono text-sm font-medium', row.original.qualityScore >= 80 ? 'text-green-600' : row.original.qualityScore >= 60 ? 'text-amber-600' : 'text-red-600')}>{row.original.qualityScore}/100</span> },
-];
+const STATE_ICONS: Record<string, typeof Phone> = {
+  AVAILABLE: Phone,
+  ON_CALL: PhoneCall,
+  BUSY: PhoneCall,
+  WRAP_UP: Clock,
+  AFTER_CALL: Clock,
+  BREAK: Coffee,
+  ON_BREAK: Coffee,
+  TRAINING: Radio,
+  OFFLINE: PhoneOff,
+};
 
-function QueueStatusCards({ queues, isLoading }: { queues: QueueStatus[]; isLoading: boolean }) {
-  if (isLoading) return <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">{[1, 2, 3].map((i) => <div key={i} className="rounded-lg border p-4 animate-pulse"><div className="h-4 bg-muted rounded w-24 mb-2" /><div className="h-8 bg-muted rounded w-16" /></div>)}</div>;
-  if (queues.length === 0) return <div className="text-center text-muted-foreground py-8">No queues configured</div>;
+const CHANNEL_ICONS: Record<string, typeof Phone> = {
+  PHONE: Phone,
+  CHAT: MessageSquare,
+  EMAIL: Mail,
+  SMS: Send,
+};
+
+const SENTIMENT_EMOJI: Record<string, string> = {
+  POSITIVE: '😊',
+  NEUTRAL: '😐',
+  NEGATIVE: '😡',
+};
+
+// ─── Service Level Gauge ──────────────────────────────────────────────────────
+
+function ServiceLevelGauge({ value, target = 80 }: { value: number; target?: number }) {
+  const pct = Math.min(100, Math.max(0, value));
+  const color = pct >= 90 ? '#22c55e' : pct >= target ? '#f59e0b' : '#ef4444';
+  const circumference = 2 * Math.PI * 40;
+  const offset = circumference - (pct / 100) * circumference;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {queues.map((q) => (
-        <div key={q.queueName} className="rounded-lg border bg-card p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="font-semibold text-sm">{q.queueName}</h4>
-            <span className="text-xs text-muted-foreground">{q.queueType}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div><span className="text-muted-foreground">Waiting:</span> <span className="font-mono font-bold">{q.waiting}</span></div>
-            <div><span className="text-muted-foreground">Longest:</span> <span className="font-mono">{Math.floor(q.longestWaitSec / 60)}:{(q.longestWaitSec % 60).toString().padStart(2, '0')}</span></div>
-            <div><span className="text-muted-foreground">SLA:</span> <span className={cn('font-mono font-bold', q.slaPct >= 80 ? 'text-green-600' : 'text-red-600')}>{q.slaPct.toFixed(0)}%</span></div>
-            <div><span className="text-muted-foreground">Agents:</span> <span className="font-mono">{q.agentsAvailable}/{q.agentsTotal}</span></div>
-          </div>
-        </div>
-      ))}
+    <div className="relative w-24 h-24">
+      <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/30" />
+        <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} className="transition-all duration-500" />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-lg font-bold font-mono" style={{ color }}>{pct.toFixed(0)}%</span>
+        <span className="text-[8px] text-muted-foreground">SLA</span>
+      </div>
     </div>
   );
 }
 
+// ─── Format seconds to m:ss ──────────────────────────────────────────────────
+
+function fmtTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// ─── Queue Card ──────────────────────────────────────────────────────────────
+
+function QueueCard({ queue }: { queue: QueueStatus }) {
+  const slaColor = queue.slaPct >= 90 ? 'text-green-600' : queue.slaPct >= 80 ? 'text-amber-600' : 'text-red-600';
+  const slaBg = queue.slaPct >= 90 ? 'bg-green-500' : queue.slaPct >= 80 ? 'bg-amber-500' : 'bg-red-500';
+
+  return (
+    <div className="rounded-xl border bg-card p-5 space-y-3 hover:shadow-sm transition-shadow">
+      <div className="flex items-center justify-between">
+        <h4 className="font-semibold text-sm">{queue.queueName}</h4>
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{queue.queueType}</span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p className="text-xs text-muted-foreground">Waiting</p>
+          <p className={cn('text-xl font-bold font-mono', queue.waiting > 5 ? 'text-red-600' : '')}>{queue.waiting}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Longest Wait</p>
+          <p className="text-xl font-bold font-mono">{fmtTime(queue.longestWaitSec)}</p>
+        </div>
+      </div>
+
+      {/* SLA bar */}
+      <div>
+        <div className="flex items-center justify-between text-xs mb-1">
+          <span className="text-muted-foreground">SLA</span>
+          <span className={cn('font-bold font-mono', slaColor)}>{queue.slaPct.toFixed(0)}%</span>
+        </div>
+        <div className="h-2 bg-muted rounded-full overflow-hidden">
+          <div className={cn('h-full rounded-full transition-all', slaBg)} style={{ width: `${Math.min(100, queue.slaPct)}%` }} />
+        </div>
+      </div>
+
+      <div className="text-xs text-muted-foreground">
+        Agents: <span className="font-medium text-foreground">{queue.agentsAvailable}</span> available / {queue.agentsTotal} assigned
+      </div>
+    </div>
+  );
+}
+
+// ─── Agent Card ──────────────────────────────────────────────────────────────
+
+function AgentCard({ agent, onStateChange }: { agent: AgentState; onStateChange: (agentId: string, state: string) => void }) {
+  const StateIcon = STATE_ICONS[agent.state] ?? Phone;
+  const stateColor = STATE_COLORS[agent.state] ?? 'bg-gray-400';
+
+  return (
+    <div className="rounded-xl border bg-card p-4 space-y-3 hover:shadow-sm transition-shadow">
+      <div className="flex items-center gap-3">
+        <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-white', stateColor)}>
+          <StateIcon className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate">{agent.agentName}</p>
+          <div className="flex items-center gap-1.5">
+            <span className={cn('w-2 h-2 rounded-full', stateColor)} />
+            <span className="text-xs text-muted-foreground">{agent.state.replace(/_/g, ' ')}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div><span className="text-muted-foreground">Handled:</span> <span className="font-mono font-medium">{agent.callsToday}</span></div>
+        <div><span className="text-muted-foreground">AHT:</span> <span className="font-mono">{fmtTime(agent.avgHandleTimeSec)}</span></div>
+        <div><span className="text-muted-foreground">FCR:</span> <span className={cn('font-mono font-medium', agent.fcrPct >= 80 ? 'text-green-600' : 'text-amber-600')}>{agent.fcrPct.toFixed(0)}%</span></div>
+        <div><span className="text-muted-foreground">Quality:</span> <span className={cn('font-mono font-medium', agent.qualityScore >= 80 ? 'text-green-600' : 'text-amber-600')}>{agent.qualityScore}</span></div>
+      </div>
+
+      <select
+        value={agent.state}
+        onChange={(e) => onStateChange(agent.agentId, e.target.value)}
+        className="w-full text-xs rounded-lg border bg-background px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/30"
+      >
+        {['AVAILABLE', 'ON_CALL', 'WRAP_UP', 'BREAK', 'TRAINING', 'OFFLINE'].map((s) => (
+          <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// ─── Callback Card ──────────────────────────────────────────────────────────
+
+function CallbackCard({ callback, onAttempt }: { callback: CallbackRequest; onAttempt: (id: number) => void }) {
+  const urgencyColor = callback.urgency === 'HIGH' ? 'text-red-600' : callback.urgency === 'MEDIUM' ? 'text-amber-600' : 'text-green-600';
+  const isPast = new Date(callback.preferredTime) < new Date();
+
+  return (
+    <div className={cn('rounded-xl border bg-card p-4 space-y-2', isPast && 'border-amber-300 dark:border-amber-800/40')}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-semibold">Customer #{callback.customerId}</p>
+          <p className="text-xs font-mono text-muted-foreground">{callback.callbackNumber}</p>
+        </div>
+        <span className={cn('text-xs font-bold', urgencyColor)}>{callback.urgency}</span>
+      </div>
+      <p className="text-xs text-muted-foreground">{callback.contactReason}</p>
+      <div className="flex items-center justify-between text-xs">
+        <span className={cn(isPast ? 'text-amber-600 font-medium' : 'text-muted-foreground')}>
+          {formatDate(callback.preferredTime)}
+        </span>
+        <span className="text-muted-foreground">
+          Attempts: {callback.attemptCount}/{callback.maxAttempts}
+        </span>
+      </div>
+      {callback.assignedAgentId && (
+        <p className="text-xs text-muted-foreground">Assigned: {callback.assignedAgentId}</p>
+      )}
+      <div className="flex gap-2 pt-1">
+        <button
+          onClick={() => onAttempt(callback.id)}
+          disabled={callback.status === 'COMPLETED' || callback.status === 'FAILED'}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50"
+        >
+          <Phone className="w-3 h-3" /> Attempt Call
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── New Interaction Form ───────────────────────────────────────────────────
+
+function NewInteractionForm({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ customerId: '', channel: 'PHONE', contactReason: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    apiPost('/api/v1/contact-center/interactions', {
+      customerId: parseInt(form.customerId, 10),
+      channel: form.channel,
+      contactReason: form.contactReason,
+    }).then(() => {
+      toast.success('Interaction started');
+      qc.invalidateQueries({ queryKey: ['contact-center'] });
+      onClose();
+    }).catch(() => toast.error('Failed to start interaction')).finally(() => setSubmitting(false));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+        <h2 className="text-lg font-semibold mb-4">New Interaction</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Customer ID</label>
+            <input type="number" className="w-full mt-1 input" value={form.customerId} onChange={(e) => setForm((f) => ({ ...f, customerId: e.target.value }))} required />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Channel</label>
+            <select value={form.channel} onChange={(e) => setForm((f) => ({ ...f, channel: e.target.value }))} className="w-full mt-1 input">
+              <option value="PHONE">Phone</option>
+              <option value="CHAT">Chat</option>
+              <option value="EMAIL">Email</option>
+              <option value="SMS">SMS</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Contact Reason</label>
+            <input className="w-full mt-1 input" value={form.contactReason} onChange={(e) => setForm((f) => ({ ...f, contactReason: e.target.value }))} required />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={submitting} className="btn-primary">{submitting ? 'Starting...' : 'Start'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Request Callback Form ──────────────────────────────────────────────────
+
+function RequestCallbackForm({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ customerId: '', callbackNumber: '', preferredTime: '', reason: '', urgency: 'MEDIUM' });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    contactRoutingApi.requestCallback({
+      customerId: parseInt(form.customerId, 10),
+      callbackNumber: form.callbackNumber,
+      preferredTime: form.preferredTime,
+      contactReason: form.reason,
+      urgency: form.urgency,
+    }).then(() => {
+      toast.success('Callback scheduled');
+      qc.invalidateQueries({ queryKey: ['contact-center'] });
+      onClose();
+    }).catch(() => toast.error('Failed')).finally(() => setSubmitting(false));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+        <h2 className="text-lg font-semibold mb-4">Request Callback</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Customer ID</label>
+            <input type="number" className="w-full mt-1 input" value={form.customerId} onChange={(e) => setForm((f) => ({ ...f, customerId: e.target.value }))} required />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Phone Number</label>
+            <input className="w-full mt-1 input" placeholder="+234..." value={form.callbackNumber} onChange={(e) => setForm((f) => ({ ...f, callbackNumber: e.target.value }))} required />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Preferred Time</label>
+            <input type="datetime-local" className="w-full mt-1 input" value={form.preferredTime} onChange={(e) => setForm((f) => ({ ...f, preferredTime: e.target.value }))} required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Reason</label>
+              <input className="w-full mt-1 input" value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} required />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Urgency</label>
+              <select value={form.urgency} onChange={(e) => setForm((f) => ({ ...f, urgency: e.target.value }))} className="w-full mt-1 input">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={submitting} className="btn-primary">{submitting ? 'Scheduling...' : 'Schedule'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Wallboard View ─────────────────────────────────────────────────────────
+
+function WallboardView({ agents, queues, onExit }: { agents: AgentState[]; queues: QueueStatus[]; onExit: () => void }) {
+  const totalWaiting = queues.reduce((s, q) => s + q.waiting, 0);
+  const avgWait = queues.length > 0 ? queues.reduce((s, q) => s + q.longestWaitSec, 0) / queues.length : 0;
+  const available = agents.filter((a) => a.state === 'AVAILABLE').length;
+  const avgSla = queues.length > 0 ? queues.reduce((s, q) => s + q.slaPct, 0) / queues.length : 0;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black text-white flex flex-col" onClick={onExit}>
+      <div className="flex items-center justify-between px-8 py-4 border-b border-white/10">
+        <p className="text-sm text-white/60 font-medium">BELLBANK CONTACT CENTER — LIVE</p>
+        <button className="text-xs text-white/40 hover:text-white/80">Press anywhere to exit</button>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 p-8">
+          <div className="text-center">
+            <p className="text-white/50 text-sm uppercase tracking-widest mb-2">Waiting</p>
+            <p className={cn('text-7xl font-bold font-mono', totalWaiting > 10 ? 'text-red-400 animate-pulse' : 'text-green-400')}>{totalWaiting}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-white/50 text-sm uppercase tracking-widest mb-2">Avg Wait</p>
+            <p className="text-7xl font-bold font-mono text-amber-400">{fmtTime(avgWait)}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-white/50 text-sm uppercase tracking-widest mb-2">Available</p>
+            <p className="text-7xl font-bold font-mono text-green-400">{available}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-white/50 text-sm uppercase tracking-widest mb-2">SLA</p>
+            <p className={cn('text-7xl font-bold font-mono', avgSla >= 80 ? 'text-green-400' : 'text-red-400')}>{avgSla.toFixed(0)}%</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Queue bars */}
+      <div className="px-8 pb-6 space-y-2">
+        {queues.map((q) => (
+          <div key={q.queueName} className="flex items-center gap-4">
+            <span className="text-white/60 text-xs w-32 truncate">{q.queueName}</span>
+            <div className="flex-1 h-3 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className={cn('h-full rounded-full', q.slaPct >= 90 ? 'bg-green-500' : q.slaPct >= 80 ? 'bg-amber-500' : 'bg-red-500')}
+                style={{ width: `${Math.min(100, q.slaPct)}%` }}
+              />
+            </div>
+            <span className="text-white/60 text-xs font-mono w-12 text-right">{q.waiting}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export function ContactCenterPage() {
-  const { data: agents = [], isLoading: agentsLoading } = useQuery({ queryKey: ['contact-center', 'agents'], queryFn: () => contactCenterApi.getAgentStates(), refetchInterval: 10_000 });
-  const { data: queues = [], isLoading: queuesLoading } = useQuery({ queryKey: ['contact-center', 'queues'], queryFn: () => contactCenterApi.getQueueStatus(), refetchInterval: 10_000 });
+  useEffect(() => { document.title = 'Contact Center | CBS'; }, []);
+
+  const qc = useQueryClient();
+  const [showWallboard, setShowWallboard] = useState(false);
+  const [showNewInteraction, setShowNewInteraction] = useState(false);
+  const [showRequestCallback, setShowRequestCallback] = useState(false);
+  const [agentFilter, setAgentFilter] = useState('');
+
+  // Real-time polling
+  const { data: agents = [], isLoading: agentsLoading } = useQuery({
+    queryKey: ['contact-center', 'agents'],
+    queryFn: () => contactCenterApi.getAgentStates(),
+    refetchInterval: 10_000,
+  });
+  const { data: queues = [], isLoading: queuesLoading } = useQuery({
+    queryKey: ['contact-center', 'queues'],
+    queryFn: () => contactCenterApi.getQueueStatus(),
+    refetchInterval: 10_000,
+  });
+  const { data: interactions = [] } = useQuery({
+    queryKey: ['contact-center', 'interactions'],
+    queryFn: () => apiGet<ContactInteraction[]>('/api/v1/contact-center/interactions').catch(() => []),
+    refetchInterval: 10_000,
+  });
+  const { data: callbacks = [] } = useQuery({
+    queryKey: ['contact-center', 'callbacks'],
+    queryFn: () => apiGet<CallbackRequest[]>('/api/v1/contact-center/callbacks').catch(() => []),
+    refetchInterval: 15_000,
+  });
 
   const available = agents.filter((a) => a.state === 'AVAILABLE').length;
-  const onCall = agents.filter((a) => a.state === 'ON_CALL').length;
+  const onCall = agents.filter((a) => a.state === 'ON_CALL' || a.state === 'BUSY').length;
   const totalWaiting = queues.reduce((s, q) => s + q.waiting, 0);
+  const avgWait = queues.length > 0 ? queues.reduce((s, q) => s + q.longestWaitSec, 0) / queues.length : 0;
+  const avgHandle = agents.length > 0 ? agents.reduce((s, a) => s + a.avgHandleTimeSec, 0) / agents.length : 0;
+  const avgSla = queues.length > 0 ? queues.reduce((s, q) => s + q.slaPct, 0) / queues.length : 0;
+
+  const filteredAgents = agentFilter ? agents.filter((a) => a.state === agentFilter) : agents;
+
+  const handleStateChange = (agentId: string, newState: string) => {
+    contactCenterApi.updateAgentState(agentId, newState).then(() => {
+      toast.success(`Agent state updated to ${newState}`);
+      qc.invalidateQueries({ queryKey: ['contact-center', 'agents'] });
+    }).catch(() => toast.error('Failed to update state'));
+  };
+
+  const handleAttemptCallback = (id: number) => {
+    contactRoutingApi.attemptCallback(id).then(() => {
+      toast.success('Callback attempted');
+      qc.invalidateQueries({ queryKey: ['contact-center', 'callbacks'] });
+    }).catch(() => toast.error('Failed'));
+  };
+
+  // Interaction columns
+  const interactionCols: ColumnDef<ContactInteraction, unknown>[] = [
+    { accessorKey: 'interactionId', header: 'ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.interactionId}</span> },
+    { accessorKey: 'customerId', header: 'Customer', cell: ({ row }) => <span className="text-sm">#{row.original.customerId}</span> },
+    {
+      accessorKey: 'channel', header: 'Channel',
+      cell: ({ row }) => {
+        const Icon = CHANNEL_ICONS[row.original.channel] ?? Phone;
+        return <span className="flex items-center gap-1.5 text-xs"><Icon className="w-3.5 h-3.5" />{row.original.channel}</span>;
+      },
+    },
+    { accessorKey: 'contactReason', header: 'Reason', cell: ({ row }) => <span className="text-sm truncate max-w-[200px] block">{row.original.contactReason}</span> },
+    { accessorKey: 'agentId', header: 'Agent', cell: ({ row }) => <span className="text-xs">{row.original.agentId || '—'}</span> },
+    { accessorKey: 'waitTimeSec', header: 'Wait', cell: ({ row }) => <span className="font-mono text-xs">{fmtTime(row.original.waitTimeSec)}</span> },
+    { accessorKey: 'handleTimeSec', header: 'Handle', cell: ({ row }) => <span className="font-mono text-xs">{fmtTime(row.original.handleTimeSec)}</span> },
+    {
+      accessorKey: 'status', header: 'Status',
+      cell: ({ row }) => (
+        <span className="flex items-center gap-1.5">
+          {row.original.status === 'ACTIVE' && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
+          <StatusBadge status={row.original.status} />
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'sentiment', header: 'Sentiment',
+      cell: ({ row }) => <span className="text-lg">{SENTIMENT_EMOJI[row.original.sentiment] ?? '—'}</span>,
+    },
+    {
+      accessorKey: 'firstContactResolution', header: 'FCR',
+      cell: ({ row }) => row.original.firstContactResolution ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <span className="text-xs text-muted-foreground">—</span>,
+    },
+  ];
+
+  // Analytics data
+  const channelBreakdown = useMemo(() => {
+    const counts: Record<string, number> = {};
+    interactions.forEach((i) => { counts[i.channel] = (counts[i.channel] ?? 0) + 1; });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [interactions]);
+
+  const CHANNEL_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6'];
+
+  const sentimentBreakdown = useMemo(() => {
+    const counts: Record<string, number> = { POSITIVE: 0, NEUTRAL: 0, NEGATIVE: 0 };
+    interactions.forEach((i) => { if (i.sentiment && counts[i.sentiment] !== undefined) counts[i.sentiment]++; });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [interactions]);
+
+  const SENTIMENT_COLORS = ['#22c55e', '#f59e0b', '#ef4444'];
+
+  // Agent performance table
+  const agentPerfCols: ColumnDef<AgentState, unknown>[] = [
+    { accessorKey: 'agentName', header: 'Agent', cell: ({ row }) => <span className="font-medium text-sm">{row.original.agentName}</span> },
+    { accessorKey: 'callsToday', header: 'Handled', cell: ({ row }) => <span className="font-mono text-sm">{row.original.callsToday}</span> },
+    { accessorKey: 'avgHandleTimeSec', header: 'AHT', cell: ({ row }) => <span className="font-mono text-sm">{fmtTime(row.original.avgHandleTimeSec)}</span> },
+    { accessorKey: 'fcrPct', header: 'FCR %', cell: ({ row }) => <span className={cn('font-mono text-sm', row.original.fcrPct >= 80 ? 'text-green-600' : 'text-amber-600')}>{row.original.fcrPct.toFixed(0)}%</span> },
+    { accessorKey: 'qualityScore', header: 'Quality', cell: ({ row }) => <span className={cn('font-mono text-sm font-semibold', row.original.qualityScore >= 80 ? 'text-green-600' : row.original.qualityScore >= 60 ? 'text-amber-600' : 'text-red-600')}>{row.original.qualityScore}/100</span> },
+  ];
+
+  const pendingCallbacks = callbacks.filter((c) => c.status === 'PENDING' || c.status === 'SCHEDULED');
+
+  const tabs = [
+    {
+      id: 'queues',
+      label: 'Queues',
+      badge: totalWaiting || undefined,
+      content: (
+        <div className="p-4">
+          {queuesLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          ) : queues.length === 0 ? (
+            <div className="text-center text-muted-foreground py-12">No queues configured</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {queues.map((q) => <QueueCard key={q.queueName} queue={q} />)}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'agents',
+      label: 'Agents',
+      badge: agents.length || undefined,
+      content: (
+        <div className="p-4 space-y-4">
+          <div className="flex gap-2 flex-wrap">
+            {['', 'AVAILABLE', 'ON_CALL', 'WRAP_UP', 'BREAK', 'OFFLINE'].map((s) => (
+              <button
+                key={s}
+                onClick={() => setAgentFilter(s)}
+                className={cn('px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors',
+                  agentFilter === s ? 'bg-primary text-primary-foreground border-primary' : 'bg-card hover:bg-muted/40 border-border',
+                )}
+              >
+                {s || 'All'} {s ? `(${agents.filter((a) => a.state === s).length})` : `(${agents.length})`}
+              </button>
+            ))}
+          </div>
+          {agentsLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredAgents.map((a) => <AgentCard key={a.agentId} agent={a} onStateChange={handleStateChange} />)}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'interactions',
+      label: 'Interactions',
+      badge: interactions.filter((i) => i.status === 'ACTIVE').length || undefined,
+      content: (
+        <div className="p-4 space-y-3">
+          <div className="flex justify-end">
+            <button onClick={() => setShowNewInteraction(true)} className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border hover:bg-muted">
+              <Plus className="w-3.5 h-3.5" /> New Interaction
+            </button>
+          </div>
+          <DataTable columns={interactionCols} data={interactions} enableGlobalFilter enableExport exportFilename="interactions" emptyMessage="No interactions" />
+        </div>
+      ),
+    },
+    {
+      id: 'callbacks',
+      label: 'Callbacks',
+      badge: pendingCallbacks.length || undefined,
+      content: (
+        <div className="p-4 space-y-4">
+          <div className="flex justify-end">
+            <button onClick={() => setShowRequestCallback(true)} className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border hover:bg-muted">
+              <Plus className="w-3.5 h-3.5" /> Request Callback
+            </button>
+          </div>
+          {pendingCallbacks.length === 0 ? (
+            <div className="text-center text-muted-foreground py-12">No pending callbacks</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {pendingCallbacks.map((cb) => <CallbackCard key={cb.id} callback={cb} onAttempt={handleAttemptCallback} />)}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      content: (
+        <div className="p-4 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Channel breakdown */}
+            <div className="rounded-xl border bg-card p-5">
+              <h3 className="text-sm font-semibold mb-4">Contact by Channel</h3>
+              {channelBreakdown.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={channelBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={80} dataKey="value" paddingAngle={2}>
+                      {channelBreakdown.map((_, i) => <Cell key={i} fill={CHANNEL_COLORS[i % CHANNEL_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : <p className="text-sm text-muted-foreground text-center py-8">No data</p>}
+            </div>
+
+            {/* Sentiment breakdown */}
+            <div className="rounded-xl border bg-card p-5">
+              <h3 className="text-sm font-semibold mb-4">Sentiment Analysis</h3>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={sentimentBreakdown}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="value" name="Count" radius={[4, 4, 0, 0]}>
+                    {sentimentBreakdown.map((_, i) => <Cell key={i} fill={SENTIMENT_COLORS[i]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Agent performance table */}
+          <div className="rounded-xl border bg-card p-5">
+            <h3 className="text-sm font-semibold mb-4">Agent Performance</h3>
+            <DataTable columns={agentPerfCols} data={[...agents].sort((a, b) => b.callsToday - a.callsToday)} enableGlobalFilter emptyMessage="No agents" />
+          </div>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <>
-      <PageHeader title="Contact Center" subtitle="Agent workbench, queue monitoring, performance tracking" />
-      <div className="page-container space-y-4">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Agents Online" value={agents.length} format="number" icon={HeadphonesIcon} loading={agentsLoading} />
-          <StatCard label="Available" value={available} format="number" icon={Phone} loading={agentsLoading} />
-          <StatCard label="On Call" value={onCall} format="number" icon={Users} loading={agentsLoading} />
-          <StatCard label="Waiting in Queue" value={totalWaiting} format="number" icon={Clock} loading={queuesLoading} />
+      {showWallboard && <WallboardView agents={agents} queues={queues} onExit={() => setShowWallboard(false)} />}
+      {showNewInteraction && <NewInteractionForm onClose={() => setShowNewInteraction(false)} />}
+      {showRequestCallback && <RequestCallbackForm onClose={() => setShowRequestCallback(false)} />}
+
+      <PageHeader
+        title="Contact Center"
+        subtitle="Real-time queue monitoring, agent management, interaction tracking"
+        actions={
+          <button onClick={() => setShowWallboard(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+            <Monitor className="w-4 h-4" /> Wallboard
+          </button>
+        }
+      />
+
+      <div className="page-container space-y-6">
+        {/* Stats row */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatCard label="Waiting" value={totalWaiting} format="number" icon={Clock} loading={queuesLoading} />
+          <StatCard label="In Service" value={onCall} format="number" icon={PhoneCall} loading={agentsLoading} />
+          <StatCard label="Available" value={`${available}/${agents.length}`} icon={Users} loading={agentsLoading} />
+          <StatCard label="Avg Wait" value={fmtTime(avgWait)} icon={Clock} />
+          <StatCard label="Avg Handle" value={fmtTime(avgHandle)} icon={HeadphonesIcon} />
+          <div className="stat-card flex items-center justify-center gap-3">
+            <ServiceLevelGauge value={avgSla} />
+          </div>
         </div>
 
-        <TabsPage syncWithUrl tabs={[
-          { id: 'queues', label: 'Queue Dashboard', badge: totalWaiting || undefined, content: (
-            <div className="p-4"><QueueStatusCards queues={queues} isLoading={queuesLoading} /></div>
-          )},
-          { id: 'agents', label: 'Agent Status', badge: agents.length || undefined, content: (
-            <div className="p-4"><DataTable columns={agentCols} data={agents} isLoading={agentsLoading} enableGlobalFilter emptyMessage="No agents online" /></div>
-          )},
-          { id: 'performance', label: 'Performance', content: (
-            <div className="p-8 text-center text-muted-foreground">Agent performance scorecard — loads from reporting API</div>
-          )},
-          { id: 'config', label: 'Config', content: (
-            <div className="p-8 text-center text-muted-foreground">Routing rules and queue configuration — admin only</div>
-          )},
-        ]} />
+        {/* Tabs */}
+        <div className="card overflow-hidden">
+          <TabsPage syncWithUrl tabs={tabs} />
+        </div>
       </div>
     </>
   );

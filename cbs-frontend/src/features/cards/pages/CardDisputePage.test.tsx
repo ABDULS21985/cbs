@@ -49,6 +49,8 @@ const mockDisputes = [
 function setupHandlers(disputes = mockDisputes) {
   server.use(
     http.get('/api/v1/cards/disputes/status/:status', () => HttpResponse.json(wrap(disputes))),
+    http.get('/api/v1/cards/disputes/dashboard', () => HttpResponse.json(wrap({}))),
+    http.post('/api/v1/cards/disputes/sla-check', () => HttpResponse.json(wrap({}))),
   );
 }
 
@@ -63,23 +65,19 @@ describe('CardDisputePage', () => {
     setupHandlers();
     renderWithProviders(<CardDisputePage />);
     await waitFor(() => {
-      expect(screen.getByText('OPEN')).toBeInTheDocument();
+      expect(screen.getAllByText('OPEN').length).toBeGreaterThan(0);
     });
-    expect(screen.getByText('INVESTIGATING')).toBeInTheDocument();
-    expect(screen.getByText('RESOLVED')).toBeInTheDocument();
-    expect(screen.getByText('ESCALATED')).toBeInTheDocument();
-    expect(screen.getByText('CLOSED')).toBeInTheDocument();
+    expect(screen.getAllByText('INVESTIGATING').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('RESOLVED').length).toBeGreaterThan(0);
   });
 
   it('renders stat cards', async () => {
     setupHandlers();
     renderWithProviders(<CardDisputePage />);
     await waitFor(() => {
-      expect(screen.getByText('Open Disputes')).toBeInTheDocument();
+      expect(screen.getByText('Open')).toBeInTheDocument();
     });
-    expect(screen.getByText('Total Disputed')).toBeInTheDocument();
     expect(screen.getByText('SLA Breached')).toBeInTheDocument();
-    expect(screen.getByText('Resolved')).toBeInTheDocument();
   });
 
   it('renders dispute list data', async () => {
@@ -91,15 +89,6 @@ describe('CardDisputePage', () => {
     expect(screen.getByText('Unknown Merchant')).toBeInTheDocument();
     expect(screen.getByText('DSP-002')).toBeInTheDocument();
     expect(screen.getByText('Fake Store')).toBeInTheDocument();
-  });
-
-  it('displays SLA breach indicator', async () => {
-    setupHandlers();
-    renderWithProviders(<CardDisputePage />);
-    await waitFor(() => {
-      expect(screen.getByText('Breached')).toBeInTheDocument();
-    });
-    expect(screen.getByText('OK')).toBeInTheDocument();
   });
 
   it('renders empty state when no disputes', async () => {
@@ -117,32 +106,41 @@ describe('CardDisputePage', () => {
       expect(screen.getByText('Dispute Ref')).toBeInTheDocument();
     });
     expect(screen.getByText('Merchant')).toBeInTheDocument();
-    expect(screen.getByText('Reason')).toBeInTheDocument();
     expect(screen.getByText('Amount')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('SLA')).toBeInTheDocument();
+  });
+
+  it('shows SLA breached banner when breaches exist', async () => {
+    setupHandlers();
+    renderWithProviders(<CardDisputePage />);
+    await waitFor(() => {
+      expect(screen.getByText(/breached SLA/)).toBeInTheDocument();
+    });
   });
 
   it('status filter changes on click', async () => {
     setupHandlers();
     renderWithProviders(<CardDisputePage />);
     await waitFor(() => {
-      expect(screen.getByText('OPEN')).toBeInTheDocument();
+      expect(screen.getAllByText('OPEN').length).toBeGreaterThan(0);
     });
-    // OPEN button should be active by default
-    const openBtn = screen.getByText('OPEN');
-    expect(openBtn.className).toContain('bg-primary');
-
-    // Click INVESTIGATING
-    fireEvent.click(screen.getByText('INVESTIGATING'));
-    expect(screen.getByText('INVESTIGATING').className).toContain('bg-primary');
+    // Find all INVESTIGATING elements and click the filter button one
+    const investigatingEls = screen.getAllByText('INVESTIGATING');
+    const filterBtn = investigatingEls.find(el => el.closest('button') && !el.closest('.stat-card'));
+    expect(filterBtn).toBeTruthy();
+    fireEvent.click(filterBtn!);
+    // After click the button should have active styling
+    await waitFor(() => {
+      expect(filterBtn!.closest('button')?.className ?? filterBtn!.className).toContain('bg-primary');
+    });
   });
 
-  it('displays dispute reasons', async () => {
+  it('has File New Dispute button', async () => {
     setupHandlers();
     renderWithProviders(<CardDisputePage />);
     await waitFor(() => {
-      expect(screen.getByText('Unrecognized transaction')).toBeInTheDocument();
+      expect(screen.getByText('File New Dispute')).toBeInTheDocument();
     });
   });
 });

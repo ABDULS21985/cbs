@@ -69,23 +69,23 @@ public class CardController {
 
     @PostMapping("/{id}/block")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<Card>> block(@PathVariable Long id, @RequestParam String reason) {
-        return ResponseEntity.ok(ApiResponse.ok(cardService.blockCard(id, reason)));
+    public ResponseEntity<ApiResponse<Card>> block(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.ok(cardService.blockCard(id, body.getOrDefault("reason", "Blocked by officer"))));
     }
 
     @PostMapping("/{id}/hotlist")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<Card>> hotlist(@PathVariable Long id, @RequestParam String reason) {
-        return ResponseEntity.ok(ApiResponse.ok(cardService.hotlistCard(id, reason)));
+    public ResponseEntity<ApiResponse<Card>> hotlist(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.ok(cardService.hotlistCard(id, body.getOrDefault("reason", "Hotlisted"))));
     }
 
     @PatchMapping("/{id}/controls")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<Card>> updateControls(@PathVariable Long id,
-            @RequestParam(required = false) Boolean contactless, @RequestParam(required = false) Boolean online,
-            @RequestParam(required = false) Boolean international, @RequestParam(required = false) Boolean atm,
-            @RequestParam(required = false) Boolean pos) {
-        return ResponseEntity.ok(ApiResponse.ok(cardService.updateControls(id, contactless, online, international, atm, pos)));
+            @RequestBody java.util.Map<String, Boolean> controls) {
+        return ResponseEntity.ok(ApiResponse.ok(cardService.updateControls(id,
+                controls.get("contactlessEnabled"), controls.get("onlineEnabled"),
+                controls.get("internationalEnabled"), controls.get("atmEnabled"), controls.get("posEnabled"))));
     }
 
     @PostMapping("/{cardId}/authorize")
@@ -115,17 +115,21 @@ public class CardController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
-    // List all cards
+    // Request replacement or new card
     @PostMapping("/request")
-    @Operation(summary = "Request a new card (alias for POST /)")
+    @Operation(summary = "Request a new or replacement card")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<Card>> requestCard(
-            @RequestParam Long customerId, @RequestParam Long accountId,
-            @RequestParam(required = false) String cardType,
-            @RequestParam(required = false) String deliveryAddress) {
-        CardType type = cardType != null ? CardType.valueOf(cardType) : CardType.DEBIT;
+    public ResponseEntity<ApiResponse<Card>> requestCard(@RequestBody java.util.Map<String, Object> body) {
+        Long customerId = body.get("customerId") != null ? Long.valueOf(body.get("customerId").toString()) : null;
+        Long accountId = body.get("accountId") != null ? Long.valueOf(body.get("accountId").toString()) : null;
+        String cardTypeStr = (String) body.getOrDefault("cardType", "DEBIT");
+        String schemeStr = (String) body.getOrDefault("scheme", "VISA");
+        String deliveryMethod = (String) body.getOrDefault("deliveryMethod", "BRANCH_PICKUP");
+        CardType type = CardType.valueOf(cardTypeStr);
+        CardScheme scheme = CardScheme.valueOf(schemeStr);
+        if (accountId == null) throw new com.cbs.common.exception.BusinessException("accountId is required");
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
-                cardService.issueCard(accountId, type, CardScheme.VISA,
+                cardService.issueCard(accountId, type, scheme,
                         "CLASSIC", "CARDHOLDER", java.time.LocalDate.now().plusYears(3),
                         new java.math.BigDecimal("500000"), new java.math.BigDecimal("200000"),
                         new java.math.BigDecimal("300000"), new java.math.BigDecimal("200000"),

@@ -10,7 +10,7 @@ export interface IvrMenu {
   promptText: string;
   promptAudioRef: string;
   inputType: string;
-  options: Map<String, Object[];
+  options: Record<string, unknown>[];
   timeoutSeconds: number;
   maxRetries: number;
   isActive: boolean;

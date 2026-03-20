@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoGrid, StatusBadge, TabsPage, DataTable, AuditTimeline } from '@/components/shared';
 import { formatMoney, formatDate, formatDateTime, formatRelative } from '@/lib/formatters';
-import { useCard, useCardTransactions, useBlockCard, useActivateCard, useUpdateCardControls } from '../hooks/useCardData';
-import { useCardTokens, useSuspendToken, useResumeToken, useDeactivateToken, useHotlistCard, useDisputeTransaction, useDisputesByStatus } from '../hooks/useCardsExt';
+import { useCard, useCardTransactionsByCardId, useBlockCard, useActivateCard, useUpdateCardControls, useHotlistCard, useRequestCard } from '../hooks/useCardData';
+import { useCardTokens, useSuspendToken, useResumeToken, useDeactivateToken, useDisputeTransaction, useDisputesByStatus } from '../hooks/useCardsExt';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -116,6 +116,59 @@ function CardVisual({ card }: { card: import('../types/card').Card }) {
   );
 }
 
+// ── Replace Card Modal ──────────────────────────────────────────────────────
+
+function ReplaceCardModal({ card, onClose }: { card: import('../types/card').Card; onClose: () => void }) {
+  const requestCard = useRequestCard();
+  const [deliveryMethod, setDeliveryMethod] = useState('BRANCH_PICKUP');
+  const [reason, setReason] = useState('');
+
+  const handleSubmit = () => {
+    requestCard.mutate(
+      {
+        customerId: card.customerId,
+        accountId: card.accountId,
+        cardType: card.cardType,
+        scheme: card.scheme,
+        deliveryMethod,
+        reason,
+      },
+      {
+        onSuccess: () => { toast.success('Replacement card requested'); onClose(); },
+        onError: () => toast.error('Failed to request replacement'),
+      },
+    );
+  };
+
+  return (
+    <Modal title="Request Card Replacement" onClose={onClose}>
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Delivery Method</label>
+          <select value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+            <option value="BRANCH_PICKUP">Branch Pickup</option>
+            <option value="COURIER">Courier Delivery</option>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reason</label>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} placeholder="Reason for replacement"
+            className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" />
+        </div>
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+          <button onClick={handleSubmit} disabled={requestCard.isPending || !reason.trim()}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+            {requestCard.isPending && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+            Request Replacement
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ── Quick Actions Bar ────────────────────────────────────────────────────────
 
 function QuickActions({ card }: { card: import('../types/card').Card }) {
@@ -144,7 +197,7 @@ function QuickActions({ card }: { card: import('../types/card').Card }) {
   };
 
   const handleHotlist = (reason: string) => {
-    hotlistCard.mutate(card.id, {
+    hotlistCard.mutate({ id: card.id, reason }, {
       onSuccess: () => { toast.success('Card hotlisted — replacement will be issued'); setShowLostStolen(false); },
       onError: () => toast.error('Failed to hotlist card'),
     });
@@ -210,17 +263,7 @@ function QuickActions({ card }: { card: import('../types/card').Card }) {
 
       {/* Replace Card Modal */}
       {showReplace && (
-        <Modal title="Request Card Replacement" onClose={() => setShowReplace(false)}>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Select reason for replacement:</p>
-            {['Damaged card', 'Worn out', 'Name change', 'Upgrade request'].map((reason) => (
-              <button key={reason} onClick={() => { toast.success(`Replacement requested: ${reason}`); setShowReplace(false); }}
-                className="w-full text-left px-4 py-3 rounded-lg border hover:bg-muted text-sm transition-colors">
-                {reason}
-              </button>
-            ))}
-          </div>
-        </Modal>
+        <ReplaceCardModal card={card} onClose={() => setShowReplace(false)} />
       )}
 
       {/* Lost/Stolen Modal */}
@@ -349,10 +392,8 @@ function ControlsTab({ card }: { card: import('../types/card').Card }) {
 
 function TransactionsTab({ card }: { card: import('../types/card').Card }) {
   const [days, setDays] = useState(30);
-  const { data: transactions = [], isLoading } = useCardTransactions({ cardId: card.id });
+  const { data: cardTxns = [], isLoading } = useCardTransactionsByCardId(card.id);
   const disputeTxn = useDisputeTransaction();
-
-  const cardTxns = transactions.filter((t) => t.cardMasked === card.cardNumberMasked.slice(-8));
 
   const approved = cardTxns.filter((t) => t.status === 'APPROVED').length;
   const declined = cardTxns.filter((t) => t.status === 'DECLINED').length;
@@ -665,10 +706,10 @@ export function CardDetailPage() {
                   <h3 className="text-sm font-semibold mb-4">Card Limits</h3>
                   <div className="space-y-4">
                     {[
-                      { label: 'Daily ATM', used: 0, limit: 100000 },
-                      { label: 'Daily POS', used: 0, limit: 500000 },
-                      { label: 'Online Per-Txn', used: 0, limit: 200000 },
-                      { label: 'Monthly Total', used: 0, limit: 5000000 },
+                      { label: 'Daily ATM', used: 0, limit: card.dailyAtmLimit ?? 200000 },
+                      { label: 'Daily POS', used: 0, limit: card.dailyPosLimit ?? 500000 },
+                      { label: 'Online Per-Txn', used: 0, limit: card.singleTxnLimit ?? 200000 },
+                      { label: 'Monthly Total', used: 0, limit: card.monthlyLimit ?? 5000000 },
                     ].map((l) => (
                       <div key={l.label} className="space-y-1">
                         <div className="flex justify-between text-xs">

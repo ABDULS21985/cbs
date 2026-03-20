@@ -13,7 +13,9 @@ import { cardClearingApi } from '../api/cardClearingApi';
 import {
   useClearingBatches,
   useIngestClearingBatch,
-  useSettleClearingBatch,
+  useSettleBatchByCode,
+  useManualClearingBatch,
+  useCreateSettlement,
 } from '../hooks/useCardsExt';
 import type { CardClearingBatch, CardSettlementPosition } from '../types/cardClearing';
 
@@ -262,7 +264,7 @@ function ClearingBatchesTab() {
 
   const { data: batches, isLoading, isError, refetch } = useClearingBatches(network, date);
   const ingestMutation = useIngestClearingBatch();
-  const settleMutation = useSettleClearingBatch();
+  const settleMutation = useSettleBatchByCode();
 
   // Flatten to array
   const batchList = useMemo<CardClearingBatch[]>(() => {
@@ -278,7 +280,7 @@ function ClearingBatchesTab() {
   };
 
   const handleSettle = (batch: CardClearingBatch) => {
-    settleMutation.mutate({ batchId: batch.id, data: { status: 'SETTLED' } }, {
+    settleMutation.mutate(batch.batchId, {
       onSuccess: () => refetch(),
     });
   };

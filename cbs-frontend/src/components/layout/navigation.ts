@@ -111,8 +111,12 @@ export const navigationItems: NavSection[] = [
       {
         label: 'Communications', icon: MessageSquare, path: '/communications', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
         children: [
-          { label: 'Center', path: '/communications' },
+          { label: 'Message Center', path: '/communications' },
           { label: 'Templates', path: '/communications/templates' },
+          { label: 'Contact Center', path: '/communications/contact-center' },
+          { label: 'Routing Rules', path: '/communications/routing' },
+          { label: 'Channels', path: '/communications/channels' },
+          { label: 'Preferences', path: '/communications/preferences' },
         ],
       },
     ],
@@ -176,6 +180,8 @@ export const navigationItems: NavSection[] = [
           { label: 'Regulatory Returns', path: '/compliance/returns' },
           { label: 'Assessments', path: '/compliance/assessments' },
           { label: 'Audit Trail', path: '/compliance/audit' },
+          { label: 'AML/CFT', path: '/compliance/aml' },
+          { label: 'Fraud Detection', path: '/compliance/fraud' },
         ],
       },
     ],

@@ -174,6 +174,30 @@ export const TemplateManagementPage = lazyNamed(
   () => import('@/features/communications/pages/TemplateManagementPage'),
   'TemplateManagementPage',
 );
+export const TemplateDetailPage = lazyNamed(
+  () => import('@/features/communications/pages/TemplateDetailPage'),
+  'TemplateDetailPage',
+);
+export const AgentDashboardPage = lazyNamed(
+  () => import('@/features/contactcenter/pages/AgentDashboardPage'),
+  'AgentDashboardPage',
+);
+export const RoutingRulesPage = lazyNamed(
+  () => import('@/features/communications/pages/RoutingRulesPage'),
+  'RoutingRulesPage',
+);
+export const ChannelConfigPage = lazyNamed(
+  () => import('@/features/communications/pages/ChannelConfigPage'),
+  'ChannelConfigPage',
+);
+export const CommsPreferencesPage = lazyNamed(
+  () => import('@/features/communications/pages/PreferencesPage'),
+  'PreferencesPage',
+);
+export const PortalNotificationsPage = lazyNamed(
+  () => import('@/features/communications/pages/PortalNotificationsPage'),
+  'PortalNotificationsPage',
+);
 
 export const CaseListPage = lazyNamed(
   () => import('@/features/cases/pages/CaseListPage'),
@@ -400,6 +424,14 @@ export const ComplianceDashboardPage = lazyNamed(
 export const AuditTrailPage = lazyNamed(
   () => import('@/features/compliance/pages/AuditTrailPage'),
   'AuditTrailPage',
+);
+export const FraudDashboardPage = lazyNamed(
+  () => import('@/features/compliance/pages/FraudDashboardPage'),
+  'FraudDashboardPage',
+);
+export const FraudAlertDetailPage = lazyNamed(
+  () => import('@/features/compliance/pages/FraudAlertDetailPage'),
+  'FraudAlertDetailPage',
 );
 
 export const GatewayConsolePage = lazyNamed(
@@ -701,6 +733,22 @@ export const MerchantDetailPage = lazyNamed(
   () => import('@/features/cards/pages/MerchantDetailPage'),
   'MerchantDetailPage',
 );
+export const MerchantOnboardPage = lazyNamed(
+  () => import('@/features/cards/pages/MerchantOnboardPage'),
+  'MerchantOnboardPage',
+);
+export const TerminalDetailPage = lazyNamed(
+  () => import('@/features/cards/pages/TerminalDetailPage'),
+  'TerminalDetailPage',
+);
+export const CardRequestPage = lazyNamed(
+  () => import('@/features/cards/pages/CardRequestPage'),
+  'CardRequestPage',
+);
+export const CardIssuancePage = lazyNamed(
+  () => import('@/features/cards/pages/CardIssuancePage'),
+  'CardIssuancePage',
+);
 export const TreasuryPositionsPage = lazyNamed(
   () => import('@/features/treasury/pages/TreasuryPositionsPage'),
   'TreasuryPositionsPage',
@@ -712,6 +760,22 @@ export const FxRatesPage = lazyNamed(
 export const ComplianceAssessmentsPage = lazyNamed(
   () => import('@/features/compliance/pages/ComplianceAssessmentsPage'),
   'ComplianceAssessmentsPage',
+);
+export const ComplianceSanctionsPage = lazyNamed(
+  () => import('@/features/compliance/pages/SanctionsScreeningPage'),
+  'SanctionsScreeningPage',
+);
+export const AmlDashboardPage = lazyNamed(
+  () => import('@/features/compliance/pages/AmlDashboardPage'),
+  'AmlDashboardPage',
+);
+export const AmlAlertDetailPage = lazyNamed(
+  () => import('@/features/compliance/pages/AmlAlertDetailPage'),
+  'AmlAlertDetailPage',
+);
+export const ScreeningDetailPage = lazyNamed(
+  () => import('@/features/compliance/pages/ScreeningDetailPage'),
+  'ScreeningDetailPage',
 );
 export const ReportsHomePage = lazyNamed(
   () => import('@/features/reports/pages/ReportsHomePage'),

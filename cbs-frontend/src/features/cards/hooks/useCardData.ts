@@ -121,6 +121,25 @@ export function useUpdateCardControls() {
   });
 }
 
+export function useHotlistCard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+      cardApi.hotlistCard(id, reason),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: cardKeys.all }),
+    onError: handleApiError,
+  });
+}
+
+export function useCardTransactionsByCardId(cardId: number) {
+  return useQuery({
+    queryKey: ['cards', 'card-transactions', cardId],
+    queryFn: () => cardApi.getCardTransactions(cardId),
+    enabled: !!cardId,
+    ...CARD_QUERY_DEFAULTS,
+  });
+}
+
 export function useRequestCard() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -130,12 +149,68 @@ export function useRequestCard() {
   });
 }
 
+export function useIssueCard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: import('../api/cardApi').IssueCardInput) => cardApi.issueCard(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: cardKeys.all }),
+    onError: handleApiError,
+  });
+}
+
+export function useCustomerCards(customerId: number) {
+  return useQuery({
+    queryKey: [...cardKeys.all, 'customer', customerId],
+    queryFn: () => cardApi.getCustomerCards(customerId),
+    enabled: customerId > 0,
+    ...CARD_QUERY_DEFAULTS,
+  });
+}
+
+export function usePendingCards() {
+  return useQuery({
+    queryKey: [...cardKeys.all, 'pending'],
+    queryFn: () => cardApi.getCards({ status: 'PENDING_ACTIVATION' }),
+    ...CARD_QUERY_DEFAULTS,
+  });
+}
+
+export function useBulkActivate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: number[]) => {
+      await Promise.all(ids.map((id) => apiPost<void>(`/api/v1/cards/${id}/activate`)));
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: cardKeys.all }),
+    onError: handleApiError,
+  });
+}
+
 export function useOnboardMerchant() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) => cardApi.onboardMerchant(data),
+    mutationFn: (data: Parameters<typeof cardApi.onboardMerchant>[0]) =>
+      cardApi.onboardMerchant(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: cardKeys.merchants }),
     onError: handleApiError,
+  });
+}
+
+export function useMerchantDetail(id: number) {
+  return useQuery({
+    queryKey: cardKeys.merchantDetail(id),
+    queryFn: () => cardApi.getMerchant(id),
+    enabled: id > 0,
+    ...CARD_QUERY_DEFAULTS,
+  });
+}
+
+export function usePosTerminalsLive() {
+  return useQuery({
+    queryKey: cardKeys.terminals,
+    queryFn: () => cardApi.getTerminals(),
+    ...CARD_QUERY_DEFAULTS,
+    refetchInterval: 30_000,
   });
 }
 

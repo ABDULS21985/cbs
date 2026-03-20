@@ -1,153 +1,205 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge } from '@/components/shared';
-import { Plus, Store, TrendingUp, AlertTriangle, Loader2, AlertCircle, RefreshCw, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { formatMoney, formatPercent } from '@/lib/formatters';
-import { toast } from 'sonner';
+import { Plus, Store, TrendingUp, AlertTriangle, BarChart3 } from 'lucide-react';
+import { formatMoney, formatPercent, formatDate } from '@/lib/formatters';
 import { useMerchants } from '../hooks/useCardData';
-import { cardApi } from '../api/cardApi';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Merchant } from '../types/card';
 import { cn } from '@/lib/utils';
 
-// ─── Onboard Merchant Form ──────────────────────────────────────────────────
-
-function OnboardMerchantForm({ onClose }: { onClose: () => void }) {
-  const qc = useQueryClient();
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    businessName: '',
-    mcc: '',
-    settlementAccount: '',
-    mdrRate: 1.5,
-    contactEmail: '',
-    address: '',
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitting(true);
-    cardApi.onboardMerchant({
-      merchantName: form.businessName,
-      mcc: form.mcc,
-      settlementAccount: form.settlementAccount,
-      mdrRate: form.mdrRate,
-      email: form.contactEmail,
-      address: form.address,
-    }).then(() => {
-      toast.success('Merchant onboarded successfully');
-      qc.invalidateQueries({ queryKey: ['merchants'] });
-      onClose();
-    }).catch(() => {
-      toast.error('Failed to onboard merchant');
-    }).finally(() => setSubmitting(false));
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted transition-colors"><X className="w-4 h-4" /></button>
-        <h2 className="text-lg font-semibold mb-4">Onboard New Merchant</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Business Name</label>
-            <input className="w-full mt-1 input" placeholder="Business name" value={form.businessName} onChange={(e) => setForm((f) => ({ ...f, businessName: e.target.value }))} required />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">MCC Code</label>
-              <input className="w-full mt-1 input" placeholder="e.g. 5411" value={form.mcc} onChange={(e) => setForm((f) => ({ ...f, mcc: e.target.value }))} required />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">MDR Rate (%)</label>
-              <input type="number" className="w-full mt-1 input" value={form.mdrRate} onChange={(e) => setForm((f) => ({ ...f, mdrRate: parseFloat(e.target.value) || 0 }))} required min={0} step="0.01" max={10} />
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Settlement Account</label>
-            <input className="w-full mt-1 input" placeholder="Account number" value={form.settlementAccount} onChange={(e) => setForm((f) => ({ ...f, settlementAccount: e.target.value }))} required />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Contact Email</label>
-            <input type="email" className="w-full mt-1 input" placeholder="merchant@example.com" value={form.contactEmail} onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))} required />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Address</label>
-            <input className="w-full mt-1 input" placeholder="Business address" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={submitting} className="btn-primary">
-              {submitting ? 'Onboarding...' : 'Onboard Merchant'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-const riskColors: Record<string, string> = { LOW: 'text-green-600', MEDIUM: 'text-amber-600', HIGH: 'text-red-600', PROHIBITED: 'text-red-800' };
+const riskColors: Record<string, string> = {
+  LOW: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  MEDIUM: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  HIGH: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  PROHIBITED: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
+};
 
 const columns: ColumnDef<Merchant, any>[] = [
-  { accessorKey: 'merchantId', header: 'ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.merchantId}</span> },
-  { accessorKey: 'merchantName', header: 'Name', cell: ({ row }) => <span className="font-medium">{row.original.merchantName}</span> },
-  { accessorKey: 'mccDescription', header: 'MCC' },
-  { accessorKey: 'terminalCount', header: 'Terminals', cell: ({ row }) => row.original.terminalCount.toLocaleString() },
-  { accessorKey: 'monthlyVolume', header: 'Monthly Vol.', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.monthlyVolume)}</span> },
-  { accessorKey: 'mdrRate', header: 'MDR', cell: ({ row }) => <span className="font-mono text-sm">{formatPercent(row.original.mdrRate)}</span> },
-  { accessorKey: 'chargebackRate', header: 'CB %', cell: ({ row }) => <span className={cn('font-mono text-sm', row.original.chargebackRate > 1 ? 'text-red-600 font-bold' : '')}>{formatPercent(row.original.chargebackRate)}</span> },
-  { accessorKey: 'riskCategory', header: 'Risk', cell: ({ row }) => <span className={cn('text-xs font-bold', riskColors[row.original.riskCategory])}>{row.original.riskCategory}</span> },
-  { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} dot /> },
+  {
+    accessorKey: 'merchantId',
+    header: 'Merchant ID',
+    cell: ({ row }) => <span className="font-mono text-xs font-medium text-primary">{row.original.merchantId}</span>,
+  },
+  {
+    accessorKey: 'merchantName',
+    header: 'Name',
+    cell: ({ row }) => <span className="font-medium">{row.original.merchantName}</span>,
+  },
+  {
+    accessorKey: 'mcc',
+    header: 'MCC',
+    cell: ({ row }) => (
+      <div>
+        <span className="font-mono text-xs">{row.original.mcc}</span>
+        <span className="block text-xs text-muted-foreground">{row.original.mccDescription}</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: 'terminalCount',
+    header: 'Terminals',
+    cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.terminalCount}</span>,
+  },
+  {
+    accessorKey: 'monthlyVolume',
+    header: 'Monthly Volume',
+    cell: ({ row }) => <span className="text-sm tabular-nums font-medium">{formatMoney(row.original.monthlyVolume)}</span>,
+  },
+  {
+    accessorKey: 'mdrRate',
+    header: 'MDR %',
+    cell: ({ row }) => <span className="text-sm tabular-nums">{formatPercent(row.original.mdrRate)}</span>,
+  },
+  {
+    accessorKey: 'chargebackRate',
+    header: 'CB %',
+    cell: ({ row }) => (
+      <span className={cn('text-sm tabular-nums font-medium', row.original.chargebackRate > 1 && 'text-red-600')}>
+        {formatPercent(row.original.chargebackRate)}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'riskCategory',
+    header: 'Risk',
+    cell: ({ row }) => (
+      <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-medium', riskColors[row.original.riskCategory])}>
+        {row.original.riskCategory}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => <StatusBadge status={row.original.status} dot />,
+  },
+  {
+    accessorKey: 'onboardedDate',
+    header: 'Onboarded',
+    cell: ({ row }) => <span className="text-xs text-muted-foreground tabular-nums">{formatDate(row.original.onboardedDate)}</span>,
+  },
 ];
 
 export function MerchantListPage() {
-  useEffect(() => { document.title = 'Merchant Management | CBS'; }, []);
   const navigate = useNavigate();
-  const [showOnboard, setShowOnboard] = useState(false);
-  const { data: merchants = [], isLoading, isError, refetch } = useMerchants();
+  const { data: merchants = [], isLoading } = useMerchants();
+
+  const [statusFilter, setStatusFilter] = useState('');
+  const [riskFilter, setRiskFilter] = useState('');
+  const [mccSearch, setMccSearch] = useState('');
+  const [highCbOnly, setHighCbOnly] = useState(false);
+
+  const filtered = useMemo(() => {
+    let result = merchants;
+    if (statusFilter) result = result.filter((m) => m.status === statusFilter);
+    if (riskFilter) result = result.filter((m) => m.riskCategory === riskFilter);
+    if (mccSearch) result = result.filter((m) => m.mcc.includes(mccSearch) || m.mccDescription.toLowerCase().includes(mccSearch.toLowerCase()));
+    if (highCbOnly) result = result.filter((m) => m.chargebackRate > 1);
+    return result;
+  }, [merchants, statusFilter, riskFilter, mccSearch, highCbOnly]);
 
   const totalVolume = merchants.reduce((s, m) => s + m.monthlyVolume, 0);
-  const mdrRevenue = merchants.reduce((s, m) => s + m.monthlyVolume * m.mdrRate / 100, 0);
+  const mdrRevenue = merchants.reduce((s, m) => s + (m.monthlyVolume * m.mdrRate) / 100, 0);
+  const highRisk = merchants.filter((m) => m.riskCategory === 'HIGH' || m.riskCategory === 'PROHIBITED').length;
+  const avgCb = merchants.length > 0 ? merchants.reduce((s, m) => s + m.chargebackRate, 0) / merchants.length : 0;
 
   return (
     <>
-      {showOnboard && <OnboardMerchantForm onClose={() => setShowOnboard(false)} />}
-
-      <PageHeader title="Merchant Management" actions={
-        <button onClick={() => setShowOnboard(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
-          <Plus className="w-4 h-4" /> Onboard Merchant
-        </button>
-      } />
-      <div className="page-container space-y-4">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <PageHeader
+        title="Merchant Management"
+        subtitle="Onboard, monitor, and manage acquiring merchants"
+        actions={
+          <button
+            onClick={() => navigate('/cards/merchants/onboard')}
+            className="flex items-center gap-2 btn-primary"
+          >
+            <Plus className="w-4 h-4" /> Onboard Merchant
+          </button>
+        }
+      />
+      <div className="page-container space-y-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           <StatCard label="Active Merchants" value={merchants.filter((m) => m.status === 'ACTIVE').length} format="number" icon={Store} />
           <StatCard label="Monthly Volume" value={totalVolume} format="money" compact icon={TrendingUp} />
-          <StatCard label="MDR Revenue" value={mdrRevenue} format="money" compact />
-          <StatCard label="High Risk" value={merchants.filter((m) => m.riskCategory === 'HIGH').length} format="number" icon={AlertTriangle} />
+          <StatCard label="MDR Revenue" value={mdrRevenue} format="money" compact icon={BarChart3} />
+          <StatCard label="High Risk" value={highRisk} format="number" icon={AlertTriangle} />
+          <StatCard label="Avg CB Rate" value={avgCb} format="percent" />
         </div>
-        {isError ? (
-          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-3">
-            <AlertCircle className="w-8 h-8 text-red-500" />
-            <p className="text-sm">Failed to load merchants.</p>
-            <button onClick={() => refetch()} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
-              <RefreshCw className="w-3.5 h-3.5" /> Retry
-            </button>
+
+        {/* Filter bar */}
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="">All</option>
+              <option value="ACTIVE">Active</option>
+              <option value="ONBOARDING">Onboarding</option>
+              <option value="SUSPENDED">Suspended</option>
+              <option value="TERMINATED">Terminated</option>
+            </select>
           </div>
-        ) : isLoading ? (
-          <div className="flex items-center justify-center h-64 text-muted-foreground gap-2">
-            <Loader2 className="w-5 h-5 animate-spin" /> Loading merchants…
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Risk</label>
+            <select
+              value={riskFilter}
+              onChange={(e) => setRiskFilter(e.target.value)}
+              className="h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="">All</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="PROHIBITED">Prohibited</option>
+            </select>
           </div>
-        ) : merchants.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-            <Store className="w-10 h-10 mb-2 opacity-40" />
-            <p className="text-sm">No merchants found.</p>
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">MCC Search</label>
+            <input
+              value={mccSearch}
+              onChange={(e) => setMccSearch(e.target.value)}
+              placeholder="Code or description..."
+              className="h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 w-48"
+            />
           </div>
-        ) : (
-          <DataTable columns={columns} data={merchants} enableGlobalFilter enableExport exportFilename="merchants" onRowClick={(row) => navigate(`/cards/merchants/${row.id}`)} />
-        )}
+          <div className="flex items-end pb-0.5">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={highCbOnly}
+                onChange={(e) => setHighCbOnly(e.target.checked)}
+                className="rounded border-muted-foreground/30"
+              />
+              <span className="text-xs text-muted-foreground">CB &gt; 1% only</span>
+            </label>
+          </div>
+          {(statusFilter || riskFilter || mccSearch || highCbOnly) && (
+            <div className="flex items-end pb-0.5 ml-auto">
+              <button
+                onClick={() => { setStatusFilter(''); setRiskFilter(''); setMccSearch(''); setHighCbOnly(false); }}
+                className="text-xs text-primary hover:underline"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+        </div>
+
+        <DataTable
+          columns={columns}
+          data={filtered}
+          isLoading={isLoading}
+          enableGlobalFilter
+          enableExport
+          exportFilename="merchants"
+          onRowClick={(row) => navigate(`/cards/merchants/${row.id}`)}
+          emptyMessage="No merchants match your filters"
+        />
       </div>
     </>
   );

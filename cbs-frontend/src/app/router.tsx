@@ -41,6 +41,10 @@ import {
   ChequeManagementPage,
   CollectionsPage,
   ComplianceDashboardPage,
+  AmlDashboardPage,
+  AmlAlertDetailPage,
+  FraudDashboardPage,
+  FraudAlertDetailPage,
   ContactCenterPage,
   CreditRiskPage,
   CustomReportBuilderPage,
@@ -140,6 +144,12 @@ import {
   CommissionAgreementsPage,
   CommissionDetailPage,
   CommunicationCenterPage,
+  TemplateDetailPage,
+  AgentDashboardPage,
+  RoutingRulesPage,
+  ChannelConfigPage,
+  CommsPreferencesPage,
+  PortalNotificationsPage,
   CollateralRegisterPage,
   CollateralDetailPage,
   ComplianceReportsPage,
@@ -190,9 +200,15 @@ import {
   CardDisputePage,
   CardDisputeDetailPage,
   MerchantDetailPage,
+  MerchantOnboardPage,
+  TerminalDetailPage,
+  CardRequestPage,
+  CardIssuancePage,
   TreasuryPositionsPage,
   FxRatesPage,
   ComplianceAssessmentsPage,
+  ComplianceSanctionsPage,
+  ScreeningDetailPage,
   ReportsHomePage,
   AdminHomePage,
   CampaignManagementPage,
@@ -312,11 +328,15 @@ export function AppRouter() {
           <Route path=":id" element={<CardDetailPage />} />
           <Route path="transactions" element={<CardTransactionsPage />} />
           <Route path="merchants" element={<MerchantListPage />} />
+          <Route path="merchants/onboard" element={<MerchantOnboardPage />} />
           <Route path="merchants/:merchantId" element={<MerchantDetailPage />} />
           <Route path="pos" element={<PosTerminalPage />} />
+          <Route path="pos/:terminalId" element={<TerminalDetailPage />} />
           <Route path="clearing" element={<CardClearingPage />} />
           <Route path="disputes" element={<CardDisputePage />} />
           <Route path="disputes/:disputeId" element={<CardDisputeDetailPage />} />
+          <Route path="request" element={<CardRequestPage />} />
+          <Route path="issuance" element={<CardIssuancePage />} />
         </Route>
 
         {/* Treasury */}
@@ -425,8 +445,14 @@ export function AppRouter() {
           <Route path="returns" element={<RegulatoryReturnsPage />} />
           <Route path="returns/:id" element={<ReturnDetailPage />} />
           <Route path="assessments" element={<ComplianceAssessmentsPage />} />
+          <Route path="sanctions" element={<ComplianceSanctionsPage />} />
+          <Route path="sanctions/screenings/:id" element={<ScreeningDetailPage />} />
           <Route path="reports" element={<ComplianceReportsPage />} />
           <Route path="audit" element={<AuditTrailPage />} />
+          <Route path="aml" element={<AmlDashboardPage />} />
+          <Route path="aml/alerts/:id" element={<AmlAlertDetailPage />} />
+          <Route path="fraud" element={<FraudDashboardPage />} />
+          <Route path="fraud/alerts/:id" element={<FraudAlertDetailPage />} />
         </Route>
 
         {/* Operations */}
@@ -501,6 +527,12 @@ export function AppRouter() {
         <Route path="/communications" element={<Outlet />}>
           <Route index element={<CommunicationCenterPage />} />
           <Route path="templates" element={<TemplateManagementPage />} />
+          <Route path="templates/:id" element={<TemplateDetailPage />} />
+          <Route path="contact-center" element={<ContactCenterPage />} />
+          <Route path="contact-center/agent" element={<AgentDashboardPage />} />
+          <Route path="routing" element={<RoutingRulesPage />} />
+          <Route path="channels" element={<ChannelConfigPage />} />
+          <Route path="preferences" element={<CommsPreferencesPage />} />
         </Route>
 
         {/* Cases */}
@@ -548,6 +580,7 @@ export function AppRouter() {
           <Route path="beneficiaries" element={<PortalBeneficiariesPage />} />
           <Route path="cards" element={<PortalCardControlsPage />} />
           <Route path="requests" element={<PortalServiceRequestsPage />} />
+          <Route path="notifications" element={<PortalNotificationsPage />} />
         </Route>
     </Routes>
     </>

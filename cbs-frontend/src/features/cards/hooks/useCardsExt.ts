@@ -82,6 +82,80 @@ export function useFileDispute() {
 /** @deprecated Use useFileDispute instead */
 export const useDisputeTransaction = useFileDispute;
 
+// ─── Dispute Lifecycle Hooks ────────────────────────────────────────────────
+
+export function useInitiateDispute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: Parameters<typeof cardsApi.initiateDispute>[0]) =>
+      cardsApi.initiateDispute(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
+    },
+  });
+}
+
+export function useProvisionalCredit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, performedBy }: { id: number; performedBy: string }) =>
+      cardsApi.provisionalCredit(id, performedBy),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
+    },
+  });
+}
+
+export function useFileChargeback() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, schemeCaseId, schemeReasonCode, performedBy }: { id: number; schemeCaseId: string; schemeReasonCode: string; performedBy: string }) =>
+      cardsApi.fileChargeback(id, schemeCaseId, schemeReasonCode, performedBy),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
+    },
+  });
+}
+
+export function useSubmitRepresentment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, merchantResponse, performedBy }: { id: number; merchantResponse: string; performedBy: string }) =>
+      cardsApi.submitRepresentment(id, merchantResponse, performedBy),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
+    },
+  });
+}
+
+export function useEscalateToArbitration() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, performedBy, notes }: { id: number; performedBy: string; notes?: string }) =>
+      cardsApi.escalateToArbitration(id, performedBy, notes),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
+    },
+  });
+}
+
+export function useResolveDispute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, resolutionType, resolutionAmount, performedBy, notes }: {
+      id: number; resolutionType: string; resolutionAmount: number; performedBy: string; notes?: string;
+    }) => cardsApi.resolveDispute(id, resolutionType, resolutionAmount, performedBy, notes),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
+      queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
+    },
+  });
+}
+
 // ─── Card Token Hooks ───────────────────────────────────────────────────────
 
 export function useCardTokens(cardId: number) {
@@ -183,6 +257,52 @@ export function useCreateSettlementPosition() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<CardSettlementPosition>) => cardClearingApi.createPosition(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.clearing });
+    },
+  });
+}
+
+export function useAllClearingBatches() {
+  return useQuery({
+    queryKey: [...cardKeys.clearing, 'all-batches'] as const,
+    queryFn: () => cardClearingApi.getAllBatches(),
+    ...CARD_QUERY_DEFAULTS,
+  });
+}
+
+export function useAllSettlementPositions() {
+  return useQuery({
+    queryKey: [...cardKeys.clearing, 'all-positions'] as const,
+    queryFn: () => cardClearingApi.getAllPositions(),
+    ...CARD_QUERY_DEFAULTS,
+  });
+}
+
+export function useManualClearingBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<CardClearingBatch>) => cardClearingApi.manualBatch(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.clearing });
+    },
+  });
+}
+
+export function useCreateSettlement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<CardSettlementPosition>) => cardClearingApi.createSettlement(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.clearing });
+    },
+  });
+}
+
+export function useSettleBatchByCode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (batchId: string) => cardClearingApi.settleBatch(batchId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cardKeys.clearing });
     },

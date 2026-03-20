@@ -6,7 +6,7 @@ export interface CardNetworkMembership {
   membershipType: string;
   memberId: string;
   institutionName: string;
-  binRanges: Map<String, Object[];
+  binRanges: Record<string, unknown[]>;
   issuingEnabled: boolean;
   acquiringEnabled: boolean;
   settlementBic: string;

@@ -103,6 +103,11 @@ export interface Merchant {
   riskCategory: 'LOW' | 'MEDIUM' | 'HIGH' | 'PROHIBITED';
   status: 'ACTIVE' | 'ONBOARDING' | 'SUSPENDED' | 'TERMINATED';
   onboardedDate: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  bankAccountNumber?: string;
+  settlementFrequency?: string;
 }
 
 export interface PosTerminal {
