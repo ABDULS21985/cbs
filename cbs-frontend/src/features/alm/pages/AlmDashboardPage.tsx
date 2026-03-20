@@ -130,6 +130,14 @@ function GapReportTab() {
   // Fetch a second report for comparison overlay (client-side)
   const { data: compReport } = useAlmGapReport(comparisonScenario ? reportDate : '');
 
+  // Fetch previous report for delta comparison
+  const prevDate = (() => {
+    const d = new Date(reportDate);
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().split('T')[0];
+  })();
+  const { data: prevReport } = useAlmGapReport(reportDate ? prevDate : '');
+
   const queryClient = useQueryClient();
   const approveReport = useMutation({
     mutationFn: (id: number) => almApi.approveGapReport(id),
@@ -289,6 +297,32 @@ function GapReportTab() {
         </div>
       )}
 
+      {/* Previous Report Comparison Delta */}
+      {report && prevReport && (
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-sm font-medium mb-3">Change vs Previous Report ({formatDate(prevDate)})</p>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: 'Total Assets', curr: report.totalAssets, prev: prevReport.totalAssets },
+              { label: 'Total Liabilities', curr: report.totalLiabilities, prev: prevReport.totalLiabilities },
+              { label: 'Net Gap', curr: report.netGap, prev: prevReport.netGap },
+            ].map(({ label, curr, prev }) => {
+              const delta = curr - prev;
+              const pctChg = prev !== 0 ? (delta / Math.abs(prev)) * 100 : 0;
+              return (
+                <div key={label} className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="text-lg font-bold tabular-nums">{fmtCompact(curr)}</p>
+                  <p className={cn('text-xs font-medium tabular-nums', delta >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    {delta >= 0 ? '+' : ''}{fmtCompact(delta)} ({pctChg >= 0 ? '+' : ''}{pctChg.toFixed(1)}%)
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 4. Position Snapshot Table */}
       <div className="rounded-xl border bg-card p-4">
         <p className="text-sm font-medium mb-3">Repricing Ladder — Position Snapshot ({reportCurrency})</p>
@@ -425,6 +459,13 @@ function ScenariosTab() {
 export function AlmDashboardPage() {
   useEffect(() => { document.title = 'ALM Dashboard | CBS'; }, []);
 
+  const today = new Date().toISOString().split('T')[0];
+  const { data: latestReport } = useAlmGapReport(today);
+  const { data: duration } = usePortfolioDuration(DEFAULT_PORTFOLIO);
+  const { data: scenarios = [] } = useAlmScenarios();
+
+  const niiAtRisk = latestReport ? Math.abs(latestReport.netGap * 0.02 / 1e6) : 0;
+
   return (
     <>
       <PageHeader
@@ -433,10 +474,10 @@ export function AlmDashboardPage() {
       />
       <div className="page-container space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard label="Duration Gap" value="--" icon={Activity} />
-          <StatCard label="NII at Risk" value="--" icon={TrendingUp} />
-          <StatCard label="Active Scenarios" value={0} format="number" icon={BarChart2} />
-          <StatCard label="Reports This Month" value={0} format="number" icon={BookOpen} />
+          <StatCard label="Duration Gap" value={duration?.durationGap?.toFixed(3) ?? '--'} icon={Activity} />
+          <StatCard label="NII at Risk (+200bps)" value={niiAtRisk > 0 ? `${niiAtRisk.toFixed(1)}M` : '--'} icon={TrendingUp} />
+          <StatCard label="Active Scenarios" value={scenarios.length} format="number" icon={BarChart2} />
+          <StatCard label="Net Gap" value={latestReport ? fmtCompact(latestReport.netGap) : '--'} icon={BookOpen} />
         </div>
 
         <TabsPage

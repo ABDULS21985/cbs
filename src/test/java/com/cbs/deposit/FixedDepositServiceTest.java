@@ -61,7 +61,7 @@ class FixedDepositServiceTest {
                 .customerType(CustomerType.INDIVIDUAL).build();
         product = Product.builder().id(1L).code("FD-USD").name("Fixed Deposit USD")
                 .productCategory(ProductCategory.FIXED_DEPOSIT).currencyCode("USD")
-                .glAccountCode("2300").glInterestExpenseCode("5300")
+                .glAccountCode("2300").glInterestExpenseCode("5300").glFeeIncomeCode("4300")
                 .isActive(true).build();
         account = Account.builder().id(1L).accountNumber("1000000001").customer(customer).product(product)
                 .currencyCode("USD").status(AccountStatus.ACTIVE)

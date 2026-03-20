@@ -98,6 +98,7 @@ class DepositServiceTest {
             product.setCurrencyCode("USD");
             product.setGlAccountCode("2300");
             product.setGlInterestExpenseCode("5300");
+            product.setGlFeeIncomeCode("4300");
             product.setIsActive(true);
         }
 

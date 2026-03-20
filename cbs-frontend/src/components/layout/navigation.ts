@@ -207,6 +207,8 @@ export const navigationItems: NavSection[] = [
         label: 'ALM', icon: Activity, path: '/alm', roles: ['CBS_ADMIN', 'TREASURY', 'RISK_OFFICER'],
         children: [
           { label: 'Dashboard', path: '/alm' },
+          { label: 'Duration Analytics', path: '/alm/duration' },
+          { label: 'Liquidity Gap', path: '/alm/liquidity' },
           { label: 'Stress Testing', path: '/alm/stress-testing' },
           { label: 'ALCO Report', path: '/alm/alco-report' },
           { label: 'Regulatory', path: '/alm/regulatory' },

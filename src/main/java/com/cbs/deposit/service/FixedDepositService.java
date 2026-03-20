@@ -503,6 +503,21 @@ public class FixedDepositService {
                     fd.getCustomer() != null ? fd.getCustomer().getId() : null
             ));
         }
+        BigDecimal excessPenalty = penaltyAmount
+                .subtract(fd.getAccruedInterest().setScale(2, RoundingMode.HALF_UP))
+                .max(BigDecimal.ZERO);
+        if (excessPenalty.compareTo(BigDecimal.ZERO) > 0) {
+            legs.add(accountPostingService.balanceLeg(
+                    requiredFeeIncomeGl(fd.getProduct()),
+                    AccountPostingService.EntrySide.CREDIT,
+                    excessPenalty,
+                    fd.getCurrencyCode(),
+                    BigDecimal.ONE,
+                    "Fixed deposit early termination penalty",
+                    null,
+                    fd.getCustomer() != null ? fd.getCustomer().getId() : null
+            ));
+        }
         return legs;
     }
 
@@ -555,6 +570,13 @@ public class FixedDepositService {
             throw new BusinessException("Deposit product interest expense GL is required", "MISSING_DEPOSIT_INTEREST_GL");
         }
         return product.getGlInterestExpenseCode();
+    }
+
+    private String requiredFeeIncomeGl(Product product) {
+        if (product == null || !StringUtils.hasText(product.getGlFeeIncomeCode())) {
+            throw new BusinessException("Deposit product fee income GL is required", "MISSING_DEPOSIT_FEE_GL");
+        }
+        return product.getGlFeeIncomeCode();
     }
 
     private String branchCode(Account account) {

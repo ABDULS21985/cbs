@@ -251,6 +251,7 @@ import {
   PricesPage,
   ResearchPage,
   AnalysisPage,
+  SwitchDashboardPage,
   TradeFinanceHubPage,
   AccountListPage,
   WalletPage,

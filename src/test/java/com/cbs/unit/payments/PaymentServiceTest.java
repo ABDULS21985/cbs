@@ -2,6 +2,8 @@ package com.cbs.unit.payments;
 
 import com.cbs.account.entity.Account;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.CardRepository;
 import com.cbs.card.repository.CardTransactionRepository;
@@ -47,6 +49,8 @@ class PaymentServiceTest {
         @Mock private PaymentBatchRepository batchRepository;
         @Mock private FxRateRepository fxRateRepository;
         @Mock private AccountRepository accountRepository;
+        @Mock private AccountPostingService accountPostingService;
+        @Mock private CbsProperties cbsProperties;
 
         @InjectMocks private PaymentService paymentService;
 
@@ -56,6 +60,9 @@ class PaymentServiceTest {
 
         @BeforeEach
         void setUp() {
+            CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
+            ledgerConfig.setExternalClearingGlCode("2100");
+            when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
             customer = new Customer();
             customer.setId(1L);
             customer.setFirstName("Jane");
@@ -85,6 +92,13 @@ class PaymentServiceTest {
             when(accountRepository.findById(2L)).thenReturn(Optional.of(creditAccount));
             when(paymentRepository.getNextInstructionSequence()).thenReturn(1L);
             when(paymentRepository.save(any(PaymentInstruction.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(accountPostingService.postTransfer(any(Account.class), any(Account.class), any(BigDecimal.class),
+                    any(BigDecimal.class), anyString(), anyString(), any(com.cbs.account.entity.TransactionChannel.class),
+                    anyString(), anyString(), anyString()))
+                    .thenReturn(new AccountPostingService.TransferPosting(
+                            new com.cbs.account.entity.TransactionJournal(),
+                            new com.cbs.account.entity.TransactionJournal(),
+                            null));
 
             PaymentInstruction result = paymentService.executeInternalTransfer(
                     1L, 2L, new BigDecimal("1000.00"), "Test transfer");
@@ -92,7 +106,10 @@ class PaymentServiceTest {
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
             assertThat(result.getPaymentType()).isEqualTo(PaymentType.INTERNAL_TRANSFER);
             assertThat(result.getAmount()).isEqualByComparingTo(new BigDecimal("1000.00"));
-            verify(accountRepository, times(2)).save(any(Account.class));
+            verify(accountPostingService).postTransfer(eq(debitAccount), eq(creditAccount),
+                    eq(new BigDecimal("1000.00")), eq(new BigDecimal("1000.00")),
+                    eq("Test transfer"), eq("Test transfer"),
+                    eq(com.cbs.account.entity.TransactionChannel.API), anyString(), eq("PAYMENTS"), anyString());
         }
 
         @Test
@@ -135,6 +152,8 @@ class PaymentServiceTest {
         @Mock private PaymentBatchRepository batchRepository;
         @Mock private FxRateRepository fxRateRepository;
         @Mock private AccountRepository accountRepository;
+        @Mock private AccountPostingService accountPostingService;
+        @Mock private CbsProperties cbsProperties;
 
         @InjectMocks private PaymentService paymentService;
 
@@ -142,6 +161,9 @@ class PaymentServiceTest {
 
         @BeforeEach
         void setUp() {
+            CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
+            ledgerConfig.setExternalClearingGlCode("2100");
+            when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
             Customer customer = new Customer();
             customer.setId(1L);
             customer.setFirstName("John");
@@ -169,6 +191,13 @@ class PaymentServiceTest {
             when(paymentRepository.getNextInstructionSequence()).thenReturn(100L);
             when(accountRepository.findByAccountNumber("2000000001")).thenReturn(Optional.of(localCredit));
             when(paymentRepository.save(any(PaymentInstruction.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(accountPostingService.postTransfer(any(Account.class), any(Account.class), any(BigDecimal.class),
+                    any(BigDecimal.class), anyString(), anyString(), any(com.cbs.account.entity.TransactionChannel.class),
+                    anyString(), anyString(), anyString()))
+                    .thenReturn(new AccountPostingService.TransferPosting(
+                            new com.cbs.account.entity.TransactionJournal(),
+                            new com.cbs.account.entity.TransactionJournal(),
+                            null));
 
             PaymentInstruction result = paymentService.initiateDomesticPayment(
                     1L, "2000000001", "Beneficiary", "BANK001",
@@ -176,7 +205,10 @@ class PaymentServiceTest {
 
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
             assertThat(result.getPaymentType()).isEqualTo(PaymentType.DOMESTIC_INSTANT);
-            verify(accountRepository, times(2)).save(any(Account.class));
+            verify(accountPostingService).postTransfer(eq(debitAccount), eq(localCredit),
+                    eq(new BigDecimal("5000.00")), eq(new BigDecimal("5000.00")),
+                    eq("Invoice payment"), anyString(),
+                    eq(com.cbs.account.entity.TransactionChannel.API), anyString(), eq("PAYMENTS"), anyString());
         }
 
         @Test
@@ -186,6 +218,9 @@ class PaymentServiceTest {
             when(paymentRepository.getNextInstructionSequence()).thenReturn(101L);
             when(accountRepository.findByAccountNumber("EXT_ACC_001")).thenReturn(Optional.empty());
             when(paymentRepository.save(any(PaymentInstruction.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(accountPostingService.postDebitAgainstGl(any(Account.class), any(com.cbs.account.entity.TransactionType.class),
+                    any(BigDecimal.class), anyString(), any(com.cbs.account.entity.TransactionChannel.class), anyString(),
+                    anyString(), anyString(), anyString())).thenReturn(new com.cbs.account.entity.TransactionJournal());
 
             PaymentInstruction result = paymentService.initiateDomesticPayment(
                     1L, "EXT_ACC_001", "External Beneficiary", "EXTBANK",
@@ -209,6 +244,8 @@ class PaymentServiceTest {
         @Mock private PaymentBatchRepository batchRepository;
         @Mock private FxRateRepository fxRateRepository;
         @Mock private AccountRepository accountRepository;
+        @Mock private AccountPostingService accountPostingService;
+        @Mock private CbsProperties cbsProperties;
 
         @InjectMocks private PaymentService paymentService;
 
@@ -216,6 +253,9 @@ class PaymentServiceTest {
 
         @BeforeEach
         void setUp() {
+            CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
+            ledgerConfig.setExternalClearingGlCode("2100");
+            when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
             debitAccount = new Account();
             debitAccount.setId(1L);
             debitAccount.setAccountNumber("1000000001");
@@ -230,6 +270,9 @@ class PaymentServiceTest {
             when(accountRepository.findById(1L)).thenReturn(Optional.of(debitAccount));
             when(paymentRepository.getNextInstructionSequence()).thenReturn(200L);
             when(paymentRepository.save(any(PaymentInstruction.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(accountPostingService.postDebitAgainstGl(any(Account.class), any(com.cbs.account.entity.TransactionType.class),
+                    any(BigDecimal.class), anyString(), any(com.cbs.account.entity.TransactionChannel.class), anyString(),
+                    anyList(), anyString(), anyString())).thenReturn(new com.cbs.account.entity.TransactionJournal());
 
             PaymentInstruction result = paymentService.initiateSwiftTransfer(
                     1L, "GB82WEST12345698765432", "John Doe",

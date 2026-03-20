@@ -187,15 +187,18 @@ export function SensitivityHeatMap({ report, loading }: SensitivityHeatMapProps)
   if (loading) return <div className="h-48 rounded-xl bg-muted animate-pulse" />;
 
   const NII_LIMIT = 15; // % of capital
+  const g = report?.netGap ?? 0;
   const scenarios: HeatMapRow[] = [
-    { scenario: '+100bps Parallel', niiImpact: (report?.netGap ?? 0) * 0.01 / 1e6, eveImpact: -(report?.netGap ?? 0) * 0.015 / 1e6, pctOfCapital: 0, breach: false },
-    { scenario: '+200bps Parallel', niiImpact: (report?.netGap ?? 0) * 0.02 / 1e6, eveImpact: -(report?.netGap ?? 0) * 0.03 / 1e6, pctOfCapital: 0, breach: false },
-    { scenario: '+300bps Parallel', niiImpact: (report?.netGap ?? 0) * 0.03 / 1e6, eveImpact: -(report?.netGap ?? 0) * 0.045 / 1e6, pctOfCapital: 0, breach: false },
-    { scenario: '-100bps Parallel', niiImpact: -(report?.netGap ?? 0) * 0.01 / 1e6, eveImpact: (report?.netGap ?? 0) * 0.015 / 1e6, pctOfCapital: 0, breach: false },
-    { scenario: '-200bps Parallel', niiImpact: -(report?.netGap ?? 0) * 0.02 / 1e6, eveImpact: (report?.netGap ?? 0) * 0.03 / 1e6, pctOfCapital: 0, breach: false },
-    { scenario: '-300bps Parallel', niiImpact: -(report?.netGap ?? 0) * 0.03 / 1e6, eveImpact: (report?.netGap ?? 0) * 0.045 / 1e6, pctOfCapital: 0, breach: false },
-    { scenario: 'Steepening', niiImpact: (report?.netGap ?? 0) * 0.005 / 1e6, eveImpact: -(report?.netGap ?? 0) * 0.01 / 1e6, pctOfCapital: 0, breach: false },
-    { scenario: 'Flattening', niiImpact: -(report?.netGap ?? 0) * 0.005 / 1e6, eveImpact: (report?.netGap ?? 0) * 0.01 / 1e6, pctOfCapital: 0, breach: false },
+    { scenario: '+100bps Parallel', niiImpact: g * 0.01 / 1e6, eveImpact: -g * 0.015 / 1e6, pctOfCapital: 0, breach: false },
+    { scenario: '+200bps Parallel', niiImpact: g * 0.02 / 1e6, eveImpact: -g * 0.03 / 1e6, pctOfCapital: 0, breach: false },
+    { scenario: '+300bps Parallel', niiImpact: g * 0.03 / 1e6, eveImpact: -g * 0.045 / 1e6, pctOfCapital: 0, breach: false },
+    { scenario: '-100bps Parallel', niiImpact: -g * 0.01 / 1e6, eveImpact: g * 0.015 / 1e6, pctOfCapital: 0, breach: false },
+    { scenario: '-200bps Parallel', niiImpact: -g * 0.02 / 1e6, eveImpact: g * 0.03 / 1e6, pctOfCapital: 0, breach: false },
+    { scenario: '-300bps Parallel', niiImpact: -g * 0.03 / 1e6, eveImpact: g * 0.045 / 1e6, pctOfCapital: 0, breach: false },
+    { scenario: 'Steepening', niiImpact: g * 0.005 / 1e6, eveImpact: -g * 0.01 / 1e6, pctOfCapital: 0, breach: false },
+    { scenario: 'Flattening', niiImpact: -g * 0.005 / 1e6, eveImpact: g * 0.01 / 1e6, pctOfCapital: 0, breach: false },
+    { scenario: 'Short-End Up (+200)', niiImpact: g * 0.018 / 1e6, eveImpact: -g * 0.012 / 1e6, pctOfCapital: 0, breach: false },
+    { scenario: 'Inversion', niiImpact: -g * 0.012 / 1e6, eveImpact: g * 0.025 / 1e6, pctOfCapital: 0, breach: false },
   ].map((r) => {
     const capital = (report?.totalAssets ?? 1) * 0.08;
     const p = capital > 0 ? Math.abs(r.niiImpact * 1e6) / capital * 100 : 0;
@@ -219,7 +222,7 @@ export function SensitivityHeatMap({ report, loading }: SensitivityHeatMapProps)
         </thead>
         <tbody className="divide-y">
           {scenarios.map((r) => (
-            <tr key={r.scenario} className="hover:bg-muted/10">
+            <tr key={r.scenario} className={cn('hover:bg-muted/10', r.breach && 'border-l-2 border-l-red-500 border-dashed')}>
               <td className="px-4 py-2.5 text-sm font-medium">{r.scenario}</td>
               <td className="px-4 py-2.5 text-right tabular-nums font-mono text-sm"
                 style={{ backgroundColor: heatColor(r.niiImpact, maxNii) }}>
@@ -267,17 +270,23 @@ interface PositionSnapshotProps {
 const ASSET_LINES = [
   { key: 'cashAndEquivalents', label: 'Cash & Equivalents' },
   { key: 'interbankPlacements', label: 'Interbank Placements' },
-  { key: 'securitiesHeld', label: 'Securities Held' },
+  { key: 'securitiesHeld', label: 'Securities — Fixed Rate Bonds' },
+  { key: 'floatingRateNotes', label: 'Securities — FRNs' },
   { key: 'loansAndAdvances', label: 'Loans & Advances' },
+  { key: 'reverseRepos', label: 'Reverse Repos' },
+  { key: 'fxSwapsAsset', label: 'FX Swaps (Asset Leg)' },
   { key: 'fixedAssets', label: 'Fixed Assets' },
   { key: 'otherAssets', label: 'Other Assets' },
 ] as const;
 
 const LIABILITY_LINES = [
   { key: 'demandDeposits', label: 'Demand Deposits' },
+  { key: 'savingsDeposits', label: 'Savings Deposits' },
   { key: 'termDeposits', label: 'Term Deposits' },
   { key: 'interbankBorrowings', label: 'Interbank Borrowings' },
+  { key: 'repos', label: 'Repos' },
   { key: 'bondsIssued', label: 'Bonds Issued' },
+  { key: 'fxSwapsLiability', label: 'FX Swaps (Liability Leg)' },
   { key: 'otherLiabilities', label: 'Other Liabilities' },
 ] as const;
 
