@@ -151,6 +151,14 @@ public class CbsProperties {
         private String escheatmentDetectionCron = "0 0 1 1 * *";
     }
 
+    private AlmConfig alm = new AlmConfig();
+
+    @Getter @Setter
+    public static class AlmConfig {
+        /** Cron expression for daily regulatory return date advancement (default: midnight) */
+        private String regulatoryReturnAdvanceCron = "0 0 0 * * *";
+    }
+
     @Getter @Setter
     public static class Simulation {
         /**

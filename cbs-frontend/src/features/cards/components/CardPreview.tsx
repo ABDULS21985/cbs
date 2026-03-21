@@ -15,10 +15,13 @@ interface CardPreviewProps {
   className?: string;
 }
 
-const SCHEME_GRADIENTS: Record<CardScheme, string> = {
+const SCHEME_GRADIENTS: Record<string, string> = {
   VISA: 'from-blue-600 via-blue-700 to-blue-900',
   MASTERCARD: 'from-red-500 via-orange-600 to-red-800',
   VERVE: 'from-slate-700 via-slate-800 to-slate-950',
+  AMEX: 'from-indigo-600 via-indigo-700 to-indigo-900',
+  UNIONPAY: 'from-teal-600 via-teal-700 to-teal-900',
+  LOCAL: 'from-gray-600 via-gray-700 to-gray-900',
 };
 
 const TIER_OVERLAYS: Record<CardTier, string> = {

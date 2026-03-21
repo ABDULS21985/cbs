@@ -122,19 +122,18 @@ export function MerchantOnboardPage() {
                 <input className="w-full mt-1 input" placeholder="Business name" value={form.merchantName} onChange={(e) => update('merchantName', e.target.value)} required />
               </div>
               <MccSelector
-                value={form.mcc}
-                onChange={(code, desc) => {
+                value={form.merchantCategoryCode}
+                onChange={(code, _desc) => {
                   setForm((f) => ({
                     ...f,
-                    mcc: code,
-                    mccDescription: desc,
+                    merchantCategoryCode: code,
                     riskCategory: suggestRiskCategory(code),
                   }));
                 }}
               />
-              {form.mcc && (
+              {form.merchantCategoryCode && (
                 <p className="text-xs text-muted-foreground">
-                  Auto-suggested risk: <span className="font-medium">{suggestRiskCategory(form.mcc)}</span>
+                  Auto-suggested risk: <span className="font-medium">{suggestRiskCategory(form.merchantCategoryCode)}</span>
                 </p>
               )}
               <div className="grid grid-cols-2 gap-4">
@@ -174,8 +173,8 @@ export function MerchantOnboardPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Bank Account Number</label>
-                <input className="w-full mt-1 input" placeholder="Settlement account" value={form.bankAccountNumber} onChange={(e) => update('bankAccountNumber', e.target.value)} required />
+                <label className="text-sm font-medium text-muted-foreground">Settlement Account ID</label>
+                <input type="number" className="w-full mt-1 input" placeholder="Settlement account ID" value={form.settlementAccountId} onChange={(e) => update('settlementAccountId', e.target.value)} required />
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Risk Category</label>
@@ -185,7 +184,7 @@ export function MerchantOnboardPage() {
                   <option value="HIGH">High</option>
                 </select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Auto-suggested based on MCC {form.mcc}. You can override.
+                  Auto-suggested based on MCC {form.merchantCategoryCode}. You can override.
                 </p>
               </div>
             </div>
@@ -225,11 +224,11 @@ export function MerchantOnboardPage() {
               <h3 className="text-sm font-semibold">Review & Submit</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-xs text-muted-foreground">Merchant Name</p><p className="font-medium">{form.merchantName}</p></div>
-                <div><p className="text-xs text-muted-foreground">MCC</p><p className="font-medium">{form.mcc} — {form.mccDescription}</p></div>
+                <div><p className="text-xs text-muted-foreground">MCC</p><p className="font-medium">{form.merchantCategoryCode}</p></div>
                 <div><p className="text-xs text-muted-foreground">MDR Rate</p><p className="font-mono font-medium">{formatPercent(form.mdrRate)}</p></div>
                 <div><p className="text-xs text-muted-foreground">Settlement</p><p className="font-medium">{form.settlementFrequency}</p></div>
                 <div><p className="text-xs text-muted-foreground">Risk Category</p><StatusBadge status={form.riskCategory} /></div>
-                <div><p className="text-xs text-muted-foreground">Bank Account</p><p className="font-mono">{form.bankAccountNumber}</p></div>
+                <div><p className="text-xs text-muted-foreground">Settlement Account</p><p className="font-mono">{form.settlementAccountId}</p></div>
                 <div><p className="text-xs text-muted-foreground">Contact</p><p className="font-medium">{form.contactName}</p></div>
                 <div><p className="text-xs text-muted-foreground">Email</p><p className="font-medium">{form.contactEmail}</p></div>
               </div>

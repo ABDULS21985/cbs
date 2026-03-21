@@ -3,6 +3,7 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { Plus, ChevronDown, ChevronRight, Building2, DollarSign, AlertTriangle, Layers, PlusCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { DataTable, StatCard, StatusBadge } from '@/components/shared';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import {

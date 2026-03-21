@@ -261,6 +261,7 @@ function CalculatePayoutDialog({ agreement, onClose }: { agreement: CommissionAg
 
 export function CommissionAgreementsPage() {
   const navigate = useNavigate();
+  const isAdmin = useHasRole('CBS_ADMIN');
   const { data: agreements = [], isLoading } = useCommissionAgreements();
   const activateMut = useActivateCommissionAgreement();
   const approveMut = useApprovePayout();
@@ -304,7 +305,7 @@ export function CommissionAgreementsPage() {
         const a = row.original;
         return (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            {a.status === 'DRAFT' && (
+            {a.status === 'DRAFT' && isAdmin && (
               <button
                 onClick={() => activateMut.mutate(a.agreementCode, { onSuccess: () => toast.success('Agreement activated') })}
                 className="px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
@@ -312,7 +313,7 @@ export function CommissionAgreementsPage() {
                 Activate
               </button>
             )}
-            {a.status === 'ACTIVE' && (
+            {a.status === 'ACTIVE' && isAdmin && (
               <button
                 onClick={() => setCalcTarget(a)}
                 className="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
@@ -352,7 +353,7 @@ export function CommissionAgreementsPage() {
       header: '',
       cell: ({ row }) => {
         const p = row.original;
-        if (p.status !== 'CALCULATED') return null;
+        if (p.status !== 'CALCULATED' || !isAdmin) return null;
         return (
           <button
             onClick={(e) => {
@@ -373,11 +374,11 @@ export function CommissionAgreementsPage() {
       <PageHeader
         title="Commission Management"
         subtitle="Manage commission agreements, calculate and approve payouts"
-        actions={
+        actions={isAdmin ? (
           <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
             <Plus className="w-4 h-4" /> New Agreement
           </button>
-        }
+        ) : undefined}
       />
 
       <div className="page-container space-y-4">

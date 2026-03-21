@@ -57,13 +57,23 @@ CREATE TABLE IF NOT EXISTS cbs.alm_regulatory_return (
     version                 BIGINT          NOT NULL DEFAULT 0
 );
 
--- Seed standard returns
+-- Seed standard returns with dynamic dates relative to current date
 INSERT INTO cbs.alm_regulatory_return (code, name, frequency, due_date, next_due) VALUES
-    ('IRRBB', 'IRRBB Report', 'QUARTERLY', '2026-03-31', '2026-06-30'),
-    ('LCR',   'LCR Return',   'DAILY',     '2026-03-21', '2026-03-22'),
-    ('NSFR',  'NSFR Return',  'MONTHLY',   '2026-03-31', '2026-04-30'),
-    ('SLR',   'Structural Liquidity Return', 'MONTHLY', '2026-03-31', '2026-04-30'),
-    ('LER',   'Large Exposure Return', 'QUARTERLY', '2026-03-31', '2026-06-30')
+    ('IRRBB', 'IRRBB Report', 'QUARTERLY',
+     (date_trunc('quarter', CURRENT_DATE) + interval '3 months' - interval '1 day')::date,
+     (date_trunc('quarter', CURRENT_DATE) + interval '6 months' - interval '1 day')::date),
+    ('LCR',   'LCR Return',   'DAILY',
+     CURRENT_DATE,
+     CURRENT_DATE + interval '1 day'),
+    ('NSFR',  'NSFR Return',  'MONTHLY',
+     (date_trunc('month', CURRENT_DATE) + interval '1 month' - interval '1 day')::date,
+     (date_trunc('month', CURRENT_DATE) + interval '2 months' - interval '1 day')::date),
+    ('SLR',   'Structural Liquidity Return', 'MONTHLY',
+     (date_trunc('month', CURRENT_DATE) + interval '1 month' - interval '1 day')::date,
+     (date_trunc('month', CURRENT_DATE) + interval '2 months' - interval '1 day')::date),
+    ('LER',   'Large Exposure Return', 'QUARTERLY',
+     (date_trunc('quarter', CURRENT_DATE) + interval '3 months' - interval '1 day')::date,
+     (date_trunc('quarter', CURRENT_DATE) + interval '6 months' - interval '1 day')::date)
 ON CONFLICT (code) DO NOTHING;
 
 -- ── ALM Regulatory Submission ────────────────────────────────────────────────
