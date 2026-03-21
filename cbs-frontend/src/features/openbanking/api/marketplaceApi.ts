@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -118,4 +118,29 @@ export const marketplaceApi = {
 
   recordUsage: (data: Partial<ApiUsage>) =>
     apiPost<ApiUsage>('/api/v1/marketplace/usage', data),
+
+  // Webhooks
+  listWebhooks: (tppClientId?: number) =>
+    apiGet<Webhook[]>('/api/v1/marketplace/webhooks', tppClientId ? { tppClientId } : undefined),
+
+  createWebhook: (data: Pick<Webhook, 'url' | 'events' | 'authType'> & { secretKey?: string; tppClientId?: number }) =>
+    apiPost<Webhook>('/api/v1/marketplace/webhooks', data),
+
+  updateWebhook: (id: number, data: Partial<Pick<Webhook, 'url' | 'events' | 'authType' | 'status'>>) =>
+    apiPut<Webhook>(`/api/v1/marketplace/webhooks/${id}`, data),
+
+  deleteWebhook: (id: number) =>
+    apiDelete<void>(`/api/v1/marketplace/webhooks/${id}`),
+
+  listDeliveries: (webhookId: number, params?: { limit?: number; status?: string }) =>
+    apiGet<WebhookDelivery[]>(`/api/v1/marketplace/webhooks/${webhookId}/deliveries`, params as Record<string, unknown>),
+
+  retryDelivery: (webhookId: number, deliveryId: number) =>
+    apiPost<WebhookDelivery>(`/api/v1/marketplace/webhooks/${webhookId}/deliveries/${deliveryId}/retry`),
+
+  testWebhook: (webhookId: number, event: string) =>
+    apiPost<{ success: boolean; statusCode: number; responseTimeMs: number; message?: string }>(
+      `/api/v1/marketplace/webhooks/${webhookId}/test`,
+      { event },
+    ),
 };

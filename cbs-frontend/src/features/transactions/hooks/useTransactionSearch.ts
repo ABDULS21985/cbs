@@ -57,6 +57,7 @@ const EMPTY_SUMMARY: TransactionSummary = {
   totalCredit: 0,
   netAmount: 0,
 };
+const EMPTY_TRANSACTIONS: Transaction[] = [];
 
 type SearchParamSyncAction = 'trigger' | 'manual-empty-search' | 'reset' | null;
 
@@ -310,7 +311,7 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
     staleTime: 30_000,
   });
 
-  const transactions: Transaction[] = data?.transactions ?? [];
+  const transactions: Transaction[] = data?.transactions ?? EMPTY_TRANSACTIONS;
   const summary: TransactionSummary = data?.summary ?? EMPTY_SUMMARY;
   const previousSummary: TransactionSummary | null = previousPeriodResult?.summary ?? null;
 
@@ -353,7 +354,10 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
   }, [dataUpdatedAt, hasSearched]);
 
   useEffect(() => {
-    setSelectedTransactionIds((prev) => prev.filter((id) => transactions.some((transaction) => String(transaction.id) === id)));
+    setSelectedTransactionIds((prev) => {
+      const next = prev.filter((id) => transactions.some((transaction) => String(transaction.id) === id));
+      return next.length === prev.length && next.every((id, index) => id === prev[index]) ? prev : next;
+    });
   }, [transactions]);
 
   const persistRecentSearch = useCallback((nextFilters: TransactionFilters) => {

@@ -39,6 +39,9 @@ export interface Transaction {
   dateTime: string;
   valueDate: string;
   postingDate: string;
+  accountNumber?: string;
+  currencyCode?: string;
+  runningBalance?: number;
   fromAccount?: string;
   fromAccountName?: string;
   toAccount?: string;

@@ -912,7 +912,7 @@ function FacilitiesTab() {
   const setupFacility = useSetupFacility();
   const activateFacility = useActivateFacility();
   const [showSetup, setShowSetup] = useState(false);
-  const [setupForm, setSetupForm] = useState({ merchantId: 0, settlementFrequency: 'DAILY' as const, discountRate: 1.5 });
+  const [setupForm, setSetupForm] = useState({ merchantId: 0, settlementCycle: 'DAILY', mdrRatePct: 1.5 });
 
   const activeCount = facilities.filter((f: Record<string, unknown>) => f.status === 'ACTIVE').length;
 
@@ -936,17 +936,17 @@ function FacilitiesTab() {
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Merchant</th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Settlement</th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">MDR %</th>
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Terminals</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Type</th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Status</th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Actions</th>
             </tr></thead>
             <tbody className="divide-y">
               {facilities.map((f: Record<string, unknown>) => (
                 <tr key={Number(f.id)} className="hover:bg-muted/20">
-                  <td className="px-4 py-2.5 font-medium">{String(f.merchantName ?? `#${f.merchantId}`)}</td>
-                  <td className="px-4 py-2.5 text-xs">{String(f.settlementFrequency ?? f.settlementCycle ?? '—')}</td>
-                  <td className="px-4 py-2.5 font-mono text-xs">{Number(f.discountRate ?? f.mdrRatePct ?? 0).toFixed(2)}%</td>
-                  <td className="px-4 py-2.5 font-mono text-xs">{String(f.terminalCount ?? '0')}</td>
+                  <td className="px-4 py-2.5 font-medium">Merchant #{String(f.merchantId)}</td>
+                  <td className="px-4 py-2.5 text-xs">{String(f.settlementCycle ?? '—')}</td>
+                  <td className="px-4 py-2.5 font-mono text-xs">{Number(f.mdrRatePct ?? 0).toFixed(2)}%</td>
+                  <td className="px-4 py-2.5 text-xs">{String(f.facilityType ?? '—')}</td>
                   <td className="px-4 py-2.5">
                     <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold',
                       f.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>
@@ -982,12 +982,12 @@ function FacilitiesTab() {
                   <select value={setupForm.merchantId} onChange={(e) => setSetupForm((f) => ({ ...f, merchantId: Number(e.target.value) }))}
                     className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
                     <option value={0}>Select merchant...</option>
-                    {merchants.map((m: Merchant) => <option key={m.id} value={m.id}>{m.businessName}</option>)}
+                    {merchants.map((m: Merchant) => <option key={m.id} value={m.id}>{m.merchantName ?? m.businessName}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Settlement Frequency</label>
-                  <select value={setupForm.settlementFrequency} onChange={(e) => setSetupForm((f) => ({ ...f, settlementFrequency: e.target.value as 'DAILY' | 'WEEKLY' }))}
+                  <select value={setupForm.settlementCycle} onChange={(e) => setSetupForm((f) => ({ ...f, settlementCycle: e.target.value }))}
                     className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
                     <option value="DAILY">Daily</option>
                     <option value="WEEKLY">Weekly</option>
@@ -995,8 +995,8 @@ function FacilitiesTab() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">MDR Rate (%)</label>
-                  <input type="number" step="0.01" value={setupForm.discountRate}
-                    onChange={(e) => setSetupForm((f) => ({ ...f, discountRate: parseFloat(e.target.value) || 0 }))}
+                  <input type="number" step="0.01" value={setupForm.mdrRatePct}
+                    onChange={(e) => setSetupForm((f) => ({ ...f, mdrRatePct: parseFloat(e.target.value) || 0 }))}
                     className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
                 </div>
               </div>

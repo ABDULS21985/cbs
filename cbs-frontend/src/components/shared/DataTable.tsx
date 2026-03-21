@@ -25,6 +25,7 @@ interface DataTableProps<T> {
   bulkActions?: ReactNode;
   emptyMessage?: string;
   pageSize?: number;
+  getRowClassName?: (row: T) => string | undefined;
   manualPagination?: {
     pageIndex: number;
     pageSize: number;
@@ -41,6 +42,7 @@ interface DataTableProps<T> {
 
 export function DataTable<T>({
   columns, data, isLoading, enableRowSelection, onRowSelectionChange, enableGlobalFilter, enableColumnVisibility, enableExport, exportFilename, onRowClick, bulkActions, emptyMessage, pageSize = 10,
+  getRowClassName,
   manualPagination,
   manualSorting,
 }: DataTableProps<T>) {
@@ -138,17 +140,21 @@ export function DataTable<T>({
                   {headerGroup.headers.map((header) => (
                     <th key={header.id} className="px-4 py-2.5 text-left">
                       {header.isPlaceholder ? null : (
-                        <button
-                          className={cn('flex items-center gap-1.5', header.column.getCanSort() && 'cursor-pointer select-none hover:text-foreground')}
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getCanSort() && (
-                            header.column.getIsSorted() === 'asc' ? <ArrowUp className="w-3 h-3" /> :
-                            header.column.getIsSorted() === 'desc' ? <ArrowDown className="w-3 h-3" /> :
-                            <ArrowUpDown className="w-3 h-3 opacity-30" />
-                          )}
-                        </button>
+                        header.column.getCanSort() ? (
+                          <button
+                            className="flex cursor-pointer select-none items-center gap-1.5 hover:text-foreground"
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getIsSorted() === 'asc' ? <ArrowUp className="w-3 h-3" /> :
+                              header.column.getIsSorted() === 'desc' ? <ArrowDown className="w-3 h-3" /> :
+                              <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </div>
+                        )
                       )}
                     </th>
                   ))}
@@ -160,7 +166,7 @@ export function DataTable<T>({
                 <tr
                   key={row.id}
                   onClick={() => onRowClick?.(row.original)}
-                  className={cn(onRowClick && 'cursor-pointer', row.getIsSelected() && 'bg-primary/5')}
+                  className={cn(onRowClick && 'cursor-pointer', row.getIsSelected() && 'bg-primary/5', getRowClassName?.(row.original))}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4">

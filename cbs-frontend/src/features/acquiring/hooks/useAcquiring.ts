@@ -96,11 +96,11 @@ export function useSuspendMerchant() {
 export function useProcessSettlement() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Parameters<typeof acquiringApi.processSettlement>[0]) =>
-      acquiringApi.processSettlement(payload),
-    onSuccess: (_, variables) => {
+    mutationFn: ({ merchantId, date }: { merchantId: number; date: string }) =>
+      acquiringApi.processSettlement(merchantId, date),
+    onSuccess: (_, { merchantId }) => {
       queryClient.invalidateQueries({
-        queryKey: QK.merchantSettlements(variables.merchantId),
+        queryKey: QK.merchantSettlements(merchantId),
       });
     },
   });
@@ -141,8 +141,8 @@ export function useActivateFacility() {
 export function useSubmitRepresentment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof acquiringApi.submitRepresentment>[1] }) =>
-      acquiringApi.submitRepresentment(id, payload),
+    mutationFn: ({ id, responseRef, evidence }: { id: number; responseRef: string; evidence: Record<string, unknown> }) =>
+      acquiringApi.submitRepresentment(id, responseRef, evidence),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.chargebacks });
     },

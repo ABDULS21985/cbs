@@ -1,3 +1,4 @@
+import type { RefObject } from 'react';
 import { Search, RotateCcw, Loader2 } from 'lucide-react';
 import { parseISO } from 'date-fns';
 import { FormSection, MoneyInput, DateRangePicker } from '@/components/shared';
@@ -41,6 +42,7 @@ interface TransactionSearchFormProps {
   onSearch: () => void;
   onReset: () => void;
   isLoading: boolean;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
 }
 
 const inputClass = cn(
@@ -78,7 +80,14 @@ function toLocalDateInputValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function TransactionSearchForm({ filters, onChange, onSearch, onReset, isLoading }: TransactionSearchFormProps) {
+export function TransactionSearchForm({
+  filters,
+  onChange,
+  onSearch,
+  onReset,
+  isLoading,
+  searchInputRef,
+}: TransactionSearchFormProps) {
   const { dateError, amountError, hasErrors } = getTransactionSearchValidationErrors(filters);
   const dateRangeValue = {
     from: filters.dateFrom ? parseISO(filters.dateFrom) : undefined,
@@ -103,6 +112,7 @@ export function TransactionSearchForm({ filters, onChange, onSearch, onReset, is
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <input
+            ref={searchInputRef}
             type="text"
             value={filters.search}
             onChange={(e) => onChange({ search: e.target.value })}

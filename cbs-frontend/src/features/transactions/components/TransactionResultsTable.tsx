@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable, StatusBadge } from '@/components/shared';
@@ -10,11 +10,52 @@ interface TransactionResultsTableProps {
   transactions: Transaction[];
   isLoading: boolean;
   onRowClick: (t: Transaction) => void;
+  selectedTransactionIds: string[];
+  allVisibleSelected: boolean;
+  someVisibleSelected: boolean;
+  onToggleTransactionSelection: (transactionId: string) => void;
+  onToggleSelectAllVisible: () => void;
+  highlightedTransactionIds?: string[];
   pageIndex: number;
   pageSize: number;
   totalRows: number;
   onPageChange: (pageIndex: number) => void;
   onPageSizeChange: (pageSize: number) => void;
+}
+
+function SelectionCheckbox({
+  checked,
+  indeterminate = false,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: () => void;
+  ariaLabel: string;
+}) {
+  const ref = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = indeterminate;
+    }
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={(event) => {
+        event.stopPropagation();
+        onChange();
+      }}
+      onClick={(event) => event.stopPropagation()}
+      aria-label={ariaLabel}
+      className="h-4 w-4 rounded border"
+    />
+  );
 }
 
 function ChannelBadge({ channel }: { channel: string }) {
@@ -38,6 +79,12 @@ export function TransactionResultsTable({
   transactions,
   isLoading,
   onRowClick,
+  selectedTransactionIds,
+  allVisibleSelected,
+  someVisibleSelected,
+  onToggleTransactionSelection,
+  onToggleSelectAllVisible,
+  highlightedTransactionIds = [],
   pageIndex,
   pageSize,
   totalRows,
@@ -48,6 +95,26 @@ export function TransactionResultsTable({
 
   const columns = useMemo<ColumnDef<Transaction, any>[]>(
     () => [
+      {
+        id: 'select',
+        header: () => (
+          <SelectionCheckbox
+            checked={allVisibleSelected}
+            indeterminate={someVisibleSelected}
+            onChange={onToggleSelectAllVisible}
+            ariaLabel="Select all visible transactions"
+          />
+        ),
+        cell: ({ row }) => (
+          <SelectionCheckbox
+            checked={selectedTransactionIds.includes(String(row.original.id))}
+            onChange={() => onToggleTransactionSelection(String(row.original.id))}
+            ariaLabel={`Select transaction ${row.original.reference}`}
+          />
+        ),
+        enableSorting: false,
+        size: 44,
+      },
       {
         id: 'dateTime',
         header: 'Date / Time',
@@ -152,7 +219,15 @@ export function TransactionResultsTable({
         cell: ({ getValue }) => <StatusBadge status={getValue<string>()} />,
       },
     ],
-    [onRowClick, navigate],
+    [
+      allVisibleSelected,
+      navigate,
+      onRowClick,
+      onToggleSelectAllVisible,
+      onToggleTransactionSelection,
+      selectedTransactionIds,
+      someVisibleSelected,
+    ],
   );
 
   return (
@@ -162,9 +237,12 @@ export function TransactionResultsTable({
       isLoading={isLoading}
       onRowClick={onRowClick}
       enableColumnVisibility
-      enableExport
-      exportFilename="transactions"
       emptyMessage="No transactions found"
+      getRowClassName={(transaction) =>
+        highlightedTransactionIds.includes(String(transaction.id))
+          ? 'bg-green-50/70 dark:bg-green-900/15'
+          : undefined
+      }
       manualPagination={{
         pageIndex,
         pageSize,
