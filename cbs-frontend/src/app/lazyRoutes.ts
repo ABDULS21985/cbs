@@ -1221,6 +1221,10 @@ export const GovernancePage = lazyNamed(
   () => import('@/features/admin/pages/GovernancePage'),
   'GovernancePage',
 );
+export const BillerAdminPage = lazyNamed(
+  () => import('@/features/admin/pages/BillerAdminPage'),
+  'BillerAdminPage',
+);
 export const NotificationManagementPage = lazyNamed(
   () => import('@/features/admin/pages/NotificationManagementPage'),
   'NotificationManagementPage',

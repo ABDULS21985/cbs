@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, Package, Plug, Settings, CreditCard, Shield, Activity,
   Lock, Bell, ArrowRight, Megaphone, Banknote, Gift, Tag, Target,
-  ClipboardList, Scale,
+  ClipboardList, Scale, Receipt,
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
@@ -30,6 +30,7 @@ const adminModules = [
   { label: 'Sales', description: 'Leads, plans, and sales collateral', icon: Target, path: '/admin/sales' },
   { label: 'Surveys', description: 'Customer surveys and feedback analysis', icon: ClipboardList, path: '/admin/surveys' },
   { label: 'Governance', description: 'Audit trail, change management, approvals', icon: Scale, path: '/admin/governance' },
+  { label: 'Billers', description: 'Register and manage bill payment billers', icon: Receipt, path: '/admin/billers' },
 ];
 
 const ROLE_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316', '#06b6d4'];

@@ -1,9 +1,3 @@
-import { apiPost } from '@/lib/api';
-import type { MaEngagement } from '../types/maAdvisory';
-
-export const maAdvisoryApi = {
-  /** POST /v1/ma-advisory/{code}/terminate */
-  terminate: (code: string) =>
-    apiPost<MaEngagement>(`/api/v1/ma-advisory/${code}/terminate`),
-
-};
+// maAdvisoryApi.ts — re-exports from advisoryApi for backward-compat
+// The real implementations now live in advisoryApi.ts to keep a single source of truth.
+export { advisoryApi as maAdvisoryApi } from './advisoryApi';

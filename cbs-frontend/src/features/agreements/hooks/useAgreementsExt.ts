@@ -15,6 +15,8 @@ import {
   activateAgreement,
   terminateAgreement,
   getCustomerAgreements,
+  getTdFrameworks,
+  getTdFramework,
   createTdFramework,
   approveTdFramework,
   getTdFrameworkRate,
@@ -416,36 +418,67 @@ export function useAgreementTemplates() {
 }
 
 export function useTdFrameworks() {
-  return { data: [] as any[], isLoading: false };
+  return useQuery({
+    queryKey: agreementKeys.tdFrameworks,
+    queryFn: getTdFrameworks,
+    ...QUERY_DEFAULTS,
+  });
 }
 
-export function useTdFramework(id: number) {
-  return { data: undefined as any, isLoading: false };
+export function useTdFramework(agreementNumber: string) {
+  return useQuery({
+    queryKey: [...agreementKeys.tdFrameworks, agreementNumber],
+    queryFn: () => getTdFramework(agreementNumber),
+    enabled: !!agreementNumber,
+    ...QUERY_DEFAULTS,
+  });
 }
-
-
 
 export function useTdMaturityLadder(agreementId?: number) {
-  return useQuery({ queryKey: ['td-maturity-ladder', agreementId], queryFn: () => apiGet<any[]>(`/api/v1/td-framework-summary/maturity-ladder/${agreementId || 0}`), enabled: !!agreementId });
+  return useQuery({
+    queryKey: ['td-maturity-ladder', agreementId],
+    queryFn: () => getMaturityLadder(agreementId ?? 0),
+    enabled: !!agreementId,
+  });
 }
 
 export function useTdRolloverForecast(agreementId?: number) {
-  return useQuery({ queryKey: ['td-rollover-forecast', agreementId], queryFn: () => apiGet<any>(`/api/v1/td-framework-summary/rollover-forecast/${agreementId || 0}`), enabled: !!agreementId });
+  return useQuery({
+    queryKey: ['td-rollover-forecast', agreementId],
+    queryFn: () => getRolloverForecast(agreementId ?? 0),
+    enabled: !!agreementId,
+  });
 }
 
 export function useTdHistory(agreementId?: number) {
-  return useQuery({ queryKey: ['td-history', agreementId], queryFn: () => apiGet<any[]>(`/api/v1/td-framework-summary/history/${agreementId || 0}`), enabled: !!agreementId });
+  return useQuery({
+    queryKey: ['td-history', agreementId],
+    queryFn: () => getTdSummaryHistory(agreementId ?? 0),
+    enabled: !!agreementId,
+  });
 }
 
-export function useCommissionAgreement(id: number) {
-  return useQuery({ queryKey: ['commission-agreement', id], queryFn: () => apiGet<any>(`/api/v1/commissions/agreements/${id}`), enabled: !!id });
+export function useCommissionAgreement(code: string) {
+  return useQuery({
+    queryKey: ['commission-agreement', code],
+    queryFn: () => apiGet<any>(`/api/v1/commissions/agreements/${code}`),
+    enabled: !!code,
+  });
 }
 
 export function useAgreement(id: number) {
-  return useQuery({ queryKey: ['agreement', id], queryFn: () => apiGet<any>(`/api/v1/agreements/${id}`), enabled: !!id });
+  return useQuery({
+    queryKey: ['agreement', id],
+    queryFn: () => apiGet<any>(`/api/v1/agreements/${id}`),
+    enabled: !!id && id > 0,
+  });
 }
 
 export function useUpdateAgreement() {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: (data: any) => apiPut<any>(`/api/v1/agreements/${data.id}`, data), onSuccess: () => qc.invalidateQueries({ queryKey: ['agreements'] }) });
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) =>
+      apiPut<any>(`/api/v1/agreements/${id}`, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agreements'] }),
+  });
 }

@@ -311,6 +311,7 @@ import {
   SalesManagementPage,
   SurveyManagementPage,
   GovernancePage,
+  BillerAdminPage,
   NotificationManagementPage,
   NotificationHistoryPage,
   ApprovalWorkbenchPage,
@@ -681,6 +682,7 @@ export function AppRouter() {
           <Route path="sales" element={<SalesManagementPage />} />
           <Route path="surveys" element={<SurveyManagementPage />} />
           <Route path="governance" element={<GovernancePage />} />
+          <Route path="billers" element={<BillerAdminPage />} />
         </Route>
 
         {/* Agreements */}

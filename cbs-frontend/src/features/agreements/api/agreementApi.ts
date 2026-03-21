@@ -75,7 +75,15 @@ export function getCustomerAgreements(customerId: number) {
   return apiGet<CustomerAgreement[]>(`/api/v1/agreements/customer/${customerId}`);
 }
 
-// ── TD Framework (4 endpoints) ───────────────────────────────────────────────
+// ── TD Framework (6 endpoints) ───────────────────────────────────────────────
+
+export function getTdFrameworks() {
+  return apiGet<TdFrameworkAgreement[]>('/api/v1/td-frameworks');
+}
+
+export function getTdFramework(agreementNumber: string) {
+  return apiGet<TdFrameworkAgreement>(`/api/v1/td-frameworks/${agreementNumber}`);
+}
 
 export function createTdFramework(data: CreateTdFrameworkPayload) {
   return apiPost<TdFrameworkAgreement>('/api/v1/td-frameworks', data);

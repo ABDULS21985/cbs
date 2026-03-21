@@ -365,6 +365,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Sales', path: '/admin/sales' },
           { label: 'Surveys', path: '/admin/surveys' },
           { label: 'Governance', path: '/admin/governance' },
+          { label: 'Billers', path: '/admin/billers' },
         ],
       },
     ],

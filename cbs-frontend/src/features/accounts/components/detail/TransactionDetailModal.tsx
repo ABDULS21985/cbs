@@ -14,6 +14,30 @@ interface TransactionDetailModalProps {
 }
 
 export function TransactionDetailModal({ transaction, open, onClose }: TransactionDetailModalProps) {
+  const [showReverseConfirm, setShowReverseConfirm] = useState(false);
+
+  const reverseMut = useMutation({
+    mutationFn: () => accountDetailApi.reverseTransaction(Number(transaction?.id ?? 0)),
+    onSuccess: () => { toast.success('Transaction reversed successfully'); setShowReverseConfirm(false); onClose(); },
+    onError: () => toast.error('Failed to reverse transaction'),
+  });
+
+  const handleDownloadReceipt = async () => {
+    if (!transaction) return;
+    try {
+      const response = await fetch(`/api/v1/transactions/${transaction.id}/receipt`, {
+        headers: { 'Accept': 'text/html' },
+      });
+      if (!response.ok) throw new Error('Failed to fetch receipt');
+      const html = await response.text();
+      const w = window.open('', '_blank');
+      if (w) { w.document.write(html); w.document.close(); w.print(); }
+    } catch {
+      // Fallback: print current modal
+      window.print();
+    }
+  };
+
   if (!open || !transaction) return null;
 
   const isDebit = !!transaction.debitAmount;
@@ -125,19 +149,41 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
           </div>
 
           {/* Footer actions */}
-          <div className="flex gap-3 justify-end px-6 py-4 border-t bg-muted/20">
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
-            >
-              <Printer className="w-4 h-4" />
-              Print Receipt
-            </button>
-            <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
-              <Info className="w-3.5 h-3.5" />
-              PDF export is not available from the current transaction contract.
+          <div className="flex flex-wrap gap-2 justify-between px-6 py-4 border-t bg-muted/20">
+            <div className="flex gap-2">
+              <button onClick={handleDownloadReceipt}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+                <Download className="w-4 h-4" /> Receipt
+              </button>
+              <button onClick={() => window.print()}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+                <Printer className="w-4 h-4" /> Print
+              </button>
             </div>
+            {transaction.status !== 'REVERSED' && (
+              <button onClick={() => setShowReverseConfirm(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                <RotateCcw className="w-4 h-4" /> Reverse
+              </button>
+            )}
           </div>
+
+          {/* Reverse confirmation dialog */}
+          {showReverseConfirm && (
+            <div className="px-6 pb-4">
+              <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-4 space-y-3">
+                <div className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-red-600" /><span className="text-sm font-semibold text-red-700 dark:text-red-400">Confirm Reversal</span></div>
+                <p className="text-xs text-red-600 dark:text-red-400">This will reverse the {txnType.toLowerCase()} of {formatMoney(amount)} (ref: {transaction.reference}). This action cannot be undone.</p>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setShowReverseConfirm(false)} className="px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted">Cancel</button>
+                  <button onClick={() => reverseMut.mutate()} disabled={reverseMut.isPending}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 disabled:opacity-50">
+                    {reverseMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />} Reverse Transaction
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

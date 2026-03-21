@@ -1,23 +1,3 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { maAdvisoryApi } from '../api/maAdvisoryApi';
-
-// ─── Query Keys ───────────────────────────────────────────────────────────────
-
-const KEYS = {
-  advisory: {
-    all: ['advisory'] as const,
-    maEngagements: ['advisory', 'ma-engagements'] as const,
-  },
-} as const;
-
-// ─── M&A Advisory ────────────────────────────────────────────────────────────
-
-export function useTerminateMaEngagement() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (code: string) => maAdvisoryApi.terminate(code),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.advisory.all });
-    },
-  });
-}
+// useAdvisoryExt.ts — all M&A hooks now live in useAdvisory.ts
+// This file is kept for backward-compat; re-export what was here.
+export { useTerminateMaEngagement } from './useAdvisory';

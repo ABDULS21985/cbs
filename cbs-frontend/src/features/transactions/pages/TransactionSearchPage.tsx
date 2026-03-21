@@ -28,7 +28,7 @@ import { TransactionTimeline } from '../components/TransactionTimeline';
 import { TransactionSearchForm, getTransactionSearchValidationErrors } from '../components/TransactionSearchForm';
 import { TransactionResultsTable } from '../components/TransactionResultsTable';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
-import type { Transaction, TransactionSummary } from '../api/transactionApi';
+import type { Transaction } from '../api/transactionApi';
 
 const LIVE_MODE_STORAGE_KEY = 'transactions:live-mode';
 const LIVE_SOUND_STORAGE_KEY = 'transactions:live-sound';
@@ -462,8 +462,6 @@ export function TransactionSearchPage() {
     return 'Current visible result set';
   }, [appliedFilters]);
 
-  const exportRows = useMemo(() => buildExportRows(transactions), [transactions]);
-
   const executeExport = useCallback((format: ExportFormat, rows: Transaction[]) => {
     if (rows.length === 0) {
       toast.error('There are no transactions to export.');
@@ -543,6 +541,27 @@ export function TransactionSearchPage() {
     }
     printTransactionReceipts(selectedTransactions);
   }, [selectedTransactions]);
+
+  const handleCopyServerSideExportRequest = useCallback(async () => {
+    const payload = {
+      requestType: 'TRANSACTION_SERVER_SIDE_EXPORT',
+      requestedAt: new Date().toISOString(),
+      totalMatchingResults: summary.totalResults,
+      filters: appliedFilters,
+    };
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      toast.success('Server-side export request copied to clipboard.');
+    } catch {
+      downloadTextFile(
+        JSON.stringify(payload, null, 2),
+        'application/json;charset=utf-8',
+        `transaction-export-request-${toLocalDateStamp(new Date())}.json`,
+      );
+      toast.success('Server-side export request downloaded.');
+    }
+  }, [appliedFilters, summary.totalResults]);
 
   const handleExportSelected = useCallback(() => {
     handleExportRequest('csv', selectedTransactions);
@@ -1159,6 +1178,13 @@ export function TransactionSearchPage() {
         <p className="text-sm text-muted-foreground">
           Narrow the filters further if you need a smaller, more focused export set.
         </p>
+        <button
+          onClick={handleCopyServerSideExportRequest}
+          className="mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+        >
+          <FileText className="h-4 w-4" />
+          Copy Server-side Export Request
+        </button>
       </ConfirmDialog>
 
       {shortcutHelpOpen && (

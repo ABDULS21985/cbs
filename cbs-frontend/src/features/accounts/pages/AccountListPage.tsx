@@ -95,10 +95,18 @@ export function AccountListPage() {
     queryFn: () => apiGet<AccountRow[]>('/api/v1/accounts'),
   });
 
-  const totalAccounts = accounts.length;
-  const activeAccounts = accounts.filter((a) => a.status === 'ACTIVE').length;
-  const totalBalance = accounts.reduce((sum, a) => sum + (a.availableBalance ?? 0), 0);
+  // Fetch real backend summary stats
+  const { data: summary } = useQuery({
+    queryKey: ['accounts', 'summary'],
+    queryFn: () => apiGet<Record<string, unknown>>('/api/v1/accounts/summary').catch(() => null),
+    staleTime: 60_000,
+  });
+
+  const totalAccounts = (summary?.totalAccounts as number) ?? accounts.length;
+  const activeAccounts = (summary?.activeAccounts as number) ?? accounts.filter((a) => a.status === 'ACTIVE').length;
+  const totalBalance = (summary?.totalBalance as number) ?? accounts.reduce((sum, a) => sum + (a.availableBalance ?? 0), 0);
   const currencies = new Set(accounts.map((a) => a.currency ?? 'NGN'));
+  const dormantCount = (summary?.dormantAccounts as number) ?? accounts.filter(a => a.status === 'DORMANT').length;
 
   if (isError) {
     return (
@@ -157,6 +165,14 @@ export function AccountListPage() {
             icon={TrendingUp}
             loading={isLoading}
           />
+          {dormantCount > 0 && (
+            <StatCard
+              label="Dormant"
+              value={dormantCount}
+              format="number"
+              loading={isLoading}
+            />
+          )}
         </div>
 
         {/* Data table */}

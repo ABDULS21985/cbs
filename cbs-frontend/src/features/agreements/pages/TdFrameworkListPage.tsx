@@ -282,7 +282,7 @@ function ApproveDialog({ agreement, onClose }: { agreement: TdFrameworkAgreement
 
   const handleApprove = () => {
     approveMutation.mutate(
-      { number: agreement.agreementNumber, approvedBy },
+      { agreementNumber: agreement.agreementNumber, approvedBy },
       {
         onSuccess: () => { toast.success('Framework approved'); onClose(); },
         onError: () => toast.error('Failed to approve'),
@@ -327,7 +327,7 @@ function RateCalcDialog({ agreement, onClose }: { agreement: TdFrameworkAgreemen
 
   const handleCheck = () => {
     checkRate.mutate(
-      { number: agreement.agreementNumber, amount, tenorDays },
+      { agreementNumber: agreement.agreementNumber, amount, tenorDays },
       {
         onSuccess: (data) => setResult(data),
         onError: () => toast.error('Rate check failed — check amount and tenor bounds'),

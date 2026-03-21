@@ -42,7 +42,7 @@ export function TdFrameworkDetailPage() {
   const approveMutation = useApproveTdFramework();
   const checkRateMutation = useCheckTdRate();
   const { data: history = [] } = useTdHistory(agreement?.id ?? 0);
-  const { data: largeDeposits = [] } = useLargeDeposits(agreement?.id ? { agreementId: agreement.id } : undefined);
+  const { data: largeDeposits = [] } = useLargeDeposits();
 
   const latestSummary = history.length > 0 ? history[0] : null;
 

@@ -30,4 +30,24 @@ public class AgreementService {
     }
     public List<CustomerAgreement> getByCustomer(Long customerId) { return agreementRepository.findByCustomerIdOrderByCreatedAtDesc(customerId); }
     public List<CustomerAgreement> getAll() { return agreementRepository.findAll(); }
+    public CustomerAgreement getById(Long id) {
+        return agreementRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("CustomerAgreement", "id", id));
+    }
+    @Transactional
+    public CustomerAgreement update(Long id, CustomerAgreement patch) {
+        CustomerAgreement a = getById(id);
+        if (!"DRAFT".equals(a.getStatus())) throw new com.cbs.common.exception.BusinessException("Only DRAFT agreements can be updated");
+        if (patch.getTitle() != null) a.setTitle(patch.getTitle());
+        if (patch.getDescription() != null) a.setDescription(patch.getDescription());
+        if (patch.getAgreementType() != null) a.setAgreementType(patch.getAgreementType());
+        if (patch.getDocumentRef() != null) a.setDocumentRef(patch.getDocumentRef());
+        if (patch.getEffectiveFrom() != null) a.setEffectiveFrom(patch.getEffectiveFrom());
+        if (patch.getEffectiveTo() != null) a.setEffectiveTo(patch.getEffectiveTo());
+        if (patch.getAutoRenew() != null) a.setAutoRenew(patch.getAutoRenew());
+        if (patch.getRenewalTermMonths() != null) a.setRenewalTermMonths(patch.getRenewalTermMonths());
+        if (patch.getNoticePeriodDays() != null) a.setNoticePeriodDays(patch.getNoticePeriodDays());
+        a.setUpdatedAt(Instant.now());
+        return agreementRepository.save(a);
+    }
 }

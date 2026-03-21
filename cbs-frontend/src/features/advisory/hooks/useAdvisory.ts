@@ -3,24 +3,194 @@ import { advisoryApi, type ProjectFinanceStatus } from '../api/advisoryApi';
 
 // ─── Query key constants ──────────────────────────────────────────────────────
 
-const QK = {
+export const QK = {
+  // M&A
+  maAll: ['advisory', 'ma-advisory', 'all'] as const,
+  maActive: ['advisory', 'ma-advisory', 'active'] as const,
+  maPipeline: ['advisory', 'ma-advisory', 'pipeline'] as const,
+  maWorkload: ['advisory', 'ma-advisory', 'workload'] as const,
+  maRevenue: (from: string, to: string) => ['advisory', 'ma-advisory', 'revenue', from, to] as const,
+
+  // Tax
+  taxAll: ['advisory', 'tax-advisory', 'all'] as const,
+  taxActive: ['advisory', 'tax-advisory', 'active'] as const,
+  taxRevenue: (from: string, to: string) => ['advisory', 'tax-advisory', 'revenue', from, to] as const,
+
+  // Corporate Finance (backend pending)
   corporateFinanceActive: ['advisory', 'corporate-finance', 'active'] as const,
   corporateFinancePipeline: ['advisory', 'corporate-finance', 'pipeline'] as const,
   corporateFinanceRevenue: (from: string, to: string) =>
     ['advisory', 'corporate-finance', 'revenue', from, to] as const,
+
+  // Project Finance (backend pending)
   projectFacilities: (status?: ProjectFinanceStatus) =>
     ['advisory', 'project-finance', 'facilities', status] as const,
   facilityMilestones: (code: string) =>
     ['advisory', 'project-finance', 'milestones', code] as const,
-  maAdvisoryActive: ['advisory', 'ma-advisory', 'active'] as const,
-  maAdvisoryPipeline: ['advisory', 'ma-advisory', 'pipeline'] as const,
-  maAdvisoryRevenue: (from: string, to: string) =>
-    ['advisory', 'ma-advisory', 'revenue', from, to] as const,
-  taxAdvisoryActive: ['advisory', 'tax-advisory', 'active'] as const,
+
+  // Suitability (backend pending)
   suitabilityProfile: (customerId: number) =>
     ['advisory', 'suitability', 'profile', customerId] as const,
   expiredProfiles: ['advisory', 'suitability', 'expired'] as const,
 };
+
+// ─── M&A Advisory hooks ───────────────────────────────────────────────────────
+
+export function useAllMaEngagements() {
+  return useQuery({
+    queryKey: QK.maAll,
+    queryFn: () => advisoryApi.getAllMaEngagements(),
+  });
+}
+
+export function useMaAdvisoryMandates() {
+  return useQuery({
+    queryKey: QK.maActive,
+    queryFn: () => advisoryApi.getMaAdvisoryActive(),
+  });
+}
+
+export function useMaAdvisoryPipeline() {
+  return useQuery({
+    queryKey: QK.maPipeline,
+    queryFn: () => advisoryApi.getMaAdvisoryPipeline(),
+  });
+}
+
+export function useMaAdvisoryWorkload() {
+  return useQuery({
+    queryKey: QK.maWorkload,
+    queryFn: () => advisoryApi.getMaAdvisoryWorkload(),
+  });
+}
+
+export function useMaAdvisoryRevenue(from: string, to: string) {
+  return useQuery({
+    queryKey: QK.maRevenue(from, to),
+    queryFn: () => advisoryApi.getMaAdvisoryRevenue(from, to),
+    enabled: Boolean(from && to),
+  });
+}
+
+export function useCreateMaEngagement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: advisoryApi.createMaEngagement,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.maAll });
+      qc.invalidateQueries({ queryKey: QK.maActive });
+      qc.invalidateQueries({ queryKey: QK.maPipeline });
+    },
+  });
+}
+
+export function useUpdateMaMilestone() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, field, date }: { code: string; field: string; date: string }) =>
+      advisoryApi.updateMaMilestone(code, field, date),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.maAll });
+      qc.invalidateQueries({ queryKey: QK.maActive });
+    },
+  });
+}
+
+export function useRecordMaFee() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, amount }: { code: string; amount: number }) =>
+      advisoryApi.recordMaFee(code, amount),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.maAll });
+      qc.invalidateQueries({ queryKey: QK.maActive });
+    },
+  });
+}
+
+export function useCloseMaEngagement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, actualDealValue }: { code: string; actualDealValue: number }) =>
+      advisoryApi.closeMaEngagement(code, actualDealValue),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.maAll });
+      qc.invalidateQueries({ queryKey: QK.maActive });
+      qc.invalidateQueries({ queryKey: QK.maPipeline });
+    },
+  });
+}
+
+export function useTerminateMaEngagement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, reason }: { code: string; reason?: string }) =>
+      advisoryApi.terminateMaEngagement(code, reason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.maAll });
+      qc.invalidateQueries({ queryKey: QK.maActive });
+      qc.invalidateQueries({ queryKey: QK.maPipeline });
+    },
+  });
+}
+
+// ─── Tax Advisory hooks ───────────────────────────────────────────────────────
+
+export function useAllTaxEngagements() {
+  return useQuery({
+    queryKey: QK.taxAll,
+    queryFn: () => advisoryApi.getAllTaxEngagements(),
+  });
+}
+
+export function useTaxAdvisoryEngagements() {
+  return useQuery({
+    queryKey: QK.taxActive,
+    queryFn: () => advisoryApi.getTaxAdvisoryActive(),
+  });
+}
+
+export function useTaxAdvisoryRevenue(from: string, to: string) {
+  return useQuery({
+    queryKey: QK.taxRevenue(from, to),
+    queryFn: () => advisoryApi.getTaxAdvisoryRevenue(from, to),
+    enabled: Boolean(from && to),
+  });
+}
+
+export function useCreateTaxEngagement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: advisoryApi.createTaxEngagement,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.taxAll });
+      qc.invalidateQueries({ queryKey: QK.taxActive });
+    },
+  });
+}
+
+export function useDeliverOpinion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, opinion }: { code: string; opinion: string }) =>
+      advisoryApi.deliverOpinion(code, opinion),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.taxAll });
+      qc.invalidateQueries({ queryKey: QK.taxActive });
+    },
+  });
+}
+
+export function useCloseTaxEngagement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => advisoryApi.closeTaxEngagement(code),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.taxAll });
+      qc.invalidateQueries({ queryKey: QK.taxActive });
+    },
+  });
+}
 
 // ─── Corporate Finance hooks ──────────────────────────────────────────────────
 
@@ -28,6 +198,7 @@ export function useCorporateFinanceMandates() {
   return useQuery({
     queryKey: QK.corporateFinanceActive,
     queryFn: () => advisoryApi.getCorporateFinanceActive(),
+    retry: false,
   });
 }
 
@@ -35,6 +206,7 @@ export function useCorporateFinancePipeline() {
   return useQuery({
     queryKey: QK.corporateFinancePipeline,
     queryFn: () => advisoryApi.getCorporateFinancePipeline(),
+    retry: false,
   });
 }
 
@@ -43,6 +215,7 @@ export function useCorporateFinanceRevenue(from: string, to: string) {
     queryKey: QK.corporateFinanceRevenue(from, to),
     queryFn: () => advisoryApi.getCorporateFinanceRevenue(from, to),
     enabled: Boolean(from && to),
+    retry: false,
   });
 }
 
@@ -52,7 +225,6 @@ export function useCreateEngagement() {
     mutationFn: advisoryApi.createCorporateFinanceEngagement,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.corporateFinanceActive });
-      qc.invalidateQueries({ queryKey: QK.corporateFinancePipeline });
     },
   });
 }
@@ -108,6 +280,7 @@ export function useProjectFacilities(status?: ProjectFinanceStatus) {
   return useQuery({
     queryKey: QK.projectFacilities(status),
     queryFn: () => advisoryApi.getProjectFacilities(status),
+    retry: false,
   });
 }
 
@@ -116,6 +289,7 @@ export function useFacilityMilestones(code: string) {
     queryKey: QK.facilityMilestones(code),
     queryFn: () => advisoryApi.getFacilityMilestones(code),
     enabled: Boolean(code),
+    retry: false,
   });
 }
 
@@ -123,6 +297,17 @@ export function useCreateProjectFacility() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: advisoryApi.createProjectFacility,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['advisory', 'project-finance'] });
+    },
+  });
+}
+
+export function useAddMilestone() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, payload }: { code: string; payload: Parameters<typeof advisoryApi.addMilestone>[1] }) =>
+      advisoryApi.addMilestone(code, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['advisory', 'project-finance'] });
     },
@@ -140,60 +325,6 @@ export function useCompleteMilestone() {
   });
 }
 
-// ─── M&A Advisory hooks ───────────────────────────────────────────────────────
-
-export function useMaAdvisoryMandates() {
-  return useQuery({
-    queryKey: QK.maAdvisoryActive,
-    queryFn: () => advisoryApi.getMaAdvisoryActive(),
-  });
-}
-
-export function useMaAdvisoryPipeline() {
-  return useQuery({
-    queryKey: QK.maAdvisoryPipeline,
-    queryFn: () => advisoryApi.getMaAdvisoryPipeline(),
-  });
-}
-
-export function useMaAdvisoryRevenue(from: string, to: string) {
-  return useQuery({
-    queryKey: QK.maAdvisoryRevenue(from, to),
-    queryFn: () => advisoryApi.getMaAdvisoryRevenue(from, to),
-    enabled: Boolean(from && to),
-  });
-}
-
-export function useCreateMaEngagement() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: advisoryApi.createMaEngagement,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.maAdvisoryActive });
-      qc.invalidateQueries({ queryKey: QK.maAdvisoryPipeline });
-    },
-  });
-}
-
-// ─── Tax Advisory hooks ───────────────────────────────────────────────────────
-
-export function useTaxAdvisoryEngagements() {
-  return useQuery({
-    queryKey: QK.taxAdvisoryActive,
-    queryFn: () => advisoryApi.getTaxAdvisoryActive(),
-  });
-}
-
-export function useCreateTaxEngagement() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: advisoryApi.createTaxEngagement,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.taxAdvisoryActive });
-    },
-  });
-}
-
 // ─── Suitability hooks ────────────────────────────────────────────────────────
 
 export function useSuitabilityProfile(customerId: number) {
@@ -201,6 +332,7 @@ export function useSuitabilityProfile(customerId: number) {
     queryKey: QK.suitabilityProfile(customerId),
     queryFn: () => advisoryApi.getSuitabilityProfile(customerId),
     enabled: Boolean(customerId),
+    retry: false,
   });
 }
 
@@ -208,6 +340,7 @@ export function useExpiredProfiles() {
   return useQuery({
     queryKey: QK.expiredProfiles,
     queryFn: () => advisoryApi.getExpiredProfiles(),
+    retry: false,
   });
 }
 
