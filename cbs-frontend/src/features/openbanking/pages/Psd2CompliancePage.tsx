@@ -15,7 +15,7 @@ import {
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
 import { TabsPage } from '@/components/shared/TabsPage';
-import { usePsd2Tpps, useCustomerScaSessions } from '../hooks/usePsd2';
+import { usePsd2Tpps, useCustomerScaSessions, useRecentScaSessions } from '../hooks/usePsd2';
 import { TppRegistrationTable } from '../components/psd2/TppRegistrationTable';
 import { TppRegistrationForm } from '../components/psd2/TppRegistrationForm';
 import { ScaSessionTable } from '../components/psd2/ScaSessionTable';
@@ -25,26 +25,6 @@ import { ComplianceChecklist } from '../components/psd2/ComplianceChecklist';
 import { RegulatoryTimeline } from '../components/psd2/RegulatoryTimeline';
 import { ExemptionManager } from '../components/psd2/ExemptionManager';
 import type { Psd2ScaSession } from '../api/psd2Api';
-
-// ─── SCA step mapping from session status ──────────────────────────────────
-
-function getScaStep(status: Psd2ScaSession['scaStatus']): number {
-  switch (status) {
-    case 'STARTED':
-      return 1;
-    case 'AUTHENTICATION_REQUIRED':
-    case 'METHOD_SELECTED':
-      return 2;
-    case 'FINALISED':
-      return 5;
-    case 'FAILED':
-      return 3;
-    case 'EXEMPTED':
-      return 5;
-    default:
-      return 0;
-  }
-}
 
 // ─── TPP Registry Tab ──────────────────────────────────────────────────────
 
@@ -66,9 +46,13 @@ function ScaManagementTab() {
   const [searchCustomerId, setSearchCustomerId] = useState('');
   const [activeCustomerId, setActiveCustomerId] = useState(0);
 
-  const { data: sessions = [], isLoading } = useCustomerScaSessions(activeCustomerId);
+  // Show recent sessions by default (all customers), or filter by customer
+  const { data: recentSessions = [], isLoading: recentLoading } = useRecentScaSessions();
+  const { data: customerSessions = [], isLoading: customerLoading } = useCustomerScaSessions(activeCustomerId);
 
-  const currentStep = selectedSession ? getScaStep(selectedSession.scaStatus) : 0;
+  const isFiltering = activeCustomerId > 0;
+  const sessions = isFiltering ? customerSessions : recentSessions;
+  const isLoading = isFiltering ? customerLoading : recentLoading;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,13 +63,26 @@ function ScaManagementTab() {
     }
   };
 
+  const handleClearSearch = () => {
+    setActiveCustomerId(0);
+    setSearchCustomerId('');
+    setSelectedSession(null);
+  };
+
+  // Stats
+  const finalisedCount = sessions.filter((s) => s.scaStatus === 'FINALISED').length;
+  const failedCount = sessions.filter((s) => s.scaStatus === 'FAILED').length;
+  const exemptedCount = sessions.filter((s) => s.scaStatus === 'EXEMPTED').length;
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold">SCA Sessions</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Search by customer ID to view their SCA sessions
+            {isFiltering
+              ? `Showing sessions for customer #${activeCustomerId}`
+              : 'Showing most recent SCA sessions across all customers'}
           </p>
         </div>
         <button
@@ -101,14 +98,14 @@ function ScaManagementTab() {
       <form onSubmit={handleSearch} className="flex items-end gap-3">
         <div className="flex-1 max-w-xs">
           <label className="text-xs font-medium text-muted-foreground mb-1 block">
-            Customer ID
+            Filter by Customer ID
           </label>
           <input
             type="number"
             className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             value={searchCustomerId}
             onChange={(e) => setSearchCustomerId(e.target.value)}
-            placeholder="Enter customer ID..."
+            placeholder="Enter customer ID to filter..."
           />
         </div>
         <button
@@ -119,9 +116,38 @@ function ScaManagementTab() {
           <Search className="w-4 h-4" />
           Search
         </button>
+        {isFiltering && (
+          <button
+            type="button"
+            onClick={handleClearSearch}
+            className="px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+          >
+            Clear
+          </button>
+        )}
       </form>
 
-      <ScaFlowDiagram currentStep={currentStep} scaStatus={selectedSession?.scaStatus} />
+      {/* Quick stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-xs text-muted-foreground">Total</p>
+          <p className="text-lg font-bold tabular-nums">{sessions.length}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-xs text-muted-foreground">Finalised</p>
+          <p className="text-lg font-bold tabular-nums text-green-600">{finalisedCount}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-xs text-muted-foreground">Failed</p>
+          <p className="text-lg font-bold tabular-nums text-red-600">{failedCount}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-xs text-muted-foreground">Exempted</p>
+          <p className="text-lg font-bold tabular-nums text-blue-600">{exemptedCount}</p>
+        </div>
+      </div>
+
+      <ScaFlowDiagram scaStatus={selectedSession?.scaStatus} />
 
       {selectedSession && (
         <div className="rounded-xl border bg-muted/20 p-4">
@@ -155,22 +181,15 @@ function ScaManagementTab() {
         </div>
       )}
 
-      {activeCustomerId > 0 ? (
-        isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <ScaSessionTable
-            data={sessions}
-            onRowClick={(session) => setSelectedSession(session)}
-          />
-        )
-      ) : (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <ShieldCheck className="w-8 h-8 mb-2 opacity-30" />
-          <p className="text-sm">Enter a customer ID to search SCA sessions</p>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         </div>
+      ) : (
+        <ScaSessionTable
+          data={sessions}
+          onRowClick={(session) => setSelectedSession(session)}
+        />
       )}
 
       <ScaInitiateDialog open={showInitiate} onClose={() => setShowInitiate(false)} />

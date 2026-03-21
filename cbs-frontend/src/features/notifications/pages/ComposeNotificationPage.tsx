@@ -121,20 +121,26 @@ export function ComposeNotificationPage() {
             });
           }
           toast.success(`Notification sent to ${recipients.customerIds.length} recipient(s)`);
-        } else if (recipients.mode === 'segment' || recipients.mode === 'broadcast') {
-          // Bulk send via send-bulk endpoint (CBS_ADMIN only)
-          const bulkRecipients = recipients.recipientList?.map((r) => ({
-            address: r.address,
-            name: r.name,
-          })) ?? [];
+        } else if (recipients.mode === 'broadcast') {
+          // Broadcast to all active customers via send-bulk endpoint
           await sendBulkMut.mutateAsync({
-            recipients: bulkRecipients,
+            broadcast: true,
             channel: channel as NotificationChannel,
             subject: channel === 'EMAIL' ? subject : undefined,
             body,
             eventType,
           });
-          toast.success('Bulk notification sent');
+          toast.success('Broadcast notification sent to all active customers');
+        } else if (recipients.mode === 'segment') {
+          // Segment-targeted send via send-bulk endpoint
+          await sendBulkMut.mutateAsync({
+            segmentCode: recipients.segmentCode,
+            channel: channel as NotificationChannel,
+            subject: channel === 'EMAIL' ? subject : undefined,
+            body,
+            eventType,
+          });
+          toast.success(`Notification sent to segment: ${recipients.segmentName || recipients.segmentCode}`);
         }
       } else {
         // Create scheduled notification

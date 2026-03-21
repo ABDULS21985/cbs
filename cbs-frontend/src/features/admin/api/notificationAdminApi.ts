@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 
 // ─── Types (aligned with backend NotificationTemplate entity) ───────────────
 
@@ -67,15 +67,22 @@ export interface FailureRecord {
 export interface ScheduledNotification {
   id: number;
   name: string;
-  templateCode: string;
-  templateName: string;
+  templateCode?: string;
   channel: NotificationChannel;
+  eventType?: string;
+  subject?: string;
+  body?: string;
   cronExpression?: string;
-  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
-  nextRun: string;
+  frequency: 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  nextRun?: string;
   lastRun?: string;
+  recipientCriteria?: Record<string, unknown>;
   recipientCount: number;
-  status: 'ACTIVE' | 'PAUSED';
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  version?: number;
 }
 
 export interface TemplatePreview {
@@ -171,6 +178,31 @@ export function toggleSchedule(id: number | string): Promise<ScheduledNotificati
 export function sendNotification(data: { templateId: number; recipients: string[]; mergeData: Record<string, string> }): Promise<unknown> {
   return apiPost('/api/v1/notifications/send', data);
 }
-export const getTemplateVersions = (id: number | string) => apiGet<any[]>(`/api/v1/notifications/templates/${id}/versions`);
-export const getFailureRecords = (page = 0, size = 20) => apiGet<any[]>("/api/v1/notifications/failures", { page, size });
-export function createScheduledNotification(data: any): Promise<ScheduledNotification> { return apiPost("/api/v1/notifications/scheduled", data); }
+// ─── Template Versions ───────────────────────────────────────────────────────
+
+export interface TemplateVersionEntry {
+  id: number;
+  templateId: number;
+  versionNumber: number;
+  bodyTemplate: string;
+  subject?: string;
+  changedBy?: string;
+  changeSummary?: string;
+  createdAt: string;
+}
+
+export function getTemplateVersions(id: number | string): Promise<TemplateVersionEntry[]> {
+  return apiGet<TemplateVersionEntry[]>(`/api/v1/notifications/templates/${id}/versions`);
+}
+
+export function getFailureRecords(page = 0, size = 20): Promise<FailureRecord[]> {
+  return apiGet<FailureRecord[]>('/api/v1/notifications/failures', { page, size });
+}
+
+export function createScheduledNotification(data: Partial<ScheduledNotification> & { recipientCriteria?: Record<string, unknown> }): Promise<ScheduledNotification> {
+  return apiPost<ScheduledNotification>('/api/v1/notifications/scheduled', data);
+}
+
+export function deleteScheduledNotification(id: number | string): Promise<{ id: string; deleted: string }> {
+  return apiDelete<{ id: string; deleted: string }>(`/api/v1/notifications/scheduled/${id}`);
+}

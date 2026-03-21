@@ -27,25 +27,29 @@ export function RecurringDepositListPage() {
     if (statusFilter) result = result.filter((d) => d.status === statusFilter);
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
-      result = result.filter((d) => d.customerName.toLowerCase().includes(q) || d.id.toLowerCase().includes(q));
+      result = result.filter((d) =>
+        (d.depositNumber?.toLowerCase().includes(q)) ||
+        (d.customer?.displayName?.toLowerCase().includes(q)) ||
+        String(d.id).includes(q)
+      );
     }
     return result;
   }, [deposits, statusFilter, searchTerm]);
 
   const activeCount = deposits.filter((d) => d.status === 'ACTIVE').length;
-  const totalValue = deposits.reduce((s, d) => s + d.amount * d.totalInstallments, 0);
-  const onTrack = deposits.filter((d) => d.status === 'ACTIVE' && d.status !== 'MISSED').length;
-  const overdueCount = deposits.filter((d) => d.status === 'MISSED').length;
+  const totalValue = deposits.reduce((s, d) => s + d.installmentAmount * d.totalInstallments, 0);
+  const onTrack = deposits.filter((d) => d.status === 'ACTIVE' && d.missedInstallments === 0).length;
+  const overdueCount = deposits.filter((d) => d.missedInstallments > 0).length;
 
   const columns: ColumnDef<RecurringDeposit, unknown>[] = [
-    { accessorKey: 'id', header: 'ID', cell: ({ row }) => <span className="font-mono text-xs">{row.original.id}</span> },
-    { accessorKey: 'customerName', header: 'Customer', cell: ({ row }) => <span className="font-medium text-sm">{row.original.customerName}</span> },
-    { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm tabular-nums">{formatMoney(row.original.amount)}</span> },
-    { accessorKey: 'frequency', header: 'Freq', cell: ({ row }) => <span className="text-xs capitalize">{row.original.frequency.toLowerCase()}</span> },
-    { id: 'progress', header: 'Progress', cell: ({ row }) => <PaymentProgressBar paid={row.original.installmentsPaid} total={row.original.totalInstallments} size="sm" /> },
+    { accessorKey: 'depositNumber', header: 'Deposit #', cell: ({ row }) => <span className="font-mono text-xs">{row.original.depositNumber ?? `RD-${row.original.id}`}</span> },
+    { id: 'customer', header: 'Customer', cell: ({ row }) => <span className="font-medium text-sm">{row.original.customer?.displayName ?? '—'}</span> },
+    { accessorKey: 'installmentAmount', header: 'Installment', cell: ({ row }) => <span className="font-mono text-sm tabular-nums">{formatMoney(row.original.installmentAmount)}</span> },
+    { accessorKey: 'frequency', header: 'Freq', cell: ({ row }) => <span className="text-xs capitalize">{row.original.frequency.toLowerCase().replace('_', '-')}</span> },
+    { id: 'progress', header: 'Progress', cell: ({ row }) => <PaymentProgressBar paid={row.original.completedInstallments} total={row.original.totalInstallments} size="sm" /> },
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} size="sm" dot /> },
-    { accessorKey: 'nextDueDate', header: 'Next Due', cell: ({ row }) => <span className={cn('text-xs', row.original.status === 'MISSED' && 'text-red-600 font-medium')}>{formatDate(row.original.nextDueDate)}</span> },
-    { accessorKey: 'penalty', header: 'Penalty', cell: ({ row }) => row.original.penalty ? <span className="text-red-600 font-mono text-xs">{formatMoney(row.original.penalty)}</span> : <span className="text-xs text-muted-foreground">—</span> },
+    { accessorKey: 'nextDueDate', header: 'Next Due', cell: ({ row }) => <span className={cn('text-xs', row.original.missedInstallments > 0 && 'text-red-600 font-medium')}>{formatDate(row.original.nextDueDate)}</span> },
+    { accessorKey: 'totalPenalties', header: 'Penalties', cell: ({ row }) => row.original.totalPenalties > 0 ? <span className="text-red-600 font-mono text-xs">{formatMoney(row.original.totalPenalties)}</span> : <span className="text-xs text-muted-foreground">—</span> },
   ];
 
   const inputCls = 'px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring';
@@ -66,10 +70,12 @@ export function RecurringDepositListPage() {
         <div className="flex flex-wrap items-center gap-3">
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={inputCls}>
             <option value="">All Statuses</option>
+            <option value="PENDING">Pending</option>
             <option value="ACTIVE">Active</option>
-            <option value="COMPLETED">Completed</option>
-            <option value="MISSED">Missed</option>
-            <option value="PAUSED">Paused</option>
+            <option value="MATURED">Matured</option>
+            <option value="BROKEN">Broken</option>
+            <option value="CLOSED">Closed</option>
+            <option value="SUSPENDED">Suspended</option>
           </select>
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

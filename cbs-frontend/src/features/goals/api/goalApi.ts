@@ -49,18 +49,36 @@ export interface GoalTransaction {
   createdBy: string | null;
 }
 
+/** Raw entity from goals proxy endpoint — field names match JPA entity serialization */
+export type RecurringDepositStatus = 'PENDING' | 'ACTIVE' | 'MATURED' | 'BROKEN' | 'CLOSED' | 'SUSPENDED';
+export type DepositFrequency = 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY' | 'QUARTERLY';
+export type InstallmentStatus = 'PENDING' | 'PAID' | 'MISSED' | 'LATE_PAID' | 'WAIVED';
+
 export interface RecurringDeposit {
-  id: string;
-  customerId: string;
-  customerName: string;
-  amount: number;
-  frequency: 'DAILY' | 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY';
-  installmentsPaid: number;
+  id: number;
+  depositNumber: string;
+  currencyCode: string;
+  installmentAmount: number;
+  frequency: DepositFrequency;
   totalInstallments: number;
-  status: 'ACTIVE' | 'COMPLETED' | 'MISSED' | 'PAUSED';
+  completedInstallments: number;
+  missedInstallments: number;
   nextDueDate: string;
+  totalDeposited: number;
+  accruedInterest: number;
+  totalInterestEarned: number;
+  currentValue: number;
+  interestRate: number;
   startDate: string;
-  penalty?: number;
+  maturityDate: string;
+  totalPenalties: number;
+  maturityAction: string;
+  autoDebit: boolean;
+  status: RecurringDepositStatus;
+  createdAt: string;
+  // Nested entity refs (may be present from raw entity serialization)
+  account?: { id: number; accountNumber: string };
+  customer?: { id: number; displayName: string };
 }
 
 /** Maps to backend CreateGoalRequest DTO */
@@ -159,7 +177,7 @@ export interface RDInstallment {
   amountDue: number;
   amountPaid: number;
   penaltyAmount: number;
-  status: string;
+  status: InstallmentStatus;
   transactionRef: string | null;
   overdue: boolean;
 }
@@ -174,7 +192,7 @@ export interface RecurringDepositDetail {
   productCode: string;
   currencyCode: string;
   installmentAmount: number;
-  frequency: string;
+  frequency: DepositFrequency;
   totalInstallments: number;
   completedInstallments: number;
   missedInstallments: number;
@@ -189,18 +207,25 @@ export interface RecurringDepositDetail {
   totalPenalties: number;
   maturityAction: string;
   autoDebit: boolean;
-  status: string;
+  status: RecurringDepositStatus;
   installments: RDInstallment[];
   createdAt: string;
 }
 
+/** Maps to backend CreateRecurringDepositRequest DTO */
 export interface CreateRecurringDepositInput {
-  customerId: number;
-  amount: number;
-  frequency: string;
+  accountId: number;
+  productCode: string;
+  installmentAmount: number;
+  frequency: DepositFrequency;
   totalInstallments: number;
-  startDate: string;
-  sourceAccountId?: number;
+  interestRate: number;
+  dayCountConvention?: string;
+  maturityAction?: string;
+  payoutAccountId?: number;
+  debitAccountId?: number;
+  autoDebit?: boolean;
+  missedPenaltyRate?: number;
 }
 
 export const recurringDepositApi = {

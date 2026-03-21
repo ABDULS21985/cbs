@@ -76,10 +76,13 @@ export function NewGoalPage() {
   const [allowWithdrawalBeforeTarget, setAllowWithdrawalBeforeTarget] = useState(true);
   const [showIconPicker, setShowIconPicker] = useState(false);
 
-  // Accounts
+  // Accounts - only active ones
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts-for-goals'],
-    queryFn: () => apiGet<SourceAccount[]>('/api/v1/accounts'),
+    queryFn: async () => {
+      const all = await apiGet<SourceAccount[]>('/api/v1/accounts', { status: 'ACTIVE', size: 100 });
+      return all.filter(a => a.status === 'ACTIVE');
+    },
   });
 
   // Calculations

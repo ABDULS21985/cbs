@@ -47,6 +47,20 @@ spring:
       fail-on-unknown-properties: false
     default-property-inclusion: non_null
 
+  mail:
+    host: ${CBS_MAIL_HOST:localhost}
+    port: ${CBS_MAIL_PORT:1025}
+    username: ${CBS_MAIL_USERNAME:}
+    password: ${CBS_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${CBS_MAIL_AUTH:false}
+          starttls:
+            enable: ${CBS_MAIL_STARTTLS:false}
+    # Default points to MailHog/Mailpit for local dev.
+    # In production, set CBS_MAIL_HOST, CBS_MAIL_PORT, CBS_MAIL_AUTH=true, CBS_MAIL_STARTTLS=true.
+
   data:
     redis:
       host: ${CBS_REDIS_HOST:localhost}

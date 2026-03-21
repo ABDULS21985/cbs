@@ -37,6 +37,11 @@ public class PortalController {
     private final com.cbs.payments.repository.BeneficiaryRepository beneficiaryRepository;
     private final com.cbs.card.repository.CardRepository cardRepository;
     private final com.cbs.portal.repository.ServiceRequestRepository serviceRequestRepository;
+    private final com.cbs.notification.service.NotificationService notificationService;
+    private final com.cbs.notification.repository.NotificationLogRepository notificationLogRepository;
+    private final com.cbs.billing.service.BillPaymentService billPaymentService;
+    private final com.cbs.billing.repository.BillerRepository billerRepository;
+    private final com.cbs.account.repository.AccountRepository accountRepository;
 
     // ========================================================================
     // DASHBOARD

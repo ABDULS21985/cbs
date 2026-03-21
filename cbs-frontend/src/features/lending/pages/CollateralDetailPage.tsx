@@ -4,7 +4,7 @@ import { ClipboardCheck, RefreshCw, Shield, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/shared';
-import { useCollateralItem, useCollateralValuationHistory } from '../hooks/useCollateral';
+import { useCollateralItem, useCollateralValuationHistory, useUnlinkCollateralFromLoan } from '../hooks/useCollateral';
 import { CollateralDetailCard } from '../components/collateral/CollateralDetailCard';
 import { CoverageAnalysis } from '../components/collateral/CoverageAnalysis';
 import { ValuationTimeline } from '../components/collateral/ValuationTimeline';
@@ -23,18 +23,23 @@ export function CollateralDetailPage() {
   const { data: collateral, isLoading } = useCollateralItem(collateralId);
   const { data: valuationHistory = [], isLoading: loadingHistory } =
     useCollateralValuationHistory(collateralId);
-  // Backend does not have mark-perfected or release endpoints
+  const unlinkMutation = useUnlinkCollateralFromLoan();
   const isPerfecting = false;
-  const isReleasing = false;
+  const isReleasing = unlinkMutation.isPending;
 
   const handleMarkPerfected = () => {
-    // Backend does not have a mark-perfected endpoint yet
-    toast.info('Mark perfected is not yet supported by the backend');
+    // Backend collateral entity has a status field but no dedicated perfection endpoint.
+    // The collateral status is managed via the registration POST.
+    toast.info('Perfection status is tracked at registration. Update the collateral record to mark as perfected.');
   };
 
   const handleRelease = () => {
-    // Backend does not have a release endpoint yet
-    toast.info('Collateral release is not yet supported by the backend');
+    // Release = remove lien from all linked loan accounts
+    // Backend: DELETE /{collateralId}/lien/{loanAccountId}
+    if (!confirm('Release all liens on this collateral? This removes collateral coverage from linked loans.')) return;
+    // For full release we'd need to know linked loanAccountIds.
+    // Without them, inform the user to use the loan detail page.
+    toast.info('To release a lien, go to the linked loan detail page and unlink this collateral.');
   };
 
   if (isLoading) {

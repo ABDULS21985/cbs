@@ -1,3 +1,4 @@
+import api from '@/lib/api';
 import { apiGet, apiPost } from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,11 +64,23 @@ export function getReconciliationSession(
   return apiGet<ReconciliationSession>('/api/v1/reconciliation/sessions', { accountId, date });
 }
 
-export function uploadStatement(accountId: string, file: File): Promise<{ entriesCount: number; dateRange: { from: string; to: string }; totalAmount: number }> {
+/**
+ * Upload a bank statement file. Backend expects:
+ *   POST /v1/reconciliation/upload-statement?positionId=X
+ *   Content-Type: multipart/form-data  (file part named "file")
+ */
+export async function uploadStatement(
+  positionId: string,
+  file: File,
+): Promise<{ entriesReceived: number; status: string; message: string; isDuplicate: boolean; warnings: string[] }> {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('accountId', accountId);
-  return apiPost<{ entriesCount: number; dateRange: { from: string; to: string }; totalAmount: number }>('/api/v1/reconciliation/upload-statement', formData);
+  const { data } = await api.post(
+    `/api/v1/reconciliation/upload-statement?positionId=${positionId}`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return data.data;
 }
 
 export function runAutoMatch(sessionId: string): Promise<ReconciliationSession> {
@@ -135,9 +148,9 @@ export interface ImportRecord {
   filename: string;
   format: 'CSV' | 'MT940' | 'XML' | 'SWIFT';
   entriesCount: number;
-  status: 'COMPLETED' | 'FAILED' | 'PARTIAL';
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'PARTIAL' | 'REJECTED';
   importedBy: string;
-  errors?: string[];
+  errors?: string;
 }
 
 export interface AutoFetchConfig {
@@ -199,19 +212,28 @@ export interface ComplianceScorePoint {
 
 // ─── Statement Import API ────────────────────────────────────────────────────
 
-export function parseStatement(file: File, accountId: string): Promise<ParsedStatement> {
+/**
+ * Parse statement. Backend expects:
+ *   POST /v1/reconciliation/statements/parse?positionId=X
+ *   Content-Type: multipart/form-data  (file part named "file")
+ */
+export async function parseStatement(file: File, positionId: string): Promise<ParsedStatement> {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('accountId', accountId);
-  return apiPost<ParsedStatement>('/api/v1/reconciliation/statements/parse', formData);
+  const { data } = await api.post(
+    `/api/v1/reconciliation/statements/parse?positionId=${positionId}`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return data.data;
 }
 
-export function confirmImport(accountId: string, statementDate: string): Promise<{ importId: string }> {
-  return apiPost<{ importId: string }>('/api/v1/reconciliation/statements/confirm', { accountId, statementDate });
+export function confirmImport(positionId: string, statementDate: string): Promise<{ importId: string }> {
+  return apiPost<{ importId: string }>('/api/v1/reconciliation/statements/confirm', { positionId, statementDate });
 }
 
-export function rejectImport(accountId: string, statementDate: string): Promise<{ success: boolean }> {
-  return apiPost<{ success: boolean }>('/api/v1/reconciliation/statements/reject', { accountId, statementDate });
+export function rejectImport(positionId: string, statementDate: string): Promise<{ success: boolean }> {
+  return apiPost<{ success: boolean }>('/api/v1/reconciliation/statements/reject', { positionId, statementDate });
 }
 
 export function getImportHistory(): Promise<ImportRecord[]> {
@@ -262,8 +284,19 @@ export function bulkEscalateBreaks(breakIds: string[], notes: string): Promise<{
 
 // ─── Reports API ─────────────────────────────────────────────────────────────
 
-export function generateReconciliationReport(reportType: string, params: { dateFrom: string; dateTo: string }): Promise<Blob> {
-  return apiPost<Blob>(`/api/v1/reconciliation/reports/${reportType}/generate`, params);
+/**
+ * Generate report. Backend returns CSV bytes directly (not wrapped in ApiResponse).
+ */
+export async function generateReconciliationReport(
+  reportType: string,
+  params: { dateFrom: string; dateTo: string },
+): Promise<Blob> {
+  const response = await api.post(
+    `/api/v1/reconciliation/reports/${reportType}/generate`,
+    params,
+    { responseType: 'blob' },
+  );
+  return new Blob([response.data], { type: 'text/csv' });
 }
 
 export function getComplianceChecklist(): Promise<ComplianceCheckItem[]> {

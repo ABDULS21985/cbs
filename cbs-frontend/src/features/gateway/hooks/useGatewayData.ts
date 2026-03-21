@@ -586,8 +586,13 @@ export function useRegisterApiClient() {
   });
 }
 
-// Note: No backend DELETE/deactivate endpoint exists for API clients.
-// To deactivate, a PATCH or PUT endpoint would need to be added to OpenBankingController.
+export function useDeactivateApiClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (clientId: string) => integrationApi.deactivateApiClient(clientId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['open-banking', 'clients'] }); },
+  });
+}
 
 export function useOpenBankingConsents(params?: Record<string, unknown>) {
   return useQuery({

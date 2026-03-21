@@ -13,12 +13,14 @@ import { ConfirmDialog } from '@/components/shared';
 import { Users, DollarSign, FileCheck, AlertTriangle, Plus, Loader2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatMoney, formatDate, formatDateTime } from '@/lib/formatters';
-import { usePayrollBatches, usePayrollItems, useCreatePayrollBatch, useValidatePayrollBatch, useApprovePayrollBatch, useProcessPayrollBatch } from '../hooks/usePaymentsExt';
+import { Textarea } from '@/components/ui/textarea';
+import { usePayrollBatches, usePayrollItems, useCreatePayrollBatch, useValidatePayrollBatch, useApprovePayrollBatch, useProcessPayrollBatch, useAddPayrollItems } from '../hooks/usePaymentsExt';
 import type { PayrollBatch, PayrollItem } from '../types/payroll';
 
 export function PayrollPage() {
   useEffect(() => { document.title = 'Payroll Processing | CBS'; }, []);
   const [showCreate, setShowCreate] = useState(false);
+  const [showAddItems, setShowAddItems] = useState<string | null>(null);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: 'validate' | 'approve' | 'process'; batchId: string } | null>(null);
 
@@ -26,6 +28,7 @@ export function PayrollPage() {
   const { data: items = [], isLoading: itemsLoading } = usePayrollItems(selectedBatchId || '');
 
   const createMutation = useCreatePayrollBatch();
+  const addItemsMutation = useAddPayrollItems();
   const validateMutation = useValidatePayrollBatch();
   const approveMutation = useApprovePayrollBatch();
   const processMutation = useProcessPayrollBatch();
@@ -106,11 +109,18 @@ export function PayrollPage() {
 
         {selectedBatchId ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setSelectedBatchId(null)}>← Back to Batches</Button>
-              <span className="text-sm text-muted-foreground font-mono">Batch: {selectedBatchId}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setSelectedBatchId(null)}>← Back to Batches</Button>
+                <span className="text-sm text-muted-foreground font-mono">Batch: {selectedBatchId}</span>
+              </div>
+              {batches.find((b) => b.batchId === selectedBatchId)?.status === 'DRAFT' && (
+                <Button size="sm" onClick={() => setShowAddItems(selectedBatchId)}>
+                  <Plus className="w-4 h-4 mr-1" /> Add Employees
+                </Button>
+              )}
             </div>
-            <DataTable columns={itemColumns} data={items} isLoading={itemsLoading} enableGlobalFilter searchPlaceholder="Search employees..." emptyMessage="No items in this batch" />
+            <DataTable columns={itemColumns} data={items} isLoading={itemsLoading} enableGlobalFilter searchPlaceholder="Search employees..." emptyMessage="No items in this batch. Click 'Add Employees' to add payroll entries." />
           </div>
         ) : (
           <DataTable columns={batchColumns} data={batches} isLoading={isLoading} enableGlobalFilter searchPlaceholder="Search payroll batches..." emptyMessage="No payroll batches" />
@@ -119,6 +129,20 @@ export function PayrollPage() {
 
       {/* Create Payroll Batch */}
       {showCreate && <CreatePayrollDialog open onClose={() => setShowCreate(false)} onSubmit={(d) => createMutation.mutate(d, { onSuccess: () => { toast.success('Payroll batch created'); setShowCreate(false); }, onError: () => toast.error('Failed to create batch') })} isSubmitting={createMutation.isPending} />}
+
+      {/* Add Employees */}
+      {showAddItems && (
+        <AddEmployeesDialog
+          open
+          batchId={showAddItems}
+          onClose={() => setShowAddItems(null)}
+          onSubmit={(batchId, items) => addItemsMutation.mutate({ batchId, items }, {
+            onSuccess: () => { toast.success(`${items.length} employees added`); setShowAddItems(null); },
+            onError: () => toast.error('Failed to add employees'),
+          })}
+          isSubmitting={addItemsMutation.isPending}
+        />
+      )}
 
       {/* Confirm Action */}
       {confirmAction && (

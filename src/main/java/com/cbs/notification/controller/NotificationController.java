@@ -227,7 +227,8 @@ public class NotificationController {
                 Map.of("channel", "EMAIL", "enabled", true, "provider", "SMTP"),
                 Map.of("channel", "SMS", "enabled", true, "provider", "TWILIO"),
                 Map.of("channel", "PUSH", "enabled", true, "provider", "FIREBASE"),
-                Map.of("channel", "IN_APP", "enabled", true, "provider", "INTERNAL")
+                Map.of("channel", "IN_APP", "enabled", true, "provider", "INTERNAL"),
+                Map.of("channel", "WEBHOOK", "enabled", true, "provider", "HTTP_CLIENT")
         );
         return ResponseEntity.ok(ApiResponse.ok(channels));
     }
@@ -305,17 +306,28 @@ public class NotificationController {
     }
 
     @GetMapping("/scheduled")
-    @Operation(summary = "Scheduled notifications")
+    @Operation(summary = "List scheduled notification campaigns")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<NotificationLog>>> getScheduledNotifications(
+    public ResponseEntity<ApiResponse<List<ScheduledNotification>>> getScheduledNotifications(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "scheduledAt"));
-        Page<NotificationLog> result = notificationLogRepository.findAll(pageable);
-        List<NotificationLog> scheduled = result.getContent().stream()
-                .filter(n -> n.getScheduledAt() != null)
-                .toList();
-        return ResponseEntity.ok(ApiResponse.ok(scheduled, PageMeta.from(result)));
+        return ResponseEntity.ok(ApiResponse.ok(notificationService.getAllScheduledNotifications()));
+    }
+
+    @PostMapping("/scheduled")
+    @Operation(summary = "Create a scheduled notification campaign")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ScheduledNotification>> createScheduledNotification(@RequestBody ScheduledNotification schedule) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(notificationService.createScheduledNotification(schedule)));
+    }
+
+    @DeleteMapping("/scheduled/{id}")
+    @Operation(summary = "Delete a scheduled notification")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, String>>> deleteScheduledNotification(@PathVariable Long id) {
+        notificationService.deleteScheduledNotification(id);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "deleted", "true")));
     }
 
     @GetMapping("/unread-count")
@@ -348,18 +360,17 @@ public class NotificationController {
     }
 
     @PutMapping("/templates/{id}")
-    @Operation(summary = "Update a template")
+    @Operation(summary = "Update a template (saves previous body as a version)")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<NotificationTemplate>> updateTemplate(@PathVariable Long id, @RequestBody NotificationTemplate template) {
-        NotificationTemplate existing = templateRepository.findById(id)
-                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Template not found: " + id));
-        if (template.getTemplateName() != null) existing.setTemplateName(template.getTemplateName());
-        if (template.getSubject() != null) existing.setSubject(template.getSubject());
-        if (template.getBodyTemplate() != null) existing.setBodyTemplate(template.getBodyTemplate());
-        if (template.getEventType() != null) existing.setEventType(template.getEventType());
-        if (template.getChannel() != null) existing.setChannel(template.getChannel());
-        existing.setUpdatedAt(Instant.now());
-        return ResponseEntity.ok(ApiResponse.ok(templateRepository.save(existing)));
+        return ResponseEntity.ok(ApiResponse.ok(notificationService.updateTemplateWithVersion(id, template, "admin")));
+    }
+
+    @GetMapping("/templates/{id}/versions")
+    @Operation(summary = "Get version history of a template")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<NotificationTemplateVersion>>> getTemplateVersions(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(notificationService.getTemplateVersions(id)));
     }
 
     @PostMapping("/templates/{id}/publish")
@@ -488,10 +499,10 @@ public class NotificationController {
     // ========================================================================
 
     @PutMapping("/scheduled/{id}/toggle")
-    @Operation(summary = "Toggle scheduled notification")
+    @Operation(summary = "Toggle scheduled notification (ACTIVE ↔ PAUSED)")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> toggleScheduled(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id, "toggled", true)));
+    public ResponseEntity<ApiResponse<ScheduledNotification>> toggleScheduled(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(notificationService.toggleScheduledNotification(id)));
     }
 
     // ========================================================================

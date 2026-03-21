@@ -146,6 +146,39 @@ public class PayrollService {
         return batchRepository.save(batch);
     }
 
+    @Transactional
+    public PayrollBatch addItems(String batchId, List<PayrollItem> items) {
+        PayrollBatch batch = getBatch(batchId);
+        if (!"DRAFT".equals(batch.getStatus())) {
+            throw new BusinessException("Can only add items to DRAFT batches");
+        }
+
+        BigDecimal totalGross = batch.getTotalGross() != null ? batch.getTotalGross() : BigDecimal.ZERO;
+        BigDecimal totalNet = batch.getTotalNet() != null ? batch.getTotalNet() : BigDecimal.ZERO;
+        BigDecimal totalTax = batch.getTotalTax() != null ? batch.getTotalTax() : BigDecimal.ZERO;
+
+        for (PayrollItem item : items) {
+            item.setBatchId(batch.getId());
+            item.setStatus("PENDING");
+            itemRepository.save(item);
+            totalGross = totalGross.add(item.getGrossAmount() != null ? item.getGrossAmount() : BigDecimal.ZERO);
+            totalNet = totalNet.add(item.getNetAmount() != null ? item.getNetAmount() : BigDecimal.ZERO);
+            totalTax = totalTax.add(item.getTaxAmount() != null ? item.getTaxAmount() : BigDecimal.ZERO);
+        }
+
+        batch.setTotalGross(totalGross);
+        batch.setTotalNet(totalNet);
+        batch.setTotalTax(totalTax);
+        batch.setTotalDeductions(totalGross.subtract(totalNet));
+        batch.setEmployeeCount(
+            (int) itemRepository.findByBatchIdOrderByEmployeeNameAsc(batch.getId()).size()
+        );
+        batch.setUpdatedAt(Instant.now());
+
+        log.info("Added {} items to payroll batch {}, new total: {}", items.size(), batchId, totalNet);
+        return batchRepository.save(batch);
+    }
+
     public List<PayrollBatch> getAllBatches() { return batchRepository.findAll(); }
     public List<PayrollBatch> getByCustomer(Long customerId) { return batchRepository.findByCustomerIdOrderByPaymentDateDesc(customerId); }
     public List<PayrollItem> getItems(String batchId) {

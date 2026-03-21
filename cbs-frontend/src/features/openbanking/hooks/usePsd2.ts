@@ -5,6 +5,7 @@ const QK = {
   tpps: ['psd2', 'tpps'] as const,
   activeTpps: ['psd2', 'tpps', 'active'] as const,
   scaSessions: (customerId: number) => ['psd2', 'sca', 'customer', customerId] as const,
+  recentScaSessions: ['psd2', 'sca', 'recent'] as const,
 };
 
 export function usePsd2Tpps() {
@@ -52,6 +53,14 @@ export function useCustomerScaSessions(customerId: number) {
     queryKey: QK.scaSessions(customerId),
     queryFn: () => psd2Api.getCustomerScaSessions(customerId),
     enabled: customerId > 0,
+    staleTime: 30_000,
+  });
+}
+
+export function useRecentScaSessions() {
+  return useQuery({
+    queryKey: QK.recentScaSessions,
+    queryFn: () => psd2Api.getRecentScaSessions(),
     staleTime: 30_000,
   });
 }

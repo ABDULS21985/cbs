@@ -13,7 +13,7 @@ import {
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiClientRegistration, OpenBankingConsent } from '../types/integration';
 import {
-  useApiClients, useRegisterApiClient,
+  useApiClients, useRegisterApiClient, useDeactivateApiClient,
   useOpenBankingConsents, useCreateConsent, useAuthoriseConsent, useRevokeConsent,
 } from '../hooks/useGatewayData';
 import { toast } from 'sonner';
@@ -179,7 +179,7 @@ function CreateConsentDialog({ onClose }: { onClose: () => void }) {
 
 function ApiClientsTab({ onRegister }: { onRegister: () => void }) {
   const { data: clients = [], isLoading } = useApiClients();
-  // Note: No backend deactivate endpoint exists — button disabled
+  const deactivate = useDeactivateApiClient();
 
   const columns: ColumnDef<ApiClientRegistration, any>[] = [
     { accessorKey: 'clientId', header: 'Client ID', cell: ({ row }) => <CopyText text={row.original.clientId} /> },
@@ -197,7 +197,9 @@ function ApiClientsTab({ onRegister }: { onRegister: () => void }) {
     { accessorKey: 'expiresAt', header: 'Expires', cell: ({ row }) => { const d = Math.ceil((new Date(row.original.expiresAt).getTime() - Date.now()) / 86400_000); return <span className={cn('text-xs tabular-nums', d < 30 && 'text-red-600 font-medium')}>{formatDate(row.original.expiresAt)}</span>; } },
     {
       id: 'actions', header: '',
-      cell: () => null,
+      cell: ({ row }) => row.original.isActive ? (
+        <button onClick={() => deactivate.mutate(row.original.clientId, { onSuccess: () => toast.success('Client deactivated') })} className="text-xs px-2 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400"><Ban className="w-3 h-3" /></button>
+      ) : null,
     },
   ];
 

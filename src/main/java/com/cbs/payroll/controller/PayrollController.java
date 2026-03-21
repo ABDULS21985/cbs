@@ -35,6 +35,10 @@ public class PayrollController {
     public ResponseEntity<ApiResponse<PayrollBatch>> process(@PathVariable String batchId) {
         return ResponseEntity.ok(ApiResponse.ok(payrollService.process(batchId)));
     }
+    @PostMapping("/batches/{batchId}/items") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<PayrollBatch>> addItems(@PathVariable String batchId, @RequestBody List<PayrollItem> items) {
+        return ResponseEntity.ok(ApiResponse.ok(payrollService.addItems(batchId, items)));
+    }
     @GetMapping("/batches/{batchId}/items") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<PayrollItem>>> getItems(@PathVariable String batchId) {
         return ResponseEntity.ok(ApiResponse.ok(payrollService.getItems(batchId)));

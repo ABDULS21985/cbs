@@ -120,6 +120,10 @@ export const integrationApi = {
     return apiPost<ApiClientRegistration>(`/api/v1/openbanking/clients${params}`, data);
   },
 
+  /** POST /v1/openbanking/clients/{clientId}/deactivate */
+  deactivateApiClient: (clientId: string) =>
+    apiPost<ApiClientRegistration>(`/api/v1/openbanking/clients/${clientId}/deactivate`),
+
   // ── Open Banking Consents ───────────────────────────────────────────────
 
   /** GET /v1/openbanking/consents */

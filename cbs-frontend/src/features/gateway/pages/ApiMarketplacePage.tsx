@@ -20,6 +20,7 @@ import {
   useCreateMarketplaceProduct,
   usePublishProduct,
   useDeprecateProduct,
+  useMarketplaceSubscriptions,
   useMarketplaceSubscribe,
   useApproveSubscription,
 } from '../hooks/useGatewayData';
@@ -235,12 +236,15 @@ export function ApiMarketplacePage() {
 
   const [showCreateProduct, setShowCreateProduct] = useState(false);
   const [analyticsProductId, setAnalyticsProductId] = useState(0);
+  const [subForm, setSubForm] = useState({ productId: 0, subscriberName: '', subscriberEmail: '', planTier: 'STANDARD' });
 
   const { data: products = [], isLoading: productsLoading } = usePublishedProducts();
+  const { data: subscriptions = [] } = useMarketplaceSubscriptions();
   const { data: analyticsData } = useProductAnalytics(analyticsProductId);
   const publishProduct = usePublishProduct();
   const deprecateProduct = useDeprecateProduct();
   const approveSubscription = useApproveSubscription();
+  const subscribeMutation = useMarketplaceSubscribe();
 
   const publishedCount = products.filter((p) => p.status === 'PUBLISHED').length;
 
@@ -331,7 +335,7 @@ export function ApiMarketplacePage() {
       label: 'Subscriptions',
       content: (
         <div className="p-4">
-          <DataTable columns={subCols} data={[]} enableGlobalFilter emptyMessage="No subscriptions yet" />
+          <DataTable columns={subCols} data={subscriptions} enableGlobalFilter emptyMessage="No subscriptions yet" />
         </div>
       ),
     },
@@ -370,20 +374,30 @@ export function ApiMarketplacePage() {
           <div className="rounded-xl border bg-card p-6 space-y-4">
             <h3 className="text-sm font-semibold">Create Subscription</h3>
             <div><label className="text-xs font-medium text-muted-foreground">Product</label>
-              <select className="w-full mt-1 input">
+              <select className="w-full mt-1 input" value={subForm.productId} onChange={(e) => setSubForm((p) => ({ ...p, productId: parseInt(e.target.value) || 0 }))}>
+                <option value={0}>Select product...</option>
                 {products.filter((p) => p.status === 'PUBLISHED').map((p) => <option key={p.id} value={p.id}>{p.productName}</option>)}
               </select></div>
             <div><label className="text-xs font-medium text-muted-foreground">Subscriber Name *</label>
-              <input className="w-full mt-1 input" /></div>
+              <input className="w-full mt-1 input" value={subForm.subscriberName} onChange={(e) => setSubForm((p) => ({ ...p, subscriberName: e.target.value }))} placeholder="Organization or individual name" /></div>
             <div><label className="text-xs font-medium text-muted-foreground">Email</label>
-              <input type="email" className="w-full mt-1 input" /></div>
+              <input type="email" className="w-full mt-1 input" value={subForm.subscriberEmail} onChange={(e) => setSubForm((p) => ({ ...p, subscriberEmail: e.target.value }))} placeholder="contact@example.com" /></div>
             <div><label className="text-xs font-medium text-muted-foreground">Plan Tier</label>
-              <select className="w-full mt-1 input">
+              <select className="w-full mt-1 input" value={subForm.planTier} onChange={(e) => setSubForm((p) => ({ ...p, planTier: e.target.value }))}>
                 {Object.entries(PLAN_LIMITS).map(([tier, limit]) => (
                   <option key={tier} value={tier}>{tier} — {limit > 0 ? `${limit.toLocaleString()} calls/month` : 'No limit'}</option>
                 ))}
               </select></div>
-            <button className="btn-primary w-full">Create Subscription</button>
+            <button
+              className="btn-primary w-full"
+              disabled={!subForm.productId || !subForm.subscriberName || subscribeMutation.isPending}
+              onClick={() => subscribeMutation.mutate(
+                { productId: subForm.productId, subscriberName: subForm.subscriberName, subscriberEmail: subForm.subscriberEmail || undefined, planTier: subForm.planTier },
+                { onSuccess: () => { toast.success('Subscription created'); setSubForm({ productId: 0, subscriberName: '', subscriberEmail: '', planTier: 'STANDARD' }); }, onError: () => toast.error('Subscription failed') },
+              )}
+            >
+              {subscribeMutation.isPending ? 'Creating...' : 'Create Subscription'}
+            </button>
           </div>
         </div>
       ),

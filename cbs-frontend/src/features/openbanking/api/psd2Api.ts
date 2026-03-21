@@ -208,4 +208,9 @@ export const psd2Api = {
     apiGet<BackendPsd2ScaSession[]>(
       `/api/v1/integration/psd2/sca/customer/${customerId}`,
     ).then((data) => data.map(mapScaSession)),
+
+  getRecentScaSessions: () =>
+    apiGet<BackendPsd2ScaSession[]>('/api/v1/integration/psd2/sca/recent').then((data) =>
+      data.map(mapScaSession),
+    ),
 };

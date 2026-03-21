@@ -81,9 +81,11 @@ export interface SendDirectRequest {
   eventType?: string;
 }
 
-/** Payload for POST /send-bulk */
+/** Payload for POST /send-bulk — supports explicit recipients, broadcast, or segment */
 export interface SendBulkRequest {
-  recipients: { address: string; name?: string }[];
+  recipients?: { address: string; name?: string }[];
+  broadcast?: boolean;
+  segmentCode?: string;
   channel: NotificationChannel;
   subject?: string;
   body: string;

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -30,6 +31,7 @@ public class WealthManagementService {
     public WealthManagementPlan activate(String planCode) {
         WealthManagementPlan plan = getByCode(planCode);
         plan.setStatus("ACTIVE");
+        plan.setActivatedDate(LocalDate.now());
         return planRepository.save(plan);
     }
 
@@ -64,6 +66,15 @@ public class WealthManagementService {
         if (updates.getNextReviewDate() != null) plan.setNextReviewDate(updates.getNextReviewDate());
         if (updates.getEstatePlanSummary() != null) plan.setEstatePlanSummary(updates.getEstatePlanSummary());
         if (updates.getTaxStrategy() != null) plan.setTaxStrategy(updates.getTaxStrategy());
+        if (updates.getCustomerName() != null) plan.setCustomerName(updates.getCustomerName());
+        if (updates.getAdvisorName() != null) plan.setAdvisorName(updates.getAdvisorName());
+        if (updates.getRiskProfile() != null) plan.setRiskProfile(updates.getRiskProfile());
+        if (updates.getInvestmentHorizon() != null) plan.setInvestmentHorizon(updates.getInvestmentHorizon());
+        if (updates.getTargetAllocation() != null) plan.setTargetAllocation(updates.getTargetAllocation());
+        if (updates.getCurrentAllocation() != null) plan.setCurrentAllocation(updates.getCurrentAllocation());
+        if (updates.getAllocations() != null) plan.setAllocations(updates.getAllocations());
+        if (updates.getGoals() != null) plan.setGoals(updates.getGoals());
+        if (updates.getLastReviewDate() != null) plan.setLastReviewDate(updates.getLastReviewDate());
         log.info("Wealth plan updated: {}", code);
         return planRepository.save(plan);
     }

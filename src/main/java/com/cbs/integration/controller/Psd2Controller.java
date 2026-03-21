@@ -79,4 +79,10 @@ public class Psd2Controller {
     public ResponseEntity<ApiResponse<List<Psd2ScaSession>>> getCustomerSessions(@PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(psd2Service.getCustomerSessions(customerId)));
     }
+
+    @GetMapping("/sca/recent")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Psd2ScaSession>>> getRecentSessions() {
+        return ResponseEntity.ok(ApiResponse.ok(psd2Service.getAllRecentSessions()));
+    }
 }

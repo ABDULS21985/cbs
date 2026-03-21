@@ -22,6 +22,10 @@ export const payrollApi = {
   process: (batchId: string) =>
     apiPost<PayrollBatch>(`/api/v1/payroll/batches/${batchId}/process`),
 
+  /** POST /v1/payroll/batches/{batchId}/items — add employee items to a DRAFT batch */
+  addItems: (batchId: string, items: Partial<PayrollItem>[]) =>
+    apiPost<PayrollBatch>(`/api/v1/payroll/batches/${batchId}/items`, items),
+
   /** GET /v1/payroll/batches/{batchId}/items */
   getItems: (batchId: string) =>
     apiGet<PayrollItem[]>(`/api/v1/payroll/batches/${batchId}/items`),

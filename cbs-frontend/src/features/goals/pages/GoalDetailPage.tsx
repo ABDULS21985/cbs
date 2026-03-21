@@ -22,6 +22,7 @@ import { GoalCelebration } from '../components/GoalCelebration';
 import { goalApi } from '../api/goalApi';
 import type { SavingsGoal, GoalTransaction, GoalFundRequest } from '../api/goalApi';
 import { useGoalDetail, useGoalContributions, goalQueryKeys } from '../hooks/useGoals';
+import { useHasRole } from '@/hooks/usePermission';
 
 // ─── Contribute Sheet ───────────────────────────────────────────────────────
 
@@ -644,6 +645,7 @@ export function GoalDetailPage() {
   }));
 
   const isActive = goal.status === 'ACTIVE';
+  const canModify = useHasRole(['CBS_ADMIN', 'CBS_OFFICER', 'PORTAL_USER']);
 
   const tabs = [
     {
@@ -771,20 +773,22 @@ export function GoalDetailPage() {
         }
         backTo="/accounts/goals"
         actions={
-          <div className="flex items-center gap-2">
-            {canWithdraw && (
-              <button onClick={() => setShowWithdraw(true)} disabled={goal.currentAmount <= 0}
-                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-40">
-                Withdraw
-              </button>
-            )}
-            {isActive && (
-              <button onClick={() => setShowContribute(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40">
-                <Plus className="w-4 h-4" /> Contribute
-              </button>
-            )}
-          </div>
+          canModify ? (
+            <div className="flex items-center gap-2">
+              {canWithdraw && (
+                <button onClick={() => setShowWithdraw(true)} disabled={goal.currentAmount <= 0}
+                  className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-40">
+                  Withdraw
+                </button>
+              )}
+              {isActive && (
+                <button onClick={() => setShowContribute(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40">
+                  <Plus className="w-4 h-4" /> Contribute
+                </button>
+              )}
+            </div>
+          ) : undefined
         }
       />
 

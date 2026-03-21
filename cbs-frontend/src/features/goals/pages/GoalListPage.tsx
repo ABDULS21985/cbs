@@ -5,6 +5,7 @@ import { Plus, Zap, ChevronRight } from 'lucide-react';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useGoals, useRecurringDeposits, useProcessAutoDebits } from '../hooks/useGoals';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { GoalSummaryStrip } from '../components/GoalSummaryStrip';
 import { GoalFilterBar } from '../components/GoalFilterBar';
 import { GoalCard } from '../components/GoalCard';
@@ -70,12 +71,16 @@ export function GoalListPage() {
         subtitle="Track your savings targets and watch your money grow"
         actions={
           <div className="flex items-center gap-2">
-            <button onClick={handleProcessAutoDebits} disabled={processAutoDebits.isPending} className="flex items-center gap-2 btn-secondary">
-              <Zap className="w-4 h-4" /> {processAutoDebits.isPending ? 'Processing...' : 'Process Auto-Debits'}
-            </button>
-            <button onClick={() => navigate('/accounts/goals/new')} className="flex items-center gap-2 btn-primary">
-              <Plus className="w-4 h-4" /> New Goal
-            </button>
+            <RoleGuard roles="CBS_ADMIN">
+              <button onClick={handleProcessAutoDebits} disabled={processAutoDebits.isPending} className="flex items-center gap-2 btn-secondary">
+                <Zap className="w-4 h-4" /> {processAutoDebits.isPending ? 'Processing...' : 'Process Auto-Debits'}
+              </button>
+            </RoleGuard>
+            <RoleGuard roles={['CBS_ADMIN', 'CBS_OFFICER', 'PORTAL_USER']}>
+              <button onClick={() => navigate('/accounts/goals/new')} className="flex items-center gap-2 btn-primary">
+                <Plus className="w-4 h-4" /> New Goal
+              </button>
+            </RoleGuard>
           </div>
         }
       />
@@ -130,20 +135,20 @@ export function GoalListPage() {
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2">
               {recurringDeposits.slice(0, 5).map((rd) => {
-                const pct = rd.totalInstallments > 0 ? (rd.installmentsPaid / rd.totalInstallments) * 100 : 0;
+                const pct = rd.totalInstallments > 0 ? (rd.completedInstallments / rd.totalInstallments) * 100 : 0;
                 return (
                   <div key={rd.id} onClick={() => navigate(`/accounts/recurring-deposits/${rd.id}`)} className="flex-shrink-0 w-56 rounded-xl border bg-card p-4 cursor-pointer hover:shadow-sm transition-shadow">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-mono text-xs text-primary font-medium">RD-{String(rd.id).slice(-4)}</span>
+                      <span className="font-mono text-xs text-primary font-medium">{rd.depositNumber?.slice(-6) ?? `RD-${rd.id}`}</span>
                       <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-full',
                         rd.status === 'ACTIVE' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                        rd.status === 'COMPLETED' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                        rd.status === 'MISSED' ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        rd.status === 'MATURED' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                        rd.status === 'BROKEN' || rd.status === 'SUSPENDED' ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                         'bg-muted text-muted-foreground',
                       )}>{rd.status}</span>
                     </div>
-                    <p className="text-sm font-semibold tabular-nums">{formatMoney(rd.amount)}/{rd.frequency.toLowerCase()}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{rd.installmentsPaid}/{rd.totalInstallments} paid</p>
+                    <p className="text-sm font-semibold tabular-nums">{formatMoney(rd.installmentAmount)}/{rd.frequency.toLowerCase().replace('_', '-')}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{rd.completedInstallments}/{rd.totalInstallments} paid</p>
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-2">
                       <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
                     </div>

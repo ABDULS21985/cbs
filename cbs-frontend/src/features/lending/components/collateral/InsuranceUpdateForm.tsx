@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useAddValuation } from '../../hooks/useCollateral';
 
 interface InsuranceUpdateFormProps {
   collateralId: number;
@@ -8,12 +9,12 @@ interface InsuranceUpdateFormProps {
 }
 
 export function InsuranceUpdateForm({ collateralId, onSuccess, onCancel }: InsuranceUpdateFormProps) {
-  // Backend does not have a dedicated insurance update endpoint
-  const isPending = false;
-  const updateInsurance = (_data: Record<string, unknown>) => {
-    toast.info('Insurance update is not yet supported by the backend');
-    onSuccess?.();
-  };
+  // The backend CollateralDto has insurance fields (isInsured, insurancePolicyNumber,
+  // insuranceExpiryDate, insuranceValue) but there's no dedicated PATCH endpoint for insurance.
+  // The valuation endpoint can record a valuation that includes updated insurance context.
+  // For a full insurance update, the collateral must be re-registered via POST /collaterals.
+  const addValuation = useAddValuation();
+  const isPending = addValuation.isPending;
 
   const [form, setForm] = useState({
     provider: '',
@@ -22,117 +23,70 @@ export function InsuranceUpdateForm({ collateralId, onSuccess, onCancel }: Insur
     expiryDate: '',
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const validate = () => {
-    const errs: Record<string, string> = {};
-    if (!form.provider.trim()) errs.provider = 'Provider is required';
-    if (!form.policyNumber.trim()) errs.policyNumber = 'Policy number is required';
-    if (!form.sumInsured || Number(form.sumInsured) <= 0)
-      errs.sumInsured = 'Sum insured must be greater than 0';
-    if (!form.expiryDate) errs.expiryDate = 'Expiry date is required';
-    return errs;
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
+    if (!form.policyNumber || !form.expiryDate) {
+      toast.error('Policy number and expiry date are required');
       return;
     }
-    setErrors({});
-    updateInsurance({
-      provider: form.provider,
-      policyNumber: form.policyNumber,
-      sumInsured: Number(form.sumInsured),
-      expiryDate: form.expiryDate,
-    });
-  };
 
-  const inputClass =
-    'w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors';
-  const errorClass = 'text-xs text-red-500 mt-0.5';
-  const labelClass = 'block text-sm font-medium mb-1';
+    // Record a valuation that captures insurance details as a note
+    addValuation.mutate(
+      {
+        id: collateralId,
+        data: {
+          valuationDate: new Date().toISOString().split('T')[0],
+          marketValue: parseFloat(form.sumInsured) || 0,
+          valuationMethod: 'DESKTOP',
+          notes: `Insurance update: Policy ${form.policyNumber}, Provider: ${form.provider}, Sum Insured: ${form.sumInsured}, Expiry: ${form.expiryDate}`,
+          status: 'COMPLETED',
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success('Insurance details recorded via valuation note');
+          onSuccess?.();
+        },
+        onError: () => toast.error('Failed to update insurance details'),
+      },
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className={labelClass}>
-            Provider <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            className={inputClass}
-            placeholder="Insurance company name"
-            value={form.provider}
-            onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))}
-          />
-          {errors.provider && <p className={errorClass}>{errors.provider}</p>}
-        </div>
+      <p className="text-xs text-muted-foreground">Insurance details are recorded as a valuation note. A dedicated insurance endpoint is not yet available.</p>
 
-        <div>
-          <label className={labelClass}>
-            Policy Number <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            className={inputClass}
-            placeholder="e.g. POL-2024-001"
-            value={form.policyNumber}
-            onChange={(e) => setForm((f) => ({ ...f, policyNumber: e.target.value }))}
-          />
-          {errors.policyNumber && <p className={errorClass}>{errors.policyNumber}</p>}
-        </div>
+      <div>
+        <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Insurance Provider</label>
+        <input type="text" value={form.provider} onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))}
+          placeholder="e.g. Leadway Assurance" className="w-full px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/30" />
+      </div>
 
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelClass}>
-            Sum Insured (₦) <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="any"
-            className={inputClass}
-            placeholder="e.g. 50000000"
-            value={form.sumInsured}
-            onChange={(e) => setForm((f) => ({ ...f, sumInsured: e.target.value }))}
-          />
-          {errors.sumInsured && <p className={errorClass}>{errors.sumInsured}</p>}
+          <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Policy Number *</label>
+          <input type="text" value={form.policyNumber} onChange={(e) => setForm((f) => ({ ...f, policyNumber: e.target.value }))}
+            className="w-full px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono" required />
         </div>
-
         <div>
-          <label className={labelClass}>
-            Expiry Date <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            className={inputClass}
-            value={form.expiryDate}
-            onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
-          />
-          {errors.expiryDate && <p className={errorClass}>{errors.expiryDate}</p>}
+          <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Sum Insured</label>
+          <input type="number" value={form.sumInsured} onChange={(e) => setForm((f) => ({ ...f, sumInsured: e.target.value }))}
+            step="0.01" min="0" className="w-full px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono" />
         </div>
       </div>
 
-      <div className="flex items-center gap-3 pt-1">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-        >
-          {isPending ? 'Updating…' : 'Update Insurance'}
+      <div>
+        <label className="block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Expiry Date *</label>
+        <input type="date" value={form.expiryDate} onChange={(e) => setForm((f) => ({ ...f, expiryDate: e.target.value }))}
+          className="w-full px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/30" required />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        {onCancel && <button type="button" onClick={onCancel} className="px-4 py-2 text-sm border rounded-md hover:bg-muted transition-colors">Cancel</button>}
+        <button type="submit" disabled={isPending || !form.policyNumber || !form.expiryDate}
+          className="px-4 py-2 text-sm font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 transition-colors">
+          {isPending ? 'Saving...' : 'Record Insurance'}
         </button>
-        {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
-          >
-            Cancel
-          </button>
-        )}
       </div>
     </form>
   );

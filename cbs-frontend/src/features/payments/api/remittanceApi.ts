@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams, apiPatchParams } from '@/lib/api';
 import type { RemittanceBeneficiary, RemittanceCorridor, RemittanceTransaction } from '../types/remittance';
 
 export interface RemittanceQuote {
@@ -41,19 +41,13 @@ export const remittancesApi = {
   getQuote: (params: { sourceCountry: string; destinationCountry: string; amount: number }) =>
     apiGet<RemittanceQuote>('/api/v1/remittances/quote', params),
 
-  /** POST /v1/remittances/send — send remittance (backend uses @RequestParam) */
-  send: (params: Record<string, unknown>) => {
-    const qs = new URLSearchParams();
-    Object.entries(params).forEach(([k, v]) => { if (v != null) qs.set(k, String(v)); });
-    return apiPost<RemittanceTransaction>(`/api/v1/remittances/send?${qs.toString()}`);
-  },
+  /** POST /v1/remittances/send — backend uses @RequestParam */
+  send: (params: Record<string, unknown>) =>
+    apiPostParams<RemittanceTransaction>('/api/v1/remittances/send', params),
 
   /** PATCH /v1/remittances/{ref}/status — backend uses @RequestParam */
-  updateStatus: (ref: string, params?: { status: string; message?: string }) => {
-    const qs = new URLSearchParams();
-    if (params) Object.entries(params).forEach(([k, v]) => { if (v != null) qs.set(k, String(v)); });
-    return apiPatch<RemittanceTransaction>(`/api/v1/remittances/${ref}/status?${qs.toString()}`);
-  },
+  updateStatus: (ref: string, params?: { status: string; message?: string }) =>
+    apiPatchParams<RemittanceTransaction>(`/api/v1/remittances/${ref}/status`, params ?? {}),
 
   /** GET /v1/remittances/customer/{customerId} */
   getHistory: (customerId: number, params?: { page?: number; size?: number }) =>

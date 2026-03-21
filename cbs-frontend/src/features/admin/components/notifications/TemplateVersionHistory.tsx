@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, Clock, RotateCcw, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getTemplateVersions, type NotificationTemplate } from '../../api/notificationAdminApi';
+import { getTemplateVersions, type NotificationTemplate, type TemplateVersionEntry } from '../../api/notificationAdminApi';
 import { TemplateDiffViewer } from './TemplateDiffViewer';
 import { format, parseISO } from 'date-fns';
 
@@ -12,24 +12,16 @@ interface TemplateVersionHistoryProps {
   onRestore: (bodyTemplate: string) => void;
 }
 
-interface TemplateVersion {
-  version: number;
-  bodyTemplate: string;
-  subject?: string;
-  updatedAt: string;
-  updatedBy?: string;
-}
-
 export function TemplateVersionHistory({ template, onClose, onRestore }: TemplateVersionHistoryProps) {
-  const [selectedVersion, setSelectedVersion] = useState<TemplateVersion | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState<TemplateVersionEntry | null>(null);
   const [showDiff, setShowDiff] = useState(false);
 
   const { data: versions = [], isLoading } = useQuery({
     queryKey: ['admin', 'notification-templates', template.id, 'versions'],
-    queryFn: () => getTemplateVersions(template.id) as Promise<TemplateVersion[]>,
+    queryFn: () => getTemplateVersions(template.id),
   });
 
-  const handleRestore = (version: TemplateVersion) => {
+  const handleRestore = (version: TemplateVersionEntry) => {
     onRestore(version.bodyTemplate);
     onClose();
   };
@@ -65,35 +57,32 @@ export function TemplateVersionHistory({ template, onClose, onRestore }: Templat
           ) : (
             versions.map((v) => (
               <div
-                key={v.version}
+                key={v.versionNumber}
                 className={cn(
                   'rounded-lg border p-4 cursor-pointer hover:bg-muted/50 transition-colors',
-                  selectedVersion?.version === v.version && 'border-primary bg-primary/5',
-                  v.version === template.version && 'ring-1 ring-primary/30',
+                  selectedVersion?.versionNumber === v.versionNumber && 'border-primary bg-primary/5',
                 )}
                 onClick={() => setSelectedVersion(v)}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold">Version {v.version}</span>
-                    {v.version === template.version && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary">
-                        Current
-                      </span>
-                    )}
+                    <span className="text-sm font-semibold">Version {v.versionNumber}</span>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {(() => { try { return format(parseISO(v.updatedAt), 'dd MMM yyyy HH:mm'); } catch { return v.updatedAt; } })()}
+                    {(() => { try { return format(parseISO(v.createdAt), 'dd MMM yyyy HH:mm'); } catch { return v.createdAt; } })()}
                   </span>
                 </div>
-                {v.updatedBy && (
-                  <p className="text-xs text-muted-foreground mb-2">by {v.updatedBy}</p>
+                {v.changedBy && (
+                  <p className="text-xs text-muted-foreground mb-2">by {v.changedBy}</p>
+                )}
+                {v.changeSummary && (
+                  <p className="text-xs text-muted-foreground mb-2">{v.changeSummary}</p>
                 )}
                 <pre className="text-xs text-muted-foreground bg-muted/50 rounded p-2 max-h-20 overflow-hidden line-clamp-3 font-mono">
                   {v.bodyTemplate}
                 </pre>
 
-                {selectedVersion?.version === v.version && v.version !== template.version && (
+                {selectedVersion?.versionNumber === v.versionNumber && (
                   <div className="flex gap-2 mt-3 pt-3 border-t">
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowDiff(true); }}
@@ -118,9 +107,9 @@ export function TemplateVersionHistory({ template, onClose, onRestore }: Templat
       {/* Diff Viewer */}
       {showDiff && selectedVersion && (
         <TemplateDiffViewer
-          leftLabel={`Version ${selectedVersion.version}`}
+          leftLabel={`Version ${selectedVersion.versionNumber}`}
           leftContent={selectedVersion.bodyTemplate}
-          rightLabel={`Version ${template.version} (Current)`}
+          rightLabel="Current"
           rightContent={template.bodyTemplate}
           onClose={() => setShowDiff(false)}
         />

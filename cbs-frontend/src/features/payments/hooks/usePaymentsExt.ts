@@ -7,7 +7,7 @@ import { payrollApi } from '../api/payrollApi';
 import type { PaymentRail, PaymentRoutingRule } from '../types/paymentExt';
 import type { AchBatch } from '../types/achExt';
 import type { RemittanceCorridor, RemittanceBeneficiary } from '../types/remittance';
-import type { PayrollBatch } from '../types/payroll';
+import type { PayrollBatch, PayrollItem } from '../types/payroll';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
@@ -256,6 +256,17 @@ export function usePayrollByCustomer(customerId: number) {
     queryFn: () => payrollApi.byCustomer(customerId),
     enabled: !!customerId,
     staleTime: 30_000,
+  });
+}
+
+export function useAddPayrollItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ batchId, items }: { batchId: string; items: Partial<PayrollItem>[] }) =>
+      payrollApi.addItems(batchId, items),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.payroll.all });
+    },
   });
 }
 

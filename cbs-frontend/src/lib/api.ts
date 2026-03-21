@@ -68,8 +68,20 @@ export async function apiPost<T>(url: string, body?: unknown): Promise<T> {
   return data.data;
 }
 
+/** POST with query params (for Spring @RequestParam endpoints) */
+export async function apiPostParams<T>(url: string, params: Record<string, unknown>): Promise<T> {
+  const { data } = await api.post<ApiResponse<T>>(url, null, { params });
+  return data.data;
+}
+
 export async function apiPatch<T>(url: string, body?: unknown): Promise<T> {
   const { data } = await api.patch<ApiResponse<T>>(url, body);
+  return data.data;
+}
+
+/** PATCH with query params (for Spring @RequestParam endpoints) */
+export async function apiPatchParams<T>(url: string, params: Record<string, unknown>): Promise<T> {
+  const { data } = await api.patch<ApiResponse<T>>(url, null, { params });
   return data.data;
 }
 
