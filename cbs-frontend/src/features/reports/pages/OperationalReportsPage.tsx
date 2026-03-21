@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth } from 'date-fns';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -19,6 +19,7 @@ function toDateString(d: Date): string {
 }
 
 export function OperationalReportsPage() {
+  useEffect(() => { document.title = 'Operational Reports | CBS'; }, []);
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: startOfMonth(new Date()),
     to: new Date(),

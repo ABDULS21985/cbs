@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronDown, DollarSign, TrendingUp, Users, Landmark, PiggyBank, BarChart3 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -161,6 +161,7 @@ const EXPORT_COLUMNS: ExportColumn[] = [
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function ExecutiveDashboardPage() {
+  useEffect(() => { document.title = 'Executive Dashboard | CBS'; }, []);
   const [period, setPeriod] = useState('ytd');
   const selectedLabel = PERIOD_LABELS[period] ?? '';
 

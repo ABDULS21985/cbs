@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { format } from 'date-fns';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DateRangePicker } from '@/components/shared';
@@ -14,6 +15,7 @@ import { ProductPenetrationBar } from '../components/customers/ProductPenetratio
 import { LtvHistogram } from '../components/customers/LtvHistogram';
 
 export function CustomerAnalyticsPage() {
+  useEffect(() => { document.title = 'Customer Analytics | CBS'; }, []);
   const {
     dateRange,
     setDateRange,

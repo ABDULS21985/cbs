@@ -52,6 +52,7 @@ import {
   EclParameterPage,
   CreditRiskDashboardPage,
   ComplianceDashboardPage,
+  ComplianceDownloadsPage,
   AmlDashboardPage,
   AmlAlertDetailPage,
   FraudDashboardPage,
@@ -188,6 +189,7 @@ import {
   TransactionSearchPage,
   TreasuryAlmReportsPage,
   UserAdminPage,
+  UserProfilePage,
   VirtualAccountDetailPage,
   VirtualAccountListPage,
   WealthManagementPage,
@@ -386,6 +388,7 @@ export function AppRouter() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/dashboard/bi" element={<BiDashboardPage />} />
+        <Route path="/profile" element={<UserProfilePage />} />
 
         {/* Customers */}
         <Route path="/customers" element={<Outlet />}>
@@ -732,6 +735,7 @@ export function AppRouter() {
           <Route path="treasury" element={<TreasuryAlmReportsPage />} />
           <Route path="marketing" element={<MarketingAnalyticsPage />} />
           <Route path="operations" element={<OperationalReportsPage />} />
+          <Route path="compliance-downloads" element={<ComplianceDownloadsPage />} />
         </Route>
 
         {/* Admin */}

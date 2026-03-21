@@ -84,3 +84,40 @@ export function useSummarizeChannelActivity() {
     },
   });
 }
+
+export function useHandoffSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      sessionId,
+      targetChannel,
+      deviceId,
+      ipAddress,
+    }: {
+      sessionId: string;
+      targetChannel: string;
+      deviceId?: string;
+      ipAddress?: string;
+    }) => channelsExtApi.handoff(sessionId, { targetChannel, deviceId, ipAddress }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.sessions.all });
+    },
+  });
+}
+
+export function useCreateSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      channel: string;
+      customerId?: number;
+      deviceId?: string;
+      deviceType?: string;
+      ipAddress?: string;
+      userAgent?: string;
+    }) => channelsExtApi.createSession(params),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.sessions.all });
+    },
+  });
+}

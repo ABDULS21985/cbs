@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { channelApi, type ChannelConfig, type ServicePoint } from '../api/channelApi';
+import { channelApi, type ChannelConfig, type ServicePoint, type ServicePointInteraction } from '../api/channelApi';
 
 const QK = {
   sessionCounts: ['channels', 'session-counts'] as const,
@@ -113,6 +113,42 @@ export function useEndChannelSession() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.sessions });
       queryClient.invalidateQueries({ queryKey: QK.sessionCounts });
+    },
+  });
+}
+
+export function useStartInteraction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      servicePointId,
+      interaction,
+    }: {
+      servicePointId: number;
+      interaction: Partial<ServicePointInteraction>;
+    }) => channelApi.startInteraction(servicePointId, interaction),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.servicePoints });
+      queryClient.invalidateQueries({ queryKey: QK.servicePointStatus });
+    },
+  });
+}
+
+export function useEndInteraction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      servicePointId,
+      outcome,
+      satisfactionScore,
+    }: {
+      servicePointId: number;
+      outcome: string;
+      satisfactionScore?: number;
+    }) => channelApi.endInteraction(servicePointId, { outcome, satisfactionScore }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.servicePoints });
+      queryClient.invalidateQueries({ queryKey: QK.servicePointStatus });
     },
   });
 }

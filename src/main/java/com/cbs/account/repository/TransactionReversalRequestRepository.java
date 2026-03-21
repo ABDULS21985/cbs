@@ -1,6 +1,8 @@
 package com.cbs.account.repository;
 
 import com.cbs.account.entity.TransactionReversalRequest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -13,6 +15,12 @@ public interface TransactionReversalRequestRepository extends JpaRepository<Tran
     Optional<TransactionReversalRequest> findByRequestRef(String requestRef);
 
     Optional<TransactionReversalRequest> findTopByTransactionIdOrderByRequestedAtDesc(Long transactionId);
+
+    Page<TransactionReversalRequest> findByStatusOrderByRequestedAtDesc(String status, Pageable pageable);
+
+    Page<TransactionReversalRequest> findAllByOrderByRequestedAtDesc(Pageable pageable);
+
+    long countByStatus(String status);
 
     @Query(value = "SELECT nextval('cbs.transaction_reversal_req_seq')", nativeQuery = true)
     Long nextRequestSequence();

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import * as Tabs from '@radix-ui/react-tabs';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -26,6 +26,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 export function TreasuryAlmReportsPage() {
+  useEffect(() => { document.title = 'Treasury & ALM Reports | CBS'; }, []);
   const [activeTab, setActiveTab] = useState<TabId>('gap');
   const [asOfDate, setAsOfDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 

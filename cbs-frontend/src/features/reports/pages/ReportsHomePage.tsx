@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart2, PieChart, Landmark, CreditCard,
@@ -94,6 +95,7 @@ const reportCategories = [
 ];
 
 export function ReportsHomePage() {
+  useEffect(() => { document.title = 'Reports | CBS'; }, []);
   const navigate = useNavigate();
 
   return (

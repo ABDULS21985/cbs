@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -83,6 +83,7 @@ function buildRolloverData(maturityProfile: any[]): MaturityRolloverRow[] {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function DepositAnalyticsPage() {
+  useEffect(() => { document.title = 'Deposit Analytics | CBS'; }, []);
   const [period, setPeriod] = useState('12m');
 
   const {

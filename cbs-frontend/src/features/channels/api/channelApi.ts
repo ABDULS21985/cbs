@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -84,8 +84,29 @@ export interface ServicePointMetrics {
   totalInteractions: number;
 }
 
+// Matches com.cbs.channel.entity.ServicePointInteraction
+export interface ServicePointInteraction {
+  id: number;
+  servicePointId: number;
+  customerId: number | null;
+  sessionId: number | null;
+  interactionType: string;
+  servicesUsed: Record<string, unknown> | null;
+  channelUsed: string | null;
+  staffAssisted: boolean;
+  staffId: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  durationSeconds: number | null;
+  customerSatisfactionScore: number | null;
+  feedbackComment: string | null;
+  outcome: string;
+  createdAt: string;
+}
+
 export type ServicePointType = 'BRANCH' | 'ATM' | 'KIOSK' | 'AGENT';
 export type SessionStatus = 'ACTIVE' | 'EXPIRED' | 'TERMINATED' | 'HANDED_OFF';
+export type AllChannelType = 'WEB' | 'MOBILE' | 'ATM' | 'BRANCH' | 'USSD' | 'IVR' | 'WHATSAPP' | 'POS' | 'AGENT' | 'API';
 
 // ─── API Functions ────────────────────────────────────────────────────────────
 
@@ -140,4 +161,21 @@ export const channelApi = {
   // Available service points — GET /v1/service-points/available
   getAvailableServicePoints: (type?: string) =>
     apiGet<ServicePoint[]>('/api/v1/service-points/available', type ? { type } : undefined),
+
+  // Start interaction — POST /v1/service-points/{id}/interaction/start (@RequestBody)
+  startInteraction: (servicePointId: number, interaction: Partial<ServicePointInteraction>) =>
+    apiPost<ServicePointInteraction>(
+      `/api/v1/service-points/${servicePointId}/interaction/start`,
+      interaction,
+    ),
+
+  // End interaction — POST /v1/service-points/{id}/interaction/end (@RequestParam outcome, satisfactionScore)
+  endInteraction: (
+    servicePointId: number,
+    params: { outcome: string; satisfactionScore?: number },
+  ) =>
+    apiPostParams<ServicePointInteraction>(
+      `/api/v1/service-points/${servicePointId}/interaction/end`,
+      params as Record<string, unknown>,
+    ),
 };

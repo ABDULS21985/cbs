@@ -2,20 +2,19 @@ import { apiGet, apiPost } from '@/lib/api';
 import type { BankGuarantee } from '../types/guarantee';
 
 export const guaranteesApi = {
-  /** GET /guarantees/{id} */
+  /** GET /v1/trade-finance/guarantees/{id} */
   getGuarantee: (id: number) =>
-    apiGet<BankGuarantee>(`/api/guarantees/${id}`),
+    apiGet<BankGuarantee>(`/api/v1/trade-finance/guarantees/${id}`),
 
-  /** GET /guarantees/customer/{customerId} */
+  /** GET /v1/trade-finance/guarantees/customer/{customerId} */
   getCustomerGuarantees: (customerId: number) =>
-    apiGet<BankGuarantee[]>(`/api/guarantees/customer/${customerId}`),
+    apiGet<BankGuarantee[]>(`/api/v1/trade-finance/guarantees/customer/${customerId}`),
 
-  /** POST /guarantees/{id}/claim */
-  claimGuarantee: (id: number) =>
-    apiPost<BankGuarantee>(`/api/guarantees/${id}/claim`),
+  /** POST /v1/trade-finance/guarantees/{id}/claim?amount=... */
+  claimGuarantee: (id: number, amount: number) =>
+    apiPost<BankGuarantee>(`/api/v1/trade-finance/guarantees/${id}/claim?amount=${amount}`),
 
-  /** POST /guarantees/batch/expire */
+  /** POST /v1/trade-finance/guarantees/batch/expire */
   processGuaranteeExpiry: () =>
-    apiPost<Record<string, unknown>>('/api/guarantees/batch/expire'),
-
+    apiPost<Record<string, number>>('/api/v1/trade-finance/guarantees/batch/expire'),
 };

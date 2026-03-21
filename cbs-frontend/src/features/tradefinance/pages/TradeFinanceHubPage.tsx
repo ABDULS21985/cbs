@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge, TabsPage } from '@/components/shared';
 import {
@@ -800,6 +802,7 @@ function VerifyDocumentDialog({
 // ─── Tab Components ───────────────────────────────────────────────────────────
 
 function LcsTab() {
+  const navigate = useNavigate();
   const [showIssue, setShowIssue] = useState(false);
   const [settlingLc, setSettlingLc] = useState<LetterOfCredit | null>(null);
   const { data: lcs = [], isLoading } = useLettersOfCredit();
@@ -881,12 +884,14 @@ function LcsTab() {
         enableExport
         exportFilename="letters-of-credit"
         emptyMessage="No letters of credit found"
+        onRowClick={(row) => navigate(`/trade-finance/lc/${row.id}`)}
       />
     </div>
   );
 }
 
 function GuaranteesTab() {
+  const navigate = useNavigate();
   const [showIssue, setShowIssue] = useState(false);
   const [claimingBg, setClaimingBg] = useState<BankGuarantee | null>(null);
   const { data: guarantees = [], isLoading } = useBankGuarantees();
@@ -968,6 +973,7 @@ function GuaranteesTab() {
         enableExport
         exportFilename="bank-guarantees"
         emptyMessage="No bank guarantees found"
+        onRowClick={(row) => navigate(`/trade-finance/guarantee/${row.id}`)}
       />
     </div>
   );
@@ -1125,63 +1131,69 @@ function ScfFactoringTab() {
 }
 
 function CollectionsTab() {
-  const collectionsPlaceholder: Array<{
-    id: number;
-    collectionRef: string;
-    drawer: string;
-    drawee: string;
-    amount: number;
-    currency: string;
-    type: string;
-    status: string;
-    createdAt: string;
-  }> = [];
+  const [showCreate, setShowCreate] = useState(false);
 
-  const collCols: ColumnDef<(typeof collectionsPlaceholder)[0], unknown>[] = [
+  const { data: collections = [], isLoading } = useQuery({
+    queryKey: ['trade-finance', 'collections'],
+    queryFn: async () => {
+      const { tradeFinanceApi: tfApi } = await import('../api/tradeFinanceApi');
+      return tfApi.getCollections();
+    },
+    staleTime: 30_000,
+  });
+
+  interface CollectionRow { id: number; collectionRef?: string; collectionNumber?: string; drawer?: string; drawerName?: string; drawee?: string; draweeName?: string; amount: number; currency?: string; currencyCode?: string; type?: string; collectionType?: string; status: string; createdAt?: string; }
+
+  const collCols: ColumnDef<CollectionRow, unknown>[] = [
     {
       accessorKey: 'collectionRef',
       header: 'Ref',
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-primary">{row.original.collectionRef}</span>
+        <span className="font-mono text-xs text-primary">{row.original.collectionRef ?? row.original.collectionNumber ?? '—'}</span>
       ),
     },
-    { accessorKey: 'drawer', header: 'Drawer' },
-    { accessorKey: 'drawee', header: 'Drawee' },
+    { accessorKey: 'drawer', header: 'Drawer', cell: ({ row }) => <span className="text-sm">{String(row.original.drawer ?? row.original.drawerName ?? '—')}</span> },
+    { accessorKey: 'drawee', header: 'Drawee', cell: ({ row }) => <span className="text-sm">{String(row.original.drawee ?? row.original.draweeName ?? '—')}</span> },
     {
       accessorKey: 'amount',
       header: 'Amount',
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          {formatMoney(row.original.amount, row.original.currency)}
+          {formatMoney(row.original.amount, row.original.currency ?? row.original.currencyCode)}
         </span>
       ),
     },
     {
       accessorKey: 'type',
       header: 'Type',
-      cell: ({ row }) => <StatusBadge status={row.original.type} />,
+      cell: ({ row }) => <StatusBadge status={String(row.original.type ?? row.original.collectionType ?? '')} />,
     },
     {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => <StatusBadge status={row.original.status} dot />,
     },
-    {
-      accessorKey: 'createdAt',
-      header: 'Created',
-      cell: ({ row }) => formatDate(row.original.createdAt),
-    },
   ];
 
   return (
-    <div className="p-4">
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Documentary Collections</h3>
+        <button onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+          <Plus className="w-4 h-4" /> New Collection
+        </button>
+      </div>
       <DataTable
         columns={collCols}
-        data={collectionsPlaceholder}
-        isLoading={false}
+        data={collections as CollectionRow[]}
+        isLoading={isLoading}
         enableGlobalFilter
+        enableExport
+        exportFilename="documentary-collections"
         emptyMessage="No documentary collections"
       />
+      {showCreate && <NewCollectionDialog onClose={() => setShowCreate(false)} />}
     </div>
   );
 }

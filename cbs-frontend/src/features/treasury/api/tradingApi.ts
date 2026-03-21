@@ -29,13 +29,27 @@ export interface TreasuryDeal {
 
 export interface BookDealRequest {
   type: DealType;
-  counterparty: string;
-  currency: string;
-  amount: number;
-  rate: number;
-  maturityDate: string;
+  counterpartyId?: number;
+  leg1Currency: string;
+  leg1Amount: number;
+  leg1AccountId?: number;
+  leg1ValueDate: string;
+  leg2Currency?: string;
+  leg2Amount?: number;
+  leg2AccountId?: number;
+  leg2ValueDate?: string;
+  dealRate?: number;
+  yieldRate?: number;
+  tenorDays?: number;
+  dealer?: string;
+  // Convenience aliases used by the UI form
+  currency?: string;
+  amount?: number;
+  rate?: number;
+  maturityDate?: string;
   valueDate?: string;
-  deskId: string;
+  counterparty?: string;
+  deskId?: string;
 }
 
 export interface AmendDealRequest {
@@ -457,15 +471,22 @@ export const tradingApi = {
     return mapBackendDeal(raw);
   },
   bookDeal: async (data: BookDealRequest): Promise<TreasuryDeal> => {
-    // Backend uses @RequestParam, so send as query params via apiGet-style POST
+    // Backend: POST /deals with ALL @RequestParam
     const params = new URLSearchParams();
     params.set('dealType', DEAL_TYPE_REVERSE[data.type] ?? data.type);
-    params.set('leg1Currency', data.currency);
-    params.set('leg1Amount', String(data.amount));
-    params.set('leg1ValueDate', data.valueDate ?? new Date().toISOString().slice(0, 10));
-    if (data.rate) params.set('dealRate', String(data.rate));
-    if (data.maturityDate) params.set('leg2ValueDate', data.maturityDate);
-    if (data.counterparty) params.set('dealer', data.counterparty);
+    params.set('leg1Currency', data.leg1Currency ?? data.currency ?? 'USD');
+    params.set('leg1Amount', String(data.leg1Amount ?? data.amount ?? 0));
+    params.set('leg1ValueDate', data.leg1ValueDate ?? data.valueDate ?? new Date().toISOString().slice(0, 10));
+    if (data.counterpartyId != null) params.set('counterpartyId', String(data.counterpartyId));
+    if (data.leg1AccountId != null) params.set('leg1AccountId', String(data.leg1AccountId));
+    if (data.leg2Currency) params.set('leg2Currency', data.leg2Currency);
+    if (data.leg2Amount != null) params.set('leg2Amount', String(data.leg2Amount));
+    if (data.leg2AccountId != null) params.set('leg2AccountId', String(data.leg2AccountId));
+    if (data.leg2ValueDate ?? data.maturityDate) params.set('leg2ValueDate', data.leg2ValueDate ?? data.maturityDate!);
+    if (data.dealRate ?? data.rate) params.set('dealRate', String(data.dealRate ?? data.rate));
+    if (data.yieldRate != null) params.set('yieldRate', String(data.yieldRate));
+    if (data.tenorDays != null) params.set('tenorDays', String(data.tenorDays));
+    if (data.dealer ?? data.counterparty) params.set('dealer', data.dealer ?? data.counterparty!);
     const raw = await apiPost<any>(`/api/v1/treasury/deals?${params.toString()}`);
     return mapBackendDeal(raw);
   },

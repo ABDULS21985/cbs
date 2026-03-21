@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 import type { ChannelSession } from './channelApi';
 
 export const channelsExtApi = {
@@ -14,13 +14,27 @@ export const channelsExtApi = {
   getCleanupInfo: (params?: Record<string, unknown>) =>
     apiGet<Record<string, number>>('/api/v1/channels/sessions/cleanup', params),
 
-  /** POST /v1/channels/sessions/{sessionId}/handoff */
+  /** POST /v1/channels/sessions/{sessionId}/handoff — @RequestParam targetChannel, deviceId, ipAddress */
   handoff: (
     sessionId: string,
     params: { targetChannel: string; deviceId?: string; ipAddress?: string },
   ) =>
-    apiGet<ChannelSession>(
+    apiPostParams<ChannelSession>(
       `/api/v1/channels/sessions/${sessionId}/handoff`,
+      params as Record<string, unknown>,
+    ),
+
+  /** POST /v1/channels/sessions — @RequestParam channel, customerId, deviceId, deviceType, ipAddress, userAgent */
+  createSession: (params: {
+    channel: string;
+    customerId?: number;
+    deviceId?: string;
+    deviceType?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }) =>
+    apiPostParams<ChannelSession>(
+      '/api/v1/channels/sessions',
       params as Record<string, unknown>,
     ),
 };

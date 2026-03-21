@@ -445,7 +445,13 @@ export const navigationItems: NavSection[] = [
           { label: 'Deposit Analytics', path: '/reports/deposits' },
           { label: 'Payment Analytics', path: '/reports/payments' },
           { label: 'Channel Analytics', path: '/reports/channels' },
+          { label: 'Customer Analytics', path: '/reports/customers' },
+          { label: 'Treasury & ALM', path: '/reports/treasury' },
+          { label: 'Marketing', path: '/reports/marketing' },
+          { label: 'Operations', path: '/reports/operations' },
+          { label: 'Regulatory', path: '/reports/regulatory' },
           { label: 'Custom', path: '/reports/custom' },
+          { label: 'Compliance Downloads', path: '/reports/compliance-downloads' },
         ],
       },
       {

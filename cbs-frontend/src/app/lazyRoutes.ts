@@ -726,6 +726,10 @@ export const OperationalReportsPage = lazyNamed(
   () => import('@/features/reports/pages/OperationalReportsPage'),
   'OperationalReportsPage',
 );
+export const ComplianceDownloadsPage = lazyNamed(
+  () => import('@/features/reports/pages/ComplianceDownloadsPage'),
+  'ComplianceDownloadsPage',
+);
 
 export const WealthManagementPage = lazyNamed(
   () => import('@/features/wealth/pages/WealthManagementPage'),
@@ -1044,6 +1048,11 @@ export const DashboardManagementPage = lazyNamed(
 export const DashboardViewerPage = lazyNamed(
   () => import('@/features/intelligence/pages/DashboardViewerPage'),
   'DashboardViewerPage',
+);
+
+export const UserProfilePage = lazyNamed(
+  () => import('@/features/auth/pages/UserProfilePage'),
+  'UserProfilePage',
 );
 
 export const AlmDashboardPage = lazyNamed(

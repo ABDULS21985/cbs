@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { format } from 'date-fns';
 import { RefreshCw, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -164,6 +165,7 @@ function buildSankeyFlows(channels: any[], failureReasons: any[]): SankeyFlow[] 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function PaymentAnalyticsPage() {
+  useEffect(() => { document.title = 'Payment Analytics | CBS'; }, []);
   const {
     dateRange,
     setDateRange,

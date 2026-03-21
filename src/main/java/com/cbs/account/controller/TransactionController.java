@@ -240,4 +240,55 @@ public class TransactionController {
             @RequestBody TransactionWorkflowDto.StatementRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(transactionStatementService.queueEmail(request)));
     }
+
+    @GetMapping("/reversals")
+    @Operation(summary = "List reversal requests with optional status filter")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<java.util.List<Map<String, Object>>>> listReversals(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        var pageable = PageRequest.of(page, Math.min(size, 100), Sort.by(Sort.Direction.DESC, "requestedAt"));
+        var reversalRepo = transactionReversalWorkflowService.getRepository();
+        var result = (status != null && !status.isBlank())
+                ? reversalRepo.findByStatusOrderByRequestedAtDesc(status.toUpperCase(), pageable)
+                : reversalRepo.findAllByOrderByRequestedAtDesc(pageable);
+
+        java.util.List<Map<String, Object>> items = result.getContent().stream().map(r -> {
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("id", r.getId());
+            m.put("requestRef", r.getRequestRef());
+            m.put("transactionRef", r.getTransactionRef());
+            m.put("amount", r.getAmount());
+            m.put("currencyCode", r.getCurrencyCode());
+            m.put("reasonCategory", r.getReasonCategory());
+            m.put("subReason", r.getSubReason());
+            m.put("notes", r.getNotes());
+            m.put("requestedSettlement", r.getRequestedSettlement());
+            m.put("status", r.getStatus());
+            m.put("requestedBy", r.getRequestedBy());
+            m.put("requestedAt", r.getRequestedAt());
+            m.put("approvedBy", r.getApprovedBy());
+            m.put("approvedAt", r.getApprovedAt());
+            m.put("rejectedBy", r.getRejectedBy());
+            m.put("rejectedAt", r.getRejectedAt());
+            m.put("rejectionReason", r.getRejectionReason());
+            m.put("reversalRef", r.getReversalRef());
+            return m;
+        }).toList();
+
+        return ResponseEntity.ok(ApiResponse.ok(items, PageMeta.from(result)));
+    }
+
+    @GetMapping("/reversals/counts")
+    @Operation(summary = "Get reversal request counts by status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getReversalCounts() {
+        var reversalRepo = transactionReversalWorkflowService.getRepository();
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "pendingApproval", reversalRepo.countByStatus("PENDING_APPROVAL"),
+                "completed", reversalRepo.countByStatus("COMPLETED"),
+                "rejected", reversalRepo.countByStatus("REJECTED")
+        )));
+    }
 }

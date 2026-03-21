@@ -217,8 +217,12 @@ export const authApi = {
     });
 
     const claims = decodeJwtPayload(token);
+    const CBS_ROLES = [
+      'TELLER', 'TREASURY', 'COMPLIANCE', 'AUDITOR',
+      'LOAN_OFFICER', 'RISK_OFFICER', 'PORTAL_USER',
+    ];
     const roles = claims.realm_access?.roles?.filter(
-      (r: string) => r.startsWith('CBS_') || r.startsWith('BRANCH_') || ['TELLER', 'TREASURY', 'COMPLIANCE', 'AUDITOR'].includes(r)
+      (r: string) => r.startsWith('CBS_') || r.startsWith('BRANCH_') || CBS_ROLES.includes(r)
     ) || [];
 
     return {

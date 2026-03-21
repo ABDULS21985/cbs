@@ -12,11 +12,17 @@ export interface DisputeRecord {
   description: string;
   contactEmail?: string;
   contactPhone?: string;
-  status: string;
+  status: 'PENDING' | 'UNDER_REVIEW' | 'ESCALATED' | 'RESOLVED' | 'REJECTED' | string;
+  assignedTo?: string;
   filedAt: string;
+  filedBy?: string;
   lastUpdatedAt: string;
+  updatedBy?: string;
+  closedAt?: string;
+  closedBy?: string;
   responseNotes?: string;
   escalationNotes?: string;
+  closingNotes?: string;
   supportingDocumentIds?: number[];
 }
 

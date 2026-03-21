@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import * as Tabs from '@radix-ui/react-tabs';
 import { BarChart2 } from 'lucide-react';
@@ -23,6 +23,7 @@ const TABS = [
 ];
 
 export function MarketingAnalyticsPage() {
+  useEffect(() => { document.title = 'Marketing Analytics | CBS'; }, []);
   const {
     dateRange,
     setDateRange,

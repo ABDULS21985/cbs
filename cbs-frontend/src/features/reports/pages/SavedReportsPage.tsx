@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -249,6 +249,7 @@ function ReportsTable({ owner, scheduledOnly, onRun, onEdit, onClone, onDelete, 
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export function SavedReportsPage() {
+  useEffect(() => { document.title = 'Custom Reports | CBS'; }, []);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabKey>('mine');

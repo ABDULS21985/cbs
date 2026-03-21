@@ -102,6 +102,7 @@ function SlaCard({ rates, isLoading }: SlaCardProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function ChannelAnalyticsPage() {
+  useEffect(() => { document.title = 'Channel Analytics | CBS'; }, []);
   const [dateRange, setDateRange] = useState({
     from: subMonths(new Date(), 1),
     to:   new Date(),

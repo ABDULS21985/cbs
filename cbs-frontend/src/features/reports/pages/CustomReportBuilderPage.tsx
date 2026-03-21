@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -241,6 +241,7 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
 // ─── Main page ─────────────────────────────────────────────────────────────────
 
 export function CustomReportBuilderPage() {
+  useEffect(() => { document.title = 'Report Builder | CBS'; }, []);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');

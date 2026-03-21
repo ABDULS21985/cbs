@@ -125,8 +125,9 @@ export const userAdminApi = {
     apiGet<Role>(`/api/v1/admin/roles/${id}`),
   createRole: (data: CreateRoleRequest) =>
     apiPost<Role>('/api/v1/admin/roles', data),
+  /** Backend expects List<String> directly as @RequestBody, not wrapped */
   updateRolePermissions: (roleId: string, permissions: string[]) =>
-    apiPut<Role>(`/api/v1/admin/roles/${roleId}/permissions`, { permissions }),
+    apiPut<Role>(`/api/v1/admin/roles/${roleId}/permissions`, permissions),
   getPermissions: () =>
     apiGet<Permission[]>('/api/v1/admin/permissions'),
   getActiveSessions: () =>

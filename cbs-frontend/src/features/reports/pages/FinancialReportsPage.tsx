@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { format, startOfMonth, subMonths } from 'date-fns';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
@@ -126,6 +126,7 @@ function showToast(msg: string) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function FinancialReportsPage() {
+  useEffect(() => { document.title = 'Financial Reports | CBS'; }, []);
   // Controls
   const defaultPeriod = format(startOfMonth(subMonths(new Date(), 1)), 'yyyy-MM');
   const [reportType, setReportType] = useState<ReportType>('balance_sheet');

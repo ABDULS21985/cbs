@@ -131,6 +131,7 @@ function buildConcentrationData(
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function LoanAnalyticsPage() {
+  useEffect(() => { document.title = 'Loan Analytics | CBS'; }, []);
   const [selectedPeriod, setSelectedPeriod] = useState(PERIODS[0].value);
   const [refreshing, setRefreshing] = useState(false);
 
