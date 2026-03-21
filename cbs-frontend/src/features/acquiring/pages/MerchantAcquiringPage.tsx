@@ -44,7 +44,6 @@ import type {
   ChargebackStatus,
   SettlementStatus,
   Merchant,
-  AcquiringFacility,
   PosTerminal,
 } from '../api/acquiringApi';
 

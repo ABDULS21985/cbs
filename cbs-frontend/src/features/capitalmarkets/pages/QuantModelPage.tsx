@@ -174,7 +174,7 @@ function AlertsTab() {
   return (
     <div className="p-4 space-y-3">
       {isLoading && <div className="h-8 w-32 bg-muted animate-pulse rounded mx-auto" />}
-      {(alerts as Array<{ id: number; severity: string; message: string; modelCode: string; createdAt: string; acknowledged: boolean }>).map((a) => (
+      {(alerts as unknown as Array<{ id: number; severity: string; message: string; modelCode: string; createdAt: string; acknowledged: boolean }>).map((a) => (
         <div key={a.id} className={cn('rounded-lg border-l-4 p-4', severityColor(a.severity))}>
           <div className="flex justify-between items-start">
             <div>
@@ -203,9 +203,7 @@ export function QuantModelPage() {
 
   return (
     <>
-      <PageHeader title="Quantitative Models" subtitle="Model registry, backtesting, lifecycle and alerts">
-        <button className="btn-primary flex items-center gap-2"><Plus className="w-4 h-4" /> Register Model</button>
-      </PageHeader>
+      <PageHeader title="Quantitative Models" subtitle="Model registry, backtesting, lifecycle and alerts" />
       <div className="page-container space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Models" value={models.length} format="number" icon={Brain} />
@@ -218,7 +216,7 @@ export function QuantModelPage() {
             { id: 'registry', label: 'Model Registry', badge: models.length || undefined, content: <RegistryTab /> },
             { id: 'backtesting', label: 'Backtesting', content: <BacktestingTab /> },
             { id: 'model-ops', label: 'Model Ops', content: <ModelOpsTab /> },
-            { id: 'alerts', label: 'Alerts', icon: <ShieldAlert className="w-4 h-4" />, content: <AlertsTab /> },
+            { id: 'alerts', label: 'Alerts', content: <AlertsTab /> },
           ]} />
         </div>
       </div>

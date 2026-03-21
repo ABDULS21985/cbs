@@ -378,6 +378,85 @@ function ExpiredProfilesList({ profiles }: { profiles: SuitabilityProfile[] }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+// ─── Check Row Actions ────────────────────────────────────────────────────────
+
+function CheckActions({ check }: { check: SuitabilityCheck }) {
+  const override = useOverrideCheck();
+  const acknowledge = useAcknowledgeDisclosure();
+  const isAdmin = useHasRole('CBS_ADMIN');
+  const [showOverride, setShowOverride] = useState(false);
+  const [justification, setJustification] = useState('');
+  const [approver, setApprover] = useState('');
+
+  const canOverride = isAdmin && !check.overrideApplied && check.overallResult !== 'SUITABLE';
+  const canAcknowledge = !check.clientAcknowledged;
+
+  function handleOverride(e: React.FormEvent) {
+    e.preventDefault();
+    if (!justification || !approver) { toast.error('Fill in all fields'); return; }
+    override.mutate({ ref: check.checkRef, justification, approver }, {
+      onSuccess: () => { toast.success('Override applied'); setShowOverride(false); },
+      onError: () => toast.error('Failed to apply override'),
+    });
+  }
+
+  function handleAcknowledge() {
+    acknowledge.mutate(check.checkRef, {
+      onSuccess: () => toast.success('Disclosure acknowledged'),
+      onError: () => toast.error('Failed to acknowledge'),
+    });
+  }
+
+  return (
+    <>
+      <div className="flex items-center gap-1">
+        {canAcknowledge && (
+          <button
+            onClick={handleAcknowledge}
+            disabled={acknowledge.isPending}
+            className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
+            title="Acknowledge disclosure"
+          >
+            <CheckCircle2 className="w-3 h-3" />
+          </button>
+        )}
+        {canOverride && (
+          <button
+            onClick={() => setShowOverride(true)}
+            className="text-xs px-2 py-1 rounded bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+            title="Override check result"
+          >
+            <ShieldAlert className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+
+      {showOverride && (
+        <DialogBackdrop>
+          <DialogTitle>Override Suitability Check — {check.checkRef}</DialogTitle>
+          <p className="text-xs text-muted-foreground mb-4">
+            Current result: <strong>{check.overallResult}</strong>. Overriding will change to SUITABLE_WITH_WARNING.
+          </p>
+          <form onSubmit={handleOverride} className="space-y-4">
+            <FieldLabel label="Justification *">
+              <textarea className={`${inputCls} resize-none`} rows={3} value={justification} onChange={e => setJustification(e.target.value)} required placeholder="e.g. Client insists, senior approval obtained" />
+            </FieldLabel>
+            <FieldLabel label="Approver *">
+              <input className={inputCls} value={approver} onChange={e => setApprover(e.target.value)} required placeholder="ADMIN-001" />
+            </FieldLabel>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setShowOverride(false)} className="px-4 py-2 text-sm rounded-md border hover:bg-muted">Cancel</button>
+              <button type="submit" disabled={override.isPending} className="px-4 py-2 text-sm rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50">
+                {override.isPending ? 'Applying...' : 'Apply Override'}
+              </button>
+            </div>
+          </form>
+        </DialogBackdrop>
+      )}
+    </>
+  );
+}
+
 export function SuitabilityPage() {
   const [showAssessment, setShowAssessment] = useState(false);
   const [showCheck, setShowCheck] = useState(false);
@@ -429,6 +508,11 @@ export function SuitabilityPage() {
       accessorKey: 'checkedAt',
       header: 'Date',
       cell: ({ row }) => <span className="text-xs">{formatDate(row.original.checkedAt)}</span>,
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => <CheckActions check={row.original} />,
     },
   ];
 

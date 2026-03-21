@@ -36,4 +36,14 @@ public class AlcoPack {
 
     @JsonIgnore
     @Version @Column(name = "version") private Long optimisticLock;
+
+    /**
+     * Provides packId in JSON for the AlcoPackVersion frontend interface.
+     * When the versions endpoint returns List&lt;AlcoPack&gt;, each item
+     * will include both 'id' and 'packId' (same value).
+     */
+    @JsonProperty("packId")
+    public Long getPackId() {
+        return id;
+    }
 }

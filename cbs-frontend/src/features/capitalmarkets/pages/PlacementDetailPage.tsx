@@ -78,7 +78,7 @@ export function PlacementDetailPage() {
       id: 'actions', header: '',
       cell: ({ row }) => row.original.status === 'COMMITTED' ? (
         <button
-          onClick={() => recordFunding.mutate({ code, investorId: row.original.id, input: {} }, {
+          onClick={() => recordFunding.mutate({ code, investorId: row.original.id, input: { amount: row.original.committedAmount } }, {
             onSuccess: () => toast.success('Funding recorded'),
             onError: () => toast.error('Failed'),
           })}
@@ -95,7 +95,7 @@ export function PlacementDetailPage() {
     <>
       <PageHeader
         title={`${placement.issuer} — ${placement.instrumentType}`}
-        subtitle={<span className="flex items-center gap-2"><span className="font-mono text-xs">{placement.code}</span><StatusBadge status={placement.status} dot /></span>}
+        subtitle={`${placement.code} — ${placement.status}`}
         backTo="/capital-markets"
         actions={
           <div className="flex items-center gap-2">

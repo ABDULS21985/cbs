@@ -31,7 +31,7 @@ const mockDisputes = [
     transactionId: 20, transactionRef: 'TXN020', transactionDate: '2024-03-08',
     transactionAmount: 120000, transactionCurrency: 'NGN',
     merchantName: 'Fake Store', merchantId: 'M888',
-    disputeType: 'UNAUTHORIZED', disputeReason: 'Card never used at this merchant',
+    disputeType: 'NOT_RECOGNISED', disputeReason: 'Card never used at this merchant',
     disputeAmount: 120000, disputeCurrency: 'NGN',
     cardScheme: 'MASTERCARD', schemeCaseId: '', schemeReasonCode: '',
     filingDeadline: '2024-04-08', responseDeadline: '2024-04-18',
@@ -40,7 +40,7 @@ const mockDisputes = [
     provisionalCreditReversed: false, evidenceDocuments: [],
     merchantResponse: '', merchantResponseDate: '',
     resolutionType: '', resolutionAmount: 0, resolutionDate: '',
-    resolutionNotes: '', status: 'INVESTIGATING', assignedTo: 'agent-2',
+    resolutionNotes: '', status: 'INVESTIGATION', assignedTo: 'agent-2',
     createdAt: '2024-03-09T08:00:00Z', createdBy: 'customer',
     version: 1, timeline: [],
   },
@@ -65,10 +65,10 @@ describe('CardDisputePage', () => {
     setupHandlers();
     renderWithProviders(<CardDisputePage />);
     await waitFor(() => {
-      expect(screen.getAllByText('OPEN').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('INITIATED').length).toBeGreaterThan(0);
     });
-    expect(screen.getAllByText('INVESTIGATING').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('RESOLVED').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('INVESTIGATION').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('RESOLVED_CUSTOMER').length).toBeGreaterThan(0);
   });
 
   it('renders stat cards', async () => {
@@ -123,10 +123,10 @@ describe('CardDisputePage', () => {
     setupHandlers();
     renderWithProviders(<CardDisputePage />);
     await waitFor(() => {
-      expect(screen.getAllByText('OPEN').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('INITIATED').length).toBeGreaterThan(0);
     });
     // Find all INVESTIGATING elements and click the filter button one
-    const investigatingEls = screen.getAllByText('INVESTIGATING');
+    const investigatingEls = screen.getAllByText('INVESTIGATION');
     const filterBtn = investigatingEls.find(el => el.closest('button') && !el.closest('.stat-card'));
     expect(filterBtn).toBeTruthy();
     fireEvent.click(filterBtn!);

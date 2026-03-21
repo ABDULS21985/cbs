@@ -56,7 +56,7 @@ export function AllotmentWorkflow({ deal, investors }: AllotmentWorkflowProps) {
   }
 
   const handleExecute = () => {
-    allotMut.mutate(deal.code, {
+    allotMut.mutate({ code: deal.code }, {
       onSuccess: () => toast.success('Allotment executed'),
       onError: () => toast.error('Failed to execute allotment'),
     });

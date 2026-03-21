@@ -159,27 +159,61 @@ class AlmAlcoPackServiceTest {
         }
 
         @Test
-        @DisplayName("Generate executive summary from gap report data")
+        @DisplayName("Generate comprehensive executive summary from gap report, action items, returns, scenarios")
         void generateExecutiveSummary() {
             AlmGapReport report = AlmGapReport.builder()
                     .reportDate(LocalDate.of(2026, 3, 20))
                     .niiBase(new BigDecimal("5000000000"))
+                    .niiUp100bp(new BigDecimal("5250000000"))
+                    .niiDown100bp(new BigDecimal("4750000000"))
                     .niiSensitivity(new BigDecimal("250000000"))
                     .eveBase(new BigDecimal("2000000000"))
+                    .eveUp200bp(new BigDecimal("1850000000"))
+                    .eveDown200bp(new BigDecimal("2150000000"))
                     .eveSensitivity(new BigDecimal("-150000000"))
+                    .totalRsa(new BigDecimal("80000000000"))
+                    .totalRsl(new BigDecimal("75000000000"))
                     .cumulativeGap(new BigDecimal("5000000000"))
                     .gapRatio(new BigDecimal("1.0667"))
                     .durationGap(new BigDecimal("1.2"))
+                    .weightedAvgDurationAssets(new BigDecimal("3.5"))
+                    .weightedAvgDurationLiabs(new BigDecimal("2.3"))
                     .build();
             when(gapReportRepository.findAll()).thenReturn(List.of(report));
+
+            // Action items
+            AlcoActionItem openItem = AlcoActionItem.builder()
+                    .id(1L).itemNumber("AI-0001").description("Review limits").owner("CFO")
+                    .status("OPEN").dueDate(LocalDate.now().plusDays(7)).meetingDate(LocalDate.now()).build();
+            AlcoActionItem overdueItem = AlcoActionItem.builder()
+                    .id(2L).itemNumber("AI-0002").description("Submit IRRBB").owner("Risk")
+                    .status("IN_PROGRESS").dueDate(LocalDate.now().minusDays(3)).meetingDate(LocalDate.now()).build();
+            when(actionItemRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of(openItem, overdueItem));
+
+            // Regulatory returns
+            AlmRegulatoryReturn lcrReturn = AlmRegulatoryReturn.builder()
+                    .id(1L).code("LCR").name("LCR Return").frequency("DAILY")
+                    .dueDate(LocalDate.now()).nextDue(LocalDate.now().plusDays(1)).status("SUBMITTED").build();
+            when(regulatoryReturnRepository.findAllByOrderByNextDueAsc()).thenReturn(List.of(lcrReturn));
+
+            // Scenarios
+            when(scenarioRepository.findByIsActiveTrueOrderByScenarioNameAsc()).thenReturn(List.of());
+            when(scenarioRepository.findByIsRegulatoryTrueAndIsActiveTrue()).thenReturn(List.of());
 
             Map<String, Object> result = almService.generateExecutiveSummary("2026-03");
 
             assertThat(result).containsKey("summary");
             String summary = (String) result.get("summary");
             assertThat(summary).contains("2026-03");
-            assertThat(summary).contains("NII");
-            assertThat(summary).contains("asset-sensitive");
+            assertThat(summary).contains("INTEREST RATE RISK");
+            assertThat(summary).contains("DURATION RISK");
+            assertThat(summary).contains("ACTION ITEMS");
+            assertThat(summary).contains("REGULATORY SUBMISSIONS");
+            assertThat(summary).contains("SCENARIO");
+            assertThat(summary).contains("RECOMMENDATIONS");
+            assertThat(summary).contains("ASSET-SENSITIVE");
+            assertThat(summary).contains("OVERDUE");
+            assertThat(summary).contains("AI-0001");
         }
     }
 
@@ -367,6 +401,76 @@ class AlmAlcoPackServiceTest {
             assertThatThrownBy(() -> almService.submitRegulatoryReturn(1L))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("VALIDATED");
+        }
+
+        @Test
+        @DisplayName("Advance submitted daily return to next business day")
+        void advanceSubmittedReturn_daily() {
+            // Friday submitted, should advance to Monday
+            LocalDate friday = LocalDate.of(2026, 3, 20); // Friday
+            AlmRegulatoryReturn dailyReturn = AlmRegulatoryReturn.builder()
+                    .id(1L).code("LCR").name("LCR Return").frequency("DAILY")
+                    .dueDate(friday).nextDue(friday).status("SUBMITTED").build();
+            when(regulatoryReturnRepository.findAllByOrderByNextDueAsc()).thenReturn(List.of(dailyReturn));
+            when(regulatoryReturnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            int count = almService.advanceSubmittedReturnDates();
+
+            assertThat(count).isEqualTo(1);
+            assertThat(dailyReturn.getStatus()).isEqualTo("DRAFT");
+            // nextDue should be advanced past the weekend
+            assertThat(dailyReturn.getDueDate().getDayOfWeek().getValue()).isLessThanOrEqualTo(5);
+            assertThat(dailyReturn.getNextDue().isAfter(dailyReturn.getDueDate())).isTrue();
+        }
+
+        @Test
+        @DisplayName("Advance submitted monthly return to next month")
+        void advanceSubmittedReturn_monthly() {
+            LocalDate marchEnd = LocalDate.of(2026, 3, 31);
+            AlmRegulatoryReturn monthlyReturn = AlmRegulatoryReturn.builder()
+                    .id(2L).code("NSFR").name("NSFR Return").frequency("MONTHLY")
+                    .dueDate(marchEnd).nextDue(marchEnd).status("SUBMITTED").build();
+            when(regulatoryReturnRepository.findAllByOrderByNextDueAsc()).thenReturn(List.of(monthlyReturn));
+            when(regulatoryReturnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            int count = almService.advanceSubmittedReturnDates();
+
+            assertThat(count).isEqualTo(1);
+            assertThat(monthlyReturn.getStatus()).isEqualTo("DRAFT");
+            assertThat(monthlyReturn.getDueDate().getMonthValue()).isEqualTo(4); // April
+            assertThat(monthlyReturn.getNextDue().getMonthValue()).isEqualTo(5); // May
+        }
+
+        @Test
+        @DisplayName("Advance submitted quarterly return to next quarter")
+        void advanceSubmittedReturn_quarterly() {
+            LocalDate q1End = LocalDate.of(2026, 3, 31);
+            AlmRegulatoryReturn quarterlyReturn = AlmRegulatoryReturn.builder()
+                    .id(3L).code("IRRBB").name("IRRBB Report").frequency("QUARTERLY")
+                    .dueDate(q1End).nextDue(q1End).status("SUBMITTED").build();
+            when(regulatoryReturnRepository.findAllByOrderByNextDueAsc()).thenReturn(List.of(quarterlyReturn));
+            when(regulatoryReturnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            int count = almService.advanceSubmittedReturnDates();
+
+            assertThat(count).isEqualTo(1);
+            assertThat(quarterlyReturn.getStatus()).isEqualTo("DRAFT");
+            assertThat(quarterlyReturn.getDueDate().getMonthValue()).isEqualTo(6); // June
+            assertThat(quarterlyReturn.getNextDue().getMonthValue()).isEqualTo(9); // September
+        }
+
+        @Test
+        @DisplayName("Does not advance non-SUBMITTED returns")
+        void advanceReturn_skipsNonSubmitted() {
+            AlmRegulatoryReturn draftReturn = AlmRegulatoryReturn.builder()
+                    .id(1L).code("LCR").name("LCR Return").frequency("DAILY")
+                    .dueDate(LocalDate.now()).nextDue(LocalDate.now()).status("DRAFT").build();
+            when(regulatoryReturnRepository.findAllByOrderByNextDueAsc()).thenReturn(List.of(draftReturn));
+
+            int count = almService.advanceSubmittedReturnDates();
+
+            assertThat(count).isEqualTo(0);
+            assertThat(draftReturn.getStatus()).isEqualTo("DRAFT");
         }
     }
 

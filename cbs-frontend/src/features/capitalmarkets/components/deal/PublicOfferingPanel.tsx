@@ -50,13 +50,13 @@ export function PublicOfferingPanel({ dealId, currency }: PublicOfferingPanelPro
         items={[
           { label: 'Offering Type', value: offering.offeringType ?? '—' },
           { label: 'Shares Offered', value: offering.sharesOffered?.toLocaleString() ?? '—' },
-          { label: 'Offer Price', value: offering.pricePerShare ? formatMoney(offering.pricePerShare, currency) : '—' },
-          { label: 'Application Open', value: offering.applicationOpen ?? '—', format: offering.applicationOpen ? 'date' : undefined },
-          { label: 'Application Close', value: offering.applicationClose ?? '—', format: offering.applicationClose ? 'date' : undefined },
+          { label: 'Offer Price', value: offering.offerPrice ? formatMoney(offering.offerPrice, currency) : '—' },
+          { label: 'Application Open', value: offering.applicationOpenDate ?? '—', format: offering.applicationOpenDate ? 'date' : undefined },
+          { label: 'Application Close', value: offering.applicationCloseDate ?? '—', format: offering.applicationCloseDate ? 'date' : undefined },
           { label: 'Listing Date', value: offering.listingDate ?? '—', format: offering.listingDate ? 'date' : undefined },
-          { label: 'Oversubscription', value: offering.oversubscriptionRatio ? `${offering.oversubscriptionRatio.toFixed(2)}x` : '—' },
-          { label: 'Target Amount', value: offering.targetAmount ?? 0, format: 'money' },
-          { label: 'Currency', value: offering.currency ?? currency },
+          { label: 'Total Received', value: offering.totalAmountReceived ?? 0, format: 'money' },
+          { label: 'Total Applications', value: offering.totalApplications ?? 0 },
+          { label: 'Retail Allocation', value: offering.retailAllocationPct ? `${offering.retailAllocationPct}%` : '—' },
         ]}
       />
 

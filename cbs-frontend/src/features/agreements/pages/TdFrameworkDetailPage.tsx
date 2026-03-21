@@ -17,6 +17,7 @@ import {
   useTdSummaryHistory,
   useLargeDeposits,
 } from '../hooks/useAgreementsExt';
+import { useHasRole } from '@/hooks/usePermission';
 import type { RateCheckResult, TdFrameworkSummary } from '../types/agreementExt';
 
 const historyCols: ColumnDef<TdFrameworkSummary, unknown>[] = [
@@ -38,6 +39,7 @@ export function TdFrameworkDetailPage() {
   const [calcTenor, setCalcTenor] = useState(90);
   const [calcResult, setCalcResult] = useState<RateCheckResult | null>(null);
 
+  const isAdmin = useHasRole('CBS_ADMIN');
   const { data: agreement, isLoading } = useTdFramework(number ?? '');
   const approveMutation = useApproveTdFramework();
   const checkRateMutation = useCheckTdRate();
@@ -55,7 +57,7 @@ export function TdFrameworkDetailPage() {
     );
   }
 
-  const canApprove = agreement.status === 'DRAFT' || agreement.status === 'PENDING_APPROVAL';
+  const canApprove = (agreement.status === 'DRAFT' || agreement.status === 'PENDING_APPROVAL') && isAdmin;
   const canCheckRate = agreement.status === 'ACTIVE';
 
   const handleApprove = () => {
