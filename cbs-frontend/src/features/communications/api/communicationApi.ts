@@ -3,7 +3,7 @@ import { apiGet, apiPost, apiPut } from '@/lib/api';
 // ── Types matching backend NotificationLog entity ────────────────────────────
 
 export type NotificationChannel = 'EMAIL' | 'SMS' | 'PUSH' | 'IN_APP' | 'WEBHOOK';
-export type DeliveryStatus = 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'BOUNCED' | 'READ' | 'SCHEDULED';
+export type DeliveryStatus = 'PENDING' | 'PENDING_DISPATCH' | 'SENT' | 'DELIVERED' | 'FAILED' | 'BOUNCED' | 'READ' | 'SCHEDULED';
 
 export interface NotificationLog {
   id: number;
@@ -41,6 +41,7 @@ export interface NotificationTemplate {
   createdAt: string;
   updatedAt: string;
   createdBy: string | null;
+  version?: number;
 }
 
 export interface ChannelConfig {

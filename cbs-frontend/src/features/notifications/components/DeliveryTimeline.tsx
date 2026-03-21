@@ -50,16 +50,16 @@ function buildSteps(log: NotificationLog): TimelineStep[] {
       status: 'completed',
       detail: log.provider ? `via ${log.provider}` : undefined,
     });
-  } else if (log.status === 'PENDING') {
+  } else if (log.status === 'PENDING' || log.status === 'PENDING_DISPATCH') {
     steps.push({
-      label: 'Sent',
+      label: log.status === 'PENDING_DISPATCH' ? 'Queued for dispatch' : 'Sent',
       icon: Send,
       timestamp: null,
       status: 'pending',
     });
   }
 
-  // DELIVERED or FAILED
+  // DELIVERED or FAILED or BOUNCED or OPTED_OUT
   if (log.status === 'DELIVERED' || log.status === 'READ') {
     steps.push({
       label: log.status === 'READ' ? 'Delivered & Read' : 'Delivered',
@@ -74,6 +74,22 @@ function buildSteps(log: NotificationLog): TimelineStep[] {
       timestamp: log.deliveredAt || log.sentAt || log.createdAt,
       status: 'failed',
       detail: log.failureReason || 'Unknown error',
+    });
+  } else if (log.status === 'BOUNCED') {
+    steps.push({
+      label: 'Bounced',
+      icon: XCircle,
+      timestamp: log.deliveredAt || log.sentAt || log.createdAt,
+      status: 'failed',
+      detail: log.failureReason || 'Message bounced',
+    });
+  } else if (log.status === 'OPTED_OUT') {
+    steps.push({
+      label: 'Opted Out',
+      icon: XCircle,
+      timestamp: log.createdAt,
+      status: 'failed',
+      detail: 'Recipient has opted out of this notification type',
     });
   } else if (log.status === 'SENT') {
     steps.push({

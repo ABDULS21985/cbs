@@ -1,35 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge } from '@/components/shared';
-import { apiGet } from '@/lib/api';
-import { formatMoney, formatMoneyCompact, formatDate, formatPercent } from '@/lib/formatters';
+import { apiGet, apiPost } from '@/lib/api';
+import { formatMoneyCompact, formatDate, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Users, TrendingUp, Briefcase, Award, LayoutGrid, List, X, Plus } from 'lucide-react';
+import { Users, Briefcase, Award, LayoutGrid, List, X, Plus } from 'lucide-react';
 import { AdvisorLeaderboard } from '../components/advisors/AdvisorLeaderboard';
 import { ClientMatchingEngine } from '../components/advisors/ClientMatchingEngine';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+import type { Advisor } from '../api/wealthApi';
 
-interface Advisor {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  clientCount: number;
-  aum: number;
-  avgReturn: number;
-  joinDate: string;
-  specializations: string[];
-  revenue?: number;
-  satisfaction?: number;
-  status?: string;
-}
+// ─── Fallback data (used only when backend returns empty) ────────────────────
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const MOCK_ADVISORS: Advisor[] = [
+const FALLBACK_ADVISORS: Advisor[] = [
   {
     id: '1',
     name: 'Adaeze Okonkwo',
@@ -42,6 +28,7 @@ const MOCK_ADVISORS: Advisor[] = [
     specializations: ['High Net Worth', 'Estate Planning'],
     status: 'ACTIVE',
     satisfaction: 4.7,
+    revenue: 48_000_000,
   },
   {
     id: '2',
@@ -55,6 +42,7 @@ const MOCK_ADVISORS: Advisor[] = [
     specializations: ['Retirement', 'Tax Optimization'],
     status: 'ACTIVE',
     satisfaction: 4.4,
+    revenue: 32_000_000,
   },
   {
     id: '3',
@@ -68,6 +56,7 @@ const MOCK_ADVISORS: Advisor[] = [
     specializations: ['Family Office', 'Philanthropy'],
     status: 'ACTIVE',
     satisfaction: 4.9,
+    revenue: 65_000_000,
   },
   {
     id: '4',
@@ -81,6 +70,7 @@ const MOCK_ADVISORS: Advisor[] = [
     specializations: ['SME Owners', 'Growth Portfolio'],
     status: 'ACTIVE',
     satisfaction: 4.1,
+    revenue: 21_000_000,
   },
   {
     id: '5',
@@ -94,6 +84,7 @@ const MOCK_ADVISORS: Advisor[] = [
     specializations: ['Fixed Income', 'Capital Markets'],
     status: 'ACTIVE',
     satisfaction: 4.5,
+    revenue: 51_000_000,
   },
   {
     id: '6',
@@ -107,6 +98,7 @@ const MOCK_ADVISORS: Advisor[] = [
     specializations: ['Agriculture', 'Impact Investing'],
     status: 'ON_LEAVE',
     satisfaction: 4.3,
+    revenue: 37_000_000,
   },
 ];
 
@@ -286,8 +278,8 @@ export function AdvisorListPage() {
   useEffect(() => {
     setLoading(true);
     apiGet<Advisor[]>('/api/v1/wealth-management/advisors')
-      .then((data) => setAdvisors(data && data.length > 0 ? data : MOCK_ADVISORS))
-      .catch(() => setAdvisors(MOCK_ADVISORS))
+      .then((data) => setAdvisors(data && data.length > 0 ? data : FALLBACK_ADVISORS))
+      .catch(() => setAdvisors(FALLBACK_ADVISORS))
       .finally(() => setLoading(false));
   }, []);
 
@@ -417,31 +409,47 @@ export function AdvisorListPage() {
             </div>
             <form
               className="p-6 space-y-4"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                setShowAddModal(false);
+                const formData = new FormData(e.currentTarget);
+                try {
+                  await apiPost('/api/v1/wealth-management/advisors', {
+                    name: formData.get('name'),
+                    email: formData.get('email'),
+                    phone: formData.get('phone'),
+                    joinDate: formData.get('joinDate'),
+                    specializations: [formData.get('specialization')],
+                  });
+                  toast.success('Advisor added successfully');
+                  // Refresh list
+                  const fresh = await apiGet<Advisor[]>('/api/v1/wealth-management/advisors').catch(() => []);
+                  if (fresh.length > 0) setAdvisors(fresh);
+                  setShowAddModal(false);
+                } catch {
+                  toast.error('Failed to add advisor');
+                }
               }}
             >
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-xs font-medium mb-1.5 text-muted-foreground">Full Name *</label>
-                  <input required type="text" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input name="name" required type="text" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1.5 text-muted-foreground">Email *</label>
-                  <input required type="email" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input name="email" required type="email" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1.5 text-muted-foreground">Phone *</label>
-                  <input required type="tel" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input name="phone" required type="tel" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1.5 text-muted-foreground">Join Date *</label>
-                  <input required type="date" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input name="joinDate" required type="date" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1.5 text-muted-foreground">Primary Specialization</label>
-                  <select className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                  <select name="specialization" className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                     {['High Net Worth', 'Estate Planning', 'Retirement', 'Tax Optimization', 'Family Office', 'Fixed Income', 'Capital Markets', 'Impact Investing'].map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}

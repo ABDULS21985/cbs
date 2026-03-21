@@ -36,37 +36,10 @@ export function useWriteOffRequests(params?: Record<string, unknown>) {
   });
 }
 
-export function useRecovery(params?: Record<string, unknown>) {
+export function useRecovery() {
   return useQuery({
-    queryKey: ['collections', 'recovery', params],
-    queryFn: () => collectionsApi.listRecovery(params),
-  });
-}
-
-export function useLogDunningOutcome() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, outcome }: { id: number; outcome: string }) =>
-      collectionsApi.logDunningOutcome(id, outcome),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['collections', 'dunning-queue'] });
-    },
-  });
-}
-
-export function useSubmitWriteOffRequest() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: {
-      loanNumber: string;
-      amount: number;
-      type: 'PARTIAL' | 'FULL';
-      recoveryEfforts: string;
-      justification: string;
-    }) => collectionsApi.submitWriteOffRequest(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['collections', 'write-off-requests'] });
-    },
+    queryKey: ['collections', 'recovery'],
+    queryFn: () => collectionsApi.listRecovery(),
   });
 }
 
@@ -140,22 +113,5 @@ export function useAgentCases(assignedTo: string, params?: Record<string, unknow
     queryKey: ['collections', 'agent-cases', assignedTo, params],
     queryFn: () => collectionsApi.getAgentCases(assignedTo, params),
     enabled: !!assignedTo,
-  });
-}
-
-export function useRecordRecovery() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: {
-      loanNumber: string;
-      amount: number;
-      date: string;
-      agent: string;
-      notes?: string;
-    }) => collectionsApi.recordRecovery(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['collections', 'recovery'] });
-      queryClient.invalidateQueries({ queryKey: ['collections', 'stats'] });
-    },
   });
 }

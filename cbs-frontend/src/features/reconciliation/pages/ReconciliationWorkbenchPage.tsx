@@ -15,6 +15,7 @@ import { AccountReconciliationView } from '../components/AccountReconciliationVi
 import { ReconciliationSummary } from '../components/ReconciliationSummary';
 import { UnmatchedItemsPanel } from '../components/UnmatchedItemsPanel';
 import { StatementUploader } from '../components/StatementUploader';
+import { SubLedgerReconTab } from '../components/SubLedgerReconTab';
 import type { UnmatchedAction } from '../components/UnmatchedItemsPanel';
 import type { ReconciliationEntry } from '../api/reconciliationApi';
 
@@ -263,7 +264,7 @@ export function ReconciliationWorkbenchPage() {
           ))}
         </div>
 
-        {mainTab === 'subledger' && <PlaceholderTab label="Sub-Ledger Reconciliation" />}
+        {mainTab === 'subledger' && <SubLedgerReconTab />}
         {mainTab === 'branch' && <PlaceholderTab label="Branch Cash Reconciliation" />}
 
         {mainTab === 'nostro' && (

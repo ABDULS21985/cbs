@@ -1,7 +1,8 @@
 package com.cbs.marketdata.controller;
 
 import com.cbs.common.dto.ApiResponse;
-import com.cbs.marketdata.entity.FeedQualityMetric;
+import com.cbs.marketdata.dto.FeedQualityMetricDto;
+import com.cbs.marketdata.dto.SwitchDashboardDto;
 import com.cbs.marketdata.entity.MarketDataSubscription;
 import com.cbs.marketdata.entity.MarketDataSwitch;
 import com.cbs.marketdata.service.MarketDataSwitchService;
@@ -62,8 +63,8 @@ public class MarketDataSwitchController {
 
     @GetMapping("/dashboard")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<MarketDataSwitch>>> getSwitchDashboard() {
-        return ResponseEntity.ok(ApiResponse.ok(service.getSwitchDashboard()));
+    public ResponseEntity<ApiResponse<SwitchDashboardDto>> getSwitchDashboard() {
+        return ResponseEntity.ok(ApiResponse.ok(SwitchDashboardDto.from(service.getSwitchDashboard())));
     }
 
     @GetMapping("/subscriptions/health")
@@ -74,7 +75,7 @@ public class MarketDataSwitchController {
 
     @GetMapping("/feed-quality")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<FeedQualityMetric>>> getFeedQualityReport(
+    public ResponseEntity<ApiResponse<List<FeedQualityMetricDto>>> getFeedQualityReport(
             @RequestParam(required = false) Long feedId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
@@ -83,6 +84,6 @@ public class MarketDataSwitchController {
         }
         if (from == null) from = LocalDate.now().minusMonths(1);
         if (to == null) to = LocalDate.now();
-        return ResponseEntity.ok(ApiResponse.ok(service.getFeedQualityReport(feedId, from, to)));
+        return ResponseEntity.ok(ApiResponse.ok(service.getFeedQualityReport(feedId, from, to).stream().map(FeedQualityMetricDto::from).toList()));
     }
 }

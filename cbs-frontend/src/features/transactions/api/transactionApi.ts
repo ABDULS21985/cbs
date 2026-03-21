@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiPost } from '@/lib/api';
 import api from '@/lib/api';
 
 export interface TransactionSearchParams {
@@ -10,7 +10,7 @@ export interface TransactionSearchParams {
   amountFrom?: number;
   amountTo?: number;
   type?: 'ALL' | 'CREDIT' | 'DEBIT' | 'TRANSFER' | 'PAYMENT' | 'FEE' | 'INTEREST' | 'REVERSAL';
-  channel?: 'ALL' | 'BRANCH' | 'MOBILE' | 'WEB' | 'ATM' | 'POS' | 'USSD' | 'AGENT';
+  channel?: 'ALL' | 'BRANCH' | 'MOBILE' | 'WEB' | 'ATM' | 'POS' | 'USSD' | 'AGENT' | 'PORTAL' | 'SYSTEM' | 'API';
   status?: 'ALL' | 'COMPLETED' | 'PENDING' | 'FAILED' | 'REVERSED';
   flaggedOnly?: boolean;
   page?: number;
@@ -110,7 +110,9 @@ export interface StatementDelivery {
 
 export interface Transaction {
   id: string;
+  transactionRef?: string;
   reference: string;
+  transactionType?: string;
   type: string;
   channel: string;
   status: string;
@@ -119,7 +121,10 @@ export interface Transaction {
   postingDate: string;
   accountNumber?: string;
   currencyCode?: string;
+  amount?: number;
   runningBalance?: number;
+  contraAccountNumber?: string;
+  externalRef?: string;
   fromAccount?: string;
   fromAccountName?: string;
   toAccount?: string;
@@ -129,6 +134,9 @@ export interface Transaction {
   fee?: number;
   narration: string;
   description: string;
+  isReversed?: boolean;
+  createdAt?: string;
+  createdBy?: string;
   glEntries?: GLEntry[];
   amlFlagged?: boolean;
   amlFlag?: TransactionAmlFlag | null;
@@ -138,9 +146,19 @@ export interface Transaction {
   customerPhone?: string;
 }
 
+export interface PageMeta {
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
 export interface TransactionSearchResult {
   transactions: Transaction[];
   summary: TransactionSummary;
+  page?: PageMeta;
 }
 
 interface RequestOptions {
@@ -178,6 +196,14 @@ export const transactionApi = {
 
   reverseTransaction: async (id: string, body: ReversalRequest): Promise<ReversalResult> => {
     return apiPost<ReversalResult>(`/api/v1/transactions/${id}/reverse`, body);
+  },
+
+  approveReversal: async (id: number): Promise<ReversalResult> => {
+    return apiPost<ReversalResult>(`/api/v1/transactions/reversals/${id}/approve`, {});
+  },
+
+  rejectReversal: async (id: number, reason?: string): Promise<ReversalResult> => {
+    return apiPost<ReversalResult>(`/api/v1/transactions/reversals/${id}/reject`, { reason });
   },
 
   downloadReceipt: async (id: string): Promise<void> => {

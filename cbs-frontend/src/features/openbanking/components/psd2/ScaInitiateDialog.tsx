@@ -11,10 +11,26 @@ interface ScaInitiateDialogProps {
   onClose: () => void;
 }
 
-const AVAILABLE_SCOPES = ['accounts', 'transactions', 'payments', 'balance', 'beneficiaries', 'funds-confirmation'];
+const SCA_METHODS = [
+  { value: 'SMS_OTP', label: 'SMS OTP' },
+  { value: 'PUSH', label: 'Push Notification' },
+  { value: 'BIOMETRIC', label: 'Biometric' },
+  { value: 'TOTP', label: 'TOTP' },
+  { value: 'FIDO2', label: 'FIDO2' },
+] as const;
 
 const inputCls =
   'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+const SCA_METHOD_LABELS: Record<string, string> = {
+  SMS_OTP: 'SMS OTP',
+  PUSH: 'Push Notification',
+  BIOMETRIC: 'Biometric',
+  TOTP: 'TOTP',
+  FIDO2: 'FIDO2',
+  PHOTO_TAN: 'Photo TAN',
+  CHIP_TAN: 'Chip TAN',
+};
 
 export function ScaInitiateDialog({ open, onClose }: ScaInitiateDialogProps) {
   const { mutate: initiateSca, isPending } = useInitiateSca();
@@ -24,19 +40,12 @@ export function ScaInitiateDialog({ open, onClose }: ScaInitiateDialogProps) {
   const [form, setForm] = useState({
     customerId: '',
     tppId: '',
-    scopes: [] as string[],
-    redirectUri: '',
+    scaMethod: 'SMS_OTP',
+    consentId: '',
   });
 
   const [result, setResult] = useState<Psd2ScaSession | null>(null);
   const [copied, setCopied] = useState(false);
-
-  const toggleScope = (scope: string) => {
-    setForm((f) => ({
-      ...f,
-      scopes: f.scopes.includes(scope) ? f.scopes.filter((s) => s !== scope) : [...f.scopes, scope],
-    }));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,8 +53,8 @@ export function ScaInitiateDialog({ open, onClose }: ScaInitiateDialogProps) {
       {
         customerId: parseInt(form.customerId, 10),
         tppId: form.tppId,
-        scopes: form.scopes,
-        redirectUri: form.redirectUri,
+        scaMethod: form.scaMethod,
+        consentId: form.consentId || undefined,
       },
       {
         onSuccess: (session) => {
@@ -69,7 +78,7 @@ export function ScaInitiateDialog({ open, onClose }: ScaInitiateDialogProps) {
 
   const handleClose = () => {
     setResult(null);
-    setForm({ customerId: '', tppId: '', scopes: [], redirectUri: '' });
+    setForm({ customerId: '', tppId: '', scaMethod: 'SMS_OTP', consentId: '' });
     onClose();
   };
 
@@ -102,7 +111,7 @@ export function ScaInitiateDialog({ open, onClose }: ScaInitiateDialogProps) {
                     SCA Session Created
                   </p>
                   <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">
-                    Status: {result.status}
+                    Status: {result.scaStatus}
                   </p>
                 </div>
               </div>
@@ -130,8 +139,8 @@ export function ScaInitiateDialog({ open, onClose }: ScaInitiateDialogProps) {
 
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span className="text-muted-foreground">Auth Method</span>
-                  <p className="font-medium mt-0.5">{result.authMethod}</p>
+                  <span className="text-muted-foreground">SCA Method</span>
+                  <p className="font-medium mt-0.5">{SCA_METHOD_LABELS[result.scaMethod] ?? result.scaMethod}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Expires At</span>
@@ -139,6 +148,12 @@ export function ScaInitiateDialog({ open, onClose }: ScaInitiateDialogProps) {
                     {new Date(result.expiresAt).toLocaleTimeString()}
                   </p>
                 </div>
+                {result.exemptionType && (
+                  <div className="col-span-2">
+                    <span className="text-muted-foreground">Exemption</span>
+                    <p className="font-medium mt-0.5">{result.exemptionType}</p>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end pt-2">
@@ -186,39 +201,30 @@ export function ScaInitiateDialog({ open, onClose }: ScaInitiateDialogProps) {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                  Scopes *
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  SCA Method *
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {AVAILABLE_SCOPES.map((scope) => (
-                    <button
-                      key={scope}
-                      type="button"
-                      onClick={() => toggleScope(scope)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
-                        form.scopes.includes(scope)
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background hover:bg-muted border-border',
-                      )}
-                    >
-                      {scope}
-                    </button>
+                <select
+                  required
+                  className={inputCls}
+                  value={form.scaMethod}
+                  onChange={(e) => setForm((f) => ({ ...f, scaMethod: e.target.value }))}
+                >
+                  {SCA_METHODS.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
                   ))}
-                </div>
+                </select>
               </div>
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                  Redirect URI *
+                  Consent ID (optional)
                 </label>
                 <input
-                  required
-                  type="url"
                   className={inputCls}
-                  value={form.redirectUri}
-                  onChange={(e) => setForm((f) => ({ ...f, redirectUri: e.target.value }))}
-                  placeholder="https://app.example.com/callback"
+                  value={form.consentId}
+                  onChange={(e) => setForm((f) => ({ ...f, consentId: e.target.value }))}
+                  placeholder="e.g. CST-abc123..."
                 />
               </div>
 
@@ -232,7 +238,7 @@ export function ScaInitiateDialog({ open, onClose }: ScaInitiateDialogProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={isPending || form.scopes.length === 0}
+                  disabled={isPending || !form.tppId || !form.customerId}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
                   {isPending ? (

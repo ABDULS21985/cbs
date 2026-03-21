@@ -1,11 +1,11 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, Plus, TrendingDown, AlertTriangle, BarChart3, Clock, Search, Filter, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge } from '@/components/shared/StatusBadge';
 import { useNostroPositions, useCreatePosition, useCorrespondentBanks } from '../hooks/useReconciliation';
 import { PositionCard } from '../components/PositionCard';
-import type { NostroPosition, ReconciliationStatus } from '../types/nostro';
+import type { NostroPosition, ReconciliationStatus, CreatePositionRequest } from '../types/nostro';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -52,8 +52,7 @@ function NewPositionModal({ open, onClose }: NewPositionModalProps) {
   const createPosition = useCreatePosition();
   const [form, setForm] = useState({
     correspondentBankId: '',
-    accountNumber: '',
-    accountName: '',
+    accountId: '',
     currencyCode: 'USD',
     positionType: 'NOSTRO' as const,
   });
@@ -62,16 +61,18 @@ function NewPositionModal({ open, onClose }: NewPositionModalProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    createPosition.mutate(
-      {
-        correspondentBankId: Number(form.correspondentBankId),
-        accountNumber: form.accountNumber,
-        accountName: form.accountName,
-        currencyCode: form.currencyCode,
-        positionType: form.positionType,
+    const payload: CreatePositionRequest = {
+      correspondentBankId: Number(form.correspondentBankId),
+      accountId: Number(form.accountId),
+      currencyCode: form.currencyCode,
+      positionType: form.positionType,
+    };
+    createPosition.mutate(payload, {
+      onSuccess: () => {
+        onClose();
+        setForm({ correspondentBankId: '', accountId: '', currencyCode: 'USD', positionType: 'NOSTRO' });
       },
-      { onSuccess: () => { onClose(); setForm({ correspondentBankId: '', accountNumber: '', accountName: '', currencyCode: 'USD', positionType: 'NOSTRO' }); } },
-    );
+    });
   }
 
   return (
@@ -99,27 +100,16 @@ function NewPositionModal({ open, onClose }: NewPositionModalProps) {
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium mb-1">Account Number</label>
-              <input
-                required
-                value={form.accountNumber}
-                onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-                placeholder="e.g. 1234567890"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Account Name</label>
-              <input
-                required
-                value={form.accountName}
-                onChange={(e) => setForm({ ...form, accountName: e.target.value })}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-                placeholder="e.g. USD Nostro"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Account ID</label>
+            <input
+              type="number"
+              required
+              value={form.accountId}
+              onChange={(e) => setForm({ ...form, accountId: e.target.value })}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              placeholder="Internal account ID"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -144,6 +134,9 @@ function NewPositionModal({ open, onClose }: NewPositionModalProps) {
               </select>
             </div>
           </div>
+          {createPosition.isError && (
+            <p className="text-xs text-destructive">Failed to create position. Verify account ID and bank selection.</p>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
@@ -169,12 +162,13 @@ function NewPositionModal({ open, onClose }: NewPositionModalProps) {
 
 // ─── Filters ──────────────────────────────────────────────────────────────────
 
-const STATUS_OPTIONS: ReconciliationStatus[] = ['PENDING', 'RECONCILED', 'PARTIALLY_RECONCILED', 'UNRECONCILED'];
+const STATUS_OPTIONS: ReconciliationStatus[] = ['PENDING', 'IN_PROGRESS', 'RECONCILED', 'DISCREPANCY'];
 const CURRENCIES = ['ALL', 'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'ZAR', 'KES', 'NGN'];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function NostroPositionsPage() {
+  const navigate = useNavigate();
   const { data: positions = [], isLoading } = useNostroPositions();
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
@@ -199,7 +193,7 @@ export function NostroPositionsPage() {
         const match =
           (p.correspondentBankName?.toLowerCase().includes(q)) ||
           (p.accountNumber?.toLowerCase().includes(q)) ||
-          (p.correspondentBankSwift?.toLowerCase().includes(q)) ||
+          (p.correspondentSwiftBic?.toLowerCase().includes(q)) ||
           p.currencyCode.toLowerCase().includes(q);
         if (!match) return false;
       }
@@ -336,7 +330,7 @@ export function NostroPositionsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map((pos) => (
-              <PositionCard key={pos.id} position={pos} />
+              <PositionCard key={pos.id} position={pos} onClick={() => navigate(`/accounts/reconciliation/positions/${pos.id}`)} />
             ))}
           </div>
         )}

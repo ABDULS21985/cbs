@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Activity, Clock, AlertTriangle, Zap, ShieldCheck } from 'lucide-react';
+import { Activity, Clock, AlertTriangle, Zap, CheckCircle } from 'lucide-react';
 import { StatCard } from '@/components/shared';
 import { gatewayApi } from '../api/gatewayApi';
 
@@ -40,9 +40,10 @@ export function GatewayLiveStats() {
         loading={isLoading}
       />
       <StatCard
-        label="Uptime"
-        value={data ? `${data.uptimePct.toFixed(2)}%` : '—'}
-        icon={ShieldCheck}
+        label="Acknowledged"
+        value={data?.acknowledged ?? 0}
+        format="number"
+        icon={CheckCircle}
         loading={isLoading}
       />
     </div>

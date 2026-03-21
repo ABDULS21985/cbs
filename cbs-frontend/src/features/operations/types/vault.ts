@@ -1,5 +1,7 @@
 // Auto-generated from backend entities
 
+export type VaultType = 'MAIN' | 'SUBSIDIARY' | 'ATM' | 'TELLER';
+
 export interface Vault {
   id: number;
   vaultCode: string;

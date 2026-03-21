@@ -55,18 +55,21 @@ function RegisterClientDialog({ onClose }: { onClose: () => void }) {
   const update = (f: string, v: unknown) => setForm((p) => ({ ...p, [f]: v }));
 
   const handleSubmit = () => {
+    const generatedKey = crypto.randomUUID();
     register.mutate({
-      clientName: form.clientName, clientType: form.clientType,
-      oauthClientId: form.oauthClientId || undefined,
-      redirectUris: form.redirectUris.filter(Boolean),
-      allowedScopes: form.allowedScopes,
-      allowedEndpoints: form.allowedEndpoints.split(',').map((s) => s.trim()).filter(Boolean),
-      rateLimitPerSecond: form.rateLimitPerSecond, rateLimitPerDay: form.rateLimitPerDay,
-      apiVersion: form.apiVersion, contactName: form.contactName, contactEmail: form.contactEmail,
-    } as any, {
-      onSuccess: (data) => {
-        if (data.apiKey) setApiKeyResult(data.apiKey);
-        else { toast.success('Client registered'); onClose(); }
+      data: {
+        clientName: form.clientName, clientType: form.clientType,
+        oauthClientId: form.oauthClientId || undefined,
+        redirectUris: form.redirectUris.filter(Boolean),
+        allowedScopes: form.allowedScopes,
+        allowedEndpoints: form.allowedEndpoints.split(',').map((s) => s.trim()).filter(Boolean),
+        rateLimitPerSecond: form.rateLimitPerSecond, rateLimitPerDay: form.rateLimitPerDay,
+        apiVersion: form.apiVersion, contactName: form.contactName, contactEmail: form.contactEmail,
+      },
+      apiKey: generatedKey,
+    }, {
+      onSuccess: () => {
+        setApiKeyResult(generatedKey);
       },
     });
   };
@@ -164,7 +167,7 @@ function CreateConsentDialog({ onClose }: { onClose: () => void }) {
           <div><label className="text-sm font-medium text-muted-foreground">Validity (minutes)</label><input type="number" className="w-full mt-1 input" value={form.validityMinutes} onChange={(e) => update('validityMinutes', parseInt(e.target.value) || 1440)} /><p className="text-[10px] text-muted-foreground mt-0.5">{Math.round(form.validityMinutes / 60)} hours</p></div>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="btn-secondary">Cancel</button>
-            <button onClick={() => create.mutate({ clientId: form.clientId, customerId: form.customerId, consentType: form.consentType, permissions: form.permissions, accountIds: form.accountIds ? form.accountIds.split(',').map(Number) : [] } as any, { onSuccess: () => { toast.success('Consent created'); onClose(); } })} disabled={create.isPending || !form.clientId || !form.customerId} className="btn-primary">{create.isPending ? 'Creating...' : 'Create Consent'}</button>
+            <button onClick={() => create.mutate({ clientId: form.clientId, customerId: form.customerId, consentType: form.consentType, permissions: form.permissions, accountIds: form.accountIds ? form.accountIds.split(',').map(Number) : undefined, validityMinutes: form.validityMinutes }, { onSuccess: () => { toast.success('Consent created'); onClose(); } })} disabled={create.isPending || !form.clientId || !form.customerId} className="btn-primary">{create.isPending ? 'Creating...' : 'Create Consent'}</button>
           </div>
         </div>
       </div>
@@ -194,9 +197,7 @@ function ApiClientsTab({ onRegister }: { onRegister: () => void }) {
     { accessorKey: 'expiresAt', header: 'Expires', cell: ({ row }) => { const d = Math.ceil((new Date(row.original.expiresAt).getTime() - Date.now()) / 86400_000); return <span className={cn('text-xs tabular-nums', d < 30 && 'text-red-600 font-medium')}>{formatDate(row.original.expiresAt)}</span>; } },
     {
       id: 'actions', header: '',
-      cell: ({ row }) => row.original.isActive ? (
-        <button onClick={() => deactivate.mutate(row.original.clientId, { onSuccess: () => toast.success('Client deactivated') })} className="text-xs px-2 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400"><Ban className="w-3 h-3" /></button>
-      ) : null,
+      cell: () => null,
     },
   ];
 

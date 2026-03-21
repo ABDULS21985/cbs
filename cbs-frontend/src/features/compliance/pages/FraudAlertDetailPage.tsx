@@ -168,18 +168,8 @@ export function FraudAlertDetailPage() {
   return (
     <>
       <PageHeader
-        title={
-          <span className="flex items-center gap-3">
-            <span>{alert.alertRef}</span>
-            <div className={cn('w-12 h-12 rounded-full flex items-center justify-center border-4', riskScoreBorder(alert.riskScore), riskScoreBg(alert.riskScore))}>
-              <span className={cn('text-lg font-bold tabular-nums', riskScoreColor(alert.riskScore))}>{alert.riskScore}</span>
-            </div>
-            <StatusBadge status={alert.status} dot />
-            <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-medium', actionColors[alert.actionTaken])}>
-              {alert.actionTaken.replace(/_/g, ' ')}
-            </span>
-          </span>
-        }
+        title={alert.alertRef}
+        subtitle={`Risk Score: ${alert.riskScore} · ${alert.status} · ${alert.actionTaken.replace(/_/g, ' ')}`}
         backTo="/compliance/fraud"
       />
 
@@ -390,31 +380,34 @@ export function FraudAlertDetailPage() {
       {/* Confirm Dialogs */}
       {confirmAction === 'blockCard' && (
         <ConfirmDialog
+          open
           title="Block Card"
           description="Block the card associated with this transaction? This will prevent all future card transactions."
           confirmLabel="Block Card"
           variant="destructive"
           onConfirm={() => { blockCard.mutate(alert.id, { onSuccess: () => toast.success('Card blocked') }); setConfirmAction(null); }}
-          onCancel={() => setConfirmAction(null)}
+          onClose={() => setConfirmAction(null)}
         />
       )}
       {confirmAction === 'blockAccount' && (
         <ConfirmDialog
+          open
           title="Freeze Account"
           description="Freeze the account? All debits will be prevented."
           confirmLabel="Freeze Account"
           variant="destructive"
           onConfirm={() => { blockAccount.mutate(alert.id, { onSuccess: () => toast.success('Account frozen') }); setConfirmAction(null); }}
-          onCancel={() => setConfirmAction(null)}
+          onClose={() => setConfirmAction(null)}
         />
       )}
       {confirmAction === 'allow' && (
         <ConfirmDialog
+          open
           title="Allow Transaction"
           description="Mark this transaction as legitimate? The alert will be resolved as false positive."
           confirmLabel="Allow"
           onConfirm={() => { allow.mutate(alert.id, { onSuccess: () => toast.success('Transaction allowed') }); setConfirmAction(null); }}
-          onCancel={() => setConfirmAction(null)}
+          onClose={() => setConfirmAction(null)}
         />
       )}
 

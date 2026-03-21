@@ -28,8 +28,14 @@ public class WealthManagementPlan extends AuditableEntity {
     @Column(nullable = false, length = 20)
     private String planType;
 
+    @Column(length = 200)
+    private String customerName;
+
     @Column(length = 80)
     private String advisorId;
+
+    @Column(length = 200)
+    private String advisorName;
 
     private BigDecimal totalNetWorth;
     private BigDecimal totalInvestableAssets;
@@ -38,11 +44,28 @@ public class WealthManagementPlan extends AuditableEntity {
     private Integer retirementTargetAge;
     private BigDecimal retirementIncomeGoal;
 
+    @Column(length = 30)
+    private String riskProfile;
+
+    private Integer investmentHorizon;
+
     @JdbcTypeCode(SqlTypes.JSON)
     private List<Map<String, Object>> financialGoals;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    private List<Map<String, Object>> goals;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<Map<String, Object>> allocations;
+
+    @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> recommendedAllocation;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> targetAllocation;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> currentAllocation;
 
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> insuranceNeeds;
@@ -54,6 +77,11 @@ public class WealthManagementPlan extends AuditableEntity {
     private String taxStrategy;
 
     private LocalDate nextReviewDate;
+    private LocalDate activatedDate;
+    private LocalDate lastReviewDate;
+
+    private BigDecimal ytdReturn;
+    private BigDecimal benchmarkReturn;
 
     @Column(nullable = false, length = 15)
     @Builder.Default

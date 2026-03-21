@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useRequestValuation } from '../../hooks/useCollateral';
+import { useAddValuation } from '../../hooks/useCollateral';
 
 interface ValuationRequestFormProps {
   collateralId: number;
@@ -14,7 +14,7 @@ const VALUATION_METHODS = [
 ];
 
 export function ValuationRequestForm({ collateralId, onSuccess, onCancel }: ValuationRequestFormProps) {
-  const { mutate: requestValuation, isPending } = useRequestValuation();
+  const { mutate: addValuation, isPending } = useAddValuation();
 
   const [form, setForm] = useState({
     valuerName: '',
@@ -41,7 +41,7 @@ export function ValuationRequestForm({ collateralId, onSuccess, onCancel }: Valu
       return;
     }
     setErrors({});
-    requestValuation(
+    addValuation(
       {
         id: collateralId,
         data: {

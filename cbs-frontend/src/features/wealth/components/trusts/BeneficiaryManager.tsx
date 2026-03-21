@@ -43,7 +43,7 @@ const BLANK_FORM: BeneficiaryCreateRequest = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function BeneficiaryManager({ trustCode, beneficiaries, currency }: BeneficiaryManagerProps) {
+export function BeneficiaryManager({ trustCode, beneficiaries, currency: _currency }: BeneficiaryManagerProps) {
   const [showModal, setShowModal] = useState(false);
   const [editingBeneficiary, setEditingBeneficiary] = useState<Beneficiary | null>(null);
   const [form, setForm] = useState<BeneficiaryCreateRequest>(BLANK_FORM);
@@ -70,7 +70,8 @@ export function BeneficiaryManager({ trustCode, beneficiaries, currency }: Benef
 
   const allocationColor = totalAllocation === 100 ? 'text-green-600 dark:text-green-400' : totalAllocation > 100 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400';
 
-  const projectedColor = projectedTotal === 100 ? 'text-green-600 dark:text-green-400' : projectedTotal > 100 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400';
+  const _projectedColor = projectedTotal === 100 ? 'text-green-600 dark:text-green-400' : projectedTotal > 100 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400';
+  void _projectedColor;
 
   // ── Pie chart data ──
 

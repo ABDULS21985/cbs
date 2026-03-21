@@ -61,12 +61,21 @@ export function useCreatePaymentRail() {
   });
 }
 
+export function usePaymentRoutingRules() {
+  return useQuery({
+    queryKey: ['payments', 'routing-rules'],
+    queryFn: () => paymentsApi.getAllRules(),
+    staleTime: 60_000,
+  });
+}
+
 export function useCreateRoutingRule() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<PaymentRoutingRule>) => paymentsApi.createRule(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.rails.all });
+      qc.invalidateQueries({ queryKey: ['payments', 'routing-rules'] });
     },
   });
 }
@@ -223,9 +232,18 @@ export function useUpdateRemittanceStatus() {
 
 // ─── Payroll ──────────────────────────────────────────────────────────────────
 
-export function usePayrollItems(batchId: number) {
+/** GET /v1/payroll/batches — list all batches */
+export function usePayrollBatches() {
   return useQuery({
-    queryKey: KEYS.payroll.items(batchId),
+    queryKey: KEYS.payroll.all,
+    queryFn: () => payrollApi.listAll(),
+    staleTime: 30_000,
+  });
+}
+
+export function usePayrollItems(batchId: string) {
+  return useQuery({
+    queryKey: KEYS.payroll.items(batchId as unknown as number),
     queryFn: () => payrollApi.getItems(batchId),
     enabled: !!batchId,
     staleTime: 30_000,
@@ -254,9 +272,9 @@ export function useCreatePayrollBatch() {
 export function useValidatePayrollBatch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (batchId: number) => payrollApi.validate(batchId),
-    onSuccess: (_data, batchId) => {
-      qc.invalidateQueries({ queryKey: KEYS.payroll.items(batchId) });
+    mutationFn: (batchId: string) => payrollApi.validate(batchId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.payroll.all });
     },
   });
 }
@@ -264,7 +282,7 @@ export function useValidatePayrollBatch() {
 export function useApprovePayrollBatch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (batchId: number) => payrollApi.approve(batchId),
+    mutationFn: (batchId: string) => payrollApi.approve(batchId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.payroll.all });
     },
@@ -274,10 +292,9 @@ export function useApprovePayrollBatch() {
 export function useProcessPayrollBatch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (batchId: number) => payrollApi.process(batchId),
-    onSuccess: (_data, batchId) => {
+    mutationFn: (batchId: string) => payrollApi.process(batchId),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.payroll.all });
-      qc.invalidateQueries({ queryKey: KEYS.payroll.items(batchId) });
     },
   });
 }

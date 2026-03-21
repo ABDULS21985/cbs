@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Loader2, AlertTriangle, Target, Calendar, TrendingUp, Minus,
   Plus, ArrowDownCircle, CheckCircle, Clock, Trophy, Zap,
   Flame, BarChart3, X, Bot, Hand,
 } from 'lucide-react';
 import {
-  LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  Tooltip, ReferenceLine, ResponsiveContainer, Legend,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
 import { format, parseISO, differenceInDays, addMonths } from 'date-fns';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -19,28 +19,26 @@ import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { GoalProgressCircle } from '../components/GoalProgressCircle';
 import { GoalCelebration } from '../components/GoalCelebration';
-import {
-  getGoalById, getGoalContributions, contributeToGoal,
-  updateAutoDebit,
-} from '../api/goalApi';
-import type { SavingsGoal, GoalContribution, AutoDebitConfig } from '../api/goalApi';
-import { apiPost } from '@/lib/api';
+import { goalApi } from '../api/goalApi';
+import type { SavingsGoal, GoalTransaction, GoalFundRequest } from '../api/goalApi';
+import { useGoalDetail, useGoalContributions, goalQueryKeys } from '../hooks/useGoals';
 
 // ─── Contribute Sheet ───────────────────────────────────────────────────────
 
 function ContributeSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState('');
+  const [narration, setNarration] = useState('');
   const [error, setError] = useState('');
   const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0);
 
   const mutation = useMutation({
-    mutationFn: (amt: number) => contributeToGoal(goal.id, amt),
-    onSuccess: (updated) => {
-      queryClient.invalidateQueries({ queryKey: ['goal', goal.id] });
-      queryClient.invalidateQueries({ queryKey: ['goal-contributions', goal.id] });
-      queryClient.invalidateQueries({ queryKey: ['goals'] });
-      toast.success(`₦${Number(amount).toLocaleString()} contributed!`);
+    mutationFn: (payload: GoalFundRequest) => goalApi.contribute(goal.id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: goalQueryKeys.detail(goal.id) });
+      queryClient.invalidateQueries({ queryKey: goalQueryKeys.contributions(goal.id) });
+      queryClient.invalidateQueries({ queryKey: goalQueryKeys.all });
+      toast.success(`${formatMoney(Number(amount))} contributed!`);
       onClose();
     },
   });
@@ -64,9 +62,9 @@ function ContributeSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
           {/* Mini progress */}
           <div className="flex items-center gap-4">
-            <GoalProgressCircle percentage={Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)} size={64} />
+            <GoalProgressCircle percentage={goal.progressPercentage} size={64} />
             <div>
-              <p className="text-sm font-semibold">{goal.name}</p>
+              <p className="text-sm font-semibold">{goal.goalName}</p>
               <p className="text-xs text-muted-foreground">{formatMoney(goal.currentAmount)} / {formatMoney(goal.targetAmount)}</p>
             </div>
           </div>
@@ -79,7 +77,7 @@ function ContributeSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => 
                 <button key={a} type="button" onClick={() => { setAmount(String(a)); setError(''); }}
                   className={cn('px-2 py-2 rounded-lg border text-xs font-medium transition-colors',
                     amount === String(a) ? 'border-primary bg-primary/10 text-primary' : 'hover:bg-muted')}>
-                  ₦{(a / 1000).toFixed(0)}K
+                  {formatMoney(a).replace('.00', '')}
                 </button>
               ))}
             </div>
@@ -87,14 +85,22 @@ function ContributeSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => 
 
           {/* Amount input */}
           <div>
-            <label className="text-sm font-medium">Amount (₦)</label>
+            <label className="text-sm font-medium">Amount</label>
             <div className="relative mt-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₦</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{goal.currencyCode}</span>
               <input type="number" value={amount} onChange={(e) => { setAmount(e.target.value); setError(''); }}
-                placeholder="Enter amount" className={cn('w-full rounded-lg border bg-background pl-7 pr-3 py-3 text-lg font-mono outline-none focus:ring-2 focus:ring-primary/30', error && 'border-red-500')}
-                onKeyDown={(e) => e.key === 'Enter' && parsedAmount > 0 && mutation.mutate(parsedAmount)} autoFocus />
+                placeholder="Enter amount" className={cn('w-full rounded-lg border bg-background pl-12 pr-3 py-3 text-lg font-mono outline-none focus:ring-2 focus:ring-primary/30', error && 'border-red-500')}
+                onKeyDown={(e) => e.key === 'Enter' && parsedAmount > 0 && mutation.mutate({ amount: parsedAmount, narration: narration || undefined })} autoFocus />
             </div>
             {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+          </div>
+
+          {/* Narration */}
+          <div>
+            <label className="text-sm font-medium">Narration (Optional)</label>
+            <input type="text" value={narration} onChange={(e) => setNarration(e.target.value)}
+              placeholder="e.g., Monthly savings" maxLength={300}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 mt-1" />
           </div>
 
           {/* Preview */}
@@ -120,7 +126,7 @@ function ContributeSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => 
         <div className="px-6 py-4 border-t">
           <button onClick={() => {
             if (parsedAmount <= 0) { setError('Enter a valid amount'); return; }
-            mutation.mutate(parsedAmount);
+            mutation.mutate({ amount: parsedAmount, narration: narration || undefined });
           }} disabled={mutation.isPending || parsedAmount <= 0}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
             {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
@@ -137,13 +143,15 @@ function ContributeSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => 
 function WithdrawSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState('');
+  const [narration, setNarration] = useState('');
   const [error, setError] = useState('');
 
   const mutation = useMutation({
-    mutationFn: (amt: number) => apiPost<SavingsGoal>(`/api/v1/goals/${goal.id}/withdraw`, { amount: amt }),
+    mutationFn: (payload: GoalFundRequest) => goalApi.withdraw(goal.id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['goal', goal.id] });
-      queryClient.invalidateQueries({ queryKey: ['goal-contributions', goal.id] });
+      queryClient.invalidateQueries({ queryKey: goalQueryKeys.detail(goal.id) });
+      queryClient.invalidateQueries({ queryKey: goalQueryKeys.contributions(goal.id) });
+      queryClient.invalidateQueries({ queryKey: goalQueryKeys.all });
       toast.success('Withdrawal processed');
       onClose();
     },
@@ -153,7 +161,7 @@ function WithdrawSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => vo
   const parsedAmount = parseFloat(amount) || 0;
   const newTotal = Math.max(goal.currentAmount - parsedAmount, 0);
   const newPct = (newTotal / goal.targetAmount) * 100;
-  const oldPct = (goal.currentAmount / goal.targetAmount) * 100;
+  const oldPct = goal.progressPercentage;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -165,21 +173,43 @@ function WithdrawSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => vo
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+          {goal.isLocked && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/40">
+              <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <p className="text-xs text-red-700 dark:text-red-300">This goal is locked. Withdrawals are not permitted.</p>
+            </div>
+          )}
+
+          {!goal.allowWithdrawalBeforeTarget && goal.status !== 'COMPLETED' && (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <p className="text-xs text-amber-700 dark:text-amber-300">Withdrawals are not allowed until the goal target is reached.</p>
+            </div>
+          )}
+
           <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40">
             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
             <p className="text-xs text-amber-700 dark:text-amber-300">Withdrawing will reduce your progress. You may fall behind schedule.</p>
           </div>
 
           <div>
-            <label className="text-sm font-medium">Amount (₦)</label>
+            <label className="text-sm font-medium">Amount ({goal.currencyCode})</label>
             <p className="text-xs text-muted-foreground mb-1">Available: {formatMoney(goal.currentAmount)}</p>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₦</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{goal.currencyCode}</span>
               <input type="number" value={amount} onChange={(e) => { setAmount(e.target.value); setError(''); }}
-                max={goal.currentAmount} className={cn('w-full rounded-lg border bg-background pl-7 pr-3 py-3 text-lg font-mono outline-none focus:ring-2 focus:ring-primary/30', error && 'border-red-500')}
-                onKeyDown={(e) => e.key === 'Enter' && parsedAmount > 0 && mutation.mutate(parsedAmount)} autoFocus />
+                max={goal.currentAmount} className={cn('w-full rounded-lg border bg-background pl-12 pr-3 py-3 text-lg font-mono outline-none focus:ring-2 focus:ring-primary/30', error && 'border-red-500')}
+                onKeyDown={(e) => e.key === 'Enter' && parsedAmount > 0 && mutation.mutate({ amount: parsedAmount, narration: narration || undefined })} autoFocus />
             </div>
             {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+          </div>
+
+          {/* Narration */}
+          <div>
+            <label className="text-sm font-medium">Narration (Optional)</label>
+            <input type="text" value={narration} onChange={(e) => setNarration(e.target.value)}
+              placeholder="e.g., Emergency withdrawal" maxLength={300}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 mt-1" />
           </div>
 
           {parsedAmount > 0 && (
@@ -198,10 +228,12 @@ function WithdrawSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => vo
 
         <div className="px-6 py-4 border-t">
           <button onClick={() => {
+            if (goal.isLocked) { setError('Goal is locked'); return; }
+            if (!goal.allowWithdrawalBeforeTarget && goal.status !== 'COMPLETED') { setError('Withdrawals not allowed before target'); return; }
             if (parsedAmount <= 0) { setError('Enter a valid amount'); return; }
             if (parsedAmount > goal.currentAmount) { setError(`Max: ${formatMoney(goal.currentAmount)}`); return; }
-            mutation.mutate(parsedAmount);
-          }} disabled={mutation.isPending || parsedAmount <= 0}
+            mutation.mutate({ amount: parsedAmount, narration: narration || undefined });
+          }} disabled={mutation.isPending || parsedAmount <= 0 || goal.isLocked}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50">
             {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowDownCircle className="w-4 h-4" />}
             {mutation.isPending ? 'Processing...' : `Withdraw ${parsedAmount > 0 ? formatMoney(parsedAmount) : ''}`}
@@ -212,35 +244,50 @@ function WithdrawSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => vo
   );
 }
 
-// ─── Contribution Columns ───────────────────────────────────────────────────
+// ─── Transaction Columns ─────────────────────────────────────────────────────
 
-const contributionCols: ColumnDef<GoalContribution, unknown>[] = [
-  { accessorKey: 'date', header: 'Date', cell: ({ row }) => <span className="text-sm">{formatDate(row.original.date)}</span> },
-  { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm font-semibold text-green-600">{formatMoney(row.original.amount)}</span> },
-  { accessorKey: 'source', header: 'Source', cell: ({ row }) => <span className="text-xs">{row.original.source}</span> },
+const txnTypeStyles: Record<string, { label: string; color: string }> = {
+  DEPOSIT: { label: 'Deposit', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+  WITHDRAWAL: { label: 'Withdrawal', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  INTEREST: { label: 'Interest', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  PENALTY: { label: 'Penalty', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
+  REVERSAL: { label: 'Reversal', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+};
+
+const contributionCols: ColumnDef<GoalTransaction, unknown>[] = [
+  { accessorKey: 'createdAt', header: 'Date', cell: ({ row }) => <span className="text-sm">{formatDate(row.original.createdAt)}</span> },
   {
-    accessorKey: 'type', header: 'Type',
-    cell: ({ row }) => (
-      <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold',
-        row.original.type === 'AUTO' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700')}>
-        {row.original.type === 'AUTO' ? <Bot className="w-3 h-3" /> : <Hand className="w-3 h-3" />}
-        {row.original.type}
-      </span>
-    ),
+    accessorKey: 'transactionType', header: 'Type',
+    cell: ({ row }) => {
+      const style = txnTypeStyles[row.original.transactionType] ?? txnTypeStyles.DEPOSIT;
+      return (
+        <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold', style.color)}>
+          {style.label}
+        </span>
+      );
+    },
   },
-  { accessorKey: 'runningTotal', header: 'Running Total', cell: ({ row }) => <span className="font-mono text-sm font-medium">{formatMoney(row.original.runningTotal)}</span> },
+  {
+    accessorKey: 'amount', header: 'Amount',
+    cell: ({ row }) => {
+      const isCredit = row.original.transactionType === 'DEPOSIT' || row.original.transactionType === 'INTEREST';
+      return <span className={cn('font-mono text-sm font-semibold', isCredit ? 'text-green-600' : 'text-red-600')}>{isCredit ? '+' : '-'}{formatMoney(row.original.amount)}</span>;
+    },
+  },
+  { accessorKey: 'narration', header: 'Narration', cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.narration || '—'}</span> },
+  { accessorKey: 'runningBalance', header: 'Balance', cell: ({ row }) => <span className="font-mono text-sm font-medium">{formatMoney(row.original.runningBalance)}</span> },
+  { accessorKey: 'transactionRef', header: 'Reference', cell: ({ row }) => <span className="text-xs font-mono text-muted-foreground">{row.original.transactionRef || '—'}</span> },
 ];
 
 // ─── Contribution Calendar ──────────────────────────────────────────────────
 
-function ContributionCalendar({ contributions }: { contributions: GoalContribution[] }) {
+function ContributionCalendar({ contributions }: { contributions: GoalTransaction[] }) {
   const days = useMemo(() => {
     const map = new Map<string, number>();
-    contributions.forEach((c) => {
-      const key = c.date.split('T')[0];
+    contributions.filter(c => c.transactionType === 'DEPOSIT').forEach((c) => {
+      const key = c.createdAt.split('T')[0];
       map.set(key, (map.get(key) ?? 0) + c.amount);
     });
-    // Last 90 days
     const result: Array<{ date: string; amount: number }> = [];
     const now = new Date();
     for (let i = 89; i >= 0; i--) {
@@ -290,10 +337,10 @@ function ContributionCalendar({ contributions }: { contributions: GoalContributi
 
 function SavingsProjection({ goal }: { goal: SavingsGoal }) {
   const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0);
-  const currentMonthly = goal.autoDebit?.amount ?? 0;
+  const currentMonthly = goal.autoDebitAmount ?? 0;
 
   const scenarios = useMemo(() => {
-    if (remaining <= 0) return [];
+    if (remaining <= 0 || !goal.targetDate) return [];
     const amounts = [
       currentMonthly > 0 ? Math.round(currentMonthly * 0.65) : 300000,
       currentMonthly > 0 ? currentMonthly : 467000,
@@ -302,7 +349,7 @@ function SavingsProjection({ goal }: { goal: SavingsGoal }) {
     return amounts.map((monthly) => {
       const months = Math.ceil(remaining / monthly);
       const eta = addMonths(new Date(), months);
-      const targetDate = new Date(goal.targetDate);
+      const targetDate = new Date(goal.targetDate!);
       const ahead = differenceInDays(targetDate, eta);
       return { monthly, months, eta: format(eta, 'MMM yyyy'), ahead, emoji: ahead > 0 ? '✅' : ahead > -30 ? '⚠️' : '🚀' };
     });
@@ -332,24 +379,23 @@ function SavingsProjection({ goal }: { goal: SavingsGoal }) {
 
 // ─── Insights Panel ─────────────────────────────────────────────────────────
 
-function InsightsPanel({ goal, contributions }: { goal: SavingsGoal; contributions: GoalContribution[] }) {
-  const pct = (goal.currentAmount / goal.targetAmount) * 100;
+function InsightsPanel({ goal, contributions }: { goal: SavingsGoal; contributions: GoalTransaction[] }) {
+  const pct = goal.progressPercentage;
   const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0);
+  const deposits = contributions.filter(c => c.transactionType === 'DEPOSIT');
 
-  // Best month
   const monthlyTotals = useMemo(() => {
     const map = new Map<string, number>();
-    contributions.forEach((c) => {
-      const month = c.date.slice(0, 7);
+    deposits.forEach((c) => {
+      const month = c.createdAt.slice(0, 7);
       map.set(month, (map.get(month) ?? 0) + c.amount);
     });
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
-  }, [contributions]);
+  }, [deposits]);
   const bestMonth = monthlyTotals[0];
 
-  // Streak
   const streak = useMemo(() => {
-    const months = new Set(contributions.map((c) => c.date.slice(0, 7)));
+    const months = new Set(deposits.map((c) => c.createdAt.slice(0, 7)));
     let count = 0;
     const now = new Date();
     for (let i = 0; i < 24; i++) {
@@ -359,29 +405,29 @@ function InsightsPanel({ goal, contributions }: { goal: SavingsGoal; contributio
       else break;
     }
     return count;
-  }, [contributions]);
+  }, [deposits]);
 
-  // Avg contribution
-  const avgContribution = contributions.length > 0 ? contributions.reduce((s, c) => s + c.amount, 0) / contributions.length : 0;
+  const avgContribution = deposits.length > 0 ? deposits.reduce((s, c) => s + c.amount, 0) / deposits.length : 0;
 
-  // Days ahead/behind
-  const targetDate = new Date(goal.targetDate);
-  const monthsToTarget = Math.max(differenceInDays(targetDate, new Date()) / 30, 1);
-  const expectedSaved = (goal.targetAmount / (differenceInDays(targetDate, new Date(goal.createdAt)) / 30)) * ((Date.now() - new Date(goal.createdAt).getTime()) / (30 * 24 * 60 * 60 * 1000));
+  const targetDate = goal.targetDate ? new Date(goal.targetDate) : null;
+  const expectedSaved = targetDate
+    ? (goal.targetAmount / (differenceInDays(targetDate, new Date(goal.createdAt)) / 30)) * ((Date.now() - new Date(goal.createdAt).getTime()) / (30 * 24 * 60 * 60 * 1000))
+    : 0;
   const diff = goal.currentAmount - expectedSaved;
+  const monthsToTarget = targetDate ? Math.max(differenceInDays(targetDate, new Date()) / 30, 1) : 1;
 
   return (
     <div className="space-y-4">
-      {/* Pace */}
-      <div className={cn('rounded-xl border p-5 flex items-center gap-4', diff >= 0 ? 'border-green-200 bg-green-50/30 dark:bg-green-900/5' : 'border-amber-200 bg-amber-50/30 dark:bg-amber-900/5')}>
-        {diff >= 0 ? <CheckCircle className="w-8 h-8 text-green-500" /> : <AlertTriangle className="w-8 h-8 text-amber-500" />}
-        <div>
-          <p className="text-sm font-semibold">{diff >= 0 ? `You're ${formatMoney(Math.abs(diff))} ahead of schedule` : `You're ${formatMoney(Math.abs(diff))} behind schedule`}</p>
-          <p className="text-xs text-muted-foreground">{diff >= 0 ? 'Keep up the great work!' : 'Consider increasing your contributions'}</p>
+      {targetDate && (
+        <div className={cn('rounded-xl border p-5 flex items-center gap-4', diff >= 0 ? 'border-green-200 bg-green-50/30 dark:bg-green-900/5' : 'border-amber-200 bg-amber-50/30 dark:bg-amber-900/5')}>
+          {diff >= 0 ? <CheckCircle className="w-8 h-8 text-green-500" /> : <AlertTriangle className="w-8 h-8 text-amber-500" />}
+          <div>
+            <p className="text-sm font-semibold">{diff >= 0 ? `You're ${formatMoney(Math.abs(diff))} ahead of schedule` : `You're ${formatMoney(Math.abs(diff))} behind schedule`}</p>
+            <p className="text-xs text-muted-foreground">{diff >= 0 ? 'Keep up the great work!' : 'Consider increasing your contributions'}</p>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Stats grid */}
       <div className="grid grid-cols-2 gap-3">
         {bestMonth && (
           <div className="rounded-xl border bg-card p-4">
@@ -407,26 +453,25 @@ function InsightsPanel({ goal, contributions }: { goal: SavingsGoal; contributio
             <span className="text-xs text-muted-foreground">Avg Contribution</span>
           </div>
           <p className="text-lg font-bold font-mono">{formatMoney(avgContribution)}</p>
-          <p className="text-xs text-muted-foreground">per contribution</p>
+          <p className="text-xs text-muted-foreground">per deposit</p>
         </div>
         <div className="rounded-xl border bg-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <Target className="w-4 h-4 text-primary" />
-            <span className="text-xs text-muted-foreground">Total Contributions</span>
+            <span className="text-xs text-muted-foreground">Total Transactions</span>
           </div>
           <p className="text-lg font-bold">{contributions.length}</p>
-          <p className="text-xs text-muted-foreground">{contributions.filter((c) => c.type === 'AUTO').length} auto, {contributions.filter((c) => c.type === 'MANUAL').length} manual</p>
+          <p className="text-xs text-muted-foreground">{deposits.length} deposits, {contributions.filter((c) => c.transactionType === 'WITHDRAWAL').length} withdrawals</p>
         </div>
       </div>
 
-      {/* Suggestion */}
-      {remaining > 0 && goal.autoDebit && (
+      {remaining > 0 && goal.autoDebitEnabled && goal.autoDebitAmount && (
         <div className="rounded-xl border bg-card p-5 flex items-start gap-3">
           <Zap className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold">Optimization Suggestion</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Increase your auto-debit by {formatMoney(Math.ceil(remaining / Math.max(monthsToTarget - 2, 1)) - goal.autoDebit.amount)} to finish 2 months early.
+              Increase your auto-debit by {formatMoney(Math.ceil(remaining / Math.max(monthsToTarget - 2, 1)) - goal.autoDebitAmount)} to finish 2 months early.
             </p>
           </div>
         </div>
@@ -440,13 +485,14 @@ function InsightsPanel({ goal, contributions }: { goal: SavingsGoal; contributio
 function AutoDebitTab({ goal }: { goal: SavingsGoal }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [amount, setAmount] = useState(String(goal.autoDebit?.amount ?? ''));
-  const [frequency, setFrequency] = useState(goal.autoDebit?.frequency ?? 'MONTHLY');
+  const [amount, setAmount] = useState(String(goal.autoDebitAmount ?? ''));
+  const [frequency, setFrequency] = useState(goal.autoDebitFrequency ?? 'MONTHLY');
 
   const mutation = useMutation({
-    mutationFn: (config: AutoDebitConfig) => updateAutoDebit(goal.id, config),
+    mutationFn: (config: Record<string, unknown>) => goalApi.configureAutoDebit(goal.id, config),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['goal', goal.id] });
+      queryClient.invalidateQueries({ queryKey: goalQueryKeys.detail(goal.id) });
+      queryClient.invalidateQueries({ queryKey: goalQueryKeys.all });
       toast.success('Auto-debit updated');
       setEditing(false);
     },
@@ -456,31 +502,29 @@ function AutoDebitTab({ goal }: { goal: SavingsGoal }) {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      {goal.autoDebit ? (
+      {goal.autoDebitEnabled ? (
         <div className="rounded-xl border bg-card p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Auto-Debit Configuration</h3>
-            <span className={cn('px-2.5 py-1 rounded-full text-xs font-bold',
-              goal.autoDebit.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>
-              {goal.autoDebit.status === 'ACTIVE' ? '🟢' : '⏸'} {goal.autoDebit.status}
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+              🟢 ACTIVE
             </span>
           </div>
 
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div><span className="text-muted-foreground text-xs">Amount</span><p className="font-mono font-bold text-lg">{formatMoney(goal.autoDebit.amount)}</p></div>
-            <div><span className="text-muted-foreground text-xs">Frequency</span><p className="font-medium">{goal.autoDebit.frequency}</p></div>
-            <div><span className="text-muted-foreground text-xs">Source Account</span><p className="font-mono">{goal.sourceAccountNumber}</p></div>
-            <div><span className="text-muted-foreground text-xs">Start Date</span><p className="font-medium">{formatDate(goal.autoDebit.startDate)}</p></div>
+            <div><span className="text-muted-foreground text-xs">Amount</span><p className="font-mono font-bold text-lg">{formatMoney(goal.autoDebitAmount ?? 0)}</p></div>
+            <div><span className="text-muted-foreground text-xs">Frequency</span><p className="font-medium">{goal.autoDebitFrequency ?? '—'}</p></div>
+            <div><span className="text-muted-foreground text-xs">Source Account</span><p className="font-mono">{goal.accountNumber}</p></div>
+            <div><span className="text-muted-foreground text-xs">Next Debit</span><p className="font-medium">{goal.nextAutoDebitDate ? formatDate(goal.nextAutoDebitDate) : '—'}</p></div>
           </div>
 
           <div className="flex gap-2 pt-2">
             <button onClick={() => setEditing(!editing)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">
-              {editing ? 'Cancel' : 'Modify Amount'}
+              {editing ? 'Cancel' : 'Modify'}
             </button>
-            <button onClick={() => mutation.mutate({ ...goal.autoDebit!, status: goal.autoDebit!.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE' })}
-              className={cn('px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted',
-                goal.autoDebit.status === 'ACTIVE' ? 'text-amber-600' : 'text-green-600')}>
-              {goal.autoDebit.status === 'ACTIVE' ? 'Pause' : 'Resume'}
+            <button onClick={() => mutation.mutate({ autoDebitEnabled: false })}
+              className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted text-amber-600">
+              Disable Auto-Debit
             </button>
           </div>
         </div>
@@ -500,26 +544,26 @@ function AutoDebitTab({ goal }: { goal: SavingsGoal }) {
           <h4 className="text-sm font-semibold">Configure Auto-Debit</h4>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Amount (₦)</label>
+              <label className="text-sm font-medium text-muted-foreground">Amount ({goal.currencyCode})</label>
               <input type="number" className={fc} value={amount} onChange={(e) => setAmount(e.target.value)} min={100} />
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Frequency</label>
-              <select className={fc} value={frequency} onChange={(e) => setFrequency(e.target.value as 'DAILY' | 'WEEKLY' | 'MONTHLY')}>
+              <select className={fc} value={frequency} onChange={(e) => setFrequency(e.target.value as typeof frequency)}>
                 <option value="DAILY">Daily</option>
                 <option value="WEEKLY">Weekly</option>
+                <option value="BI_WEEKLY">Bi-Weekly</option>
                 <option value="MONTHLY">Monthly</option>
               </select>
             </div>
           </div>
 
-          {/* Calculator */}
           {parseFloat(amount) > 0 && (
             <div className="rounded-lg bg-muted/30 p-3 text-sm">
               <p className="text-muted-foreground">
-                At {formatMoney(parseFloat(amount))}/{frequency.toLowerCase()}, you'll reach your goal in{' '}
+                At {formatMoney(parseFloat(amount))}/{frequency.toLowerCase().replace('_', '-')}, you'll reach your goal in{' '}
                 <span className="font-bold text-foreground">
-                  {Math.ceil((goal.targetAmount - goal.currentAmount) / (parseFloat(amount) * (frequency === 'DAILY' ? 30 : frequency === 'WEEKLY' ? 4 : 1)))} months
+                  {Math.ceil((goal.targetAmount - goal.currentAmount) / (parseFloat(amount) * (frequency === 'DAILY' ? 30 : frequency === 'WEEKLY' ? 4 : frequency === 'BI_WEEKLY' ? 2 : 1)))} months
                 </span>
               </p>
             </div>
@@ -527,8 +571,13 @@ function AutoDebitTab({ goal }: { goal: SavingsGoal }) {
 
           <button onClick={() => {
             const amt = parseFloat(amount);
-            if (!amt || amt < 100) { toast.error('Minimum amount is ₦100'); return; }
-            mutation.mutate({ amount: amt, frequency, startDate: goal.autoDebit?.startDate ?? new Date().toISOString().split('T')[0], status: 'ACTIVE' });
+            if (!amt || amt < 100) { toast.error('Minimum amount is 100'); return; }
+            mutation.mutate({
+              autoDebitEnabled: true,
+              autoDebitAmount: amt,
+              autoDebitFrequency: frequency,
+              autoDebitAccountId: goal.accountId,
+            });
           }} disabled={mutation.isPending}
             className="btn-primary flex items-center gap-2">
             {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -551,8 +600,8 @@ export function GoalDetailPage() {
   const [showContribute, setShowContribute] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
 
-  const goalQuery = useQuery({ queryKey: ['goal', id], queryFn: () => getGoalById(id!), enabled: !!id });
-  const contributionsQuery = useQuery({ queryKey: ['goal-contributions', id], queryFn: () => getGoalContributions(id!), enabled: !!id });
+  const goalQuery = useGoalDetail(id!);
+  const contributionsQuery = useGoalContributions(id!);
 
   const goal = goalQuery.data;
   const contributions = contributionsQuery.data ?? [];
@@ -571,26 +620,30 @@ export function GoalDetailPage() {
     );
   }
 
-  const pct = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
+  const pct = goal.progressPercentage;
   const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0);
-  const monthsRemaining = Math.max(Math.ceil((new Date(goal.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)), 1);
-  const monthlyNeeded = remaining > 0 ? Math.ceil(remaining / monthsRemaining) : 0;
+  const monthsRemaining = goal.targetDate
+    ? Math.max(Math.ceil((new Date(goal.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30)), 1)
+    : 0;
+  const monthlyNeeded = remaining > 0 && monthsRemaining > 0 ? Math.ceil(remaining / monthsRemaining) : 0;
+  const canWithdraw = !goal.isLocked && (goal.allowWithdrawalBeforeTarget || goal.status === 'COMPLETED');
 
-  // Chart data
   const chartData = useMemo(() => {
-    const sorted = [...contributions].sort((a, b) => a.date.localeCompare(b.date));
-    return sorted.map((c) => ({
-      date: format(parseISO(c.date), 'dd MMM'),
-      saved: c.runningTotal,
+    const deposits = [...contributions].filter(c => c.transactionType === 'DEPOSIT' || c.transactionType === 'INTEREST')
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return deposits.map((c) => ({
+      date: format(parseISO(c.createdAt), 'dd MMM'),
+      saved: c.runningBalance,
       target: goal.targetAmount,
     }));
   }, [contributions, goal.targetAmount]);
 
-  // Milestones
   const milestones = [25, 50, 75, 100].map((m) => ({
     pct: m, amount: (goal.targetAmount * m) / 100,
     reached: pct >= m,
   }));
+
+  const isActive = goal.status === 'ACTIVE';
 
   const tabs = [
     {
@@ -598,7 +651,6 @@ export function GoalDetailPage() {
       label: 'Progress',
       content: (
         <div className="p-4 space-y-6">
-          {/* Savings growth chart */}
           {chartData.length > 1 && (
             <div className="rounded-xl border bg-card p-5">
               <h3 className="text-sm font-semibold mb-4">Savings Growth</h3>
@@ -612,7 +664,7 @@ export function GoalDetailPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                  <YAxis tickFormatter={(v) => `₦${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} tick={{ fontSize: 11 }} />
                   <Tooltip formatter={(value: number, name: string) => [formatMoney(value), name === 'saved' ? 'Amount Saved' : 'Target']} />
                   <ReferenceLine y={goal.targetAmount} stroke="#22c55e" strokeDasharray="6 3" label={{ value: 'Target', position: 'right', fontSize: 11 }} />
                   <Area type="monotone" dataKey="saved" name="saved" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#savedGradient)" dot={{ r: 3 }} activeDot={{ r: 5 }} />
@@ -620,37 +672,34 @@ export function GoalDetailPage() {
               </ResponsiveContainer>
             </div>
           )}
-
-          {/* Projection */}
           <SavingsProjection goal={goal} />
-
-          {/* Calendar */}
           <ContributionCalendar contributions={contributions} />
         </div>
       ),
     },
     {
       id: 'contributions',
-      label: 'Contributions',
+      label: 'Transactions',
       badge: contributions.length || undefined,
       content: (
         <div className="p-4 space-y-4">
-          {/* Summary */}
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-lg border p-3 text-center">
               <p className="text-xs text-muted-foreground">Total</p>
               <p className="text-lg font-bold">{contributions.length}</p>
             </div>
             <div className="rounded-lg border p-3 text-center">
-              <p className="text-xs text-muted-foreground">Average</p>
-              <p className="text-lg font-bold font-mono">{formatMoney(contributions.length > 0 ? contributions.reduce((s, c) => s + c.amount, 0) / contributions.length : 0)}</p>
+              <p className="text-xs text-muted-foreground">Average Deposit</p>
+              <p className="text-lg font-bold font-mono">{formatMoney(
+                (() => { const deps = contributions.filter(c => c.transactionType === 'DEPOSIT'); return deps.length > 0 ? deps.reduce((s, c) => s + c.amount, 0) / deps.length : 0; })()
+              )}</p>
             </div>
             <div className="rounded-lg border p-3 text-center">
-              <p className="text-xs text-muted-foreground">Largest</p>
-              <p className="text-lg font-bold font-mono">{formatMoney(Math.max(...contributions.map((c) => c.amount), 0))}</p>
+              <p className="text-xs text-muted-foreground">Largest Deposit</p>
+              <p className="text-lg font-bold font-mono">{formatMoney(Math.max(...contributions.filter(c => c.transactionType === 'DEPOSIT').map((c) => c.amount), 0))}</p>
             </div>
           </div>
-          <DataTable columns={contributionCols} data={contributions} isLoading={contributionsQuery.isLoading} enableGlobalFilter enableExport exportFilename={`goal-${id}-contributions`} emptyMessage="No contributions yet" />
+          <DataTable columns={contributionCols} data={contributions} isLoading={contributionsQuery.isLoading} enableGlobalFilter enableExport exportFilename={`goal-${id}-transactions`} emptyMessage="No transactions yet" />
         </div>
       ),
     },
@@ -666,37 +715,96 @@ export function GoalDetailPage() {
     },
   ];
 
+  // Add interest tab if goal is interest-bearing
+  if (goal.interestBearing) {
+    tabs.splice(3, 0, {
+      id: 'interest',
+      label: 'Interest',
+      content: (
+        <div className="p-4 space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg border p-4 text-center">
+              <p className="text-xs text-muted-foreground">Interest Rate</p>
+              <p className="text-lg font-bold">{goal.interestRate}% p.a.</p>
+            </div>
+            <div className="rounded-lg border p-4 text-center">
+              <p className="text-xs text-muted-foreground">Accrued Interest</p>
+              <p className="text-lg font-bold font-mono text-green-600">{formatMoney(goal.accruedInterest)}</p>
+            </div>
+            <div className="rounded-lg border p-4 text-center">
+              <p className="text-xs text-muted-foreground">Total Value</p>
+              <p className="text-lg font-bold font-mono">{formatMoney(goal.currentAmount + goal.accruedInterest)}</p>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <p className="text-sm text-muted-foreground">Interest transactions</p>
+            <DataTable
+              columns={contributionCols}
+              data={contributions.filter(c => c.transactionType === 'INTEREST')}
+              isLoading={contributionsQuery.isLoading}
+              emptyMessage="No interest accrued yet"
+              pageSize={10}
+            />
+          </div>
+        </div>
+      ),
+    });
+  }
+
   return (
     <>
-      {showCelebration && <GoalCelebration goal={goal} onClose={() => setShowCelebration(false)} />}
+      {showCelebration && <GoalCelebration goalName={goal.goalName} onClose={() => setShowCelebration(false)} />}
       {showContribute && <ContributeSheet goal={goal} onClose={() => setShowContribute(false)} />}
       {showWithdraw && <WithdrawSheet goal={goal} onClose={() => setShowWithdraw(false)} />}
 
       <PageHeader
-        title={`${goal.icon} ${goal.name}`}
+        title={`${goal.goalIcon || '🎯'} ${goal.goalName}`}
         subtitle={
           <span className="flex items-center gap-2">
             <StatusBadge status={goal.status} dot />
-            {goal.autoDebit && <span className="text-xs">Auto-debit: {formatMoney(goal.autoDebit.amount)}/{goal.autoDebit.frequency.toLowerCase()}</span>}
+            <span className="text-xs font-mono text-muted-foreground">{goal.goalNumber}</span>
+            {goal.autoDebitEnabled && goal.autoDebitAmount && (
+              <span className="text-xs">Auto-debit: {formatMoney(goal.autoDebitAmount)}/{(goal.autoDebitFrequency ?? 'MONTHLY').toLowerCase().replace('_', '-')}</span>
+            )}
             <span className="text-xs text-muted-foreground">Created {formatDate(goal.createdAt)}</span>
           </span>
         }
         backTo="/accounts/goals"
         actions={
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowWithdraw(true)} disabled={goal.currentAmount <= 0}
-              className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-40">
-              Withdraw
-            </button>
-            <button onClick={() => setShowContribute(true)} disabled={goal.status === 'COMPLETED'}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40">
-              <Plus className="w-4 h-4" /> Contribute
-            </button>
+            {canWithdraw && (
+              <button onClick={() => setShowWithdraw(true)} disabled={goal.currentAmount <= 0}
+                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-40">
+                Withdraw
+              </button>
+            )}
+            {isActive && (
+              <button onClick={() => setShowContribute(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40">
+                <Plus className="w-4 h-4" /> Contribute
+              </button>
+            )}
           </div>
         }
       />
 
       <div className="page-container space-y-6">
+        {/* Goal details row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
+          <div className="rounded-lg border bg-card p-3">
+            <span className="text-xs text-muted-foreground">Customer</span>
+            <p className="font-medium">{goal.customerDisplayName}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <span className="text-xs text-muted-foreground">Account</span>
+            <p className="font-mono">{goal.accountNumber}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <span className="text-xs text-muted-foreground">Currency</span>
+            <p className="font-medium">{goal.currencyCode}</p>
+          </div>
+        </div>
+
         {/* Progress Hero */}
         <div className="rounded-xl border bg-card p-6">
           <div className="flex flex-col lg:flex-row gap-6 items-center">
@@ -705,16 +813,32 @@ export function GoalDetailPage() {
               <div><p className="text-xs text-muted-foreground">Target</p><p className="text-lg font-bold font-mono">{formatMoney(goal.targetAmount)}</p></div>
               <div><p className="text-xs text-muted-foreground">Saved</p><p className="text-lg font-bold font-mono text-green-600">{formatMoney(goal.currentAmount)}</p></div>
               <div><p className="text-xs text-muted-foreground">Remaining</p><p className="text-lg font-bold font-mono">{formatMoney(remaining)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Monthly Needed</p><p className="text-lg font-bold font-mono">{remaining > 0 ? formatMoney(monthlyNeeded) : '—'}</p></div>
-              <div><p className="text-xs text-muted-foreground">Target Date</p><p className="text-sm font-medium">{formatDate(goal.targetDate)}</p></div>
-              <div><p className="text-xs text-muted-foreground">ETA</p><p className="text-sm font-medium">{remaining > 0 ? `${monthsRemaining} months` : 'Completed!'}</p></div>
+              <div><p className="text-xs text-muted-foreground">Monthly Needed</p><p className="text-lg font-bold font-mono">{monthlyNeeded > 0 ? formatMoney(monthlyNeeded) : '—'}</p></div>
+              <div><p className="text-xs text-muted-foreground">Target Date</p><p className="text-sm font-medium">{goal.targetDate ? formatDate(goal.targetDate) : 'No deadline'}</p></div>
+              <div><p className="text-xs text-muted-foreground">ETA</p><p className="text-sm font-medium">{remaining > 0 && monthsRemaining > 0 ? `${monthsRemaining} months` : remaining <= 0 ? 'Completed!' : '—'}</p></div>
             </div>
           </div>
+
+          {/* Lock / Withdrawal restrictions */}
+          {(goal.isLocked || !goal.allowWithdrawalBeforeTarget) && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {goal.isLocked && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                  🔒 Locked
+                </span>
+              )}
+              {!goal.allowWithdrawalBeforeTarget && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                  No early withdrawal
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Milestones */}
           <div className="mt-6 pt-4 border-t">
             <div className="flex items-center justify-between">
-              {milestones.map((m, i) => (
+              {milestones.map((m) => (
                 <div key={m.pct} className="flex flex-col items-center gap-1">
                   <div className={cn('w-4 h-4 rounded-full border-2',
                     m.reached ? 'bg-green-500 border-green-500' : pct >= m.pct - 5 ? 'border-primary bg-primary/20' : 'border-border bg-background')}>

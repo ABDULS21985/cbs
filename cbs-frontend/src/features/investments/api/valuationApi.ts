@@ -35,7 +35,9 @@ export const valuationApi = {
   listRuns: (params?: Record<string, unknown>) =>
     apiGet<ValuationRun[]>('/api/v1/valuations/runs', params),
   runValuation: (data: { valuationDate: string; modelId: number; runType: string }) =>
-    apiPost<ValuationRun>('/api/v1/valuations/runs', data),
+    apiPost<ValuationRun>(
+      `/api/v1/valuations/runs?modelId=${data.modelId}&date=${encodeURIComponent(data.valuationDate)}&runType=${encodeURIComponent(data.runType)}`,
+    ),
   recordInstrument: (runRef: string, data: Partial<InstrumentValuation>) =>
     apiPost<InstrumentValuation>(`/api/v1/valuations/runs/${runRef}/instruments`, data),
   completeRun: (runRef: string) =>

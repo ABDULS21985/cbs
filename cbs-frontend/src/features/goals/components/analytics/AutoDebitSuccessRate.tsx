@@ -1,14 +1,13 @@
-import { cn } from '@/lib/utils';
-import type { GoalContribution } from '../../api/goalApi';
+import type { GoalTransaction } from '../../api/goalApi';
 
 interface Props {
-  contributions: GoalContribution[];
+  contributions: GoalTransaction[];
 }
 
 export function AutoDebitSuccessRate({ contributions }: Props) {
-  const autoContribs = contributions.filter((c) => c.type === 'AUTO');
-  const total = autoContribs.length || 1;
-  const successful = autoContribs.filter((c) => c.amount > 0).length;
+  const deposits = contributions.filter((c) => c.transactionType === 'DEPOSIT');
+  const total = deposits.length || 1;
+  const successful = deposits.filter((c) => c.amount > 0).length;
   const rate = Math.round((successful / total) * 100);
 
   const circumference = 2 * Math.PI * 45;
@@ -29,9 +28,9 @@ export function AutoDebitSuccessRate({ contributions }: Props) {
         </div>
       </div>
       <div className="space-y-2 text-sm">
-        <p><span className="font-mono font-medium">{successful}</span> <span className="text-muted-foreground">successful</span></p>
-        <p><span className="font-mono font-medium">{total - successful}</span> <span className="text-muted-foreground">failed</span></p>
-        <p><span className="font-mono font-medium">{total}</span> <span className="text-muted-foreground">total auto-debits</span></p>
+        <p><span className="font-mono font-medium">{successful}</span> <span className="text-muted-foreground">successful deposits</span></p>
+        <p><span className="font-mono font-medium">{contributions.filter(c => c.transactionType === 'WITHDRAWAL').length}</span> <span className="text-muted-foreground">withdrawals</span></p>
+        <p><span className="font-mono font-medium">{contributions.length}</span> <span className="text-muted-foreground">total transactions</span></p>
       </div>
     </div>
   );

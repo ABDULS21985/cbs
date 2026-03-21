@@ -1,5 +1,16 @@
 // Auto-generated from backend entities
 
+export type WorkflowStatus = 'PENDING' | 'IN_PROGRESS' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'EXPIRED';
+
+export interface WorkflowStepAction {
+  stepNumber: number;
+  action: string;
+  actorRole: string;
+  actorId?: string;
+  actionDate?: string;
+  comments?: string;
+}
+
 export interface WorkflowDefinition {
   id: number;
   workflowCode: string;

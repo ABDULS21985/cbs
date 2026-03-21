@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Mail, MessageSquare, Bell, Inbox, Loader2 } from 'lucide-react';
+import { Mail, MessageSquare, Bell, Inbox, Loader2, Globe } from 'lucide-react';
 import type { NotificationChannel } from '../types/notificationExt';
 
 const CHANNEL_CONFIG: Record<NotificationChannel, { icon: typeof Mail; label: string; color: string }> = {
@@ -7,6 +7,7 @@ const CHANNEL_CONFIG: Record<NotificationChannel, { icon: typeof Mail; label: st
   SMS: { icon: MessageSquare, label: 'SMS', color: 'text-green-600' },
   PUSH: { icon: Bell, label: 'Push', color: 'text-purple-600' },
   IN_APP: { icon: Inbox, label: 'In-App', color: 'text-amber-600' },
+  WEBHOOK: { icon: Globe, label: 'Webhook', color: 'text-cyan-600' },
 };
 
 interface ChannelToggleCardProps {

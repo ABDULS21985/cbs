@@ -38,7 +38,9 @@ function AckDialog({ messageRef, type, onClose }: { messageRef: string; type: 'a
   const qc = useQueryClient();
   const [value, setValue] = useState('');
   const mutation = useMutation({
-    mutationFn: () => type === 'ack' ? financialGatewayApi.ack(messageRef) : financialGatewayApi.ack2(messageRef),
+    mutationFn: () => type === 'ack'
+      ? financialGatewayApi.ack(messageRef, value || messageRef)
+      : financialGatewayApi.nack(messageRef, value || 'Rejected'),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['gateway'] }); toast.success(type === 'ack' ? 'Acknowledged' : 'NACKed'); onClose(); },
   });
   return (

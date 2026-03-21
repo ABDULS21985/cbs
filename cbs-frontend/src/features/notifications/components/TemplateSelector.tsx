@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Mail, MessageSquare, Bell, Smartphone, Check } from 'lucide-react';
+import { Search, Mail, MessageSquare, Bell, Smartphone, Check, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotificationTemplates } from '../hooks/useNotificationsExt';
 import type { NotificationTemplate } from '../types/notificationExt';
@@ -9,6 +9,7 @@ const CHANNEL_ICONS: Record<string, React.ReactNode> = {
   SMS: <MessageSquare className="w-3.5 h-3.5" />,
   PUSH: <Bell className="w-3.5 h-3.5" />,
   IN_APP: <Smartphone className="w-3.5 h-3.5" />,
+  WEBHOOK: <Globe className="w-3.5 h-3.5" />,
 };
 
 const CHANNEL_COLORS: Record<string, string> = {
@@ -16,6 +17,7 @@ const CHANNEL_COLORS: Record<string, string> = {
   SMS: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   PUSH: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   IN_APP: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  WEBHOOK: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
 };
 
 export function TemplateSelector({ selected, onSelect }: {
@@ -32,7 +34,8 @@ export function TemplateSelector({ selected, onSelect }: {
     if (search) {
       const q = search.toLowerCase();
       list = list.filter((t) =>
-        (t.code ?? '').toLowerCase().includes(q) ||
+        (t.templateCode ?? '').toLowerCase().includes(q) ||
+        (t.templateName ?? '').toLowerCase().includes(q) ||
         (t.subject ?? '').toLowerCase().includes(q) ||
         (t.eventType ?? '').toLowerCase().includes(q)
       );
@@ -55,7 +58,7 @@ export function TemplateSelector({ selected, onSelect }: {
 
       {/* Channel filter */}
       <div className="flex gap-1.5">
-        {['ALL', 'EMAIL', 'SMS', 'PUSH', 'IN_APP'].map((ch) => (
+        {['ALL', 'EMAIL', 'SMS', 'PUSH', 'IN_APP', 'WEBHOOK'].map((ch) => (
           <button key={ch} onClick={() => setChannelFilter(ch)}
             className={cn('px-2 py-1 text-xs font-medium rounded-md transition-colors',
               channelFilter === ch ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80')}>
@@ -77,7 +80,7 @@ export function TemplateSelector({ selected, onSelect }: {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium truncate">{template.subject || template.code || 'Untitled'}</span>
+                    <span className="text-sm font-medium truncate">{template.templateName || template.subject || template.templateCode || 'Untitled'}</span>
                     {isSelected && <Check className="w-4 h-4 text-primary shrink-0" />}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
@@ -87,7 +90,7 @@ export function TemplateSelector({ selected, onSelect }: {
                     {template.eventType && <span className="text-[10px] text-muted-foreground">{template.eventType}</span>}
                   </div>
                 </div>
-                <span className="font-mono text-[10px] text-muted-foreground shrink-0">{template.code}</span>
+                <span className="font-mono text-[10px] text-muted-foreground shrink-0">{template.templateCode}</span>
               </div>
               {template.bodyTemplate && (
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{template.bodyTemplate.slice(0, 80)}...</p>

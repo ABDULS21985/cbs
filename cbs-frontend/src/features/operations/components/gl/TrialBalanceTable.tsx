@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileDown, ToggleLeft, ToggleRight } from 'lucide-react';
+import { FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { glApi } from '../../api/glApi';
 import type { TrialBalanceRow } from '../../api/glApi';
 import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { format, lastDayOfMonth } from 'date-fns';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -14,33 +15,43 @@ const MONTHS = [
 
 const YEARS = [2024, 2025, 2026];
 
+/** Build a LocalDate string for the last day of a given month/year */
+function buildDate(year: number, month: number): string {
+  const d = lastDayOfMonth(new Date(year, month - 1, 1));
+  return format(d, 'yyyy-MM-dd');
+}
+
 export function TrialBalanceTable() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [compareMode, setCompareMode] = useState<'none' | 'prev-month' | 'prior-year'>('none');
 
+  const dateStr = buildDate(year, month);
+
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ['trial-balance', year, month],
-    queryFn: () => glApi.getTrialBalance({ year, month }),
+    queryKey: ['trial-balance', dateStr],
+    queryFn: () => glApi.getTrialBalance(dateStr),
   });
 
+  const prevDate = buildDate(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1);
   const { data: prevMonthRows = [] } = useQuery({
-    queryKey: ['trial-balance', month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1],
-    queryFn: () => glApi.getTrialBalance({ year: month === 1 ? year - 1 : year, month: month === 1 ? 12 : month - 1 }),
+    queryKey: ['trial-balance', prevDate],
+    queryFn: () => glApi.getTrialBalance(prevDate),
     enabled: compareMode === 'prev-month',
   });
 
+  const priorYearDate = buildDate(year - 1, month);
   const { data: priorYearRows = [] } = useQuery({
-    queryKey: ['trial-balance', year - 1, month],
-    queryFn: () => glApi.getTrialBalance({ year: year - 1, month }),
+    queryKey: ['trial-balance', priorYearDate],
+    queryFn: () => glApi.getTrialBalance(priorYearDate),
     enabled: compareMode === 'prior-year',
   });
 
   const compareRows = compareMode === 'prev-month' ? prevMonthRows : compareMode === 'prior-year' ? priorYearRows : [];
 
-  const grandTotalDr = rows.filter((r) => r.level === 0).reduce((s, r) => s + r.closingDr, 0);
-  const grandTotalCr = rows.filter((r) => r.level === 0).reduce((s, r) => s + r.closingCr, 0);
+  const grandTotalDr = rows.reduce((s, r) => s + r.debitTotal, 0);
+  const grandTotalCr = rows.reduce((s, r) => s + r.creditTotal, 0);
   const difference = grandTotalDr - grandTotalCr;
   const isBalanced = Math.abs(difference) < 0.01;
 
@@ -85,7 +96,6 @@ export function TrialBalanceTable() {
               compareMode === 'prev-month' ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted',
             )}
           >
-            {compareMode === 'prev-month' ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
             vs Prev Month
           </button>
           <button
@@ -95,7 +105,6 @@ export function TrialBalanceTable() {
               compareMode === 'prior-year' ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted',
             )}
           >
-            {compareMode === 'prior-year' ? <ToggleRight className="w-3.5 h-3.5" /> : <ToggleLeft className="w-3.5 h-3.5" />}
             vs Prior Year
           </button>
         </div>
@@ -117,20 +126,15 @@ export function TrialBalanceTable() {
           <thead>
             <tr className="bg-muted/30 border-b text-muted-foreground">
               <th className="text-left px-4 py-2.5 font-medium w-24">GL Code</th>
-              <th className="text-left px-4 py-2.5 font-medium">Account Name</th>
-              <th className="text-right px-3 py-2.5 font-medium">Opening DR</th>
-              <th className="text-right px-3 py-2.5 font-medium">Opening CR</th>
-              <th className="text-right px-3 py-2.5 font-medium">Period DR</th>
-              <th className="text-right px-3 py-2.5 font-medium">Period CR</th>
-              <th className="text-right px-3 py-2.5 font-medium">Closing DR</th>
-              <th className="text-right px-3 py-2.5 font-medium">Closing CR</th>
+              <th className="text-center px-3 py-2.5 font-medium">Currency</th>
+              <th className="text-right px-3 py-2.5 font-medium">Opening</th>
+              <th className="text-right px-3 py-2.5 font-medium">Debits</th>
+              <th className="text-right px-3 py-2.5 font-medium">Credits</th>
+              <th className="text-right px-3 py-2.5 font-medium">Closing</th>
               {compareMode !== 'none' && (
                 <>
                   <th className="text-right px-3 py-2.5 font-medium border-l text-blue-600">
-                    {compareMode === 'prev-month' ? 'Prev DR' : 'PY DR'}
-                  </th>
-                  <th className="text-right px-3 py-2.5 font-medium text-blue-600">
-                    {compareMode === 'prev-month' ? 'Prev CR' : 'PY CR'}
+                    {compareMode === 'prev-month' ? 'Prev Closing' : 'PY Closing'}
                   </th>
                   <th className="text-right px-3 py-2.5 font-medium text-blue-600">Variance</th>
                 </>
@@ -141,7 +145,7 @@ export function TrialBalanceTable() {
             {isLoading ? (
               Array.from({ length: 10 }).map((_, i) => (
                 <tr key={i} className="border-b">
-                  {Array.from({ length: compareMode !== 'none' ? 11 : 8 }).map((_, j) => (
+                  {Array.from({ length: compareMode !== 'none' ? 8 : 6 }).map((_, j) => (
                     <td key={j} className="px-3 py-2.5">
                       <div className="h-3.5 bg-muted rounded animate-pulse" />
                     </td>
@@ -151,50 +155,30 @@ export function TrialBalanceTable() {
             ) : (
               rows.map((row) => {
                 const cmp = getCompareRow(row.glCode);
-                const variance = cmp ? (row.closingDr - row.closingCr) - (cmp.closingDr - cmp.closingCr) : 0;
+                const variance = cmp ? row.closingBalance - cmp.closingBalance : 0;
                 return (
                   <tr
-                    key={row.glCode}
-                    className={cn(
-                      'border-b border-border/40',
-                      row.isHeader && row.level === 0 && 'bg-muted/30 font-semibold',
-                      row.isHeader && row.level === 1 && 'bg-muted/10 font-medium',
-                    )}
+                    key={`${row.glCode}-${row.branchCode}-${row.currencyCode}`}
+                    className="border-b border-border/40 hover:bg-muted/20"
                   >
-                    <td
-                      className="px-4 py-2 font-mono"
-                      style={{ paddingLeft: `${16 + row.level * 16}px` }}
-                    >
-                      {row.glCode}
-                    </td>
-                    <td className={cn('px-4 py-2', row.isHeader ? 'font-semibold' : 'font-normal')}>
-                      {row.name}
+                    <td className="px-4 py-2 font-mono">{row.glCode}</td>
+                    <td className="px-3 py-2 text-center text-muted-foreground">{row.currencyCode}</td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatMoney(row.openingBalance)}
                     </td>
                     <td className="px-3 py-2 text-right font-mono">
-                      {row.openingDr > 0 ? formatMoney(row.openingDr) : '—'}
+                      {row.debitTotal > 0 ? formatMoney(row.debitTotal) : '—'}
                     </td>
                     <td className="px-3 py-2 text-right font-mono">
-                      {row.openingCr > 0 ? formatMoney(row.openingCr) : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono">
-                      {row.periodDr > 0 ? formatMoney(row.periodDr) : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono">
-                      {row.periodCr > 0 ? formatMoney(row.periodCr) : '—'}
+                      {row.creditTotal > 0 ? formatMoney(row.creditTotal) : '—'}
                     </td>
                     <td className="px-3 py-2 text-right font-mono font-medium">
-                      {row.closingDr > 0 ? formatMoney(row.closingDr) : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-right font-mono font-medium">
-                      {row.closingCr > 0 ? formatMoney(row.closingCr) : '—'}
+                      {formatMoney(row.closingBalance)}
                     </td>
                     {compareMode !== 'none' && (
                       <>
                         <td className="px-3 py-2 text-right font-mono border-l text-muted-foreground">
-                          {cmp && cmp.closingDr > 0 ? formatMoney(cmp.closingDr) : '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono text-muted-foreground">
-                          {cmp && cmp.closingCr > 0 ? formatMoney(cmp.closingCr) : '—'}
+                          {cmp ? formatMoney(cmp.closingBalance) : '—'}
                         </td>
                         <td className={cn('px-3 py-2 text-right font-mono', variance > 0 ? 'text-green-600' : variance < 0 ? 'text-red-600' : 'text-muted-foreground')}>
                           {variance !== 0 ? (variance > 0 ? '+' : '') + formatMoney(variance) : '—'}
@@ -209,28 +193,26 @@ export function TrialBalanceTable() {
           {!isLoading && rows.length > 0 && (
             <tfoot>
               <tr className="bg-muted/50 border-t-2 font-bold text-sm">
-                <td colSpan={2} className="px-4 py-3">Grand Total</td>
-                <td colSpan={4} />
+                <td colSpan={3} className="px-4 py-3">Grand Total</td>
                 <td className="px-3 py-3 text-right font-mono">{formatMoney(grandTotalDr)}</td>
                 <td className="px-3 py-3 text-right font-mono">{formatMoney(grandTotalCr)}</td>
-                {compareMode !== 'none' && <td colSpan={3} />}
+                <td className="px-3 py-3 text-right font-mono">{formatMoney(grandTotalDr - grandTotalCr)}</td>
+                {compareMode !== 'none' && <td colSpan={2} />}
               </tr>
               {!isBalanced && (
                 <tr className="bg-red-50 dark:bg-red-900/20 border-t text-red-700 dark:text-red-400 font-semibold text-sm">
-                  <td colSpan={2} className="px-4 py-3">Difference (Out of Balance)</td>
-                  <td colSpan={4} />
-                  <td colSpan={2} className="px-3 py-3 text-right font-mono">
+                  <td colSpan={3} className="px-4 py-3">Difference (Out of Balance)</td>
+                  <td colSpan={3} className="px-3 py-3 text-right font-mono">
                     {formatMoney(Math.abs(difference))}
                   </td>
-                  {compareMode !== 'none' && <td colSpan={3} />}
+                  {compareMode !== 'none' && <td colSpan={2} />}
                 </tr>
               )}
               {isBalanced && (
                 <tr className="bg-green-50 dark:bg-green-900/20 border-t text-green-700 dark:text-green-400 text-xs">
-                  <td colSpan={8} className="px-4 py-2 text-center font-medium">
+                  <td colSpan={6 + (compareMode !== 'none' ? 2 : 0)} className="px-4 py-2 text-center font-medium">
                     Trial Balance is in balance for {MONTHS[month - 1]} {year}
                   </td>
-                  {compareMode !== 'none' && <td colSpan={3} />}
                 </tr>
               )}
             </tfoot>

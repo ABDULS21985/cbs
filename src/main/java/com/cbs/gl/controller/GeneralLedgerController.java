@@ -4,6 +4,7 @@ import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.gl.dto.PostJournalRequest;
+import com.cbs.gl.dto.ReconBreakDetail;
 import com.cbs.gl.entity.*;
 import com.cbs.gl.repository.ChartOfAccountsRepository;
 import com.cbs.gl.repository.GlBalanceRepository;
@@ -194,6 +195,34 @@ public class GeneralLedgerController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<GlBalance>>> getTrialBalanceToday() {
         return ResponseEntity.ok(ApiResponse.ok(glService.getTrialBalance(LocalDate.now())));
+    }
+
+    @GetMapping("/reconciliation/break-details")
+    @Operation(summary = "Get account-level break details for a reconciliation mismatch")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ReconBreakDetail>>> getBreakDetails(
+            @RequestParam String module,
+            @RequestParam LocalDate date,
+            @RequestParam(required = false) String branchCode,
+            @RequestParam(required = false) String currencyCode) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                glService.getBreakDetails(module, date, branchCode, currencyCode)));
+    }
+
+    @GetMapping("/accounts/{glCode}/entries")
+    @Operation(summary = "Get journal entries that contain lines for a specific GL code")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<JournalEntry>>> getGlDrillDown(
+            @PathVariable String glCode,
+            @RequestParam(required = false) LocalDate dateFrom,
+            @RequestParam(required = false) LocalDate dateTo,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        if (dateFrom == null) dateFrom = LocalDate.now().minusMonths(1);
+        if (dateTo == null) dateTo = LocalDate.now();
+        Page<JournalEntry> result = journalEntryRepository.findByGlCodeAndDateRange(
+                glCode, dateFrom, dateTo, PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
     @GetMapping("/reconciliation")

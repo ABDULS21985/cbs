@@ -1,9 +1,21 @@
 // ─── Nostro/Vostro Position Management Types ─────────────────────────────────
+// Aligned with backend enums: com.cbs.nostro.entity.*
 
 export type PositionType = 'NOSTRO' | 'VOSTRO';
-export type ReconciliationStatus = 'PENDING' | 'RECONCILED' | 'PARTIALLY_RECONCILED' | 'UNRECONCILED';
-export type MatchStatus = 'MATCHED' | 'UNMATCHED' | 'PARTIALLY_MATCHED' | 'WRITTEN_OFF';
-export type ReconItemType = 'OUR_ITEM' | 'THEIR_ITEM';
+
+export type ReconciliationStatus = 'PENDING' | 'IN_PROGRESS' | 'RECONCILED' | 'DISCREPANCY';
+
+export type MatchStatus = 'MATCHED' | 'UNMATCHED' | 'PARTIAL' | 'DISPUTED' | 'WRITTEN_OFF';
+
+export type ReconItemType =
+  | 'DEBIT_OUR_BOOKS'
+  | 'CREDIT_OUR_BOOKS'
+  | 'DEBIT_THEIR_BOOKS'
+  | 'CREDIT_THEIR_BOOKS'
+  | 'UNMATCHED_OURS'
+  | 'UNMATCHED_THEIRS';
+
+export type CorrespondentRelationshipType = 'NOSTRO' | 'VOSTRO' | 'BOTH';
 
 export interface CorrespondentBank {
   id: number;
@@ -12,7 +24,7 @@ export interface CorrespondentBank {
   swiftBic: string;
   country: string;
   city: string;
-  relationshipType: string;
+  relationshipType: CorrespondentRelationshipType;
   isActive: boolean;
   contactName: string;
   contactEmail: string;
@@ -22,8 +34,14 @@ export interface CorrespondentBank {
   updatedAt?: string;
 }
 
+// Aligned with NostroPositionDto.java
 export interface NostroPosition {
   id: number;
+  accountId: number;
+  accountNumber?: string;
+  correspondentBankId: number;
+  correspondentBankName?: string;
+  correspondentSwiftBic?: string;
   positionType: PositionType;
   currencyCode: string;
   bookBalance: number;
@@ -37,15 +55,9 @@ export interface NostroPosition {
   debitLimit: number | null;
   isActive: boolean;
   createdAt: string;
-  updatedAt?: string;
-  // Flattened from JPA relationships:
-  correspondentBankId?: number;
-  correspondentBankName?: string;
-  correspondentBankSwift?: string;
-  accountNumber?: string;
-  accountName?: string;
 }
 
+// Aligned with ReconciliationItemDto.java
 export interface NostroReconItem {
   id: number;
   itemType: ReconItemType;
@@ -59,5 +71,60 @@ export interface NostroReconItem {
   resolvedDate?: string;
   resolvedBy?: string;
   notes?: string;
+}
+
+// ─── Sub-Ledger Reconciliation Types ──────────────────────────────────────────
+// Aligned with SubledgerReconRun entity and SubledgerReconRunResponse DTO
+
+export type SubledgerType = 'ACCOUNTS' | 'FIXED_DEPOSITS' | 'RECURRING_DEPOSITS' | 'DEPOSITS';
+
+export interface SubledgerReconRun {
+  id: number;
+  reconDate: string;
+  subledgerType: string;
+  glCode: string;
+  branchCode?: string;
+  currencyCode?: string;
+  glBalance: number;
+  subledgerBalance: number;
+  difference: number;
+  balanced: boolean;
+  exceptionCount: number;
+  status: string;
+  resolvedBy?: string;
+  resolvedAt?: string;
   createdAt: string;
+}
+
+// ─── Create/Update DTOs ─────────────────────────────────────────────────────
+
+export interface CreatePositionRequest {
+  accountId: number;
+  correspondentBankId: number;
+  positionType: PositionType;
+  currencyCode: string;
+  bookBalance?: number;
+  statementBalance?: number;
+  creditLimit?: number;
+  debitLimit?: number;
+}
+
+export interface CreateReconItemRequest {
+  itemType: ReconItemType;
+  reference: string;
+  amount: number;
+  currencyCode?: string;
+  valueDate: string;
+  narration?: string;
+  matchReference?: string;
+  matchStatus?: MatchStatus;
+  notes?: string;
+}
+
+export interface RunSubledgerReconRequest {
+  subledgerType: SubledgerType;
+  glCode: string;
+  reconDate: string;
+  branchCode?: string;
+  currencyCode?: string;
 }

@@ -77,6 +77,16 @@ public class OpenBankingService {
 
     public List<ApiClient> getAllClients() { return clientRepository.findByIsActiveTrueOrderByClientNameAsc(); }
 
+    @Transactional
+    public ApiClient deactivateClient(String clientId) {
+        ApiClient client = clientRepository.findByClientId(clientId)
+                .orElseThrow(() -> new ResourceNotFoundException("ApiClient", "clientId", clientId));
+        client.setIsActive(false);
+        client.setUpdatedAt(Instant.now());
+        log.info("API client deactivated: id={}", clientId);
+        return clientRepository.save(client);
+    }
+
     private String hashKey(String key) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(key.getBytes()));

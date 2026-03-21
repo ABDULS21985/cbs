@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ClipboardCheck, RefreshCw, Shield, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/shared';
-import { useCollateralItem, useCollateralValuationHistory, useMarkPerfected, useReleaseCollateral } from '../hooks/useCollateral';
+import { useCollateralItem, useCollateralValuationHistory } from '../hooks/useCollateral';
 import { CollateralDetailCard } from '../components/collateral/CollateralDetailCard';
 import { CoverageAnalysis } from '../components/collateral/CoverageAnalysis';
 import { ValuationTimeline } from '../components/collateral/ValuationTimeline';
@@ -22,21 +23,18 @@ export function CollateralDetailPage() {
   const { data: collateral, isLoading } = useCollateralItem(collateralId);
   const { data: valuationHistory = [], isLoading: loadingHistory } =
     useCollateralValuationHistory(collateralId);
-  const { mutate: markPerfected, isPending: isPerfecting } = useMarkPerfected();
-  const { mutate: release, isPending: isReleasing } = useReleaseCollateral();
+  // Backend does not have mark-perfected or release endpoints
+  const isPerfecting = false;
+  const isReleasing = false;
 
   const handleMarkPerfected = () => {
-    if (confirm('Mark this collateral as perfected?')) {
-      markPerfected(collateralId);
-    }
+    // Backend does not have a mark-perfected endpoint yet
+    toast.info('Mark perfected is not yet supported by the backend');
   };
 
   const handleRelease = () => {
-    if (confirm('Release this collateral? This action cannot be undone.')) {
-      release(collateralId, {
-        onSuccess: () => navigate('/lending/collateral'),
-      });
-    }
+    // Backend does not have a release endpoint yet
+    toast.info('Collateral release is not yet supported by the backend');
   };
 
   if (isLoading) {

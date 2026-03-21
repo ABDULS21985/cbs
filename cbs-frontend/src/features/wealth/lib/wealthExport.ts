@@ -513,7 +513,6 @@ export function exportAumReportExcel(
     (sum, p) => sum + p.totalInvestableAssets,
     0
   );
-  const totalAdvisorAum = advisors.reduce((sum, a) => sum + a.aum, 0);
   const totalTrustCorpus = trusts.reduce((sum, t) => sum + t.corpusValue, 0);
   const totalAum = totalPlanAum + totalTrustCorpus;
 

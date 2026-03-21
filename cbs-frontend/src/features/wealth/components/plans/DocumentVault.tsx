@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Upload, Download, FileText, Loader2, Trash2 } from 'lucide-react';
+import { Upload, Download, FileText, Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/formatters';
 import { usePlanDocuments, useUploadPlanDocument } from '../../hooks/useWealthData';
 

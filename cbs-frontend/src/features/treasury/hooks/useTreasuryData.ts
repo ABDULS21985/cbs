@@ -12,7 +12,7 @@ export function useSecurityHoldings() {
 export function useCouponCalendar(days = 90) {
   return useQuery({
     queryKey: ['treasury', 'coupons', days],
-    queryFn: () => apiGet<CouponEvent[]>('/api/v1/treasury/coupons', { days }),
+    queryFn: () => apiGet<CouponEvent[]>('/api/v1/treasury/fixed-income/coupons', { size: 100 }),
   });
 }
 
@@ -61,7 +61,7 @@ export function useOrders(status?: string) {
         createdAt: string;
       }>>('/api/v1/treasury/orders', status ? { status } : undefined);
 
-      return orders.map((order) => ({
+      return orders.map((order): MarketOrder => ({
         id: Number(order.id),
         orderRef: order.orderRef,
         orderType: order.orderType,
@@ -72,7 +72,7 @@ export function useOrders(status?: string) {
         price: order.price,
         filledQuantity: order.filledQuantity,
         avgFillPrice: order.avgFillPrice,
-        timeInForce: 'DAY',
+        timeInForce: 'DAY' as const,
         status: (order.status === 'VALIDATED' || order.status === 'ROUTED') ? 'NEW' : order.status as MarketOrder['status'],
         createdAt: order.createdAt,
         account: order.deskName ?? order.deskId,
@@ -91,6 +91,6 @@ export function useTradeConfirmations(status?: string) {
 export function useSettlementFails() {
   return useQuery({
     queryKey: ['treasury', 'settlement-fails'],
-    queryFn: () => apiGet<SettlementFail[]>('/api/v1/open-items/open'),
+    queryFn: () => apiGet<SettlementFail[]>('/api/v1/treasury/settlement-fails'),
   });
 }

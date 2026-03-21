@@ -1,7 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared';
 import { formatDate } from '@/lib/formatters';
-import { useLogDunningOutcome } from '../../hooks/useCollections';
+import { toast } from 'sonner';
 import type { DunningQueueItem } from '../../types/collections';
 
 interface DunningQueueTableProps {
@@ -18,9 +18,10 @@ const ACTION_COLORS: Record<string, string> = {
 };
 
 function ActionButtons({ item }: { item: DunningQueueItem }) {
-  const { mutate, isPending } = useLogDunningOutcome();
+  const isPending = false;
 
-  const log = (outcome: string) => mutate({ id: item.id, outcome });
+  // Backend dunning-queue is read-only. Actions should be logged via collection case actions
+  const log = (outcome: string) => toast.info(`Log ${outcome} via the collection case detail page`);
 
   return (
     <div className="flex gap-1 flex-wrap">

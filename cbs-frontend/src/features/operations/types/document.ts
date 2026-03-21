@@ -1,5 +1,8 @@
 // Auto-generated from backend entities
 
+export type DocumentType = 'ID_DOCUMENT' | 'ADDRESS_PROOF' | 'FINANCIAL_STATEMENT' | 'CONTRACT' | 'COLLATERAL' | 'OTHER';
+export type TradeDocCategory = 'COMMERCIAL_INVOICE' | 'BILL_OF_LADING' | 'INSURANCE' | 'CERTIFICATE_OF_ORIGIN' | 'PACKING_LIST' | 'CUSTOMS' | 'OTHER';
+
 export interface Document {
   id: number;
   documentRef: string;

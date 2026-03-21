@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { psd2Api } from '../api/psd2Api';
-import type { Psd2TppRegistration } from '../api/psd2Api';
 
 const QK = {
   tpps: ['psd2', 'tpps'] as const,
@@ -19,7 +18,15 @@ export function useActivePsd2Tpps() {
 export function useRegisterPsd2Tpp() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Psd2TppRegistration>) => psd2Api.registerTpp(data),
+    mutationFn: (data: {
+      tppName: string;
+      tppType: string;
+      nationalAuthority: string;
+      authorizationNumber: string;
+      eidasCertificate?: string;
+      allowedScopes?: string[];
+      scaApproach?: string;
+    }) => psd2Api.registerTpp(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.tpps }); },
   });
 }
@@ -51,14 +58,20 @@ export function useCustomerScaSessions(customerId: number) {
 
 export function useInitiateSca() {
   return useMutation({
-    mutationFn: (data: { customerId: number; tppId: string; scopes: string[]; redirectUri: string }) =>
-      psd2Api.initiateSca(data),
+    mutationFn: (data: {
+      tppId: string;
+      customerId: number;
+      scaMethod: string;
+      paymentId?: number;
+      consentId?: string;
+      amount?: number;
+    }) => psd2Api.initiateSca(data),
   });
 }
 
 export function useFinaliseSca() {
   return useMutation({
-    mutationFn: ({ sessionId, authCode, state }: { sessionId: string; authCode: string; state: string }) =>
-      psd2Api.finaliseSca(sessionId, { authCode, state }),
+    mutationFn: ({ sessionId, success }: { sessionId: string; success: boolean }) =>
+      psd2Api.finaliseSca(sessionId, success),
   });
 }

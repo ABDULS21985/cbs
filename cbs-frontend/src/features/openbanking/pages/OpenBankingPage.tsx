@@ -176,7 +176,10 @@ export function OpenBankingPage() {
               <option value="">All Types</option>
               <option value="TPP_AISP">AISP</option>
               <option value="TPP_PISP">PISP</option>
-              <option value="TPP_BOTH">Both</option>
+              <option value="TPP_CBPII">CBPII</option>
+              <option value="INTERNAL">Internal</option>
+              <option value="PARTNER">Partner</option>
+              <option value="SANDBOX">Sandbox</option>
             </select>
             <select
               value={statusFilter}
@@ -266,6 +269,7 @@ export function OpenBankingPage() {
                 <option value="">All Statuses</option>
                 <option value="PENDING">Pending</option>
                 <option value="AUTHORISED">Authorised</option>
+                <option value="REJECTED">Rejected</option>
                 <option value="REVOKED">Revoked</option>
                 <option value="EXPIRED">Expired</option>
               </select>

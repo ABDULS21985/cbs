@@ -267,12 +267,7 @@ export function ScreeningDetailPage() {
     <>
       <PageHeader
         title={screening.screeningRef}
-        subtitle={
-          <span className="flex items-center gap-2">
-            <StatusBadge status={screening.status} dot />
-            <span className="text-xs font-mono text-muted-foreground">{screening.screeningTimeMs}ms</span>
-          </span>
-        }
+        subtitle={`${screening.status} · ${screening.screeningTimeMs}ms`}
         backTo="/compliance/sanctions"
       />
 

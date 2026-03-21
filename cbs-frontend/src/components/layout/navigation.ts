@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Users, Landmark, HandCoins, ArrowLeftRight, CreditCard,
   TrendingUp, ShieldAlert, Scale, Settings2, BarChart3, Shield,
   FileText, MessageSquare, Headphones, Activity, Building2, Briefcase, Globe,
-  Smartphone,
+  Smartphone, Bell, Brain,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -59,6 +59,12 @@ export const navigationItems: NavSection[] = [
           { label: 'Wallets', path: '/accounts/wallets' },
           { label: 'Statements', path: '/accounts/statements' },
           { label: 'Reconciliation', path: '/accounts/reconciliation' },
+          { label: 'Recon Workbench', path: '/accounts/reconciliation/workbench' },
+          { label: 'Nostro Positions', path: '/accounts/reconciliation/positions' },
+          { label: 'Correspondent Banks', path: '/accounts/reconciliation/banks' },
+          { label: 'Statement Import', path: '/accounts/reconciliation/import' },
+          { label: 'Break Management', path: '/accounts/reconciliation/breaks' },
+          { label: 'Recon Reports', path: '/accounts/reconciliation/reports' },
         ],
       },
       {
@@ -71,6 +77,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Collateral', path: '/lending/collateral' },
           { label: 'Collections', path: '/lending/collections' },
           { label: 'ECL Dashboard', path: '/lending/ecl' },
+          { label: 'Credit Risk', path: '/lending/credit-risk' },
           { label: 'Mortgages', path: '/lending/mortgages' },
           { label: 'Leases', path: '/lending/leases' },
           { label: 'Leased Assets', path: '/lending/leased-assets' },
@@ -92,6 +99,12 @@ export const navigationItems: NavSection[] = [
           { label: 'Bill Payments', path: '/payments/bills' },
           { label: 'Bulk Payments', path: '/payments/bulk' },
           { label: 'International', path: '/payments/international' },
+          { label: 'Remittances', path: '/payments/remittances' },
+          { label: 'Payroll', path: '/payments/payroll' },
+          { label: 'QR Payments', path: '/payments/qr' },
+          { label: 'Mobile Money', path: '/payments/mobile-money' },
+          { label: 'Cheques', path: '/payments/cheques' },
+          { label: 'Orchestration', path: '/payments/orchestration' },
         ],
       },
       {
@@ -205,6 +218,7 @@ export const navigationItems: NavSection[] = [
         label: 'Treasury', icon: TrendingUp, path: '/treasury', roles: ['CBS_ADMIN', 'TREASURY'],
         children: [
           { label: 'Dashboard', path: '/treasury' },
+          { label: 'Overview', path: '/treasury/overview' },
           { label: 'Deals', path: '/treasury/deals' },
           { label: 'Trading Desk', path: '/treasury/trading-desk' },
           { label: 'Positions', path: '/treasury/positions' },
@@ -215,6 +229,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Orders', path: '/treasury/orders' },
           { label: 'Trade Ops', path: '/treasury/trade-ops' },
           { label: 'Market Data', path: '/treasury/market-data' },
+          { label: 'Capital Markets', path: '/treasury/capital-markets' },
         ],
       },
       {
@@ -227,6 +242,8 @@ export const navigationItems: NavSection[] = [
           { label: 'Wealth Mgmt', path: '/investments/advisory' },
           { label: 'Positions', path: '/investments/positions' },
           { label: 'Valuations', path: '/investments/valuations' },
+          { label: 'Settlements', path: '/investments/settlements' },
+          { label: 'Securitization', path: '/investments/securitization' },
           { label: 'Interbank', path: '/investments/interbank' },
           { label: 'Analytics', path: '/investments/analytics' },
         ],
@@ -240,6 +257,10 @@ export const navigationItems: NavSection[] = [
           { label: 'Analysis', path: '/market-data/analysis' },
           { label: 'Market Making', path: '/market-data/market-making' },
           { label: 'Switch Dashboard', path: '/market-data/switch' },
+          { label: 'Market Risk', path: '/market-data/risk' },
+          { label: 'Market Orders', path: '/market-data/orders' },
+          { label: 'Instruments', path: '/market-data/instruments' },
+          { label: 'Competitors', path: '/market-data/competitors' },
         ],
       },
       {
@@ -281,6 +302,21 @@ export const navigationItems: NavSection[] = [
           { label: 'Stress Testing', path: '/alm/stress-testing' },
           { label: 'ALCO Report', path: '/alm/alco-report' },
           { label: 'Regulatory', path: '/alm/regulatory' },
+        ],
+      },
+    ],
+  },
+  {
+    title: 'INTELLIGENCE',
+    items: [
+      {
+        label: 'Intelligence', icon: Brain, path: '/intelligence', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
+        children: [
+          { label: 'Hub', path: '/intelligence' },
+          { label: 'Behaviour Analytics', path: '/intelligence/behaviour' },
+          { label: 'Document Intelligence', path: '/intelligence/documents' },
+          { label: 'Cash Flow Forecasting', path: '/intelligence/cashflow' },
+          { label: 'BI Dashboards', path: '/intelligence/dashboards' },
         ],
       },
     ],
@@ -376,6 +412,15 @@ export const navigationItems: NavSection[] = [
           { label: 'Monitoring', path: '/open-banking/monitoring' },
           { label: 'Webhooks', path: '/open-banking/webhooks' },
           { label: 'Analytics', path: '/open-banking/analytics' },
+        ],
+      },
+      {
+        label: 'Notifications', icon: Bell, path: '/notifications', roles: ['CBS_ADMIN', 'CBS_OFFICER', 'PORTAL_USER'],
+        children: [
+          { label: 'Inbox', path: '/notifications' },
+          { label: 'Compose', path: '/notifications/compose', roles: ['CBS_ADMIN', 'CBS_OFFICER'] },
+          { label: 'Delivery History', path: '/notifications/history', roles: ['CBS_ADMIN', 'CBS_OFFICER'] },
+          { label: 'Preferences', path: '/notifications/settings' },
         ],
       },
       {

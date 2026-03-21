@@ -365,11 +365,87 @@ export function useAddSubscription() {
 export function useMarketMakingMandates() {
   return useQuery({
     queryKey: marketDataKeys.marketMaking,
-    queryFn: async () => {
-      const { apiGet } = await import('@/lib/api');
-      return apiGet<import('../types/marketMaking').MarketMakingMandate[]>('/api/v1/market-making/mandates');
-    },
+    queryFn: () => infraApi.getActiveMandates(),
     staleTime: 30_000,
+  });
+}
+
+// ─── New Market Making Hooks ────────────────────────────────────────────────
+
+export function useCreateMandate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<import('../types/marketMaking').MarketMakingMandate>) =>
+      infraApi.createMandate(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: marketDataKeys.marketMaking });
+    },
+  });
+}
+
+export function useActiveMandates() {
+  return useQuery({
+    queryKey: [...marketDataKeys.marketMaking, 'active'] as const,
+    queryFn: () => infraApi.getActiveMandates(),
+    staleTime: 30_000,
+  });
+}
+
+export function useMandatePerformance(code: string) {
+  return useQuery({
+    queryKey: [...marketDataKeys.marketMaking, 'performance', code] as const,
+    queryFn: () => infraApi.getMandatePerformance(code),
+    enabled: !!code,
+    staleTime: 30_000,
+  });
+}
+
+export function useObligationCompliance() {
+  return useQuery({
+    queryKey: [...marketDataKeys.marketMaking, 'obligation-compliance'] as const,
+    queryFn: () => infraApi.getObligationCompliance(),
+    staleTime: 30_000,
+  });
+}
+
+// ─── New Data Hooks: FX Rates, Money Market, All Signals ────────────────────
+
+export function useFxRates() {
+  return useQuery({
+    queryKey: [...marketDataKeys.prices(), 'fx-rates'] as const,
+    queryFn: () => dataApi.getFxRates(),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useMoneyMarketRates() {
+  return useQuery({
+    queryKey: [...marketDataKeys.prices(), 'money-market'] as const,
+    queryFn: () => dataApi.getMoneyMarketRates(),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useAllSignals() {
+  return useQuery({
+    queryKey: marketDataKeys.signals(),
+    queryFn: () => dataApi.getAllSignals(),
+    staleTime: 30_000,
+  });
+}
+
+// ─── Feed Operation Logs ──────────────────────────────────────────────────────
+
+const QUERY_DEFAULTS = { staleTime: 30_000, gcTime: 5 * 60_000, retry: 1 } as const;
+
+export function useFeedOperationLogs(feedId: string | number | undefined) {
+  return useQuery({
+    queryKey: [...marketDataKeys.feeds(), 'operations', feedId],
+    queryFn: () => dataApi.getFeedOperationLogs(feedId!),
+    enabled: !!feedId,
+    ...QUERY_DEFAULTS,
   });
 }
 
@@ -379,6 +455,7 @@ export function useMarketMakingMandates() {
  * Returns the FX rate for a currency pair.
  *
  * Fetches the price for `{baseCcy}/{quoteCcy}` and derives bid, ask, mid, and spread.
+ * The backend now returns mapped MarketPrice with bid/ask/last fields.
  */
 export function useFxRate(baseCcy: string, quoteCcy: string) {
   const code = `${baseCcy}/${quoteCcy}`;

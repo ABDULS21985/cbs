@@ -6,6 +6,9 @@ import com.cbs.notification.entity.*;
 import com.cbs.notification.repository.NotificationLogRepository;
 import com.cbs.notification.service.NotificationService;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.customer.entity.Customer;
+import com.cbs.customer.entity.CustomerStatus;
+import com.cbs.customer.repository.CustomerRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -31,6 +34,7 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final NotificationLogRepository notificationLogRepository;
     private final com.cbs.notification.repository.NotificationTemplateRepository templateRepository;
+    private final CustomerRepository customerRepository;
 
     @GetMapping("/send")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -65,26 +69,81 @@ public class NotificationController {
     }
 
     @PostMapping("/send-bulk")
-    @Operation(summary = "Send message to multiple customers")
+    @Operation(summary = "Send message to multiple customers. Supports explicit recipients[], broadcast=true, or segmentCode.")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> sendBulk(@RequestBody Map<String, Object> body) {
-        @SuppressWarnings("unchecked")
-        java.util.List<Map<String, Object>> recipients = (java.util.List<Map<String, Object>>) body.getOrDefault("recipients", java.util.Collections.emptyList());
         String channel = String.valueOf(body.getOrDefault("channel", "EMAIL"));
         String subject = String.valueOf(body.getOrDefault("subject", ""));
         String msgBody = String.valueOf(body.getOrDefault("body", ""));
         String eventType = String.valueOf(body.getOrDefault("eventType", "BULK"));
+        NotificationChannel notifChannel = NotificationChannel.valueOf(channel);
+
+        // Build recipient list from: explicit recipients[], broadcast flag, or segmentCode
+        List<Map<String, Object>> recipientList = new ArrayList<>();
+
+        boolean broadcast = Boolean.TRUE.equals(body.get("broadcast"));
+        String segmentCode = body.get("segmentCode") != null ? String.valueOf(body.get("segmentCode")) : null;
+
+        if (broadcast) {
+            // Resolve all active customers
+            Page<Customer> customers = customerRepository.findByStatus(CustomerStatus.ACTIVE, PageRequest.of(0, 10000));
+            for (Customer c : customers.getContent()) {
+                String addr = resolveRecipientAddress(c, notifChannel);
+                if (addr != null && !addr.isBlank()) {
+                    recipientList.add(Map.of("address", addr, "name", customerDisplayName(c), "customerId", c.getId()));
+                }
+            }
+        } else if (segmentCode != null && !segmentCode.isBlank()) {
+            // Resolve customers by segment — use customer type as a simple segment proxy
+            Page<Customer> customers;
+            try {
+                customers = customerRepository.findByCustomerType(
+                        com.cbs.customer.entity.CustomerType.valueOf(segmentCode), PageRequest.of(0, 10000));
+            } catch (IllegalArgumentException e) {
+                // Fall back to searching by status for other segment codes
+                customers = customerRepository.findByStatus(CustomerStatus.ACTIVE, PageRequest.of(0, 10000));
+            }
+            for (Customer c : customers.getContent()) {
+                String addr = resolveRecipientAddress(c, notifChannel);
+                if (addr != null && !addr.isBlank()) {
+                    recipientList.add(Map.of("address", addr, "name", customerDisplayName(c), "customerId", c.getId()));
+                }
+            }
+        } else {
+            // Explicit recipients from request body
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> explicit = (List<Map<String, Object>>) body.getOrDefault("recipients", java.util.Collections.emptyList());
+            recipientList.addAll(explicit);
+        }
+
         int sent = 0, failed = 0;
-        for (Map<String, Object> r : recipients) {
+        for (Map<String, Object> r : recipientList) {
             try {
                 String addr = String.valueOf(r.getOrDefault("address", ""));
                 String name = String.valueOf(r.getOrDefault("name", ""));
                 Long custId = r.get("customerId") instanceof Number ? ((Number) r.get("customerId")).longValue() : null;
-                notificationService.sendDirect(com.cbs.notification.entity.NotificationChannel.valueOf(channel), addr, name, subject, msgBody, custId, eventType);
+                notificationService.sendDirect(notifChannel, addr, name, subject, msgBody, custId, eventType);
                 sent++;
             } catch (Exception e) { failed++; }
         }
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("sent", sent, "failed", failed, "total", recipients.size())));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("sent", sent, "failed", failed, "total", recipientList.size())));
+    }
+
+    private String resolveRecipientAddress(Customer c, NotificationChannel channel) {
+        return switch (channel) {
+            case EMAIL -> c.getEmail();
+            case SMS -> c.getPhonePrimary();
+            case PUSH, IN_APP -> c.getId() != null ? c.getId().toString() : null;
+            case WEBHOOK -> null; // Webhooks don't target individual customers
+        };
+    }
+
+    private String customerDisplayName(Customer c) {
+        if (c.getFirstName() != null && c.getLastName() != null) {
+            return c.getFirstName() + " " + c.getLastName();
+        }
+        if (c.getRegisteredName() != null) return c.getRegisteredName();
+        return "Customer #" + c.getId();
     }
 
     @GetMapping("/templates")

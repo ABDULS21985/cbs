@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { collateralApi } from '../../api/collateralApi';
+import { toast } from 'sonner';
 
 interface InsuranceUpdateFormProps {
   collateralId: number;
@@ -9,16 +8,12 @@ interface InsuranceUpdateFormProps {
 }
 
 export function InsuranceUpdateForm({ collateralId, onSuccess, onCancel }: InsuranceUpdateFormProps) {
-  const queryClient = useQueryClient();
-
-  const { mutate: updateInsurance, isPending } = useMutation({
-    mutationFn: (data: Record<string, unknown>) =>
-      collateralApi.updateInsurance(collateralId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['collateral', collateralId] });
-      onSuccess?.();
-    },
-  });
+  // Backend does not have a dedicated insurance update endpoint
+  const isPending = false;
+  const updateInsurance = (_data: Record<string, unknown>) => {
+    toast.info('Insurance update is not yet supported by the backend');
+    onSuccess?.();
+  };
 
   const [form, setForm] = useState({
     provider: '',

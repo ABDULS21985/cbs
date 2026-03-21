@@ -21,7 +21,7 @@ import type { TreasuryDeal, DealAuditEvent, AmendDealRequest } from '../api/trad
 
 // ─── Lifecycle Timeline ─────────────────────────────────────────────────────
 
-const LIFECYCLE_STEPS = ['BOOKED', 'CONFIRMED', 'SETTLED'] as const;
+const LIFECYCLE_STEPS = ['BOOKED', 'CONFIRMED', 'SETTLED', 'MATURED'] as const;
 
 const STEP_META: Record<string, { icon: React.ElementType; label: string }> = {
   BOOKED: { icon: FileText, label: 'Booked' },

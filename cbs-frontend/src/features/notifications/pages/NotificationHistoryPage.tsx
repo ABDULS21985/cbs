@@ -173,8 +173,8 @@ function MiniStat({ label, value, loading, color }: { label: string; value?: num
 // TAB 2 — Delivery Log
 // =========================================================================
 
-const ALL_CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS', 'PUSH', 'IN_APP'];
-const ALL_STATUSES: NotificationStatus[] = ['PENDING', 'SENT', 'DELIVERED', 'READ', 'FAILED'];
+const ALL_CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS', 'PUSH', 'IN_APP', 'WEBHOOK'];
+const ALL_STATUSES: NotificationStatus[] = ['PENDING', 'PENDING_DISPATCH', 'SENT', 'DELIVERED', 'READ', 'FAILED', 'BOUNCED', 'OPTED_OUT'];
 
 function DeliveryLogTab() {
   const { data: logs, isLoading } = useNotificationLog(0, 200);

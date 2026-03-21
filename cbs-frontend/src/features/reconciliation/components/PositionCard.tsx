@@ -27,16 +27,16 @@ function getAgingColor(days: number | null): { bg: string; text: string; label: 
 
 const STATUS_CONFIG: Record<string, { color: string; icon: typeof CheckCircle2 }> = {
   RECONCILED: { color: 'text-green-600 dark:text-green-400', icon: CheckCircle2 },
-  PARTIALLY_RECONCILED: { color: 'text-amber-600 dark:text-amber-400', icon: Clock },
-  UNRECONCILED: { color: 'text-red-600 dark:text-red-400', icon: AlertTriangle },
-  PENDING: { color: 'text-blue-600 dark:text-blue-400', icon: Clock },
+  IN_PROGRESS: { color: 'text-blue-600 dark:text-blue-400', icon: Clock },
+  DISCREPANCY: { color: 'text-red-600 dark:text-red-400', icon: AlertTriangle },
+  PENDING: { color: 'text-amber-600 dark:text-amber-400', icon: Clock },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface PositionCardProps {
   position: NostroPosition;
-  onClick?: (position: NostroPosition) => void;
+  onClick?: (() => void) | ((position: NostroPosition) => void);
 }
 
 export function PositionCard({ position, onClick }: PositionCardProps) {
@@ -69,7 +69,7 @@ export function PositionCard({ position, onClick }: PositionCardProps) {
                 {position.correspondentBankName || 'Unknown Bank'}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {position.accountNumber || position.correspondentBankSwift || '--'}
+                {position.accountNumber || position.correspondentSwiftBic || '--'}
               </p>
             </div>
           </div>

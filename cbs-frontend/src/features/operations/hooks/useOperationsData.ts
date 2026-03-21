@@ -18,7 +18,7 @@ import { issuedDevicesApi } from '../api/issuedDeviceApi';
 import { openItemsApi } from '../api/openItemApi';
 import { partyRoutingApi } from '../api/partyRoutingApi';
 import { locationsApi } from '../api/locationApi';
-import { glApi } from '../api/glExtApi';
+import { glExtApi as glApi } from '../api/glExtApi';
 import { documentsApi } from '../api/documentExtApi';
 import { workflowsApi } from '../api/workflowExtApi';
 
@@ -1011,18 +1011,22 @@ export function useLocationChildren(parentId: number) {
 
 // ─── GL (Extended) Hooks ────────────────────────────────────────────────────────
 
-export function usePostableGlAccounts(params?: Record<string, unknown>) {
+export function usePostableGlAccounts() {
   return useQuery({
-    queryKey: KEYS.gl.postable(params),
-    queryFn: () => glApi.getPostableAccounts(params),
+    queryKey: KEYS.gl.postable(undefined),
+    queryFn: () => glApi.getPostableAccounts(),
     staleTime: 30_000,
   });
 }
 
-export function useGlHistory(glCode: string) {
+export function useGlHistory(glCode: string, from?: string, to?: string) {
+  const today = new Date().toISOString().split('T')[0];
+  const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+  const fromDate = from ?? monthAgo;
+  const toDate = to ?? today;
   return useQuery({
     queryKey: KEYS.gl.history(glCode),
-    queryFn: () => glApi.getGlHistory(glCode),
+    queryFn: () => glApi.getGlHistory(glCode, fromDate, toDate),
     enabled: !!glCode,
     staleTime: 30_000,
   });

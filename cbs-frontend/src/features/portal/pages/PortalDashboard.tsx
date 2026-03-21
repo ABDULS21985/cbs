@@ -5,7 +5,8 @@ import {
   Landmark, Loader2, ArrowUpRight, ArrowDownLeft,
   RefreshCw,
 } from 'lucide-react';
-import { formatMoney, formatMoneyCompact, formatRelative } from '@/lib/formatters';
+import { formatMoney, formatRelative } from '@/lib/formatters';
+import { useAuthStore } from '@/stores/authStore';
 import { portalApi } from '../api/portalApi';
 import type { EnhancedDashboard } from '../types/dashboard';
 import { FinancialHealthWidget } from '../components/FinancialHealthWidget';
@@ -14,13 +15,10 @@ import { SpendingInsightsChart } from '../components/SpendingInsightsChart';
 import { GoalProgressWidget } from '../components/GoalProgressWidget';
 import { UpcomingEventsWidget } from '../components/UpcomingEventsWidget';
 
-// TODO: Replace with real customer ID from auth context
-const CUSTOMER_ID = 1;
-
 const quickActions = [
   { icon: ArrowLeftRight, label: 'Transfer', path: '/portal/transfer', color: 'bg-blue-100 text-blue-600' },
-  { icon: Receipt, label: 'Pay Bills', path: '/portal/transfer', color: 'bg-green-100 text-green-600' },
-  { icon: Phone, label: 'Buy Airtime', path: '/portal/transfer', color: 'bg-purple-100 text-purple-600' },
+  { icon: Receipt, label: 'Pay Bills', path: '/portal/bills', color: 'bg-green-100 text-green-600' },
+  { icon: Phone, label: 'Buy Airtime', path: '/portal/airtime', color: 'bg-purple-100 text-purple-600' },
   { icon: FileText, label: 'Statement', path: '/portal/accounts', color: 'bg-amber-100 text-amber-600' },
 ];
 
@@ -32,9 +30,13 @@ function getGreeting(): string {
 }
 
 export function PortalDashboard() {
+  const { user } = useAuthStore();
+  const customerId = Number(user?.id) || 0;
+
   const { data, isLoading, error } = useQuery<EnhancedDashboard>({
-    queryKey: ['portal', 'enhanced-dashboard', CUSTOMER_ID],
-    queryFn: () => portalApi.getEnhancedDashboard(CUSTOMER_ID),
+    queryKey: ['portal', 'enhanced-dashboard', customerId],
+    queryFn: () => portalApi.getEnhancedDashboard(customerId),
+    enabled: customerId > 0,
     staleTime: 60_000,
   });
 

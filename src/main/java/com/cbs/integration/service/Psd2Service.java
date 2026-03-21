@@ -130,4 +130,12 @@ public class Psd2Service {
     public List<Psd2ScaSession> getCustomerSessions(Long customerId) {
         return scaRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
     }
+
+    /**
+     * List all recent SCA sessions across all customers (admin view).
+     * Limited to most recent 200 sessions for performance.
+     */
+    public List<Psd2ScaSession> getAllRecentSessions() {
+        return scaRepository.findTop200ByOrderByCreatedAtDesc();
+    }
 }

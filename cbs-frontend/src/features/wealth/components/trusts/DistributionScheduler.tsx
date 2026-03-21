@@ -53,7 +53,7 @@ function buildMonthlyTrend(records: DistributionRecord[]): { month: string; amou
   return Object.entries(map).map(([month, amount]) => ({ month, amount }));
 }
 
-function downloadCSV(records: DistributionRecord[], currency: string) {
+function downloadCSV(records: DistributionRecord[], _currency: string) {
   const header = 'Date,Beneficiary,Amount,Type,Approved By\n';
   const rows = records
     .map((r) => `${r.date},${r.beneficiary},${r.amount},${r.type},${r.approvedBy}`)
@@ -71,7 +71,7 @@ function downloadCSV(records: DistributionRecord[], currency: string) {
 
 export function DistributionScheduler({ trustCode, currency }: DistributionSchedulerProps) {
   const { data: distributions = [], isLoading: distLoading } = useTrustDistributions(trustCode);
-  const { data: scheduled = [], isLoading: schedLoading } = useScheduledDistributions(trustCode);
+  const { data: scheduled = [] } = useScheduledDistributions(trustCode);
 
   const recordMutation = useRecordDistribution(trustCode);
   const scheduleMutation = useScheduleDistribution(trustCode);
@@ -168,10 +168,7 @@ export function DistributionScheduler({ trustCode, currency }: DistributionSched
   async function handleRecordSubmit(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await recordMutation.mutateAsync({
-        amount: parseFloat(recordForm.amount),
-        beneficiary: recordForm.beneficiary,
-      });
+      await recordMutation.mutateAsync(parseFloat(recordForm.amount));
       toast.success('Distribution recorded successfully');
       setShowRecordModal(false);
       setRecordForm({ beneficiary: '', amount: '', type: 'INCOME', date: new Date().toISOString().slice(0, 10), reference: '' });

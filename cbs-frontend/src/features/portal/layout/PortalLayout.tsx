@@ -3,7 +3,7 @@ import { Outlet, Link, NavLink, useNavigate, useLocation } from 'react-router-do
 import {
   Bell, LogOut, ChevronDown, Home, Landmark, ArrowLeftRight,
   CreditCard, MoreHorizontal, Users, Zap, Phone, FileText, HelpCircle,
-  UserCircle, Moon, Sun, X, ChevronRight,
+  UserCircle, Moon, Sun, X, ChevronRight, ClipboardCheck, History,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { RouteContentLoader } from '@/components/layout/RouteContentLoader';
@@ -15,6 +15,7 @@ const SIDEBAR_LINKS = [
   { path: '/portal/dashboard', label: 'Dashboard', icon: Home },
   { path: '/portal/accounts', label: 'Accounts', icon: Landmark },
   { path: '/portal/transfer', label: 'Transfers', icon: ArrowLeftRight },
+  { path: '/portal/transfer-history', label: 'Transfer History', icon: History },
   { path: '/portal/beneficiaries', label: 'Beneficiaries', icon: Users },
   { path: '/portal/cards', label: 'Cards', icon: CreditCard },
   { path: '/portal/bills', label: 'Pay Bills', icon: Zap },
@@ -22,6 +23,10 @@ const SIDEBAR_LINKS = [
   { path: '/portal/requests', label: 'Requests', icon: FileText },
   { path: '/portal/profile', label: 'Profile', icon: UserCircle },
   { path: '/portal/help', label: 'Help', icon: HelpCircle },
+];
+
+const ADMIN_SIDEBAR_LINKS = [
+  { path: '/portal/admin/profile-updates', label: 'Profile Reviews', icon: ClipboardCheck, roles: ['CBS_ADMIN', 'CBS_OFFICER'] },
 ];
 
 const BOTTOM_NAV = [
@@ -118,6 +123,16 @@ export function PortalLayout() {
             {SIDEBAR_LINKS.map(l => (<NavLink key={l.path} to={l.path} end={l.path === '/portal/dashboard'}
               className={({ isActive }) => cn('flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors', isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
               aria-current={location.pathname === l.path ? 'page' : undefined}><l.icon className="w-4 h-4" />{l.label}</NavLink>))}
+            {ADMIN_SIDEBAR_LINKS.filter(l => l.roles.some(r => user?.roles?.includes(r))).length > 0 && (
+              <>
+                <div className="pt-3 pb-1 px-3"><p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Admin</p></div>
+                {ADMIN_SIDEBAR_LINKS.filter(l => l.roles.some(r => user?.roles?.includes(r))).map(l => (
+                  <NavLink key={l.path} to={l.path}
+                    className={({ isActive }) => cn('flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors', isActive ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+                    aria-current={location.pathname === l.path ? 'page' : undefined}><l.icon className="w-4 h-4" />{l.label}</NavLink>
+                ))}
+              </>
+            )}
           </nav>
         </aside>
         <main id="portal-main" className="flex-1 min-w-0 px-4 py-6 pb-20 md:pb-6" role="main">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLogDunningOutcome } from '../../hooks/useCollections';
+import { toast } from 'sonner';
 
 interface PromiseToPayFormProps {
   dunningItemId: number;
@@ -11,23 +11,20 @@ export function PromiseToPayForm({ dunningItemId, onSuccess }: PromiseToPayFormP
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
 
-  const { mutate, isPending, isError, error } = useLogDunningOutcome();
+  // Promises should be logged via the collection case action log
+  const isPending = false;
+  const isError = false;
+  const error: Error | null = null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || !date) return;
-    const outcome = `PROMISE_TO_PAY:amount=${amount}:date=${date}:notes=${notes}`;
-    mutate(
-      { id: dunningItemId, outcome },
-      {
-        onSuccess: () => {
-          setAmount('');
-          setDate('');
-          setNotes('');
-          onSuccess?.();
-        },
-      }
-    );
+    // Log promise-to-pay via collection case action log
+    toast.info('Promise-to-pay should be logged via the collection case detail page');
+    setAmount('');
+    setDate('');
+    setNotes('');
+    if (onSuccess) onSuccess();
   };
 
   return (

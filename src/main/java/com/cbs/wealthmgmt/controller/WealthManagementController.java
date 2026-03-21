@@ -1,6 +1,7 @@
 package com.cbs.wealthmgmt.controller;
 
 import com.cbs.common.dto.ApiResponse;
+import com.cbs.wealthmgmt.dto.WealthPlanResponse;
 import com.cbs.wealthmgmt.entity.WealthManagementPlan;
 import com.cbs.wealthmgmt.service.WealthManagementService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,8 +26,9 @@ public class WealthManagementController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<WealthManagementPlan>>> listAll() {
-        return ResponseEntity.ok(ApiResponse.ok(service.getAllPlans()));
+    public ResponseEntity<ApiResponse<List<WealthPlanResponse>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(
+                service.getAllPlans().stream().map(WealthPlanResponse::from).toList()));
     }
 
     @PostMapping
@@ -38,11 +40,12 @@ public class WealthManagementController {
     @GetMapping("/{code}")
     @Operation(summary = "Get wealth management plan detail")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<WealthManagementPlan>> getByCode(@PathVariable String code) {
-        return ResponseEntity.ok(ApiResponse.ok(service.getAllPlans().stream()
+    public ResponseEntity<ApiResponse<WealthPlanResponse>> getByCode(@PathVariable String code) {
+        WealthManagementPlan plan = service.getAllPlans().stream()
                 .filter(p -> code.equals(p.getPlanCode()))
                 .findFirst()
-                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Plan not found: " + code))));
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Plan not found: " + code));
+        return ResponseEntity.ok(ApiResponse.ok(WealthPlanResponse.from(plan)));
     }
 
     @PostMapping("/{code}/activate")

@@ -3,20 +3,24 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Zap, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { AutoDebitConfig } from '../api/goalApi';
 
 const schema = z.object({
-  amount: z.coerce.number().min(100, 'Minimum amount is ₦100'),
-  frequency: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']),
-  startDate: z.string().min(1, 'Start date is required'),
-  status: z.enum(['ACTIVE', 'PAUSED']),
+  autoDebitEnabled: z.boolean(),
+  autoDebitAmount: z.coerce.number().min(100, 'Minimum amount is 100'),
+  autoDebitFrequency: z.enum(['DAILY', 'WEEKLY', 'BI_WEEKLY', 'MONTHLY']),
+  autoDebitAccountId: z.coerce.number().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
 
 interface AutoDebitConfigFormProps {
-  config?: AutoDebitConfig;
-  onSave: (config: AutoDebitConfig) => void | Promise<void>;
+  config?: {
+    autoDebitEnabled: boolean;
+    autoDebitAmount: number | null;
+    autoDebitFrequency: string | null;
+    accountId: number;
+  };
+  onSave: (config: Record<string, unknown>) => void | Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -31,17 +35,17 @@ export function AutoDebitConfigForm({ config, onSave, onCancel, isLoading }: Aut
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      amount: config?.amount ?? 0,
-      frequency: config?.frequency ?? 'MONTHLY',
-      startDate: config?.startDate ?? new Date().toISOString().split('T')[0],
-      status: config?.status ?? 'ACTIVE',
+      autoDebitEnabled: config?.autoDebitEnabled ?? true,
+      autoDebitAmount: config?.autoDebitAmount ?? 0,
+      autoDebitFrequency: (config?.autoDebitFrequency as FormValues['autoDebitFrequency']) ?? 'MONTHLY',
+      autoDebitAccountId: config?.accountId,
     },
   });
 
-  const status = watch('status');
+  const enabled = watch('autoDebitEnabled');
 
   async function onSubmit(values: FormValues) {
-    await onSave(values as AutoDebitConfig);
+    await onSave(values);
   }
 
   return (
@@ -58,18 +62,17 @@ export function AutoDebitConfigForm({ config, onSave, onCancel, isLoading }: Aut
             Debit Amount <span className="text-red-500">*</span>
           </label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">₦</span>
             <input
               type="number"
-              {...register('amount')}
+              {...register('autoDebitAmount')}
               placeholder="50,000"
               className={cn(
-                'w-full rounded-lg border bg-background pl-7 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30',
-                errors.amount && 'border-red-500',
+                'w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30',
+                errors.autoDebitAmount && 'border-red-500',
               )}
             />
           </div>
-          {errors.amount && <p className="text-xs text-red-500 mt-0.5">{errors.amount.message}</p>}
+          {errors.autoDebitAmount && <p className="text-xs text-red-500 mt-0.5">{errors.autoDebitAmount.message}</p>}
         </div>
 
         {/* Frequency */}
@@ -78,65 +81,18 @@ export function AutoDebitConfigForm({ config, onSave, onCancel, isLoading }: Aut
             Frequency <span className="text-red-500">*</span>
           </label>
           <select
-            {...register('frequency')}
+            {...register('autoDebitFrequency')}
             className={cn(
               'w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30',
-              errors.frequency && 'border-red-500',
+              errors.autoDebitFrequency && 'border-red-500',
             )}
           >
             <option value="DAILY">Daily</option>
             <option value="WEEKLY">Weekly</option>
+            <option value="BI_WEEKLY">Bi-Weekly</option>
             <option value="MONTHLY">Monthly</option>
           </select>
-          {errors.frequency && <p className="text-xs text-red-500 mt-0.5">{errors.frequency.message}</p>}
-        </div>
-
-        {/* Start Date */}
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            Start Date <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            {...register('startDate')}
-            min={new Date().toISOString().split('T')[0]}
-            className={cn(
-              'w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/30',
-              errors.startDate && 'border-red-500',
-            )}
-          />
-          {errors.startDate && <p className="text-xs text-red-500 mt-0.5">{errors.startDate.message}</p>}
-        </div>
-
-        {/* Status toggle */}
-        <div>
-          <label className="block text-sm font-medium mb-1">Status</label>
-          <div className="flex items-center gap-3 pt-1.5">
-            <button
-              type="button"
-              onClick={() => setValue('status', 'ACTIVE')}
-              className={cn(
-                'flex-1 py-2 rounded-lg border text-sm font-medium transition-colors',
-                status === 'ACTIVE'
-                  ? 'bg-green-600 text-white border-green-600'
-                  : 'hover:bg-muted text-muted-foreground',
-              )}
-            >
-              Active
-            </button>
-            <button
-              type="button"
-              onClick={() => setValue('status', 'PAUSED')}
-              className={cn(
-                'flex-1 py-2 rounded-lg border text-sm font-medium transition-colors',
-                status === 'PAUSED'
-                  ? 'bg-amber-500 text-white border-amber-500'
-                  : 'hover:bg-muted text-muted-foreground',
-              )}
-            >
-              Paused
-            </button>
-          </div>
+          {errors.autoDebitFrequency && <p className="text-xs text-red-500 mt-0.5">{errors.autoDebitFrequency.message}</p>}
         </div>
       </div>
 

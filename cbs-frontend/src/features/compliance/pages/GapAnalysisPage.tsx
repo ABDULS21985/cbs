@@ -409,7 +409,6 @@ export function GapAnalysisPage() {
                 exportFilename="compliance-gaps"
                 emptyMessage="No gaps found"
                 pageSize={15}
-                renderSubRow={(row: any) => expandedId === row.id ? <GapExpansion gap={row} /> : null}
               />
               <GapAgingChart gaps={gapsForAging} />
             </div>

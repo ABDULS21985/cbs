@@ -39,6 +39,9 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
 
+    // Email
+    implementation("org.springframework.boot:spring-boot-starter-mail")
+
     // Redis (caching)
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 

@@ -100,6 +100,15 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("Endpoint not found: " + ex.getRequestURL()));
     }
 
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLock(
+            org.springframework.orm.ObjectOptimisticLockingFailureException ex) {
+        log.warn("Optimistic locking conflict: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(
+                        "This record was modified by another user. Please refresh and try again."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneric(Exception ex) {
         log.error("Unhandled exception", ex);

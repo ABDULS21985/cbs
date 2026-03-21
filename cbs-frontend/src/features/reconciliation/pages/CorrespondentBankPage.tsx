@@ -15,7 +15,7 @@ interface RegisterBankModalProps {
 
 const EMPTY_FORM = {
   bankCode: '', bankName: '', swiftBic: '', country: '', city: '',
-  relationshipType: 'CORRESPONDENT', contactName: '', contactEmail: '', contactPhone: '',
+  relationshipType: 'NOSTRO', contactName: '', contactEmail: '', contactPhone: '',
 };
 
 function RegisterBankModal({ open, onClose }: RegisterBankModalProps) {
@@ -114,10 +114,9 @@ function RegisterBankModal({ open, onClose }: RegisterBankModalProps) {
               onChange={(e) => set('relationshipType', e.target.value)}
               className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
             >
-              <option value="CORRESPONDENT">Correspondent</option>
-              <option value="AGENT">Agent</option>
-              <option value="INTERMEDIARY">Intermediary</option>
-              <option value="CLEARING">Clearing</option>
+              <option value="NOSTRO">Nostro</option>
+              <option value="VOSTRO">Vostro</option>
+              <option value="BOTH">Both</option>
             </select>
           </div>
           <div className="border-t pt-4">

@@ -82,13 +82,15 @@ export function ManualJournalForm({ open, onClose, onSuccess }: ManualJournalFor
     if (!pendingValues) return;
     const validLines = lines.filter((l) => l.glCode);
     mutation.mutate({
-      date: pendingValues.date,
+      journalType: 'MANUAL',
       description: pendingValues.description,
+      sourceModule: 'MANUAL',
+      valueDate: pendingValues.date,
       lines: validLines.map((l) => ({
         glCode: l.glCode,
-        description: l.description,
-        debit: l.debit,
-        credit: l.credit,
+        debitAmount: l.debit,
+        creditAmount: l.credit,
+        narration: l.description || undefined,
       })),
     });
   };

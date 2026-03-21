@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { facilityApi } from '../api/facilityApi';
-import type { DrawdownRequest } from '../types/facility';
+import type { DrawdownRequest, CreateFacilityPayload } from '../types/facility';
 
 const KEYS = {
   facilities: (params?: Record<string, unknown>) => ['credit-facilities', params] as const,
@@ -61,10 +61,33 @@ export function useFacilityCovenants(id: number) {
 export function useSubmitDrawdown() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: DrawdownRequest) => facilityApi.submitDrawdownRequest(data),
+    mutationFn: (data: DrawdownRequest) =>
+      facilityApi.submitDrawdown(data.facilityId, data.amount, data.narration),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: KEYS.drawdowns(variables.facilityId) });
       queryClient.invalidateQueries({ queryKey: KEYS.facility(variables.facilityId) });
+    },
+  });
+}
+
+export function useCreateFacility() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateFacilityPayload) => facilityApi.createFacility(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['credit-facilities'] });
+    },
+  });
+}
+
+export function useRepayFacility() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ facilityId, amount, narration }: { facilityId: number; amount: number; narration?: string }) =>
+      facilityApi.repay(facilityId, amount, narration),
+    onSuccess: (_data, { facilityId }) => {
+      queryClient.invalidateQueries({ queryKey: KEYS.facility(facilityId) });
+      queryClient.invalidateQueries({ queryKey: KEYS.utilizationHistory(facilityId) });
     },
   });
 }

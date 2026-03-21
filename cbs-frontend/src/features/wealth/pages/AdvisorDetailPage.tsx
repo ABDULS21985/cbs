@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, TabsPage } from '@/components/shared';
 import { formatMoneyCompact, formatPercent, formatDate } from '@/lib/formatters';
 import { User, BarChart2, Users, Calendar, Shield, Loader2, AlertCircle, Download } from 'lucide-react';
-import { useAdvisor, useAdvisorClients } from '../hooks/useWealth';
+import { useAdvisor } from '../hooks/useWealth';
 import { exportAdvisorReportPdf } from '../lib/wealthExport';
 import { AdvisorPerformanceTab } from '../components/advisors/AdvisorPerformanceTab';
 import { AdvisorClientsTab } from '../components/advisors/AdvisorClientsTab';

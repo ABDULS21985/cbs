@@ -1,4 +1,5 @@
-import { apiGet, apiPost, apiPatch } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
+import api from '@/lib/api';
 import type {
   CollectionStats,
   DpdAging,
@@ -15,14 +16,26 @@ export const collectionsApi = {
   batchCreateCases: () =>
     apiPost<{ created: number }>('/api/v1/collections/cases/batch'),
 
-  assignCase: (caseId: number, assignedTo: string, team?: string) =>
-    apiPatch<CollectionCase>(`/api/v1/collections/cases/${caseId}/assign`, { assignedTo, team }),
+  // Backend: PATCH /cases/{caseId}/assign?assignedTo=...&team=... (@RequestParam)
+  assignCase: (caseId: number, assignedTo: string, team?: string) => {
+    const params = new URLSearchParams({ assignedTo });
+    if (team) params.set('team', team);
+    return api.patch<{ data: CollectionCase }>(
+      `/api/v1/collections/cases/${caseId}/assign?${params}`,
+    ).then((r) => r.data.data);
+  },
 
   logAction: (caseId: number, action: Record<string, unknown>) =>
     apiPost<CollectionCase>(`/api/v1/collections/cases/${caseId}/actions`, action),
 
-  closeCase: (caseId: number, resolutionType: string, resolutionAmount?: number) =>
-    apiPost<CollectionCase>(`/api/v1/collections/cases/${caseId}/close`, { resolutionType, resolutionAmount }),
+  // Backend: POST /cases/{caseId}/close?resolutionType=...&resolutionAmount=... (@RequestParam)
+  closeCase: (caseId: number, resolutionType: string, resolutionAmount?: number) => {
+    const params = new URLSearchParams({ resolutionType });
+    if (resolutionAmount != null) params.set('resolutionAmount', String(resolutionAmount));
+    return api.post<{ data: CollectionCase }>(
+      `/api/v1/collections/cases/${caseId}/close?${params}`,
+    ).then((r) => r.data.data);
+  },
 
   getAgentCases: (assignedTo: string, params?: Record<string, unknown>) =>
     apiGet<CollectionCase[]>(`/api/v1/collections/cases/agent/${encodeURIComponent(assignedTo)}`, params),
@@ -39,28 +52,9 @@ export const collectionsApi = {
   listDunningQueue: (params?: Record<string, unknown>) =>
     apiGet<DunningQueueItem[]>('/api/v1/collections/dunning-queue', params),
 
-  logDunningOutcome: (id: number, outcome: string) =>
-    apiPost<DunningQueueItem>(`/api/v1/collections/dunning-queue/${id}/outcome`, { outcome }),
-
   listWriteOffRequests: (params?: Record<string, unknown>) =>
     apiGet<WriteOffRequest[]>('/api/v1/collections/write-off-requests', params),
 
-  submitWriteOffRequest: (data: {
-    loanNumber: string;
-    amount: number;
-    type: 'PARTIAL' | 'FULL';
-    recoveryEfforts: string;
-    justification: string;
-  }) => apiPost<WriteOffRequest>('/api/v1/collections/write-off-requests', data),
-
-  listRecovery: (params?: Record<string, unknown>) =>
-    apiGet<RecoveryRecord[]>('/api/v1/collections/recovery', params),
-
-  recordRecovery: (data: {
-    loanNumber: string;
-    amount: number;
-    date: string;
-    agent: string;
-    notes?: string;
-  }) => apiPost<RecoveryRecord>('/api/v1/collections/recovery', data),
+  listRecovery: () =>
+    apiGet<RecoveryRecord>('/api/v1/collections/recovery'),
 };

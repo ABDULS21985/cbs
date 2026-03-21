@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Mail, Smartphone, Bell, Monitor, Loader2 } from 'lucide-react';
+import { Mail, Smartphone, Bell, Monitor, Loader2, Globe } from 'lucide-react';
 import type { ChannelDeliveryStat } from '../api/notificationAnalyticsApi';
 import type { LucideIcon } from 'lucide-react';
 
@@ -12,9 +12,10 @@ const CHANNEL_META: Record<string, { label: string; icon: LucideIcon }> = {
   SMS: { label: 'SMS', icon: Smartphone },
   PUSH: { label: 'Push', icon: Bell },
   IN_APP: { label: 'In-App', icon: Monitor },
+  WEBHOOK: { label: 'Webhook', icon: Globe },
 };
 
-const ALL_CHANNELS = ['EMAIL', 'SMS', 'PUSH', 'IN_APP'] as const;
+const ALL_CHANNELS = ['EMAIL', 'SMS', 'PUSH', 'IN_APP', 'WEBHOOK'] as const;
 
 // ---------------------------------------------------------------------------
 // Props
@@ -32,7 +33,7 @@ interface ChannelHealthCardsProps {
 export function ChannelHealthCards({ data, isLoading }: ChannelHealthCardsProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {ALL_CHANNELS.map((ch) => (
           <div key={ch} className="stat-card animate-pulse">
             <div className="h-4 w-20 bg-muted rounded" />

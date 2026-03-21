@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Upload, Send, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSendNotification, useNotificationTemplates } from '../hooks/useCommunications';
+import { useSendBulk, useNotificationTemplates } from '../hooks/useCommunications';
 
 interface BulkSendDialogProps {
   open: boolean;
@@ -10,12 +10,10 @@ interface BulkSendDialogProps {
 
 export function BulkSendDialog({ open, onClose }: BulkSendDialogProps) {
   const { data: templates = [] } = useNotificationTemplates();
-  const sendNotification = useSendNotification();
+  const bulkSend = useSendBulk();
   const [templateId, setTemplateId] = useState<number | null>(null);
   const [recipients, setRecipients] = useState<{ name: string; email: string }[]>([]);
   const [csvText, setCsvText] = useState('');
-  const [sending, setSending] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   if (!open) return null;
 
@@ -40,7 +38,7 @@ export function BulkSendDialog({ open, onClose }: BulkSendDialogProps) {
     reader.readAsText(file);
   };
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!templateId || recipients.length === 0) {
       toast.error('Select a template and add recipients');
       return;
@@ -48,22 +46,22 @@ export function BulkSendDialog({ open, onClose }: BulkSendDialogProps) {
     const template = templates.find((t) => t.id === templateId);
     if (!template) return;
 
-    setSending(true);
-    setProgress(0);
-    let sent = 0;
-    for (const r of recipients) {
-      try {
-        await sendNotification.mutateAsync({
-          params: { eventType: template.eventType, email: r.email, name: r.name },
-          body: { customerName: r.name },
-        });
-        sent++;
-      } catch { /* continue */ }
-      setProgress(Math.round((sent / recipients.length) * 100));
-    }
-    setSending(false);
-    toast.success(`Sent to ${sent} of ${recipients.length} recipients`);
-    onClose();
+    bulkSend.mutate(
+      {
+        channel: template.channel,
+        subject: template.subject ?? template.templateName,
+        body: template.bodyTemplate,
+        eventType: template.eventType,
+        recipients: recipients.map((r) => ({ address: r.email, name: r.name })),
+      },
+      {
+        onSuccess: (data) => {
+          toast.success(`Sent ${data.sent} of ${data.total} messages`);
+          onClose();
+        },
+        onError: () => toast.error('Bulk send failed'),
+      },
+    );
   };
 
   return (
@@ -111,19 +109,19 @@ export function BulkSendDialog({ open, onClose }: BulkSendDialogProps) {
               </div>
             )}
 
-            {sending && (
+            {bulkSend.isPending && (
               <div className="space-y-1">
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progress}%` }} />
+                  <div className="h-full bg-primary rounded-full transition-all animate-pulse" style={{ width: '100%' }} />
                 </div>
-                <p className="text-xs text-muted-foreground text-center">{progress}% complete</p>
+                <p className="text-xs text-muted-foreground text-center">Sending…</p>
               </div>
             )}
           </div>
 
           <div className="px-6 py-4 border-t flex justify-end gap-3">
             <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-            <button onClick={handleSend} disabled={sending || !templateId || recipients.length === 0}
+            <button onClick={handleSend} disabled={bulkSend.isPending || !templateId || recipients.length === 0}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
               <Send className="w-4 h-4" /> Send to {recipients.length} recipients
             </button>

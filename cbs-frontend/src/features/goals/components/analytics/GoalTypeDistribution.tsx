@@ -12,7 +12,7 @@ interface Props {
 export function GoalTypeDistribution({ goals }: Props) {
   const byType: Record<string, { count: number; totalTarget: number }> = {};
   goals.forEach((g) => {
-    const type = ICON_MAP[g.icon] ?? g.icon ?? 'Other';
+    const type = ICON_MAP[g.goalIcon ?? ''] ?? g.goalIcon ?? 'Other';
     if (!byType[type]) byType[type] = { count: 0, totalTarget: 0 };
     byType[type].count++;
     byType[type].totalTarget += g.targetAmount;

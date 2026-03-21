@@ -43,12 +43,12 @@ export function PortalGoalWidget({ customerId }: Props) {
       ) : (
         <div className="space-y-3">
           {activeGoals.map((goal) => {
-            const pct = goal.targetAmount > 0 ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100)) : 0;
+            const pct = Math.round(goal.progressPercentage);
             return (
               <div key={goal.id} className="flex items-center gap-3">
-                <span className="text-lg">{goal.icon}</span>
+                <span className="text-lg">{goal.goalIcon || '🎯'}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{goal.name}</p>
+                  <p className="text-xs font-medium truncate">{goal.goalName}</p>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden mt-1">
                     <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
                   </div>

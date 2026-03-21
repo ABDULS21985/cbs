@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wealthApi } from '../api/wealthApi';
-import type { BeneficiaryCreateRequest, ClientMatchRequest, AdvisorReview, ScheduledDistribution } from '../api/wealthApi';
+import type { BeneficiaryCreateRequest, ClientMatchRequest, AdvisorReview, ScheduledDistribution, TrustDocument } from '../api/wealthApi';
 
 // ─── Query Keys ────────────────────────────────────────────────────────────
 
@@ -19,6 +19,7 @@ const KEYS = {
   trustDistributions: (code: string) => ['wealth', 'trusts', code, 'distributions'] as const,
   trustScheduledDist: (code: string) => ['wealth', 'trusts', code, 'scheduled-distributions'] as const,
   trustCompliance: (code: string) => ['wealth', 'trusts', code, 'compliance'] as const,
+  trustDocuments: (code: string) => ['wealth', 'trusts', code, 'documents'] as const,
   trustAnalytics: () => ['wealth', 'trusts', 'analytics'] as const,
   aumTrend: (months: number) => ['wealth', 'analytics', 'aum-trend', months] as const,
   aumWaterfall: (period?: string) => ['wealth', 'analytics', 'aum-waterfall', period] as const,
@@ -161,8 +162,8 @@ export function useTrustDistributions(code: string) {
 export function useRecordDistribution(trustCode: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ amount, beneficiary }: { amount: number; beneficiary: string }) =>
-      wealthApi.recordDistribution(trustCode, amount, beneficiary),
+    mutationFn: (amount: number) =>
+      wealthApi.recordDistribution(trustCode, amount),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.trust(trustCode) });
       qc.invalidateQueries({ queryKey: KEYS.trustDistributions(trustCode) });
@@ -219,6 +220,31 @@ export function useTrustCompliance(trustCode: string) {
     queryFn: () => wealthApi.getTrustCompliance(trustCode),
     enabled: !!trustCode,
     staleTime: 60_000,
+  });
+}
+
+export function useTrustDocuments(trustCode: string) {
+  return useQuery({
+    queryKey: KEYS.trustDocuments(trustCode),
+    queryFn: () => wealthApi.getTrustDocuments(trustCode),
+    enabled: !!trustCode,
+    staleTime: 30_000,
+  });
+}
+
+export function useUploadTrustDocument(trustCode: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => wealthApi.uploadTrustDocument(trustCode, file),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.trustDocuments(trustCode) }); },
+  });
+}
+
+export function useDeleteTrustDocument(trustCode: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (docId: string) => wealthApi.deleteTrustDocument(trustCode, docId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.trustDocuments(trustCode) }); },
   });
 }
 

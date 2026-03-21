@@ -157,4 +157,89 @@ public class MarketplaceService {
                 "total_calls_this_month", activeSubs.stream().mapToInt(MarketplaceSubscription::getCallsThisMonth).sum()
         );
     }
+
+    /**
+     * Typed analytics with explicit fields — resolves Map<String, Object> ambiguity.
+     */
+    public com.cbs.integration.dto.ProductAnalyticsDto getProductAnalyticsTyped(Long productId) {
+        MarketplaceApiProduct product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("MarketplaceApiProduct", "id", productId));
+
+        Instant last30d = Instant.now().minus(30, ChronoUnit.DAYS);
+        Double avgResponseTime = usageLogRepository.avgResponseTimeByProduct(productId, last30d);
+        long errors = usageLogRepository.countErrorsByProduct(productId, last30d);
+        long totalCalls = usageLogRepository.countTotalByProduct(productId, last30d);
+
+        List<MarketplaceSubscription> activeSubs = subscriptionRepository
+                .findByApiProductIdAndStatusOrderByCreatedAtDesc(productId, "ACTIVE");
+
+        double errorRate = totalCalls > 0 ? (errors * 100.0 / totalCalls) : 0.0;
+
+        return com.cbs.integration.dto.ProductAnalyticsDto.builder()
+                .productId(productId)
+                .productName(product.getProductName())
+                .activeSubscriptions(activeSubs.size())
+                .totalCallsThisMonth(activeSubs.stream().mapToInt(MarketplaceSubscription::getCallsThisMonth).sum())
+                .avgResponseTimeMs(avgResponseTime != null ? Math.round(avgResponseTime) : 0)
+                .errorCount30d(errors)
+                .totalCalls30d(totalCalls)
+                .errorRate(Math.round(errorRate * 100.0) / 100.0)
+                .build();
+    }
+
+    // ── Server-Side Usage Aggregation ──────────────────────────
+
+    /**
+     * Aggregates raw usage logs into daily per-product summaries.
+     * Resolves the client-side aggregation performance risk.
+     */
+    public List<Map<String, Object>> getAggregatedUsage(Long productId, int days) {
+        Instant since = Instant.now().minus(days, ChronoUnit.DAYS);
+        List<MarketplaceUsageLog> logs = productId != null
+                ? usageLogRepository.findByApiProductIdAndCreatedAtAfterOrderByCreatedAtDesc(productId, since)
+                : usageLogRepository.findAll().stream()
+                    .filter(l -> l.getCreatedAt().isAfter(since))
+                    .sorted(java.util.Comparator.comparing(MarketplaceUsageLog::getCreatedAt).reversed())
+                    .toList();
+
+        // Group by productId + date
+        Map<String, Map<String, Object>> grouped = new LinkedHashMap<>();
+        for (MarketplaceUsageLog log : logs) {
+            String date = log.getCreatedAt().toString().substring(0, 10);
+            String key = log.getApiProductId() + "-" + date;
+            Map<String, Object> bucket = grouped.computeIfAbsent(key, k -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("productId", log.getApiProductId());
+                m.put("date", date);
+                m.put("totalCalls", 0L);
+                m.put("successCalls", 0L);
+                m.put("errorCalls", 0L);
+                m.put("totalLatency", 0L);
+                m.put("maxLatency", 0);
+                return m;
+            });
+            bucket.put("totalCalls", (long) bucket.get("totalCalls") + 1);
+            boolean isSuccess = log.getResponseCode() >= 200 && log.getResponseCode() < 400;
+            if (isSuccess) bucket.put("successCalls", (long) bucket.get("successCalls") + 1);
+            else bucket.put("errorCalls", (long) bucket.get("errorCalls") + 1);
+            bucket.put("totalLatency", (long) bucket.get("totalLatency") + log.getResponseTimeMs());
+            bucket.put("maxLatency", Math.max((int) bucket.get("maxLatency"), log.getResponseTimeMs()));
+        }
+
+        // Transform to output format
+        return grouped.values().stream().map(bucket -> {
+            long total = (long) bucket.get("totalCalls");
+            long totalLatency = (long) bucket.get("totalLatency");
+            int maxLatency = (int) bucket.get("maxLatency");
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("productId", bucket.get("productId"));
+            result.put("date", bucket.get("date"));
+            result.put("totalCalls", total);
+            result.put("successCalls", bucket.get("successCalls"));
+            result.put("errorCalls", bucket.get("errorCalls"));
+            result.put("avgLatencyMs", total > 0 ? Math.round((double) totalLatency / total) : 0);
+            result.put("p95LatencyMs", Math.round(maxLatency * 0.95));
+            return result;
+        }).toList();
+    }
 }

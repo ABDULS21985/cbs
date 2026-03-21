@@ -30,6 +30,7 @@ import { CustomerConsentSummary } from '../components/consent/CustomerConsentSum
 const STATUS_BG: Record<ConsentStatus, string> = {
   AUTHORISED: 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-900',
   PENDING: 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900',
+  REJECTED: 'bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-900',
   REVOKED: 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900',
   EXPIRED: 'bg-muted border-border',
 };
@@ -37,6 +38,7 @@ const STATUS_BG: Record<ConsentStatus, string> = {
 const STATUS_ICON: Record<ConsentStatus, React.ElementType> = {
   AUTHORISED: CheckCircle2,
   PENDING: Clock,
+  REJECTED: Ban,
   REVOKED: Ban,
   EXPIRED: AlertTriangle,
 };
@@ -44,6 +46,7 @@ const STATUS_ICON: Record<ConsentStatus, React.ElementType> = {
 const STATUS_ICON_COLOR: Record<ConsentStatus, string> = {
   AUTHORISED: 'text-green-600',
   PENDING: 'text-amber-600',
+  REJECTED: 'text-orange-600',
   REVOKED: 'text-red-600',
   EXPIRED: 'text-muted-foreground',
 };
@@ -267,6 +270,7 @@ export function ConsentDetailPage() {
                   : 'Active consent · Expires today'
               )}
               {consent.status === 'PENDING' && 'Awaiting customer authorisation'}
+              {consent.status === 'REJECTED' && 'Consent request was rejected'}
               {consent.status === 'REVOKED' && `Revoked${consent.revokeReason ? ` · ${consent.revokeReason}` : ''}`}
               {consent.status === 'EXPIRED' && 'Consent has expired'}
             </p>

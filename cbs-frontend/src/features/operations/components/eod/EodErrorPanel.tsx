@@ -6,7 +6,7 @@ import type { EodStep } from '../../api/eodApi';
 
 interface EodErrorPanelProps {
   step: EodStep | null;
-  runId: string;
+  runId: number;
   onRetry: () => void;
   onSkip: (reason: string) => void;
   onRollback: () => void;
@@ -41,24 +41,18 @@ export function EodErrorPanel({
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold text-red-800 dark:text-red-300">
-              Step Failed: {step.label}
+              Step Failed: {step.stepName}
             </h3>
             {step.errorMessage && (
               <p className="mt-1 text-sm text-red-700 dark:text-red-400">{step.errorMessage}</p>
             )}
-            {step.affectedCount !== undefined && (
+            {step.recordsProcessed != null && step.recordsProcessed > 0 && (
               <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                Affected records: <strong>{step.affectedCount.toLocaleString()}</strong>
+                Records processed before failure: <strong>{step.recordsProcessed.toLocaleString()}</strong>
               </p>
             )}
           </div>
         </div>
-
-        {step.errorDetail && (
-          <pre className="text-xs font-mono bg-red-100 dark:bg-red-900/20 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap text-red-800 dark:text-red-300 border border-red-200 dark:border-red-700 max-h-40">
-            {step.errorDetail}
-          </pre>
-        )}
 
         <div className="flex flex-wrap gap-2">
           <button
@@ -95,7 +89,7 @@ export function EodErrorPanel({
           setShowRetryConfirm(false);
           onRetry();
         }}
-        title={`Retry Step: ${step.label}`}
+        title={`Retry Step: ${step.stepName}`}
         description="This will re-execute the failed step from the beginning. Any partial work from the failed attempt will be rolled back before retrying."
         confirmLabel="Retry Step"
         isLoading={isRetrying}
@@ -111,7 +105,7 @@ export function EodErrorPanel({
                   <SkipForward className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold">Skip Step: {step.label}</h3>
+                  <h3 className="text-lg font-semibold">Skip Step: {step.stepName}</h3>
                   <p className="text-sm text-muted-foreground mt-1">
                     Skipping this step will continue the EOD run without executing it. Please provide a reason.
                   </p>

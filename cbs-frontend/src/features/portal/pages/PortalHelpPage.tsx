@@ -54,7 +54,10 @@ export function PortalHelpPage() {
       {/* Quick links */}
       <div className="flex flex-wrap gap-3">
         <Link to="/portal/requests" className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted"><AlertTriangle className="w-4 h-4" /> Report an Issue</Link>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted opacity-60 cursor-not-allowed"><MapPin className="w-4 h-4" /> Find Branch</button>
+        <a href="https://www.google.com/maps/search/BellBank+branch" target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">
+          <MapPin className="w-4 h-4" /> Find Branch
+        </a>
       </div>
 
       {/* Contact form */}

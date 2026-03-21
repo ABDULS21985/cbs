@@ -449,7 +449,15 @@ export function MarketDataManagementPage() {
     <>
       <PageHeader
         title="Market Data Infrastructure"
-        subtitle="Manage data feeds, prices, signals, and research publications"
+        subtitle={
+          <>
+            Manage data feeds, prices, signals, and research publications
+            {' '}
+            <a href="/gateway/message-analysis" className="text-xs text-muted-foreground hover:text-primary underline">
+              Message Analysis →
+            </a>
+          </>
+        }
         actions={
           <span className={cn('flex items-center gap-1.5 text-xs font-medium',
             connectionStatus === 'live' ? 'text-green-600' :

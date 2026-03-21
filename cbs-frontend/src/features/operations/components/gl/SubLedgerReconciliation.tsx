@@ -17,8 +17,8 @@ interface BreakDetail {
 
 function BreakDrillDownModal({ row, date, onClose }: { row: SubLedgerRow; date: string; onClose: () => void }) {
   const { data: details = [], isLoading, isError } = useQuery({
-    queryKey: ['gl-reconciliation-break', row.module, date],
-    queryFn: () => apiGet<BreakDetail[]>('/api/v1/gl/reconciliation/break-details', { module: row.module, date }),
+    queryKey: ['gl-reconciliation-break', row.subledgerType, date],
+    queryFn: () => apiGet<BreakDetail[]>('/api/v1/gl/reconciliation/break-details', { module: row.subledgerType, date }),
   });
 
   return (
@@ -28,9 +28,9 @@ function BreakDrillDownModal({ row, date, onClose }: { row: SubLedgerRow; date: 
         <div className="bg-card rounded-xl shadow-2xl border w-full max-w-2xl">
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <div>
-              <h2 className="text-lg font-semibold">Reconciliation Break: {row.module}</h2>
+              <h2 className="text-lg font-semibold">Reconciliation Break: {row.subledgerType}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Difference: <span className="font-mono text-red-600 font-medium">{formatMoney(Math.abs(row.difference))}</span>
+                GL Code: {row.glCode} | Difference: <span className="font-mono text-red-600 font-medium">{formatMoney(Math.abs(row.difference))}</span>
               </p>
             </div>
             <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted transition-colors">
@@ -74,7 +74,7 @@ function BreakDrillDownModal({ row, date, onClose }: { row: SubLedgerRow; date: 
               <tfoot>
                 <tr className="border-t-2 font-semibold bg-muted/30">
                   <td className="py-2.5 pr-4">Total</td>
-                  <td className="py-2.5 pr-4 text-right font-mono">{formatMoney(row.subLedgerTotal)}</td>
+                  <td className="py-2.5 pr-4 text-right font-mono">{formatMoney(row.subledgerBalance)}</td>
                   <td className="py-2.5 pr-4 text-right font-mono">{formatMoney(row.glBalance)}</td>
                   <td className={cn('py-2.5 text-right font-mono', row.difference !== 0 ? 'text-red-600' : 'text-green-600')}>
                     {row.difference !== 0 ? (row.difference > 0 ? '+' : '') + formatMoney(row.difference) : '—'}
@@ -99,8 +99,8 @@ export function SubLedgerReconciliation() {
     queryFn: () => glApi.getSubLedgerReconciliation(date),
   });
 
-  const matchedCount = rows.filter((r) => r.status === 'MATCHED').length;
-  const breakCount = rows.filter((r) => r.status === 'BREAK').length;
+  const matchedCount = rows.filter((r) => r.balanced).length;
+  const breakCount = rows.filter((r) => !r.balanced).length;
 
   return (
     <div className="space-y-4 p-6">
@@ -141,8 +141,9 @@ export function SubLedgerReconciliation() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/30 border-b text-xs text-muted-foreground">
-              <th className="text-left px-4 py-2.5 font-medium">Module</th>
-              <th className="text-right px-4 py-2.5 font-medium">Sub-Ledger Total</th>
+              <th className="text-left px-4 py-2.5 font-medium">Subledger Type</th>
+              <th className="text-left px-4 py-2.5 font-medium">GL Code</th>
+              <th className="text-right px-4 py-2.5 font-medium">Sub-Ledger Balance</th>
               <th className="text-right px-4 py-2.5 font-medium">GL Balance</th>
               <th className="text-right px-4 py-2.5 font-medium">Difference</th>
               <th className="text-left px-4 py-2.5 font-medium">Status</th>
@@ -152,7 +153,7 @@ export function SubLedgerReconciliation() {
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="border-b">
-                  {Array.from({ length: 5 }).map((_, j) => (
+                  {Array.from({ length: 6 }).map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <div className="h-4 bg-muted rounded animate-pulse" />
                     </td>
@@ -162,20 +163,21 @@ export function SubLedgerReconciliation() {
             ) : (
               rows.map((row) => (
                 <tr
-                  key={row.module}
+                  key={`${row.subledgerType}-${row.glCode}`}
                   className={cn(
                     'border-b border-border/40 transition-colors',
-                    row.status === 'BREAK' && 'bg-red-50/30 dark:bg-red-900/10',
+                    !row.balanced && 'bg-red-50/30 dark:bg-red-900/10',
                   )}
                 >
-                  <td className="px-4 py-3 font-medium">{row.module}</td>
-                  <td className="px-4 py-3 text-right font-mono">{formatMoney(row.subLedgerTotal)}</td>
+                  <td className="px-4 py-3 font-medium">{row.subledgerType}</td>
+                  <td className="px-4 py-3 font-mono text-xs">{row.glCode}</td>
+                  <td className="px-4 py-3 text-right font-mono">{formatMoney(row.subledgerBalance)}</td>
                   <td className="px-4 py-3 text-right font-mono">{formatMoney(row.glBalance)}</td>
-                  <td className={cn('px-4 py-3 text-right font-mono font-medium', row.status === 'BREAK' ? 'text-red-600' : 'text-green-600')}>
-                    {row.status === 'MATCHED' ? formatMoney(0) : (row.difference > 0 ? '+' : '') + formatMoney(row.difference)}
+                  <td className={cn('px-4 py-3 text-right font-mono font-medium', !row.balanced ? 'text-red-600' : 'text-green-600')}>
+                    {row.balanced ? formatMoney(0) : (row.difference > 0 ? '+' : '') + formatMoney(row.difference)}
                   </td>
                   <td className="px-4 py-3">
-                    {row.status === 'MATCHED' ? (
+                    {row.balanced ? (
                       <span className="flex items-center gap-1.5 text-green-600 text-xs font-medium">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Matched
@@ -197,9 +199,9 @@ export function SubLedgerReconciliation() {
           {!isLoading && rows.length > 0 && (
             <tfoot>
               <tr className="bg-muted/30 border-t-2 font-semibold text-sm">
-                <td className="px-4 py-3">Total</td>
+                <td colSpan={2} className="px-4 py-3">Total</td>
                 <td className="px-4 py-3 text-right font-mono">
-                  {formatMoney(rows.reduce((s, r) => s + r.subLedgerTotal, 0))}
+                  {formatMoney(rows.reduce((s, r) => s + r.subledgerBalance, 0))}
                 </td>
                 <td className="px-4 py-3 text-right font-mono">
                   {formatMoney(rows.reduce((s, r) => s + r.glBalance, 0))}

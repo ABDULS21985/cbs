@@ -15,4 +15,12 @@ public interface MarketplaceUsageLogRepository extends JpaRepository<Marketplace
 
     @Query("SELECT COUNT(u) FROM MarketplaceUsageLog u WHERE u.apiProductId = :productId AND u.responseCode >= 500 AND u.createdAt > :since")
     long countErrorsByProduct(Long productId, Instant since);
+
+    @Query("SELECT COUNT(u) FROM MarketplaceUsageLog u WHERE u.apiProductId = :productId AND u.createdAt > :since")
+    long countTotalByProduct(Long productId, Instant since);
+
+    @Query("SELECT COUNT(u) FROM MarketplaceUsageLog u WHERE u.apiProductId = :productId AND u.responseCode >= 200 AND u.responseCode < 400 AND u.createdAt > :since")
+    long countSuccessByProduct(Long productId, Instant since);
+
+    List<MarketplaceUsageLog> findByApiProductIdAndCreatedAtAfterOrderByCreatedAtDesc(Long apiProductId, Instant since);
 }

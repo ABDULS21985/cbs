@@ -16,24 +16,23 @@ interface EodDurationTrendChartProps {
   data: EodDurationPoint[];
 }
 
-function msToMinutes(ms: number): number {
-  return Math.round((ms / 60_000) * 10) / 10;
+function secondsToMinutes(seconds: number): number {
+  return Math.round((seconds / 60) * 10) / 10;
 }
 
-function formatDurationLabel(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+function formatDurationLabel(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
   if (hours > 0) {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 interface ChartPoint {
   date: string;
-  durationMs: number;
+  durationSeconds: number;
   durationMin: number;
   aboveAvg: boolean;
 }
@@ -45,7 +44,7 @@ const CustomTooltip = ({ active, payload, label, avgMin }: any) => {
     <div className="rounded-lg border bg-popover p-3 shadow-lg text-sm space-y-1">
       <p className="font-semibold">{label}</p>
       <p className="text-muted-foreground">
-        Duration: <span className="font-mono font-medium text-foreground">{formatDurationLabel(d.durationMs)}</span>
+        Duration: <span className="font-mono font-medium text-foreground">{formatDurationLabel(d.durationSeconds)}</span>
       </p>
       <p className={d.aboveAvg ? 'text-red-500' : 'text-green-600'}>
         {d.aboveAvg ? `+${(d.durationMin - avgMin).toFixed(1)} min above avg` : `${(avgMin - d.durationMin).toFixed(1)} min below avg`}
@@ -69,15 +68,15 @@ export function EodDurationTrendChart({ data }: EodDurationTrendChartProps) {
     );
   }
 
-  const totalMs = data.reduce((sum, d) => sum + d.durationMs, 0);
-  const avgMs = totalMs / data.length;
-  const avgMin = msToMinutes(avgMs);
+  const totalSeconds = data.reduce((sum, d) => sum + d.durationSeconds, 0);
+  const avgSeconds = totalSeconds / data.length;
+  const avgMin = secondsToMinutes(avgSeconds);
 
   const chartData: ChartPoint[] = data.map((d) => ({
     date: formatDate(d.date),
-    durationMs: d.durationMs,
-    durationMin: msToMinutes(d.durationMs),
-    aboveAvg: d.durationMs > avgMs,
+    durationSeconds: d.durationSeconds,
+    durationMin: secondsToMinutes(d.durationSeconds),
+    aboveAvg: d.durationSeconds > avgSeconds,
   }));
 
   const minMin = Math.min(...chartData.map((d) => d.durationMin));
@@ -97,7 +96,7 @@ export function EodDurationTrendChart({ data }: EodDurationTrendChartProps) {
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block w-4 h-0.5 border-t border-dashed border-gray-400" />
-          Avg: {formatDurationLabel(avgMs)}
+          Avg: {formatDurationLabel(avgSeconds)}
         </span>
       </div>
       <ResponsiveContainer width="100%" height={220}>

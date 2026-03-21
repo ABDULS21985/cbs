@@ -1,4 +1,4 @@
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Activity, Shield, BarChart2 } from 'lucide-react';
 import { formatPercent, formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -50,13 +50,14 @@ export function PerformanceAttributionChart({ planCode }: PerformanceAttribution
     { name: 'Timing', value: ytdReturn * 0.15, fill: '#f59e0b' },
   ];
 
-  // Waterfall: Starting → Allocation → Selection → Timing → Ending
-  const waterfallData = [
+  // Waterfall: Starting -> Allocation -> Selection -> Timing -> Ending
+  const _waterfallData = [
     { name: 'Starting Value', value: 100, fill: '#94a3b8' },
     { name: 'Asset Allocation', value: ytdReturn * 0.55, fill: '#3b82f6' },
     { name: 'Selection', value: ytdReturn * 0.30, fill: '#10b981' },
     { name: 'Timing', value: ytdReturn * 0.15, fill: '#f59e0b' },
   ];
+  void _waterfallData;
 
   return (
     <div className="space-y-5">

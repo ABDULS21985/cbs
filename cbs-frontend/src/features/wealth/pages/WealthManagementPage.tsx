@@ -4,11 +4,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable } from '@/components/shared/DataTable';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import {
-  wealthApi,
   type WealthPlan,
   type TrustAccount,
   type Advisor,
-  type AumDataPoint,
   type PlanCreateRequest,
 } from '../api/wealthApi';
 import { usePlans, useAdvisors, useTrusts, useAumTrend, useCreatePlan } from '../hooks/useWealthData';
@@ -773,6 +771,7 @@ export function WealthManagementPage() {
                 enableGlobalFilter
                 enableExport
                 exportFilename="trust-accounts"
+                onRowClick={(row) => navigate(`/wealth/trusts/${row.trustCode}`)}
                 emptyMessage="No trust accounts found"
               />
             )}
@@ -782,6 +781,7 @@ export function WealthManagementPage() {
                 data={advisors}
                 isLoading={advisorsLoading}
                 enableGlobalFilter
+                onRowClick={(row) => navigate(`/wealth/advisors/${row.id}`)}
                 emptyMessage="No advisors found"
               />
             )}

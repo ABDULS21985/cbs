@@ -5,7 +5,7 @@ import { StatCard } from '@/components/shared';
 import { formatMoney, formatMoneyCompact } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { goalApi, type SavingsGoal, type GoalContribution } from '../../api/goalApi';
+import { goalApi, type SavingsGoal, type GoalTransaction } from '../../api/goalApi';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GoalProgressCircle } from '../GoalProgressCircle';
 import { AchievementGrid, computeAchievements } from '../gamification/AchievementGrid';
@@ -19,7 +19,7 @@ interface CustomerGoalsTabProps {
 export function CustomerGoalsTab({ customerId }: CustomerGoalsTabProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
+  const [contributeGoalId, setContributeGoalId] = useState<number | null>(null);
   const [contributeAmount, setContributeAmount] = useState('');
 
   const { data: goals = [], isLoading } = useQuery({
@@ -40,7 +40,7 @@ export function CustomerGoalsTab({ customerId }: CustomerGoalsTabProps) {
   });
 
   const contributeMutation = useMutation({
-    mutationFn: ({ goalId, amount }: { goalId: string; amount: number }) =>
+    mutationFn: ({ goalId, amount }: { goalId: number; amount: number }) =>
       goalApi.contribute(goalId, { amount }),
     onSuccess: () => {
       toast.success('Contribution recorded');
@@ -56,7 +56,8 @@ export function CustomerGoalsTab({ customerId }: CustomerGoalsTabProps) {
   const totalSaved = goals.reduce((s, g) => s + g.currentAmount, 0);
 
   // Streak
-  const months = new Set(allContributions.map((c) => c.date.slice(0, 7)));
+  const deposits = allContributions.filter(c => c.transactionType === 'DEPOSIT');
+  const months = new Set(deposits.map((c) => c.createdAt.slice(0, 7)));
   const now = new Date();
   let streak = 0;
   for (let i = 0; i < 36; i++) {
@@ -69,7 +70,7 @@ export function CustomerGoalsTab({ customerId }: CustomerGoalsTabProps) {
   const earned = computeAchievements(goals, allContributions).filter((a) => a.earned);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-48 gap-2 text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin" /> Loading goals…</div>;
+    return <div className="flex items-center justify-center h-48 gap-2 text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin" /> Loading goals...</div>;
   }
 
   return (
@@ -79,7 +80,7 @@ export function CustomerGoalsTab({ customerId }: CustomerGoalsTabProps) {
         <StatCard label="Active Goals" value={activeGoals.length} format="number" />
         <StatCard label="Total Saved" value={formatMoneyCompact(totalSaved)} />
         <StatCard label="Completed" value={completed.length} format="number" />
-        <StatCard label="Streak" value={streak > 0 ? `🔥 ${streak}mo` : '—'} />
+        <StatCard label="Streak" value={streak > 0 ? `${streak}mo` : '—'} />
       </div>
 
       {/* Achievements inline */}
@@ -105,18 +106,18 @@ export function CustomerGoalsTab({ customerId }: CustomerGoalsTabProps) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {activeGoals.map((goal) => {
-            const pct = goal.targetAmount > 0 ? Math.round((goal.currentAmount / goal.targetAmount) * 100) : 0;
+            const pct = goal.progressPercentage;
             return (
               <div key={goal.id} className="rounded-xl border bg-card p-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{goal.icon}</span>
+                  <span className="text-2xl">{goal.goalIcon || '🎯'}</span>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold">{goal.name}</p>
+                    <p className="text-sm font-semibold">{goal.goalName}</p>
                     <p className="text-xs text-muted-foreground">{formatMoney(goal.currentAmount)} / {formatMoney(goal.targetAmount)}</p>
                   </div>
                   <div className="text-right">
                     <span className={cn('text-lg font-bold tabular-nums', pct >= 80 ? 'text-green-600' : pct >= 50 ? 'text-amber-600' : 'text-blue-600')}>
-                      {pct}%
+                      {pct.toFixed(0)}%
                     </span>
                   </div>
                 </div>
@@ -146,13 +147,17 @@ export function CustomerGoalsTab({ customerId }: CustomerGoalsTabProps) {
         </div>
       )}
 
-      {/* Recurring deposits summary */}
-      {goals.filter((g) => g.fundingMethod === 'AUTO_DEBIT' && g.autoDebit).length > 0 && (
+      {/* Auto-debit summary */}
+      {goals.filter((g) => g.autoDebitEnabled && g.autoDebitAmount).length > 0 && (
         <div className="rounded-lg border p-3">
-          <p className="text-xs text-muted-foreground">Recurring Deposits: {goals.filter((g) => g.autoDebit?.status === 'ACTIVE').length} active</p>
-          <div className="flex gap-2 mt-1">
-            {goals.filter((g) => g.autoDebit?.status === 'ACTIVE').map((g) => (
-              <span key={g.id} className="text-xs bg-muted rounded px-2 py-0.5">{formatMoney(g.autoDebit!.amount)} {g.autoDebit!.frequency.toLowerCase()}</span>
+          <p className="text-xs text-muted-foreground">
+            Auto-Debit: {goals.filter((g) => g.autoDebitEnabled).length} active
+          </p>
+          <div className="flex gap-2 mt-1 flex-wrap">
+            {goals.filter((g) => g.autoDebitEnabled && g.autoDebitAmount).map((g) => (
+              <span key={g.id} className="text-xs bg-muted rounded px-2 py-0.5">
+                {formatMoney(g.autoDebitAmount!)} {(g.autoDebitFrequency ?? 'MONTHLY').toLowerCase().replace('_', '-')}
+              </span>
             ))}
           </div>
         </div>

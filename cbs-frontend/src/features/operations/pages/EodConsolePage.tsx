@@ -43,13 +43,13 @@ export function EodConsolePage() {
 
   const { data: history, isLoading: historyLoading } = useQuery({
     queryKey: ['eod', 'history'],
-    queryFn: () => eodApi.getHistory({ pageSize: 30 }),
+    queryFn: () => eodApi.getHistory({ size: 30 }),
     staleTime: 60_000,
   });
 
   const { data: durationTrend } = useQuery({
     queryKey: ['eod', 'duration-trend'],
-    queryFn: () => eodApi.getDurationTrend(30),
+    queryFn: () => eodApi.getDurationTrend(),
     staleTime: 60_000,
   });
 

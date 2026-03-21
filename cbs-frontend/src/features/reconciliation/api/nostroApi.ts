@@ -1,5 +1,11 @@
-import { apiGet, apiPost } from '@/lib/api';
-import type { CorrespondentBank, NostroPosition, NostroReconItem } from '../types/nostro';
+import { apiGet, apiPost, apiPatch } from '@/lib/api';
+import type {
+  CorrespondentBank,
+  NostroPosition,
+  NostroReconItem,
+  CreatePositionRequest,
+  CreateReconItemRequest,
+} from '../types/nostro';
 
 export const nostroApi = {
   // ─── Correspondent Banks ────────────────────────────────────────────────────
@@ -15,16 +21,30 @@ export const nostroApi = {
     apiGet<NostroPosition>(`/api/v1/nostro/positions/${id}`),
   getPositionsByType: (type: string) =>
     apiGet<NostroPosition[]>(`/api/v1/nostro/positions/type/${type}`),
-  createPosition: (data: Record<string, unknown>) =>
+  createPosition: (data: CreatePositionRequest) =>
     apiPost<NostroPosition>('/api/v1/nostro/positions', data),
 
+  /** PATCH /v1/nostro/positions/{id}/statement?statementBalance=X&statementDate=Y */
+  updateStatementBalance: (
+    positionId: number,
+    statementBalance: number,
+    statementDate: string,
+  ) =>
+    apiPatch<NostroPosition>(
+      `/api/v1/nostro/positions/${positionId}/statement?statementBalance=${statementBalance}&statementDate=${statementDate}`,
+    ),
+
   // ─── Recon Items ────────────────────────────────────────────────────────────
-  getReconItems: (positionId: number) =>
-    apiGet<NostroReconItem[]>(`/api/v1/nostro/positions/${positionId}/recon-items`),
+  getReconItems: (positionId: number, params?: { page?: number; size?: number }) =>
+    apiGet<NostroReconItem[]>(`/api/v1/nostro/positions/${positionId}/recon-items`, params),
   getUnmatchedItems: (positionId: number) =>
     apiGet<NostroReconItem[]>(`/api/v1/nostro/positions/${positionId}/recon-items/unmatched`),
-  addReconItem: (positionId: number, data: Record<string, unknown>) =>
+  addReconItem: (positionId: number, data: CreateReconItemRequest) =>
     apiPost<NostroReconItem>(`/api/v1/nostro/positions/${positionId}/recon-items`, data),
-  matchItem: (itemId: number, data: Record<string, unknown>) =>
-    apiPost<NostroReconItem>(`/api/v1/nostro/recon-items/${itemId}/match`, data),
+
+  /** POST /v1/nostro/recon-items/{itemId}/match?matchReference=X&resolvedBy=Y */
+  matchItem: (itemId: number, matchReference: string, resolvedBy: string) =>
+    apiPost<NostroReconItem>(
+      `/api/v1/nostro/recon-items/${itemId}/match?matchReference=${encodeURIComponent(matchReference)}&resolvedBy=${encodeURIComponent(resolvedBy)}`,
+    ),
 };

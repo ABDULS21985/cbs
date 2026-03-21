@@ -49,7 +49,7 @@ export function statusColor(status: string): string {
   switch (status) {
     case 'DELIVERED': case 'READ': return 'text-green-600';
     case 'SENT': return 'text-blue-600';
-    case 'PENDING': case 'SCHEDULED': return 'text-amber-600';
+    case 'PENDING': case 'PENDING_DISPATCH': case 'SCHEDULED': return 'text-amber-600';
     case 'FAILED': return 'text-red-600';
     case 'BOUNCED': return 'text-orange-600';
     default: return 'text-muted-foreground';

@@ -1,5 +1,7 @@
 // Auto-generated from backend entities
 
+export type BranchType = 'HEAD_OFFICE' | 'REGIONAL' | 'BRANCH' | 'SUB_BRANCH' | 'AGENCY' | 'DIGITAL';
+
 export interface Branch {
   id: number;
   branchCode: string;

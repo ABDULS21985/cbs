@@ -10,12 +10,11 @@ import {
   usePublishNotificationTemplate,
   useArchiveNotificationTemplate,
 } from '../../admin/hooks/useAdminData';
-import type { NotificationTemplate, NotificationChannel } from '../../admin/api/notificationAdminApi';
+import type { NotificationTemplate } from '../../admin/api/notificationAdminApi';
 import { TemplateTable } from '../components/templates/TemplateTable';
 import { TemplateEditor } from '../components/templates/TemplateEditor';
 import { TemplateTestSendDialog } from '../components/templates/TemplateTestSendDialog';
 import { TemplateCategoryFilter } from '../components/templates/TemplateCategoryFilter';
-import { ChannelBadge } from '../components/templates/ChannelBadge';
 
 const CHANNEL_FILTERS: { value: string; label: string; icon: string }[] = [
   { value: '', label: 'All', icon: '' },

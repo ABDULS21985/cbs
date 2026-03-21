@@ -1,4 +1,4 @@
-import { Mail, MessageSquare, Bell, Smartphone } from 'lucide-react';
+import { Mail, MessageSquare, Bell, Smartphone, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -69,6 +69,27 @@ export function NotificationPreviewCard({ channel, subject, body, recipientName 
             <p className="text-[10px] text-muted-foreground mt-1">now</p>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (channel === 'WEBHOOK') {
+    const payload = JSON.stringify({
+      eventType: 'CUSTOM_NOTIFICATION',
+      recipientName: recipientName || 'Customer',
+      subject: subject || undefined,
+      body: body || '',
+      timestamp: new Date().toISOString(),
+    }, null, 2);
+    return (
+      <div className="max-w-md">
+        <div className="flex items-center gap-2 mb-2">
+          <Globe className="w-4 h-4 text-cyan-600" />
+          <span className="text-xs font-medium">Webhook Payload Preview</span>
+        </div>
+        <pre className="rounded-lg border bg-gray-50 dark:bg-gray-900 p-3 text-xs font-mono overflow-x-auto whitespace-pre">
+          {payload}
+        </pre>
       </div>
     );
   }

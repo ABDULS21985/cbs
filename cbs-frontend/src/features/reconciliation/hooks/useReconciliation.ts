@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { nostroApi } from '../api/nostroApi';
-import type { CorrespondentBank } from '../types/nostro';
+import { glReconApi } from '../api/glReconApi';
+import type { CorrespondentBank, CreatePositionRequest, CreateReconItemRequest } from '../types/nostro';
 
 // ─── Query Key Factories ──────────────────────────────────────────────────────
 
@@ -16,6 +17,9 @@ const KEYS = {
     ['nostro', 'positions', positionId, 'recon-items'] as const,
   unmatchedItems: (positionId: number) =>
     ['nostro', 'positions', positionId, 'recon-items', 'unmatched'] as const,
+  // GL sub-ledger
+  glReconRuns: ['gl', 'reconciliation'] as const,
+  glReconByDate: (date: string) => ['gl', 'reconciliation', date] as const,
 };
 
 // ─── Correspondent Bank Hooks ─────────────────────────────────────────────────
@@ -78,8 +82,27 @@ export function useNostroPositionsByType(type: string) {
 export function useCreatePosition() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) => nostroApi.createPosition(data),
+    mutationFn: (data: CreatePositionRequest) => nostroApi.createPosition(data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.positions });
+    },
+  });
+}
+
+export function useUpdateStatementBalance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      positionId,
+      statementBalance,
+      statementDate,
+    }: {
+      positionId: number;
+      statementBalance: number;
+      statementDate: string;
+    }) => nostroApi.updateStatementBalance(positionId, statementBalance, statementDate),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: KEYS.position(vars.positionId) });
       queryClient.invalidateQueries({ queryKey: KEYS.positions });
     },
   });
@@ -108,7 +131,7 @@ export function useUnmatchedItems(positionId: number) {
 export function useAddReconItem(positionId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) => nostroApi.addReconItem(positionId, data),
+    mutationFn: (data: CreateReconItemRequest) => nostroApi.addReconItem(positionId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.reconItems(positionId) });
       queryClient.invalidateQueries({ queryKey: KEYS.unmatchedItems(positionId) });
@@ -120,10 +143,52 @@ export function useAddReconItem(positionId: number) {
 export function useMatchReconItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ itemId, data }: { itemId: number; data: Record<string, unknown> }) =>
-      nostroApi.matchItem(itemId, data),
+    mutationFn: ({
+      itemId,
+      matchReference,
+      resolvedBy,
+    }: {
+      itemId: number;
+      matchReference: string;
+      resolvedBy: string;
+    }) => nostroApi.matchItem(itemId, matchReference, resolvedBy),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nostro'] });
+    },
+  });
+}
+
+// ─── GL Sub-Ledger Reconciliation Hooks ───────────────────────────────────────
+
+export function useGlReconRuns(params?: { page?: number; size?: number }) {
+  return useQuery({
+    queryKey: [...KEYS.glReconRuns, params],
+    queryFn: () => glReconApi.listReconRuns(params),
+    staleTime: 30_000,
+  });
+}
+
+export function useGlReconByDate(date: string) {
+  return useQuery({
+    queryKey: KEYS.glReconByDate(date),
+    queryFn: () => glReconApi.getReconResultsByDate(date),
+    enabled: !!date,
+    staleTime: 30_000,
+  });
+}
+
+export function useRunGlReconciliation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      subledgerType: string;
+      glCode: string;
+      reconDate: string;
+      branchCode?: string;
+      currencyCode?: string;
+    }) => glReconApi.runReconciliation(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.glReconRuns });
     },
   });
 }

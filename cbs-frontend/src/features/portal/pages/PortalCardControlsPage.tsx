@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CreditCard, Lock, Globe, ShoppingCart, Banknote, Loader2, Snowflake, Plane, X } from 'lucide-react';
+import { CreditCard, Lock, Globe, ShoppingCart, Banknote, Loader2, Snowflake, Plane, X, Wifi, Nfc, Monitor } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -40,7 +40,7 @@ export function PortalCardControlsPage() {
   });
 
   const fc = 'w-full px-3 py-2 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
-  const isFrozen = selectedCard?.status === 'BLOCKED';
+  const isFrozen = selectedCard?.status === 'BLOCKED' || selectedCard?.status === 'FROZEN';
 
   if (isLoading) return <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-20 rounded-lg bg-muted/30 animate-pulse" />)}</div>;
 
@@ -88,7 +88,10 @@ export function PortalCardControlsPage() {
           <div className="space-y-3">
             <h2 className="text-sm font-semibold">Transaction Channels</h2>
             {[
-              { key: 'onlineEnabled', label: 'Online Payments', desc: 'E-commerce and web payments', icon: Globe, value: selectedCard.onlineEnabled },
+              { key: 'onlineEnabled', label: 'Online Payments', desc: 'E-commerce and web payments', icon: Monitor, value: selectedCard.onlineEnabled },
+              { key: 'atmEnabled', label: 'ATM Withdrawals', desc: 'Cash withdrawals at ATM terminals', icon: Banknote, value: selectedCard.atmEnabled },
+              { key: 'posEnabled', label: 'POS Payments', desc: 'Point-of-sale terminal transactions', icon: ShoppingCart, value: selectedCard.posEnabled },
+              { key: 'contactlessEnabled', label: 'Contactless', desc: 'Tap-to-pay NFC payments', icon: Nfc, value: selectedCard.contactlessEnabled },
               { key: 'internationalEnabled', label: 'International', desc: 'Transactions outside Nigeria', icon: Globe, value: selectedCard.internationalEnabled },
             ].map(ch => (
               <div key={ch.key} className="flex items-center justify-between p-3 rounded-lg border">

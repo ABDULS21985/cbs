@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import type { NotificationPreference, NotificationChannel } from '../types/notificationExt';
 
-const CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS', 'PUSH', 'IN_APP'];
+const CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS', 'PUSH', 'IN_APP', 'WEBHOOK'];
 
 const EVENT_CATEGORIES: { category: string; events: { type: string; label: string }[] }[] = [
   {

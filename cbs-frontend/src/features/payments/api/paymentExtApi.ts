@@ -10,8 +10,11 @@ export const paymentsApi = {
   getAllRails: (params?: Record<string, unknown>) =>
     apiGet<PaymentRail[]>('/api/v1/payments/orchestration/rails', params),
 
+  /** GET /v1/payments/orchestration/rules */
+  getAllRules: () =>
+    apiGet<PaymentRoutingRule[]>('/api/v1/payments/orchestration/rules'),
+
   /** POST /v1/payments/orchestration/rules */
   createRule: (data: Partial<PaymentRoutingRule>) =>
     apiPost<PaymentRoutingRule>('/api/v1/payments/orchestration/rules', data),
-
 };

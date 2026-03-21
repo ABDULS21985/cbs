@@ -28,9 +28,10 @@ function cardBorder(status: GatewayStatus['status']): string {
 }
 
 function GatewayCard({ gateway }: { gateway: GatewayStatus }) {
-  const lastMsg = (() => {
+  const lastHeartbeat = (() => {
     try {
-      return formatDistanceToNow(parseISO(gateway.lastMessageAt), { addSuffix: true });
+      if (!gateway.lastHeartbeatAt) return 'never';
+      return formatDistanceToNow(parseISO(gateway.lastHeartbeatAt), { addSuffix: true });
     } catch {
       return 'unknown';
     }
@@ -48,12 +49,10 @@ function GatewayCard({ gateway }: { gateway: GatewayStatus }) {
             </span>
           </div>
         </div>
-        {gateway.status !== 'OFFLINE' && (
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground">Latency</div>
-            <div className="text-sm font-semibold font-mono">{gateway.latencyMs}ms</div>
-          </div>
-        )}
+        <div className="text-right">
+          <div className="text-xs text-muted-foreground">Type</div>
+          <div className="text-xs font-semibold font-mono">{gateway.type}</div>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3 pt-1 border-t">
@@ -62,14 +61,12 @@ function GatewayCard({ gateway }: { gateway: GatewayStatus }) {
           <div className="text-sm font-semibold">{gateway.todayMessages.toLocaleString()}</div>
         </div>
         <div>
-          <div className="text-xs text-muted-foreground">Errors</div>
-          <div className={cn('text-sm font-semibold', gateway.errors > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400')}>
-            {gateway.errors}
-          </div>
+          <div className="text-xs text-muted-foreground">Value</div>
+          <div className="text-sm font-semibold">{gateway.valueToday.toLocaleString()}</div>
         </div>
         <div>
-          <div className="text-xs text-muted-foreground">Last msg</div>
-          <div className="text-xs text-muted-foreground leading-tight">{lastMsg}</div>
+          <div className="text-xs text-muted-foreground">Heartbeat</div>
+          <div className="text-xs text-muted-foreground leading-tight">{lastHeartbeat}</div>
         </div>
       </div>
     </div>

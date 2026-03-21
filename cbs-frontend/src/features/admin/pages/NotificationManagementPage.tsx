@@ -55,6 +55,7 @@ const CHANNEL_OPTIONS: Array<{ value: NotificationChannel | ''; label: string }>
   { value: 'SMS', label: 'SMS' },
   { value: 'PUSH', label: 'Push' },
   { value: 'IN_APP', label: 'In-App' },
+  { value: 'WEBHOOK', label: 'Webhook' },
 ];
 
 const selectClass = 'rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors';

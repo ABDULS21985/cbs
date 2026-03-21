@@ -24,7 +24,7 @@ export function EodStepPipeline({ steps, onStepClick }: EodStepPipelineProps) {
                 onClick={() => onStepClick(step)}
                 className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
                 disabled={step.status !== 'FAILED'}
-                title={step.status === 'FAILED' ? `Click to manage failed step: ${step.label}` : step.label}
+                title={step.status === 'FAILED' ? `Click to manage failed step: ${step.stepName}` : step.stepName}
               >
                 <EodStepCard
                   step={step}

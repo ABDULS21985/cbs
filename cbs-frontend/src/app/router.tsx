@@ -50,6 +50,7 @@ import {
   CollectionsPage,
   CollectionCaseDetailPage,
   EclParameterPage,
+  CreditRiskDashboardPage,
   ComplianceDashboardPage,
   AmlDashboardPage,
   AmlAlertDetailPage,
@@ -142,6 +143,8 @@ import {
   PortalBillPaymentPage,
   PortalAirtimePage,
   PortalTransferPage,
+  PortalTransferHistoryPage,
+  PortalAdminProfileUpdatesPage,
   PosTerminalPage,
   ProductCreatePage,
   ProductDetailPage,
@@ -155,6 +158,7 @@ import {
   StatementImportPage,
   BreakManagementPage,
   ReconciliationReportsPage,
+  NostroPositionDetailPage,
   RecurringDepositDetailPage,
   NewRecurringDepositPage,
   RecurringDepositListPage,
@@ -250,6 +254,8 @@ import {
   InvPositionsPage,
   InvValuationPage,
   InterbankPage,
+  InvSettlementPage,
+  InvAdvisorDetailPage,
   InvestFixedIncomePage,
   InvestBankPortfolioPage,
   InvestmentAnalyticsPage,
@@ -260,6 +266,11 @@ import {
   ProjectFinancePage,
   SuitabilityPage,
   IntelligencePage,
+  BehaviourAnalyticsPage,
+  DocumentIntelligencePage,
+  CashFlowForecastPage,
+  DashboardManagementPage,
+  DashboardViewerPage,
   AlmDashboardPage,
   DurationAnalyticsPage,
   LiquidityGapPage,
@@ -299,6 +310,10 @@ import {
   ResearchPage,
   AnalysisPage,
   SwitchDashboardPage,
+  MarketRiskPage,
+  MarketOrdersPage,
+  FinancialInstrumentsPage,
+  CompetitorAnalysisPage,
   TradeFinanceHubPage,
   AccountListPage,
   WalletPage,
@@ -344,6 +359,9 @@ import {
   OpenItemsPage,
   IssuedDevicesPage,
   BiDashboardPage,
+  RemittancePage,
+  PayrollPage,
+  PaymentOrchestrationPage,
 } from './lazyRoutes';
 
 
@@ -407,6 +425,7 @@ export function AppRouter() {
           <Route path="reconciliation" element={<ReconciliationDashboardPage />} />
           <Route path="reconciliation/workbench" element={<ReconciliationWorkbenchPage />} />
           <Route path="reconciliation/positions" element={<NostroPositionsPage />} />
+          <Route path="reconciliation/positions/:id" element={<NostroPositionDetailPage />} />
           <Route path="reconciliation/banks" element={<CorrespondentBankPage />} />
           <Route path="reconciliation/import" element={<StatementImportPage />} />
           <Route path="reconciliation/breaks" element={<BreakManagementPage />} />
@@ -443,6 +462,7 @@ export function AppRouter() {
           <Route path="corporate-leases" element={<CorporateLeasePage />} />
           <Route path="ecl" element={<EclDashboardPage />} />
           <Route path="ecl/parameters" element={<EclParameterPage />} />
+          <Route path="credit-risk" element={<CreditRiskDashboardPage />} />
         </Route>
 
         {/* Payments */}
@@ -461,6 +481,9 @@ export function AppRouter() {
           <Route path="cheques" element={<ChequeManagementPage />} />
           <Route path="qr" element={<QrPaymentPage />} />
           <Route path="mobile-money" element={<MobileMoneyPage />} />
+          <Route path="remittances" element={<RemittancePage />} />
+          <Route path="payroll" element={<PayrollPage />} />
+          <Route path="orchestration" element={<PaymentOrchestrationPage />} />
         </Route>
 
         {/* Cards */}
@@ -527,8 +550,10 @@ export function AppRouter() {
           <Route path="funds/:code" element={<FundDetailPage />} />
           <Route path="advisory" element={<InvWealthPage />} />
           <Route path="advisory/:code" element={<InvWealthDetailPage />} />
+          <Route path="advisory/advisors/:advisorId" element={<InvAdvisorDetailPage />} />
           <Route path="positions" element={<InvPositionsPage />} />
           <Route path="valuations" element={<InvValuationPage />} />
+          <Route path="settlements" element={<InvSettlementPage />} />
           <Route path="interbank" element={<InterbankPage />} />
           <Route path="analytics" element={<InvestmentAnalyticsPage />} />
           <Route path="fixed-income" element={<InvestFixedIncomePage />} />
@@ -548,6 +573,11 @@ export function AppRouter() {
         {/* Intelligence */}
         <Route path="/intelligence" element={<Outlet />}>
           <Route index element={<IntelligencePage />} />
+          <Route path="behaviour" element={<BehaviourAnalyticsPage />} />
+          <Route path="documents" element={<DocumentIntelligencePage />} />
+          <Route path="cashflow" element={<CashFlowForecastPage />} />
+          <Route path="dashboards" element={<DashboardManagementPage />} />
+          <Route path="dashboards/:code" element={<DashboardViewerPage />} />
         </Route>
 
         {/* ALM */}
@@ -612,6 +642,10 @@ export function AppRouter() {
           <Route path="analysis" element={<AnalysisPage />} />
           <Route path="market-making" element={<MarketMakingPage />} />
           <Route path="switch" element={<SwitchDashboardPage />} />
+          <Route path="risk" element={<MarketRiskPage />} />
+          <Route path="orders" element={<MarketOrdersPage />} />
+          <Route path="instruments" element={<FinancialInstrumentsPage />} />
+          <Route path="competitors" element={<CompetitorAnalysisPage />} />
         </Route>
         <Route path="/market-data-mgmt" element={<Navigate to="/market-data" replace />} />
 
@@ -826,6 +860,8 @@ export function AppRouter() {
           <Route path="bills" element={<PortalBillPaymentPage />} />
           <Route path="airtime" element={<PortalAirtimePage />} />
           <Route path="help" element={<PortalHelpPage />} />
+          <Route path="transfer-history" element={<PortalTransferHistoryPage />} />
+          <Route path="admin/profile-updates" element={<PortalAdminProfileUpdatesPage />} />
         </Route>
     </Routes>
     </>

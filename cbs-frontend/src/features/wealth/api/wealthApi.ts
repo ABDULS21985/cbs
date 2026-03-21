@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete, apiUpload } from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -220,6 +220,15 @@ export interface TrustComplianceItem {
   lastCompleted?: string;
 }
 
+export interface TrustDocument {
+  id: string;
+  name: string;
+  type: string;
+  uploadedBy: string;
+  uploadDate: string;
+  url: string;
+}
+
 // ─── Analytics Types (W4) ───────────────────────────────────────────────────
 
 export interface AumWaterfallPoint {
@@ -347,8 +356,8 @@ export const wealthApi = {
   updateTrust: (code: string, data: Partial<TrustCreateRequest>): Promise<TrustAccount> =>
     apiPut<TrustAccount>(`/api/v1/trusts/${code}`, data),
 
-  recordDistribution: (code: string, amount: number, beneficiary: string): Promise<DistributionRecord> =>
-    apiPost<DistributionRecord>(`/api/v1/trusts/${code}/distribute`, { amount, beneficiary }),
+  recordDistribution: (code: string, amount: number): Promise<TrustAccount> =>
+    apiPost<TrustAccount>(`/api/v1/trusts/${code}/distribute?amount=${encodeURIComponent(amount)}`),
 
   getDistributions: (code: string): Promise<DistributionRecord[]> =>
     apiGet<DistributionRecord[]>(`/api/v1/trusts/${code}/distributions`),
@@ -368,15 +377,9 @@ export const wealthApi = {
   getAdvisorLeaderboard: (): Promise<Record<string, unknown>[]> =>
     apiGet<Record<string, unknown>[]>('/api/v1/wealth-management/analytics/advisors'),
 
-  getClientSegments: (): Promise<Record<string, unknown>> =>
-    apiGet<Record<string, unknown>>('/api/v1/wealth-management/analytics/segments'),
-
   // ── Advisor CRUD ──
   createAdvisor: (data: Record<string, unknown>): Promise<Record<string, unknown>> =>
     apiPost<Record<string, unknown>>('/api/v1/wealth-management/advisors', data),
-
-  scheduleReview: (advisorId: string, data: Record<string, unknown>): Promise<Record<string, unknown>> =>
-    apiPost<Record<string, unknown>>(`/api/v1/wealth-management/advisors/${advisorId}/reviews`, data),
 
   // ── Documents ──
   uploadDocument: (code: string, file: File): Promise<{ id: string; name: string; url: string }> => {
@@ -466,6 +469,16 @@ export const wealthApi = {
 
   getPredictiveInsights: (): Promise<PredictiveInsight[]> =>
     apiGet<PredictiveInsight[]>('/api/v1/wealth-management/analytics/insights'),
+
+  // ── Trust Documents ──
+  getTrustDocuments: (trustCode: string): Promise<TrustDocument[]> =>
+    apiGet<TrustDocument[]>(`/api/v1/trusts/${trustCode}/documents`),
+
+  uploadTrustDocument: (trustCode: string, file: File): Promise<TrustDocument> =>
+    apiUpload<TrustDocument>(`/api/v1/trusts/${trustCode}/documents`, file),
+
+  deleteTrustDocument: (trustCode: string, docId: string): Promise<void> =>
+    apiDelete<void>(`/api/v1/trusts/${trustCode}/documents/${docId}`),
 
   // ── Trust Analytics (W3) ──
   getTrustAnalytics: (): Promise<{

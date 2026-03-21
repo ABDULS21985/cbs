@@ -63,4 +63,10 @@ public class OpenBankingController {
     public ResponseEntity<ApiResponse<List<ApiConsent>>> getCustomerConsents(@PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(openBankingService.getCustomerConsents(customerId)));
     }
+
+    @PostMapping("/clients/{clientId}/deactivate")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ApiClient>> deactivateClient(@PathVariable String clientId) {
+        return ResponseEntity.ok(ApiResponse.ok(openBankingService.deactivateClient(clientId)));
+    }
 }

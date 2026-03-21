@@ -3,7 +3,8 @@ import { formatMoney } from '@/lib/formatters';
 import type { SavingsGoal } from '../api/goalApi';
 
 interface GoalCelebrationProps {
-  goal: SavingsGoal;
+  goal?: SavingsGoal;
+  goalName?: string;
   onClose: () => void;
 }
 
@@ -18,7 +19,11 @@ const CONFETTI_PIECES = Array.from({ length: 36 }, (_, i) => ({
   rotate: `${Math.floor(Math.random() * 360)}deg`,
 }));
 
-export function GoalCelebration({ goal, onClose }: GoalCelebrationProps) {
+export function GoalCelebration({ goal, goalName, onClose }: GoalCelebrationProps) {
+  const displayName = goal?.goalName ?? goalName ?? 'your goal';
+  const displayIcon = goal?.goalIcon || '🎯';
+  const displayAmount = goal?.targetAmount;
+
   return (
     <>
       {/* Backdrop */}
@@ -72,20 +77,24 @@ export function GoalCelebration({ goal, onClose }: GoalCelebrationProps) {
             </div>
 
             {/* Goal icon */}
-            <div className="text-5xl">{goal.icon}</div>
+            <div className="text-5xl">{displayIcon}</div>
 
             <div className="space-y-1">
               <h2 className="text-2xl font-bold">Congratulations!</h2>
-              <p className="text-muted-foreground text-sm">You've reached your goal! 🎉</p>
+              <p className="text-muted-foreground text-sm">You've reached your goal!</p>
             </div>
 
             {/* Goal details */}
             <div className="rounded-xl bg-muted/50 p-4 space-y-1">
-              <p className="font-semibold text-lg">{goal.name}</p>
-              <p className="text-2xl font-extrabold text-green-600 dark:text-green-400 tabular-nums">
-                {formatMoney(goal.targetAmount)}
-              </p>
-              <p className="text-xs text-muted-foreground">Target Achieved</p>
+              <p className="font-semibold text-lg">{displayName}</p>
+              {displayAmount != null && (
+                <>
+                  <p className="text-2xl font-extrabold text-green-600 dark:text-green-400 tabular-nums">
+                    {formatMoney(displayAmount)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Target Achieved</p>
+                </>
+              )}
             </div>
 
             <button

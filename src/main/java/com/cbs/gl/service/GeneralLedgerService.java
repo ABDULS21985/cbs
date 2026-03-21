@@ -7,6 +7,7 @@ import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.deposit.repository.FixedDepositRepository;
 import com.cbs.deposit.repository.RecurringDepositRepository;
+import com.cbs.gl.dto.ReconBreakDetail;
 import com.cbs.gl.entity.*;
 import com.cbs.gl.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -254,6 +255,77 @@ public class GeneralLedgerService {
 
     public List<SubledgerReconRun> getReconResults(LocalDate date) {
         return reconRepository.findByReconDateOrderBySubledgerTypeAsc(date);
+    }
+
+    /**
+     * Returns account-level break details for a reconciliation mismatch.
+     * Compares each account's book balance against its GL posting activity
+     * to identify where the discrepancy originates.
+     */
+    public List<ReconBreakDetail> getBreakDetails(String subledgerType, LocalDate reconDate,
+                                                   String branchCode, String currencyCode) {
+        String resolvedBranch = StringUtils.hasText(branchCode)
+                ? branchCode : cbsProperties.getLedger().getDefaultBranchCode();
+        String resolvedCurrency = StringUtils.hasText(currencyCode)
+                ? currencyCode : cbsProperties.getDeployment().getDefaultCurrency();
+
+        List<ReconBreakDetail> details = new ArrayList<>();
+
+        switch (subledgerType.toUpperCase()) {
+            case "ACCOUNTS", "DEPOSITS" -> {
+                // Get individual account balances and compare to GL posting sums
+                List<Object[]> accountBalances = accountRepository.findAccountBalancesByProductGlCode(
+                        resolvedCurrency, resolvedBranch);
+                for (Object[] row : accountBalances) {
+                    String accountNumber = (String) row[0];
+                    String glCode = (String) row[1];
+                    BigDecimal bookBalance = (BigDecimal) row[2];
+
+                    // Sum GL journal postings for this account
+                    BigDecimal glPosted = journalRepository.sumNetPostingsByAccountRef(
+                            accountNumber, reconDate);
+
+                    if (bookBalance.subtract(glPosted).abs().compareTo(new BigDecimal("0.01")) > 0) {
+                        details.add(ReconBreakDetail.of(accountNumber + " (" + glCode + ")", bookBalance, glPosted));
+                    }
+                }
+            }
+            case "FIXED_DEPOSITS" -> {
+                List<Object[]> fdBalances = fixedDepositRepository.findBalancesByProductGlCode(
+                        resolvedCurrency, resolvedBranch);
+                for (Object[] row : fdBalances) {
+                    String ref = (String) row[0];
+                    String glCode = (String) row[1];
+                    BigDecimal currentValue = (BigDecimal) row[2];
+
+                    BigDecimal glPosted = journalRepository.sumNetPostingsByAccountRef(ref, reconDate);
+
+                    if (currentValue.subtract(glPosted).abs().compareTo(new BigDecimal("0.01")) > 0) {
+                        details.add(ReconBreakDetail.of(ref + " (" + glCode + ")", currentValue, glPosted));
+                    }
+                }
+            }
+            case "RECURRING_DEPOSITS" -> {
+                List<Object[]> rdBalances = recurringDepositRepository.findBalancesByProductGlCode(
+                        resolvedCurrency, resolvedBranch);
+                for (Object[] row : rdBalances) {
+                    String ref = (String) row[0];
+                    String glCode = (String) row[1];
+                    BigDecimal currentValue = (BigDecimal) row[2];
+
+                    BigDecimal glPosted = journalRepository.sumNetPostingsByAccountRef(ref, reconDate);
+
+                    if (currentValue.subtract(glPosted).abs().compareTo(new BigDecimal("0.01")) > 0) {
+                        details.add(ReconBreakDetail.of(ref + " (" + glCode + ")", currentValue, glPosted));
+                    }
+                }
+            }
+            default -> throw new BusinessException(
+                    "Unsupported reconciliation type for break details: " + subledgerType,
+                    "UNSUPPORTED_RECONCILIATION_TYPE");
+        }
+
+        return details;
     }
 
     // ========================================================================

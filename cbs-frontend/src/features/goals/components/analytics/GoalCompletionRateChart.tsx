@@ -10,7 +10,7 @@ export function GoalCompletionRateChart({ goals }: Props) {
   const data = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const matured = goals.filter((g) => g.targetDate.startsWith(key));
+    const matured = goals.filter((g) => g.targetDate?.startsWith(key));
     const completed = matured.filter((g) => g.status === 'COMPLETED');
     const rate = matured.length > 0 ? (completed.length / matured.length) * 100 : 0;
     return { month: key.slice(5), rate: Math.round(rate) };

@@ -16,8 +16,8 @@ interface UseEodStatusReturn {
   isRollingBack: boolean;
   isSavingSchedule: boolean;
   triggerEod: (businessDate: string) => Promise<void>;
-  retryStep: (stepId: string) => Promise<void>;
-  skipStep: (stepId: string, reason: string) => Promise<void>;
+  retryStep: (stepId: number) => Promise<void>;
+  skipStep: (stepId: number, reason: string) => Promise<void>;
   rollbackRun: () => Promise<void>;
   saveSchedule: (config: EodScheduleConfig) => Promise<void>;
 }
@@ -43,7 +43,7 @@ export function useEodStatus(): UseEodStatusReturn {
 
   currentRunRef.current = currentRun;
 
-  const fetchLogs = useCallback(async (runId: string) => {
+  const fetchLogs = useCallback(async (runId: number) => {
     setIsLoadingLogs(true);
     try {
       const result = await eodApi.getLogs(runId, logCursorRef.current);
@@ -65,8 +65,8 @@ export function useEodStatus(): UseEodStatusReturn {
     try {
       const run = await eodApi.getCurrentStatus();
       setCurrentRun(run);
-      setSteps(run.steps);
-      if (run.id && run.status === 'RUNNING') {
+      setSteps(run?.steps ?? []);
+      if (run?.id && run.status === 'RUNNING') {
         await fetchLogs(run.id);
       }
     } catch {
@@ -112,7 +112,7 @@ export function useEodStatus(): UseEodStatusReturn {
     }
   }, [scheduleNextPoll]);
 
-  const retryStep = useCallback(async (stepId: string) => {
+  const retryStep = useCallback(async (stepId: number) => {
     if (!currentRunRef.current) return;
     setIsRetryingStep(true);
     try {
@@ -126,7 +126,7 @@ export function useEodStatus(): UseEodStatusReturn {
     }
   }, [fetchStatus]);
 
-  const skipStep = useCallback(async (stepId: string, reason: string) => {
+  const skipStep = useCallback(async (stepId: number, reason: string) => {
     if (!currentRunRef.current) return;
     setIsSkippingStep(true);
     try {
@@ -161,7 +161,24 @@ export function useEodStatus(): UseEodStatusReturn {
       setSchedule(saved);
       toast.success('Schedule configuration saved');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to save schedule');
+      const status = err?.response?.status;
+      const message = err?.response?.data?.message;
+      if (status === 409 || message?.toLowerCase().includes('optimistic') || message?.toLowerCase().includes('concurrent')) {
+        // Optimistic locking conflict — another admin saved first
+        toast.error(
+          'Configuration was modified by another user. Refreshing to show the latest version.',
+          { duration: 5000 },
+        );
+        // Reload the latest config so the user sees the current state
+        try {
+          const latest = await eodApi.getScheduleConfig();
+          setSchedule(latest);
+        } catch {
+          // silent — user will see stale data but can retry
+        }
+      } else {
+        toast.error(message || 'Failed to save schedule');
+      }
     } finally {
       setIsSavingSchedule(false);
     }

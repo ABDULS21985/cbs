@@ -48,4 +48,15 @@ public interface FixedDepositRepository extends JpaRepository<FixedDeposit, Long
                                               @Param("branchCode") String branchCode);
 
     long countByCustomerIdAndStatus(Long customerId, FixedDepositStatus status);
+
+    @Query("""
+            SELECT fd.depositNumber, p.glAccountCode, fd.currentValue
+            FROM FixedDeposit fd JOIN fd.product p JOIN fd.account a
+            WHERE fd.currencyCode = :currencyCode
+            AND (:branchCode IS NULL OR a.branchCode = :branchCode)
+            AND fd.status <> 'CLOSED'
+            ORDER BY fd.depositNumber
+            """)
+    List<Object[]> findBalancesByProductGlCode(@Param("currencyCode") String currencyCode,
+                                               @Param("branchCode") String branchCode);
 }

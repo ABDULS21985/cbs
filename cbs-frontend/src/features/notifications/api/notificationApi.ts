@@ -13,13 +13,11 @@ import type {
 // Map backend NotificationLog → frontend AppNotification
 // ---------------------------------------------------------------------------
 function mapToAppNotification(log: NotificationLog): AppNotification {
+  const isError = log.status === 'FAILED' || log.status === 'BOUNCED';
+  const isWarning = log.status === 'OPTED_OUT' || log.eventType?.includes('ALERT');
   return {
     id: String(log.id),
-    type: log.status === 'FAILED'
-      ? 'error'
-      : log.eventType?.includes('ALERT')
-        ? 'warning'
-        : 'info',
+    type: isError ? 'error' : isWarning ? 'warning' : 'info',
     title: log.subject || log.eventType || 'Notification',
     message: log.body || '',
     read: log.status === 'READ',

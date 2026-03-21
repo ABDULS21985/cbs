@@ -147,7 +147,7 @@ export function TransactionReceipt({ transaction }: TransactionReceiptProps) {
               }}
             />
             <div style={{ fontSize: '10px', color: '#9ca3af', letterSpacing: '0.15em' }}>
-              {transaction.id.toUpperCase()}
+              {String(transaction.id).toUpperCase()}
             </div>
           </div>
 

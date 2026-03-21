@@ -3,11 +3,12 @@ import { queryKeys } from '@/lib/queryKeys';
 import type { LoanFilters } from '../types/loan';
 import { handleApiError } from '@/lib/errorHandler';
 import { loanApi, type LoanApplicationRequest } from '../api/loanApi';
-import { getLoanPortfolioStats } from '@/features/reports/api/loanAnalyticsApi';
 
 export function useLoanApplications(filters?: LoanFilters) {
   return useQuery({
     queryKey: queryKeys.loans.applications(filters as Record<string, unknown> | undefined),
+    // Note: backend only supports GET /applications/customer/{id} — no list-all endpoint
+    // Passing customerId 0 as a "list all" fallback until backend adds a proper list endpoint
     queryFn: () => loanApi.getCustomerApplications(0),
   });
 }
@@ -23,7 +24,12 @@ export function useLoanApplication(id: number) {
 export function useActiveLoans(filters?: LoanFilters) {
   return useQuery({
     queryKey: queryKeys.loans.list(filters as Record<string, unknown> | undefined),
-    queryFn: () => loanApi.getCustomerLoans(0),
+    // Uses the proper GET /v1/loans endpoint with search/page/size
+    queryFn: () => loanApi.listLoans({
+      search: (filters as Record<string, unknown> | undefined)?.search as string | undefined,
+      page: 0,
+      size: 100,
+    }),
   });
 }
 
@@ -53,6 +59,37 @@ export function useSubmitLoanApplication() {
   });
 }
 
+export function useApproveLoanApplication() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, approval }: {
+      id: number;
+      approval: { approvedAmount: number; approvedTenureMonths: number; approvedRate: number; conditions?: string[] };
+    }) => loanApi.approveApplication(id, approval),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.loans.all }),
+    onError: handleApiError,
+  });
+}
+
+export function useDeclineLoanApplication() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+      loanApi.declineApplication(id, reason),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.loans.all }),
+    onError: handleApiError,
+  });
+}
+
+export function useDisburseLoan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (applicationId: number) => loanApi.disburse(applicationId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.loans.all }),
+    onError: handleApiError,
+  });
+}
+
 export function useRecordPayment(loanId: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -68,7 +105,31 @@ export function useRecordPayment(loanId: number) {
 export function usePortfolioStats() {
   return useQuery({
     queryKey: ['loans', 'portfolio', 'stats'],
-    queryFn: () => getLoanPortfolioStats(),
+    queryFn: () => loanApi.getPortfolioStats(),
     staleTime: 60_000,
+  });
+}
+
+export function useSettlementCalculation(loanId: number) {
+  return useQuery({
+    queryKey: ['loans', loanId, 'settlement'],
+    queryFn: () => loanApi.getSettlementCalculation(loanId),
+    enabled: !!loanId,
+    staleTime: 30_000,
+  });
+}
+
+export function usePreviewSchedule() {
+  return useMutation({
+    mutationFn: (data: LoanApplicationRequest) => loanApi.previewSchedule(data),
+  });
+}
+
+export function useBatchAccrueInterest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => loanApi.batchAccrueInterest(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.loans.all }),
+    onError: handleApiError,
   });
 }

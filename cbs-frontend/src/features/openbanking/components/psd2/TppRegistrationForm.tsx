@@ -9,7 +9,8 @@ interface TppRegistrationFormProps {
   onClose: () => void;
 }
 
-const AVAILABLE_ROLES = ['AISP', 'PISP', 'CBPII'] as const;
+const TPP_TYPES = ['AISP', 'PISP', 'CBPII'] as const;
+const SCA_APPROACHES = ['REDIRECT', 'EMBEDDED', 'DECOUPLED', 'OAUTH2'] as const;
 
 const inputCls =
   'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
@@ -18,18 +19,22 @@ export function TppRegistrationForm({ open, onClose }: TppRegistrationFormProps)
   const { mutate: registerTpp, isPending } = useRegisterPsd2Tpp();
   const [form, setForm] = useState({
     tppName: '',
-    registrationNumber: '',
-    nationalCompetentAuthority: '',
-    eidasCertRef: '',
-    roles: [] as string[],
-    contactEmail: '',
-    contactPhone: '',
+    tppType: 'AISP' as string,
+    nationalAuthority: '',
+    authorizationNumber: '',
+    eidasCertificate: '',
+    allowedScopes: [] as string[],
+    scaApproach: 'REDIRECT' as string,
   });
 
-  const toggleRole = (role: string) => {
+  const AVAILABLE_SCOPES = ['accounts', 'payments', 'funds-confirmations'];
+
+  const toggleScope = (scope: string) => {
     setForm((f) => ({
       ...f,
-      roles: f.roles.includes(role) ? f.roles.filter((r) => r !== role) : [...f.roles, role],
+      allowedScopes: f.allowedScopes.includes(scope)
+        ? f.allowedScopes.filter((s) => s !== scope)
+        : [...f.allowedScopes, scope],
     }));
   };
 
@@ -41,12 +46,12 @@ export function TppRegistrationForm({ open, onClose }: TppRegistrationFormProps)
         onClose();
         setForm({
           tppName: '',
-          registrationNumber: '',
-          nationalCompetentAuthority: '',
-          eidasCertRef: '',
-          roles: [],
-          contactEmail: '',
-          contactPhone: '',
+          tppType: 'AISP',
+          nationalAuthority: '',
+          authorizationNumber: '',
+          eidasCertificate: '',
+          allowedScopes: [],
+          scaApproach: 'REDIRECT',
         });
       },
       onError: () => {
@@ -67,7 +72,7 @@ export function TppRegistrationForm({ open, onClose }: TppRegistrationFormProps)
         <div className="h-full bg-card border-l shadow-2xl flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b">
-            <h2 className="text-base font-semibold">Register TPP</h2>
+            <h2 className="text-base font-semibold">Register PSD2 TPP</h2>
             <button
               onClick={onClose}
               className="p-1.5 rounded-md hover:bg-muted transition-colors"
@@ -93,96 +98,97 @@ export function TppRegistrationForm({ open, onClose }: TppRegistrationFormProps)
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Registration Number *
+                TPP Type *
+              </label>
+              <select
+                required
+                className={inputCls}
+                value={form.tppType}
+                onChange={(e) => setForm((f) => ({ ...f, tppType: e.target.value }))}
+              >
+                {TPP_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                AISP = Account Information, PISP = Payment Initiation, CBPII = Card-Based Payment Instrument Issuer
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Authorization Number *
               </label>
               <input
                 required
                 className={inputCls}
-                value={form.registrationNumber}
-                onChange={(e) => setForm((f) => ({ ...f, registrationNumber: e.target.value }))}
+                value={form.authorizationNumber}
+                onChange={(e) => setForm((f) => ({ ...f, authorizationNumber: e.target.value }))}
                 placeholder="e.g. FRN-123456"
               />
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                National Competent Authority *
+                National Authority *
               </label>
               <input
                 required
                 className={inputCls}
-                value={form.nationalCompetentAuthority}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, nationalCompetentAuthority: e.target.value }))
-                }
+                value={form.nationalAuthority}
+                onChange={(e) => setForm((f) => ({ ...f, nationalAuthority: e.target.value }))}
                 placeholder="e.g. FCA, BaFin, ACPR"
               />
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                eIDAS Certificate Reference
+                eIDAS Certificate
               </label>
-              <input
-                className={inputCls}
-                value={form.eidasCertRef}
-                onChange={(e) => setForm((f) => ({ ...f, eidasCertRef: e.target.value }))}
-                placeholder="e.g. PSD2-CERT-00123"
+              <textarea
+                className={cn(inputCls, 'resize-none h-20')}
+                value={form.eidasCertificate}
+                onChange={(e) => setForm((f) => ({ ...f, eidasCertificate: e.target.value }))}
+                placeholder="Paste eIDAS certificate or reference..."
               />
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                Roles *
+                Allowed Scopes
               </label>
               <div className="flex flex-wrap gap-2">
-                {AVAILABLE_ROLES.map((role) => (
+                {AVAILABLE_SCOPES.map((scope) => (
                   <button
-                    key={role}
+                    key={scope}
                     type="button"
-                    onClick={() => toggleRole(role)}
+                    onClick={() => toggleScope(scope)}
                     className={cn(
                       'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
-                      form.roles.includes(role)
+                      form.allowedScopes.includes(scope)
                         ? 'bg-primary text-primary-foreground border-primary'
                         : 'bg-background hover:bg-muted border-border',
                     )}
                   >
-                    {role}
+                    {scope}
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                AISP = Account Information, PISP = Payment Initiation, CBPII = Card-Based Payment
-                Instrument Issuer
-              </p>
             </div>
 
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Contact Email *
+                SCA Approach
               </label>
-              <input
-                required
-                type="email"
+              <select
                 className={inputCls}
-                value={form.contactEmail}
-                onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))}
-                placeholder="compliance@fintech.com"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Contact Phone
-              </label>
-              <input
-                type="tel"
-                className={inputCls}
-                value={form.contactPhone}
-                onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))}
-                placeholder="+44 20 1234 5678"
-              />
+                value={form.scaApproach}
+                onChange={(e) => setForm((f) => ({ ...f, scaApproach: e.target.value }))}
+              >
+                {SCA_APPROACHES.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
             </div>
           </form>
 
@@ -197,7 +203,7 @@ export function TppRegistrationForm({ open, onClose }: TppRegistrationFormProps)
             </button>
             <button
               onClick={handleSubmit as unknown as () => void}
-              disabled={isPending || form.roles.length === 0 || !form.tppName || !form.registrationNumber}
+              disabled={isPending || !form.tppName || !form.authorizationNumber || !form.nationalAuthority}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               {isPending ? (

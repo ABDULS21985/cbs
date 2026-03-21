@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, MessageSquare, Bell, Smartphone, Send, Clock, Loader2, ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import { Mail, MessageSquare, Bell, Smartphone, Send, Clock, Loader2, ChevronDown, ChevronUp, Eye, EyeOff, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
@@ -50,7 +50,9 @@ function Section({ number, title, description, children, defaultOpen = true }: {
 
 export function ComposeNotificationPage() {
   const navigate = useNavigate();
-  const sendMut = useSendNotification();
+  const sendEventMut = useSendNotification();
+  const sendDirectMut = useSendDirect();
+  const sendBulkMut = useSendBulk();
 
   useEffect(() => { document.title = 'Compose Notification | CBS'; }, []);
 
@@ -77,7 +79,7 @@ export function ComposeNotificationPage() {
       setEventType(selectedTemplate.eventType ?? 'CUSTOM_NOTIFICATION');
       setUseCustom(false);
     }
-  }, [selectedTemplate]);
+  }, [selectedTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Validation
   const hasRecipients = recipients.mode === 'broadcast' ? recipients.isBroadcast :
@@ -91,34 +93,54 @@ export function ComposeNotificationPage() {
     setSending(true);
     try {
       if (schedule.mode === 'now') {
-        // Send to each recipient via existing API
-        if (recipients.mode === 'individual' && recipients.customerIds) {
+        if (selectedTemplate && !useCustom) {
+          // Template-based send via sendEvent (uses template lookup by eventType)
+          if (recipients.mode === 'individual' && recipients.customerIds) {
+            for (const customerId of recipients.customerIds) {
+              await sendEventMut.mutateAsync({
+                eventType,
+                customerId,
+                email: recipients.customerEmails?.[customerId],
+                phone: recipients.customerPhones?.[customerId],
+                name: recipients.customerNames?.[customerId],
+              });
+            }
+            toast.success(`Notification sent to ${recipients.customerIds.length} recipient(s)`);
+          }
+        } else if (recipients.mode === 'individual' && recipients.customerIds) {
+          // Direct (non-template) send to individual recipients
           for (const customerId of recipients.customerIds) {
-            await sendMut.mutateAsync({
-              eventType,
+            await sendDirectMut.mutateAsync({
+              channel: channel as NotificationChannel,
+              recipientAddress: recipients.customerEmails?.[customerId] ?? '',
+              recipientName: recipients.customerNames?.[customerId],
+              subject: channel === 'EMAIL' ? subject : undefined,
+              body,
               customerId,
-              extraParams: { subject, body, channel },
+              eventType,
             });
           }
           toast.success(`Notification sent to ${recipients.customerIds.length} recipient(s)`);
         } else if (recipients.mode === 'segment' || recipients.mode === 'broadcast') {
-          // For segment/broadcast, send via the admin API with broader params
-          await sendMut.mutateAsync({
+          // Bulk send via send-bulk endpoint (CBS_ADMIN only)
+          const bulkRecipients = recipients.recipientList?.map((r) => ({
+            address: r.address,
+            name: r.name,
+          })) ?? [];
+          await sendBulkMut.mutateAsync({
+            recipients: bulkRecipients,
+            channel: channel as NotificationChannel,
+            subject: channel === 'EMAIL' ? subject : undefined,
+            body,
             eventType,
-            customerId: 0, // Backend interprets 0 as broadcast/segment
-            extraParams: {
-              subject, body, channel,
-              ...(recipients.segmentCode ? { segmentCode: recipients.segmentCode } : {}),
-              ...(recipients.isBroadcast ? { broadcast: 'true' } : {}),
-            },
           });
-          toast.success('Broadcast notification sent');
+          toast.success('Bulk notification sent');
         }
       } else {
         // Create scheduled notification
         await createScheduledNotification({
           name: subject || eventType,
-          templateCode: selectedTemplate?.code ?? undefined,
+          templateCode: selectedTemplate?.templateCode ?? undefined,
           channel,
           cronExpression: schedule.cronExpression,
           frequency: schedule.frequency ?? 'ONCE',
@@ -257,7 +279,7 @@ export function ComposeNotificationPage() {
 
           {selectedTemplate && (
             <div className="text-xs text-muted-foreground">
-              Template: <span className="font-mono font-medium">{selectedTemplate.code}</span>
+              Template: <span className="font-mono font-medium">{selectedTemplate.templateCode}</span>
             </div>
           )}
 

@@ -1,10 +1,19 @@
 import { useState, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
-import { Plus, ArrowLeft } from 'lucide-react';
+import { Plus, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { Webhook, WebhookDelivery } from '../api/marketplaceApi';
+import {
+  useWebhooks,
+  useCreateWebhook,
+  useDeleteWebhook,
+  useUpdateWebhook,
+  useWebhookDeliveries,
+  useRetryDelivery,
+  useTestWebhook,
+} from '../hooks/useMarketplace';
 import { WebhookTable } from '../components/webhooks/WebhookTable';
 import {
   WebhookConfigForm,
@@ -13,178 +22,112 @@ import {
 import { WebhookDeliveryLog } from '../components/webhooks/WebhookDeliveryLog';
 import { WebhookTestPanel } from '../components/webhooks/WebhookTestPanel';
 
-// ─── Mock Data (replace with real API hooks) ────────────────────────────────
-
-const MOCK_WEBHOOKS: Webhook[] = [
-  {
-    id: 1,
-    url: 'https://api.fintech-app.com/webhooks/cbs',
-    events: ['payment.completed', 'consent.granted', 'consent.revoked'],
-    tppClientId: 1,
-    tppClientName: 'FinTech App Ltd',
-    authType: 'HMAC',
-    status: 'ACTIVE',
-    successRate: 98.5,
-    lastDeliveredAt: new Date(Date.now() - 300_000).toISOString(),
-    createdAt: new Date(Date.now() - 86_400_000 * 30).toISOString(),
-  },
-  {
-    id: 2,
-    url: 'https://payments.example.io/hooks',
-    events: ['payment.completed', 'transaction.created'],
-    tppClientId: 2,
-    tppClientName: 'PayNow Corp',
-    authType: 'BEARER',
-    status: 'ACTIVE',
-    successRate: 99.1,
-    lastDeliveredAt: new Date(Date.now() - 600_000).toISOString(),
-    createdAt: new Date(Date.now() - 86_400_000 * 15).toISOString(),
-  },
-  {
-    id: 3,
-    url: 'https://old-service.test/callback',
-    events: ['account.updated'],
-    tppClientId: 3,
-    tppClientName: 'LegacyTPP',
-    authType: 'NONE',
-    status: 'FAILED',
-    successRate: 45.2,
-    lastDeliveredAt: new Date(Date.now() - 86_400_000 * 2).toISOString(),
-    createdAt: new Date(Date.now() - 86_400_000 * 60).toISOString(),
-  },
-];
-
-const MOCK_DELIVERIES: WebhookDelivery[] = [
-  {
-    id: 101,
-    webhookId: 1,
-    event: 'payment.completed',
-    httpStatus: 200,
-    durationMs: 142,
-    responseBody: '{"status":"ok"}',
-    status: 'SUCCESS',
-    attemptCount: 1,
-    deliveredAt: new Date(Date.now() - 300_000).toISOString(),
-  },
-  {
-    id: 102,
-    webhookId: 1,
-    event: 'consent.granted',
-    httpStatus: 200,
-    durationMs: 89,
-    responseBody: '{"received":true}',
-    status: 'SUCCESS',
-    attemptCount: 1,
-    deliveredAt: new Date(Date.now() - 600_000).toISOString(),
-  },
-  {
-    id: 103,
-    webhookId: 1,
-    event: 'payment.completed',
-    httpStatus: 500,
-    durationMs: 3012,
-    responseBody: '{"error":"Internal Server Error"}',
-    status: 'FAILED',
-    attemptCount: 3,
-    deliveredAt: new Date(Date.now() - 900_000).toISOString(),
-  },
-  {
-    id: 104,
-    webhookId: 1,
-    event: 'consent.revoked',
-    httpStatus: 0,
-    durationMs: 30000,
-    responseBody: null as unknown as string,
-    status: 'TIMEOUT',
-    attemptCount: 5,
-    deliveredAt: new Date(Date.now() - 7_200_000).toISOString(),
-  },
-];
-
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function WebhookManagementPage() {
-  const [webhooks, setWebhooks] = useState<Webhook[]>(MOCK_WEBHOOKS);
   const [showRegister, setShowRegister] = useState(false);
-  const [registering, setRegistering] = useState(false);
   const [selectedWebhook, setSelectedWebhook] = useState<Webhook | null>(null);
-  const [retryingId, setRetryingId] = useState<number | null>(null);
+
+  const { data: webhooks = [], isLoading } = useWebhooks();
+  const createWebhookMutation = useCreateWebhook();
+  const updateWebhookMutation = useUpdateWebhook();
+  const deleteWebhookMutation = useDeleteWebhook();
+  const retryDeliveryMutation = useRetryDelivery();
+  const testWebhookMutation = useTestWebhook();
+
+  const { data: deliveries = [], isLoading: deliveriesLoading } = useWebhookDeliveries(
+    selectedWebhook?.id ?? 0,
+  );
 
   // ─── Handlers ─────────────────────────────────────────────────────────
 
-  const handleRegister = useCallback(async (data: WebhookFormData) => {
-    setRegistering(true);
-    try {
-      await new Promise((r) => setTimeout(r, 800));
-      const newWebhook: Webhook = {
-        id: Date.now(),
-        url: data.url,
-        events: data.events,
-        tppClientId: 0,
-        tppClientName: 'Current Bank',
-        authType: data.authType,
-        secretKey: data.secretKey,
-        status: 'ACTIVE',
-        successRate: 100,
-        createdAt: new Date().toISOString(),
-      };
-      setWebhooks((prev) => [newWebhook, ...prev]);
-      setShowRegister(false);
-      toast.success('Webhook registered successfully');
-    } catch {
-      toast.error('Failed to register webhook');
-    } finally {
-      setRegistering(false);
-    }
-  }, []);
+  const handleRegister = useCallback(
+    async (data: WebhookFormData) => {
+      createWebhookMutation.mutate(
+        {
+          url: data.url,
+          events: data.events,
+          authType: data.authType,
+          secretKey: data.secretKey,
+        },
+        {
+          onSuccess: () => {
+            setShowRegister(false);
+            toast.success('Webhook registered successfully');
+          },
+          onError: () => toast.error('Failed to register webhook'),
+        },
+      );
+    },
+    [createWebhookMutation],
+  );
 
-  const handleToggleStatus = useCallback((webhook: Webhook) => {
-    setWebhooks((prev) =>
-      prev.map((w) =>
-        w.id === webhook.id
-          ? { ...w, status: w.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' }
-          : w,
-      ),
-    );
-    toast.success(
-      webhook.status === 'ACTIVE' ? 'Webhook disabled' : 'Webhook enabled',
-    );
-  }, []);
+  const handleToggleStatus = useCallback(
+    (webhook: Webhook) => {
+      updateWebhookMutation.mutate(
+        {
+          id: webhook.id,
+          data: { status: webhook.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE' },
+        },
+        {
+          onSuccess: () =>
+            toast.success(
+              webhook.status === 'ACTIVE' ? 'Webhook disabled' : 'Webhook enabled',
+            ),
+          onError: () => toast.error('Failed to update webhook'),
+        },
+      );
+    },
+    [updateWebhookMutation],
+  );
 
-  const handleDelete = useCallback((webhook: Webhook) => {
-    setWebhooks((prev) => prev.filter((w) => w.id !== webhook.id));
-    if (selectedWebhook?.id === webhook.id) setSelectedWebhook(null);
-    toast.success('Webhook deleted');
-  }, [selectedWebhook]);
+  const handleDelete = useCallback(
+    (webhook: Webhook) => {
+      deleteWebhookMutation.mutate(webhook.id, {
+        onSuccess: () => {
+          if (selectedWebhook?.id === webhook.id) setSelectedWebhook(null);
+          toast.success('Webhook deleted');
+        },
+        onError: () => toast.error('Failed to delete webhook'),
+      });
+    },
+    [deleteWebhookMutation, selectedWebhook],
+  );
 
-  const handleRetry = useCallback(async (deliveryId: number) => {
-    setRetryingId(deliveryId);
-    await new Promise((r) => setTimeout(r, 1000));
-    setRetryingId(null);
-    toast.success('Delivery retried');
-  }, []);
+  const handleRetry = useCallback(
+    async (deliveryId: number) => {
+      if (!selectedWebhook) return;
+      retryDeliveryMutation.mutate(
+        { webhookId: selectedWebhook.id, deliveryId },
+        {
+          onSuccess: () => toast.success('Delivery retried'),
+          onError: () => toast.error('Failed to retry delivery'),
+        },
+      );
+    },
+    [retryDeliveryMutation, selectedWebhook],
+  );
 
   const handleSendTest = useCallback(
-    async (_webhookId: number, _event: string) => {
-      await new Promise((r) => setTimeout(r, 1200));
-      const success = Math.random() > 0.2;
-      return {
-        success,
-        statusCode: success ? 200 : 500,
-        responseTimeMs: Math.round(Math.random() * 400 + 50),
-        message: success ? undefined : 'Server returned an error response',
-      };
+    async (webhookId: number, event: string) => {
+      try {
+        const result = await testWebhookMutation.mutateAsync({ webhookId, event });
+        return result;
+      } catch {
+        return {
+          success: false,
+          statusCode: 0,
+          responseTimeMs: 0,
+          message: 'Test request failed',
+        };
+      }
     },
-    [],
+    [testWebhookMutation],
   );
 
   // ─── Detail View ──────────────────────────────────────────────────────
 
   if (selectedWebhook) {
-    const deliveries = MOCK_DELIVERIES.filter(
-      (d) => d.webhookId === selectedWebhook.id,
-    );
-
     return (
       <>
         <PageHeader
@@ -228,7 +171,9 @@ export function WebhookManagementPage() {
             </div>
             <div className="rounded-xl border bg-card p-4">
               <p className="text-xs text-muted-foreground">Deliveries</p>
-              <p className="text-sm font-semibold mt-1 tabular-nums">{deliveries.length}</p>
+              <p className="text-sm font-semibold mt-1 tabular-nums">
+                {deliveriesLoading ? '...' : deliveries.length}
+              </p>
             </div>
           </div>
 
@@ -257,11 +202,17 @@ export function WebhookManagementPage() {
               />
             </div>
             <div className="lg:col-span-2">
-              <WebhookDeliveryLog
-                deliveries={deliveries}
-                onRetry={handleRetry}
-                retryingId={retryingId}
-              />
+              {deliveriesLoading ? (
+                <div className="flex items-center justify-center py-12 rounded-xl border bg-card">
+                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <WebhookDeliveryLog
+                  deliveries={deliveries}
+                  onRetry={handleRetry}
+                  retryingId={retryDeliveryMutation.isPending ? -1 : null}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -292,38 +243,48 @@ export function WebhookManagementPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="rounded-xl border bg-card p-5">
             <p className="text-xs text-muted-foreground">Total Webhooks</p>
-            <p className="text-2xl font-bold mt-1 tabular-nums">{webhooks.length}</p>
+            <p className="text-2xl font-bold mt-1 tabular-nums">
+              {isLoading ? '...' : webhooks.length}
+            </p>
           </div>
           <div className="rounded-xl border bg-card p-5">
             <p className="text-xs text-muted-foreground">Active</p>
             <p className="text-2xl font-bold mt-1 tabular-nums text-green-600">
-              {webhooks.filter((w) => w.status === 'ACTIVE').length}
+              {isLoading ? '...' : webhooks.filter((w) => w.status === 'ACTIVE').length}
             </p>
           </div>
           <div className="rounded-xl border bg-card p-5">
             <p className="text-xs text-muted-foreground">Failed</p>
             <p className="text-2xl font-bold mt-1 tabular-nums text-red-600">
-              {webhooks.filter((w) => w.status === 'FAILED').length}
+              {isLoading ? '...' : webhooks.filter((w) => w.status === 'FAILED').length}
             </p>
           </div>
           <div className="rounded-xl border bg-card p-5">
             <p className="text-xs text-muted-foreground">Avg Success Rate</p>
             <p className="text-2xl font-bold mt-1 tabular-nums">
-              {webhooks.length > 0
-                ? (webhooks.reduce((s, w) => s + w.successRate, 0) / webhooks.length).toFixed(1)
-                : '0'}
+              {isLoading
+                ? '...'
+                : webhooks.length > 0
+                  ? (webhooks.reduce((s, w) => s + w.successRate, 0) / webhooks.length).toFixed(1)
+                  : '0'}
               %
             </p>
           </div>
         </div>
 
         {/* Table */}
-        <WebhookTable
-          webhooks={webhooks}
-          onSelect={setSelectedWebhook}
-          onToggleStatus={handleToggleStatus}
-          onDelete={handleDelete}
-        />
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12 rounded-xl border bg-card">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <WebhookTable
+            webhooks={webhooks}
+            onSelect={setSelectedWebhook}
+            onToggleStatus={handleToggleStatus}
+            onDelete={handleDelete}
+          />
+        )}
       </div>
 
       {/* Register Sheet */}
@@ -331,7 +292,7 @@ export function WebhookManagementPage() {
         open={showRegister}
         onClose={() => setShowRegister(false)}
         onSubmit={handleRegister}
-        isPending={registering}
+        isPending={createWebhookMutation.isPending}
       />
     </>
   );

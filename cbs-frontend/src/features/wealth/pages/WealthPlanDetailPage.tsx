@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { wealthApi, type WealthPlan, type WealthGoal, type AssetAllocation } from '../api/wealthApi';
-import { usePlan, useActivatePlan, useClosePlan, useAddGoal, useRebalancePlan, useUploadPlanDocument, usePlanDocuments } from '../hooks/useWealthData';
+import { usePlan, useActivatePlan, useClosePlan } from '../hooks/useWealthData';
 import { exportWealthPlanPdf } from '../lib/wealthExport';
 import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -50,7 +50,9 @@ const CHART_COLORS = [
   '#ef4444',
 ];
 
-const ASSET_CLASSES = ['Equity', 'Fixed Income', 'Alternatives', 'Real Estate', 'Cash / Money Market'];
+// Asset class labels used throughout the plan detail views
+const _ASSET_CLASSES = ['Equity', 'Fixed Income', 'Alternatives', 'Real Estate', 'Cash / Money Market'];
+void _ASSET_CLASSES;
 
 const DEFAULT_ALLOCATIONS: AssetAllocation[] = [
   { assetClass: 'Equity', percentage: 45, currentValue: 0, targetPercentage: 40 },
@@ -287,7 +289,7 @@ function AllocationTab({ plan }: { plan: WealthPlan }) {
                 outerRadius={95}
                 paddingAngle={2}
                 dataKey="value"
-                label={({ name, value }) => `${value}%`}
+                label={({ value }) => `${value}%`}
               >
                 {pieData.map((_, i) => (
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -841,7 +843,6 @@ export function WealthPlanDetailPage() {
   const activatePlan = useActivatePlan();
   const closePlanMutation = useClosePlan();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
-  const [showCloseDialog, setShowCloseDialog] = useState(false);
 
   function handleActivate() {
     if (!code) return;

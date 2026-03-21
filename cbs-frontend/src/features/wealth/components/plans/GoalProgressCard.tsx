@@ -60,7 +60,7 @@ function buildProjectionData(goal: WealthGoal) {
   return data;
 }
 
-export function GoalProgressCard({ goals, planCode, onAddGoal, isAdding }: GoalProgressCardProps) {
+export function GoalProgressCard({ goals, planCode: _planCode, onAddGoal, isAdding }: GoalProgressCardProps) {
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newGoal, setNewGoal] = useState<Omit<WealthGoal, 'id'>>({

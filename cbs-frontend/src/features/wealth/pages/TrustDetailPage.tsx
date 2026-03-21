@@ -3,8 +3,8 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, TabsPage } from '@/components/shared';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { Loader2, AlertCircle, Eye, Users, Banknote, Shield, FileText, Download } from 'lucide-react';
-import { useTrust, useTrustDistributions } from '../hooks/useWealth';
+import { Loader2, AlertCircle, Eye, Users, Banknote, Shield, FileText, Download, Upload, Trash2 } from 'lucide-react';
+import { useTrust, useTrustDocuments, useUploadTrustDocument, useDeleteTrustDocument } from '../hooks/useWealth';
 import { exportTrustStatementPdf } from '../lib/wealthExport';
 import { BeneficiaryManager } from '../components/trusts/BeneficiaryManager';
 import { DistributionScheduler } from '../components/trusts/DistributionScheduler';
@@ -80,30 +80,82 @@ function OverviewTab({ trust }: { trust: any }) {
 
 // ─── Documents Tab ──────────────────────────────────────────────────────────
 
-const MOCK_DOCUMENTS = [
-  { id: '1', name: 'Trust Deed', type: 'Legal', uploadDate: '2022-01-15', uploadedBy: 'Compliance' },
-  { id: '2', name: 'Investment Policy Statement', type: 'Policy', uploadDate: '2022-01-20', uploadedBy: 'Wealth Desk' },
-  { id: '3', name: 'Beneficiary Designations', type: 'Legal', uploadDate: '2022-02-01', uploadedBy: 'Trust Officer' },
-  { id: '4', name: 'Annual Report 2024', type: 'Report', uploadDate: '2025-02-10', uploadedBy: 'Reporting' },
-];
+function DocumentsTab({ trustCode }: { trustCode: string }) {
+  const { data: documents, isLoading, isError } = useTrustDocuments(trustCode);
+  const uploadMutation = useUploadTrustDocument(trustCode);
+  const deleteMutation = useDeleteTrustDocument(trustCode);
 
-function DocumentsTab() {
+  function handleUpload() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) uploadMutation.mutate(file);
+    };
+    input.click();
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-32 gap-2">
+        <AlertCircle className="w-6 h-6 text-destructive" />
+        <p className="text-sm text-muted-foreground">Failed to load documents</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-4">
-      <div className="rounded-xl border bg-card divide-y">
-        {MOCK_DOCUMENTS.map((doc) => (
-          <div key={doc.id} className="px-5 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileText className="w-5 h-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">{doc.name}</p>
-                <p className="text-xs text-muted-foreground">{doc.type} · Uploaded {formatDate(doc.uploadDate)} by {doc.uploadedBy}</p>
+      <div className="flex justify-end">
+        <button
+          onClick={handleUpload}
+          disabled={uploadMutation.isPending}
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+        >
+          {uploadMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+          Upload Document
+        </button>
+      </div>
+
+      {(!documents || documents.length === 0) ? (
+        <div className="flex flex-col items-center justify-center h-32 gap-2">
+          <FileText className="w-6 h-6 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border bg-card divide-y">
+          {documents.map((doc) => (
+            <div key={doc.id} className="px-5 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">{doc.name}</p>
+                  <p className="text-xs text-muted-foreground">{doc.type} · Uploaded {formatDate(doc.uploadDate)} by {doc.uploadedBy}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="text-xs text-primary hover:underline">Download</button>
+                <button
+                  onClick={() => deleteMutation.mutate(doc.id)}
+                  disabled={deleteMutation.isPending}
+                  className="text-xs text-destructive hover:underline inline-flex items-center gap-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Delete
+                </button>
               </div>
             </div>
-            <button className="text-xs text-primary hover:underline">Download</button>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -222,7 +274,7 @@ export function TrustDetailPage() {
               id: 'documents',
               label: 'Documents',
               icon: FileText,
-              content: <DocumentsTab />,
+              content: <DocumentsTab trustCode={trust.trustCode} />,
             },
           ]}
         />

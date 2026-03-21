@@ -2,8 +2,12 @@ import { apiGet, apiPost } from '@/lib/api';
 
 // ─── Deal Types ────────────────────────────────────────────────────────────────
 
-export type DealType = 'FX' | 'REPO' | 'BOND' | 'MM' | 'TB';
-export type DealStatus = 'BOOKED' | 'CONFIRMED' | 'SETTLED' | 'CANCELLED';
+export type DealType = 'FX' | 'REPO' | 'BOND' | 'MM' | 'TB'
+  | 'FX_SPOT' | 'FX_FORWARD' | 'FX_SWAP'
+  | 'MONEY_MARKET_PLACEMENT' | 'MONEY_MARKET_BORROWING'
+  | 'BOND_PURCHASE' | 'BOND_SALE'
+  | 'REVERSE_REPO' | 'TBILL_PURCHASE' | 'TBILL_DISCOUNT';
+export type DealStatus = 'BOOKED' | 'CONFIRMED' | 'SETTLED' | 'MATURED' | 'CANCELLED' | 'DEFAULTED';
 
 export interface TreasuryDeal {
   id: string;
@@ -376,22 +380,112 @@ export interface TradingModel {
   createdBy: string;
 }
 
+// ─── Backend-to-Frontend Mapping ────────────────────────────────────────────────
+
+/** Maps backend DealType enum to frontend short codes */
+const DEAL_TYPE_MAP: Record<string, DealType> = {
+  FX_SPOT: 'FX', FX_FORWARD: 'FX', FX_SWAP: 'FX',
+  MONEY_MARKET_PLACEMENT: 'MM', MONEY_MARKET_BORROWING: 'MM',
+  BOND_PURCHASE: 'BOND', BOND_SALE: 'BOND',
+  REPO: 'REPO', REVERSE_REPO: 'REPO',
+  TBILL_PURCHASE: 'TB', TBILL_DISCOUNT: 'TB',
+  // Passthrough for already-mapped values
+  FX: 'FX', MM: 'MM', BOND: 'BOND', TB: 'TB',
+};
+
+/** Maps frontend DealType to backend enum */
+const DEAL_TYPE_REVERSE: Record<DealType, string> = {
+  FX: 'FX_SPOT', REPO: 'REPO', BOND: 'BOND_PURCHASE', MM: 'MONEY_MARKET_PLACEMENT', TB: 'TBILL_PURCHASE',
+};
+
+/** Maps backend DealStatus to frontend status */
+const DEAL_STATUS_MAP: Record<string, DealStatus> = {
+  PENDING: 'BOOKED', CONFIRMED: 'CONFIRMED', SETTLED: 'SETTLED',
+  MATURED: 'SETTLED', CANCELLED: 'CANCELLED', DEFAULTED: 'CANCELLED',
+  // Passthrough
+  BOOKED: 'BOOKED',
+};
+
+/** Maps a raw backend TreasuryDeal entity to the frontend TreasuryDeal interface */
+function mapBackendDeal(raw: Record<string, any>): TreasuryDeal {
+  // If already mapped (has dealRef), return as-is
+  if (raw.dealRef && raw.type && raw.amount !== undefined) return raw as unknown as TreasuryDeal;
+
+  return {
+    id: String(raw.id ?? ''),
+    dealRef: raw.dealNumber ?? raw.dealRef ?? '',
+    type: DEAL_TYPE_MAP[raw.dealType ?? raw.type] ?? (raw.dealType ?? raw.type ?? 'FX'),
+    counterparty: raw.counterpartyName ?? raw.counterparty ?? '',
+    currency: raw.leg1Currency ?? raw.currency ?? '',
+    amount: raw.leg1Amount ?? raw.amount ?? 0,
+    rate: raw.dealRate ?? raw.yieldRate ?? raw.rate ?? 0,
+    maturityDate: raw.maturityDate ?? '',
+    deskId: raw.dealer ?? raw.deskId ?? '',
+    deskName: raw.branchCode ?? raw.deskName ?? '',
+    status: DEAL_STATUS_MAP[raw.status] ?? raw.status ?? 'BOOKED',
+    bookedAt: raw.createdAt ?? raw.bookedAt ?? '',
+    confirmedAt: raw.confirmedAt,
+    settledAt: raw.settledAt,
+    createdBy: raw.dealer ?? raw.createdBy ?? '',
+    // Pass through extra fields for detail page
+    ...(raw.leg2Currency ? { leg2Currency: raw.leg2Currency } : {}),
+    ...(raw.leg2Amount ? { leg2Amount: raw.leg2Amount } : {}),
+    ...(raw.realizedPnl !== undefined ? { realizedPnl: raw.realizedPnl } : {}),
+    ...(raw.unrealizedPnl !== undefined ? { unrealizedPnl: raw.unrealizedPnl } : {}),
+    ...(raw.accruedInterest !== undefined ? { accruedInterest: raw.accruedInterest } : {}),
+    ...(raw.confirmedBy ? { confirmedBy: raw.confirmedBy } : {}),
+    ...(raw.settledBy ? { settledBy: raw.settledBy } : {}),
+    ...(raw.tenorDays ? { tenorDays: raw.tenorDays } : {}),
+    ...(raw.spread !== undefined ? { spread: raw.spread } : {}),
+  } as TreasuryDeal;
+}
+
 // ─── API Object ────────────────────────────────────────────────────────────────
 
 export const tradingApi = {
   // Deals
-  listDeals: (params?: TreasuryDealsParams) =>
-    apiGet<TreasuryDeal[]>('/api/v1/treasury/deals', params as Record<string, unknown>),
-  getDeal: (id: string) =>
-    apiGet<TreasuryDeal>(`/api/v1/treasury/deals/${id}`),
-  bookDeal: (data: BookDealRequest) =>
-    apiPost<TreasuryDeal>('/api/v1/treasury/deals', data),
-  confirmDeal: (id: string) =>
-    apiPost<TreasuryDeal>(`/api/v1/treasury/deals/${id}/confirm`),
-  settleDeal: (id: string) =>
-    apiPost<TreasuryDeal>(`/api/v1/treasury/deals/${id}/settle`),
-  amendDeal: (id: string, data: AmendDealRequest) =>
-    apiPost<TreasuryDeal>(`/api/v1/treasury/deals/${id}/amend`, data),
+  listDeals: async (params?: TreasuryDealsParams): Promise<TreasuryDeal[]> => {
+    const queryParams: Record<string, unknown> = {};
+    if (params?.status && params.status !== 'ALL') queryParams.status = params.status === 'BOOKED' ? 'PENDING' : params.status;
+    if (params?.page !== undefined) queryParams.page = params.page;
+    if (params?.size !== undefined) queryParams.size = params.size;
+    const raw = await apiGet<any[]>('/api/v1/treasury/deals', queryParams);
+    return (Array.isArray(raw) ? raw : []).map(mapBackendDeal);
+  },
+  getDeal: async (id: string): Promise<TreasuryDeal> => {
+    const raw = await apiGet<any>(`/api/v1/treasury/deals/${id}`);
+    return mapBackendDeal(raw);
+  },
+  bookDeal: async (data: BookDealRequest): Promise<TreasuryDeal> => {
+    // Backend uses @RequestParam, so send as query params via apiGet-style POST
+    const params = new URLSearchParams();
+    params.set('dealType', DEAL_TYPE_REVERSE[data.type] ?? data.type);
+    params.set('leg1Currency', data.currency);
+    params.set('leg1Amount', String(data.amount));
+    params.set('leg1ValueDate', data.valueDate ?? new Date().toISOString().slice(0, 10));
+    if (data.rate) params.set('dealRate', String(data.rate));
+    if (data.maturityDate) params.set('leg2ValueDate', data.maturityDate);
+    if (data.counterparty) params.set('dealer', data.counterparty);
+    const raw = await apiPost<any>(`/api/v1/treasury/deals?${params.toString()}`);
+    return mapBackendDeal(raw);
+  },
+  confirmDeal: async (id: string): Promise<TreasuryDeal> => {
+    const raw = await apiPost<any>(`/api/v1/treasury/deals/${id}/confirm`);
+    return mapBackendDeal(raw);
+  },
+  settleDeal: async (id: string): Promise<TreasuryDeal> => {
+    const raw = await apiPost<any>(`/api/v1/treasury/deals/${id}/settle`);
+    return mapBackendDeal(raw);
+  },
+  amendDeal: async (id: string, data: AmendDealRequest): Promise<TreasuryDeal> => {
+    const params = new URLSearchParams();
+    if (data.newAmount !== undefined) params.set('newAmount', String(data.newAmount));
+    if (data.newRate !== undefined) params.set('newRate', String(data.newRate));
+    if (data.newMaturityDate) params.set('newMaturityDate', data.newMaturityDate);
+    params.set('reason', data.reason);
+    const raw = await apiPost<any>(`/api/v1/treasury/deals/${id}/amend?${params.toString()}`);
+    return mapBackendDeal(raw);
+  },
   getDealAuditTrail: (id: string) =>
     apiGet<DealAuditTrail>(`/api/v1/treasury/deals/${id}/audit-trail`),
 

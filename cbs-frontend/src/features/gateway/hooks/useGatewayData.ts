@@ -580,8 +580,8 @@ export function useApiClients() {
 export function useRegisterApiClient() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Parameters<typeof integrationApi.registerApiClient>[0]) =>
-      integrationApi.registerApiClient(data),
+    mutationFn: ({ data, apiKey }: { data: Parameters<typeof integrationApi.registerApiClient>[0]; apiKey: string }) =>
+      integrationApi.registerApiClient(data, apiKey),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['open-banking', 'clients'] }); },
   });
 }

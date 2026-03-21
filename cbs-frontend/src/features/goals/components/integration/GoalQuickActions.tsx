@@ -23,13 +23,13 @@ export function useGoalQuickActions(goals: SavingsGoal[]): GoalAction[] {
   goals.filter((g) => g.status === 'ACTIVE').forEach((g) => {
     actions.push({
       id: `view-${g.id}`,
-      label: `View goal: ${g.name}`,
+      label: `View goal: ${g.goalName}`,
       icon: Eye,
       action: () => navigate(`/accounts/goals/${g.id}`),
     });
     actions.push({
       id: `contribute-${g.id}`,
-      label: `Contribute to ${g.name}`,
+      label: `Contribute to ${g.goalName}`,
       icon: Target,
       action: () => navigate(`/accounts/goals/${g.id}?action=contribute`),
     });

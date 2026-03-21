@@ -310,8 +310,8 @@ export function useUpdateTrust() {
 export function useRecordDistribution() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, amount, beneficiary }: { code: string; amount: number; beneficiary: string }) =>
-      wealthApi.recordDistribution(code, amount, beneficiary),
+    mutationFn: ({ code, amount }: { code: string; amount: number }) =>
+      wealthApi.recordDistribution(code, amount),
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.trusts.detail(vars.code) });
       qc.invalidateQueries({ queryKey: KEYS.trusts.distributions(vars.code) });

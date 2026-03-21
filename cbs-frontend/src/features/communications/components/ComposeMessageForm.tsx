@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ChannelSelector } from './ChannelSelector';
 import { RecipientSearch } from './RecipientSearch';
-import { useSendNotification, useNotificationTemplates } from '../hooks/useCommunications';
+import { useSendNotification, useSendDirect, useNotificationTemplates } from '../hooks/useCommunications';
 import type { NotificationChannel } from '../api/communicationApi';
 
 const MERGE_FIELDS = ['{{customerName}}', '{{accountNumber}}', '{{amount}}', '{{date}}', '{{branchName}}'];
@@ -26,7 +26,8 @@ export function ComposeMessageForm({ open, onClose }: ComposeMessageFormProps) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
 
   const { data: templates = [] } = useNotificationTemplates();
-  const sendMutation = useSendNotification();
+  const sendTemplateMutation = useSendNotification();
+  const sendDirectMutation = useSendDirect();
 
   const smsCharCount = body.length;
   const smsSegments = Math.ceil(smsCharCount / 160) || 1;
@@ -52,27 +53,44 @@ export function ComposeMessageForm({ open, onClose }: ComposeMessageFormProps) {
       return;
     }
 
-    const isEmail = channel === 'EMAIL' || recipient.address.includes('@');
-    const params = {
-      eventType,
-      email: isEmail ? recipient.address : undefined,
-      phone: !isEmail ? recipient.address : undefined,
-      name: recipient.name || undefined,
+    const onSuccess = () => {
+      toast.success(`Message sent to ${recipient.address}`);
+      setBody('');
+      setSubject('');
+      setRecipient({ name: '', address: '' });
+      onClose();
     };
+    const onError = () => toast.error('Failed to send message');
 
-    sendMutation.mutate(
-      { params, body: { subject, body, channel } },
-      {
-        onSuccess: () => {
-          toast.success(`Message sent to ${recipient.address}`);
-          setBody('');
-          setSubject('');
-          setRecipient({ name: '', address: '' });
-          onClose();
+    if (selectedTemplateId) {
+      // Template-based: use /send with merge field values as body
+      const isEmail = channel === 'EMAIL' || recipient.address.includes('@');
+      sendTemplateMutation.mutate(
+        {
+          params: {
+            eventType,
+            email: isEmail ? recipient.address : undefined,
+            phone: !isEmail ? recipient.address : undefined,
+            name: recipient.name || undefined,
+          },
+          body: { customerName: recipient.name || '', date: new Date().toLocaleDateString() },
         },
-        onError: () => toast.error('Failed to send message'),
-      },
-    );
+        { onSuccess, onError },
+      );
+    } else {
+      // Custom message: use /send-direct
+      sendDirectMutation.mutate(
+        {
+          channel,
+          recipientAddress: recipient.address,
+          recipientName: recipient.name || '',
+          subject,
+          body,
+          eventType,
+        },
+        { onSuccess, onError },
+      );
+    }
   };
 
   if (!open) return null;
@@ -186,9 +204,9 @@ export function ComposeMessageForm({ open, onClose }: ComposeMessageFormProps) {
         {/* Actions */}
         <div className="sticky bottom-0 bg-background border-t px-5 py-4 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-          <button onClick={handleSend} disabled={sendMutation.isPending || !body.trim()}
+          <button onClick={handleSend} disabled={sendTemplateMutation.isPending || sendDirectMutation.isPending || !body.trim()}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
-            {sendMutation.isPending && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+            {(sendTemplateMutation.isPending || sendDirectMutation.isPending) && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
             {scheduleEnabled ? <Clock className="w-4 h-4" /> : <Send className="w-4 h-4" />}
             {scheduleEnabled ? 'Schedule' : 'Send Now'}
           </button>

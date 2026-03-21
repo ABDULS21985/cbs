@@ -1,13 +1,15 @@
 import { cn } from '@/lib/utils';
-import type { GoalContribution } from '../../api/goalApi';
+import type { GoalTransaction } from '../../api/goalApi';
 
 interface Props {
-  contributions: GoalContribution[];
+  contributions: GoalTransaction[];
 }
 
 export function SavingsStreak({ contributions }: Props) {
+  const deposits = contributions.filter(c => c.transactionType === 'DEPOSIT');
+
   // Compute current streak
-  const months = new Set(contributions.map((c) => c.date.slice(0, 7)));
+  const months = new Set(deposits.map((c) => c.createdAt.slice(0, 7)));
   const now = new Date();
   let streak = 0;
   for (let i = 0; i < 36; i++) {
@@ -21,11 +23,11 @@ export function SavingsStreak({ contributions }: Props) {
   const heatmap = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const monthContribs = contributions.filter((c) => c.date.startsWith(key));
+    const monthDeposits = deposits.filter((c) => c.createdAt.startsWith(key));
     return {
       month: d.toLocaleDateString('en-US', { month: 'short' }),
-      count: monthContribs.length,
-      total: monthContribs.reduce((s, c) => s + c.amount, 0),
+      count: monthDeposits.length,
+      total: monthDeposits.reduce((s, c) => s + c.amount, 0),
     };
   });
 
@@ -34,10 +36,10 @@ export function SavingsStreak({ contributions }: Props) {
   return (
     <div className="rounded-xl border bg-card p-5 space-y-3">
       <div className="flex items-center gap-3">
-        <span className="text-3xl">🔥</span>
+        <span className="text-3xl">{streak > 0 ? '🔥' : '❄️'}</span>
         <div>
-          <p className="text-2xl font-bold tabular-nums">{streak}-month streak!</p>
-          <p className="text-xs text-muted-foreground">Consecutive months with contributions</p>
+          <p className="text-2xl font-bold tabular-nums">{streak > 0 ? `${streak}-month streak!` : 'No streak yet'}</p>
+          <p className="text-xs text-muted-foreground">Consecutive months with deposits</p>
         </div>
       </div>
 
@@ -47,7 +49,7 @@ export function SavingsStreak({ contributions }: Props) {
             <div
               className={cn('h-8 rounded-sm transition-colors', h.count > 0 ? '' : 'bg-muted/30')}
               style={h.count > 0 ? { backgroundColor: `rgba(34, 197, 94, ${Math.min(h.count / maxCount, 1) * 0.8 + 0.2})` } : undefined}
-              title={`${h.month}: ${h.count} contributions`}
+              title={`${h.month}: ${h.count} deposits`}
             />
             <span className="text-[8px] text-muted-foreground">{h.month}</span>
           </div>

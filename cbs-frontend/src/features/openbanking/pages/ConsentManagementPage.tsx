@@ -26,6 +26,7 @@ import { BulkConsentActions } from '../components/consent/BulkConsentActions';
 const STATUS_CHIPS = [
   { status: 'AUTHORISED' as ConsentStatus, icon: CheckCircle2, label: 'Authorised', color: 'text-green-600' },
   { status: 'PENDING' as ConsentStatus, icon: Clock, label: 'Pending', color: 'text-amber-600' },
+  { status: 'REJECTED' as ConsentStatus, icon: Ban, label: 'Rejected', color: 'text-orange-600' },
   { status: 'REVOKED' as ConsentStatus, icon: Ban, label: 'Revoked', color: 'text-red-600' },
   { status: 'EXPIRED' as ConsentStatus, icon: AlertTriangle, label: 'Expired', color: 'text-gray-500' },
 ] as const;
@@ -61,7 +62,7 @@ export function ConsentManagementPage() {
   }, [consents, search, statusFilter, tppFilter]);
 
   const statCounts = useMemo(() => {
-    const counts: Record<ConsentStatus, number> = { AUTHORISED: 0, PENDING: 0, REVOKED: 0, EXPIRED: 0 };
+    const counts: Record<ConsentStatus, number> = { AUTHORISED: 0, PENDING: 0, REJECTED: 0, REVOKED: 0, EXPIRED: 0 };
     consents.forEach(c => { counts[c.status] = (counts[c.status] ?? 0) + 1; });
     return counts;
   }, [consents]);
@@ -178,6 +179,7 @@ export function ConsentManagementPage() {
             <option value="ALL">All Statuses</option>
             <option value="AUTHORISED">Authorised</option>
             <option value="PENDING">Pending</option>
+            <option value="REJECTED">Rejected</option>
             <option value="REVOKED">Revoked</option>
             <option value="EXPIRED">Expired</option>
           </select>

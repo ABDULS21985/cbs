@@ -5,7 +5,7 @@ import type { CollateralFilters } from '../types/collateral';
 const KEYS = {
   list: (filters?: CollateralFilters) => ['collateral', filters] as const,
   item: (id: number) => ['collateral', id] as const,
-  valuationHistory: (id: number) => ['collateral', id, 'valuation-history'] as const,
+  valuationHistory: (id: number) => ['collateral', id, 'valuations'] as const,
 };
 
 export function useCollateralList(filters?: CollateralFilters) {
@@ -31,34 +31,73 @@ export function useCollateralValuationHistory(id: number) {
   });
 }
 
-export function useRequestValuation() {
+export function useRegisterCollateral() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) =>
-      collateralApi.requestValuation(id, data),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: KEYS.valuationHistory(variables.id) });
-    },
-  });
-}
-
-export function useMarkPerfected() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => collateralApi.markPerfected(id),
-    onSuccess: (_data, id) => {
-      queryClient.invalidateQueries({ queryKey: KEYS.item(id) });
-      queryClient.invalidateQueries({ queryKey: ['collateral'] });
-    },
-  });
-}
-
-export function useReleaseCollateral() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => collateralApi.release(id),
+    mutationFn: (data: Record<string, unknown>) => collateralApi.registerCollateral(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collateral'] });
     },
+  });
+}
+
+// Backend: POST /{id}/valuations with CollateralValuationDto body
+export function useAddValuation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) =>
+      collateralApi.addValuation(id, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: KEYS.valuationHistory(variables.id) });
+      queryClient.invalidateQueries({ queryKey: KEYS.item(variables.id) });
+    },
+  });
+}
+
+// Backend: POST /{collateralId}/link/{loanAccountId}?allocatedValue=...
+export function useLinkCollateralToLoan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ collateralId, loanAccountId, allocatedValue }: { collateralId: number; loanAccountId: number; allocatedValue: number }) =>
+      collateralApi.linkToLoan(collateralId, loanAccountId, allocatedValue),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: KEYS.item(variables.collateralId) });
+      queryClient.invalidateQueries({ queryKey: ['loans'] });
+    },
+  });
+}
+
+// Backend: DELETE /{collateralId}/lien/{loanAccountId}
+export function useUnlinkCollateralFromLoan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ collateralId, loanAccountId }: { collateralId: number; loanAccountId: number }) =>
+      collateralApi.unlinkFromLoan(collateralId, loanAccountId),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: KEYS.item(variables.collateralId) });
+      queryClient.invalidateQueries({ queryKey: ['loans'] });
+    },
+  });
+}
+
+// Backend: POST /loans/{loanId}/restructure
+export function useRestructureLoan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ loanId, data }: { loanId: number; data: Record<string, unknown> }) =>
+      collateralApi.restructureLoan(loanId, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['loans', variables.loanId] });
+      queryClient.invalidateQueries({ queryKey: ['loans'] });
+    },
+  });
+}
+
+// Backend: GET /loans/{loanId}/restructure-history
+export function useRestructureHistory(loanId: number) {
+  return useQuery({
+    queryKey: ['loans', loanId, 'restructure-history'],
+    queryFn: () => collateralApi.getRestructureHistory(loanId),
+    enabled: !!loanId,
   });
 }

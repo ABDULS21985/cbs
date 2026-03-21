@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { Check, Loader2, ArrowLeft, ArrowRight, Target, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Check, Loader2, ArrowLeft, ArrowRight, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/formatters';
 import { toast } from 'sonner';
-import { createGoal } from '../api/goalApi';
-import type { AutoDebitConfig } from '../api/goalApi';
+import { useCreateGoal } from '../hooks/useGoals';
+import type { AutoDebitFrequency } from '../api/goalApi';
 import { apiGet } from '@/lib/api';
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ const GOAL_TEMPLATES = [
 
 const ALL_ICONS = ['🏠', '🎓', '🚗', '✈️', '🏥', '💍', '🛡️', '🎯', '💰', '📱', '🏖️', '👶', '🎸', '🏋️', '📚', '🎮', '🐕', '🌍', '💻', '🏪', '🎭', '⛵', '🎨', '🧘'];
 
-interface SourceAccount { id: string; number: string; name: string; balance: number; }
+interface SourceAccount { id: number; accountNumber: string; accountName: string; availableBalance: number; currencyCode: string; status: string; customerId: number; }
 
 // ── Stepper ─────────────────────────────────────────────────────────────────
 
@@ -58,37 +58,28 @@ function WizardStepper({ steps, current }: { steps: string[]; current: number })
 export function NewGoalPage() {
   useEffect(() => { document.title = 'New Savings Goal | CBS'; }, []);
   const navigate = useNavigate();
+  const createGoal = useCreateGoal();
   const [step, setStep] = useState(0);
 
   // Form state
   const [goalName, setGoalName] = useState('');
+  const [goalDescription, setGoalDescription] = useState('');
   const [goalIcon, setGoalIcon] = useState('🎯');
   const [selectedTemplate, setSelectedTemplate] = useState<typeof GOAL_TEMPLATES[0] | null>(null);
   const [targetAmount, setTargetAmount] = useState(0);
   const [targetDate, setTargetDate] = useState('');
-  const [sourceAccountId, setSourceAccountId] = useState('');
-  const [fundingMethod, setFundingMethod] = useState<'MANUAL' | 'AUTO_DEBIT'>('AUTO_DEBIT');
+  const [accountId, setAccountId] = useState<number>(0);
+  const [autoDebitEnabled, setAutoDebitEnabled] = useState(true);
   const [autoDebitAmount, setAutoDebitAmount] = useState(0);
-  const [autoDebitFreq, setAutoDebitFreq] = useState<'MONTHLY' | 'WEEKLY' | 'DAILY'>('MONTHLY');
-  const [autoDebitStart, setAutoDebitStart] = useState(new Date().toISOString().slice(0, 10));
+  const [autoDebitFreq, setAutoDebitFreq] = useState<AutoDebitFrequency>('MONTHLY');
+  const [isLocked, setIsLocked] = useState(false);
+  const [allowWithdrawalBeforeTarget, setAllowWithdrawalBeforeTarget] = useState(true);
   const [showIconPicker, setShowIconPicker] = useState(false);
 
   // Accounts
   const { data: accounts = [] } = useQuery({
     queryKey: ['accounts-for-goals'],
     queryFn: () => apiGet<SourceAccount[]>('/api/v1/accounts'),
-  });
-
-  // Create mutation
-  const createMut = useMutation({
-    mutationFn: () => createGoal({
-      name: goalName, icon: goalIcon, targetAmount, targetDate,
-      sourceAccountId, sourceAccountNumber: accounts.find(a => a.id === sourceAccountId)?.number ?? '',
-      fundingMethod,
-      ...(fundingMethod === 'AUTO_DEBIT' ? { autoDebit: { amount: autoDebitAmount, frequency: autoDebitFreq, startDate: autoDebitStart, status: 'ACTIVE' as const } } : {}),
-    }),
-    onSuccess: (goal) => { toast.success('Goal created!'); navigate(`/accounts/goals/${goal.id}`); },
-    onError: () => toast.error('Failed to create goal'),
   });
 
   // Calculations
@@ -105,7 +96,30 @@ export function NewGoalPage() {
 
   useEffect(() => { if (monthlyRequired > 0) setAutoDebitAmount(monthlyRequired); }, [monthlyRequired]);
 
-  const selectedAccount = accounts.find(a => a.id === sourceAccountId);
+  const selectedAccount = accounts.find(a => a.id === accountId);
+
+  const handleCreate = () => {
+    createGoal.mutate({
+      accountId,
+      goalName,
+      goalDescription: goalDescription || undefined,
+      goalIcon,
+      targetAmount,
+      targetDate: targetDate || undefined,
+      autoDebitEnabled,
+      ...(autoDebitEnabled ? {
+        autoDebitAmount,
+        autoDebitFrequency: autoDebitFreq,
+        autoDebitAccountId: accountId,
+      } : {}),
+      isLocked,
+      allowWithdrawalBeforeTarget,
+      currencyCode: selectedAccount?.currencyCode,
+    }, {
+      onSuccess: (goal) => { toast.success('Goal created!'); navigate(`/accounts/goals/${goal.id}`); },
+      onError: () => toast.error('Failed to create goal'),
+    });
+  };
 
   const fc = 'w-full px-3 py-2 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
 
@@ -140,8 +154,9 @@ export function NewGoalPage() {
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <button onClick={() => setShowIconPicker(!showIconPicker)} className="text-3xl hover:scale-110 transition-transform" title="Change icon">{goalIcon}</button>
-                <input value={goalName} onChange={e => setGoalName(e.target.value)} placeholder="Goal name" className={cn(fc, 'flex-1 text-base font-medium')} />
+                <input value={goalName} onChange={e => setGoalName(e.target.value)} placeholder="Goal name" className={cn(fc, 'flex-1 text-base font-medium')} maxLength={100} />
               </div>
+              <input value={goalDescription} onChange={e => setGoalDescription(e.target.value)} placeholder="Description (optional)" className={fc} />
               {showIconPicker && (
                 <div className="grid grid-cols-8 gap-2 p-3 rounded-lg border bg-muted/20">
                   {ALL_ICONS.map(icon => (
@@ -169,7 +184,7 @@ export function NewGoalPage() {
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Target Amount</label>
               <input type="number" value={targetAmount || ''} onChange={e => setTargetAmount(Number(e.target.value))}
-                placeholder="0" className={cn(fc, 'text-2xl font-bold font-mono')} />
+                placeholder="0" className={cn(fc, 'text-2xl font-bold font-mono')} min={0.01} step="0.01" />
             </div>
             {selectedTemplate && (
               <>
@@ -182,12 +197,12 @@ export function NewGoalPage() {
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground italic">💡 {selectedTemplate.context}</p>
+                <p className="text-xs text-muted-foreground italic">{selectedTemplate.context}</p>
               </>
             )}
             <div className="flex justify-between">
               <button onClick={() => setStep(0)} className="flex items-center gap-1 px-4 py-2 text-sm border rounded-lg hover:bg-muted"><ArrowLeft className="w-4 h-4" /> Back</button>
-              <button onClick={() => setStep(2)} disabled={targetAmount < 1000}
+              <button onClick={() => setStep(2)} disabled={targetAmount < 0.01}
                 className="flex items-center gap-1 px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
                 Next <ArrowRight className="w-4 h-4" />
               </button>
@@ -200,7 +215,7 @@ export function NewGoalPage() {
           <div className="space-y-5">
             <h3 className="text-sm font-semibold">When do you need it?</h3>
             <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)}
-              min={new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)} className={fc} />
+              min={new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)} className={fc} />
             <div className="flex flex-wrap gap-2">
               {[{ label: '6 months', months: 6 }, { label: '1 year', months: 12 }, { label: '2 years', months: 24 }, { label: '3 years', months: 36 }].map(t => {
                 const d = new Date(); d.setMonth(d.getMonth() + t.months);
@@ -230,9 +245,31 @@ export function NewGoalPage() {
                 </div>
               </div>
             )}
+
+            {/* Lock and withdrawal settings */}
+            <div className="space-y-3 pt-2 border-t">
+              <p className="text-xs font-semibold text-muted-foreground">Goal Settings</p>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={isLocked} onChange={e => setIsLocked(e.target.checked)}
+                  className="rounded border-gray-300" />
+                <div>
+                  <span className="text-sm font-medium">Lock goal</span>
+                  <p className="text-xs text-muted-foreground">Prevent any withdrawals until unlocked</p>
+                </div>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={allowWithdrawalBeforeTarget} onChange={e => setAllowWithdrawalBeforeTarget(e.target.checked)}
+                  className="rounded border-gray-300" />
+                <div>
+                  <span className="text-sm font-medium">Allow early withdrawal</span>
+                  <p className="text-xs text-muted-foreground">Allow withdrawals before reaching the target</p>
+                </div>
+              </label>
+            </div>
+
             <div className="flex justify-between">
               <button onClick={() => setStep(1)} className="flex items-center gap-1 px-4 py-2 text-sm border rounded-lg hover:bg-muted"><ArrowLeft className="w-4 h-4" /> Back</button>
-              <button onClick={() => setStep(3)} disabled={!targetDate}
+              <button onClick={() => setStep(3)}
                 className="flex items-center gap-1 px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
                 Next <ArrowRight className="w-4 h-4" />
               </button>
@@ -247,44 +284,47 @@ export function NewGoalPage() {
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">Source Account</p>
               {(accounts as SourceAccount[]).map(a => (
-                <button key={a.id} onClick={() => setSourceAccountId(a.id)}
+                <button key={a.id} onClick={() => setAccountId(a.id)}
                   className={cn('w-full flex items-center justify-between p-4 rounded-lg border-2 text-left transition-all',
-                    sourceAccountId === a.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30')}>
-                  <div><div className="text-sm font-medium">{a.name}</div><div className="text-xs text-muted-foreground font-mono">****{a.number?.slice(-4)}</div></div>
-                  <div className="text-sm font-mono font-semibold">{formatMoney(a.balance)}</div>
+                    accountId === a.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30')}>
+                  <div><div className="text-sm font-medium">{a.accountName}</div><div className="text-xs text-muted-foreground font-mono">****{a.accountNumber?.slice(-4)}</div></div>
+                  <div className="text-right">
+                    <div className="text-sm font-mono font-semibold">{formatMoney(a.availableBalance)}</div>
+                    <div className="text-[10px] text-muted-foreground">{a.currencyCode}</div>
+                  </div>
                 </button>
               ))}
               {accounts.length === 0 && <p className="text-sm text-muted-foreground py-4">No accounts found.</p>}
             </div>
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">Funding Method</p>
-              <button onClick={() => setFundingMethod('AUTO_DEBIT')}
+              <button onClick={() => setAutoDebitEnabled(true)}
                 className={cn('w-full p-4 rounded-lg border-2 text-left transition-all',
-                  fundingMethod === 'AUTO_DEBIT' ? 'border-primary bg-primary/5' : 'border-border')}>
+                  autoDebitEnabled ? 'border-primary bg-primary/5' : 'border-border')}>
                 <div className="flex items-center gap-2 mb-1"><span className="text-lg">🤖</span><span className="text-sm font-semibold">Auto-Debit (Recommended)</span></div>
                 <p className="text-xs text-muted-foreground">Set it and forget it — we'll automatically save for you</p>
-                {fundingMethod === 'AUTO_DEBIT' && (
+                {autoDebitEnabled && (
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <div className="space-y-1"><label className="text-[10px] font-medium text-muted-foreground">Amount</label>
-                      <input type="number" value={autoDebitAmount || ''} onChange={e => setAutoDebitAmount(Number(e.target.value))} className={cn(fc, 'font-mono')} /></div>
+                      <input type="number" value={autoDebitAmount || ''} onChange={e => setAutoDebitAmount(Number(e.target.value))} className={cn(fc, 'font-mono')} min={0.01} step="0.01" /></div>
                     <div className="space-y-1"><label className="text-[10px] font-medium text-muted-foreground">Frequency</label>
-                      <select value={autoDebitFreq} onChange={e => setAutoDebitFreq(e.target.value as 'MONTHLY')} className={fc}>
-                        <option value="MONTHLY">Monthly</option><option value="WEEKLY">Weekly</option><option value="DAILY">Daily</option>
+                      <select value={autoDebitFreq} onChange={e => setAutoDebitFreq(e.target.value as AutoDebitFrequency)} className={fc}>
+                        <option value="MONTHLY">Monthly</option><option value="BI_WEEKLY">Bi-Weekly</option><option value="WEEKLY">Weekly</option><option value="DAILY">Daily</option>
                       </select></div>
                   </div>
                 )}
               </button>
-              <button onClick={() => setFundingMethod('MANUAL')}
+              <button onClick={() => setAutoDebitEnabled(false)}
                 className={cn('w-full p-4 rounded-lg border-2 text-left transition-all',
-                  fundingMethod === 'MANUAL' ? 'border-primary bg-primary/5' : 'border-border')}>
+                  !autoDebitEnabled ? 'border-primary bg-primary/5' : 'border-border')}>
                 <div className="flex items-center gap-2 mb-1"><span className="text-lg">💵</span><span className="text-sm font-semibold">Manual</span></div>
                 <p className="text-xs text-muted-foreground">Contribute whenever you want, on your own schedule</p>
-                <p className="text-[10px] text-amber-600 mt-1">⚠️ Manual savings are 3x less likely to reach the goal on time</p>
+                <p className="text-[10px] text-amber-600 mt-1">Manual savings are 3x less likely to reach the goal on time</p>
               </button>
             </div>
             <div className="flex justify-between">
               <button onClick={() => setStep(2)} className="flex items-center gap-1 px-4 py-2 text-sm border rounded-lg hover:bg-muted"><ArrowLeft className="w-4 h-4" /> Back</button>
-              <button onClick={() => setStep(4)} disabled={!sourceAccountId}
+              <button onClick={() => setStep(4)} disabled={!accountId}
                 className="flex items-center gap-1 px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
                 Next <ArrowRight className="w-4 h-4" />
               </button>
@@ -298,13 +338,18 @@ export function NewGoalPage() {
             <div className="rounded-xl border p-6 bg-muted/20 space-y-4">
               <div className="flex items-center gap-3">
                 <span className="text-4xl">{goalIcon}</span>
-                <div><h3 className="text-lg font-bold">{goalName}</h3><p className="text-xs text-muted-foreground">{selectedTemplate?.category}</p></div>
+                <div><h3 className="text-lg font-bold">{goalName}</h3>
+                  {goalDescription && <p className="text-xs text-muted-foreground">{goalDescription}</p>}
+                  <p className="text-xs text-muted-foreground">{selectedTemplate?.category}</p>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><p className="text-xs text-muted-foreground">Target</p><p className="font-bold font-mono text-lg">{formatMoney(targetAmount)}</p></div>
-                <div><p className="text-xs text-muted-foreground">Timeline</p><p className="font-medium">{monthsToGoal} months ({targetDate})</p></div>
-                <div><p className="text-xs text-muted-foreground">Funding</p><p className="font-medium">{fundingMethod === 'AUTO_DEBIT' ? `Auto-debit ${formatMoney(autoDebitAmount)}/${autoDebitFreq.toLowerCase()}` : 'Manual'}</p></div>
-                <div><p className="text-xs text-muted-foreground">Source</p><p className="font-medium font-mono">****{selectedAccount?.number?.slice(-4) || '—'}</p></div>
+                <div><p className="text-xs text-muted-foreground">Timeline</p><p className="font-medium">{targetDate ? `${monthsToGoal} months (${targetDate})` : 'No deadline'}</p></div>
+                <div><p className="text-xs text-muted-foreground">Funding</p><p className="font-medium">{autoDebitEnabled ? `Auto-debit ${formatMoney(autoDebitAmount)}/${autoDebitFreq.toLowerCase().replace('_', '-')}` : 'Manual'}</p></div>
+                <div><p className="text-xs text-muted-foreground">Source</p><p className="font-medium font-mono">****{selectedAccount?.accountNumber?.slice(-4) || '—'}</p></div>
+                <div><p className="text-xs text-muted-foreground">Locked</p><p className="font-medium">{isLocked ? 'Yes' : 'No'}</p></div>
+                <div><p className="text-xs text-muted-foreground">Early Withdrawal</p><p className="font-medium">{allowWithdrawalBeforeTarget ? 'Allowed' : 'Not allowed'}</p></div>
               </div>
               {monthsToGoal > 0 && (
                 <div className="border-t pt-3 space-y-1">
@@ -325,9 +370,9 @@ export function NewGoalPage() {
             </div>
             <div className="flex justify-between">
               <button onClick={() => setStep(3)} className="flex items-center gap-1 px-4 py-2 text-sm border rounded-lg hover:bg-muted"><ArrowLeft className="w-4 h-4" /> Back</button>
-              <button onClick={() => createMut.mutate()} disabled={createMut.isPending}
+              <button onClick={handleCreate} disabled={createGoal.isPending}
                 className="flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
-                {createMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
+                {createGoal.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
                 Create Goal
               </button>
             </div>

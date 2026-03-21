@@ -1,5 +1,8 @@
 // Auto-generated from backend entities
 
+export type GlCategory = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'INCOME' | 'EXPENSE' | 'CONTINGENT';
+export type NormalBalance = 'DEBIT' | 'CREDIT';
+
 export interface ChartOfAccounts {
   id: number;
   glCode: string;

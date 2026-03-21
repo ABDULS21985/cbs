@@ -60,7 +60,12 @@ export function EodStepCard({ step, isActive }: EodStepCardProps) {
     ? 'waiting'
     : step.status === 'RUNNING'
     ? 'running...'
-    : formatDurationShort(step.durationMs) || '--';
+    : formatDurationShort(step.durationMs ?? undefined) || '--';
+
+  // Create a short label from the step name (first word or abbreviation)
+  const shortLabel = step.stepName.length > 12
+    ? step.stepName.split(' ').map(w => w[0]).join('').toUpperCase()
+    : step.stepName;
 
   return (
     <div
@@ -69,12 +74,13 @@ export function EodStepCard({ step, isActive }: EodStepCardProps) {
         bg,
         isActive && 'ring-2 ring-blue-400 ring-offset-1',
       )}
+      title={step.stepName}
     >
       <div className="flex items-center gap-1">
         {icon}
       </div>
       <span className={cn('text-xs font-semibold text-center leading-tight', text)}>
-        {step.shortLabel}
+        {shortLabel}
       </span>
       <span className={cn('text-[10px] text-center', text, 'opacity-70')}>
         {durationLabel}

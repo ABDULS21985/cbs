@@ -44,4 +44,15 @@ public interface RecurringDepositRepository extends JpaRepository<RecurringDepos
     BigDecimal sumCurrentValueByProductGlCode(@Param("glCode") String glCode,
                                               @Param("currencyCode") String currencyCode,
                                               @Param("branchCode") String branchCode);
+
+    @Query("""
+            SELECT rd.depositNumber, p.glAccountCode, rd.currentValue
+            FROM RecurringDeposit rd JOIN rd.product p JOIN rd.account a
+            WHERE rd.currencyCode = :currencyCode
+            AND (:branchCode IS NULL OR a.branchCode = :branchCode)
+            AND rd.status <> 'CLOSED'
+            ORDER BY rd.depositNumber
+            """)
+    List<Object[]> findBalancesByProductGlCode(@Param("currencyCode") String currencyCode,
+                                               @Param("branchCode") String branchCode);
 }

@@ -24,6 +24,9 @@ public class NotificationService {
     private final NotificationTemplateRepository templateRepository;
     private final NotificationLogRepository logRepository;
     private final NotificationPreferenceRepository preferenceRepository;
+    private final NotificationTemplateVersionRepository templateVersionRepository;
+    private final ScheduledNotificationRepository scheduledNotificationRepository;
+    private final NotificationDispatcher dispatcher;
 
     /**
      * Sends notifications for a business event across all configured channels.
@@ -70,57 +73,14 @@ public class NotificationService {
                     .build();
 
             notifLog = logRepository.save(notifLog);
-            dispatchNotification(notifLog);
+            dispatcher.dispatch(notifLog);
             queued.add(notifLog);
         }
 
         return queued;
     }
 
-    /**
-     * Attempt to dispatch a notification through its configured channel.
-     * If no provider is configured for the channel, the status stays PENDING_DISPATCH
-     * and a warning is logged so operators know action is required.
-     */
-    private void dispatchNotification(NotificationLog notifLog) {
-        switch (notifLog.getChannel()) {
-            case EMAIL -> {
-                // JavaMailSender / SendGrid not configured (spring-boot-starter-mail absent).
-                // To enable: add spring-boot-starter-mail to build.gradle.kts, configure
-                // spring.mail.* properties, inject JavaMailSender, and send via
-                // MimeMessageHelper.
-                log.warn("Notification dispatch not configured — email notification #{} queued (channel=EMAIL, recipient={})",
-                        notifLog.getId(), notifLog.getRecipientAddress());
-            }
-            case SMS -> {
-                // No SMS provider (Twilio, Africa's Talking, SMPP) found in the project.
-                // To enable: add the provider's SDK, configure credentials, and implement
-                // SMS dispatch here.
-                log.warn("Notification dispatch not configured — SMS notification #{} queued (channel=SMS, recipient={})",
-                        notifLog.getId(), notifLog.getRecipientAddress());
-            }
-            case PUSH -> {
-                // Firebase Cloud Messaging or similar push provider not configured.
-                log.warn("Notification dispatch not configured — push notification #{} queued (channel=PUSH, recipient={})",
-                        notifLog.getId(), notifLog.getRecipientAddress());
-            }
-            case IN_APP -> {
-                // In-app notifications are stored in the log and surfaced via
-                // getCustomerNotifications(). No external dispatch required.
-                notifLog.setStatus("DELIVERED");
-                notifLog.setSentAt(Instant.now());
-                notifLog.setDeliveredAt(Instant.now());
-                logRepository.save(notifLog);
-                log.debug("In-app notification #{} stored for customer {}", notifLog.getId(), notifLog.getCustomerId());
-            }
-            case WEBHOOK -> {
-                // Webhook delivery is handled by EsbService / HTTP client integration.
-                // Mark as PENDING_DISPATCH for the ESB to pick up.
-                log.warn("Notification dispatch not configured — webhook notification #{} queued for url={}",
-                        notifLog.getId(), notifLog.getRecipientAddress());
-            }
-        }
-    }
+    // Dispatch is now handled by NotificationDispatcher bean
 
     /**
      * Send a direct notification without template lookup.
@@ -137,7 +97,7 @@ public class NotificationService {
                 .status("PENDING_DISPATCH")
                 .provider(resolveProvider(channel)).build();
         notifLog = logRepository.save(notifLog);
-        dispatchNotification(notifLog);
+        dispatcher.dispatch(notifLog);
         return notifLog;
     }
 
@@ -186,8 +146,7 @@ public class NotificationService {
                 notif.setRetryCount(notif.getRetryCount() + 1);
                 notif.setStatus("PENDING_DISPATCH");
                 logRepository.save(notif);
-                // Re-attempt dispatch; dispatchNotification will update status on success
-                dispatchNotification(notif);
+                dispatcher.dispatch(notif);
                 retried++;
             } catch (Exception e) {
                 registerDeliveryFailure(notif, e.getMessage(), Instant.now());
@@ -249,8 +208,76 @@ public class NotificationService {
             Instant timestamp
     ) {}
 
-    public java.util.List<NotificationTemplate> getAllTemplates() {
+    public List<NotificationTemplate> getAllTemplates() {
         return templateRepository.findAll();
+    }
+
+    // ========================================================================
+    // TEMPLATE VERSIONING
+    // ========================================================================
+
+    /**
+     * Saves the current template body as a version snapshot before it is overwritten.
+     */
+    @Transactional
+    public NotificationTemplate updateTemplateWithVersion(Long id, NotificationTemplate incoming, String changedBy) {
+        NotificationTemplate existing = templateRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Template not found: " + id));
+
+        // Snapshot the previous body as a version
+        int nextVersion = templateVersionRepository.findMaxVersionNumber(id).orElse(0) + 1;
+        templateVersionRepository.save(NotificationTemplateVersion.builder()
+                .templateId(id)
+                .versionNumber(nextVersion)
+                .bodyTemplate(existing.getBodyTemplate())
+                .subject(existing.getSubject())
+                .changedBy(changedBy)
+                .changeSummary("Version " + nextVersion + " before update")
+                .build());
+
+        // Apply changes
+        if (incoming.getTemplateName() != null) existing.setTemplateName(incoming.getTemplateName());
+        if (incoming.getSubject() != null) existing.setSubject(incoming.getSubject());
+        if (incoming.getBodyTemplate() != null) existing.setBodyTemplate(incoming.getBodyTemplate());
+        if (incoming.getEventType() != null) existing.setEventType(incoming.getEventType());
+        if (incoming.getChannel() != null) existing.setChannel(incoming.getChannel());
+        if (incoming.getIsHtml() != null) existing.setIsHtml(incoming.getIsHtml());
+        if (incoming.getLocale() != null) existing.setLocale(incoming.getLocale());
+        existing.setUpdatedAt(Instant.now());
+        return templateRepository.save(existing);
+    }
+
+    public List<NotificationTemplateVersion> getTemplateVersions(Long templateId) {
+        return templateVersionRepository.findByTemplateIdOrderByVersionNumberDesc(templateId);
+    }
+
+    // ========================================================================
+    // SCHEDULED NOTIFICATIONS
+    // ========================================================================
+
+    public List<ScheduledNotification> getAllScheduledNotifications() {
+        return scheduledNotificationRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    @Transactional
+    public ScheduledNotification createScheduledNotification(ScheduledNotification schedule) {
+        schedule.setCreatedAt(Instant.now());
+        schedule.setUpdatedAt(Instant.now());
+        return scheduledNotificationRepository.save(schedule);
+    }
+
+    @Transactional
+    public ScheduledNotification toggleScheduledNotification(Long id) {
+        ScheduledNotification sn = scheduledNotificationRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Schedule not found: " + id));
+        sn.setStatus("ACTIVE".equals(sn.getStatus()) ? "PAUSED" : "ACTIVE");
+        sn.setUpdatedAt(Instant.now());
+        return scheduledNotificationRepository.save(sn);
+    }
+
+    @Transactional
+    public void deleteScheduledNotification(Long id) {
+        scheduledNotificationRepository.deleteById(id);
     }
 
 }

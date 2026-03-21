@@ -54,8 +54,19 @@ export interface Covenant {
 export interface DrawdownRequest {
   facilityId: number;
   amount: number;
-  type: string;
-  rate: number;
-  maturityDate: string;
-  purpose: string;
+  narration?: string;
+}
+
+// Matches backend CreateFacilityRequest DTO
+export interface CreateFacilityPayload {
+  accountId: number;
+  facilityType: 'OVERDRAFT' | 'LINE_OF_CREDIT' | 'REVOLVING';
+  sanctionedLimit: number;
+  interestRate: number;
+  penaltyRate?: number;
+  dayCountConvention?: string;
+  expiryDate: string;
+  autoRenewal?: boolean;
+  maxRenewals?: number;
+  interestPostingDay?: number;
 }

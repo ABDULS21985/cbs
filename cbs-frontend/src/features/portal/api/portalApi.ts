@@ -35,8 +35,11 @@ export interface PortalCard {
   type: 'DEBIT' | 'CREDIT' | 'PREPAID';
   maskedPan: string;
   expiry: string;
-  status: 'ACTIVE' | 'BLOCKED' | 'EXPIRED';
+  status: 'ACTIVE' | 'BLOCKED' | 'EXPIRED' | 'FROZEN';
   onlineEnabled: boolean;
+  atmEnabled: boolean;
+  posEnabled: boolean;
+  contactlessEnabled: boolean;
   internationalEnabled: boolean;
   dailyPosLimit: number;
   dailyAtmLimit: number;
@@ -48,8 +51,20 @@ export interface PortalServiceRequest {
   type: string;
   description: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  resolution?: string;
+  assignedTo?: string;
+  resolvedBy?: string;
   submittedAt: string;
   completedAt?: string;
+  resolvedAt?: string;
+}
+
+export interface TransferLimits {
+  dailyLimit: number;
+  perTransactionLimit: number;
+  usedToday: number;
+  remainingDaily: number;
+  otpThreshold: number;
 }
 
 // ─── Profile Types ──────────────────────────────────────────────────────────
@@ -100,7 +115,7 @@ export interface ProfileUpdateRequest {
   requestType: string;
   oldValue?: string;
   newValue: string;
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   channel?: string;
   submittedAt?: string;
   reviewedAt?: string;
@@ -180,10 +195,12 @@ export const portalApi = {
 
   getCards: () =>
     apiGet<PortalCard[]>('/api/v1/portal/cards'),
+  updateCardControls: (cardId: number, controls: Record<string, boolean>) =>
+    apiPost<PortalCard>(`/api/v1/portal/cards/${cardId}/controls`, controls),
   toggleCardFeature: (cardId: number, feature: string, enabled: boolean) =>
-    apiPost<PortalCard>(`/api/v1/portal/cards/${cardId}/controls`, { feature, enabled }),
+    apiPost<PortalCard>(`/api/v1/portal/cards/${cardId}/controls`, { [feature]: enabled }),
   blockCard: (cardId: number, reason: string) =>
-    apiPost<void>(`/api/v1/portal/cards/${cardId}/block`, { reason }),
+    apiPost<void>(`/api/v1/portal/cards/${cardId}/block`, { data: reason }),
 
   getServiceRequests: () =>
     apiGet<PortalServiceRequest[]>('/api/v1/portal/service-requests'),
@@ -265,6 +282,8 @@ export const portalApi = {
   // ─── Transfers ────────────────────────────────────────────────────────
   executeTransfer: (data: { debitAccountId: number; creditAccountId: number; amount: number; narration: string; idempotencyKey: string }) =>
     apiPost<Record<string, unknown>>('/api/v1/portal/transfers/internal', data),
+  executeInternalTransfer: (data: { debitAccountId: number; creditAccountId: number; amount: number; narration: string; idempotencyKey: string }) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/transfers/internal', data),
   validateTransfer: (accountNumber: string, bankCode?: string) =>
     apiPost<Record<string, unknown>>('/api/v1/portal/transfers/validate', { accountNumber, bankCode: bankCode || '000' }),
   sendOtp: (accountId: number) =>
@@ -272,5 +291,15 @@ export const portalApi = {
   verifyOtp: (sessionId: string, otpCode: string) =>
     apiPost<Record<string, unknown>>('/api/v1/portal/transfers/otp/verify', { sessionId, otpCode }),
   getTransferLimits: () =>
-    apiGet<Record<string, unknown>>('/api/v1/portal/transfers/limits'),
+    apiGet<TransferLimits>('/api/v1/portal/transfers/limits'),
+  getRecentTransfers: (page = 0, size = 10) =>
+    apiGet<PortalTransaction[]>('/api/v1/portal/transfers/recent', { page, size } as Record<string, unknown>),
+
+  // ─── Admin: Profile Update Reviews (Back-Office) ─────────────────────
+  getPendingProfileUpdates: (page = 0, size = 20) =>
+    apiGet<ProfileUpdateRequest[]>('/api/v1/portal/admin/profile-updates/pending', { page, size } as Record<string, unknown>),
+  approveProfileUpdate: (requestId: number) =>
+    apiPost<ProfileUpdateRequest>(`/api/v1/portal/admin/profile-updates/${requestId}/approve`),
+  rejectProfileUpdate: (requestId: number, reason: string) =>
+    apiPost<ProfileUpdateRequest>(`/api/v1/portal/admin/profile-updates/${requestId}/reject?reason=${encodeURIComponent(reason)}`),
 };

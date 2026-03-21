@@ -14,6 +14,7 @@ const CHANNELS: { channel: NotificationChannel; description: string }[] = [
   { channel: 'SMS', description: 'Receive SMS alerts to your phone' },
   { channel: 'PUSH', description: 'Browser push notifications' },
   { channel: 'IN_APP', description: 'In-application notification center' },
+  { channel: 'WEBHOOK', description: 'HTTP callback to external systems' },
 ];
 
 export function NotificationPreferencesPage() {
@@ -65,7 +66,7 @@ export function NotificationPreferencesPage() {
       'LOAN_DISBURSED', 'LOAN_REPAYMENT_DUE', 'LOAN_OVERDUE', 'LOAN_SETTLED',
       'CARD_TRANSACTION', 'CARD_BLOCKED', 'CARD_EXPIRING',
       'LOGIN', 'PASSWORD_CHANGED', 'MFA_ENABLED', 'SUSPICIOUS_ACTIVITY',
-      'MAINTENANCE', 'SYSTEM_UPDATE',
+      'MAINTENANCE', 'SYSTEM_UPDATE', 'CUSTOM_NOTIFICATION',
     ];
     eventTypes.forEach((eventType) => {
       handleToggle(channel, eventType, enabled);
@@ -170,6 +171,7 @@ export function NotificationPreferencesPage() {
               <option value="SMS">SMS</option>
               <option value="PUSH">Push</option>
               <option value="IN_APP">In-App</option>
+              <option value="WEBHOOK">Webhook</option>
             </select>
             <button
               onClick={handleSendTest}

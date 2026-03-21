@@ -90,6 +90,10 @@ export const ReconciliationReportsPage = lazyNamed(
   () => import('@/features/reconciliation/pages/ReconciliationReportsPage'),
   'ReconciliationReportsPage',
 );
+export const NostroPositionDetailPage = lazyNamed(
+  () => import('@/features/reconciliation/pages/NostroPositionDetailPage'),
+  'NostroPositionDetailPage',
+);
 export const VirtualAccountListPage = lazyNamed(
   () => import('@/features/accounts/pages/VirtualAccountListPage'),
   'VirtualAccountListPage',
@@ -362,6 +366,14 @@ export const PortalAirtimePage = lazyNamed(
   () => import('@/features/portal/pages/PortalAirtimePage'),
   'PortalAirtimePage',
 );
+export const PortalTransferHistoryPage = lazyNamed(
+  () => import('@/features/portal/pages/PortalTransferHistoryPage'),
+  'PortalTransferHistoryPage',
+);
+export const PortalAdminProfileUpdatesPage = lazyNamed(
+  () => import('@/features/portal/pages/PortalAdminProfileUpdatesPage'),
+  'PortalAdminProfileUpdatesPage',
+);
 
 export const NewTransferPage = lazyNamed(
   () => import('@/features/payments/pages/NewTransferPage'),
@@ -512,6 +524,7 @@ export const EclParameterPage = lazyNamed(
   () => import('@/features/lending/pages/EclParameterPage'),
   'EclParameterPage',
 );
+export const CreditRiskDashboardPage = lazy(() => import('@/features/lending/pages/CreditRiskDashboardPage'));
 
 export const FixedIncomePage = lazyNamed(
   () => import('@/features/treasury/pages/FixedIncomePage'),
@@ -966,6 +979,14 @@ export const InvestmentAnalyticsPage = lazyNamed(
   () => import('@/features/investments/pages/InvestmentAnalyticsPage'),
   'InvestmentAnalyticsPage',
 );
+export const InvSettlementPage = lazyNamed(
+  () => import('@/features/investments/pages/SettlementPage'),
+  'SettlementPage',
+);
+export const InvAdvisorDetailPage = lazyNamed(
+  () => import('@/features/investments/pages/AdvisorDetailPage'),
+  'AdvisorDetailPage',
+);
 
 export const AdvisoryDashboardPage = lazyNamed(
   () => import('@/features/advisory/pages/AdvisoryDashboardPage'),
@@ -995,6 +1016,26 @@ export const SuitabilityPage = lazyNamed(
 export const IntelligencePage = lazyNamed(
   () => import('@/features/intelligence/pages/IntelligencePage'),
   'IntelligencePage',
+);
+export const BehaviourAnalyticsPage = lazyNamed(
+  () => import('@/features/intelligence/pages/BehaviourAnalyticsPage'),
+  'BehaviourAnalyticsPage',
+);
+export const DocumentIntelligencePage = lazyNamed(
+  () => import('@/features/intelligence/pages/DocumentIntelligencePage'),
+  'DocumentIntelligencePage',
+);
+export const CashFlowForecastPage = lazyNamed(
+  () => import('@/features/intelligence/pages/CashFlowForecastPage'),
+  'CashFlowForecastPage',
+);
+export const DashboardManagementPage = lazyNamed(
+  () => import('@/features/intelligence/pages/DashboardManagementPage'),
+  'DashboardManagementPage',
+);
+export const DashboardViewerPage = lazyNamed(
+  () => import('@/features/intelligence/pages/DashboardViewerPage'),
+  'DashboardViewerPage',
 );
 
 export const AlmDashboardPage = lazyNamed(
@@ -1163,6 +1204,22 @@ export const SwitchDashboardPage = lazyNamed(
   () => import('@/features/marketdata/pages/SwitchDashboardPage'),
   'SwitchDashboardPage',
 );
+export const MarketRiskPage = lazyNamed(
+  () => import('@/features/marketdata/pages/MarketRiskPage'),
+  'MarketRiskPage',
+);
+export const MarketOrdersPage = lazyNamed(
+  () => import('@/features/marketdata/pages/MarketOrdersPage'),
+  'MarketOrdersPage',
+);
+export const FinancialInstrumentsPage = lazyNamed(
+  () => import('@/features/marketdata/pages/FinancialInstrumentsPage'),
+  'FinancialInstrumentsPage',
+);
+export const CompetitorAnalysisPage = lazyNamed(
+  () => import('@/features/marketdata/pages/CompetitorAnalysisPage'),
+  'CompetitorAnalysisPage',
+);
 
 export const TradeFinanceHubPage = lazyNamed(
   () => import('@/features/tradefinance/pages/TradeFinanceHubPage'),
@@ -1180,6 +1237,18 @@ export const WalletPage = lazyNamed(
 export const PaymentsDashboardPage = lazyNamed(
   () => import('@/features/payments/pages/PaymentsDashboardPage'),
   'PaymentsDashboardPage',
+);
+export const RemittancePage = lazyNamed(
+  () => import('@/features/payments/pages/RemittancePage'),
+  'RemittancePage',
+);
+export const PayrollPage = lazyNamed(
+  () => import('@/features/payments/pages/PayrollPage'),
+  'PayrollPage',
+);
+export const PaymentOrchestrationPage = lazyNamed(
+  () => import('@/features/payments/pages/PaymentOrchestrationPage'),
+  'PaymentOrchestrationPage',
 );
 export const CardDisputePage = lazyNamed(
   () => import('@/features/cards/pages/CardDisputePage'),

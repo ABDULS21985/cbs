@@ -125,6 +125,80 @@ public class EndOfDayService {
         return runRepository.findTopByRunTypeOrderByBusinessDateDesc(runType).orElse(null);
     }
 
+    /**
+     * Retry a failed step by re-executing its associated batch logic.
+     */
+    @Transactional
+    public void retryStep(Long runId, EodStep step) {
+        Map<String, Supplier<Integer>> stepMap = getStepSuppliers();
+        Supplier<Integer> supplier = stepMap.get(step.getStepName());
+
+        if (supplier == null) {
+            // Guard: step name was renamed or is unrecognized — fail loudly
+            step.setStatus("FAILED");
+            step.setErrorMessage("Unrecognized step name: '" + step.getStepName()
+                    + "'. Known steps: " + String.join(", ", stepMap.keySet()));
+            step.setCompletedAt(Instant.now());
+            log.error("EOD step retry aborted — unrecognized step name '{}'. Known steps: {}",
+                    step.getStepName(), stepMap.keySet());
+            throw new BusinessException(
+                    "Cannot retry step '" + step.getStepName() + "': step name not found in current EOD configuration. "
+                            + "Known steps: " + String.join(", ", stepMap.keySet()),
+                    "EOD_STEP_NAME_UNRECOGNIZED");
+        }
+
+        step.setStartedAt(Instant.now());
+        step.setStatus("RUNNING");
+
+        try {
+            int records = supplier.get();
+            step.setRecordsProcessed(records);
+            step.setStatus("COMPLETED");
+            step.setCompletedAt(Instant.now());
+            step.setDurationMs((int)(step.getCompletedAt().toEpochMilli() - step.getStartedAt().toEpochMilli()));
+
+            EodRun run = runRepository.findById(runId).orElse(null);
+            if (run != null) {
+                run.setCompletedSteps(run.getCompletedSteps() + 1);
+                if (run.getFailedSteps() > 0) run.setFailedSteps(run.getFailedSteps() - 1);
+
+                boolean allDone = run.getSteps().stream()
+                        .allMatch(s -> "COMPLETED".equals(s.getStatus()) || "SKIPPED".equals(s.getStatus()));
+                if (allDone) {
+                    run.setStatus("COMPLETED");
+                    run.setCompletedAt(Instant.now());
+                    run.setDurationSeconds((int)(run.getCompletedAt().toEpochMilli() - run.getStartedAt().toEpochMilli()) / 1000);
+                }
+                runRepository.save(run);
+            }
+            log.info("EOD step retry completed: {} — {} records in {}ms", step.getStepName(), records, step.getDurationMs());
+        } catch (BusinessException e) {
+            throw e; // re-throw business exceptions (like unrecognized step)
+        } catch (Exception e) {
+            step.setStatus("FAILED");
+            step.setErrorMessage(e.getMessage());
+            step.setCompletedAt(Instant.now());
+            step.setDurationMs((int)(step.getCompletedAt().toEpochMilli() - step.getStartedAt().toEpochMilli()));
+            log.error("EOD step retry failed: {} — {}", step.getStepName(), e.getMessage());
+        }
+    }
+
+    private Map<String, Supplier<Integer>> getStepSuppliers() {
+        Map<String, Supplier<Integer>> steps = new LinkedHashMap<>();
+        steps.put("Savings Interest Accrual", this::accrueAccountInterest);
+        steps.put("Fixed Deposit Interest Accrual", fdService::batchAccrueInterest);
+        steps.put("Fixed Deposit Maturity Processing", fdService::processMaturedDeposits);
+        steps.put("Recurring Deposit Auto-Debit", rdService::processAutoDebits);
+        steps.put("Loan Interest Accrual", loanService::batchAccrueInterest);
+        steps.put("Overdraft/LOC Interest Accrual", overdraftService::batchAccrueInterest);
+        steps.put("Standing Order Execution", standingOrderService::executeDueInstructions);
+        steps.put("Facility Expiry Processing", overdraftService::processExpiredFacilities);
+        steps.put("Treasury Deal Maturity", treasuryService::processMaturedDeals);
+        steps.put("Monthly Interest Posting", this::postMonthlyInterest);
+        steps.put("Monthly Fee Charging", this::chargeMonthlyFees);
+        return steps;
+    }
+
     private EodRunType determineRunType(LocalDate date) {
         if (date.getMonthValue() == 12 && date.getDayOfMonth() == 31) return EodRunType.EOY;
         if (date.getDayOfMonth() == date.lengthOfMonth()) {

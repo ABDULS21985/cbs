@@ -8,7 +8,7 @@ import { formatMoney } from '@/lib/formatters';
 import { MoneyInput } from '@/components/shared/MoneyInput';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { portalApi, type PortalAccount, type PortalBeneficiary } from '../api/portalApi';
+import { portalApi, type PortalAccount, type PortalBeneficiary, type TransferLimits } from '../api/portalApi';
 
 type Step = 'form' | 'review' | 'otp' | 'processing' | 'success' | 'failure';
 
@@ -139,7 +139,7 @@ export function PortalTransferPage() {
 
   const { data: accounts = [] } = useQuery({ queryKey: ['portal', 'accounts'], queryFn: () => portalApi.getAccounts() });
   const { data: beneficiaries = [] } = useQuery({ queryKey: ['portal', 'beneficiaries'], queryFn: () => portalApi.getBeneficiaries() });
-  const { data: limits } = useQuery({ queryKey: ['portal', 'transfer-limits'], queryFn: () => portalApi.getTransferLimits() });
+  const { data: limits } = useQuery<TransferLimits>({ queryKey: ['portal', 'transfer-limits'], queryFn: () => portalApi.getTransferLimits() });
 
   const selectedAccount = accounts.find((a) => a.id === form.fromAccountId);
 
@@ -206,7 +206,7 @@ export function PortalTransferPage() {
   });
 
   const handleProceedToOtp = () => {
-    const otpThreshold = (limits as Record<string, number>)?.otpThreshold ?? 50000;
+    const otpThreshold = limits?.otpThreshold ?? 50000;
     if (form.amount > otpThreshold) {
       sendOtpMutation.mutate();
     } else {
@@ -313,9 +313,9 @@ export function PortalTransferPage() {
           {form.narration && <div className="px-5 py-3 flex justify-between"><span className="text-sm text-muted-foreground">Narration</span><span className="text-sm">{form.narration}</span></div>}
         </div>
 
-        {form.amount > ((limits as Record<string, number>)?.otpThreshold ?? 50000) && (
+        {form.amount > (limits?.otpThreshold ?? 50000) && (
           <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-            <Shield className="w-4 h-4 flex-shrink-0" /> OTP verification required for amounts above {formatMoney((limits as Record<string, number>)?.otpThreshold ?? 50000, 'NGN')}
+            <Shield className="w-4 h-4 flex-shrink-0" /> OTP verification required for amounts above {formatMoney(limits?.otpThreshold ?? 50000, 'NGN')}
           </div>
         )}
 
@@ -336,7 +336,7 @@ export function PortalTransferPage() {
   // ── Form ──
   const canProceed = form.fromAccountId > 0 && form.toAccountNumber.length >= 10 && form.beneficiaryName && form.amount > 0;
   const insufficientBalance = selectedAccount && form.amount > selectedAccount.availableBalance;
-  const exceedsLimit = limits && form.amount > ((limits as Record<string, number>).perTransactionLimit ?? Infinity);
+  const exceedsLimit = limits && form.amount > (limits?.perTransactionLimit ?? Infinity);
 
   return (
     <div className="max-w-md mx-auto space-y-6">
@@ -406,7 +406,7 @@ export function PortalTransferPage() {
         <label className="block text-xs font-medium text-muted-foreground mb-1">Amount</label>
         <MoneyInput value={form.amount} onChange={(v) => update('amount', v)} currency="NGN" />
         {insufficientBalance && <p className="text-xs text-red-600 mt-1">Insufficient balance</p>}
-        {exceedsLimit && <p className="text-xs text-red-600 mt-1">Exceeds per-transaction limit of {formatMoney((limits as Record<string, number>).perTransactionLimit, 'NGN')}</p>}
+        {exceedsLimit && <p className="text-xs text-red-600 mt-1">Exceeds per-transaction limit of {formatMoney(limits?.perTransactionLimit, 'NGN')}</p>}
       </div>
 
       {/* Narration */}
@@ -421,10 +421,10 @@ export function PortalTransferPage() {
         <div className="text-xs text-muted-foreground">
           <div className="flex justify-between mb-1">
             <span>Daily limit used</span>
-            <span className="font-mono">{formatMoney((limits as Record<string, number>).usedToday ?? 0, 'NGN')} / {formatMoney((limits as Record<string, number>).dailyLimit ?? 0, 'NGN')}</span>
+            <span className="font-mono">{formatMoney(limits?.usedToday ?? 0, 'NGN')} / {formatMoney(limits?.dailyLimit ?? 0, 'NGN')}</span>
           </div>
           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, (((limits as Record<string, number>).usedToday ?? 0) / ((limits as Record<string, number>).dailyLimit ?? 1)) * 100)}%` }} />
+            <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, ((limits?.usedToday ?? 0) / (limits?.dailyLimit ?? 1)) * 100)}%` }} />
           </div>
         </div>
       )}

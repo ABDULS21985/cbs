@@ -148,7 +148,7 @@ export function ApiMarketplacePage() {
                         <button
                           className="px-2.5 py-1 rounded-md border text-xs hover:bg-muted transition-colors disabled:opacity-50"
                           onClick={() => {
-                            approveSubscription.mutate(sub.id, {
+                            approveSubscription.mutate(sub.subscriptionId, {
                               onSuccess: () => toast.success('Subscription approved'),
                               onError: () => toast.error('Failed to approve'),
                             });

@@ -105,7 +105,7 @@ function AllMessagesTab() {
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
             className="h-8 px-2 text-xs rounded-lg border bg-background">
             <option value="">All Statuses</option>
-            {['PENDING', 'SENT', 'DELIVERED', 'FAILED', 'BOUNCED'].map((s) => <option key={s} value={s}>{s}</option>)}
+            {['PENDING', 'PENDING_DISPATCH', 'SENT', 'DELIVERED', 'FAILED', 'BOUNCED', 'READ'].map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
           </select>
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search recipient or subject…"

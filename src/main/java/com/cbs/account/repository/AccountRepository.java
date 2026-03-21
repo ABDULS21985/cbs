@@ -60,6 +60,18 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
                                              @Param("currencyCode") String currencyCode,
                                              @Param("branchCode") String branchCode);
 
+    @Query("""
+            SELECT a.accountNumber, p.glAccountCode, a.bookBalance
+            FROM Account a JOIN a.product p
+            WHERE a.currencyCode = :currencyCode
+            AND (:branchCode IS NULL OR a.branchCode = :branchCode)
+            AND a.status <> 'CLOSED'
+            ORDER BY a.accountNumber
+            """)
+    List<Object[]> findAccountBalancesByProductGlCode(
+            @Param("currencyCode") String currencyCode,
+            @Param("branchCode") String branchCode);
+
     // For dormancy detection (Capability 7)
     @Query("""
             SELECT a FROM Account a

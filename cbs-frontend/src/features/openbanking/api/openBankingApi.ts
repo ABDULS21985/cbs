@@ -3,9 +3,9 @@ import type { ApiResponse } from '@/types/common';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type TppClientType = 'TPP_AISP' | 'TPP_PISP' | 'TPP_BOTH';
+export type TppClientType = 'INTERNAL' | 'TPP_AISP' | 'TPP_PISP' | 'TPP_CBPII' | 'PARTNER' | 'SANDBOX';
 export type TppClientStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-export type ConsentStatus = 'PENDING' | 'AUTHORISED' | 'REVOKED' | 'EXPIRED';
+export type ConsentStatus = 'PENDING' | 'AUTHORISED' | 'REJECTED' | 'REVOKED' | 'EXPIRED';
 
 export interface TppClient {
   id: number;
@@ -139,11 +139,14 @@ function mapConsent(consent: BackendApiConsent, clientNameMap: Record<string, st
   let status: ConsentStatus;
   if (consent.status === 'REVOKED') {
     status = 'REVOKED';
+  } else if (consent.status === 'REJECTED') {
+    status = 'REJECTED';
   } else if (isExpired) {
     status = 'EXPIRED';
   } else if (consent.status === 'AUTHORISED') {
     status = 'AUTHORISED';
   } else {
+    // AWAITING_AUTHORISATION or any other pending status
     status = 'PENDING';
   }
 

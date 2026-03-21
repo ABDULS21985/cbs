@@ -15,12 +15,15 @@ const METHOD_LABELS: Record<string, string> = {
   SMS_OTP: 'SMS OTP',
   PUSH: 'Push Notification',
   BIOMETRIC: 'Biometric',
-  HARDWARE_TOKEN: 'Hardware Token',
+  TOTP: 'TOTP',
+  FIDO2: 'FIDO2',
+  PHOTO_TAN: 'Photo TAN',
+  CHIP_TAN: 'Chip TAN',
 };
 
 function getDurationMs(session: Psd2ScaSession): string {
   if (!session.finalisedAt) return '—';
-  const start = new Date(session.initiatedAt).getTime();
+  const start = new Date(session.createdAt).getTime();
   const end = new Date(session.finalisedAt).getTime();
   const diff = end - start;
   if (diff < 1000) return `${diff}ms`;
@@ -48,42 +51,39 @@ export function ScaSessionTable({ data, isLoading, onRowClick }: ScaSessionTable
         ),
       },
       {
-        accessorKey: 'tppName',
+        accessorKey: 'tppId',
         header: 'TPP',
-        cell: ({ row }) => (
-          <span className="text-sm">{row.original.tppName || row.original.tppId}</span>
-        ),
-      },
-      {
-        accessorKey: 'scopes',
-        header: 'Scopes',
         cell: ({ getValue }) => (
-          <div className="flex flex-wrap gap-1">
-            {getValue<string[]>().map((scope) => (
-              <span
-                key={scope}
-                className="px-1.5 py-0.5 rounded bg-muted text-xs font-mono"
-              >
-                {scope}
-              </span>
-            ))}
-          </div>
+          <span className="text-sm font-mono text-xs">{getValue<string>()}</span>
         ),
-        enableSorting: false,
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: ({ getValue }) => <StatusBadge status={getValue<string>()} dot />,
-      },
-      {
-        accessorKey: 'authMethod',
+        accessorKey: 'scaMethod',
         header: 'Method',
         cell: ({ getValue }) => (
           <span className="text-xs text-muted-foreground">
             {METHOD_LABELS[getValue<string>()] || getValue<string>()}
           </span>
         ),
+      },
+      {
+        accessorKey: 'scaStatus',
+        header: 'Status',
+        cell: ({ getValue }) => <StatusBadge status={getValue<string>()} dot />,
+      },
+      {
+        accessorKey: 'exemptionType',
+        header: 'Exemption',
+        cell: ({ getValue }) => {
+          const val = getValue<string | null>();
+          return val ? (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
+              {val.replace(/_/g, ' ')}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          );
+        },
       },
       {
         id: 'duration',
@@ -96,7 +96,7 @@ export function ScaSessionTable({ data, isLoading, onRowClick }: ScaSessionTable
         enableSorting: false,
       },
       {
-        accessorKey: 'initiatedAt',
+        accessorKey: 'createdAt',
         header: 'Initiated',
         cell: ({ getValue }) => (
           <span className="text-xs text-muted-foreground">

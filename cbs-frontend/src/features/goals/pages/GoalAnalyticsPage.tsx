@@ -1,17 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/shared';
 import { Target, TrendingUp, CheckCircle, DollarSign, BarChart3, Info } from 'lucide-react';
-import { formatMoneyCompact, formatPercent } from '@/lib/formatters';
-import { cn } from '@/lib/utils';
-import { goalApi, type SavingsGoal, type GoalContribution } from '../api/goalApi';
+import { formatMoneyCompact } from '@/lib/formatters';
+import { goalApi, type SavingsGoal, type GoalTransaction } from '../api/goalApi';
 import { MonthlyInflowChart } from '../components/analytics/MonthlyInflowChart';
 import { GoalCompletionRateChart } from '../components/analytics/GoalCompletionRateChart';
 import { GoalTypeDistribution } from '../components/analytics/GoalTypeDistribution';
 import { AutoDebitSuccessRate } from '../components/analytics/AutoDebitSuccessRate';
 import { TopSaversTable } from '../components/analytics/TopSaversTable';
-import { SavingsTrendChart } from '../components/analytics/SavingsTrendChart';
 
 export function GoalAnalyticsPage() {
   useEffect(() => { document.title = 'Savings Goals Analytics | CBS'; }, []);
@@ -38,11 +36,12 @@ export function GoalAnalyticsPage() {
   const totalSaved = goals.reduce((s, g) => s + g.currentAmount, 0);
   const avgGoalSize = goals.length > 0 ? goals.reduce((s, g) => s + g.targetAmount, 0) / goals.length : 0;
   const completionRate = goals.length > 0 ? (completed.length / goals.length) * 100 : 0;
-  const autoDebitPct = goals.length > 0 ? (goals.filter((g) => g.fundingMethod === 'AUTO_DEBIT').length / goals.length) * 100 : 0;
+  const autoDebitPct = goals.length > 0 ? (goals.filter((g) => g.autoDebitEnabled).length / goals.length) * 100 : 0;
   const atRisk = active.filter((g) => {
+    if (!g.targetDate) return false;
     const daysLeft = (new Date(g.targetDate).getTime() - Date.now()) / 86400000;
-    const pct = g.targetAmount > 0 ? g.currentAmount / g.targetAmount : 0;
-    return daysLeft < 60 && pct < 0.7;
+    const pct = g.progressPercentage;
+    return daysLeft < 60 && pct < 70;
   });
 
   return (

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { FileDown, RefreshCw, AlertTriangle, X } from 'lucide-react';
+import { FileDown, RefreshCw, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { glApi } from '../../api/glApi';
 import { cn } from '@/lib/utils';
@@ -9,11 +9,9 @@ import { formatMoney } from '@/lib/formatters';
 
 function DrillDownModal({
   glCode,
-  glName,
   onClose,
 }: {
   glCode: string;
-  glName: string;
   onClose: () => void;
 }) {
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -31,7 +29,7 @@ function DrillDownModal({
         <div className="bg-card rounded-xl shadow-2xl border w-full max-w-3xl max-h-[80vh] flex flex-col">
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <div>
-              <h2 className="text-lg font-semibold">Drill-Down: {glCode} — {glName}</h2>
+              <h2 className="text-lg font-semibold">Drill-Down: {glCode}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">Month-to-date journal entries</p>
             </div>
             <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted transition-colors">
@@ -50,7 +48,7 @@ function DrillDownModal({
                   <tr className="border-b text-xs text-muted-foreground">
                     <th className="text-left py-2 pr-4 font-medium">Journal #</th>
                     <th className="text-left py-2 pr-4 font-medium">Date</th>
-                    <th className="text-left py-2 pr-4 font-medium">Description</th>
+                    <th className="text-left py-2 pr-4 font-medium">Narration</th>
                     <th className="text-right py-2 pr-4 font-medium">Debit</th>
                     <th className="text-right py-2 font-medium">Credit</th>
                   </tr>
@@ -62,13 +60,13 @@ function DrillDownModal({
                       .map((line, idx) => (
                         <tr key={`${entry.id}-${idx}`} className="border-b border-border/40 hover:bg-muted/30">
                           <td className="py-2 pr-4 font-mono text-xs">{entry.journalNumber}</td>
-                          <td className="py-2 pr-4">{entry.date}</td>
-                          <td className="py-2 pr-4 max-w-xs truncate">{line.description}</td>
+                          <td className="py-2 pr-4">{entry.valueDate}</td>
+                          <td className="py-2 pr-4 max-w-xs truncate">{line.narration ?? '—'}</td>
                           <td className="py-2 pr-4 text-right font-mono">
-                            {line.debit > 0 ? formatMoney(line.debit) : '—'}
+                            {line.debitAmount > 0 ? formatMoney(line.debitAmount) : '—'}
                           </td>
                           <td className="py-2 text-right font-mono">
-                            {line.credit > 0 ? formatMoney(line.credit) : '—'}
+                            {line.creditAmount > 0 ? formatMoney(line.creditAmount) : '—'}
                           </td>
                         </tr>
                       ))
@@ -84,16 +82,15 @@ function DrillDownModal({
 }
 
 export function GlBalancesTable() {
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [drillDown, setDrillDown] = useState<{ glCode: string; glName: string } | null>(null);
+  const [drillDown, setDrillDown] = useState<string | null>(null);
 
   const { data: balances = [], isLoading, refetch } = useQuery({
-    queryKey: ['gl-balances', date],
-    queryFn: () => glApi.getGlBalances(date),
+    queryKey: ['gl-balances'],
+    queryFn: () => glApi.getGlBalances(),
   });
 
-  const grandTotalDebit = balances.filter((b) => b.level === 0).reduce((s, b) => s + b.debitBalance, 0);
-  const grandTotalCredit = balances.filter((b) => b.level === 0).reduce((s, b) => s + b.creditBalance, 0);
+  const grandTotalDebit = balances.reduce((s, b) => s + b.debitTotal, 0);
+  const grandTotalCredit = balances.reduce((s, b) => s + b.creditTotal, 0);
   const grandNet = grandTotalDebit - grandTotalCredit;
   const isBalanced = Math.abs(grandNet) < 0.01;
 
@@ -105,13 +102,7 @@ export function GlBalancesTable() {
     <div className="space-y-4 p-6">
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">As at:</span>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="px-3 py-1.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
+          <span className="text-sm font-medium text-muted-foreground">Today's Balances</span>
           <button
             onClick={() => refetch()}
             className="p-1.5 rounded-lg border hover:bg-muted transition-colors"
@@ -121,12 +112,6 @@ export function GlBalancesTable() {
           </button>
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          {!isBalanced && (
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-xs font-medium">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Trial Balance Off by {formatMoney(Math.abs(grandNet))}
-            </span>
-          )}
           <button
             onClick={() => handleExport('PDF')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border hover:bg-muted transition-colors"
@@ -149,18 +134,20 @@ export function GlBalancesTable() {
           <thead>
             <tr className="bg-muted/30 border-b text-xs text-muted-foreground">
               <th className="text-left px-4 py-2.5 font-medium">GL Code</th>
-              <th className="text-left px-4 py-2.5 font-medium">Account Name</th>
               <th className="text-center px-4 py-2.5 font-medium">Currency</th>
-              <th className="text-right px-4 py-2.5 font-medium">Debit Balance</th>
-              <th className="text-right px-4 py-2.5 font-medium">Credit Balance</th>
-              <th className="text-right px-4 py-2.5 font-medium">Net Balance</th>
+              <th className="text-center px-4 py-2.5 font-medium">Branch</th>
+              <th className="text-right px-4 py-2.5 font-medium">Opening</th>
+              <th className="text-right px-4 py-2.5 font-medium">Debit Total</th>
+              <th className="text-right px-4 py-2.5 font-medium">Credit Total</th>
+              <th className="text-right px-4 py-2.5 font-medium">Closing Balance</th>
+              <th className="text-center px-4 py-2.5 font-medium">Txns</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b">
-                  {Array.from({ length: 6 }).map((_, j) => (
+                  {Array.from({ length: 8 }).map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <div className="h-4 bg-muted rounded animate-pulse" />
                     </td>
@@ -168,51 +155,45 @@ export function GlBalancesTable() {
                 </tr>
               ))
             ) : (
-              balances.map((row) => (
-                <tr
-                  key={row.glCode}
-                  className={cn(
-                    'border-b border-border/40 transition-colors',
-                    row.isHeader && row.level === 0 && 'bg-muted/30',
-                    row.isHeader && row.level === 1 && 'bg-muted/10',
-                    !row.isHeader && 'hover:bg-muted/20',
-                  )}
-                >
-                  <td className="px-4 py-2.5" style={{ paddingLeft: `${16 + row.level * 16}px` }}>
-                    <button
-                      onClick={() => !row.isHeader && setDrillDown({ glCode: row.glCode, glName: row.name })}
-                      className={cn(
-                        'font-mono text-xs',
-                        !row.isHeader && 'text-primary hover:underline cursor-pointer',
-                        row.isHeader && 'text-foreground cursor-default font-bold',
-                      )}
-                    >
-                      {row.glCode}
-                    </button>
-                  </td>
-                  <td className={cn('px-4 py-2.5', row.isHeader ? 'font-semibold' : 'font-normal')}>
-                    {row.name}
-                  </td>
-                  <td className="px-4 py-2.5 text-center text-muted-foreground">{row.currency}</td>
-                  <td className="px-4 py-2.5 text-right font-mono text-sm">
-                    {row.debitBalance > 0 ? formatMoney(row.debitBalance, row.currency) : '—'}
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-mono text-sm">
-                    {row.creditBalance > 0 ? formatMoney(row.creditBalance, row.currency) : '—'}
-                  </td>
-                  <td className={cn('px-4 py-2.5 text-right font-mono text-sm font-medium', row.netBalance < 0 && 'text-red-600')}>
-                    {formatMoney(Math.abs(row.netBalance), row.currency)}
-                    {row.netBalance < 0 && ' CR'}
-                    {row.netBalance > 0 && ' DR'}
-                  </td>
-                </tr>
-              ))
+              balances.map((row) => {
+                const netBalance = row.closingBalance;
+                return (
+                  <tr
+                    key={`${row.glCode}-${row.branchCode}-${row.currencyCode}`}
+                    className="border-b border-border/40 hover:bg-muted/20 transition-colors"
+                  >
+                    <td className="px-4 py-2.5">
+                      <button
+                        onClick={() => setDrillDown(row.glCode)}
+                        className="font-mono text-xs text-primary hover:underline cursor-pointer"
+                      >
+                        {row.glCode}
+                      </button>
+                    </td>
+                    <td className="px-4 py-2.5 text-center text-muted-foreground">{row.currencyCode}</td>
+                    <td className="px-4 py-2.5 text-center text-muted-foreground text-xs">{row.branchCode}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-sm">{formatMoney(row.openingBalance)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-sm">
+                      {row.debitTotal > 0 ? formatMoney(row.debitTotal) : '—'}
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-mono text-sm">
+                      {row.creditTotal > 0 ? formatMoney(row.creditTotal) : '—'}
+                    </td>
+                    <td className={cn('px-4 py-2.5 text-right font-mono text-sm font-medium', netBalance < 0 && 'text-red-600')}>
+                      {formatMoney(Math.abs(netBalance))}
+                      {netBalance < 0 && ' CR'}
+                      {netBalance > 0 && ' DR'}
+                    </td>
+                    <td className="px-4 py-2.5 text-center text-muted-foreground text-xs">{row.transactionCount}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
           {!isLoading && balances.length > 0 && (
             <tfoot>
               <tr className="bg-muted/50 font-semibold border-t-2 border-border">
-                <td colSpan={3} className="px-4 py-3 text-sm">Grand Total</td>
+                <td colSpan={4} className="px-4 py-3 text-sm">Grand Total</td>
                 <td className="px-4 py-3 text-right font-mono text-sm">{formatMoney(grandTotalDebit)}</td>
                 <td className="px-4 py-3 text-right font-mono text-sm">{formatMoney(grandTotalCredit)}</td>
                 <td className={cn('px-4 py-3 text-right font-mono text-sm', !isBalanced && 'text-red-600')}>
@@ -222,6 +203,7 @@ export function GlBalancesTable() {
                     formatMoney(Math.abs(grandNet))
                   )}
                 </td>
+                <td />
               </tr>
             </tfoot>
           )}
@@ -230,8 +212,7 @@ export function GlBalancesTable() {
 
       {drillDown && (
         <DrillDownModal
-          glCode={drillDown.glCode}
-          glName={drillDown.glName}
+          glCode={drillDown}
           onClose={() => setDrillDown(null)}
         />
       )}

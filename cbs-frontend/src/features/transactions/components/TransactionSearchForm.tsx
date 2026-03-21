@@ -1,4 +1,4 @@
-import { memo, useCallback, useId, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
+import { memo, useCallback, useId, useState, type FormEvent, type KeyboardEvent, type Ref } from 'react';
 import { ChevronDown, Loader2, RotateCcw, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TransactionFilters } from '../hooks/useTransactionSearch';
@@ -24,6 +24,9 @@ const CHANNELS: { label: string; value: TransactionSearchParams['channel'] }[] =
   { label: 'POS', value: 'POS' },
   { label: 'USSD', value: 'USSD' },
   { label: 'Agent', value: 'AGENT' },
+  { label: 'Portal', value: 'PORTAL' },
+  { label: 'System', value: 'SYSTEM' },
+  { label: 'API', value: 'API' },
 ];
 
 const STATUSES: { label: string; value: TransactionSearchParams['status'] }[] = [
@@ -40,7 +43,7 @@ interface TransactionSearchFormProps {
   onSearch: () => void;
   onReset: () => void;
   isLoading: boolean;
-  searchInputRef?: RefObject<HTMLInputElement | null>;
+  searchInputRef?: Ref<HTMLInputElement>;
 }
 
 const inputClass = cn(

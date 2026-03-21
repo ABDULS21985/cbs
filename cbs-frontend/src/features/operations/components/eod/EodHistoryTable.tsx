@@ -11,15 +11,15 @@ interface EodHistoryTableProps {
   isLoading?: boolean;
 }
 
-function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+function formatDuration(seconds: number | null): string {
+  if (!seconds) return '--';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
   if (hours > 0) {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 function formatTimestamp(iso: string): string {
@@ -41,34 +41,45 @@ function levelColor(level: EodLogEntry['level']): string {
 
 const columns: ColumnDef<EodHistoryRow, any>[] = [
   {
-    accessorKey: 'date',
+    accessorKey: 'businessDate',
     header: 'Date',
     cell: ({ getValue }) => <span className="font-medium">{formatDate(getValue<string>())}</span>,
   },
   {
-    accessorKey: 'startTime',
+    accessorKey: 'runType',
+    header: 'Type',
+    cell: ({ getValue }) => <span className="text-xs font-mono">{getValue<string>()}</span>,
+  },
+  {
+    accessorKey: 'startedAt',
     header: 'Start',
-    cell: ({ getValue }) => <span className="font-mono text-xs">{formatDateTime(getValue<string>())}</span>,
+    cell: ({ getValue }) => {
+      const v = getValue<string | null>();
+      return <span className="font-mono text-xs">{v ? formatDateTime(v) : '--'}</span>;
+    },
   },
   {
-    accessorKey: 'endTime',
+    accessorKey: 'completedAt',
     header: 'End',
-    cell: ({ getValue }) => <span className="font-mono text-xs">{formatDateTime(getValue<string>())}</span>,
+    cell: ({ getValue }) => {
+      const v = getValue<string | null>();
+      return <span className="font-mono text-xs">{v ? formatDateTime(v) : '--'}</span>;
+    },
   },
   {
-    accessorKey: 'durationMs',
+    accessorKey: 'durationSeconds',
     header: 'Duration',
-    cell: ({ getValue }) => <span className="font-mono text-xs">{formatDuration(getValue<number>())}</span>,
+    cell: ({ getValue }) => <span className="font-mono text-xs">{formatDuration(getValue<number | null>())}</span>,
   },
   {
-    accessorKey: 'stepsOk',
+    accessorKey: 'completedSteps',
     header: 'Steps OK',
-    cell: ({ getValue }) => (
-      <span className="text-green-600 font-medium">{getValue<number>()}/8</span>
+    cell: ({ row, getValue }) => (
+      <span className="text-green-600 font-medium">{getValue<number>()}/{row.original.totalSteps}</span>
     ),
   },
   {
-    accessorKey: 'stepsFailed',
+    accessorKey: 'failedSteps',
     header: 'Failed',
     cell: ({ getValue }) => {
       const v = getValue<number>();
@@ -123,7 +134,7 @@ export function EodHistoryTable({ data, isLoading }: EodHistoryTableProps) {
                 <div>
                   <h3 className="text-base font-semibold">EOD Run Log</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {formatDate(selectedRun.date)} — {formatDuration(selectedRun.durationMs)} — {selectedRun.stepsOk}/8 steps OK
+                    {formatDate(selectedRun.businessDate)} — {formatDuration(selectedRun.durationSeconds)} — {selectedRun.completedSteps}/{selectedRun.totalSteps} steps OK
                   </p>
                 </div>
                 <button

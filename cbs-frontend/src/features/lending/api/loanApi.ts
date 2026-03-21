@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from '@/lib/api';
+import api from '@/lib/api';
 import type {
   LoanProduct,
   LoanApplication,
@@ -281,17 +282,22 @@ export const loanApi = {
   runCreditCheck: (applicationId: number) =>
     apiPost<unknown>(`/api/v1/loans/applications/${applicationId}/credit-check`, undefined),
 
-  approveApplication: (id: number, approvedBy: string, approval: Record<string, unknown>) =>
+  // Backend: POST /applications/{id}/approve with @RequestBody LoanApprovalRequest
+  // LoanApprovalRequest: { approvedAmount, approvedTenureMonths, approvedRate, conditions }
+  // approvedBy is set from the security context — NOT passed as a param
+  approveApplication: (id: number, approval: { approvedAmount: number; approvedTenureMonths: number; approvedRate: number; conditions?: string[] }) =>
     apiPost<BackendLoanApplicationResponse>(
-      `/api/v1/loans/applications/${id}/approve?approvedBy=${encodeURIComponent(approvedBy)}`,
+      `/api/v1/loans/applications/${id}/approve`,
       approval,
     ).then(mapLoanApplication),
 
-  declineApplication: (id: number, reason: string, declinedBy: string) =>
-    apiPost<BackendLoanApplicationResponse>(
-      `/api/v1/loans/applications/${id}/decline?reason=${encodeURIComponent(reason)}&declinedBy=${encodeURIComponent(declinedBy)}`,
-      undefined,
-    ).then(mapLoanApplication),
+  // Backend: POST /applications/{id}/decline?reason=... (@RequestParam String reason only)
+  declineApplication: (id: number, reason: string) => {
+    const params = new URLSearchParams({ reason });
+    return api.post<{ data: BackendLoanApplicationResponse }>(
+      `/api/v1/loans/applications/${id}/decline?${params}`,
+    ).then((r) => mapLoanApplication(r.data.data));
+  },
 
   disburse: (applicationId: number) =>
     apiPost<BackendLoanAccountResponse>(`/api/v1/loans/applications/${applicationId}/disburse`, undefined)
@@ -308,12 +314,36 @@ export const loanApi = {
     apiGet<BackendLoanAccountResponse[]>(`/api/v1/loans/customer/${customerId}`)
       .then((list) => list.map(mapLoanAccount)),
 
-  // Schedule is embedded in the loan account response — fetch via getLoan
+  // Backend: GET /{loanId}/schedule returns List<ScheduleEntryDto> directly
   getSchedule: (loanId: number): Promise<RepaymentScheduleItem[]> =>
-    apiGet<BackendLoanAccountResponse>(`/api/v1/loans/${loanId}`)
-      .then((account) => (account.schedule ?? []).map(mapScheduleEntry)),
+    apiGet<BackendScheduleEntryDto[]>(`/api/v1/loans/${loanId}/schedule`)
+      .then((list) => list.map(mapScheduleEntry)),
 
   // Repayment — amount is passed as a query param per backend contract
   recordPayment: (loanId: number, amount: number) =>
     apiPost<BackendScheduleEntryDto>(`/api/v1/loans/${loanId}/repayment?amount=${amount}`, undefined),
+
+  // ── Additional endpoints ────────────────────────────────────────────────────
+
+  // Backend: GET / with search, page, size params — list all loans
+  listLoans: (params?: { search?: string; page?: number; size?: number }) =>
+    apiGet<BackendLoanAccountResponse[]>('/api/v1/loans', params as Record<string, unknown>)
+      .then((list) => list.map(mapLoanAccount)),
+
+  // Backend: GET /portfolio/stats — returns Map of portfolio statistics
+  getPortfolioStats: () =>
+    apiGet<Record<string, unknown>>('/api/v1/loans/portfolio/stats'),
+
+  // Backend: GET /{loanId}/settlement-calculation — returns Map of settlement details
+  getSettlementCalculation: (loanId: number) =>
+    apiGet<Record<string, unknown>>(`/api/v1/loans/${loanId}/settlement-calculation`),
+
+  // Backend: POST /schedule-preview with @RequestBody LoanApplicationRequest
+  previewSchedule: (data: LoanApplicationRequest) =>
+    apiPost<BackendScheduleEntryDto[]>('/api/v1/loans/schedule-preview', data)
+      .then((list) => list.map(mapScheduleEntry)),
+
+  // Backend: POST /batch/accrue-interest — admin batch operation
+  batchAccrueInterest: () =>
+    apiPost<Record<string, unknown>>('/api/v1/loans/batch/accrue-interest', undefined),
 };

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { marketplaceApi } from '../api/marketplaceApi';
-import type { ApiProduct } from '../api/marketplaceApi';
+import type { ApiProduct, Webhook } from '../api/marketplaceApi';
 
 const QK = {
   products: ['marketplace', 'products'] as const,
@@ -8,7 +8,11 @@ const QK = {
   productAnalytics: (id: number) => ['marketplace', 'products', id, 'analytics'] as const,
   subscriptions: ['marketplace', 'subscriptions'] as const,
   usage: ['marketplace', 'usage'] as const,
+  webhooks: ['marketplace', 'webhooks'] as const,
+  webhookDeliveries: (id: number) => ['marketplace', 'webhooks', id, 'deliveries'] as const,
 };
+
+// ─── Product Hooks ──────────────────────────────────────────────────────────
 
 export function useApiProducts(params?: Record<string, unknown>) {
   return useQuery({ queryKey: [...QK.products, params], queryFn: () => marketplaceApi.listProducts(params), staleTime: 60_000 });
@@ -56,6 +60,8 @@ export function useDeprecateProduct() {
   });
 }
 
+// ─── Subscription Hooks ─────────────────────────────────────────────────────
+
 export function useApiSubscriptions(params?: Record<string, unknown>) {
   return useQuery({ queryKey: [...QK.subscriptions, params], queryFn: () => marketplaceApi.listSubscriptions(params), staleTime: 30_000 });
 }
@@ -63,7 +69,8 @@ export function useApiSubscriptions(params?: Record<string, unknown>) {
 export function useSubscribeToApi() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { productId: number; tppClientId: number }) => marketplaceApi.subscribe(data),
+    mutationFn: (data: { productId: number; subscriberName: string; subscriberEmail?: string; planTier?: string }) =>
+      marketplaceApi.subscribe(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.subscriptions }); },
   });
 }
@@ -71,11 +78,74 @@ export function useSubscribeToApi() {
 export function useApproveSubscription() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => marketplaceApi.approveSubscription(id),
+    mutationFn: (subscriptionId: string) => marketplaceApi.approveSubscription(subscriptionId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.subscriptions }); },
   });
 }
 
+// ─── Usage Hooks ────────────────────────────────────────────────────────────
+
 export function useApiUsage(params?: Record<string, unknown>) {
   return useQuery({ queryKey: [...QK.usage, params], queryFn: () => marketplaceApi.getUsage(params), staleTime: 30_000 });
+}
+
+// ─── Webhook Hooks ──────────────────────────────────────────────────────────
+
+export function useWebhooks(tppClientId?: number) {
+  return useQuery({
+    queryKey: [...QK.webhooks, tppClientId],
+    queryFn: () => marketplaceApi.listWebhooks(tppClientId),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreateWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Pick<Webhook, 'url' | 'events' | 'authType'> & { secretKey?: string; tppClientId?: number }) =>
+      marketplaceApi.createWebhook(data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.webhooks }); },
+  });
+}
+
+export function useUpdateWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Pick<Webhook, 'url' | 'events' | 'authType' | 'status'>> }) =>
+      marketplaceApi.updateWebhook(id, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.webhooks }); },
+  });
+}
+
+export function useDeleteWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => marketplaceApi.deleteWebhook(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.webhooks }); },
+  });
+}
+
+export function useWebhookDeliveries(webhookId: number) {
+  return useQuery({
+    queryKey: QK.webhookDeliveries(webhookId),
+    queryFn: () => marketplaceApi.listDeliveries(webhookId),
+    enabled: webhookId > 0,
+    staleTime: 15_000,
+  });
+}
+
+export function useRetryDelivery() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ webhookId, deliveryId }: { webhookId: number; deliveryId: number }) =>
+      marketplaceApi.retryDelivery(webhookId, deliveryId),
+    onSuccess: (_, vars) => { qc.invalidateQueries({ queryKey: QK.webhookDeliveries(vars.webhookId) }); },
+  });
+}
+
+export function useTestWebhook() {
+  return useMutation({
+    mutationFn: ({ webhookId, event }: { webhookId: number; event: string }) =>
+      marketplaceApi.testWebhook(webhookId, event),
+  });
 }

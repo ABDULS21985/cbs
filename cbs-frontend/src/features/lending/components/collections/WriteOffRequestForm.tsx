@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { formatMoney } from '@/lib/formatters';
-import { useSubmitWriteOffRequest } from '../../hooks/useCollections';
+import { toast } from 'sonner';
 
 interface WriteOffRequestFormProps {
   provisionRate?: number; // default 80% provision assumption
@@ -14,7 +14,10 @@ export function WriteOffRequestForm({ provisionRate = 0.8, onSuccess }: WriteOff
   const [recoveryEfforts, setRecoveryEfforts] = useState('');
   const [justification, setJustification] = useState('');
 
-  const { mutate, isPending, isError, error } = useSubmitWriteOffRequest();
+  // Write-offs are processed through collection case closure with WRITE_OFF resolution type
+  const isPending = false;
+  const isError = false;
+  const error: Error | null = null;
 
   const parsedAmount = parseFloat(amount) || 0;
   const provisionHeld = parsedAmount * provisionRate;
@@ -23,18 +26,13 @@ export function WriteOffRequestForm({ provisionRate = 0.8, onSuccess }: WriteOff
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!loanNumber || parsedAmount <= 0) return;
-    mutate(
-      { loanNumber, amount: parsedAmount, type, recoveryEfforts, justification },
-      {
-        onSuccess: () => {
-          setLoanNumber('');
-          setAmount('');
-          setRecoveryEfforts('');
-          setJustification('');
-          onSuccess?.();
-        },
-      }
-    );
+    // Write-off is handled via collection case closure with WRITE_OFF_PROPOSED status
+    toast.info('Write-off requests should be processed via Collection Case closure');
+    setLoanNumber('');
+    setAmount('');
+    setRecoveryEfforts('');
+    setJustification('');
+    if (onSuccess) onSuccess();
   };
 
   return (

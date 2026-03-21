@@ -88,7 +88,15 @@ public class MarketplaceController {
 
     @GetMapping("/products/{id}/analytics")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getAnalytics(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getProductAnalytics(id)));
+    public ResponseEntity<ApiResponse<com.cbs.integration.dto.ProductAnalyticsDto>> getAnalytics(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getProductAnalyticsTyped(id)));
+    }
+
+    @GetMapping("/usage/aggregated")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getAggregatedUsage(
+            @RequestParam(required = false) Long productId,
+            @RequestParam(defaultValue = "30") int days) {
+        return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getAggregatedUsage(productId, days)));
     }
 }

@@ -52,7 +52,7 @@ export function EodScheduleConfig({ open, onClose, config, onSave, isSaving }: E
         autoRetry: config.autoRetry,
         maxRetries: config.maxRetries,
       });
-      setEmails(config.notificationEmails ?? []);
+      setEmails(config.notificationEmails ? config.notificationEmails.split(',').map(e => e.trim()).filter(Boolean) : []);
     }
   }, [config, reset]);
 
@@ -86,7 +86,7 @@ export function EodScheduleConfig({ open, onClose, config, onSave, isSaving }: E
   const onSubmit = async (values: FormValues) => {
     await onSave({
       ...values,
-      notificationEmails: emails,
+      notificationEmails: emails.length > 0 ? emails.join(',') : null,
     });
     onClose();
   };

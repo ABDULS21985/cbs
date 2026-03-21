@@ -7,7 +7,7 @@ export const treasuryApi = {
   getCouponCalendar: (days?: number) => apiGet<CouponEvent[]>('/api/v1/treasury/fixed-income/coupons', { days }),
 
   // Market Data
-  getFxRates: () => apiGet<FxRate[]>('/api/v1/market-data/fx-rates'),
+  getFxRates: () => apiGet<FxRate[]>('/api/v1/fx/rate'),
   getMoneyMarketRates: () => apiGet<MoneyMarketRate[]>('/api/v1/market-data/money-market'),
   getFeedStatus: () => apiGet<FeedStatus[]>('/api/v1/market-data/feeds/status'),
   getPriceHistory: (instrumentCode: string, days: number) => apiGet<{ date: string; close: number }[]>(`/api/v1/market-data/prices/${instrumentCode}`, { days }),

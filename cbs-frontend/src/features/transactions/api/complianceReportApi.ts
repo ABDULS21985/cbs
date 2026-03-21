@@ -13,7 +13,7 @@ function buildFilenameFromResponse(contentDisposition: string | undefined, fallb
   return match?.[1] ?? fallback;
 }
 
-async function download(url: string, params: Record<string, unknown>, fallback: string) {
+async function download(url: string, params: Record<string, unknown> | ComplianceReportFilters, fallback: string) {
   const response = await api.get(url, { params, responseType: 'blob' });
   const filename = buildFilenameFromResponse(response.headers['content-disposition'], fallback);
   const blob = new Blob([response.data], { type: String(response.headers['content-type'] ?? 'application/octet-stream') });

@@ -9,10 +9,13 @@ export interface RecipientSelection {
   mode: RecipientMode;
   customerIds?: number[];
   customerNames?: Record<number, string>;
+  customerEmails?: Record<number, string>;
+  customerPhones?: Record<number, string>;
   segmentCode?: string;
   segmentName?: string;
   estimatedCount?: number;
   isBroadcast?: boolean;
+  recipientList?: { address: string; name?: string }[];
 }
 
 interface CustomerResult { id: number; displayName: string; email?: string; phone?: string }
@@ -65,11 +68,15 @@ export function RecipientSelector({ value, onChange }: { value: RecipientSelecti
   const addCustomer = (customer: CustomerResult) => {
     const ids = [...(value.customerIds ?? [])];
     const names = { ...(value.customerNames ?? {}) };
+    const emails = { ...(value.customerEmails ?? {}) };
+    const phones = { ...(value.customerPhones ?? {}) };
     if (!ids.includes(customer.id)) {
       ids.push(customer.id);
       names[customer.id] = customer.displayName;
+      if (customer.email) emails[customer.id] = customer.email;
+      if (customer.phone) phones[customer.id] = customer.phone;
     }
-    onChange({ ...value, mode: 'individual', customerIds: ids, customerNames: names });
+    onChange({ ...value, mode: 'individual', customerIds: ids, customerNames: names, customerEmails: emails, customerPhones: phones });
     setSearch('');
     setResults([]);
   };

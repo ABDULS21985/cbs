@@ -7,16 +7,16 @@ interface EodStatusBannerProps {
   schedule: EodScheduleConfig | null;
 }
 
-function formatDuration(ms?: number): string {
-  if (!ms) return '--';
-  const totalSeconds = Math.floor(ms / 1000);
+function formatDuration(seconds?: number | null): string {
+  if (!seconds) return '--';
+  const totalSeconds = seconds;
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
+  const secs = totalSeconds % 60;
   if (hours > 0) {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 function getStatusConfig(status: EodRun['status'] | undefined) {
@@ -50,8 +50,8 @@ export function EodStatusBanner({ run, schedule }: EodStatusBannerProps) {
   const config = getStatusConfig(run?.status);
 
   const currentDuration = run?.status === 'RUNNING' && run.startedAt
-    ? Date.now() - new Date(run.startedAt).getTime()
-    : run?.durationMs;
+    ? Math.floor((Date.now() - new Date(run.startedAt).getTime()) / 1000)
+    : run?.durationSeconds;
 
   return (
     <div className={cn('rounded-xl border px-5 py-4', config.bg)}>
@@ -89,7 +89,7 @@ export function EodStatusBanner({ run, schedule }: EodStatusBannerProps) {
           )}
           {run && (
             <span className={cn('text-xs', config.text)}>
-              {run.stepsCompleted}/{run.stepsTotal} steps
+              {run.completedSteps}/{run.totalSteps} steps
             </span>
           )}
         </div>

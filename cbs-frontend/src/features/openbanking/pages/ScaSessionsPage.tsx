@@ -15,7 +15,7 @@ import { formatDateTime } from '@/lib/formatters';
 import { useCustomerScaSessions } from '../hooks/usePsd2';
 import { ScaSessionTable } from '../components/psd2/ScaSessionTable';
 import { ScaFlowDiagram } from '../components/psd2/ScaFlowDiagram';
-import type { Psd2ScaSession } from '../api/psd2Api';
+import type { Psd2ScaSession, ScaStatus } from '../api/psd2Api';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -23,24 +23,29 @@ const METHOD_LABELS: Record<string, string> = {
   SMS_OTP: 'SMS OTP',
   PUSH: 'Push Notification',
   BIOMETRIC: 'Biometric',
-  HARDWARE_TOKEN: 'Hardware Token',
+  TOTP: 'TOTP',
+  FIDO2: 'FIDO2',
+  PHOTO_TAN: 'Photo TAN',
+  CHIP_TAN: 'Chip TAN',
 };
 
 const STATUS_ICONS: Record<string, { icon: typeof CheckCircle2; className: string }> = {
-  INITIATED: { icon: Clock, className: 'text-blue-500' },
-  PENDING_AUTH: { icon: Fingerprint, className: 'text-amber-500' },
-  AUTHENTICATED: { icon: CheckCircle2, className: 'text-green-500' },
+  STARTED: { icon: Clock, className: 'text-blue-500' },
+  AUTHENTICATION_REQUIRED: { icon: Fingerprint, className: 'text-amber-500' },
+  METHOD_SELECTED: { icon: Fingerprint, className: 'text-amber-500' },
+  FINALISED: { icon: CheckCircle2, className: 'text-green-500' },
   FAILED: { icon: XCircle, className: 'text-red-500' },
-  EXPIRED: { icon: Clock, className: 'text-muted-foreground' },
+  EXEMPTED: { icon: ShieldCheck, className: 'text-blue-500' },
 };
 
-function getScaStep(status: Psd2ScaSession['status']): number {
+function getScaStep(status: ScaStatus): number {
   switch (status) {
-    case 'INITIATED': return 1;
-    case 'PENDING_AUTH': return 2;
-    case 'AUTHENTICATED': return 5;
+    case 'STARTED': return 1;
+    case 'AUTHENTICATION_REQUIRED':
+    case 'METHOD_SELECTED': return 2;
+    case 'FINALISED': return 5;
     case 'FAILED': return 3;
-    case 'EXPIRED': return 0;
+    case 'EXEMPTED': return 5;
     default: return 0;
   }
 }
@@ -48,26 +53,26 @@ function getScaStep(status: Psd2ScaSession['status']): number {
 // ─── Session Detail Panel ──────────────────────────────────────────────────
 
 function SessionDetailPanel({ session, onClose }: { session: Psd2ScaSession; onClose: () => void }) {
-  const statusInfo = STATUS_ICONS[session.status] || STATUS_ICONS.INITIATED;
+  const statusInfo = STATUS_ICONS[session.scaStatus] || STATUS_ICONS.STARTED;
   const StatusIcon = statusInfo.icon;
 
   const timelineEvents = [
-    { label: 'Session Initiated', time: session.initiatedAt, status: 'completed' as const },
-    ...(session.status !== 'INITIATED'
-      ? [{ label: 'SCA Challenge Sent', time: session.initiatedAt, status: 'completed' as const }]
+    { label: 'Session Initiated', time: session.createdAt, status: 'completed' as const },
+    ...(session.scaStatus !== 'STARTED'
+      ? [{ label: 'SCA Challenge Sent', time: session.createdAt, status: 'completed' as const }]
       : []),
-    ...(session.status === 'AUTHENTICATED'
+    ...(session.scaStatus === 'FINALISED'
       ? [
           { label: 'Customer Authenticated', time: session.finalisedAt!, status: 'completed' as const },
           { label: 'Consent Granted', time: session.finalisedAt!, status: 'completed' as const },
           { label: 'Token Issued', time: session.finalisedAt!, status: 'completed' as const },
         ]
       : []),
-    ...(session.status === 'FAILED'
-      ? [{ label: 'Authentication Failed', time: session.finalisedAt!, status: 'failed' as const }]
+    ...(session.scaStatus === 'EXEMPTED'
+      ? [{ label: `Exempted (${session.exemptionType ?? 'N/A'})`, time: session.createdAt, status: 'completed' as const }]
       : []),
-    ...(session.status === 'EXPIRED'
-      ? [{ label: 'Session Expired', time: session.expiresAt, status: 'failed' as const }]
+    ...(session.scaStatus === 'FAILED'
+      ? [{ label: 'Authentication Failed', time: session.finalisedAt ?? session.expiresAt, status: 'failed' as const }]
       : []),
   ];
 
@@ -99,28 +104,38 @@ function SessionDetailPanel({ session, onClose }: { session: Psd2ScaSession; onC
           </div>
           <div>
             <span className="text-xs text-muted-foreground">TPP</span>
-            <p className="text-sm font-medium mt-0.5">{session.tppName || session.tppId}</p>
+            <p className="text-sm font-medium mt-0.5">{session.tppId}</p>
           </div>
           <div>
-            <span className="text-xs text-muted-foreground">Auth Method</span>
-            <p className="text-sm font-medium mt-0.5">{METHOD_LABELS[session.authMethod]}</p>
+            <span className="text-xs text-muted-foreground">SCA Method</span>
+            <p className="text-sm font-medium mt-0.5">{METHOD_LABELS[session.scaMethod] ?? session.scaMethod}</p>
           </div>
         </div>
 
-        {/* Scopes */}
-        <div>
-          <span className="text-xs text-muted-foreground mb-1.5 block">Scopes</span>
-          <div className="flex flex-wrap gap-1.5">
-            {session.scopes.map((scope) => (
-              <span key={scope} className="px-2 py-0.5 rounded bg-muted text-xs font-mono">
-                {scope}
-              </span>
-            ))}
-          </div>
+        {/* Extra info */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {session.exemptionType && (
+            <div>
+              <span className="text-xs text-muted-foreground">Exemption</span>
+              <p className="text-sm font-medium mt-0.5">{session.exemptionType.replace(/_/g, ' ')}</p>
+            </div>
+          )}
+          {session.consentId && (
+            <div>
+              <span className="text-xs text-muted-foreground">Consent ID</span>
+              <p className="text-xs font-mono mt-0.5">{session.consentId}</p>
+            </div>
+          )}
+          {session.ipAddress && (
+            <div>
+              <span className="text-xs text-muted-foreground">IP Address</span>
+              <p className="text-xs font-mono mt-0.5">{session.ipAddress}</p>
+            </div>
+          )}
         </div>
 
         {/* Flow diagram */}
-        <ScaFlowDiagram currentStep={getScaStep(session.status)} />
+        <ScaFlowDiagram scaStatus={session.scaStatus} />
 
         {/* Timeline */}
         <div>
@@ -148,8 +163,8 @@ function SessionDetailPanel({ session, onClose }: { session: Psd2ScaSession; onC
           </div>
         </div>
 
-        {/* Failure analysis */}
-        {session.status === 'FAILED' && session.failureReason && (
+        {/* Failure / challenge data */}
+        {session.scaStatus === 'FAILED' && (
           <div className="rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 p-4">
             <div className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
@@ -157,9 +172,11 @@ function SessionDetailPanel({ session, onClose }: { session: Psd2ScaSession; onC
                 <h4 className="text-xs font-semibold text-red-700 dark:text-red-400">
                   Authentication Failed
                 </h4>
-                <p className="text-xs text-red-600 dark:text-red-500 mt-1">
-                  {session.failureReason}
-                </p>
+                {session.challengeData && (
+                  <p className="text-xs text-red-600 dark:text-red-500 mt-1">
+                    Challenge: {session.challengeData}
+                  </p>
+                )}
                 <div className="mt-3 space-y-1">
                   <p className="text-xs text-muted-foreground font-medium">Recommended Actions:</p>
                   <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
@@ -196,7 +213,7 @@ export function ScaSessionsPage() {
     }
   };
 
-  const failedSessions = sessions.filter((s) => s.status === 'FAILED');
+  const failedSessions = sessions.filter((s) => s.scaStatus === 'FAILED');
 
   return (
     <>
@@ -253,9 +270,9 @@ export function ScaSessionsPage() {
                 <p className="text-xl font-bold mt-1 tabular-nums">{sessions.length}</p>
               </div>
               <div className="rounded-xl border bg-card p-4">
-                <p className="text-xs text-muted-foreground">Authenticated</p>
+                <p className="text-xs text-muted-foreground">Finalised</p>
                 <p className="text-xl font-bold mt-1 tabular-nums text-green-600">
-                  {sessions.filter((s) => s.status === 'AUTHENTICATED').length}
+                  {sessions.filter((s) => s.scaStatus === 'FINALISED').length}
                 </p>
               </div>
               <div className="rounded-xl border bg-card p-4">
@@ -265,9 +282,9 @@ export function ScaSessionsPage() {
                 </p>
               </div>
               <div className="rounded-xl border bg-card p-4">
-                <p className="text-xs text-muted-foreground">Pending</p>
+                <p className="text-xs text-muted-foreground">In Progress</p>
                 <p className="text-xl font-bold mt-1 tabular-nums text-amber-600">
-                  {sessions.filter((s) => s.status === 'PENDING_AUTH' || s.status === 'INITIATED').length}
+                  {sessions.filter((s) => s.scaStatus === 'STARTED' || s.scaStatus === 'AUTHENTICATION_REQUIRED' || s.scaStatus === 'METHOD_SELECTED').length}
                 </p>
               </div>
             </div>
@@ -303,17 +320,17 @@ export function ScaSessionsPage() {
                       <XCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 text-xs">
-                          <span className="font-medium">{session.tppName || session.tppId}</span>
+                          <span className="font-medium">{session.tppId}</span>
                           <span className="text-muted-foreground">
-                            {formatDateTime(session.initiatedAt)}
+                            {formatDateTime(session.createdAt)}
                           </span>
                         </div>
                         <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
-                          {session.failureReason || 'Unknown failure reason'}
+                          {session.challengeData || 'Authentication failed'}
                         </p>
                       </div>
                       <span className="text-xs text-muted-foreground font-mono">
-                        {METHOD_LABELS[session.authMethod]}
+                        {METHOD_LABELS[session.scaMethod] ?? session.scaMethod}
                       </span>
                     </div>
                   ))}

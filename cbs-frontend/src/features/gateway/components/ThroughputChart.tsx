@@ -1,14 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-  Line,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
-  Scatter,
   ResponsiveContainer,
-  ComposedChart,
+  BarChart,
 } from 'recharts';
 import { gatewayApi } from '../api/gatewayApi';
 
@@ -40,26 +38,15 @@ function CustomTooltip({ active, label, payload }: CustomTooltipProps) {
   );
 }
 
-interface ErrorDot {
-  minute: string;
-  errors: number;
-  inbound: number;
-}
-
 export function ThroughputChart() {
-  const { data = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['gateway', 'throughput'],
     queryFn: () => gatewayApi.getThroughput(),
-    refetchInterval: 10_000,
+    refetchInterval: 30_000,
   });
 
-  const errorPoints: ErrorDot[] = data
-    .filter((d) => d.errors > 0)
-    .map((d) => ({ minute: d.minute, errors: d.errors, inbound: d.inbound }));
-
-  const ticks = data
-    .filter((_, i) => i % 10 === 0)
-    .map((d) => d.minute);
+  const points = data?.points ?? [];
+  const summary = data?.summary;
 
   if (isLoading) {
     return (
@@ -72,62 +59,46 @@ export function ThroughputChart() {
 
   return (
     <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium">Message Throughput — Last 60 Minutes</h3>
-        <span className="text-xs text-muted-foreground">Auto-refresh every 10s</span>
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-medium">Message Throughput — Last 24 Hours</h3>
+        <span className="text-xs text-muted-foreground">Auto-refresh every 30s</span>
       </div>
+
+      {summary && (
+        <div className="flex gap-6 mb-3 text-xs">
+          <div><span className="text-muted-foreground">Total: </span><span className="font-semibold">{summary.totalMessages.toLocaleString()}</span></div>
+          <div><span className="text-muted-foreground">Last 24h: </span><span className="font-semibold">{summary.messagesLast24h.toLocaleString()}</span></div>
+          <div><span className="text-muted-foreground">Last 7d: </span><span className="font-semibold">{summary.messagesLast7d.toLocaleString()}</span></div>
+          <div><span className="text-muted-foreground">Avg/hr: </span><span className="font-semibold">{summary.avgPerHourLast24h.toFixed(1)}</span></div>
+        </div>
+      )}
+
       <ResponsiveContainer width="100%" height={280}>
-        <ComposedChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+        <BarChart data={points} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border" opacity={0.5} />
           <XAxis
-            dataKey="minute"
-            ticks={ticks}
+            dataKey="hour"
             tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
             tickLine={false}
             axisLine={false}
+            interval={2}
           />
           <YAxis
             tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
             tickLine={false}
             axisLine={false}
             width={36}
+            allowDecimals={false}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend
-            iconType="circle"
-            iconSize={8}
-            wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+          <Bar
+            dataKey="messages"
+            name="Messages"
+            fill="#3b82f6"
+            radius={[3, 3, 0, 0]}
+            maxBarSize={24}
           />
-          <Line
-            type="monotone"
-            dataKey="inbound"
-            name="Inbound"
-            stroke="#3b82f6"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-          <Line
-            type="monotone"
-            dataKey="outbound"
-            name="Outbound"
-            stroke="#22c55e"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-          <Scatter
-            data={errorPoints}
-            dataKey="inbound"
-            name="Errors"
-            fill="#ef4444"
-            shape={(props: any) => {
-              const { cx, cy, payload } = props;
-              if (!payload?.errors) return <g />;
-              return <circle cx={cx} cy={cy} r={4} fill="#ef4444" stroke="#fff" strokeWidth={1.5} />;
-            }}
-          />
-        </ComposedChart>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

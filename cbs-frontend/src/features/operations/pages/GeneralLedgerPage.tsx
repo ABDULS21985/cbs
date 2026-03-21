@@ -34,14 +34,8 @@ function JournalEntriesTab() {
     queryKey: ['gl-journals', activeFilters],
     queryFn: () =>
       glApi.getJournalEntries({
-        glCode: activeFilters.glCode || undefined,
-        dateFrom: activeFilters.dateFrom || undefined,
-        dateTo: activeFilters.dateTo || undefined,
-        journalNumber: activeFilters.journalNumber || undefined,
-        source: activeFilters.source,
-        status: activeFilters.status,
-        minAmount: activeFilters.minAmount ? Number(activeFilters.minAmount) : undefined,
-        maxAmount: activeFilters.maxAmount ? Number(activeFilters.maxAmount) : undefined,
+        from: activeFilters.dateFrom || undefined,
+        to: activeFilters.dateTo || undefined,
       }),
   });
 

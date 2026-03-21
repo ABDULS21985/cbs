@@ -1,4 +1,4 @@
-import api, { apiGet } from '@/lib/api';
+import api, { apiGet, apiPost } from '@/lib/api';
 import type { MortgageLoan, LtvPoint } from '../types/mortgage';
 
 interface BackendMortgageLoan {
@@ -90,7 +90,45 @@ export const mortgageApi = {
 
   getById: (id: number) => apiGet<BackendMortgageLoan>(`/api/v1/mortgages/${id}`).then(mapMortgage),
 
+  // Backend: POST / with @RequestBody MortgageLoan
+  create: (data: Record<string, unknown>) =>
+    apiPost<BackendMortgageLoan>('/api/v1/mortgages', data).then(mapMortgage),
+
+  // Backend: GET /customer/{customerId}
+  getByCustomer: (customerId: number) =>
+    apiGet<BackendMortgageLoan[]>(`/api/v1/mortgages/customer/${customerId}`).then((loans) => loans.map(mapMortgage)),
+
   getLtvHistory: (id: number) => apiGet<LtvPoint[]>(`/api/v1/mortgages/${id}/ltv-history`),
+
+  // Backend: POST /{number}/advance?status=... (@RequestParam optional)
+  advance: (mortgageNumber: string, status?: string) => {
+    const url = status
+      ? `/api/v1/mortgages/${mortgageNumber}/advance?status=${encodeURIComponent(status)}`
+      : `/api/v1/mortgages/${mortgageNumber}/advance`;
+    return api.post<{ data: BackendMortgageLoan }>(url).then((r) => mapMortgage(r.data.data));
+  },
+
+  // Backend: POST /{number}/overpayment?amount=... (@RequestParam + optional body)
+  overpay: (mortgageNumber: string, amount: number) => {
+    const params = new URLSearchParams({ amount: String(amount) });
+    return api.post<{ data: BackendMortgageLoan }>(
+      `/api/v1/mortgages/${mortgageNumber}/overpayment?${params}`,
+    ).then((r) => mapMortgage(r.data.data));
+  },
+
+  // Backend: POST /{number}/revert-svr
+  revertSvr: (mortgageNumber: string) =>
+    api.post<{ data: BackendMortgageLoan }>(
+      `/api/v1/mortgages/${mortgageNumber}/revert-svr`,
+    ).then((r) => mapMortgage(r.data.data)),
+
+  // Backend: GET /high-ltv?maxLtv=80 (@RequestParam BigDecimal)
+  getHighLtv: (maxLtv = 80) =>
+    apiGet<BackendMortgageLoan[]>('/api/v1/mortgages/high-ltv', { maxLtv }).then((loans) => loans.map(mapMortgage)),
+
+  // Backend: GET /fixed-rate-expiring
+  getFixedRateExpiring: () =>
+    apiGet<BackendMortgageLoan[]>('/api/v1/mortgages/fixed-rate-expiring').then((loans) => loans.map(mapMortgage)),
 
   listDocuments: (id: number) =>
     apiGet<MortgageDocument[]>(`/api/v1/mortgages/${id}/documents`),
