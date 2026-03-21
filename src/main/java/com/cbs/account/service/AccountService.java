@@ -50,6 +50,7 @@ public class AccountService {
     private final TransactionJournalRepository transactionRepository;
     private final CustomerRepository customerRepository;
     private final AccountHoldRepository holdRepository;
+    private final AccountLimitRepository limitRepository;
     private final AccountMaintenanceLogRepository maintenanceLogRepository;
     private final InterestPostingHistoryRepository interestPostingHistoryRepository;
     private final CardRepository cardRepository;

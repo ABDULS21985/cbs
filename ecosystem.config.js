@@ -7,7 +7,7 @@ module.exports = {
       cwd: '/Users/mac/codes/cba',
       interpreter: 'none',
       env: {
-        CBS_DB_URL: 'jdbc:postgresql://localhost:5432/cbs',
+        CBS_DB_URL: 'jdbc:postgresql://localhost:5433/cbs',
         CBS_DB_USERNAME: 'cbs_admin',
         CBS_DB_PASSWORD: 'cbs_password',
         CBS_REDIS_HOST: 'localhost',

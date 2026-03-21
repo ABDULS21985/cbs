@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@RestController
+@RestController("transactionComplianceReportController")
 @RequestMapping("/v1/transactions/compliance")
 @RequiredArgsConstructor
 @Tag(name = "Transaction Compliance Reports", description = "CTR, STR, NIP, FIRS and large-value transaction exports")

@@ -7,6 +7,8 @@ plugins {
 group = "com.cbs"
 version = "1.0.0-SNAPSHOT"
 
+val lombokVersion = "1.18.44"
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
@@ -21,6 +23,10 @@ configurations {
 
 repositories {
     mavenCentral()
+}
+
+springBoot {
+    mainClass.set("com.cbs.CbsApplication")
 }
 
 dependencies {
@@ -54,8 +60,8 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok-mapstruct-binding:0.2.0")
 
     // Lombok
-    compileOnly("org.projectlombok:lombok")
-    annotationProcessor("org.projectlombok:lombok")
+    compileOnly("org.projectlombok:lombok:$lombokVersion")
+    annotationProcessor("org.projectlombok:lombok:$lombokVersion")
 
     // Jackson extras
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
@@ -82,8 +88,8 @@ dependencies {
     testImplementation("io.rest-assured:rest-assured:5.4.0")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.2.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testCompileOnly("org.projectlombok:lombok")
-    testAnnotationProcessor("org.projectlombok:lombok")
+    testCompileOnly("org.projectlombok:lombok:$lombokVersion")
+    testAnnotationProcessor("org.projectlombok:lombok:$lombokVersion")
 }
 
 tasks.withType<Test> {
@@ -94,6 +100,10 @@ tasks.withType<Test> {
 }
 
 tasks.withType<JavaCompile> {
+    // Spring Boot 3.3.x runs on Java 25, but its metadata scanner cannot parse
+    // Java 25 classfiles yet. Compile with a Java 21 release target while
+    // still building and running on a Java 25 toolchain.
+    options.release.set(21)
     options.compilerArgs.addAll(listOf(
         "-Amapstruct.defaultComponentModel=spring",
         "-Amapstruct.unmappedTargetPolicy=IGNORE"
