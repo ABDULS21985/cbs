@@ -49,6 +49,7 @@ function useFxRates(source?: string, target?: string) {
       }>;
     },
     staleTime: 60_000,
+    retry: 1,
     enabled: !!source && !!target,
   });
 }
