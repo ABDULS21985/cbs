@@ -7,6 +7,10 @@ import { DataTable, StatCard, StatusBadge } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { tradingApi, type TraderPosition } from '../api/tradingApi';
+import { LimitUtilizationGauge } from '../components/positions/LimitUtilizationGauge';
+import { PositionHeatmap } from '../components/positions/PositionHeatmap';
+import { StressTestScenarios } from '../components/positions/StressTestScenarios';
+import { VarDashboard } from '../components/positions/VarDashboard';
 
 const columns: ColumnDef<TraderPosition, unknown>[] = [
   {
@@ -117,8 +121,19 @@ export function TreasuryPositionsPage() {
     enabled: !!activeDeskId,
     refetchInterval: 15_000,
   });
+  const { data: allDeskPositions = [], isLoading: allDeskPositionsLoading } = useQuery({
+    queryKey: ['trader-positions', 'portfolio', desks.map((desk) => desk.id)],
+    queryFn: async () => {
+      const positionSets = await Promise.all(
+        desks.map((desk) => tradingApi.getPositionsByDealer(desk.id)),
+      );
+      return positionSets.flat();
+    },
+    enabled: desks.length > 0,
+    refetchInterval: 15_000,
+  });
 
-  const isLoading = desksLoading || positionsLoading;
+  const isLoading = desksLoading || positionsLoading || allDeskPositionsLoading;
   const totalNetExposure = positions.reduce((sum, p) => sum + p.netExposure, 0);
   const totalPnl = positions.reduce((sum, p) => sum + p.unrealizedPnl, 0);
   const breachCount = positions.filter((p) => p.breachFlag).length;
@@ -199,6 +214,23 @@ export function TreasuryPositionsPage() {
           <StatCard label="Unrealized P&L" value={totalPnl} format="money" compact icon={TrendingUp} loading={isLoading} />
           <StatCard label="Breaches" value={breachCount} format="number" icon={AlertTriangle} loading={isLoading} />
         </div>
+
+        {desks.length > 0 && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {desks.map((desk) => (
+              <LimitUtilizationGauge
+                key={desk.id}
+                label={desk.name}
+                value={desk.utilizationPct}
+                subtitle={`${desk.positionCount} live positions`}
+              />
+            ))}
+          </div>
+        )}
+
+        <PositionHeatmap desks={desks} positions={allDeskPositions} />
+        <VarDashboard desks={desks} positions={allDeskPositions} />
+        <StressTestScenarios positions={allDeskPositions} />
 
         {/* Desk selector */}
         {desks.length > 0 && (

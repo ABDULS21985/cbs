@@ -82,17 +82,17 @@ const MOCK_POSITIONS: unknown[] = [];
 
 function setupHandlers(overrides?: { desks?: unknown; books?: unknown; orders?: unknown }) {
   server.use(
-    http.get('/api/v1/dealer-desks', () =>
-      HttpResponse.json(overrides?.desks ?? MOCK_DESKS),
+    http.get('/api/v1/treasury/desks', () =>
+      HttpResponse.json({ data: overrides?.desks ?? MOCK_DESKS }),
     ),
-    http.get('/api/v1/trading-books', () =>
-      HttpResponse.json(overrides?.books ?? MOCK_BOOKS),
+    http.get('/api/v1/treasury/trading-books', () =>
+      HttpResponse.json({ data: overrides?.books ?? MOCK_BOOKS }),
     ),
-    http.get('/api/v1/market-orders/open', () =>
-      HttpResponse.json(overrides?.orders ?? MOCK_ORDERS),
+    http.get('/api/v1/treasury/orders', () =>
+      HttpResponse.json({ data: overrides?.orders ?? MOCK_ORDERS }),
     ),
-    http.get('/api/v1/trader-positions/breaches', () =>
-      HttpResponse.json(MOCK_POSITIONS),
+    http.get('/api/v1/treasury/positions/breaches', () =>
+      HttpResponse.json({ data: MOCK_POSITIONS }),
     ),
   );
 }
@@ -113,55 +113,55 @@ describe('TradingDeskPage', () => {
   it('renders summary bar with Active Desks label', () => {
     setupHandlers();
     renderWithProviders(<TradingDeskPage />);
-    expect(screen.getByText('Active Desks')).toBeInTheDocument();
+    expect(screen.getByText(/Active Desks/i)).toBeInTheDocument();
   });
 
   it('renders summary bar with Today\'s P&L label', () => {
     setupHandlers();
     renderWithProviders(<TradingDeskPage />);
-    expect(screen.getByText("Today's P&L")).toBeInTheDocument();
+    expect(screen.getAllByText(/Today's P&L/i).length).toBeGreaterThan(0);
   });
 
   it('renders summary bar with Open Positions label', () => {
     setupHandlers();
     renderWithProviders(<TradingDeskPage />);
-    expect(screen.getByText('Open Positions')).toBeInTheDocument();
+    expect(screen.getAllByText(/Open Positions/i).length).toBeGreaterThan(0);
   });
 
   it('renders summary bar with Trading Books label', () => {
     setupHandlers();
     renderWithProviders(<TradingDeskPage />);
-    expect(screen.getByText('Trading Books')).toBeInTheDocument();
+    expect(screen.getAllByText(/Trading Books/i).length).toBeGreaterThan(0);
   });
 
   it('renders summary bar with Open Orders label', () => {
     setupHandlers();
     renderWithProviders(<TradingDeskPage />);
-    expect(screen.getByText('Open Orders')).toBeInTheDocument();
+    expect(screen.getByText(/Open Orders/i)).toBeInTheDocument();
   });
 
   it('renders Dealer Desks tab', () => {
     setupHandlers();
     renderWithProviders(<TradingDeskPage />);
-    expect(screen.getByRole('tab', { name: /dealer desks/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /dealer desks/i })).toBeInTheDocument();
   });
 
   it('renders Trading Books tab', () => {
     setupHandlers();
     renderWithProviders(<TradingDeskPage />);
-    expect(screen.getByRole('tab', { name: /trading books/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /trading books/i })).toBeInTheDocument();
   });
 
   it('renders Trader Positions tab', () => {
     setupHandlers();
     renderWithProviders(<TradingDeskPage />);
-    expect(screen.getByRole('tab', { name: /trader positions/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /trader positions/i })).toBeInTheDocument();
   });
 
   it('renders Market Orders tab', () => {
     setupHandlers();
     renderWithProviders(<TradingDeskPage />);
-    expect(screen.getByRole('tab', { name: /market orders/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /market orders/i })).toBeInTheDocument();
   });
 
   it('renders desk cards with desk names', async () => {
@@ -203,7 +203,7 @@ describe('TradingDeskPage', () => {
     setupHandlers();
     renderWithProviders(<TradingDeskPage />);
     await waitFor(() => {
-      expect(screen.getAllByText(/Utilization/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/60.0%/i)).toBeInTheDocument();
     });
   });
 

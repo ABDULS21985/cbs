@@ -62,6 +62,7 @@ interface ConfirmationsTabProps {
 
 function ConfirmationsTab({ confirmations, isLoading }: ConfirmationsTabProps) {
   const [confFilter, setConfFilter] = useState<ConfFilter>('ALL');
+  const [selectedConfirmationId, setSelectedConfirmationId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const confirmMutation = useMutation({
@@ -80,6 +81,33 @@ function ConfirmationsTab({ confirmations, isLoading }: ConfirmationsTabProps) {
     if (confFilter === 'PENDING') return confirmations.filter((c) => c.status === 'PENDING');
     return confirmations.filter((c) => c.matchStatus === confFilter);
   }, [confirmations, confFilter]);
+
+  useEffect(() => {
+    if (filtered.length === 0) {
+      setSelectedConfirmationId(null);
+      return;
+    }
+    if (!filtered.some((confirmation) => confirmation.id === selectedConfirmationId)) {
+      setSelectedConfirmationId(filtered[0].id);
+    }
+  }, [filtered, selectedConfirmationId]);
+
+  const selectedConfirmation =
+    filtered.find((confirmation) => confirmation.id === selectedConfirmationId) ?? filtered[0] ?? null;
+  const mismatchRows = selectedConfirmation
+    ? Array.from(
+      new Set([
+        ...Object.keys(selectedConfirmation.ourTerms ?? {}),
+        ...Object.keys(selectedConfirmation.theirTerms ?? {}),
+      ]),
+    )
+      .map((field) => ({
+        field,
+        ourValue: selectedConfirmation.ourTerms?.[field] ?? '—',
+        theirValue: selectedConfirmation.theirTerms?.[field] ?? '—',
+      }))
+      .filter((row) => row.ourValue !== row.theirValue)
+    : [];
 
   const FILTER_BUTTONS: { label: string; value: ConfFilter }[] = [
     { label: 'All', value: 'ALL' },
@@ -195,6 +223,23 @@ function ConfirmationsTab({ confirmations, isLoading }: ConfirmationsTabProps) {
         );
       },
     },
+    {
+      id: 'review',
+      header: '',
+      cell: ({ row }) => (
+        <button
+          className={cn(
+            'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+            selectedConfirmationId === row.original.id
+              ? 'border-primary bg-primary/10 text-primary'
+              : 'hover:bg-muted',
+          )}
+          onClick={() => setSelectedConfirmationId(row.original.id)}
+        >
+          Review
+        </button>
+      ),
+    },
   ];
 
   return (
@@ -226,6 +271,83 @@ function ConfirmationsTab({ confirmations, isLoading }: ConfirmationsTabProps) {
         ))}
       </div>
       <DataTable columns={confirmCols} data={filtered} isLoading={isLoading} enableGlobalFilter />
+
+      {selectedConfirmation && (
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold">SWIFT Confirmation Preview</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Formatted preview for {selectedConfirmation.confirmRef}
+                </p>
+              </div>
+              <StatusBadge status={selectedConfirmation.matchStatus} dot />
+            </div>
+            <pre className="mt-4 overflow-x-auto rounded-lg border bg-muted/20 p-4 text-[11px] leading-5 text-foreground">
+{`:20:${selectedConfirmation.confirmRef}
+:22A:${selectedConfirmation.instrument}
+:82A:${selectedConfirmation.counterparty}
+:32B:${selectedConfirmation.amount.toLocaleString()}
+:36:${selectedConfirmation.rate}
+:30V:${selectedConfirmation.valueDate}
+:22C:${selectedConfirmation.dealRef}
+:77D:${selectedConfirmation.direction}`}
+            </pre>
+          </div>
+
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold">Match Review</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Side-by-side confirmation terms from our blotter and the received message.
+                </p>
+              </div>
+              {selectedConfirmation.matchStatus === 'MATCHED' ? (
+                <button
+                  className="rounded-md border border-green-300 bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
+                  disabled={selectedConfirmation.status !== 'PENDING' || confirmMutation.isPending}
+                  onClick={() => confirmMutation.mutate(selectedConfirmation.id)}
+                >
+                  Confirm Matched Deal
+                </button>
+              ) : (
+                <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
+                  Manual Review Required
+                </span>
+              )}
+            </div>
+
+            {mismatchRows.length === 0 ? (
+              <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-700">
+                The received confirmation matches our booked terms across rate, amount, and value date.
+              </div>
+            ) : (
+              <div className="mt-4 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      <th className="px-3 py-2">Field</th>
+                      <th className="px-3 py-2">Our Terms</th>
+                      <th className="px-3 py-2">Their Terms</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mismatchRows.map((row) => (
+                      <tr key={row.field} className="border-b last:border-b-0">
+                        <td className="px-3 py-3 font-medium">{row.field}</td>
+                        <td className="px-3 py-3 font-mono text-xs">{row.ourValue}</td>
+                        <td className="px-3 py-3 font-mono text-xs text-red-600">{row.theirValue}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

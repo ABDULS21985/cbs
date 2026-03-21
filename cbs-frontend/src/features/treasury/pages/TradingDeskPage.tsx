@@ -28,6 +28,7 @@ import {
 import { useSuspendDesk } from '../hooks/useTreasuryExt';
 import type { ColumnDef } from '@tanstack/react-table';
 import type { TradingBook, TradingMarketOrder, TraderPosition, DealerDesk } from '../api/tradingApi';
+import { BookRiskSummary } from '../components/trading/BookRiskSummary';
 
 // ─── Utilization Bar ───────────────────────────────────────────────────────────
 
@@ -254,6 +255,7 @@ function TradingBooksTab() {
 
   return (
     <div className="p-5">
+      <BookRiskSummary books={books} />
       <DataTable columns={columns} data={books} isLoading={isLoading} enableGlobalFilter enableExport exportFilename="trading-books" />
     </div>
   );

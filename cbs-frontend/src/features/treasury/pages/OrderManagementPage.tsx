@@ -11,6 +11,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { MarketOrder } from '../types/treasury';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { ExecutionQualityCharts } from '../components/orders/ExecutionQualityCharts';
 
 const columns: ColumnDef<MarketOrder, any>[] = [
   { accessorKey: 'orderRef', header: 'Order #', cell: ({ row }) => <span className="font-mono text-xs">{row.original.orderRef}</span> },
@@ -307,6 +308,7 @@ function ExecutionQualitySection({ orders }: { orders: MarketOrder[] }) {
 
   return (
     <div className="p-4 space-y-4">
+      <ExecutionQualityCharts orders={orders} />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label="Avg Slippage (bps)" value={Math.abs(avgSlippage).toFixed(2)} icon={TrendingDown} />
         <StatCard label="Fill Rate" value={fillRate} format="percent" icon={CheckCircle} />

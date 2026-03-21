@@ -181,6 +181,18 @@ public class TreasuryController {
         return ResponseEntity.ok(ApiResponse.ok(treasuryService.listExecutions(orderId)));
     }
 
+    @GetMapping("/confirmations")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<TreasuryService.TradeConfirmationSummary>>> listConfirmations() {
+        return ResponseEntity.ok(ApiResponse.ok(treasuryService.listTradeConfirmations()));
+    }
+
+    @PostMapping("/confirmations/{id}/confirm")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<TreasuryService.TradeConfirmationSummary>> confirmTrade(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(treasuryService.confirmTradeConfirmation(id)));
+    }
+
     @GetMapping("/positions/{deskId}")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<TreasuryService.TraderPositionSummary>>> getPositionsByDesk(@PathVariable Long deskId) {
