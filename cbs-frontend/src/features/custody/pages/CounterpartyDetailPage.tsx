@@ -2,19 +2,17 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge, DataTable } from '@/components/shared';
+import { StatusBadge } from '@/components/shared';
 import { cn } from '@/lib/utils';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import {
   Shield, AlertTriangle, Loader2, RefreshCw, Check, X,
 } from 'lucide-react';
-import type { ColumnDef } from '@tanstack/react-table';
 import { counterpartiesApi } from '../api/counterpartyApi';
 import { useUpdateCounterpartyExposure } from '../hooks/useCustodyExt';
 import { ExposureGauge } from '../components/ExposureGauge';
 import { KycReviewPanel } from '../components/KycReviewPanel';
 import type { Counterparty } from '../types/counterparty';
-import type { SecuritiesFail } from '../types/securitiesFail';
 import { securitiesFailsApi } from '../api/securitiesFailApi';
 import { toast } from 'sonner';
 
@@ -60,7 +58,7 @@ function UpdateExposureDialog({ cp, onClose }: { cp: Counterparty; onClose: () =
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="btn-secondary">Cancel</button>
             <button
-              onClick={() => update.mutate({ code: cp.counterpartyCode, currentExposure: amount }, { onSuccess: () => { toast.success('Exposure updated'); onClose(); } })}
+              onClick={() => update.mutate({ code: cp.counterpartyCode, exposure: amount }, { onSuccess: () => { toast.success('Exposure updated'); onClose(); } })}
               disabled={update.isPending}
               className="btn-primary"
             >
@@ -117,14 +115,13 @@ export function CounterpartyDetailPage() {
   const cp = allCps.find((c) => c.counterpartyCode === code);
   const isLoading = allBanks.length === 0 && allBrokers.length === 0;
 
-  // Securities fails for this counterparty
-  const { data: failsData } = useQuery({
-    queryKey: ['custody', 'securities-fails', 'counterparty', code],
-    queryFn: () => securitiesFailsApi.counterpartyReport({ counterpartyCode: code }),
-    enabled: !!code,
+  // Counterparty fail report: Record<cpName, failCount> — find count for this cp
+  const { data: cpReport } = useQuery({
+    queryKey: ['custody', 'fails', 'counterparty-report'],
+    queryFn: () => securitiesFailsApi.counterpartyReport(),
     staleTime: 60_000,
   });
-  const fails = Array.isArray(failsData) ? failsData : [];
+  const cpFailCount = cpReport ? (cpReport[cp?.counterpartyCode ?? ''] ?? cpReport[cp?.counterpartyName ?? ''] ?? 0) : 0;
 
   if (isLoading) {
     return (
@@ -168,15 +165,6 @@ export function CounterpartyDetailPage() {
     { label: 'KYC Status', value: cp.kycStatus },
     { label: 'KYC Review Date', value: cp.kycReviewDate ? formatDate(cp.kycReviewDate) : 'Never' },
     { label: 'Status', value: cp.status },
-  ];
-
-  const failCols: ColumnDef<any, any>[] = [
-    { accessorKey: 'failRef', header: 'Ref', cell: ({ row }) => <span className="font-mono text-xs">{row.original.failRef}</span> },
-    { accessorKey: 'instrumentCode', header: 'Instrument' },
-    { accessorKey: 'failType', header: 'Type' },
-    { accessorKey: 'agingDays', header: 'Days', cell: ({ row }) => <span className={cn('text-xs tabular-nums font-medium', row.original.agingDays > 7 ? 'text-red-600' : '')}>{row.original.agingDays}d</span> },
-    { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="text-xs tabular-nums">{formatMoney(row.original.amount ?? 0)}</span> },
-    { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} dot /> },
   ];
 
   return (
@@ -260,15 +248,13 @@ export function CounterpartyDetailPage() {
         )}
 
         {/* Securities Fails */}
-        {fails.length > 0 && (
-          <div className="rounded-xl border bg-card overflow-hidden">
-            <div className="px-5 py-3 border-b flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-500" />
-              <p className="text-sm font-medium">Open Securities Fails ({fails.length})</p>
-            </div>
-            <div className="p-4">
-              <DataTable columns={failCols} data={fails} emptyMessage="No open fails" />
-            </div>
+        {cpFailCount > 0 && (
+          <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/10 px-5 py-4 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <p className="text-sm font-medium text-red-700 dark:text-red-400">
+              {cpFailCount} open securities fail{cpFailCount !== 1 ? 's' : ''} — view in{' '}
+              <a href="/custody/fails" className="underline">Securities Fails</a>
+            </p>
           </div>
         )}
       </div>

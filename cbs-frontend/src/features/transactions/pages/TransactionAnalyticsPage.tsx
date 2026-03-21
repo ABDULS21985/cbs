@@ -1,20 +1,41 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ArrowDownRight, ArrowUpRight, BarChart3, Percent, RefreshCw, RotateCcw, Wallet } from 'lucide-react';
 import { useNavigate, createSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DateRangePicker, EmptyState } from '@/components/shared';
+import { ChartSkeleton } from '@/components/shared/ChartSkeleton';
 import { formatMoney, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { transactionApi, type Transaction } from '../api/transactionApi';
 import { useTransactionAnalytics, type AnalyticsPeriodPreset } from '../hooks/useTransactionAnalytics';
-import { TransactionVolumeChart } from '../components/analytics/TransactionVolumeChart';
-import { SpendCategoryBreakdown } from '../components/analytics/SpendCategoryBreakdown';
-import { ChannelPerformanceGrid } from '../components/analytics/ChannelPerformanceGrid';
-import { VelocityHeatmap } from '../components/analytics/VelocityHeatmap';
-import { FailureAnalysisPanel } from '../components/analytics/FailureAnalysisPanel';
-import { TopAccountsTable } from '../components/analytics/TopAccountsTable';
+import { createAccountUrlRef } from '../lib/urlAccountRef';
+
+const TransactionVolumeChart = lazy(async () => {
+  const module = await import('../components/analytics/TransactionVolumeChart');
+  return { default: module.TransactionVolumeChart };
+});
+const SpendCategoryBreakdown = lazy(async () => {
+  const module = await import('../components/analytics/SpendCategoryBreakdown');
+  return { default: module.SpendCategoryBreakdown };
+});
+const ChannelPerformanceGrid = lazy(async () => {
+  const module = await import('../components/analytics/ChannelPerformanceGrid');
+  return { default: module.ChannelPerformanceGrid };
+});
+const VelocityHeatmap = lazy(async () => {
+  const module = await import('../components/analytics/VelocityHeatmap');
+  return { default: module.VelocityHeatmap };
+});
+const FailureAnalysisPanel = lazy(async () => {
+  const module = await import('../components/analytics/FailureAnalysisPanel');
+  return { default: module.FailureAnalysisPanel };
+});
+const TopAccountsTable = lazy(async () => {
+  const module = await import('../components/analytics/TopAccountsTable');
+  return { default: module.TopAccountsTable };
+});
 
 const PERIOD_OPTIONS: Array<{ value: AnalyticsPeriodPreset; label: string }> = [
   { value: 'today', label: 'Today' },
@@ -47,7 +68,7 @@ function formatDelta(delta: number | null) {
 }
 
 function accountDrillParams(accountNumber: string, from: string, to: string) {
-  return { acc: accountNumber, from, to };
+  return { acc: createAccountUrlRef(accountNumber), from, to };
 }
 
 function categoryDrillParams(category: string, from: string, to: string): Record<string, string> {
@@ -75,6 +96,10 @@ function drillCellMatches(transaction: Transaction, dayOfWeek: number, hour: num
   const parsed = new Date(transaction.dateTime);
   const isoDay = parsed.getDay() === 0 ? 7 : parsed.getDay();
   return isoDay === dayOfWeek && parsed.getHours() === hour;
+}
+
+function AnalyticsPanelFallback({ height = 320 }: { height?: number }) {
+  return <ChartSkeleton height={height} />;
 }
 
 export function TransactionAnalyticsPage() {
@@ -269,37 +294,45 @@ export function TransactionAnalyticsPage() {
           </div>
         )}
 
-        <TransactionVolumeChart
-          data={volumeTrend}
-          priorData={showComparison ? priorVolumeTrend : []}
-          isLoading={volumeTrendLoading}
-          onPointClick={(point) => navigate(buildSearchUrl({
-            from: point.periodStart,
-            to: point.periodEnd,
-          }))}
-        />
+        <Suspense fallback={<AnalyticsPanelFallback />}>
+          <TransactionVolumeChart
+            data={volumeTrend}
+            priorData={showComparison ? priorVolumeTrend : []}
+            isLoading={volumeTrendLoading}
+            onPointClick={(point) => navigate(buildSearchUrl({
+              from: point.periodStart,
+              to: point.periodEnd,
+            }))}
+          />
+        </Suspense>
 
         <div className="grid gap-6 xl:grid-cols-2">
-          <SpendCategoryBreakdown
-            data={categories}
-            priorData={showComparison ? priorCategories : null}
-            isLoading={categoriesLoading}
-            onCategoryClick={(category) => navigate(buildSearchUrl(categoryDrillParams(category, rangeParams.from, rangeParams.to)))}
-          />
-          <ChannelPerformanceGrid
-            data={channels}
-            priorData={showComparison ? priorChannels : null}
-            isLoading={channelsLoading}
-          />
+          <Suspense fallback={<AnalyticsPanelFallback />}>
+            <SpendCategoryBreakdown
+              data={categories}
+              priorData={showComparison ? priorCategories : null}
+              isLoading={categoriesLoading}
+              onCategoryClick={(category) => navigate(buildSearchUrl(categoryDrillParams(category, rangeParams.from, rangeParams.to)))}
+            />
+          </Suspense>
+          <Suspense fallback={<AnalyticsPanelFallback />}>
+            <ChannelPerformanceGrid
+              data={channels}
+              priorData={showComparison ? priorChannels : null}
+              isLoading={channelsLoading}
+            />
+          </Suspense>
         </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
           <div className="space-y-4">
-            <VelocityHeatmap
-              data={heatmap}
-              isLoading={heatmapLoading}
-              onCellClick={(dayOfWeek, hour) => setSelectedHeatmapCell({ dayOfWeek, hour })}
-            />
+            <Suspense fallback={<AnalyticsPanelFallback />}>
+              <VelocityHeatmap
+                data={heatmap}
+                isLoading={heatmapLoading}
+                onCellClick={(dayOfWeek, hour) => setSelectedHeatmapCell({ dayOfWeek, hour })}
+              />
+            </Suspense>
 
             {selectedHeatmapCell && (
               <div className="rounded-xl border bg-card p-5">
@@ -346,18 +379,22 @@ export function TransactionAnalyticsPage() {
             )}
           </div>
 
-          <FailureAnalysisPanel
-            data={failures}
-            priorData={showComparison ? priorFailures : null}
-            isLoading={failuresLoading}
-          />
+          <Suspense fallback={<AnalyticsPanelFallback />}>
+            <FailureAnalysisPanel
+              data={failures}
+              priorData={showComparison ? priorFailures : null}
+              isLoading={failuresLoading}
+            />
+          </Suspense>
         </div>
 
-        <TopAccountsTable
-          data={topAccounts}
-          isLoading={topAccountsLoading}
-          onAccountClick={(accountNumber) => navigate(buildSearchUrl(accountDrillParams(accountNumber, rangeParams.from, rangeParams.to)))}
-        />
+        <Suspense fallback={<AnalyticsPanelFallback height={240} />}>
+          <TopAccountsTable
+            data={topAccounts}
+            isLoading={topAccountsLoading}
+            onAccountClick={(accountNumber) => navigate(buildSearchUrl(accountDrillParams(accountNumber, rangeParams.from, rangeParams.to)))}
+          />
+        </Suspense>
       </div>
     </>
   );

@@ -1076,7 +1076,7 @@ export const ChannelManagementPage = lazyNamed(
   () => import('@/features/channels/pages/ChannelManagementPage'),
   'ChannelManagementPage',
 );
-export const ChannelConfigPage = lazyNamed(
+export const ChannelSessionConfigPage = lazyNamed(
   () => import('@/features/channels/pages/ChannelConfigPage'),
   'ChannelConfigPage',
 );
@@ -1305,4 +1305,9 @@ export const NotificationManagementPage = lazyNamed(
 export const NotificationHistoryPage = lazyNamed(
   () => import('@/features/notifications/pages/NotificationHistoryPage'),
   'NotificationHistoryPage',
+);
+
+export const BiDashboardPage = lazyNamed(
+  () => import('@/features/dashboard/pages/BiDashboardPage'),
+  'BiDashboardPage',
 );

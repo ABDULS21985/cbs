@@ -178,6 +178,45 @@ public class FeeService {
         return chargeLog;
     }
 
+    /**
+     * Reverse a previously charged fee — credits the customer's account and marks the charge as REVERSED.
+     */
+    @Transactional
+    public FeeChargeLog reverseFeeCharge(Long chargeLogId) {
+        FeeChargeLog chargeLog = feeChargeLogRepository.findById(chargeLogId)
+                .orElseThrow(() -> new ResourceNotFoundException("FeeChargeLog", "id", chargeLogId));
+
+        if (!"CHARGED".equals(chargeLog.getStatus())) {
+            throw new BusinessException("Only CHARGED fees can be reversed (current status: " + chargeLog.getStatus() + ")",
+                    "FEE_NOT_REVERSIBLE");
+        }
+
+        Account account = accountRepository.findById(chargeLog.getAccountId())
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", chargeLog.getAccountId()));
+        FeeDefinition fee = feeDefinitionRepository.findByFeeCode(chargeLog.getFeeCode())
+                .orElseThrow(() -> new ResourceNotFoundException("FeeDefinition", "feeCode", chargeLog.getFeeCode()));
+
+        // Credit the customer's account (reverse the original debit)
+        accountPostingService.postCreditAgainstGl(
+                account,
+                TransactionType.ADJUSTMENT,
+                chargeLog.getTotalAmount(),
+                "Fee reversal " + chargeLog.getFeeCode(),
+                TransactionChannel.SYSTEM,
+                buildPostingRef(chargeLog.getTriggerRef(), chargeLog.getFeeCode(), "REVERSE"),
+                buildWaiverLegs(fee, chargeLog, account), // Reuse waiver legs — same DR/CR pattern
+                "FEE_ENGINE",
+                buildSourceRef(chargeLog.getTriggerEvent(), chargeLog.getTriggerRef(), chargeLog.getFeeCode())
+        );
+
+        chargeLog.setStatus("REVERSED");
+        feeChargeLogRepository.save(chargeLog);
+
+        log.info("Fee reversed: chargeId={}, code={}, amount={}, by={}", chargeLogId, chargeLog.getFeeCode(),
+                chargeLog.getTotalAmount(), currentActorProvider.getCurrentActor());
+        return chargeLog;
+    }
+
     // ========================================================================
     // FEE DEFINITION CRUD
     // ========================================================================

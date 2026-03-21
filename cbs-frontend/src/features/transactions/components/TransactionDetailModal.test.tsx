@@ -85,13 +85,13 @@ describe('TransactionDetailModal', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /reverse transaction/i }));
-    expect(screen.getByText('Reason for Reversal')).toBeInTheDocument();
+    expect(await screen.findByText('Enhanced Reversal Workflow')).toBeInTheDocument();
 
     rerender(<TransactionDetailModal transaction={transaction} open={false} onClose={vi.fn()} />);
     rerender(<TransactionDetailModal transaction={transaction} open={true} onClose={vi.fn()} />);
 
     await waitFor(() => {
-      expect(screen.queryByText('Reason for Reversal')).not.toBeInTheDocument();
+      expect(screen.queryByText('Enhanced Reversal Workflow')).not.toBeInTheDocument();
     });
   });
 
@@ -105,7 +105,7 @@ describe('TransactionDetailModal', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Could not load full transaction details. Showing the search result snapshot.')).toBeInTheDocument();
+      expect(screen.getByText('Network error')).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));

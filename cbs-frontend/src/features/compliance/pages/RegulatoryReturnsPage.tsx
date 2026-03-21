@@ -9,20 +9,30 @@ import { regulatoryApi } from '../api/regulatoryApi';
 export function RegulatoryReturnsPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'calendar' | 'all' | 'pending' | 'history'>('calendar');
-  const [month] = useState(() => new Date().toISOString().slice(0, 7));
 
-  const { data: stats } = useQuery({ queryKey: ['reg-returns', 'stats'], queryFn: () => regulatoryApi.getStats() });
-  const { data: calendar = [] } = useQuery({ queryKey: ['reg-returns', 'calendar', month], queryFn: () => regulatoryApi.getCalendar(month) });
-  const { data: allReturns = [], isLoading } = useQuery({ queryKey: ['reg-returns', 'all'], queryFn: () => regulatoryApi.getAll() });
+  const { data: stats } = useQuery({
+    queryKey: ['reg-returns', 'stats'],
+    queryFn: () => regulatoryApi.getStats(),
+  });
 
-  const pendingReturns = allReturns.filter((r) => !['SUBMITTED', 'ACKNOWLEDGED'].includes(r.status));
-  const historyReturns = allReturns.filter((r) => ['SUBMITTED', 'ACKNOWLEDGED'].includes(r.status));
+  const { data: calendar = [] } = useQuery({
+    queryKey: ['reg-returns', 'calendar'],
+    queryFn: () => regulatoryApi.getCalendar(),
+  });
+
+  const { data: allReturns = [], isLoading } = useQuery({
+    queryKey: ['reg-returns', 'all'],
+    queryFn: () => regulatoryApi.getAll(),
+  });
+
+  const pendingReturns = allReturns.filter((r) => r.status !== 'SUBMITTED');
+  const historyReturns = allReturns.filter((r) => r.status === 'SUBMITTED');
 
   const statCards = stats ? [
-    { label: 'Due This Month', value: String(stats.dueThisMonth) },
-    { label: 'Pending Submission', value: String(stats.pendingSubmission) },
+    { label: 'Total Returns', value: String(stats.totalReturns) },
+    { label: 'Pending', value: String(stats.pending), warn: stats.pending > 0 },
     { label: 'Overdue', value: String(stats.overdue), warn: stats.overdue > 0 },
-    { label: 'Submitted MTD', value: String(stats.submittedMtd) },
+    { label: 'Submitted', value: String(stats.submitted) },
   ] : [];
 
   const tabs = [
@@ -49,13 +59,33 @@ export function RegulatoryReturnsPage() {
 
         <div className="flex gap-1 border-b">
           {tabs.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${tab === t.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{t.label}</button>
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                tab === t.key ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {t.label}
+            </button>
           ))}
         </div>
 
         {tab === 'calendar' && <ReturnCalendar data={calendar} />}
-        {tab === 'all' && <ReturnTable data={allReturns} isLoading={isLoading} onRowClick={(r) => navigate(`/compliance/returns/${r.id}`)} />}
-        {tab === 'pending' && <ReturnTable data={pendingReturns} isLoading={isLoading} onRowClick={(r) => navigate(`/compliance/returns/${r.id}`)} />}
+        {tab === 'all' && (
+          <ReturnTable
+            data={allReturns}
+            isLoading={isLoading}
+            onRowClick={(r) => navigate(`/compliance/returns/${r.reportCode}`)}
+          />
+        )}
+        {tab === 'pending' && (
+          <ReturnTable
+            data={pendingReturns}
+            isLoading={isLoading}
+            onRowClick={(r) => navigate(`/compliance/returns/${r.reportCode}`)}
+          />
+        )}
         {tab === 'history' && <ReturnTable data={historyReturns} isLoading={isLoading} />}
       </div>
     </>

@@ -72,7 +72,8 @@ describe('useTransactionSearch', () => {
         type: 'DEBIT',
         channel: 'WEB',
         status: 'COMPLETED',
-      }));
+        sort: 'postingDate,desc',
+      }), expect.anything());
     });
 
     expect(result.current.hasSearched).toBe(true);
@@ -95,15 +96,16 @@ describe('useTransactionSearch', () => {
     });
 
     expect(result.current.hasSearched).toBe(true);
-    expect(searchTransactions).toHaveBeenCalledWith(expect.objectContaining({
-      search: undefined,
-      accountNumber: undefined,
-      dateFrom: undefined,
-      dateTo: undefined,
-      page: 0,
-      pageSize: 20,
-    }));
-  });
+      expect(searchTransactions).toHaveBeenCalledWith(expect.objectContaining({
+        search: undefined,
+        accountNumber: undefined,
+        dateFrom: undefined,
+        dateTo: undefined,
+        page: 0,
+        pageSize: 20,
+        sort: 'postingDate,desc',
+      }), expect.anything());
+    });
 
   it('refetches when the same search is triggered again', async () => {
     const wrapper = createWrapper();

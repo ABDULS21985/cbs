@@ -81,3 +81,31 @@ export function useDashboardDealerDesks() {
     staleTime: 30_000,
   });
 }
+
+/** GET /v1/approvals/stats — pending, approved, rejected, slaBreachedCount, total */
+export function useApprovalStats() {
+  return useQuery({
+    queryKey: ['dashboard', 'approval-stats'],
+    queryFn: () => dashboardApi.getApprovalStats(),
+    staleTime: 60_000,
+  });
+}
+
+/** GET /v1/intelligence/dashboards — list all configurable BI dashboards */
+export function useBiDashboards() {
+  return useQuery({
+    queryKey: ['dashboard', 'bi-dashboards'],
+    queryFn: () => dashboardApi.listBiDashboards(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** GET /v1/intelligence/dashboards/code/{code} — single BI dashboard with widgets */
+export function useBiDashboard(code: string) {
+  return useQuery({
+    queryKey: ['dashboard', 'bi-dashboard', code],
+    queryFn: () => dashboardApi.getBiDashboardWithWidgets(code),
+    enabled: !!code,
+    staleTime: 60_000,
+  });
+}

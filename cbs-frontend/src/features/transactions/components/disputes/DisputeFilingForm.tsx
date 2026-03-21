@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Paperclip, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatMoney } from '@/lib/formatters';
@@ -36,6 +36,13 @@ export function DisputeFilingForm({
   const [contactPhone, setContactPhone] = useState(defaultPhone ?? '');
   const [files, setFiles] = useState<File[]>([]);
   const { raiseDisputeMutation } = useDisputes();
+
+  useEffect(() => {
+    if (open) {
+      setContactEmail(defaultEmail ?? '');
+      setContactPhone(defaultPhone ?? '');
+    }
+  }, [defaultEmail, defaultPhone, open]);
 
   const descriptionError = useMemo(() => (!description.trim() ? 'Description is required' : ''), [description]);
   const fileError = useMemo(() => {

@@ -279,7 +279,7 @@ import {
   CustodyValuationPage,
   CustodyValuationRunPage,
   ChannelManagementPage,
-  ChannelConfigPage,
+  ChannelSessionConfigPage,
   DigitalBankingPage,
   OpenBankingPage,
   OBTppDetailPage,
@@ -343,6 +343,7 @@ import {
   ReconciliationPage,
   OpenItemsPage,
   IssuedDevicesPage,
+  BiDashboardPage,
 } from './lazyRoutes';
 
 
@@ -364,6 +365,7 @@ export function AppRouter() {
         <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/dashboard/bi" element={<BiDashboardPage />} />
 
         {/* Customers */}
         <Route path="/customers" element={<Outlet />}>
@@ -577,7 +579,7 @@ export function AppRouter() {
         {/* Channels */}
         <Route path="/channels" element={<Outlet />}>
           <Route index element={<ChannelManagementPage />} />
-          <Route path="config" element={<ChannelConfigPage />} />
+          <Route path="config" element={<ChannelSessionConfigPage />} />
           <Route path="digital" element={<DigitalBankingPage />} />
         </Route>
 

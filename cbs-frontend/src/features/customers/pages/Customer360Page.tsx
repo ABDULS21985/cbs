@@ -61,7 +61,7 @@ function PortfolioTab({ customerId, customerName }: { customerId: number; custom
       category: 'Cards',
       items: cards.map((c) => ({
         name: `${c.scheme} ${c.cardType}`,
-        value: c.maskedPan ?? c.cardNumberMasked ?? '****',
+        value: c.maskedPan ?? '****',
         status: c.status,
       })),
     },

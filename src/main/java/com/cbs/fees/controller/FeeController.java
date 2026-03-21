@@ -151,4 +151,11 @@ public class FeeController {
         Page<FeeChargeLog> result = feeService.getAccountFeeHistory(accountId, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
+
+    @PostMapping("/charges/{chargeLogId}/reverse")
+    @Operation(summary = "Reverse a previously charged fee — credits the customer account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<FeeChargeLog>> reverseFeeCharge(@PathVariable Long chargeLogId) {
+        return ResponseEntity.ok(ApiResponse.ok(feeService.reverseFeeCharge(chargeLogId)));
+    }
 }

@@ -8,6 +8,7 @@ import { Loader2, AlertCircle, CheckCircle, DollarSign, Shield, Clock, Users } f
 import { formatMoney, formatDate, formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { ColumnDef } from '@tanstack/react-table';
+import { useHasRole } from '@/hooks/usePermission';
 import { escrowApi } from '../../api/escrowApi';
 import type { EscrowMandate, EscrowRelease } from '../../types/escrow';
 
@@ -98,6 +99,8 @@ const releaseCols: ColumnDef<EscrowRelease, unknown>[] = [
 export function EscrowDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const isAdmin = useHasRole('CBS_ADMIN');
+  const canRequestRelease = useHasRole(['CBS_ADMIN', 'CBS_OFFICER']);
   const [showReleaseForm, setShowReleaseForm] = useState(false);
 
   const { data: mandate, isLoading, isError } = useQuery({
@@ -140,7 +143,7 @@ export function EscrowDetailPage() {
         actions={
           <div className="flex items-center gap-2">
             <StatusBadge status={mandate.status} size="md" dot />
-            {canRelease && (
+            {canRelease && canRequestRelease && (
               <button onClick={() => setShowReleaseForm(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
                 <DollarSign className="w-3.5 h-3.5" /> Request Release
@@ -219,13 +222,17 @@ export function EscrowDetailPage() {
                     <span className="font-mono font-semibold">{formatMoney(rel.releaseAmount)}</span>
                     <span className="text-muted-foreground ml-2">— {rel.releaseReason}</span>
                   </div>
-                  <button
-                    onClick={() => approveMutation.mutate(rel.id)}
-                    disabled={approveMutation.isPending}
-                    className="px-3 py-1 text-xs rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
-                  >
-                    Approve & Execute
-                  </button>
+                  {isAdmin ? (
+                    <button
+                      onClick={() => approveMutation.mutate(rel.id)}
+                      disabled={approveMutation.isPending}
+                      className="px-3 py-1 text-xs rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                    >
+                      Approve & Execute
+                    </button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">Admin approval required</span>
+                  )}
                 </div>
               ))}
             </div>

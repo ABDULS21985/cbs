@@ -25,10 +25,10 @@ export function QuickContributeDialog({ goal, onClose, onCompleted }: QuickContr
   const handleSubmit = () => {
     if (amount <= 0) { toast.error('Enter a valid amount'); return; }
     contribute.mutate(
-      { goalId: goal.id, amount },
+      { goalId: goal.id, payload: { amount } },
       {
         onSuccess: (result) => {
-          toast.success(`${formatMoney(amount)} contributed to ${goal.name}`);
+          toast.success(`${formatMoney(amount)} contributed to ${goal.goalName}`);
           if (result?.status === 'COMPLETED' || willComplete) {
             onCompleted?.();
           }
@@ -47,9 +47,9 @@ export function QuickContributeDialog({ goal, onClose, onCompleted }: QuickContr
 
         {/* Goal info */}
         <div className="flex items-center gap-3 mb-4">
-          <span className="text-2xl">{goal.icon}</span>
+          <span className="text-2xl">{goal.goalIcon || '🎯'}</span>
           <div>
-            <p className="text-sm font-semibold">{goal.name}</p>
+            <p className="text-sm font-semibold">{goal.goalName}</p>
             <p className="text-xs text-muted-foreground tabular-nums">
               {formatMoney(goal.currentAmount)} / {formatMoney(goal.targetAmount)}
             </p>
@@ -105,9 +105,9 @@ export function QuickContributeDialog({ goal, onClose, onCompleted }: QuickContr
         )}
 
         {/* Source account */}
-        {goal.sourceAccountNumber && (
+        {goal.accountNumber && (
           <p className="text-xs text-muted-foreground mb-4">
-            Source: <span className="font-mono">{goal.sourceAccountNumber}</span>
+            Source: <span className="font-mono">{goal.accountNumber}</span>
           </p>
         )}
 

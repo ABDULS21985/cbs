@@ -18,7 +18,7 @@ export function BulkActionBar({
   if (count < 1) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 z-40 w-[min(92vw,760px)] -translate-x-1/2 rounded-2xl border bg-card/95 px-4 py-3 shadow-2xl backdrop-blur">
+    <div className="no-print fixed bottom-6 left-1/2 z-40 w-[min(92vw,760px)] -translate-x-1/2 rounded-2xl border bg-card/95 px-4 py-3 shadow-2xl backdrop-blur">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-sm font-medium">
           <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-primary/10 px-2 font-semibold text-primary">

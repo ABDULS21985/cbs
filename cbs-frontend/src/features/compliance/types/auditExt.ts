@@ -1,5 +1,7 @@
 // Auto-generated from backend entities
 
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'READ' | 'APPROVE' | 'REJECT' | 'LOGIN' | 'LOGOUT' | 'EXPORT';
+
 export interface AuditEvent {
   id: number;
   eventType: string;

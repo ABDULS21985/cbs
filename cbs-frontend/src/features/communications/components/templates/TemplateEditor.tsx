@@ -1,8 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { MergeFieldToolbar } from './MergeFieldToolbar';
-import { ChannelBadge } from './ChannelBadge';
 import type { NotificationTemplate, NotificationChannel } from '../../../admin/api/notificationAdminApi';
 
 const CHANNELS: { value: NotificationChannel; label: string }[] = [

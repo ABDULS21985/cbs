@@ -1,8 +1,12 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { differenceInCalendarDays, parseISO, subDays } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 import { transactionApi, type TransactionSearchParams, type TransactionSummary, type Transaction } from '../api/transactionApi';
+import { createAccountUrlRef, resolveAccountUrlRef } from '../lib/urlAccountRef';
+
+export type TransactionSortField = 'postingDate' | 'amount';
+export type TransactionSortDirection = 'asc' | 'desc';
 
 export interface TransactionFilters {
   search: string;
@@ -18,6 +22,8 @@ export interface TransactionFilters {
   flaggedOnly: boolean;
   page: number;
   pageSize: number;
+  sortBy: TransactionSortField;
+  sortDirection: TransactionSortDirection;
 }
 
 export interface SavedSearch {
@@ -51,6 +57,8 @@ const DEFAULT_FILTERS: TransactionFilters = {
   flaggedOnly: false,
   page: 0,
   pageSize: 20,
+  sortBy: 'postingDate',
+  sortDirection: 'desc',
 };
 
 const EMPTY_SUMMARY: TransactionSummary = {
@@ -64,35 +72,41 @@ const EMPTY_TRANSACTIONS: Transaction[] = [];
 type SearchParamSyncAction = 'trigger' | 'manual-empty-search' | 'reset' | null;
 
 function getInitialFilters(searchParams: URLSearchParams): TransactionFilters {
+  const sort = searchParams.get('sort') ?? '';
+  const [sortBy, sortDirection] = sort.split(',') as [TransactionSortField | undefined, TransactionSortDirection | undefined];
+
   return {
     ...DEFAULT_FILTERS,
     search: searchParams.get('q') ?? '',
-    accountNumber: searchParams.get('acc') ?? '',
+    accountNumber: resolveAccountUrlRef(searchParams.get('acc')),
+    customerId: searchParams.get('cust') ?? '',
     dateFrom: searchParams.get('from') ?? '',
     dateTo: searchParams.get('to') ?? '',
+    amountFrom: Number(searchParams.get('amin') ?? 0) || 0,
+    amountTo: Number(searchParams.get('amax') ?? 0) || 0,
     type: (searchParams.get('type') as TransactionFilters['type']) ?? DEFAULT_FILTERS.type,
     channel: (searchParams.get('ch') as TransactionFilters['channel']) ?? DEFAULT_FILTERS.channel,
     status: (searchParams.get('st') as TransactionFilters['status']) ?? DEFAULT_FILTERS.status,
     flaggedOnly: searchParams.get('flag') === '1',
+    page: Number(searchParams.get('page') ?? DEFAULT_FILTERS.page) || DEFAULT_FILTERS.page,
+    pageSize: Number(searchParams.get('pageSize') ?? DEFAULT_FILTERS.pageSize) || DEFAULT_FILTERS.pageSize,
+    sortBy: sortBy === 'amount' || sortBy === 'postingDate' ? sortBy : DEFAULT_FILTERS.sortBy,
+    sortDirection: sortDirection === 'asc' || sortDirection === 'desc'
+      ? sortDirection
+      : DEFAULT_FILTERS.sortDirection,
   };
 }
 
 function mergeUrlFilters(base: TransactionFilters, searchParams: URLSearchParams): TransactionFilters {
+  const next = getInitialFilters(searchParams);
   return {
     ...base,
-    search: searchParams.get('q') ?? '',
-    accountNumber: searchParams.get('acc') ?? '',
-    dateFrom: searchParams.get('from') ?? '',
-    dateTo: searchParams.get('to') ?? '',
-    type: (searchParams.get('type') as TransactionFilters['type']) ?? DEFAULT_FILTERS.type,
-    channel: (searchParams.get('ch') as TransactionFilters['channel']) ?? DEFAULT_FILTERS.channel,
-    status: (searchParams.get('st') as TransactionFilters['status']) ?? DEFAULT_FILTERS.status,
-    flaggedOnly: searchParams.get('flag') === '1',
+    ...next,
   };
 }
 
 function hasUrlFilters(searchParams: URLSearchParams): boolean {
-  return ['q', 'acc', 'from', 'to', 'type', 'ch', 'st', 'flag'].some((key) => {
+  return ['q', 'acc', 'cust', 'from', 'to', 'amin', 'amax', 'type', 'ch', 'st', 'flag', 'page', 'pageSize', 'sort'].some((key) => {
     const value = searchParams.get(key);
     return value !== null && value !== '';
   });
@@ -101,13 +115,24 @@ function hasUrlFilters(searchParams: URLSearchParams): boolean {
 function toSearchParams(filters: TransactionFilters): URLSearchParams {
   const next = new URLSearchParams();
   if (filters.search.trim()) next.set('q', filters.search.trim());
-  if (filters.accountNumber.trim()) next.set('acc', filters.accountNumber.trim());
+  if (filters.accountNumber.trim()) next.set('acc', createAccountUrlRef(filters.accountNumber.trim()));
+  if (filters.customerId.trim()) next.set('cust', filters.customerId.trim());
   if (filters.dateFrom) next.set('from', filters.dateFrom);
   if (filters.dateTo) next.set('to', filters.dateTo);
+  if (filters.amountFrom > 0) next.set('amin', String(filters.amountFrom));
+  if (filters.amountTo > 0) next.set('amax', String(filters.amountTo));
   if (filters.type && filters.type !== 'ALL') next.set('type', filters.type);
   if (filters.channel && filters.channel !== 'ALL') next.set('ch', filters.channel);
   if (filters.status && filters.status !== 'ALL') next.set('st', filters.status);
   if (filters.flaggedOnly) next.set('flag', '1');
+  if (filters.page > 0) next.set('page', String(filters.page));
+  if (filters.pageSize !== DEFAULT_FILTERS.pageSize) next.set('pageSize', String(filters.pageSize));
+  if (
+    filters.sortBy !== DEFAULT_FILTERS.sortBy ||
+    filters.sortDirection !== DEFAULT_FILTERS.sortDirection
+  ) {
+    next.set('sort', `${filters.sortBy},${filters.sortDirection}`);
+  }
   return next;
 }
 
@@ -125,11 +150,20 @@ function areFiltersEqual(left: TransactionFilters, right: TransactionFilters): b
     left.status === right.status &&
     left.flaggedOnly === right.flaggedOnly &&
     left.page === right.page &&
-    left.pageSize === right.pageSize
+    left.pageSize === right.pageSize &&
+    left.sortBy === right.sortBy &&
+    left.sortDirection === right.sortDirection
   );
 }
 
 function sanitizeFilters(filters: TransactionFilters): TransactionFilters {
+  const sortBy = filters.sortBy === 'amount' || filters.sortBy === 'postingDate'
+    ? filters.sortBy
+    : DEFAULT_FILTERS.sortBy;
+  const sortDirection = filters.sortDirection === 'asc' || filters.sortDirection === 'desc'
+    ? filters.sortDirection
+    : DEFAULT_FILTERS.sortDirection;
+
   return {
     ...DEFAULT_FILTERS,
     ...filters,
@@ -146,6 +180,8 @@ function sanitizeFilters(filters: TransactionFilters): TransactionFilters {
     flaggedOnly: Boolean(filters.flaggedOnly),
     page: Number.isFinite(filters.page) ? filters.page : 0,
     pageSize: Number.isFinite(filters.pageSize) ? filters.pageSize : DEFAULT_FILTERS.pageSize,
+    sortBy,
+    sortDirection,
   };
 }
 
@@ -235,6 +271,7 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
   const [submittedFilters, setSubmittedFilters] = useState<TransactionFilters>(() => getInitialFilters(searchParams));
   const [hasSearched, setHasSearched] = useState(() => hasUrlFilters(searchParams));
   const [elapsedMs, setElapsedMs] = useState<number | null>(null);
+  const [isReady, setIsReady] = useState(false);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(
     () =>
       readStoredItems<SavedSearch>(SAVED_SEARCHES_STORAGE_KEY, (item) => {
@@ -263,21 +300,27 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
   const lastFetchStartedAtRef = useRef<number | null>(null);
   const searchParamSyncActionRef = useRef<SearchParamSyncAction>(null);
 
-  const queryParams: TransactionSearchParams = useMemo(() => ({
-    search: submittedFilters.search || undefined,
-    accountNumber: submittedFilters.accountNumber || undefined,
-    customerId: submittedFilters.customerId || undefined,
-    dateFrom: submittedFilters.dateFrom || undefined,
-    dateTo: submittedFilters.dateTo || undefined,
-    amountFrom: submittedFilters.amountFrom > 0 ? submittedFilters.amountFrom : undefined,
-    amountTo: submittedFilters.amountTo > 0 ? submittedFilters.amountTo : undefined,
-    type: submittedFilters.type !== 'ALL' ? submittedFilters.type : undefined,
-    channel: submittedFilters.channel !== 'ALL' ? submittedFilters.channel : undefined,
-    status: submittedFilters.status !== 'ALL' ? submittedFilters.status : undefined,
-    flaggedOnly: submittedFilters.flaggedOnly || undefined,
-    page: submittedFilters.page,
-    pageSize: submittedFilters.pageSize,
-  }), [submittedFilters]);
+  const buildQueryParams = useCallback((currentFilters: TransactionFilters): TransactionSearchParams => ({
+    search: currentFilters.search || undefined,
+    accountNumber: currentFilters.accountNumber || undefined,
+    customerId: currentFilters.customerId || undefined,
+    dateFrom: currentFilters.dateFrom || undefined,
+    dateTo: currentFilters.dateTo || undefined,
+    amountFrom: currentFilters.amountFrom > 0 ? currentFilters.amountFrom : undefined,
+    amountTo: currentFilters.amountTo > 0 ? currentFilters.amountTo : undefined,
+    type: currentFilters.type !== 'ALL' ? currentFilters.type : undefined,
+    channel: currentFilters.channel !== 'ALL' ? currentFilters.channel : undefined,
+    status: currentFilters.status !== 'ALL' ? currentFilters.status : undefined,
+    flaggedOnly: currentFilters.flaggedOnly || undefined,
+    page: currentFilters.page,
+    pageSize: currentFilters.pageSize,
+    sort: `${currentFilters.sortBy},${currentFilters.sortDirection}`,
+  }), []);
+
+  const queryParams: TransactionSearchParams = useMemo(
+    () => buildQueryParams(submittedFilters),
+    [buildQueryParams, submittedFilters],
+  );
 
   const previousPeriodFilters = useMemo(
     () => (hasSearched ? getPreviousPeriodFilters(submittedFilters) : null),
@@ -287,38 +330,45 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
   const previousPeriodQueryParams = useMemo<TransactionSearchParams | null>(() => {
     if (!previousPeriodFilters) return null;
     return {
-      search: previousPeriodFilters.search || undefined,
-      accountNumber: previousPeriodFilters.accountNumber || undefined,
-      customerId: previousPeriodFilters.customerId || undefined,
-      dateFrom: previousPeriodFilters.dateFrom || undefined,
-      dateTo: previousPeriodFilters.dateTo || undefined,
-      amountFrom: previousPeriodFilters.amountFrom > 0 ? previousPeriodFilters.amountFrom : undefined,
-      amountTo: previousPeriodFilters.amountTo > 0 ? previousPeriodFilters.amountTo : undefined,
-      type: previousPeriodFilters.type !== 'ALL' ? previousPeriodFilters.type : undefined,
-      channel: previousPeriodFilters.channel !== 'ALL' ? previousPeriodFilters.channel : undefined,
-      status: previousPeriodFilters.status !== 'ALL' ? previousPeriodFilters.status : undefined,
-      flaggedOnly: previousPeriodFilters.flaggedOnly || undefined,
+      ...buildQueryParams(previousPeriodFilters),
       page: 0,
       pageSize: 1,
     };
-  }, [previousPeriodFilters]);
+  }, [buildQueryParams, previousPeriodFilters]);
 
-  const { data, isLoading, isFetching, isError, refetch, dataUpdatedAt } = useQuery({
+  const { data, isLoading, isFetching, isError, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ['transactions', 'search', submittedFilters],
-    queryFn: async () => {
-      lastFetchStartedAtRef.current = Date.now();
-      return transactionApi.searchTransactions(queryParams);
+    queryFn: async ({ signal }) => {
+      lastFetchStartedAtRef.current = performance.now();
+      const result = await transactionApi.searchTransactions(queryParams, { signal });
+      const elapsed = lastFetchStartedAtRef.current === null
+        ? null
+        : performance.now() - lastFetchStartedAtRef.current;
+
+      if (elapsed !== null && elapsed > 2_000) {
+        console.warn(`[TXN SEARCH] Slow query: ${Math.round(elapsed)}ms`, queryParams);
+      }
+
+      return result;
     },
     enabled: hasSearched,
-    staleTime: 30_000,
-    refetchInterval: hasSearched && refreshIntervalMs ? refreshIntervalMs : false,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+    refetchInterval: () => {
+      if (!hasSearched || !refreshIntervalMs) return false;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+      return refreshIntervalMs;
+    },
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   const { data: previousPeriodResult } = useQuery({
     queryKey: ['transactions', 'search', 'comparison', previousPeriodFilters],
-    queryFn: () => transactionApi.searchTransactions(previousPeriodQueryParams!),
+    queryFn: ({ signal }) => transactionApi.searchTransactions(previousPeriodQueryParams!, { signal }),
     enabled: Boolean(hasSearched && previousPeriodQueryParams),
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
 
   const transactions: Transaction[] = data?.transactions ?? EMPTY_TRANSACTIONS;
@@ -329,6 +379,10 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
     if (!previousPeriodFilters) return null;
     return `${previousPeriodFilters.dateFrom} to ${previousPeriodFilters.dateTo}`;
   }, [previousPeriodFilters]);
+
+  useEffect(() => {
+    setIsReady(true);
+  }, []);
 
   useEffect(() => {
     const nextHasUrlFilters = hasUrlFilters(searchParams);
@@ -360,7 +414,7 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
 
   useEffect(() => {
     if (!hasSearched || !dataUpdatedAt || lastFetchStartedAtRef.current === null) return;
-    setElapsedMs(Math.max(0, Date.now() - lastFetchStartedAtRef.current));
+    setElapsedMs(Math.max(0, Math.round(performance.now() - lastFetchStartedAtRef.current)));
   }, [dataUpdatedAt, hasSearched]);
 
   useEffect(() => {
@@ -491,16 +545,34 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
   }, [recentSearches, searchWithFilters]);
 
   const setPage = useCallback((page: number) => {
-    setFilters((prev) => sanitizeFilters({ ...prev, page }));
+    setFilters((prev) => {
+      const next = sanitizeFilters({ ...prev, page });
+      if (hasSearched) setSearchParams(toSearchParams(next));
+      return next;
+    });
     setSubmittedFilters((prev) => sanitizeFilters({ ...prev, page }));
     setSelectedTransactionIds([]);
-  }, []);
+  }, [hasSearched, setSearchParams]);
 
   const setPageSize = useCallback((pageSize: number) => {
-    setFilters((prev) => sanitizeFilters({ ...prev, page: 0, pageSize }));
+    setFilters((prev) => {
+      const next = sanitizeFilters({ ...prev, page: 0, pageSize });
+      if (hasSearched) setSearchParams(toSearchParams(next));
+      return next;
+    });
     setSubmittedFilters((prev) => sanitizeFilters({ ...prev, page: 0, pageSize }));
     setSelectedTransactionIds([]);
-  }, []);
+  }, [hasSearched, setSearchParams]);
+
+  const setSort = useCallback((sortBy: TransactionSortField, sortDirection: TransactionSortDirection) => {
+    setFilters((prev) => {
+      const next = sanitizeFilters({ ...prev, sortBy, sortDirection, page: 0 });
+      if (hasSearched) setSearchParams(toSearchParams(next));
+      return next;
+    });
+    setSubmittedFilters((prev) => sanitizeFilters({ ...prev, sortBy, sortDirection, page: 0 }));
+    setSelectedTransactionIds([]);
+  }, [hasSearched, setSearchParams]);
 
   const toggleTransactionSelection = useCallback((transactionId: string) => {
     setSelectedTransactionIds((prev) =>
@@ -546,6 +618,7 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
     resetFilters,
     setPage,
     setPageSize,
+    setSort,
     transactions,
     summary,
     previousSummary,
@@ -554,9 +627,11 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
     isFetching,
     isRefreshing: isFetching && !isLoading,
     isError,
+    error,
     refetch,
     elapsedMs,
     hasSearched,
+    isReady,
     savedSearches,
     recentSearches,
     saveCurrentSearch,

@@ -1,5 +1,14 @@
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
-import type { ValidationRule } from '../../api/regulatoryApi';
+
+export interface ValidationRule {
+  ruleNumber: number;
+  description: string;
+  expectedValue?: string;
+  actualValue?: string;
+  difference?: string;
+  severity: 'ERROR' | 'WARNING' | 'INFO';
+  passed: boolean;
+}
 
 interface Props { rules: ValidationRule[] }
 

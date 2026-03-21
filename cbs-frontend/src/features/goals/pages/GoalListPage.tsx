@@ -17,19 +17,19 @@ function sortGoals(goals: SavingsGoal[], sortBy: string): SavingsGoal[] {
   const sorted = [...goals];
   switch (sortBy) {
     case 'progress':
-      return sorted.sort((a, b) => {
-        const pA = a.targetAmount > 0 ? a.currentAmount / a.targetAmount : 0;
-        const pB = b.targetAmount > 0 ? b.currentAmount / b.targetAmount : 0;
-        return pB - pA;
-      });
+      return sorted.sort((a, b) => b.progressPercentage - a.progressPercentage);
     case 'amount':
       return sorted.sort((a, b) => b.currentAmount - a.currentAmount);
     case 'target':
       return sorted.sort((a, b) => b.targetAmount - a.targetAmount);
     case 'date':
-      return sorted.sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime());
+      return sorted.sort((a, b) => {
+        if (!a.targetDate) return 1;
+        if (!b.targetDate) return -1;
+        return new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime();
+      });
     case 'name':
-      return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      return sorted.sort((a, b) => a.goalName.localeCompare(b.goalName));
     default:
       return sorted;
   }
@@ -49,7 +49,7 @@ export function GoalListPage() {
   const filtered = useMemo(() => {
     let result = goals;
     if (statusFilter) result = result.filter((g) => g.status === statusFilter);
-    if (search) result = result.filter((g) => g.name.toLowerCase().includes(search.toLowerCase()));
+    if (search) result = result.filter((g) => g.goalName.toLowerCase().includes(search.toLowerCase()));
     return sortGoals(result, sortBy);
   }, [goals, statusFilter, sortBy, search]);
 
@@ -134,7 +134,7 @@ export function GoalListPage() {
                 return (
                   <div key={rd.id} onClick={() => navigate(`/accounts/recurring-deposits/${rd.id}`)} className="flex-shrink-0 w-56 rounded-xl border bg-card p-4 cursor-pointer hover:shadow-sm transition-shadow">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-mono text-xs text-primary font-medium">RD-{rd.id.slice(-4)}</span>
+                      <span className="font-mono text-xs text-primary font-medium">RD-{String(rd.id).slice(-4)}</span>
                       <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-full',
                         rd.status === 'ACTIVE' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                         rd.status === 'COMPLETED' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :

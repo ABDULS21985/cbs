@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Download, Loader2, Printer, ShieldAlert, X } from 'lucide-react';
+import { Download, Loader2, Printer, ShieldAlert, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { InfoGrid, StatusBadge } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
@@ -11,6 +11,8 @@ import { TransactionReceipt } from './TransactionReceipt';
 import { AuditTrailTimeline } from './AuditTrailTimeline';
 import { DisputeFilingForm } from './disputes/DisputeFilingForm';
 import { EnhancedReversalWorkflow } from './reversals/EnhancedReversalWorkflow';
+import { TransactionDetailSkeleton } from './TransactionDetailSkeleton';
+import { TransactionErrorState } from './TransactionErrorState';
 
 interface TransactionDetailModalProps {
   transaction: Transaction | null;
@@ -35,17 +37,22 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
   const [reversalOpen, setReversalOpen] = useState(false);
   const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+  const statusAreaId = useId();
 
   const {
     data: transactionDetail,
     isLoading: isDetailLoading,
     isError: isDetailError,
+    error: detailError,
     refetch: refetchDetail,
   } = useQuery({
     queryKey: ['transactions', 'detail', transaction?.id],
-    queryFn: () => transactionApi.getTransaction(transaction!.id),
+    queryFn: ({ signal }) => transactionApi.getTransaction(transaction!.id, { signal }),
     enabled: open && Boolean(transaction?.id),
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
 
   useEffect(() => {
@@ -62,6 +69,53 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
     setReversalOpen(false);
   }, [transaction?.id]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    const focusFirst = window.setTimeout(() => {
+      closeButtonRef.current?.focus();
+    }, 0);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!dialogRef.current) return;
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      const nodes = Array.from(focusable).filter((element) => !element.hasAttribute('disabled'));
+      if (nodes.length === 0) {
+        return;
+      }
+
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.clearTimeout(focusFirst);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose, open]);
+
   const downloadMutation = useMutation({
     mutationFn: (id: string) => transactionApi.downloadReceipt(id),
     onSuccess: () => toast.success('Receipt downloaded'),
@@ -73,6 +127,10 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
   const canDispute = detail ? isDisputeEligible(detail) : false;
 
   const auditEvents = useMemo(() => detail?.auditTrail ?? [], [detail?.auditTrail]);
+
+  const safeMoney = (amount: number | undefined) => {
+    return typeof amount === 'number' && Number.isFinite(amount) ? formatMoney(amount) : '—';
+  };
 
   if (!open || !transaction || !detail) return null;
 
@@ -93,13 +151,24 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
       <div className="fixed inset-0 z-50 bg-black/50" onClick={onClose} />
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border bg-card shadow-2xl">
+        <div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border bg-card shadow-2xl"
+        >
           <div className="flex items-center justify-between border-b px-6 py-4">
             <div>
-              <h2 className="text-lg font-semibold">Transaction Details</h2>
+              <h2 id={titleId} className="text-lg font-semibold">Transaction Details</h2>
               <p className="mt-0.5 font-mono text-sm text-muted-foreground">{detail.reference}</p>
             </div>
-            <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted">
+            <button
+              ref={closeButtonRef}
+              onClick={onClose}
+              aria-label="Close transaction detail"
+              className="rounded-lg p-1.5 hover:bg-muted"
+            >
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -121,21 +190,15 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
 
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
             {isDetailError && !isDetailLoading && (
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  <span>Could not load full transaction details. Showing the search result snapshot.</span>
-                </div>
-                <button
-                  onClick={() => refetchDetail()}
-                  className="rounded-md border border-amber-200 px-3 py-1.5 text-xs font-medium hover:bg-amber-100 dark:border-amber-900/40 dark:hover:bg-amber-900/20"
-                >
-                  Retry
-                </button>
-              </div>
+              <TransactionErrorState
+                error={detailError}
+                onRetry={() => refetchDetail()}
+                compact
+                className="border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300"
+              />
             )}
 
-            {detail.amlFlag && (
+            {!isDetailLoading && detail.amlFlag && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
                 <div className="flex items-start gap-2">
                   <ShieldAlert className="mt-0.5 h-4 w-4" />
@@ -151,46 +214,19 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
               </div>
             )}
 
-            {detail.latestDispute && (
+            {!isDetailLoading && detail.latestDispute && (
               <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300">
                 Latest dispute {detail.latestDispute.disputeRef} is {detail.latestDispute.status.replaceAll('_', ' ')}.
               </div>
             )}
 
             {isDetailLoading ? (
-              <>
-                <div className="flex flex-wrap items-center gap-3 animate-pulse">
-                  <div className="h-8 w-24 rounded-md bg-muted" />
-                  <div className="h-4 w-10 rounded bg-muted" />
-                  <div className="h-8 w-28 rounded-md bg-muted" />
-                  <div className="h-8 w-24 rounded-full bg-muted" />
-                </div>
-                <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/30 p-4">
-                  <div className="space-y-2 animate-pulse">
-                    <div className="h-3 w-12 rounded bg-muted" />
-                    <div className="h-4 w-32 rounded bg-muted" />
-                  </div>
-                  <div className="space-y-2 animate-pulse">
-                    <div className="h-3 w-8 rounded bg-muted" />
-                    <div className="h-4 w-32 rounded bg-muted" />
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-6 rounded-lg border bg-muted/20 px-4 py-3 animate-pulse">
-                  <div className="space-y-2">
-                    <div className="h-3 w-20 rounded bg-muted" />
-                    <div className="h-6 w-28 rounded bg-muted" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="h-3 w-20 rounded bg-muted" />
-                    <div className="h-6 w-28 rounded bg-muted" />
-                  </div>
-                </div>
-              </>
+              <TransactionDetailSkeleton />
             ) : activeTab === 'audit' ? (
               <AuditTrailTimeline events={auditEvents} />
             ) : (
               <>
-                <div className="flex flex-wrap items-center gap-3">
+                <div id={statusAreaId} aria-live="polite" className="flex flex-wrap items-center gap-3">
                   <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-sm font-medium">
                     {detail.type.replace(/_/g, ' ')}
                   </span>
@@ -224,19 +260,19 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
                   {detail.debitAmount !== undefined && (
                     <div>
                       <p className="mb-0.5 text-xs text-muted-foreground">Debit Amount</p>
-                      <p className="font-mono text-lg font-bold text-red-600 dark:text-red-400">{formatMoney(detail.debitAmount)}</p>
+                      <p className="font-mono text-lg font-bold text-red-600 dark:text-red-400">{safeMoney(detail.debitAmount)}</p>
                     </div>
                   )}
                   {detail.creditAmount !== undefined && (
                     <div>
                       <p className="mb-0.5 text-xs text-muted-foreground">Credit Amount</p>
-                      <p className="font-mono text-lg font-bold text-green-600 dark:text-green-400">{formatMoney(detail.creditAmount)}</p>
+                      <p className="font-mono text-lg font-bold text-green-600 dark:text-green-400">{safeMoney(detail.creditAmount)}</p>
                     </div>
                   )}
                   {detail.fee !== undefined && detail.fee > 0 && (
                     <div>
                       <p className="mb-0.5 text-xs text-muted-foreground">Fee</p>
-                      <p className="font-mono text-base font-semibold text-amber-600 dark:text-amber-400">{formatMoney(detail.fee)}</p>
+                      <p className="font-mono text-base font-semibold text-amber-600 dark:text-amber-400">{safeMoney(detail.fee)}</p>
                     </div>
                   )}
                 </div>

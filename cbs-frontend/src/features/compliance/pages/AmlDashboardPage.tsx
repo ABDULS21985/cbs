@@ -305,7 +305,7 @@ export function AmlDashboardPage() {
                 { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="font-mono">{formatMoney((row.original as Record<string, unknown>).amount as number ?? 0)}</span> },
                 { accessorKey: 'reportingOfficer', header: 'Officer', cell: ({ row }) => <span className="text-xs">{(row.original as Record<string, unknown>).reportingOfficer as string ?? (row.original as Record<string, unknown>).filingOfficer as string ?? '—'}</span> },
                 { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={(row.original as Record<string, unknown>).status as string ?? ''} /> },
-              ] as ColumnDef<Record<string, unknown>, unknown>[]} data={strs as Record<string, unknown>[]} enableGlobalFilter emptyMessage="No STRs filed" />
+              ] as ColumnDef<Record<string, unknown>, unknown>[]} data={strs as unknown as Record<string, unknown>[]} enableGlobalFilter emptyMessage="No STRs filed" />
             </div>
           )},
 
@@ -323,7 +323,7 @@ export function AmlDashboardPage() {
                 { accessorKey: 'currency', header: 'Currency' },
                 { accessorKey: 'transactionCount', header: 'Txn Count' },
                 { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={(row.original as Record<string, unknown>).status as string ?? ''} /> },
-              ] as ColumnDef<Record<string, unknown>, unknown>[]} data={ctrs as Record<string, unknown>[]} enableGlobalFilter emptyMessage="No CTRs" />
+              ] as ColumnDef<Record<string, unknown>, unknown>[]} data={ctrs as unknown as Record<string, unknown>[]} enableGlobalFilter emptyMessage="No CTRs" />
             </div>
           )},
 

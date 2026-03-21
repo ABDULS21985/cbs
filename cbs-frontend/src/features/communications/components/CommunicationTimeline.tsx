@@ -1,5 +1,5 @@
 import { Mail, Smartphone, Bell, Monitor, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
-import { formatDateTime, formatRelative } from '@/lib/formatters';
+import { formatRelative } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { Communication } from '../api/communicationApi';
 import type { NotificationLog } from '../api/communicationApi';
@@ -74,7 +74,7 @@ export function CommunicationTimeline({ communications = [], notifications = [],
 
   return (
     <div className="space-y-0">
-      {items.map((item, i) => {
+      {items.map((item) => {
         const ChannelIcon = channelIcons[item.channel] ?? Mail;
         const StatusIcon = statusIcons[item.status] ?? Clock;
         return (

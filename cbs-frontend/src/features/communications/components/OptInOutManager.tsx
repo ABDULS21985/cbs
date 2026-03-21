@@ -98,7 +98,7 @@ export function OptInOutManager({ customerId }: Props) {
               <tr key={cat.key} className="border-b last:border-0 hover:bg-muted/10 transition-colors">
                 <td className="px-4 py-3 text-sm font-medium flex items-center gap-2">
                   {cat.label}
-                  {cat.mandatory && <Lock className="w-3 h-3 text-muted-foreground" title="Cannot disable — mandatory" />}
+                  {cat.mandatory && <Lock className="w-3 h-3 text-muted-foreground" aria-label="Cannot disable — mandatory" />}
                 </td>
                 {CHANNELS.map(ch => {
                   const key = `${ch.key}-${cat.key}`;

@@ -37,6 +37,17 @@ public class EscrowController {
                 .body(ApiResponse.ok(escrowService.createMandate(request), "Escrow mandate created"));
     }
 
+    @GetMapping
+    @Operation(summary = "List all escrow mandates")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<EscrowResponse>>> listMandates(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<EscrowResponse> result = escrowService.getAllMandates(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get escrow mandate details")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")

@@ -61,7 +61,7 @@ export const amlApi = {
 
   /** POST /v1/aml/strs */
   fileStr: (data: FileStrPayload) =>
-    apiPost<Record<string, unknown>>('/api/v1/aml/strs', data),
+    apiPost<AmlAlert>('/api/v1/aml/strs', data),
 
   /** GET /v1/aml/strs */
   getStrs: (params?: Record<string, unknown>) =>

@@ -45,15 +45,13 @@ export function KycReviewPanel({ counterparty, onClose }: KycReviewPanelProps) {
       toast.error('Reviewer name is required');
       return;
     }
-    verifyKyc.mutate(
-      { code: counterparty.counterpartyCode, ...form },
-      {
-        onSuccess: () => {
-          toast.success('KYC verification updated');
-          onClose();
-        },
+    // Backend POST /{code}/verify-kyc accepts only the path param — no body
+    verifyKyc.mutate(counterparty.counterpartyCode, {
+      onSuccess: () => {
+        toast.success('KYC verification submitted');
+        onClose();
       },
-    );
+    });
   };
 
   const riskColors: Record<string, string> = { LOW: 'text-green-600', MEDIUM: 'text-amber-600', HIGH: 'text-red-600' };

@@ -23,6 +23,14 @@ public interface EscrowMandateRepository extends JpaRepository<EscrowMandate, Lo
     @Query("SELECT e FROM EscrowMandate e JOIN FETCH e.account JOIN FETCH e.customer WHERE e.id = :id")
     Optional<EscrowMandate> findByIdWithDetails(@Param("id") Long id);
 
+    @Query(value = "SELECT e FROM EscrowMandate e JOIN FETCH e.account JOIN FETCH e.customer",
+           countQuery = "SELECT count(e) FROM EscrowMandate e")
+    Page<EscrowMandate> findAllWithDetails(Pageable pageable);
+
+    @Query(value = "SELECT e FROM EscrowMandate e JOIN FETCH e.account JOIN FETCH e.customer WHERE e.customer.id = :customerId",
+           countQuery = "SELECT count(e) FROM EscrowMandate e WHERE e.customer.id = :customerId")
+    Page<EscrowMandate> findByCustomerIdWithDetails(@Param("customerId") Long customerId, Pageable pageable);
+
     @Query(value = "SELECT nextval('cbs.escrow_mandate_seq')", nativeQuery = true)
     Long getNextMandateSequence();
 }

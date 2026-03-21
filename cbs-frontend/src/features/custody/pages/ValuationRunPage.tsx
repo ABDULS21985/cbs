@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, InfoGrid, DataTable, TabsPage, EmptyState } from '@/components/shared';
-import { formatMoney, formatDate, formatDateTime, formatPercent } from '@/lib/formatters';
+import { formatMoney, formatDate, formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';

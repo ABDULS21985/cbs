@@ -22,13 +22,27 @@ export const marketplaceApi = {
   getByCategory: (category: string) =>
     apiGet<MarketplaceApiProduct[]>(`/api/v1/marketplace/products/category/${category}`),
 
-  /** POST /v1/marketplace/subscriptions */
-  subscribe: () =>
-    apiPost<MarketplaceSubscription>('/api/v1/marketplace/subscriptions'),
+  /** GET /v1/marketplace/subscriptions — list all subscriptions */
+  getSubscriptions: () =>
+    apiGet<MarketplaceSubscription[]>('/api/v1/marketplace/subscriptions'),
 
-  /** POST /v1/marketplace/subscriptions/{subscriptionId}/approve */
-  approve: (subscriptionId: number) =>
+  /** POST /v1/marketplace/subscriptions — uses @RequestParam */
+  subscribe: (data: { productId: number; subscriberName: string; subscriberEmail?: string; planTier?: string }) => {
+    const p = new URLSearchParams();
+    p.set('productId', String(data.productId));
+    p.set('subscriberName', data.subscriberName);
+    if (data.subscriberEmail) p.set('subscriberEmail', data.subscriberEmail);
+    if (data.planTier) p.set('planTier', data.planTier);
+    return apiPost<MarketplaceSubscription>(`/api/v1/marketplace/subscriptions?${p.toString()}`);
+  },
+
+  /** POST /v1/marketplace/subscriptions/{subscriptionId}/approve — subscriptionId is String */
+  approve: (subscriptionId: string) =>
     apiPost<MarketplaceSubscription>(`/api/v1/marketplace/subscriptions/${subscriptionId}/approve`),
+
+  /** GET /v1/marketplace/usage — list all usage logs */
+  getUsageLogs: () =>
+    apiGet<MarketplaceUsageLog[]>('/api/v1/marketplace/usage'),
 
   /** POST /v1/marketplace/usage */
   recordUsage: () =>
@@ -37,5 +51,4 @@ export const marketplaceApi = {
   /** GET /v1/marketplace/products/{id}/analytics */
   getAnalytics: (id: number) =>
     apiGet<Record<string, unknown>>(`/api/v1/marketplace/products/${id}/analytics`),
-
 };

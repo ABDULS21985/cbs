@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { StatusBadge } from '@/components/shared';
-import { formatDateTime, formatRelative } from '@/lib/formatters';
-import { cn } from '@/lib/utils';
+import { formatRelative } from '@/lib/formatters';
 import { channelIcon } from './ChannelSelector';
 import { MessageDetailDrawer } from './MessageDetailDrawer';
 import { useFailedNotifications, useRetryFailed } from '../hooks/useCommunications';

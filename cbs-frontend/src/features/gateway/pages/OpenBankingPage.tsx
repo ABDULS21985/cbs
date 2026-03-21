@@ -229,7 +229,7 @@ function ConsentsTab() {
       id: 'actions', header: '',
       cell: ({ row }) => (
         <div className="flex items-center gap-1">
-          {row.original.status === 'AWAITING_AUTHORISATION' && <button onClick={() => authorise.mutate(row.original.consentId, { onSuccess: () => toast.success('Consent authorised') })} className="text-xs px-2 py-1 rounded bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400">Authorise</button>}
+          {row.original.status === 'AWAITING_AUTHORISATION' && <button onClick={() => authorise.mutate({ consentId: row.original.consentId, customerId: row.original.customerId }, { onSuccess: () => toast.success('Consent authorised') })} className="text-xs px-2 py-1 rounded bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400">Authorise</button>}
           {row.original.status === 'AUTHORISED' && <button onClick={() => revoke.mutate(row.original.consentId, { onSuccess: () => toast.success('Consent revoked') })} className="text-xs px-2 py-1 rounded bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400">Revoke</button>}
         </div>
       ),

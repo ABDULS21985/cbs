@@ -87,6 +87,12 @@ export const contactCenterApi = {
   /** POST /v1/contact-center — create a new center */
   createCenter: (data: Partial<ContactCenter>) =>
     apiPost<ContactCenter>('/api/v1/contact-center', data),
+  /** PUT /v1/contact-center/{id} — update center configuration */
+  updateCenter: (id: number, data: Partial<ContactCenter>) =>
+    apiPut<ContactCenter>(`/api/v1/contact-center/${id}`, data),
+  /** POST /v1/contact-center/{id}/deactivate — deactivate a center */
+  deactivateCenter: (id: number) =>
+    apiPost<ContactCenter>(`/api/v1/contact-center/${id}/deactivate`),
 
   // ─── Agents & Queues ─────────────────────────────────────────────────────────
   getAgentStates: () => apiGet<BackendAgentState[]>('/api/v1/contact-center/agents').then((agents) => agents.map(mapAgentState)),

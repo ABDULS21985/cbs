@@ -4,7 +4,6 @@ import {
   Plus, X, Loader2, GripVertical, Play, Search, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatusBadge } from '@/components/shared';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { routingApi, type RoutingRule } from '../api/communicationApi';

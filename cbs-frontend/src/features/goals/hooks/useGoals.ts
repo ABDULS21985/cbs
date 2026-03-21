@@ -1,17 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { goalApi, type CreateGoalInput, type AutoDebitConfig, type SavingsGoal } from '../api/goalApi';
+import { goalApi, type CreateGoalRequest, type GoalFundRequest, type SavingsGoal } from '../api/goalApi';
 
 const KEYS = {
   all: ['goals'] as const,
   list: (params?: Record<string, unknown>) => ['goals', 'list', params] as const,
   customerGoals: (customerId: number) => ['goals', 'customer', customerId] as const,
-  detail: (goalId: string) => ['goals', 'detail', goalId] as const,
-  contributions: (goalId: string) => ['goals', goalId, 'contributions'] as const,
+  detail: (goalId: number | string) => ['goals', 'detail', goalId] as const,
+  contributions: (goalId: number | string) => ['goals', goalId, 'contributions'] as const,
   recurringDeposits: ['goals', 'recurring-deposits'] as const,
   recurringDeposit: (id: string) => ['goals', 'recurring-deposits', id] as const,
 };
 
-export function useGoals(params?: { page?: number; size?: number; status?: string }) {
+export { KEYS as goalQueryKeys };
+
+export function useGoals(params?: { page?: number; size?: number; status?: string; search?: string }) {
   return useQuery({
     queryKey: KEYS.list(params as Record<string, unknown>),
     queryFn: () => goalApi.getGoals(params),
@@ -28,7 +30,7 @@ export function useCustomerGoals(customerId: number) {
   });
 }
 
-export function useGoalDetail(goalId: string) {
+export function useGoalDetail(goalId: number | string) {
   return useQuery({
     queryKey: KEYS.detail(goalId),
     queryFn: () => goalApi.getGoalById(goalId),
@@ -37,7 +39,7 @@ export function useGoalDetail(goalId: string) {
   });
 }
 
-export function useGoalContributions(goalId: string) {
+export function useGoalContributions(goalId: number | string) {
   return useQuery({
     queryKey: KEYS.contributions(goalId),
     queryFn: () => goalApi.getContributions(goalId),
@@ -49,7 +51,7 @@ export function useGoalContributions(goalId: string) {
 export function useCreateGoal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateGoalInput) => goalApi.createGoal(data),
+    mutationFn: (data: CreateGoalRequest) => goalApi.createGoal(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.all }); },
   });
 }
@@ -57,15 +59,19 @@ export function useCreateGoal() {
 export function useContribute() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ goalId, amount }: { goalId: string; amount: number }) =>
-      goalApi.contribute(goalId, { amount }),
-    onMutate: async ({ goalId, amount }) => {
+    mutationFn: ({ goalId, payload }: { goalId: number | string; payload: GoalFundRequest }) =>
+      goalApi.contribute(goalId, payload),
+    onMutate: async ({ goalId, payload }) => {
       await qc.cancelQueries({ queryKey: KEYS.list() });
       const prev = qc.getQueryData<SavingsGoal[]>(KEYS.list());
       if (prev) {
         qc.setQueryData(KEYS.list(), prev.map((g) =>
-          g.id === goalId
-            ? { ...g, currentAmount: Math.min(g.currentAmount + amount, g.targetAmount), status: g.currentAmount + amount >= g.targetAmount ? 'COMPLETED' as const : g.status }
+          g.id === Number(goalId)
+            ? {
+                ...g,
+                currentAmount: Math.min(g.currentAmount + payload.amount, g.targetAmount),
+                status: g.currentAmount + payload.amount >= g.targetAmount ? 'COMPLETED' as const : g.status,
+              }
             : g,
         ));
       }
@@ -81,8 +87,8 @@ export function useContribute() {
 export function useWithdraw() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ goalId, amount }: { goalId: string; amount: number }) =>
-      goalApi.withdraw(goalId, { amount }),
+    mutationFn: ({ goalId, payload }: { goalId: number | string; payload: GoalFundRequest }) =>
+      goalApi.withdraw(goalId, payload),
     onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.all }); },
   });
 }
@@ -90,7 +96,7 @@ export function useWithdraw() {
 export function useCancelGoal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (goalId: string) => goalApi.cancel(goalId),
+    mutationFn: (goalId: number | string) => goalApi.cancel(goalId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.all }); },
   });
 }
@@ -98,7 +104,7 @@ export function useCancelGoal() {
 export function useConfigureAutoDebit() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ goalId, config }: { goalId: string; config: AutoDebitConfig }) =>
+    mutationFn: ({ goalId, config }: { goalId: number | string; config: Record<string, unknown> }) =>
       goalApi.configureAutoDebit(goalId, config),
     onSuccess: () => { qc.invalidateQueries({ queryKey: KEYS.all }); },
   });

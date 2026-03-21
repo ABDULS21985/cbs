@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Building2, Plus, X, Loader2, Users, Clock, Phone, HeadphonesIcon,
-  CheckCircle2, AlertTriangle, Globe, Settings,
+  CheckCircle2, AlertTriangle, Globe, Settings, Pencil, Power,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge } from '@/components/shared';
@@ -21,7 +21,7 @@ const TYPE_COLORS: Record<string, string> = {
   OFFSHORE: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
 };
 
-function CenterCard({ center }: { center: ContactCenter }) {
+function CenterCard({ center, onEdit, onDeactivate }: { center: ContactCenter; onEdit: (c: ContactCenter) => void; onDeactivate: (c: ContactCenter) => void }) {
   const utilization = center.totalAgents > 0
     ? ((center.activeAgents / center.totalAgents) * 100).toFixed(0)
     : '0';
@@ -101,6 +101,17 @@ function CenterCard({ center }: { center: ContactCenter }) {
           <span>{center.timezone}</span>
         </div>
         <span>Utilization: <span className="font-mono font-medium text-foreground">{utilization}%</span></span>
+      </div>
+
+      <div className="flex gap-2 pt-1">
+        <button onClick={() => onEdit(center)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border hover:bg-muted transition-colors flex-1 justify-center">
+          <Pencil className="w-3 h-3" /> Edit
+        </button>
+        {center.isActive && (
+          <button onClick={() => onDeactivate(center)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/10 transition-colors flex-1 justify-center">
+            <Power className="w-3 h-3" /> Deactivate
+          </button>
+        )}
       </div>
     </div>
   );
@@ -212,10 +223,117 @@ function CreateCenterDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+function EditCenterDialog({ center, onClose }: { center: ContactCenter; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    centerName: center.centerName,
+    centerType: center.centerType,
+    timezone: center.timezone,
+    totalAgents: center.totalAgents ?? 0,
+    queueCapacity: center.queueCapacity ?? 50,
+    serviceLevelTarget: center.serviceLevelTarget ?? 80,
+    isActive: center.isActive,
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    contactCenterApi.updateCenter(center.id, form as Partial<ContactCenter>).then(() => {
+      toast.success('Center updated');
+      qc.invalidateQueries({ queryKey: ['contact-center', 'centers'] });
+      onClose();
+    }).catch(() => toast.error('Failed to update center')).finally(() => setSubmitting(false));
+  };
+
+  const fc = 'w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted">
+          <X className="w-4 h-4" />
+        </button>
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+          <Pencil className="w-5 h-5" /> Edit Center
+        </h2>
+        <p className="text-xs text-muted-foreground mb-4 font-mono">{center.centerCode}</p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Center Name</label>
+            <input className={fc} value={form.centerName} onChange={(e) => setForm((f) => ({ ...f, centerName: e.target.value }))} required />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Type</label>
+              <select className={fc} value={form.centerType} onChange={(e) => setForm((f) => ({ ...f, centerType: e.target.value }))}>
+                {CENTER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Timezone</label>
+              <select className={fc} value={form.timezone} onChange={(e) => setForm((f) => ({ ...f, timezone: e.target.value }))}>
+                <option value="Africa/Lagos">Africa/Lagos (WAT)</option>
+                <option value="Africa/Nairobi">Africa/Nairobi (EAT)</option>
+                <option value="Europe/London">Europe/London (GMT)</option>
+                <option value="America/New_York">America/New_York (EST)</option>
+                <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Total Agents</label>
+              <input type="number" min={0} className={fc} value={form.totalAgents} onChange={(e) => setForm((f) => ({ ...f, totalAgents: Number(e.target.value) }))} />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Queue Capacity</label>
+              <input type="number" min={1} className={fc} value={form.queueCapacity} onChange={(e) => setForm((f) => ({ ...f, queueCapacity: Number(e.target.value) }))} />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">SLA Target %</label>
+              <input type="number" min={0} max={100} className={fc} value={form.serviceLevelTarget} onChange={(e) => setForm((f) => ({ ...f, serviceLevelTarget: Number(e.target.value) }))} />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="editIsActive" checked={form.isActive} onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))} className="rounded" />
+            <label htmlFor="editIsActive" className="text-sm font-medium">Active</label>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+            <button type="submit" disabled={submitting} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+              {submitting ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function ContactCenterAdminPage() {
   useEffect(() => { document.title = 'Center Administration | CBS'; }, []);
 
+  const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [editCenter, setEditCenter] = useState<ContactCenter | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<ContactCenter | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+
+  const handleDeactivate = () => {
+    if (!deactivateTarget) return;
+    setDeactivating(true);
+    contactCenterApi.deactivateCenter(deactivateTarget.id).then(() => {
+      toast.success(`${deactivateTarget.centerName} deactivated`);
+      qc.invalidateQueries({ queryKey: ['contact-center', 'centers'] });
+      setDeactivateTarget(null);
+    }).catch(() => toast.error('Failed to deactivate')).finally(() => setDeactivating(false));
+  };
 
   const { data: centers = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['contact-center', 'centers'],
@@ -249,6 +367,28 @@ export function ContactCenterAdminPage() {
   return (
     <>
       {showCreate && <CreateCenterDialog onClose={() => setShowCreate(false)} />}
+      {editCenter && <EditCenterDialog center={editCenter} onClose={() => setEditCenter(null)} />}
+      {deactivateTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+            <button onClick={() => setDeactivateTarget(null)} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+            <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" /> Deactivate Center
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to deactivate <strong>{deactivateTarget.centerName}</strong> ({deactivateTarget.centerCode})?
+              Active agents will need to be reassigned.
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setDeactivateTarget(null)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+              <button onClick={handleDeactivate} disabled={deactivating}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50">
+                {deactivating ? 'Deactivating...' : 'Deactivate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <PageHeader
         title="Center Administration"
@@ -292,7 +432,7 @@ export function ContactCenterAdminPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {centers.map((center) => (
-              <CenterCard key={center.id} center={center} />
+              <CenterCard key={center.id} center={center} onEdit={setEditCenter} onDeactivate={setDeactivateTarget} />
             ))}
           </div>
         )}

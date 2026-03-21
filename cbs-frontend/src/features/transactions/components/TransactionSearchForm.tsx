@@ -1,7 +1,5 @@
-import type { RefObject } from 'react';
-import { Search, RotateCcw, Loader2 } from 'lucide-react';
-import { parseISO } from 'date-fns';
-import { FormSection, MoneyInput, DateRangePicker } from '@/components/shared';
+import { memo, useCallback, useId, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
+import { ChevronDown, Loader2, RotateCcw, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TransactionFilters } from '../hooks/useTransactionSearch';
 import type { TransactionSearchParams } from '../api/transactionApi';
@@ -73,14 +71,7 @@ export function getTransactionSearchValidationErrors(filters: TransactionFilters
   };
 }
 
-function toLocalDateInputValue(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-export function TransactionSearchForm({
+export const TransactionSearchForm = memo(function TransactionSearchForm({
   filters,
   onChange,
   onSearch,
@@ -88,48 +79,74 @@ export function TransactionSearchForm({
   isLoading,
   searchInputRef,
 }: TransactionSearchFormProps) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const { dateError, amountError, hasErrors } = getTransactionSearchValidationErrors(filters);
-  const dateRangeValue = {
-    from: filters.dateFrom ? parseISO(filters.dateFrom) : undefined,
-    to: filters.dateTo ? parseISO(filters.dateTo) : undefined,
-  };
+  const searchId = useId();
+  const accountId = useId();
+  const customerId = useId();
+  const dateFromId = useId();
+  const dateToId = useId();
+  const amountFromId = useId();
+  const amountToId = useId();
+  const typeId = useId();
+  const channelId = useId();
+  const statusId = useId();
+  const flaggedId = useId();
+  const advancedRegionId = useId();
 
-  const handleDateRangeChange = (range: { from?: Date; to?: Date }) => {
-    onChange({
-      dateFrom: range.from ? toLocalDateInputValue(range.from) : '',
-      dateTo: range.to ? toLocalDateInputValue(range.to) : '',
-    });
-  };
+  const handleSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!hasErrors && !isLoading) {
+      onSearch();
+    }
+  }, [hasErrors, isLoading, onSearch]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !hasErrors) onSearch();
-  };
+  const handleEnterKey = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (!hasErrors && !isLoading) {
+        onSearch();
+      }
+    }
+  }, [hasErrors, isLoading, onSearch]);
+
+  const handleFieldChange = useCallback(<K extends keyof TransactionFilters>(key: K, value: TransactionFilters[K]) => {
+    onChange({ [key]: value } as Partial<TransactionFilters>);
+  }, [onChange]);
 
   return (
-    <div className="space-y-3">
-      {/* Main search bar */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={filters.search}
-            onChange={(e) => onChange({ search: e.target.value })}
-            onKeyDown={handleKeyDown}
-            placeholder="Search by reference, narration, account name..."
-            className={cn(inputClass, 'pl-9')}
-          />
+    <form className="space-y-4 rounded-xl border bg-card p-5" role="search" onSubmit={handleSubmit}>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end">
+        <div className="space-y-1.5">
+          <label htmlFor={searchId} className="block text-sm font-medium">
+            Search query
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              id={searchId}
+              type="text"
+              value={filters.search}
+              onChange={(event) => handleFieldChange('search', event.target.value)}
+              onKeyDown={handleEnterKey}
+              placeholder="Reference, narration, account name, or beneficiary"
+              className={cn(inputClass, 'pl-9')}
+            />
+          </div>
         </div>
+
         <button
-          onClick={onSearch}
+          type="submit"
           disabled={isLoading || hasErrors}
+          aria-label="Search transactions"
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
         >
           {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
           Search
         </button>
         <button
+          type="button"
           onClick={onReset}
           disabled={isLoading}
           className="flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
@@ -139,71 +156,118 @@ export function TransactionSearchForm({
         </button>
       </div>
 
-      {/* Advanced filters */}
-      <FormSection title="Advanced Filters" collapsible defaultOpen={false}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Account Number */}
+      <div className="flex items-center justify-between gap-3 border-t pt-4">
+        <div>
+          <h3 className="text-sm font-semibold">Advanced filters</h3>
+          <p className="text-sm text-muted-foreground">Refine by account, date range, amount, channel, and status.</p>
+        </div>
+        <button
+          type="button"
+          aria-expanded={showAdvanced}
+          aria-controls={advancedRegionId}
+          onClick={() => setShowAdvanced((current) => !current)}
+          className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+        >
+          {showAdvanced ? 'Hide filters' : 'Show filters'}
+          <ChevronDown className={cn('h-4 w-4 transition-transform', showAdvanced && 'rotate-180')} />
+        </button>
+      </div>
+
+      {showAdvanced && (
+        <div id={advancedRegionId} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div>
-            <label className="block text-sm font-medium mb-1.5">Account Number</label>
+            <label htmlFor={accountId} className="mb-1.5 block text-sm font-medium">Account Number</label>
             <input
+              id={accountId}
               type="text"
               value={filters.accountNumber}
-              onChange={(e) => onChange({ accountNumber: e.target.value })}
-              onKeyDown={handleKeyDown}
+              onChange={(event) => handleFieldChange('accountNumber', event.target.value)}
+              onKeyDown={handleEnterKey}
               placeholder="e.g. 0123456789"
               className={inputClass}
             />
           </div>
 
-          {/* Customer Search */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Customer ID / Name</label>
+            <label htmlFor={customerId} className="mb-1.5 block text-sm font-medium">Customer ID / Name</label>
             <input
+              id={customerId}
               type="text"
               value={filters.customerId}
-              onChange={(e) => onChange({ customerId: e.target.value })}
-              onKeyDown={handleKeyDown}
+              onChange={(event) => handleFieldChange('customerId', event.target.value)}
+              onKeyDown={handleEnterKey}
               placeholder="Customer ID or name"
               className={inputClass}
             />
           </div>
 
-          {/* Date Range */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Date Range</label>
-            <DateRangePicker value={dateRangeValue} onChange={handleDateRangeChange} />
-            {dateError && <p className="mt-1 text-xs text-red-500">{dateError}</p>}
-          </div>
-
-          {/* Amount From */}
-          <div>
-            <MoneyInput
-              label="Amount From"
-              value={filters.amountFrom}
-              onChange={(v) => onChange({ amountFrom: v })}
-              placeholder="Min amount"
-              error={amountError}
+            <label htmlFor={dateFromId} className="mb-1.5 block text-sm font-medium">Date From</label>
+            <input
+              id={dateFromId}
+              type="date"
+              value={filters.dateFrom}
+              onChange={(event) => handleFieldChange('dateFrom', event.target.value)}
+              className={cn(inputClass, dateError && 'border-red-500 focus:ring-red-500')}
+              aria-invalid={Boolean(dateError)}
+              aria-describedby={dateError ? `${dateFromId}-error` : undefined}
             />
           </div>
 
-          {/* Amount To */}
           <div>
-            <MoneyInput
-              label="Amount To"
-              value={filters.amountTo}
-              onChange={(v) => onChange({ amountTo: v })}
-              placeholder="Max amount"
-              error={amountError}
+            <label htmlFor={dateToId} className="mb-1.5 block text-sm font-medium">Date To</label>
+            <input
+              id={dateToId}
+              type="date"
+              value={filters.dateTo}
+              onChange={(event) => handleFieldChange('dateTo', event.target.value)}
+              className={cn(inputClass, dateError && 'border-red-500 focus:ring-red-500')}
+              aria-invalid={Boolean(dateError)}
+              aria-describedby={dateError ? `${dateFromId}-error` : undefined}
             />
           </div>
 
-          {/* Type */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Transaction Type</label>
+            <label htmlFor={amountFromId} className="mb-1.5 block text-sm font-medium">Amount From</label>
+            <input
+              id={amountFromId}
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={filters.amountFrom || ''}
+              onChange={(event) => handleFieldChange('amountFrom', Number(event.target.value) || 0)}
+              className={cn(inputClass, amountError && 'border-red-500 focus:ring-red-500')}
+              aria-invalid={Boolean(amountError)}
+              aria-describedby={amountError ? `${amountFromId}-error` : undefined}
+            />
+          </div>
+
+          <div>
+            <label htmlFor={amountToId} className="mb-1.5 block text-sm font-medium">Amount To</label>
+            <input
+              id={amountToId}
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={filters.amountTo || ''}
+              onChange={(event) => handleFieldChange('amountTo', Number(event.target.value) || 0)}
+              className={cn(inputClass, amountError && 'border-red-500 focus:ring-red-500')}
+              aria-invalid={Boolean(amountError)}
+              aria-describedby={amountError ? `${amountFromId}-error` : undefined}
+            />
+          </div>
+
+          <div>
+            <label htmlFor={typeId} className="mb-1.5 block text-sm font-medium">Transaction Type</label>
             <select
+              id={typeId}
               value={filters.type ?? 'ALL'}
-              onChange={(e) => onChange({ type: e.target.value as TransactionFilters['type'] })}
+              onChange={(event) => handleFieldChange('type', event.target.value as TransactionFilters['type'])}
               className={selectClass}
+              aria-label="Transaction type"
+              role="combobox"
             >
               {TRANSACTION_TYPES.map((opt) => (
                 <option key={opt.value} value={opt.value ?? 'ALL'}>
@@ -213,13 +277,15 @@ export function TransactionSearchForm({
             </select>
           </div>
 
-          {/* Channel */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Channel</label>
+            <label htmlFor={channelId} className="mb-1.5 block text-sm font-medium">Channel</label>
             <select
+              id={channelId}
               value={filters.channel ?? 'ALL'}
-              onChange={(e) => onChange({ channel: e.target.value as TransactionFilters['channel'] })}
+              onChange={(event) => handleFieldChange('channel', event.target.value as TransactionFilters['channel'])}
               className={selectClass}
+              aria-label="Channel"
+              role="combobox"
             >
               {CHANNELS.map((opt) => (
                 <option key={opt.value} value={opt.value ?? 'ALL'}>
@@ -229,13 +295,15 @@ export function TransactionSearchForm({
             </select>
           </div>
 
-          {/* Status */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Status</label>
+            <label htmlFor={statusId} className="mb-1.5 block text-sm font-medium">Status</label>
             <select
+              id={statusId}
               value={filters.status ?? 'ALL'}
-              onChange={(e) => onChange({ status: e.target.value as TransactionFilters['status'] })}
+              onChange={(event) => handleFieldChange('status', event.target.value as TransactionFilters['status'])}
               className={selectClass}
+              aria-label="Status"
+              role="combobox"
             >
               {STATUSES.map((opt) => (
                 <option key={opt.value} value={opt.value ?? 'ALL'}>
@@ -246,18 +314,30 @@ export function TransactionSearchForm({
           </div>
 
           <div className="flex items-end">
-            <label className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+            <label htmlFor={flaggedId} className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
               <input
+                id={flaggedId}
                 type="checkbox"
                 checked={filters.flaggedOnly}
-                onChange={(e) => onChange({ flaggedOnly: e.target.checked })}
+                onChange={(event) => handleFieldChange('flaggedOnly', event.target.checked)}
                 className="h-4 w-4 rounded border"
               />
               Show Flagged Only
             </label>
           </div>
+
+          {dateError && (
+            <p id={`${dateFromId}-error`} className="text-xs text-red-500 sm:col-span-2 xl:col-span-4">
+              {dateError}
+            </p>
+          )}
+          {amountError && (
+            <p id={`${amountFromId}-error`} className="text-xs text-red-500 sm:col-span-2 xl:col-span-4">
+              {amountError}
+            </p>
+          )}
         </div>
-      </FormSection>
-    </div>
+      )}
+    </form>
   );
-}
+});

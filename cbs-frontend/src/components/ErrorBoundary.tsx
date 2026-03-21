@@ -1,7 +1,10 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
-interface Props { children: ReactNode; }
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode | ((error: Error | null, reset: () => void) => ReactNode);
+}
 interface State { hasError: boolean; error: Error | null; }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -18,8 +21,18 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('ErrorBoundary caught:', error, errorInfo);
   }
 
+  private reset = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return typeof this.props.fallback === 'function'
+          ? this.props.fallback(this.state.error, this.reset)
+          : this.props.fallback;
+      }
+
       return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
           <div className="max-w-md w-full text-center space-y-6">
@@ -42,7 +55,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
             <div className="flex gap-3 justify-center">
               <button
-                onClick={() => this.setState({ hasError: false, error: null })}
+                onClick={this.reset}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
               >
                 <RefreshCw className="w-4 h-4" /> Try again

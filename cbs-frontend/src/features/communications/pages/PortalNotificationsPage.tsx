@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCheck, Mail, MessageSquare, Smartphone, Filter } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatDateTime, formatRelative } from '@/lib/formatters';
-import { StatusBadge, EmptyState } from '@/components/shared';
+import { formatRelative } from '@/lib/formatters';
+import { EmptyState } from '@/components/shared';
 import { useAuthStore } from '@/stores/authStore';
 import { notificationApi, type NotificationLog, type NotificationPreference } from '../api/communicationApi';
 

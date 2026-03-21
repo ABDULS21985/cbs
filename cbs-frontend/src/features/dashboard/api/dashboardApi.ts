@@ -1,4 +1,4 @@
-import { apiGet } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
 
 // ─── Cash Flow Forecast ────────────────────────────────────────────────────────
 
@@ -28,30 +28,66 @@ export interface AccountSummary {
   totalCustomers?: number;
 }
 
-// ─── Treasury Analytics ────────────────────────────────────────────────────────
+// ─── Treasury Analytics (aligned with TreasuryAnalyticsSnapshot entity) ──────
 
-export interface TreasuryAnalytics {
+export interface TreasuryAnalyticsSnapshot {
+  id: number;
+  snapshotDate: string;
   currency: string;
-  nim: number;       // Net Interest Margin
-  car: number;       // Capital Adequacy Ratio
-  roa: number;       // Return on Assets
-  roe: number;       // Return on Equity
-  liquidityRatio: number;
-  nplRatio: number;
-  recordedAt: string;
+  totalDeposits?: number;
+  totalBorrowings?: number;
+  costOfFundsPct?: number;
+  weightedAvgTenorDays?: number;
+  totalEarningAssets?: number;
+  yieldOnAssetsPct?: number;
+  netInterestMarginPct?: number;
+  interestSpreadPct?: number;
+  loanToDepositRatio?: number;
+  capitalAdequacyRatio?: number;
+  tier1Ratio?: number;
+  leverageRatio?: number;
+  returnOnAssetsPct?: number;
+  returnOnEquityPct?: number;
+  createdAt: string;
 }
 
-// ─── Dealer Desk ──────────────────────────────────────────────────────────────
+// ─── Dealer Desk (aligned with DealingDesk entity) ──────────────────────────
 
-export interface DealerDesk {
-  id: string;
-  name: string;
+export interface DealingDesk {
+  id: number;
+  deskCode: string;
+  deskName: string;
   deskType: string;
-  currency: string;
-  totalPositions: number;
-  dailyPnl: number;
-  ytdPnl: number;
-  status: 'ACTIVE' | 'SUSPENDED' | 'CLOSED';
+  headDealerName?: string;
+  headDealerEmployeeId?: string;
+  location?: string;
+  timezone?: string;
+  tradingHoursStart?: string;
+  tradingHoursEnd?: string;
+  tradingDays?: string[];
+  supportedInstruments?: string[];
+  supportedCurrencies?: string[];
+  maxOpenPositionLimit?: number;
+  maxSingleTradeLimit?: number;
+  dailyVarLimit?: number;
+  stopLossLimit?: number;
+  pnlCurrency?: string;
+  suspensionReason?: string;
+  suspendedBy?: string;
+  suspendedAt?: string;
+  activatedBy?: string;
+  activatedAt?: string;
+  status: string;
+}
+
+// ─── Approval Stats ─────────────────────────────────────────────────────────
+
+export interface ApprovalStats {
+  pending: number;
+  approved: number;
+  rejected: number;
+  slaBreachedCount: number;
+  total: number;
 }
 
 // ─── ALM Scenario ─────────────────────────────────────────────────────────────
@@ -77,6 +113,41 @@ export interface PendingDocumentSummary {
   }>;
 }
 
+// ─── Configurable BI Dashboard (Intelligence Module) ────────────────────────
+
+export interface BiDashboardDefinition {
+  id: number;
+  dashboardCode: string;
+  dashboardName: string;
+  dashboardType: string;
+  layoutConfig: Record<string, unknown>;
+  refreshIntervalSec: number;
+  allowedRoles: string[];
+  isDefault: boolean;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BiDashboardWidget {
+  id: number;
+  dashboardId: number;
+  widgetCode: string;
+  widgetType: string;
+  title: string;
+  dataSource: string;
+  queryConfig: Record<string, unknown>;
+  displayConfig: Record<string, unknown>;
+  positionX: number;
+  positionY: number;
+  width: number;
+  height: number;
+  refreshOverrideSec?: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export const dashboardApi = {
@@ -87,11 +158,13 @@ export const dashboardApi = {
     apiGet<AccountSummary>('/api/v1/accounts/summary')
       .catch(() => apiGet<AccountSummary>('/api/v1/dashboard/stats')),
 
+  /** GET /v1/treasury-analytics/{currency} — TreasuryAnalyticsSnapshot[] from real controller */
   getTreasuryMetrics: (currency = 'NGN') =>
-    apiGet<TreasuryAnalytics>(`/api/v1/treasury-analytics/${currency}`),
+    apiGet<TreasuryAnalyticsSnapshot[]>(`/api/v1/treasury-analytics/${currency}`),
 
+  /** GET /v1/dealer-desks — DealingDesk[] from real DealerDeskController */
   getDealerDesks: () =>
-    apiGet<DealerDesk[]>('/api/v1/dealer-desks'),
+    apiGet<DealingDesk[]>('/api/v1/dealer-desks'),
 
   getAlmScenarios: () =>
     apiGet<AlmScenario[]>('/api/v1/alm/scenarios'),
@@ -102,4 +175,32 @@ export const dashboardApi = {
 
   getPendingDocuments: () =>
     apiGet<PendingDocumentSummary>('/api/v1/intelligence/documents/pending-review'),
+
+  /** GET /v1/approvals/stats — approval statistics from ApprovalController */
+  getApprovalStats: () =>
+    apiGet<ApprovalStats>('/api/v1/approvals/stats'),
+
+  // ─── Configurable BI Dashboards ─────────────────────────────────────────────
+
+  /** GET /v1/intelligence/dashboards — all configurable dashboards */
+  listBiDashboards: () =>
+    apiGet<BiDashboardDefinition[]>('/api/v1/intelligence/dashboards'),
+
+  /** GET /v1/intelligence/dashboards/type/{type} — by type */
+  getBiDashboardsByType: (type: string) =>
+    apiGet<BiDashboardDefinition[]>(`/api/v1/intelligence/dashboards/type/${type}`),
+
+  /** GET /v1/intelligence/dashboards/code/{code} — dashboard + widgets */
+  getBiDashboardWithWidgets: (code: string) =>
+    apiGet<{ dashboard: BiDashboardDefinition; widgets: BiDashboardWidget[] }>(
+      `/api/v1/intelligence/dashboards/code/${code}`
+    ),
+
+  /** POST /v1/intelligence/dashboards — create dashboard (ADMIN only) */
+  createBiDashboard: (data: Partial<BiDashboardDefinition>) =>
+    apiPost<BiDashboardDefinition>('/api/v1/intelligence/dashboards', data),
+
+  /** POST /v1/intelligence/dashboards/{id}/widgets — add widget (ADMIN only) */
+  addBiWidget: (dashboardId: number, widget: Partial<BiDashboardWidget>) =>
+    apiPost<BiDashboardWidget>(`/api/v1/intelligence/dashboards/${dashboardId}/widgets`, widget),
 };

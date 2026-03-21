@@ -150,12 +150,31 @@ export function useAccountingSummary(code: string, date: string) {
 
 // ─── Bank Portfolios ─────────────────────────────────────────────────────────
 
+export function useBankPortfolios() {
+  return useQuery({
+    queryKey: KEYS.bankPortfolios.all,
+    queryFn: () => bankPortfoliosApi.getAll(),
+    staleTime: 30_000,
+  });
+}
+
 export function useBankPortfolioByType(type: string) {
   return useQuery({
     queryKey: KEYS.bankPortfolios.byType(type),
-    queryFn: () => bankPortfoliosApi.create(type),
+    queryFn: () => bankPortfoliosApi.getByType(type),
     enabled: !!type,
     staleTime: 60_000,
+  });
+}
+
+export function useCreateBankPortfolio() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<import('../types/bankPortfolio').BankPortfolio>) =>
+      bankPortfoliosApi.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.bankPortfolios.all });
+    },
   });
 }
 

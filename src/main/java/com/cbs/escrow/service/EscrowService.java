@@ -93,8 +93,12 @@ public class EscrowService {
         return toResponse(mandate);
     }
 
+    public Page<EscrowResponse> getAllMandates(Pageable pageable) {
+        return mandateRepository.findAllWithDetails(pageable).map(this::toResponse);
+    }
+
     public Page<EscrowResponse> getCustomerMandates(Long customerId, Pageable pageable) {
-        return mandateRepository.findByCustomerId(customerId, pageable).map(this::toResponse);
+        return mandateRepository.findByCustomerIdWithDetails(customerId, pageable).map(this::toResponse);
     }
 
     @Transactional

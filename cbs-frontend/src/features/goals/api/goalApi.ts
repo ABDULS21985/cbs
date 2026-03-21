@@ -1,28 +1,52 @@
 import { apiGet, apiPost } from '@/lib/api';
 
+// ── Types aligned to backend GoalResponse DTO ────────────────────────────────
+
+export type GoalStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED' | 'WITHDRAWN';
+export type GoalTransactionType = 'DEPOSIT' | 'WITHDRAWAL' | 'INTEREST' | 'PENALTY' | 'REVERSAL';
+export type AutoDebitFrequency = 'DAILY' | 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY';
+
 export interface SavingsGoal {
-  id: string;
-  name: string;
-  icon: string;
+  id: number;
+  goalNumber: string;
+  accountId: number;
+  accountNumber: string;
+  customerId: number;
+  customerDisplayName: string;
+  goalName: string;
+  goalDescription: string | null;
+  goalIcon: string | null;
   targetAmount: number;
+  targetDate: string | null;
   currentAmount: number;
-  targetDate: string;
-  sourceAccountId: string;
-  sourceAccountNumber: string;
-  fundingMethod: 'MANUAL' | 'AUTO_DEBIT';
-  autoDebit?: AutoDebitConfig;
-  status: 'ACTIVE' | 'COMPLETED' | 'PAUSED';
+  progressPercentage: number;
+  autoDebitEnabled: boolean;
+  autoDebitAmount: number | null;
+  autoDebitFrequency: AutoDebitFrequency | null;
+  nextAutoDebitDate: string | null;
+  interestBearing: boolean;
+  interestRate: number;
+  accruedInterest: number;
+  status: GoalStatus;
+  completedDate: string | null;
+  isLocked: boolean;
+  allowWithdrawalBeforeTarget: boolean;
+  currencyCode: string;
+  metadata: Record<string, unknown>;
   createdAt: string;
 }
 
-export interface GoalContribution {
-  id: string;
-  goalId: string;
-  date: string;
+/** Maps to backend SavingsGoalTransaction entity */
+export interface GoalTransaction {
+  id: number;
+  transactionType: GoalTransactionType;
   amount: number;
-  source: string;
-  type: 'MANUAL' | 'AUTO';
-  runningTotal: number;
+  runningBalance: number;
+  narration: string | null;
+  sourceAccountId: number | null;
+  transactionRef: string | null;
+  createdAt: string;
+  createdBy: string | null;
 }
 
 export interface RecurringDeposit {
@@ -30,7 +54,7 @@ export interface RecurringDeposit {
   customerId: string;
   customerName: string;
   amount: number;
-  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  frequency: 'DAILY' | 'WEEKLY' | 'BI_WEEKLY' | 'MONTHLY';
   installmentsPaid: number;
   totalInstallments: number;
   status: 'ACTIVE' | 'COMPLETED' | 'MISSED' | 'PAUSED';
@@ -39,62 +63,74 @@ export interface RecurringDeposit {
   penalty?: number;
 }
 
-export interface AutoDebitConfig {
-  amount: number;
-  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
-  startDate: string;
-  status: 'ACTIVE' | 'PAUSED';
+/** Maps to backend CreateGoalRequest DTO */
+export interface CreateGoalRequest {
+  customerId?: number;
+  accountId: number;
+  goalName: string;
+  goalDescription?: string;
+  goalIcon?: string;
+  targetAmount: number;
+  targetDate?: string;
+  autoDebitEnabled?: boolean;
+  autoDebitAmount?: number;
+  autoDebitFrequency?: AutoDebitFrequency;
+  autoDebitAccountId?: number;
+  interestBearing?: boolean;
+  interestRate?: number;
+  isLocked?: boolean;
+  allowWithdrawalBeforeTarget?: boolean;
+  currencyCode?: string;
+  metadata?: Record<string, unknown>;
 }
 
-export interface CreateGoalInput {
-  name: string;
-  icon: string;
-  targetAmount: number;
-  targetDate: string;
-  sourceAccountId: string;
-  fundingMethod: 'MANUAL' | 'AUTO_DEBIT';
-  autoDebit?: Partial<AutoDebitConfig>;
+/** Maps to backend GoalFundRequest DTO */
+export interface GoalFundRequest {
+  amount: number;
+  sourceAccountId?: number;
+  narration?: string;
 }
 
 export const goalApi = {
-  // Goals
-  getGoals: (params?: { page?: number; size?: number; status?: string }) =>
+  // Goals CRUD
+  getGoals: (params?: { page?: number; size?: number; status?: string; search?: string }) =>
     apiGet<SavingsGoal[]>('/api/v1/goals', params as Record<string, unknown>),
 
   getCustomerGoals: (customerId: number, params?: { page?: number; size?: number }) =>
     apiGet<SavingsGoal[]>(`/api/v1/goals/customer/${customerId}`, params as Record<string, unknown>),
 
-  getGoalById: (goalId: string) =>
+  getGoalById: (goalId: number | string) =>
     apiGet<SavingsGoal>(`/api/v1/goals/${goalId}`),
 
-  createGoal: (data: CreateGoalInput) =>
+  createGoal: (data: CreateGoalRequest) =>
     apiPost<SavingsGoal>('/api/v1/goals', data),
 
-  createGoalForCustomer: (customerId: number, data: CreateGoalInput) =>
+  createGoalForCustomer: (customerId: number, data: CreateGoalRequest) =>
     apiPost<SavingsGoal>(`/api/v1/goals/customer/${customerId}`, data),
 
-  contribute: (goalId: string, payload: { amount: number; sourceAccountId?: string }) =>
+  // Goal Funding & Management
+  contribute: (goalId: number | string, payload: GoalFundRequest) =>
     apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/contribute`, payload),
 
-  fund: (goalId: string, payload: { amount: number }) =>
+  fund: (goalId: number | string, payload: GoalFundRequest) =>
     apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/fund`, payload),
 
-  withdraw: (goalId: string, payload: { amount: number }) =>
+  withdraw: (goalId: number | string, payload: GoalFundRequest) =>
     apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/withdraw`, payload),
 
-  cancel: (goalId: string) =>
+  cancel: (goalId: number | string) =>
     apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/cancel`),
 
-  configureAutoDebit: (goalId: string, config: AutoDebitConfig) =>
+  configureAutoDebit: (goalId: number | string, config: Record<string, unknown>) =>
     apiPost<SavingsGoal>(`/api/v1/goals/${goalId}/auto-debit`, config),
 
-  getContributions: (goalId: string, params?: { page?: number; size?: number }) =>
-    apiGet<GoalContribution[]>(`/api/v1/goals/${goalId}/contributions`, params as Record<string, unknown>),
+  getContributions: (goalId: number | string, params?: { page?: number; size?: number }) =>
+    apiGet<GoalTransaction[]>(`/api/v1/goals/${goalId}/contributions`, params as Record<string, unknown>),
 
   processAutoDebits: () =>
-    apiPost<{ processed: number }>('/api/v1/goals/batch/auto-debits'),
+    apiPost<{ processed: number }>('/api/v1/goals/batch/auto-debit'),
 
-  // Recurring Deposits
+  // Recurring Deposits (proxy)
   getRecurringDeposits: () =>
     apiGet<RecurringDeposit[]>('/api/v1/goals/recurring-deposits'),
 
@@ -106,7 +142,8 @@ export const goalApi = {
 export const getGoals = goalApi.getGoals;
 export const getGoalById = goalApi.getGoalById;
 export const createGoal = goalApi.createGoal;
-export const contributeToGoal = (id: string, amount: number) => goalApi.contribute(id, { amount });
+export const contributeToGoal = (id: number | string, amount: number) =>
+  goalApi.contribute(id, { amount });
 export const updateAutoDebit = goalApi.configureAutoDebit;
 export const getGoalContributions = goalApi.getContributions;
 export const getRecurringDeposits = goalApi.getRecurringDeposits;

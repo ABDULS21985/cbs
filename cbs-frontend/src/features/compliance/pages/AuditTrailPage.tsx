@@ -16,26 +16,26 @@ export function AuditTrailPage() {
   const [userView, setUserView] = useState<string | null>(null);
 
   const { data: results = [], isLoading } = useAuditSearch(params, searched);
-  const { data: summary } = useAuditSummary(params, searched);
+  const { data: summary } = useAuditSummary(searched);
 
-  const { data: heatmapData = [] } = useQuery({
+  const { data: heatmapData } = useQuery({
     queryKey: ['audit', 'heatmap', userView],
-    queryFn: () => auditApi.getUserHeatmap(userView!, 30),
+    queryFn: () => auditApi.getUserHeatmap(userView!),
     enabled: !!userView,
   });
 
   const handleSearch = (p: AuditSearchParams) => {
     setParams(p);
     setSearched(true);
-    setUserView(p.userId || null);
+    setUserView(p.performedBy || null);
   };
 
   const summaryItems = summary ? [
-    { label: 'Results', value: summary.totalResults.toLocaleString() },
-    { label: 'Creates', value: summary.creates.toLocaleString() },
-    { label: 'Updates', value: summary.updates.toLocaleString() },
-    { label: 'Deletes', value: summary.deletes.toLocaleString() },
-    { label: 'Approvals', value: summary.approvals.toLocaleString() },
+    { label: 'Total Events', value: summary.totalEvents.toLocaleString() },
+    { label: 'Creates', value: (summary.byAction?.CREATE ?? 0).toLocaleString() },
+    { label: 'Updates', value: (summary.byAction?.UPDATE ?? 0).toLocaleString() },
+    { label: 'Deletes', value: (summary.byAction?.DELETE ?? 0).toLocaleString() },
+    { label: 'Approvals', value: (summary.byAction?.APPROVE ?? 0).toLocaleString() },
   ] : [];
 
   return (
@@ -52,7 +52,7 @@ export function AuditTrailPage() {
           <AuditResultsTable data={results} isLoading={isLoading} onRowClick={setSelectedEntry} />
         )}
 
-        {userView && heatmapData.length > 0 && (
+        {userView && heatmapData && (
           <UserActivityHeatmap data={heatmapData} />
         )}
 

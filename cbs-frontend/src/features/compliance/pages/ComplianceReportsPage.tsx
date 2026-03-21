@@ -11,17 +11,17 @@ import {
 } from '../hooks/useComplianceReports';
 import type { Regulator, ComplianceReport, ReportStatus } from '../api/complianceReportApi';
 import { formatDate } from '@/lib/formatters';
+import { toast } from 'sonner';
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 
-const STATUS_ORDER: ReportStatus[] = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'SUBMITTED', 'ACKNOWLEDGED'];
+const STATUS_ORDER: ReportStatus[] = ['DRAFT', 'REVIEWED', 'SUBMITTED'];
 
 const STATUS_COLORS: Record<ReportStatus, string> = {
   DRAFT: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
-  IN_REVIEW: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  APPROVED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  SUBMITTED: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  ACKNOWLEDGED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  REVIEWED: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  SUBMITTED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  PENDING: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
 };
 
 const REGULATOR_COLORS: Record<Regulator, string> = {
@@ -32,9 +32,9 @@ const REGULATOR_COLORS: Record<Regulator, string> = {
   FATF: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 };
 
-function StatusBadge({ status }: { status: ReportStatus }) {
+function ReportStatusBadge({ status }: { status: ReportStatus }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[status]}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[status] ?? STATUS_COLORS.DRAFT}`}>
       {status.replace('_', ' ')}
     </span>
   );
@@ -73,24 +73,28 @@ interface NewReportDialogProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: {
-    title: string;
+    reportName: string;
     regulator: Regulator;
     reportType: string;
     reportingPeriod: string;
+    periodStartDate: string;
+    periodEndDate: string;
     dueDate: string;
-    preparerId: string;
+    preparedBy: string;
   }) => void;
   isLoading: boolean;
 }
 
 function NewReportDialog({ open, onClose, onSubmit, isLoading }: NewReportDialogProps) {
   const [form, setForm] = useState({
-    title: '',
+    reportName: '',
     regulator: 'CBN' as Regulator,
     reportType: '',
     reportingPeriod: '',
+    periodStartDate: '',
+    periodEndDate: '',
     dueDate: '',
-    preparerId: '',
+    preparedBy: '',
   });
 
   if (!open) return null;
@@ -112,12 +116,12 @@ function NewReportDialog({ open, onClose, onSubmit, isLoading }: NewReportDialog
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Report Title</label>
+            <label className="block text-sm font-medium mb-1">Report Name</label>
             <input
               className="input w-full"
               placeholder="e.g. Monthly BSA Report"
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              value={form.reportName}
+              onChange={(e) => setForm({ ...form, reportName: e.target.value })}
               required
             />
           </div>
@@ -167,13 +171,35 @@ function NewReportDialog({ open, onClose, onSubmit, isLoading }: NewReportDialog
               />
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Period Start</label>
+              <input
+                type="date"
+                className="input w-full"
+                value={form.periodStartDate}
+                onChange={(e) => setForm({ ...form, periodStartDate: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Period End</label>
+              <input
+                type="date"
+                className="input w-full"
+                value={form.periodEndDate}
+                onChange={(e) => setForm({ ...form, periodEndDate: e.target.value })}
+                required
+              />
+            </div>
+          </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Preparer ID</label>
+            <label className="block text-sm font-medium mb-1">Prepared By</label>
             <input
               className="input w-full"
               placeholder="Staff ID or username"
-              value={form.preparerId}
-              onChange={(e) => setForm({ ...form, preparerId: e.target.value })}
+              value={form.preparedBy}
+              onChange={(e) => setForm({ ...form, preparedBy: e.target.value })}
               required
             />
           </div>
@@ -194,14 +220,11 @@ function NewReportDialog({ open, onClose, onSubmit, isLoading }: NewReportDialog
 interface ReviewDialogProps {
   report: ComplianceReport | null;
   onClose: () => void;
-  onSubmit: (reviewerId: string, comments?: string) => void;
+  onConfirm: () => void;
   isLoading: boolean;
 }
 
-function ReviewDialog({ report, onClose, onSubmit, isLoading }: ReviewDialogProps) {
-  const [reviewerId, setReviewerId] = useState('');
-  const [comments, setComments] = useState('');
-
+function ReviewDialog({ report, onClose, onConfirm, isLoading }: ReviewDialogProps) {
   if (!report) return null;
 
   return (
@@ -213,18 +236,15 @@ function ReviewDialog({ report, onClose, onSubmit, isLoading }: ReviewDialogProp
           <button onClick={onClose}><X className="w-4 h-4" /></button>
         </div>
         <div className="p-6 space-y-4">
-          <p className="text-sm text-muted-foreground">Submitting: <span className="font-medium text-foreground">{report.title}</span></p>
-          <div>
-            <label className="block text-sm font-medium mb-1">Reviewer ID</label>
-            <input className="input w-full" placeholder="Reviewer staff ID" value={reviewerId} onChange={(e) => setReviewerId(e.target.value)} required />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Comments (optional)</label>
-            <textarea className="input w-full h-20 resize-none" placeholder="Additional notes for reviewer..." value={comments} onChange={(e) => setComments(e.target.value)} />
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Submit <span className="font-medium text-foreground">{report.reportName}</span> for compliance review?
+          </p>
+          <p className="text-xs text-muted-foreground">
+            The current user will be recorded as the reviewer.
+          </p>
           <div className="flex justify-end gap-3">
             <button onClick={onClose} className="btn-ghost">Cancel</button>
-            <button onClick={() => onSubmit(reviewerId, comments || undefined)} className="btn-primary" disabled={isLoading || !reviewerId}>
+            <button onClick={onConfirm} className="btn-primary" disabled={isLoading}>
               {isLoading ? 'Submitting...' : 'Submit for Review'}
             </button>
           </div>
@@ -239,12 +259,11 @@ function ReviewDialog({ report, onClose, onSubmit, isLoading }: ReviewDialogProp
 interface RegulatorSubmitDialogProps {
   report: ComplianceReport | null;
   onClose: () => void;
-  onSubmit: (submissionDate: string, submissionRef: string) => void;
+  onSubmit: (submissionReference: string) => void;
   isLoading: boolean;
 }
 
 function RegulatorSubmitDialog({ report, onClose, onSubmit, isLoading }: RegulatorSubmitDialogProps) {
-  const [submissionDate, setSubmissionDate] = useState(new Date().toISOString().split('T')[0]);
   const [submissionRef, setSubmissionRef] = useState('');
 
   if (!report) return null;
@@ -258,18 +277,27 @@ function RegulatorSubmitDialog({ report, onClose, onSubmit, isLoading }: Regulat
           <button onClick={onClose}><X className="w-4 h-4" /></button>
         </div>
         <div className="p-6 space-y-4">
-          <p className="text-sm text-muted-foreground">Submitting <span className="font-medium text-foreground">{report.title}</span> to <RegulatorBadge regulator={report.regulator} /></p>
-          <div>
-            <label className="block text-sm font-medium mb-1">Submission Date</label>
-            <input type="date" className="input w-full" value={submissionDate} onChange={(e) => setSubmissionDate(e.target.value)} required />
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Submitting <span className="font-medium text-foreground">{report.reportName}</span> to{' '}
+            <RegulatorBadge regulator={report.regulator} />
+          </p>
           <div>
             <label className="block text-sm font-medium mb-1">Submission Reference</label>
-            <input className="input w-full" placeholder="e.g. CBN/2026/Q1/001" value={submissionRef} onChange={(e) => setSubmissionRef(e.target.value)} required />
+            <input
+              className="input w-full"
+              placeholder="e.g. CBN/2026/Q1/001"
+              value={submissionRef}
+              onChange={(e) => setSubmissionRef(e.target.value)}
+              required
+            />
           </div>
           <div className="flex justify-end gap-3">
             <button onClick={onClose} className="btn-ghost">Cancel</button>
-            <button onClick={() => onSubmit(submissionDate, submissionRef)} className="btn-primary" disabled={isLoading || !submissionRef}>
+            <button
+              onClick={() => onSubmit(submissionRef)}
+              className="btn-primary"
+              disabled={isLoading || !submissionRef}
+            >
               {isLoading ? 'Submitting...' : 'Submit to Regulator'}
             </button>
           </div>
@@ -291,11 +319,7 @@ const REGULATORS: Array<{ value: Regulator | 'ALL'; label: string }> = [
 ];
 
 function isOverdue(report: ComplianceReport): boolean {
-  return (
-    new Date(report.dueDate) < new Date() &&
-    report.status !== 'SUBMITTED' &&
-    report.status !== 'ACKNOWLEDGED'
-  );
+  return new Date(report.dueDate) < new Date() && report.status !== 'SUBMITTED';
 }
 
 function isDueThisWeek(report: ComplianceReport): boolean {
@@ -312,25 +336,23 @@ export function ComplianceReportsPage() {
   const [reviewTarget, setReviewTarget] = useState<ComplianceReport | null>(null);
   const [submitTarget, setSubmitTarget] = useState<ComplianceReport | null>(null);
 
-  const { data: reportsPage, isLoading, isError: reportsError } = useComplianceReports(selectedRegulator);
+  const { data: allReports = [], isLoading, isError: reportsError } = useComplianceReports(selectedRegulator);
   const { data: overdueReports = [], isError: overdueError } = useOverdueReports();
   const createReport = useCreateReport();
   const submitForReview = useSubmitForReview();
   const submitToRegulator = useSubmitToRegulator();
 
-  const allReports = reportsPage?.content ?? [];
-
   const filteredReports = allReports.filter((r) =>
     statusFilter === 'ALL' ? true : r.status === statusFilter
   );
 
-  const totalReports = reportsPage?.totalElements ?? 0;
+  const totalReports = allReports.length;
   const overdueCount = overdueReports.length;
   const dueThisWeekCount = allReports.filter(isDueThisWeek).length;
 
   const now = new Date();
   const submittedThisMonth = allReports.filter((r) => {
-    if (r.status !== 'SUBMITTED' && r.status !== 'ACKNOWLEDGED') return false;
+    if (r.status !== 'SUBMITTED') return false;
     if (!r.submissionDate) return false;
     const d = new Date(r.submissionDate);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
@@ -353,7 +375,7 @@ export function ComplianceReportsPage() {
             Regulatory-report data could not be fully loaded from the backend.
           </div>
         )}
-        {/* Overdue alert */}
+
         {!overdueError && overdueCount > 0 && (
           <div className="flex items-start gap-3 p-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30">
             <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -368,7 +390,6 @@ export function ComplianceReportsPage() {
           </div>
         )}
 
-        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <StatCard label="Total Reports" value={reportsError ? '--' : totalReports} loading={isLoading && !reportsError} />
           <StatCard label="Overdue" value={overdueError ? '--' : overdueCount} />
@@ -376,17 +397,14 @@ export function ComplianceReportsPage() {
           <StatCard label="Submitted This Month" value={reportsError ? '--' : submittedThisMonth} />
         </div>
 
-        {/* Filters */}
         <div className="flex flex-wrap gap-3">
           <div className="flex rounded-lg border border-border overflow-hidden">
             {REGULATORS.map((r) => (
               <button
                 key={r.value}
-                onClick={() => {
-                  if (r.value !== 'ALL') setSelectedRegulator(r.value);
-                }}
+                onClick={() => { if (r.value !== 'ALL') setSelectedRegulator(r.value); }}
                 className={`px-3 py-1.5 text-sm font-medium transition-colors ${
-                  (r.value === 'ALL' && !selectedRegulator) || r.value === selectedRegulator
+                  r.value === selectedRegulator
                     ? 'bg-primary text-primary-foreground'
                     : 'hover:bg-muted text-muted-foreground'
                 }`}
@@ -407,14 +425,13 @@ export function ComplianceReportsPage() {
           </select>
         </div>
 
-        {/* Reports table */}
         <div className="rounded-lg border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Code</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Title</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Regulator</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Report Type</th>
                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Period</th>
@@ -454,10 +471,10 @@ export function ComplianceReportsPage() {
                     return (
                       <tr key={report.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3">
-                          <span className="font-mono text-xs text-muted-foreground">{report.code}</span>
+                          <span className="font-mono text-xs text-muted-foreground">{report.reportCode}</span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="font-medium truncate max-w-[180px] block">{report.title}</span>
+                          <span className="font-medium truncate max-w-[180px] block">{report.reportName}</span>
                         </td>
                         <td className="px-4 py-3">
                           <RegulatorBadge regulator={report.regulator} />
@@ -473,10 +490,10 @@ export function ComplianceReportsPage() {
                           <StatusFlow status={report.status} />
                         </td>
                         <td className="px-4 py-3">
-                          <StatusBadge status={report.status} />
+                          <ReportStatusBadge status={report.status} />
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">
-                          {report.preparedBy || report.preparerId}
+                          {report.preparedBy}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -488,7 +505,7 @@ export function ComplianceReportsPage() {
                                 Submit for Review
                               </button>
                             )}
-                            {report.status === 'APPROVED' && (
+                            {report.status === 'REVIEWED' && (
                               <button
                                 onClick={() => setSubmitTarget(report)}
                                 className="text-xs text-primary hover:text-primary/80 font-medium whitespace-nowrap"
@@ -507,7 +524,6 @@ export function ComplianceReportsPage() {
           </div>
         </div>
 
-        {/* Overdue section */}
         {!overdueError && overdueReports.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-red-600 dark:text-red-400 flex items-center gap-2">
@@ -521,14 +537,14 @@ export function ComplianceReportsPage() {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{report.title}</span>
+                      <span className="font-medium text-sm">{report.reportName}</span>
                       <RegulatorBadge regulator={report.regulator} />
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Due: {formatDate(report.dueDate)} · Period: {report.reportingPeriod}
                     </p>
                   </div>
-                  <StatusBadge status={report.status} />
+                  <ReportStatusBadge status={report.status} />
                   <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 </div>
               ))}
@@ -537,33 +553,42 @@ export function ComplianceReportsPage() {
         )}
       </div>
 
-      {/* Dialogs */}
       <NewReportDialog
         open={showNewDialog}
         onClose={() => setShowNewDialog(false)}
-        onSubmit={(data) => createReport.mutate(data, { onSuccess: () => setShowNewDialog(false) })}
+        onSubmit={(data) =>
+          createReport.mutate(data, {
+            onSuccess: () => { setShowNewDialog(false); toast.success('Report created'); },
+            onError: () => toast.error('Failed to create report'),
+          })
+        }
         isLoading={createReport.isPending}
       />
+
       <ReviewDialog
         report={reviewTarget}
         onClose={() => setReviewTarget(null)}
-        onSubmit={(reviewerId, comments) =>
+        onConfirm={() =>
           reviewTarget &&
-          submitForReview.mutate(
-            { code: reviewTarget.code, payload: { reviewerId, comments } },
-            { onSuccess: () => setReviewTarget(null) }
-          )
+          submitForReview.mutate(reviewTarget.reportCode, {
+            onSuccess: () => { setReviewTarget(null); toast.success('Submitted for review'); },
+            onError: () => toast.error('Failed to submit for review'),
+          })
         }
         isLoading={submitForReview.isPending}
       />
+
       <RegulatorSubmitDialog
         report={submitTarget}
         onClose={() => setSubmitTarget(null)}
-        onSubmit={(submissionDate, submissionRef) =>
+        onSubmit={(submissionReference) =>
           submitTarget &&
           submitToRegulator.mutate(
-            { code: submitTarget.code, payload: { submissionDate, submissionRef } },
-            { onSuccess: () => setSubmitTarget(null) }
+            { code: submitTarget.reportCode, submissionReference },
+            {
+              onSuccess: () => { setSubmitTarget(null); toast.success('Submitted to regulator'); },
+              onError: () => toast.error('Failed to submit to regulator'),
+            }
           )
         }
         isLoading={submitToRegulator.isPending}

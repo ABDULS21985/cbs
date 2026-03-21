@@ -24,6 +24,7 @@ export const navigationItems: NavSection[] = [
     title: 'MAIN',
     items: [
       { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['*'] },
+      { label: 'BI Dashboards', icon: BarChart3, path: '/dashboard/bi', roles: ['CBS_ADMIN', 'CBS_OFFICER'] },
     ],
   },
   {
@@ -126,6 +127,7 @@ export const navigationItems: NavSection[] = [
         children: [
           { label: 'All Cases', path: '/cases' },
           { label: 'New Case', path: '/cases/new' },
+          { label: 'RCA Dashboard', path: '/cases/rca-dashboard' },
         ],
       },
       {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, X, Search, Bell, Loader2, Calendar, Copy } from 'lucide-react';
+import { Plus, X, Search, Bell, Loader2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -157,14 +157,6 @@ export function NotificationManagementPage() {
   const handleEditTemplate = (tpl: NotificationTemplate) => { setSelectedTemplate(tpl); setShowEditor(true); };
   const handleNewTemplate = () => { setSelectedTemplate(undefined); setShowEditor(true); };
   const handleCloseEditor = () => { setShowEditor(false); setSelectedTemplate(undefined); };
-
-  const handleDuplicateTemplate = (tpl: NotificationTemplate) => {
-    setSelectedTemplate(undefined);
-    setShowEditor(true);
-    // Pre-fill with duplicated data (editor will pick up from selectedTemplate being undefined = new)
-    // We trigger the editor open with no template, then the user can paste
-    toast.success(`Template "${tpl.templateName}" ready to duplicate — edit and save as new`);
-  };
 
   const handleSaveTemplate = async (data: Partial<NotificationTemplate>) => {
     if (selectedTemplate) {

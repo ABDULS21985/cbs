@@ -1,84 +1,153 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoGrid } from '@/components/shared/InfoGrid';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { FormSection } from '@/components/shared/FormSection';
-import { DataValidationPanel } from '../components/returns/DataValidationPanel';
 import { regulatoryApi } from '../api/regulatoryApi';
 
 export function ReturnDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  // Route is /compliance/returns/:id but we navigate with reportCode as the id
+  const { id: code } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [submissionRef, setSubmissionRef] = useState('');
 
-  const { data: ret, isLoading } = useQuery({ queryKey: ['reg-returns', Number(id)], queryFn: () => regulatoryApi.getById(Number(id)), enabled: !!id });
-  const { data: validations = [] } = useQuery({ queryKey: ['reg-returns', Number(id), 'validations'], queryFn: () => regulatoryApi.getValidationResults(Number(id)), enabled: !!id });
+  const { data: allReturns = [], isLoading } = useQuery({
+    queryKey: ['reg-returns', 'all'],
+    queryFn: () => regulatoryApi.getAll(),
+  });
 
-  const extractMutation = useMutation({ mutationFn: () => regulatoryApi.extractData(Number(id)), onSuccess: () => { toast.success('Data extracted'); queryClient.invalidateQueries({ queryKey: ['reg-returns'] }); } });
-  const validateMutation = useMutation({ mutationFn: () => regulatoryApi.validate(Number(id)), onSuccess: (rules) => { toast.success(`Validation complete: ${rules.filter((r) => r.passed).length} passed`); queryClient.invalidateQueries({ queryKey: ['reg-returns'] }); } });
-  const submitReviewMutation = useMutation({ mutationFn: () => regulatoryApi.submitForReview(Number(id)), onSuccess: () => { toast.success('Submitted for review'); queryClient.invalidateQueries({ queryKey: ['reg-returns'] }); } });
-  const approveMutation = useMutation({ mutationFn: () => regulatoryApi.approve(Number(id)), onSuccess: () => { toast.success('Approved'); queryClient.invalidateQueries({ queryKey: ['reg-returns'] }); } });
-  const submitMutation = useMutation({ mutationFn: () => regulatoryApi.submitToRegulator(Number(id)), onSuccess: () => { toast.success('Submitted to regulator'); queryClient.invalidateQueries({ queryKey: ['reg-returns'] }); } });
+  const ret = allReturns.find((r) => r.reportCode === code);
 
-  if (isLoading || !ret) return <><PageHeader title="Return Detail" /><div className="page-container"><div className="animate-pulse h-64 bg-muted rounded-lg" /></div></>;
+  const reviewMutation = useMutation({
+    mutationFn: () => regulatoryApi.review(code!),
+    onSuccess: () => {
+      toast.success('Submitted for review');
+      queryClient.invalidateQueries({ queryKey: ['reg-returns'] });
+    },
+    onError: () => toast.error('Failed to submit for review'),
+  });
 
-  const workflow = [
-    { status: 'SCHEDULED', action: 'Extract Data', fn: () => extractMutation.mutate(), pending: extractMutation.isPending },
-    { status: 'DATA_EXTRACTION', action: 'Validate', fn: () => validateMutation.mutate(), pending: validateMutation.isPending },
-    { status: 'VALIDATION', action: 'Submit for Review', fn: () => submitReviewMutation.mutate(), pending: submitReviewMutation.isPending },
-    { status: 'REVIEW', action: 'Approve', fn: () => approveMutation.mutate(), pending: approveMutation.isPending },
-    { status: 'APPROVED', action: 'Submit to Regulator', fn: () => submitMutation.mutate(), pending: submitMutation.isPending },
-  ];
+  const submitMutation = useMutation({
+    mutationFn: () => regulatoryApi.submit(code!, submissionRef),
+    onSuccess: () => {
+      toast.success('Submitted to regulator');
+      queryClient.invalidateQueries({ queryKey: ['reg-returns'] });
+    },
+    onError: () => toast.error('Failed to submit to regulator'),
+  });
 
-  const currentStep = workflow.find((w) => w.status === ret.status);
+  const backButton = (
+    <button
+      onClick={() => navigate('/compliance/returns')}
+      className="inline-flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm hover:bg-muted"
+    >
+      <ArrowLeft className="w-4 h-4" /> Back
+    </button>
+  );
+
+  if (isLoading) {
+    return (
+      <>
+        <PageHeader title="Return Detail" actions={backButton} />
+        <div className="page-container">
+          <div className="animate-pulse h-64 bg-muted rounded-lg" />
+        </div>
+      </>
+    );
+  }
+
+  if (!ret) {
+    return (
+      <>
+        <PageHeader title="Return Not Found" actions={backButton} />
+        <div className="page-container">
+          <p className="text-sm text-muted-foreground">No return found with code: {code}</p>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
       <PageHeader
-        title={ret.name}
-        subtitle={`${ret.returnCode} · ${ret.regulatoryBody} · ${ret.period}`}
-        actions={<button onClick={() => navigate('/compliance/returns')} className="inline-flex items-center gap-1.5 px-3 py-2 border rounded-md text-sm hover:bg-muted"><ArrowLeft className="w-4 h-4" /> Back</button>}
+        title={ret.reportName}
+        subtitle={`${ret.reportCode} · ${ret.regulator} · ${ret.reportingPeriod}`}
+        actions={backButton}
       />
       <div className="page-container space-y-6">
         <FormSection title="Return Information">
-          <InfoGrid columns={4} items={[
-            { label: 'Regulatory Body', value: ret.regulatoryBody },
-            { label: 'Frequency', value: ret.frequency },
-            { label: 'Period', value: ret.period },
-            { label: 'Due Date', value: ret.dueDate, format: 'date' },
-            { label: 'Status', value: <StatusBadge status={ret.status} dot /> },
-            { label: 'Submitted At', value: ret.submittedAt || '—', format: ret.submittedAt ? 'datetime' : undefined },
-            { label: 'Confirmation Ref', value: ret.confirmationRef || '—', mono: true },
-          ]} />
+          <InfoGrid
+            columns={4}
+            items={[
+              { label: 'Regulatory Body', value: ret.regulator },
+              { label: 'Report Type', value: ret.reportType || '—' },
+              { label: 'Period', value: ret.reportingPeriod },
+              { label: 'Due Date', value: ret.dueDate, format: 'date' },
+              { label: 'Status', value: <StatusBadge status={ret.status} dot /> },
+              { label: 'Prepared By', value: ret.preparedBy || '—' },
+              { label: 'Reviewed By', value: ret.reviewedBy || '—' },
+              { label: 'Submission Ref', value: ret.submissionReference || '—', mono: true },
+            ]}
+          />
         </FormSection>
 
-        {/* Workflow action */}
-        {currentStep && (
+        {ret.status === 'DRAFT' && (
           <div className="flex items-center justify-between p-4 rounded-lg border bg-primary/5">
             <div>
-              <p className="text-sm font-medium">Current Status: <StatusBadge status={ret.status} /></p>
-              <p className="text-xs text-muted-foreground mt-0.5">Next step: {currentStep.action}</p>
+              <p className="text-sm font-medium">Ready for Review</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Submit this return for compliance review</p>
             </div>
-            <button onClick={currentStep.fn} disabled={currentStep.pending} className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
-              {currentStep.pending ? 'Processing...' : currentStep.action}
+            <button
+              onClick={() => reviewMutation.mutate()}
+              disabled={reviewMutation.isPending}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" />
+              {reviewMutation.isPending ? 'Submitting...' : 'Submit for Review'}
             </button>
+          </div>
+        )}
+
+        {ret.status === 'REVIEWED' && (
+          <div className="p-4 rounded-lg border bg-blue-50 dark:bg-blue-900/20 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">Reviewed — Ready for Submission</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                Enter the submission reference from your regulator portal
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                value={submissionRef}
+                onChange={(e) => setSubmissionRef(e.target.value)}
+                placeholder="e.g. CBN/2026/Q1/001"
+                className="flex-1 px-3 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <button
+                onClick={() => submitMutation.mutate()}
+                disabled={submitMutation.isPending || !submissionRef.trim()}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                <Send className="w-4 h-4" />
+                {submitMutation.isPending ? 'Submitting...' : 'Submit to Regulator'}
+              </button>
+            </div>
           </div>
         )}
 
         {ret.status === 'SUBMITTED' && (
           <div className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <CheckCircle className="w-5 h-5 text-green-600" />
-            <span className="text-sm font-medium text-green-700 dark:text-green-400">Return submitted successfully · Ref: {ret.confirmationRef}</span>
+            <span className="text-sm font-medium text-green-700 dark:text-green-400">
+              Return submitted successfully · Ref: {ret.submissionReference}
+            </span>
           </div>
-        )}
-
-        {validations.length > 0 && (
-          <FormSection title="Data Validation" collapsible defaultOpen>
-            <DataValidationPanel rules={validations} />
-          </FormSection>
         )}
       </div>
     </>

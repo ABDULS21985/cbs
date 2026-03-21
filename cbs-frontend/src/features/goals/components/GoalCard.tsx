@@ -16,10 +16,13 @@ interface GoalCardProps {
 const statusStyles: Record<string, string> = {
   ACTIVE: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   COMPLETED: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  PAUSED: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+  CANCELLED: 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400',
+  EXPIRED: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+  WITHDRAWN: 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
 };
 
-function timeRemaining(targetDate: string): { label: string; urgent: boolean; overdue: boolean } {
+function timeRemaining(targetDate: string | null): { label: string; urgent: boolean; overdue: boolean } {
+  if (!targetDate) return { label: 'No deadline', urgent: false, overdue: false };
   const diff = new Date(targetDate).getTime() - Date.now();
   if (diff < 0) return { label: 'Overdue', urgent: false, overdue: true };
   const days = Math.ceil(diff / 86400000);
@@ -33,11 +36,12 @@ export function GoalCard({ goal, onCelebrate }: GoalCardProps) {
   const navigate = useNavigate();
   const [showContribute, setShowContribute] = useState(false);
 
-  const pct = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
+  const pct = goal.progressPercentage;
   const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0);
   const time = timeRemaining(goal.targetDate);
   const isCompleted = goal.status === 'COMPLETED';
-  const isPaused = goal.status === 'PAUSED';
+  const isCancelled = goal.status === 'CANCELLED';
+  const isInactive = goal.status === 'CANCELLED' || goal.status === 'EXPIRED' || goal.status === 'WITHDRAWN';
 
   return (
     <>
@@ -45,7 +49,7 @@ export function GoalCard({ goal, onCelebrate }: GoalCardProps) {
         className={cn(
           'bg-card rounded-xl border p-5 flex flex-col gap-4 transition-all hover:shadow-md cursor-pointer relative overflow-hidden',
           isCompleted && 'border-amber-300 dark:border-amber-700',
-          isPaused && 'opacity-60',
+          isInactive && !isCompleted && 'opacity-60',
         )}
         onClick={() => navigate(`/accounts/goals/${goal.id}`)}
       >
@@ -56,20 +60,20 @@ export function GoalCard({ goal, onCelebrate }: GoalCardProps) {
           </div>
         )}
 
-        {/* Paused overlay */}
-        {isPaused && (
+        {/* Inactive overlay */}
+        {isInactive && !isCompleted && (
           <div className="absolute inset-0 bg-background/40 flex items-center justify-center z-10 pointer-events-none rounded-xl">
-            <span className="px-3 py-1 rounded-full bg-gray-500 text-white text-xs font-medium">Paused</span>
+            <span className="px-3 py-1 rounded-full bg-gray-500 text-white text-xs font-medium">{goal.status}</span>
           </div>
         )}
 
         {/* Header: Icon + Name + Status */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-2xl leading-none">{goal.icon}</span>
+            <span className="text-2xl leading-none">{goal.goalIcon || '🎯'}</span>
             <div>
-              <h3 className="font-semibold text-sm leading-tight">{goal.name}</h3>
-              <span className={cn('mt-0.5 inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium', statusStyles[goal.status])}>
+              <h3 className="font-semibold text-sm leading-tight">{goal.goalName}</h3>
+              <span className={cn('mt-0.5 inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium', statusStyles[goal.status] ?? statusStyles.ACTIVE)}>
                 {isCompleted ? 'Achieved' : goal.status}
               </span>
             </div>
@@ -102,10 +106,10 @@ export function GoalCard({ goal, onCelebrate }: GoalCardProps) {
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            {goal.fundingMethod === 'AUTO_DEBIT' && goal.autoDebit ? (
+            {goal.autoDebitEnabled && goal.autoDebitAmount ? (
               <>
                 <Zap className="w-3.5 h-3.5 text-primary" />
-                <span>{formatMoneyCompact(goal.autoDebit.amount)}/{goal.autoDebit.frequency.toLowerCase().slice(0, 2)}</span>
+                <span>{formatMoneyCompact(goal.autoDebitAmount)}/{(goal.autoDebitFrequency ?? 'MONTHLY').toLowerCase().slice(0, 2)}</span>
               </>
             ) : (
               <>
@@ -122,7 +126,7 @@ export function GoalCard({ goal, onCelebrate }: GoalCardProps) {
         </div>
 
         {/* Quick Contribute Button */}
-        {!isCompleted && (
+        {!isCompleted && !isInactive && (
           <button
             onClick={(e) => { e.stopPropagation(); setShowContribute(true); }}
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"

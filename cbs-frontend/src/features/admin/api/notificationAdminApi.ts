@@ -93,7 +93,7 @@ export function getTemplates(params?: {
   status?: string;
   search?: string;
 }): Promise<NotificationTemplate[]> {
-  return apiGet<NotificationTemplate[]>('/api/v1/notifications/templates', params as Record<string, unknown> | undefined);
+  return apiGet<NotificationTemplate[]>('/api/v1/notifications/templates', params as unknown as Record<string, unknown>);
 }
 
 export function getTemplateById(id: number | string): Promise<NotificationTemplate> {

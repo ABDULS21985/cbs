@@ -15,6 +15,7 @@ export interface TransactionSearchParams {
   flaggedOnly?: boolean;
   page?: number;
   pageSize?: number;
+  sort?: string;
 }
 
 export interface TransactionSummary {
@@ -142,8 +143,15 @@ export interface TransactionSearchResult {
   summary: TransactionSummary;
 }
 
+interface RequestOptions {
+  signal?: AbortSignal;
+}
+
 export const transactionApi = {
-  searchTransactions: async (params: TransactionSearchParams): Promise<TransactionSearchResult> => {
+  searchTransactions: async (
+    params: TransactionSearchParams,
+    options?: RequestOptions,
+  ): Promise<TransactionSearchResult> => {
     const cleanParams: Record<string, unknown> = {};
     Object.entries(params).forEach(([k, v]) => {
       if (typeof v === 'boolean') {
@@ -152,12 +160,16 @@ export const transactionApi = {
       }
       if (v !== undefined && v !== '' && v !== 'ALL') cleanParams[k] = v;
     });
-    const result = await api.get('/api/v1/transactions', { params: cleanParams });
+    const result = await api.get('/api/v1/transactions', {
+      params: cleanParams,
+      signal: options?.signal,
+    });
     return result.data.data;
   },
 
-  getTransaction: async (id: string): Promise<Transaction> => {
-    return apiGet<Transaction>(`/api/v1/transactions/${id}`);
+  getTransaction: async (id: string, options?: RequestOptions): Promise<Transaction> => {
+    const { data } = await api.get(`/api/v1/transactions/${id}`, { signal: options?.signal });
+    return data.data;
   },
 
   previewReversal: async (id: string, body: ReversalRequest): Promise<ReversalPreview> => {

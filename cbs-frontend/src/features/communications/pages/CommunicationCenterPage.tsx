@@ -19,7 +19,7 @@ import { ScheduledQueue } from '../components/ScheduledQueue';
 import { FailedMessagePanel } from '../components/FailedMessagePanel';
 import { MessageDetailDrawer } from '../components/MessageDetailDrawer';
 import { BulkSendDialog } from '../components/BulkSendDialog';
-import { channelIcon, statusColor } from '../components/ChannelSelector';
+import { channelIcon } from '../components/ChannelSelector';
 import type { NotificationLog } from '../api/communicationApi';
 
 // ── All Messages Tab ────────────────────────────────────────────────────────

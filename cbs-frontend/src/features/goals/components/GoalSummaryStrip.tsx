@@ -1,6 +1,5 @@
 import { Target, Wallet, CheckCircle, TrendingUp } from 'lucide-react';
 import { formatMoneyCompact } from '@/lib/formatters';
-import { cn } from '@/lib/utils';
 import type { SavingsGoal } from '../api/goalApi';
 
 interface GoalSummaryStripProps {
@@ -23,7 +22,7 @@ export function GoalSummaryStrip({ goals, isLoading }: GoalSummaryStripProps) {
   const totalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
   const overallPct = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
   const avgProgress = goals.length > 0
-    ? goals.reduce((s, g) => s + (g.targetAmount > 0 ? (g.currentAmount / g.targetAmount) * 100 : 0), 0) / goals.length
+    ? goals.reduce((s, g) => s + g.progressPercentage, 0) / goals.length
     : 0;
 
   return (

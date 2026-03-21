@@ -54,8 +54,33 @@ public class ContactCenterService {
 
     public List<ContactInteraction> getByCustomer(Long customerId) { return interactionRepository.findByCustomerIdOrderByCreatedAtDesc(customerId); }
     public List<ContactInteraction> getAgentInteractions(String agentId) { return interactionRepository.findByAgentIdOrderByStartedAtDesc(agentId); }
-    public List<ContactCenter> getActiveCenters() { return centerRepository.findByIsActiveTrueOrderByCenterNameAsc(); }
+    public List<ContactCenter> getActiveCenters() { return centerRepository.findAll(); }
     public List<ContactInteraction> getAllInteractions() { return interactionRepository.findAll(); }
+
+    @Transactional
+    public ContactCenter updateCenter(Long id, ContactCenter updates) {
+        ContactCenter existing = centerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ContactCenter", "id", id));
+        if (updates.getCenterName() != null) existing.setCenterName(updates.getCenterName());
+        if (updates.getCenterType() != null) existing.setCenterType(updates.getCenterType());
+        if (updates.getTimezone() != null) existing.setTimezone(updates.getTimezone());
+        if (updates.getOperatingHours() != null) existing.setOperatingHours(updates.getOperatingHours());
+        if (updates.getTotalAgents() != null) existing.setTotalAgents(updates.getTotalAgents());
+        if (updates.getQueueCapacity() != null) existing.setQueueCapacity(updates.getQueueCapacity());
+        if (updates.getServiceLevelTarget() != null) existing.setServiceLevelTarget(updates.getServiceLevelTarget());
+        if (updates.getIsActive() != null) existing.setIsActive(updates.getIsActive());
+        log.info("Contact center updated: id={}, name={}", id, existing.getCenterName());
+        return centerRepository.save(existing);
+    }
+
+    @Transactional
+    public ContactCenter deactivateCenter(Long id) {
+        ContactCenter center = centerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ContactCenter", "id", id));
+        center.setIsActive(false);
+        log.info("Contact center deactivated: id={}, name={}", id, center.getCenterName());
+        return centerRepository.save(center);
+    }
 
     private ContactInteraction getInteraction(String id) {
         return interactionRepository.findByInteractionId(id)

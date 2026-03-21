@@ -38,9 +38,13 @@ export const integrationApi = {
   ingest: (data: Partial<Iso20022Message>) =>
     apiPost<Iso20022Message>('/api/v1/integration/iso20022/messages', data),
 
-  /** PATCH /v1/integration/iso20022/messages/{messageId}/status */
-  updateStatus: (messageId: number) =>
-    apiPatch<Iso20022Message>(`/api/v1/integration/iso20022/messages/${messageId}/status`),
+  /** GET /v1/integration/iso20022/messages — list all ISO messages */
+  listIsoMessages: () =>
+    apiGet<Iso20022Message[]>('/api/v1/integration/iso20022/messages'),
+
+  /** PATCH /v1/integration/iso20022/messages/{messageId}/status — messageId is String, status is @RequestParam */
+  updateStatus: (messageId: string, status: string) =>
+    apiPatch<Iso20022Message>(`/api/v1/integration/iso20022/messages/${messageId}/status?status=${encodeURIComponent(status)}`),
 
   /** GET /v1/integration/iso20022/messages/status/{status} */
   getByStatus: (status: string) =>
@@ -62,59 +66,90 @@ export const integrationApi = {
   registerTpp: (data: Partial<Psd2TppRegistration>) =>
     apiPost<Psd2TppRegistration>('/api/v1/integration/psd2/tpp', data),
 
-  /** POST /v1/integration/psd2/tpp/{tppId}/activate */
-  activate: (tppId: number) =>
+  /** GET /v1/integration/psd2/tpp — list ALL TPPs */
+  getAllTpps: () =>
+    apiGet<Psd2TppRegistration[]>('/api/v1/integration/psd2/tpp'),
+
+  /** POST /v1/integration/psd2/tpp/{tppId}/activate — tppId is String */
+  activate: (tppId: string) =>
     apiPost<Psd2TppRegistration>(`/api/v1/integration/psd2/tpp/${tppId}/activate`),
 
-  /** POST /v1/integration/psd2/tpp/{tppId}/suspend */
-  suspend: (tppId: number) =>
+  /** POST /v1/integration/psd2/tpp/{tppId}/suspend — tppId is String */
+  suspend: (tppId: string) =>
     apiPost<Psd2TppRegistration>(`/api/v1/integration/psd2/tpp/${tppId}/suspend`),
 
   /** GET /v1/integration/psd2/tpp/active */
   getActiveTpps: (params?: Record<string, unknown>) =>
     apiGet<Psd2TppRegistration[]>('/api/v1/integration/psd2/tpp/active', params),
 
-  /** POST /v1/integration/psd2/sca/initiate */
-  initiateSca: () =>
-    apiPost<Psd2ScaSession>('/api/v1/integration/psd2/sca/initiate'),
+  /** POST /v1/integration/psd2/sca/initiate — uses @RequestParam for all fields */
+  initiateSca: (data: {
+    tppId: string; customerId: number; scaMethod: string;
+    paymentId?: number; consentId?: string; amount?: number;
+    ipAddress?: string; userAgent?: string;
+  }) => {
+    const p = new URLSearchParams();
+    p.set('tppId', data.tppId);
+    p.set('customerId', String(data.customerId));
+    p.set('scaMethod', data.scaMethod);
+    if (data.paymentId) p.set('paymentId', String(data.paymentId));
+    if (data.consentId) p.set('consentId', data.consentId);
+    if (data.amount != null) p.set('amount', String(data.amount));
+    if (data.ipAddress) p.set('ipAddress', data.ipAddress);
+    if (data.userAgent) p.set('userAgent', data.userAgent);
+    return apiPost<Psd2ScaSession>(`/api/v1/integration/psd2/sca/initiate?${p.toString()}`);
+  },
 
-  /** POST /v1/integration/psd2/sca/{sessionId}/finalise */
-  finaliseSca: (sessionId: number) =>
-    apiPost<Psd2ScaSession>(`/api/v1/integration/psd2/sca/${sessionId}/finalise`),
+  /** POST /v1/integration/psd2/sca/{sessionId}/finalise — sessionId is String, success is @RequestParam */
+  finaliseSca: (sessionId: string, success: boolean) =>
+    apiPost<Psd2ScaSession>(`/api/v1/integration/psd2/sca/${sessionId}/finalise?success=${success}`),
 
   /** GET /v1/integration/psd2/sca/customer/{customerId} */
   getCustomerSessions: (customerId: number) =>
     apiGet<Psd2ScaSession[]>(`/api/v1/integration/psd2/sca/customer/${customerId}`),
 
-  // ── Open Banking API Clients ────────────────────────────────────────────
+  // ── Open Banking API Clients (backend: /v1/openbanking) ─────────────────
 
-  /** GET /v1/integration/open-banking/clients */
+  /** GET /v1/openbanking/clients */
   getApiClients: () =>
-    apiGet<ApiClientRegistration[]>('/api/v1/integration/open-banking/clients'),
+    apiGet<ApiClientRegistration[]>('/api/v1/openbanking/clients'),
 
-  /** POST /v1/integration/open-banking/clients */
-  registerApiClient: (data: Partial<ApiClientRegistration>) =>
-    apiPost<ApiClientRegistration>('/api/v1/integration/open-banking/clients', data),
-
-  /** POST /v1/integration/open-banking/clients/{clientId}/deactivate */
-  deactivateApiClient: (clientId: string) =>
-    apiPost<ApiClientRegistration>(`/api/v1/integration/open-banking/clients/${clientId}/deactivate`),
+  /** POST /v1/openbanking/clients — requires apiKey query param */
+  registerApiClient: (data: Partial<ApiClientRegistration>, apiKey?: string) => {
+    const params = apiKey ? `?apiKey=${encodeURIComponent(apiKey)}` : '';
+    return apiPost<ApiClientRegistration>(`/api/v1/openbanking/clients${params}`, data);
+  },
 
   // ── Open Banking Consents ───────────────────────────────────────────────
 
-  /** GET /v1/integration/open-banking/consents */
+  /** GET /v1/openbanking/consents */
   getConsents: (params?: Record<string, unknown>) =>
-    apiGet<OpenBankingConsent[]>('/api/v1/integration/open-banking/consents', params),
+    apiGet<OpenBankingConsent[]>('/api/v1/openbanking/consents', params),
 
-  /** POST /v1/integration/open-banking/consents */
-  createConsent: (data: Partial<OpenBankingConsent>) =>
-    apiPost<OpenBankingConsent>('/api/v1/integration/open-banking/consents', data),
+  /** POST /v1/openbanking/consents — uses @RequestParam, not @RequestBody */
+  createConsent: (data: {
+    clientId: string; customerId: number; consentType: string;
+    permissions: string[]; accountIds?: number[]; validityMinutes?: number;
+  }) => {
+    const p = new URLSearchParams();
+    p.set('clientId', data.clientId);
+    p.set('customerId', String(data.customerId));
+    p.set('consentType', data.consentType);
+    data.permissions.forEach((perm) => p.append('permissions', perm));
+    if (data.accountIds) data.accountIds.forEach((id) => p.append('accountIds', String(id)));
+    if (data.validityMinutes) p.set('validityMinutes', String(data.validityMinutes));
+    return apiPost<OpenBankingConsent>(`/api/v1/openbanking/consents?${p.toString()}`);
+  },
 
-  /** POST /v1/integration/open-banking/consents/{consentId}/authorise */
-  authoriseConsent: (consentId: string) =>
-    apiPost<OpenBankingConsent>(`/api/v1/integration/open-banking/consents/${consentId}/authorise`),
+  /** POST /v1/openbanking/consents/{consentId}/authorise — requires customerId @RequestParam */
+  authoriseConsent: (consentId: string, customerId: number) =>
+    apiPost<OpenBankingConsent>(`/api/v1/openbanking/consents/${consentId}/authorise?customerId=${customerId}`),
 
-  /** POST /v1/integration/open-banking/consents/{consentId}/revoke */
+  /** POST /v1/openbanking/consents/{consentId}/revoke */
   revokeConsent: (consentId: string) =>
-    apiPost<OpenBankingConsent>(`/api/v1/integration/open-banking/consents/${consentId}/revoke`),
+    apiPost<OpenBankingConsent>(`/api/v1/openbanking/consents/${consentId}/revoke`),
+
+  /** GET /v1/openbanking/consents/customer/{customerId} */
+  getCustomerConsents: (customerId: number) =>
+    apiGet<OpenBankingConsent[]>(`/api/v1/openbanking/consents/customer/${customerId}`),
 };

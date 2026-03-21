@@ -59,11 +59,19 @@ export function CallbackPage() {
   });
 
   const [attemptingId, setAttemptingId] = useState<number | null>(null);
+  const [outcomeDialog, setOutcomeDialog] = useState<CallbackRequest | null>(null);
+  const [selectedOutcome, setSelectedOutcome] = useState('ANSWERED');
 
-  const handleAttempt = (id: number) => {
-    setAttemptingId(id);
-    attemptCallback.mutate(id, {
-      onSuccess: () => { toast.success('Callback attempted'); refetch(); setAttemptingId(null); },
+  const handleAttempt = (cb: CallbackRequest) => {
+    setSelectedOutcome('ANSWERED');
+    setOutcomeDialog(cb);
+  };
+
+  const confirmAttempt = () => {
+    if (!outcomeDialog) return;
+    setAttemptingId(outcomeDialog.id);
+    attemptCallback.mutate({ id: outcomeDialog.id, outcome: selectedOutcome }, {
+      onSuccess: () => { toast.success(`Callback recorded as ${selectedOutcome}`); refetch(); setAttemptingId(null); setOutcomeDialog(null); },
       onError: () => { toast.error('Attempt failed'); setAttemptingId(null); },
     });
   };
@@ -95,7 +103,7 @@ export function CallbackPage() {
     { id: 'actions', header: 'Actions', cell: ({ row }) => {
       const canAttempt = row.original.status === 'PENDING' || row.original.status === 'SCHEDULED';
       return canAttempt ? (
-        <button onClick={() => handleAttempt(row.original.id)} disabled={attemptingId === row.original.id}
+        <button onClick={() => handleAttempt(row.original)} disabled={attemptingId === row.original.id}
           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50">
           {attemptingId === row.original.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Phone className="w-3 h-3" />}
           Attempt
@@ -140,6 +148,49 @@ export function CallbackPage() {
             emptyMessage="No callbacks found" pageSize={15} />
         )}
       </div>
+
+      {/* Outcome Selection Dialog */}
+      {outcomeDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOutcomeDialog(null)} />
+          <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div>
+                <h2 className="text-base font-semibold">Record Callback Outcome</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Customer #{outcomeDialog.customerId} — {outcomeDialog.callbackNumber}</p>
+              </div>
+              <button onClick={() => setOutcomeDialog(null)} className="p-1.5 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Outcome</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {['ANSWERED', 'NO_ANSWER', 'BUSY', 'VOICEMAIL'].map(o => (
+                    <label key={o} className={cn(
+                      'flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-sm font-medium',
+                      selectedOutcome === o ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'
+                    )}>
+                      <input type="radio" name="outcome" value={o} checked={selectedOutcome === o} onChange={() => setSelectedOutcome(o)} className="sr-only" />
+                      {o === 'ANSWERED' && <CheckCircle2 className="w-4 h-4" />}
+                      {o === 'NO_ANSWER' && <XCircle className="w-4 h-4" />}
+                      {o === 'BUSY' && <AlertTriangle className="w-4 h-4" />}
+                      {o === 'VOICEMAIL' && <Phone className="w-4 h-4" />}
+                      {o.replace(/_/g, ' ')}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2 border-t">
+                <button onClick={() => setOutcomeDialog(null)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+                <button onClick={confirmAttempt} disabled={attemptingId === outcomeDialog.id}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60">
+                  {attemptingId === outcomeDialog.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Phone className="w-4 h-4" />} Record
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Schedule Callback Dialog */}
       {showSchedule && (

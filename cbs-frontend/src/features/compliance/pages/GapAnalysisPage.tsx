@@ -176,25 +176,113 @@ function IdentifyGapDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ── Plan Remediation Dialog ──────────────────────────────────────────────────
+
+function PlanRemediationDialog({ code, onClose }: { code: string; onClose: () => void }) {
+  const planGap = usePlanGapAnalysis();
+  const [form, setForm] = useState({ owner: '', description: '', targetDate: '' });
+  const fc = 'w-full px-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50';
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    planGap.mutate({ code, ...form }, {
+      onSuccess: () => { toast.success('Remediation planned'); onClose(); },
+      onError: () => toast.error('Failed to plan remediation'),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background z-10">
+          <h2 className="text-base font-semibold">Plan Remediation</h2>
+          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Remediation Owner *</label>
+            <input value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })} className={fc} required />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Description *</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} className={fc} required />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Target Date *</label>
+            <input type="date" value={form.targetDate} onChange={(e) => setForm({ ...form, targetDate: e.target.value })} className={fc} required />
+          </div>
+          <div className="flex gap-2 pt-2 border-t">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border hover:bg-muted">Cancel</button>
+            <button type="submit" disabled={planGap.isPending} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50">
+              {planGap.isPending && <Loader2 className="w-4 h-4 animate-spin" />} Plan Remediation
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Verify Gap Dialog ────────────────────────────────────────────────────────
+
+function VerifyGapDialog({ code, onClose }: { code: string; onClose: () => void }) {
+  const verifyGap = useVerifyGapAnalysis();
+  const [verifiedBy, setVerifiedBy] = useState('');
+  const fc = 'w-full px-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50';
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    verifyGap.mutate({ code, verifiedBy }, {
+      onSuccess: () => { toast.success('Gap verified'); onClose(); },
+      onError: () => toast.error('Verification failed'),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background z-10">
+          <h2 className="text-base font-semibold">Verify Gap Remediation</h2>
+          <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Verified By *</label>
+            <input value={verifiedBy} onChange={(e) => setVerifiedBy(e.target.value)} className={fc} placeholder="Staff ID or name" required />
+          </div>
+          <div className="flex gap-2 pt-2 border-t">
+            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 text-sm rounded-lg border hover:bg-muted">Cancel</button>
+            <button type="submit" disabled={verifyGap.isPending} className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50">
+              {verifyGap.isPending && <Loader2 className="w-4 h-4 animate-spin" />} Verify
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export function GapAnalysisPage() {
   const [showIdentify, setShowIdentify] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [planTarget, setPlanTarget] = useState<string | null>(null);
+  const [verifyTarget, setVerifyTarget] = useState<string | null>(null);
 
   const { data: gaps = [], isLoading } = useGapAnalysisList();
   const { data: dashboard } = useGapAnalysisDashboard();
   const { data: overdueGaps = [] } = useOverdueGapAnalysis();
 
-  const planGap = usePlanGapAnalysis();
   const progressGap = useProgressGapAnalysis();
   const closeGap = useCloseGapAnalysis();
-  const verifyGap = useVerifyGapAnalysis();
   const acceptRisk = useAcceptGapAnalysisRisk();
 
-  const handleAction = (code: string, action: string) => {
-    const mutations: Record<string, any> = { plan: planGap, progress: progressGap, close: closeGap, verify: verifyGap, acceptRisk };
+  const handleAction = (code: string, action: 'progress' | 'close' | 'acceptRisk') => {
+    const mutations: Record<string, any> = { progress: progressGap, close: closeGap, acceptRisk };
     mutations[action]?.mutate(code, {
       onSuccess: () => toast.success(`Gap ${action === 'acceptRisk' ? 'risk accepted' : action + 'ed'}`),
       onError: () => toast.error('Action failed'),
@@ -253,10 +341,10 @@ export function GapAnalysisPage() {
       const code = row.original.analysisCode;
       return (
         <div className="flex gap-1">
-          {s === 'IDENTIFIED' && <button onClick={() => handleAction(code, 'plan')} className="px-2 py-0.5 text-[10px] rounded border hover:bg-muted">Plan</button>}
+          {s === 'IDENTIFIED' && <button onClick={() => setPlanTarget(code)} className="px-2 py-0.5 text-[10px] rounded border hover:bg-muted">Plan</button>}
           {s === 'REMEDIATION_PLANNED' && <button onClick={() => handleAction(code, 'progress')} className="px-2 py-0.5 text-[10px] rounded border hover:bg-muted">Start</button>}
           {s === 'IN_PROGRESS' && <button onClick={() => handleAction(code, 'close')} className="px-2 py-0.5 text-[10px] rounded border hover:bg-muted">Remediate</button>}
-          {s === 'REMEDIATED' && <button onClick={() => handleAction(code, 'verify')} className="px-2 py-0.5 text-[10px] rounded border hover:bg-muted">Verify</button>}
+          {s === 'REMEDIATED' && <button onClick={() => setVerifyTarget(code)} className="px-2 py-0.5 text-[10px] rounded border hover:bg-muted">Verify</button>}
           {!TERMINAL_STATES.includes(s) && <button onClick={() => handleAction(code, 'acceptRisk')} className="px-2 py-0.5 text-[10px] rounded border text-amber-600 hover:bg-amber-50">Accept Risk</button>}
         </div>
       );
@@ -266,6 +354,8 @@ export function GapAnalysisPage() {
   return (
     <>
       {showIdentify && <IdentifyGapDialog onClose={() => setShowIdentify(false)} />}
+      {planTarget && <PlanRemediationDialog code={planTarget} onClose={() => setPlanTarget(null)} />}
+      {verifyTarget && <VerifyGapDialog code={verifyTarget} onClose={() => setVerifyTarget(null)} />}
 
       <PageHeader title="Compliance Gap Analysis" subtitle="Identify, track, and remediate compliance gaps"
         actions={<button onClick={() => setShowIdentify(true)} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90"><Plus className="w-4 h-4" /> Identify New Gap</button>}

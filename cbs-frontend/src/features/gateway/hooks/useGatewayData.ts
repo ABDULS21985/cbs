@@ -152,10 +152,19 @@ export function useIso20022Ingest() {
 export function useIso20022UpdateStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (messageId: number) => integrationApi.updateStatus(messageId),
+    mutationFn: ({ messageId, status }: { messageId: string; status: string }) =>
+      integrationApi.updateStatus(messageId, status),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: GATEWAY_KEYS.integration });
     },
+  });
+}
+
+export function useIso20022Messages() {
+  return useQuery({
+    queryKey: [...GATEWAY_KEYS.integration, 'iso20022', 'all'],
+    queryFn: () => integrationApi.listIsoMessages(),
+    staleTime: 30_000,
   });
 }
 
@@ -207,7 +216,7 @@ export function useRegisterTpp() {
 export function useActivateTpp() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (tppId: number) => integrationApi.activate(tppId),
+    mutationFn: (tppId: string) => integrationApi.activate(tppId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: GATEWAY_KEYS.activeTpps() });
     },
@@ -217,10 +226,18 @@ export function useActivateTpp() {
 export function useSuspendTpp() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (tppId: number) => integrationApi.suspend(tppId),
+    mutationFn: (tppId: string) => integrationApi.suspend(tppId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: GATEWAY_KEYS.activeTpps() });
     },
+  });
+}
+
+export function useAllTpps() {
+  return useQuery({
+    queryKey: [...GATEWAY_KEYS.integration, 'tpp', 'all'],
+    queryFn: () => integrationApi.getAllTpps(),
+    staleTime: 30_000,
   });
 }
 
@@ -234,14 +251,16 @@ export function useActiveTpps(params?: Record<string, unknown>) {
 
 export function useInitiateSca() {
   return useMutation({
-    mutationFn: () => integrationApi.initiateSca(),
+    mutationFn: (data: Parameters<typeof integrationApi.initiateSca>[0]) =>
+      integrationApi.initiateSca(data),
   });
 }
 
 export function useFinaliseSca() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (sessionId: number) => integrationApi.finaliseSca(sessionId),
+    mutationFn: ({ sessionId, success }: { sessionId: string; success: boolean }) =>
+      integrationApi.finaliseSca(sessionId, success),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: GATEWAY_KEYS.integration });
     },
@@ -272,7 +291,7 @@ export function useRegisterGatewayMessage() {
 export function useAckGatewayMessage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (ref: string) => financialGatewayApi.ack(ref),
+    mutationFn: ({ ref, ackReference }: { ref: string; ackReference: string }) => financialGatewayApi.ack(ref, ackReference),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: GATEWAY_KEYS.financialGateway });
     },
@@ -282,7 +301,7 @@ export function useAckGatewayMessage() {
 export function useNackGatewayMessage() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (ref: string) => financialGatewayApi.ack2(ref),
+    mutationFn: ({ ref, reason }: { ref: string; reason: string }) => financialGatewayApi.nack(ref, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: GATEWAY_KEYS.financialGateway });
     },
@@ -292,7 +311,7 @@ export function useNackGatewayMessage() {
 export function useQueuedGatewayMessages(gatewayId: number) {
   return useQuery({
     queryKey: GATEWAY_KEYS.queuedMessages(gatewayId),
-    queryFn: () => financialGatewayApi.queued(gatewayId),
+    queryFn: () => financialGatewayApi.getQueuedMessages(gatewayId),
     enabled: !!gatewayId,
     staleTime: 30_000,
   });
@@ -301,7 +320,7 @@ export function useQueuedGatewayMessages(gatewayId: number) {
 export function useGatewayMessagesByType(type: string) {
   return useQuery({
     queryKey: GATEWAY_KEYS.messagesByType(type),
-    queryFn: () => financialGatewayApi.queued2(type),
+    queryFn: () => financialGatewayApi.getByType(type),
     enabled: !!type,
     staleTime: 30_000,
   });
@@ -486,10 +505,19 @@ export function useDeprecateProduct() {
   });
 }
 
+export function useMarketplaceSubscriptions() {
+  return useQuery({
+    queryKey: [...GATEWAY_KEYS.marketplace, 'subscriptions'],
+    queryFn: () => marketplaceApi.getSubscriptions(),
+    staleTime: 30_000,
+  });
+}
+
 export function useMarketplaceSubscribe() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => marketplaceApi.subscribe(),
+    mutationFn: (data: Parameters<typeof marketplaceApi.subscribe>[0]) =>
+      marketplaceApi.subscribe(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: GATEWAY_KEYS.marketplace });
     },
@@ -499,10 +527,18 @@ export function useMarketplaceSubscribe() {
 export function useApproveSubscription() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (subscriptionId: number) => marketplaceApi.approve(subscriptionId),
+    mutationFn: (subscriptionId: string) => marketplaceApi.approve(subscriptionId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: GATEWAY_KEYS.marketplace });
     },
+  });
+}
+
+export function useMarketplaceUsageLogs() {
+  return useQuery({
+    queryKey: [...GATEWAY_KEYS.marketplace, 'usage'],
+    queryFn: () => marketplaceApi.getUsageLogs(),
+    staleTime: 30_000,
   });
 }
 
@@ -578,7 +614,8 @@ export function useCreateConsent() {
 export function useAuthoriseConsent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (consentId: string) => integrationApi.authoriseConsent(consentId),
+    mutationFn: ({ consentId, customerId }: { consentId: string; customerId: number }) =>
+      integrationApi.authoriseConsent(consentId, customerId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['open-banking', 'consents'] }); },
   });
 }

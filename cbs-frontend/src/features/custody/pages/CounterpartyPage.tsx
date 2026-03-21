@@ -73,7 +73,7 @@ function UpdateExposureDialog({ counterparty, onClose }: { counterparty: Counter
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={onClose} className="btn-secondary">Cancel</button>
             <button
-              onClick={() => update.mutate({ code: counterparty.counterpartyCode, currentExposure: amount }, { onSuccess: () => { toast.success('Exposure updated'); onClose(); } })}
+              onClick={() => update.mutate({ code: counterparty.counterpartyCode, exposure: amount }, { onSuccess: () => { toast.success('Exposure updated'); onClose(); } })}
               disabled={update.isPending}
               className="btn-primary"
             >

@@ -7,18 +7,18 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge, TabsPage, EmptyState } from '@/components/shared';
-import { formatMoney, formatDate, formatDateTime, formatPercent } from '@/lib/formatters';
+import { formatMoney, formatDate, formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useQuery } from '@tanstack/react-query';
 import {
   useValuationModels,
+  useValuationRuns,
   useValuationRunExceptions,
   useDefineValuationModel,
   useCompleteValuationRun,
+  useRunValuation,
 } from '../hooks/useCustodyExt';
-import { valuationApi } from '@/features/capitalmarkets/api/valuationApi';
 import type { ValuationModel, ValuationRun, InstrumentValuation } from '../types/valuation';
 import { ValuationModelForm } from '../components/ValuationModelForm';
 import { FairValueBreakdown } from '../components/FairValueBreakdown';
@@ -73,15 +73,14 @@ function NewRunDialog({ models, onClose }: { models: ValuationModel[]; onClose: 
   const [modelId, setModelId] = useState(models[0]?.id ?? 0);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [runType, setRunType] = useState('END_OF_DAY');
-  const [submitting, setSubmitting] = useState(false);
+  const runValuation = useRunValuation();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    valuationApi.runValuation(modelId, date, runType)
-      .then(() => { toast.success('Valuation run started'); onClose(); })
-      .catch(() => toast.error('Failed to start run'))
-      .finally(() => setSubmitting(false));
+    runValuation.mutate({ modelId, date, runType }, {
+      onSuccess: () => { toast.success('Valuation run started'); onClose(); },
+      onError: () => toast.error('Failed to start run'),
+    });
   };
 
   return (
@@ -110,9 +109,9 @@ function NewRunDialog({ models, onClose }: { models: ValuationModel[]; onClose: 
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-            <button type="submit" disabled={submitting} className="btn-primary flex items-center gap-2">
-              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {submitting ? 'Starting...' : 'Start Run'}
+            <button type="submit" disabled={runValuation.isPending} className="btn-primary flex items-center gap-2">
+              {runValuation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {runValuation.isPending ? 'Starting...' : 'Start Run'}
             </button>
           </div>
         </form>
@@ -132,11 +131,7 @@ export function ValuationPage() {
   const [selectedModel, setSelectedModel] = useState<ValuationModel | null>(null);
 
   const { data: models = [], isLoading: modelsLoading } = useValuationModels();
-  const { data: runs = [], isLoading: runsLoading } = useQuery({
-    queryKey: ['valuation', 'runs'],
-    queryFn: () => valuationApi.getRuns(),
-    staleTime: 30_000,
-  });
+  const { data: runs = [], isLoading: runsLoading } = useValuationRuns();
 
   // IPV data from recent runs
   const recentCompletedRuns = runs.filter((r) => r.status === 'COMPLETED').slice(0, 10);

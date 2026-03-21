@@ -5,6 +5,8 @@ import type {
   NotificationPreference,
   NotificationTemplate,
   DeliveryStats,
+  SendDirectRequest,
+  SendBulkRequest,
 } from '../types/notificationExt';
 
 // ---------------------------------------------------------------------------
@@ -132,9 +134,21 @@ export const notificationApi = {
     return apiPost<unknown>(url);
   },
 
+  /** POST /send-direct — send a direct (non-template) notification */
+  sendDirect: (payload: SendDirectRequest) =>
+    apiPost<NotificationLog>('/api/v1/notifications/send-direct', payload),
+
+  /** POST /send-bulk — send bulk notifications (CBS_ADMIN only) */
+  sendBulk: (payload: SendBulkRequest) =>
+    apiPost<{ sent: number; failed: number }>('/api/v1/notifications/send-bulk', payload),
+
+  /** GET /retry — get retry status (pending/failed counts) */
+  getRetryStatus: () =>
+    apiGet<{ pending: number; failed: number }>('/api/v1/notifications/retry'),
+
   /** POST /retry */
   retry: () =>
-    apiPost<unknown>('/api/v1/notifications/retry'),
+    apiPost<{ retried: number }>('/api/v1/notifications/retry'),
 
   // ── Preferences ────────────────────────────────────────────────────────
 

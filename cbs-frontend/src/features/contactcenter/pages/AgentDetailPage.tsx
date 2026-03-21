@@ -241,7 +241,7 @@ export function AgentDetailPage() {
   if (isLoading) {
     return (
       <>
-        <PageHeader title="Loading..." backTo="/communications/contact-center" />
+        <PageHeader title="Loading..." backTo="/contact-center" />
         <div className="page-container flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
@@ -252,7 +252,7 @@ export function AgentDetailPage() {
   if (!agent) {
     return (
       <>
-        <PageHeader title="Agent Not Found" backTo="/communications/contact-center" />
+        <PageHeader title="Agent Not Found" backTo="/contact-center" />
         <div className="page-container text-center py-20 text-muted-foreground">
           <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
           <p>Agent {agentId} not found</p>
@@ -296,7 +296,7 @@ export function AgentDetailPage() {
             )}
           </span>
         }
-        backTo="/communications/contact-center"
+        backTo="/contact-center"
       />
 
       <div className="page-container space-y-6">

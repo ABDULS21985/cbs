@@ -53,8 +53,11 @@ const baseHookValue = {
     type: 'ALL',
     channel: 'ALL',
     status: 'ALL',
+    flaggedOnly: false,
     page: 0,
     pageSize: 20,
+    sortBy: 'postingDate',
+    sortDirection: 'desc',
   },
   appliedFilters: {
     search: '',
@@ -67,8 +70,11 @@ const baseHookValue = {
     type: 'ALL',
     channel: 'ALL',
     status: 'ALL',
+    flaggedOnly: false,
     page: 0,
     pageSize: 20,
+    sortBy: 'postingDate',
+    sortDirection: 'desc',
   },
   updateFilters: vi.fn(),
   triggerSearch: vi.fn(),
@@ -76,6 +82,7 @@ const baseHookValue = {
   resetFilters: vi.fn(),
   setPage: vi.fn(),
   setPageSize: vi.fn(),
+  setSort: vi.fn(),
   transactions: [],
   summary: {
     totalResults: 0,
@@ -89,9 +96,11 @@ const baseHookValue = {
   isFetching: false,
   isRefreshing: false,
   isError: false,
+  error: null,
   refetch: vi.fn(),
   elapsedMs: null,
   hasSearched: false,
+  isReady: true,
   savedSearches: [],
   recentSearches: [],
   saveCurrentSearch: vi.fn(),
@@ -166,7 +175,7 @@ describe('TransactionSearchPage', () => {
 
     render(<TransactionSearchPage />, { wrapper });
 
-    expect(screen.getByText(/found/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/found/i).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /table/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /timeline/i })).toBeInTheDocument();
     expect(screen.getByText('Avg Transaction Value')).toBeInTheDocument();

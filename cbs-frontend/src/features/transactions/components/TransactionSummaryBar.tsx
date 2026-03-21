@@ -176,7 +176,7 @@ export function TransactionSummaryBar({
               onClick={card.onClick}
               disabled={!card.onClick}
               className={cn(
-                'rounded-xl border bg-card p-4 text-left transition-colors',
+                'avoid-break rounded-xl border bg-card p-4 text-left transition-colors',
                 card.onClick ? 'hover:border-primary/40 hover:bg-primary/5' : 'cursor-default',
               )}
             >

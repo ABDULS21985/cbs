@@ -78,6 +78,10 @@
     padding: 4pt;
   }
 
+  .print-footer::after {
+    content: " | Page " counter(page);
+  }
+
   /* Headings */
   h1 { font-size: 18pt !important; }
   h2 { font-size: 14pt !important; }

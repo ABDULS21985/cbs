@@ -14,7 +14,9 @@ const STATUSES = [
   { value: '', label: 'All', emoji: '' },
   { value: 'ACTIVE', label: 'Active', emoji: '🟢' },
   { value: 'COMPLETED', label: 'Completed', emoji: '✅' },
-  { value: 'PAUSED', label: 'Paused', emoji: '⏸' },
+  { value: 'CANCELLED', label: 'Cancelled', emoji: '🚫' },
+  { value: 'EXPIRED', label: 'Expired', emoji: '⏰' },
+  { value: 'WITHDRAWN', label: 'Withdrawn', emoji: '💸' },
 ];
 
 const SORTS = [

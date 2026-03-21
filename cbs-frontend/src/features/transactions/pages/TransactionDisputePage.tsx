@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { EmptyState } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
 import { useDisputes } from '../hooks/useDisputes';
 import { DisputeTrackingTable } from '../components/disputes/DisputeTrackingTable';

@@ -14,6 +14,9 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import '@/lib/export/printStyles.css';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ConfirmDialog, EmptyState } from '@/components/shared';
 import { exportToExcel } from '@/lib/export/excelExport';
@@ -29,6 +32,8 @@ import { TransactionSearchForm, getTransactionSearchValidationErrors } from '../
 import { TransactionResultsTable } from '../components/TransactionResultsTable';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
 import { StatementGenerator } from '../components/StatementGenerator';
+import { SearchFormSkeleton } from '../components/SearchFormSkeleton';
+import { TransactionErrorState } from '../components/TransactionErrorState';
 import type { Transaction } from '../api/transactionApi';
 
 const LIVE_MODE_STORAGE_KEY = 'transactions:live-mode';
@@ -46,7 +51,8 @@ function toLocalDateStamp(date: Date): string {
 }
 
 function formatTransactionAmount(transaction: Transaction): number {
-  return transaction.debitAmount ?? transaction.creditAmount ?? 0;
+  const amount = transaction.debitAmount ?? transaction.creditAmount ?? 0;
+  return typeof amount === 'number' && Number.isFinite(amount) ? amount : 0;
 }
 
 function escapeHtml(value: string): string {
@@ -69,6 +75,13 @@ function downloadTextFile(content: string, mimeType: string, filename: string) {
 }
 
 function exportTransactionsToCsv(transactions: Transaction[], filenamePrefix: string) {
+  const sanitizeCsvCell = (value: unknown) => {
+    const text = String(value ?? '')
+      .replace(/\r?\n/g, ' ')
+      .replace(/^\s*[=+\-@]/, "'$&");
+    return `"${text.replaceAll('"', '""')}"`;
+  };
+
   const headers = [
     'Reference',
     'Date/Time',
@@ -103,7 +116,7 @@ function exportTransactionsToCsv(transactions: Transaction[], filenamePrefix: st
   ]);
 
   const csv = [headers, ...rows]
-    .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(','))
+    .map((row) => row.map((value) => sanitizeCsvCell(value)).join(','))
     .join('\n');
 
   downloadTextFile(csv, 'text/csv;charset=utf-8', `${filenamePrefix}-${toLocalDateStamp(new Date())}.csv`);
@@ -325,7 +338,6 @@ function printTransactionReceipts(transactions: Transaction[]) {
 
 function buildActiveFilterPills(
   filters: ReturnType<typeof useTransactionSearch>['appliedFilters'],
-  onRemove: (key: string) => void,
 ) {
   const pills: Array<{ key: string; label: string }> = [];
   if (filters.search.trim()) pills.push({ key: 'search', label: `Search: ${filters.search.trim()}` });
@@ -338,16 +350,7 @@ function buildActiveFilterPills(
   if (filters.status !== 'ALL') pills.push({ key: 'status', label: `Status: ${filters.status}` });
   if (filters.flaggedOnly) pills.push({ key: 'flaggedOnly', label: 'Flagged Only' });
 
-  return pills.map((pill) => (
-    <button
-      key={pill.key}
-      onClick={() => onRemove(pill.key)}
-      className="inline-flex items-center gap-2 rounded-full border bg-muted/20 px-3 py-1 text-sm transition-colors hover:bg-muted"
-    >
-      {pill.label}
-      <span className="text-muted-foreground">×</span>
-    </button>
-  ));
+  return pills;
 }
 
 function playPing() {
@@ -432,9 +435,11 @@ export function TransactionSearchPage() {
     isFetching,
     isRefreshing,
     isError,
+    error,
     refetch,
     elapsedMs,
     hasSearched,
+    isReady,
     savedSearches,
     recentSearches,
     saveCurrentSearch,
@@ -443,6 +448,7 @@ export function TransactionSearchPage() {
     applyRecentSearch,
     setPage,
     setPageSize,
+    setSort,
     selectedTransactionIds,
     selectedTransactions,
     allVisibleSelected,
@@ -828,19 +834,29 @@ export function TransactionSearchPage() {
   ]);
 
   const activeFilterPills = useMemo(
-    () => buildActiveFilterPills(appliedFilters, handleRemoveFilter),
-    [appliedFilters, handleRemoveFilter],
+    () => buildActiveFilterPills(appliedFilters),
+    [appliedFilters],
   );
 
   const liveWarning = liveMode && transactionsPerMinute > 50;
+  const printAccountLabel = appliedFilters.accountNumber || 'All matching accounts';
+
+  const searchAnnouncement = useMemo(() => {
+    if (!hasSearched) return '';
+    return `Found ${summary.totalResults} transactions. Total debit: ${summary.totalDebit.toLocaleString('en-NG', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}.`;
+  }, [hasSearched, summary.totalDebit, summary.totalResults]);
 
   return (
     <>
+      <OfflineBanner />
       <PageHeader
         title="Transaction History"
         subtitle="Search, monitor, export, and investigate transactions from one workstation"
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="no-print flex flex-wrap items-center gap-2">
             <button
               onClick={() => setLiveMode((current) => !current)}
               className={cn(
@@ -920,38 +936,60 @@ export function TransactionSearchPage() {
       />
 
       <div className="page-container space-y-4">
-        <TransactionSearchForm
-          filters={filters}
-          onChange={updateFilters}
-          onSearch={() => triggerSearch()}
-          onReset={resetFilters}
-          isLoading={isLoading || isFetching}
-          searchInputRef={searchInputRef}
-        />
+        <div aria-live="polite" aria-atomic="true" className="sr-only">
+          {searchAnnouncement}
+        </div>
 
-        <SavedSearches
-          savedSearches={savedSearches}
-          recentSearches={recentSearches}
-          onSaveSearch={saveCurrentSearch}
-          onApplySavedSearch={applySavedSearch}
-          onDeleteSavedSearch={deleteSavedSearch}
-          onApplyRecentSearch={applyRecentSearch}
-          canSave={hasAnySearchCriteria(filters) || hasSearched}
-        />
+        {hasSearched && (
+          <>
+            <div className="print-only print-header hidden">
+              <div className="flex items-end justify-between gap-6">
+                <div>
+                  <p className="text-2xl font-bold text-blue-700">BellBank</p>
+                  <p className="mt-1 text-lg font-semibold">Transaction History</p>
+                  <p className="text-sm text-muted-foreground">Account: {printAccountLabel}</p>
+                  <p className="text-sm text-muted-foreground">Period: {periodLabel}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Generated: {new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })}
+                </p>
+              </div>
+            </div>
+            <div className="print-only print-footer hidden">CONFIDENTIAL</div>
+          </>
+        )}
+
+        {!isReady ? (
+          <SearchFormSkeleton />
+        ) : (
+          <div className="no-print">
+            <TransactionSearchForm
+              filters={filters}
+              onChange={updateFilters}
+              onSearch={() => triggerSearch()}
+              onReset={resetFilters}
+              isLoading={isLoading || isFetching}
+              searchInputRef={searchInputRef}
+            />
+          </div>
+        )}
+
+        <div className="no-print">
+          <ErrorBoundary fallback={<TransactionErrorState error={error} onRetry={() => refetch()} />}>
+            <SavedSearches
+              savedSearches={savedSearches}
+              recentSearches={recentSearches}
+              onSaveSearch={saveCurrentSearch}
+              onApplySavedSearch={applySavedSearch}
+              onDeleteSavedSearch={deleteSavedSearch}
+              onApplyRecentSearch={applyRecentSearch}
+              canSave={hasAnySearchCriteria(filters) || hasSearched}
+            />
+          </ErrorBoundary>
+        </div>
 
         {isError && (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              <span>Failed to search transactions. Check your connection.</span>
-            </div>
-            <button
-              onClick={() => refetch()}
-              className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium hover:bg-red-100 dark:border-red-900/40 dark:hover:bg-red-900/20"
-            >
-              Retry
-            </button>
-          </div>
+          <TransactionErrorState error={error} onRetry={() => refetch()} />
         )}
 
         {liveWarning && (
@@ -982,23 +1020,36 @@ export function TransactionSearchPage() {
         )}
 
         {hasSearched && (
-          <TransactionSummaryBar
-            summary={summary}
-            previousSummary={previousSummary}
-            comparisonPeriodLabel={comparisonPeriodLabel}
-            transactions={transactions}
-            isLoading={isInitialResultsLoading}
-            onHighlightLargest={setHighlightedTransactionId}
-          />
+          <ErrorBoundary fallback={<TransactionErrorState error={error} onRetry={() => refetch()} />}>
+            <div className="avoid-break">
+              <TransactionSummaryBar
+                summary={summary}
+                previousSummary={previousSummary}
+                comparisonPeriodLabel={comparisonPeriodLabel}
+                transactions={transactions}
+                isLoading={isInitialResultsLoading}
+                onHighlightLargest={setHighlightedTransactionId}
+              />
+            </div>
+          </ErrorBoundary>
         )}
 
         {hasSearched && (
-          <div className="space-y-3 rounded-xl border bg-card p-4">
+          <div className="no-print space-y-3 rounded-xl border bg-card p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 {activeFilterPills.length > 0 ? (
                   <>
-                    {activeFilterPills}
+                    {activeFilterPills.map((pill) => (
+                      <button
+                        key={pill.key}
+                        onClick={() => handleRemoveFilter(pill.key)}
+                        className="no-print inline-flex items-center gap-2 rounded-full border bg-muted/20 px-3 py-1 text-sm transition-colors hover:bg-muted"
+                      >
+                        {pill.label}
+                        <span className="text-muted-foreground">×</span>
+                      </button>
+                    ))}
                     <button
                       onClick={resetFilters}
                       className="rounded-full border px-3 py-1 text-sm font-medium transition-colors hover:bg-muted"
@@ -1038,31 +1089,38 @@ export function TransactionSearchPage() {
         )}
 
         {hasSearched ? (
-          viewMode === 'table' ? (
-            <TransactionResultsTable
-              transactions={transactions}
-              isLoading={isInitialResultsLoading}
-              onRowClick={handleRowClick}
-              selectedTransactionIds={selectedTransactionIds}
-              allVisibleSelected={allVisibleSelected}
-              someVisibleSelected={someVisibleSelected}
-              onToggleTransactionSelection={toggleTransactionSelection}
-              onToggleSelectAllVisible={toggleAllVisibleTransactions}
-              highlightedTransactionIds={highlightedIds}
-              pageIndex={filters.page}
-              pageSize={filters.pageSize}
-              totalRows={summary.totalResults}
-              onPageChange={setPage}
-              onPageSizeChange={setPageSize}
-            />
-          ) : (
-            <TransactionTimeline
-              transactions={transactions}
-              onSelectTransaction={handleRowClick}
-              flashingTransactionIds={flashingTransactionIds}
-              highlightedTransactionId={highlightedTransactionId}
-            />
-          )
+          <ErrorBoundary fallback={<TransactionErrorState error={error} onRetry={() => refetch()} />}>
+            {viewMode === 'table' ? (
+              <TransactionResultsTable
+                transactions={transactions}
+                isLoading={isInitialResultsLoading}
+                onRowClick={handleRowClick}
+                selectedTransactionIds={selectedTransactionIds}
+                allVisibleSelected={allVisibleSelected}
+                someVisibleSelected={someVisibleSelected}
+                onToggleTransactionSelection={toggleTransactionSelection}
+                onToggleSelectAllVisible={toggleAllVisibleTransactions}
+                highlightedTransactionIds={highlightedIds}
+                pageIndex={appliedFilters.page}
+                pageSize={appliedFilters.pageSize}
+                totalRows={summary.totalResults}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+                sortBy={appliedFilters.sortBy}
+                sortDirection={appliedFilters.sortDirection}
+                onSortChange={setSort}
+              />
+            ) : (
+              <div className="avoid-break">
+                <TransactionTimeline
+                  transactions={transactions}
+                  onSelectTransaction={handleRowClick}
+                  flashingTransactionIds={flashingTransactionIds}
+                  highlightedTransactionId={highlightedTransactionId}
+                />
+              </div>
+            )}
+          </ErrorBoundary>
         ) : (
           <EmptyState
             title="Search for transactions"
@@ -1080,11 +1138,13 @@ export function TransactionSearchPage() {
         onClearSelection={clearSelection}
       />
 
-      <TransactionDetailModal
-        transaction={selectedTransaction}
-        open={detailOpen}
-        onClose={handleCloseDetail}
-      />
+      <ErrorBoundary fallback={<TransactionErrorState onRetry={handleCloseDetail} />}>
+        <TransactionDetailModal
+          transaction={selectedTransaction}
+          open={detailOpen}
+          onClose={handleCloseDetail}
+        />
+      </ErrorBoundary>
 
       <StatementGenerator
         open={statementGeneratorOpen}

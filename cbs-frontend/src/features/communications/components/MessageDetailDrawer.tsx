@@ -2,7 +2,7 @@ import { X, RefreshCw } from 'lucide-react';
 import { StatusBadge } from '@/components/shared';
 import { formatDateTime, formatRelative } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
-import { channelIcon, statusColor } from './ChannelSelector';
+import { channelIcon } from './ChannelSelector';
 import type { NotificationLog } from '../api/communicationApi';
 
 interface MessageDetailDrawerProps {

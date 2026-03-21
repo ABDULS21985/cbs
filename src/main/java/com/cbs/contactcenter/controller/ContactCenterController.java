@@ -27,6 +27,20 @@ public class ContactCenterController {
     @GetMapping("/interactions/agent/{agentId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<ContactInteraction>>> agentQueue(@PathVariable String agentId) { return ResponseEntity.ok(ApiResponse.ok(service.getAgentInteractions(agentId))); }
     @GetMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<List<ContactCenter>>> getCenters() { return ResponseEntity.ok(ApiResponse.ok(service.getActiveCenters())); }
 
+    @PutMapping("/{id}")
+    @Operation(summary = "Update contact center configuration")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ContactCenter>> updateCenter(@PathVariable Long id, @RequestBody ContactCenter updates) {
+        return ResponseEntity.ok(ApiResponse.ok(service.updateCenter(id, updates)));
+    }
+
+    @PostMapping("/{id}/deactivate")
+    @Operation(summary = "Deactivate a contact center")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ContactCenter>> deactivateCenter(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(service.deactivateCenter(id)));
+    }
+
     // ========================================================================
     // CONTACT CENTER EXTENDED ENDPOINTS
     // ========================================================================

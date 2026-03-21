@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Users, Loader2 } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { OptInOutManager } from '../components/OptInOutManager';
 

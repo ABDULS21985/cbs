@@ -1,5 +1,7 @@
 // Auto-generated from backend entities
 
+export type Ifrs9Classification = 'AMORTISED_COST' | 'FVOCI' | 'FVTPL';
+
 export interface InvestmentPortfolio {
   id: number;
   portfolioCode: string;

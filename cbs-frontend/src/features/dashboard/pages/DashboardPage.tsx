@@ -7,6 +7,9 @@ import { BarChartWidget } from '../widgets/BarChartWidget';
 import { PieChartWidget } from '../widgets/PieChartWidget';
 import { RecentTransactionsWidget } from '../widgets/RecentTransactionsWidget';
 import { PendingApprovalsWidget } from '../widgets/PendingApprovalsWidget';
+import { TreasurySnapshotWidget } from '../widgets/TreasurySnapshotWidget';
+import { DealerDesksWidget } from '../widgets/DealerDesksWidget';
+import { ApprovalStatsWidget } from '../widgets/ApprovalStatsWidget';
 import { Wallet, Landmark, AlertTriangle, Users, CreditCard, Clock } from 'lucide-react';
 import { useDashboardStats } from '../hooks/useDashboardData';
 
@@ -101,6 +104,19 @@ export function DashboardPage() {
               { name: 'Personal', value: 420 }, { name: 'SME', value: 380 }, { name: 'Mortgage', value: 290 },
               { name: 'Auto', value: 180 }, { name: 'Agric', value: 150 }, { name: 'Micro', value: 120 },
             ]} color="hsl(43, 74%, 49%)" />
+          </WidgetCard>
+        </div>
+
+        {/* Treasury & Operations Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <WidgetCard title="Treasury Snapshot (NGN)" colSpan={4}>
+            <TreasurySnapshotWidget />
+          </WidgetCard>
+          <WidgetCard title="Dealer Desks" colSpan={4}>
+            <DealerDesksWidget />
+          </WidgetCard>
+          <WidgetCard title="Approval Statistics" colSpan={4}>
+            <ApprovalStatsWidget />
           </WidgetCard>
         </div>
       </div>

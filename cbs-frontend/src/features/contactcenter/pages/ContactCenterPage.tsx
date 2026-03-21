@@ -553,10 +553,20 @@ export function ContactCenterPage() {
     }).catch(() => toast.error('Failed to update state'));
   };
 
-  const handleAttemptCallback = (id: number) => {
-    contactRoutingApi.attemptCallback(id).then(() => {
-      toast.success('Callback attempted');
+  const [cbOutcomeDialog, setCbOutcomeDialog] = useState<{ id: number; customerId: number } | null>(null);
+  const [cbOutcome, setCbOutcome] = useState('ANSWERED');
+
+  const handleAttemptCallback = (id: number, customerId?: number) => {
+    setCbOutcome('ANSWERED');
+    setCbOutcomeDialog({ id, customerId: customerId ?? 0 });
+  };
+
+  const confirmCallbackAttempt = () => {
+    if (!cbOutcomeDialog) return;
+    contactRoutingApi.attemptCallback(cbOutcomeDialog.id, cbOutcome).then(() => {
+      toast.success(`Callback recorded as ${cbOutcome}`);
       qc.invalidateQueries({ queryKey: ['contact-center', 'callbacks'] });
+      setCbOutcomeDialog(null);
     }).catch(() => toast.error('Failed'));
   };
 
@@ -844,6 +854,32 @@ export function ContactCenterPage() {
       {showRequestCallback && <RequestCallbackForm onClose={() => setShowRequestCallback(false)} />}
       {showAssign && <AssignInteractionDialog interaction={showAssign} agents={agents} onClose={() => setShowAssign(null)} />}
       {showComplete && <CompleteInteractionDialog interaction={showComplete} onClose={() => setShowComplete(null)} />}
+      {cbOutcomeDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+            <button onClick={() => setCbOutcomeDialog(null)} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+            <h2 className="text-lg font-semibold mb-1">Record Callback Outcome</h2>
+            <p className="text-xs text-muted-foreground mb-4">Callback #{cbOutcomeDialog.id}</p>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {['ANSWERED', 'NO_ANSWER', 'BUSY', 'VOICEMAIL'].map(o => (
+                <label key={o} className={cn(
+                  'flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors text-sm font-medium',
+                  cbOutcome === o ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'
+                )}>
+                  <input type="radio" name="cb-outcome" value={o} checked={cbOutcome === o} onChange={() => setCbOutcome(o)} className="sr-only" />
+                  {o.replace(/_/g, ' ')}
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setCbOutcomeDialog(null)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+              <button onClick={confirmCallbackAttempt} className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+                Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <PageHeader
         title="Contact Center"

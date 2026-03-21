@@ -20,48 +20,211 @@ export interface FeeTier {
 /**
  * FeeDefinition — frontend model.
  *
- * Backend JPA field → frontend alias
- * -----------------------------------
- * feeCode            → code
- * feeName            → name
- * feeCategory        → category
- * calculationType    → calcType
- * taxApplicable      → vatApplicable
- * taxRate            → vatRate
- * feeIncomeGlCode    → glIncomeAccount
- * taxGlCode          → glReceivableAccount
+ * Backend JPA field        → frontend alias
+ * ─────────────────────────────────────────
+ * feeCode                  → code
+ * feeName                  → name
+ * feeCategory              → category
+ * calculationType          → calcType
+ * taxApplicable            → vatApplicable
+ * taxRate                  → vatRate
+ * feeIncomeGlCode          → glIncomeAccount
+ * taxGlCode                → glReceivableAccount
+ * isActive                 → status ('ACTIVE'|'INACTIVE')
+ * waiverAuthorityLevel     → waiverAuthority
+ * tierConfig               → tiers (FeeTier[])
+ * applicableProducts (csv) → applicableProducts (string[])
  */
 export interface FeeDefinition {
   id: string;
-  code: string;                      // backend: feeCode
-  name: string;                      // backend: feeName
-  category: FeeCategory;             // backend: feeCategory
-  calcType: FeeCalcType;             // backend: calculationType
+  code: string;
+  name: string;
+  category: FeeCategory;
+  calcType: FeeCalcType;
   flatAmount?: number;
   percentage?: number;
   minFee?: number;
   maxFee?: number;
   onAmount?: 'DEBIT' | 'CREDIT' | 'BALANCE';
   tiers?: FeeTier[];
-  vatApplicable: boolean;            // backend: taxApplicable
-  vatRate?: number;                  // backend: taxRate
+  vatApplicable: boolean;
+  vatRate?: number;
   schedule: FeeSchedule;
   waiverAuthority: WaiverAuthority;
-  glIncomeAccount: string;           // backend: feeIncomeGlCode
-  glReceivableAccount: string;       // backend: taxGlCode
+  glIncomeAccount: string;
+  glReceivableAccount: string;
   applicableProducts: string[];
   status: 'ACTIVE' | 'INACTIVE';
   description?: string;
   createdAt: string;
-  // ── Additional backend fields ──
-  triggerEvent?: string;             // backend: trigger_event (50 chars)
-  currencyCode?: string;             // backend: currency_code (3 chars, e.g. 'NGN')
-  applicableChannels?: string;       // backend: applicable_channels (default 'ALL')
-  applicableCustomerTypes?: string;  // backend: applicable_customer_types (default 'ALL')
-  taxCode?: string;                  // backend: tax_code (20 chars)
-  waivable?: boolean;                // backend: waivable (default true)
-  effectiveFrom?: string;            // backend: effective_from (LocalDate)
-  effectiveTo?: string;              // backend: effective_to (LocalDate)
+  triggerEvent?: string;
+  currencyCode?: string;
+  applicableChannels?: string;
+  applicableCustomerTypes?: string;
+  taxCode?: string;
+  waivable?: boolean;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+}
+
+// ── Raw backend shapes (Jackson-serialized JPA entities) ─────────────────────
+
+/** Raw FeeDefinition entity as returned by Spring Boot (no DTO layer). */
+interface RawFeeDefinition {
+  id: number;
+  feeCode: string;
+  feeName: string;
+  feeCategory: FeeCategory;
+  calculationType: FeeCalcType;
+  flatAmount?: number;
+  percentage?: number;
+  minFee?: number;
+  maxFee?: number;
+  currencyCode?: string;
+  tierConfig?: Array<{ min: number; max: number; rate: number; flat: number }>;
+  applicableProducts?: string;
+  applicableChannels?: string;
+  applicableCustomerTypes?: string;
+  taxApplicable: boolean;
+  taxRate?: number;
+  taxCode?: string;
+  feeIncomeGlCode?: string;
+  taxGlCode?: string;
+  waivable?: boolean;
+  waiverAuthorityLevel?: string;
+  isActive: boolean;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  triggerEvent?: string;
+  // Not present in entity but kept for forward-compat
+  description?: string;
+  schedule?: FeeSchedule;
+  onAmount?: 'DEBIT' | 'CREDIT' | 'BALANCE';
+  createdAt?: string;
+}
+
+/** Raw FeeChargeLog entity as returned by Spring Boot. */
+interface RawFeeChargeLog {
+  id: number;
+  feeCode: string;
+  accountId: number;
+  customerId: number;
+  baseAmount: number;
+  feeAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  currencyCode: string;
+  triggerEvent: string;
+  triggerRef?: string;
+  triggerAmount?: number;
+  wasWaived: boolean;
+  waivedBy?: string;
+  waiverReason?: string;
+  status: string;
+  chargedAt: string;
+  createdAt: string;
+}
+
+// ── Response mappers ─────────────────────────────────────────────────────────
+
+function mapFeeDefinition(raw: RawFeeDefinition): FeeDefinition {
+  return {
+    id: String(raw.id),
+    code: raw.feeCode,
+    name: raw.feeName,
+    category: raw.feeCategory,
+    calcType: raw.calculationType,
+    flatAmount: raw.flatAmount,
+    percentage: raw.percentage,
+    minFee: raw.minFee,
+    maxFee: raw.maxFee,
+    onAmount: raw.onAmount,
+    tiers: raw.tierConfig?.map(t => ({
+      fromAmount: t.min,
+      toAmount: t.max,
+      rate: t.rate,
+      flatFee: t.flat,
+    })),
+    vatApplicable: raw.taxApplicable ?? false,
+    vatRate: raw.taxRate,
+    schedule: raw.schedule ?? 'PER_TRANSACTION',
+    waiverAuthority: (raw.waiverAuthorityLevel as WaiverAuthority) ?? 'OFFICER',
+    glIncomeAccount: raw.feeIncomeGlCode ?? '',
+    glReceivableAccount: raw.taxGlCode ?? '',
+    applicableProducts: raw.applicableProducts
+      ? raw.applicableProducts.split(',').map(s => s.trim()).filter(Boolean)
+      : [],
+    status: raw.isActive ? 'ACTIVE' : 'INACTIVE',
+    description: raw.description,
+    createdAt: raw.createdAt ?? '',
+    triggerEvent: raw.triggerEvent,
+    currencyCode: raw.currencyCode,
+    applicableChannels: raw.applicableChannels,
+    applicableCustomerTypes: raw.applicableCustomerTypes,
+    taxCode: raw.taxCode,
+    waivable: raw.waivable,
+    effectiveFrom: raw.effectiveFrom,
+    effectiveTo: raw.effectiveTo,
+  };
+}
+
+function mapFeeChargeLog(raw: RawFeeChargeLog): FeeCharge {
+  return {
+    id: String(raw.id),
+    feeId: raw.feeCode,
+    feeName: raw.feeCode, // backend has no feeName on charge log
+    accountId: String(raw.accountId),
+    accountNumber: String(raw.accountId), // best we have from the entity
+    customerName: String(raw.customerId),
+    amount: raw.feeAmount,
+    vatAmount: raw.taxAmount,
+    date: raw.chargedAt,
+    status: raw.status as FeeCharge['status'],
+    waivedBy: raw.waivedBy,
+    waivedReason: raw.waiverReason,
+    transactionRef: raw.triggerRef,
+  };
+}
+
+// ── Request mapper: frontend FeeDefinition → backend entity shape ────────────
+
+function toBackendFeeDefinition(
+  data: Omit<FeeDefinition, 'id' | 'createdAt'> & { id?: string },
+): Record<string, unknown> {
+  return {
+    ...(data.id ? { id: Number(data.id) } : {}),
+    feeCode: data.code,
+    feeName: data.name,
+    feeCategory: data.category,
+    calculationType: data.calcType,
+    flatAmount: data.flatAmount,
+    percentage: data.percentage,
+    minFee: data.minFee,
+    maxFee: data.maxFee,
+    currencyCode: data.currencyCode ?? 'NGN',
+    tierConfig: data.tiers?.map(t => ({
+      min: t.fromAmount,
+      max: t.toAmount,
+      rate: t.rate,
+      flat: t.flatFee,
+    })),
+    applicableProducts: Array.isArray(data.applicableProducts)
+      ? data.applicableProducts.join(',')
+      : data.applicableProducts,
+    applicableChannels: data.applicableChannels ?? 'ALL',
+    applicableCustomerTypes: data.applicableCustomerTypes ?? 'ALL',
+    taxApplicable: data.vatApplicable,
+    taxRate: data.vatRate,
+    taxCode: data.taxCode,
+    feeIncomeGlCode: data.glIncomeAccount,
+    taxGlCode: data.glReceivableAccount,
+    waivable: data.waivable ?? true,
+    waiverAuthorityLevel: data.waiverAuthority,
+    isActive: data.status === 'ACTIVE',
+    effectiveFrom: data.effectiveFrom,
+    effectiveTo: data.effectiveTo,
+    triggerEvent: data.triggerEvent ?? data.category,
+  };
 }
 
 export interface FeeCharge {
@@ -139,43 +302,63 @@ export interface FeePreviewResult {
   breakdown: string;
 }
 
-// ── Backend fee result shape from FeeEngine ───────────────────────────────────
+// ── Backend fee result shape from FeeEngine.FeeResult ─────────────────────────
 
 interface BackendFeeResult {
   feeCode?: string;
-  feeName?: string;
-  baseAmount?: number;
   feeAmount?: number;
-  vatAmount?: number;
+  taxAmount?: number;
   totalAmount?: number;
+  currencyCode?: string;
+  calculationType?: string;
+  baseAmount?: number;
+  // Legacy/compat fields some endpoints may include
+  feeName?: string;
+  vatAmount?: number;
   breakdown?: string;
+}
+
+function mapFeeResult(raw: BackendFeeResult): FeePreviewResult {
+  return {
+    feeCode: raw.feeCode ?? '',
+    calculatedAmount: raw.feeAmount ?? 0,
+    vatAmount: raw.taxAmount ?? raw.vatAmount ?? 0,
+    totalAmount: raw.totalAmount ?? 0,
+    breakdown: raw.breakdown ?? `${raw.calculationType ?? 'FLAT'} on ${raw.baseAmount ?? 0}`,
+  };
 }
 
 // ── API Functions ─────────────────────────────────────────────────────────────
 
 // GET /v1/fees/definitions
-export function getFeeDefinitions(): Promise<FeeDefinition[]> {
-  return apiGet<FeeDefinition[]>('/api/v1/fees/definitions');
+export async function getFeeDefinitions(): Promise<FeeDefinition[]> {
+  const raw = await apiGet<RawFeeDefinition[]>('/api/v1/fees/definitions');
+  return raw.map(mapFeeDefinition);
 }
 
 // GET /v1/fees/definitions/{id}
-export function getFeeById(id: string): Promise<FeeDefinition> {
-  return apiGet<FeeDefinition>(`/api/v1/fees/definitions/${encodeURIComponent(id)}`);
+export async function getFeeById(id: string): Promise<FeeDefinition> {
+  const raw = await apiGet<RawFeeDefinition>(`/api/v1/fees/definitions/${encodeURIComponent(id)}`);
+  return mapFeeDefinition(raw);
 }
 
 // POST /v1/fees/definitions
-export function createFeeDefinition(data: Omit<FeeDefinition, 'id' | 'createdAt'>): Promise<FeeDefinition> {
-  return apiPost<FeeDefinition>('/api/v1/fees/definitions', data);
+export async function createFeeDefinition(data: Omit<FeeDefinition, 'id' | 'createdAt'>): Promise<FeeDefinition> {
+  const raw = await apiPost<RawFeeDefinition>('/api/v1/fees/definitions', toBackendFeeDefinition(data));
+  return mapFeeDefinition(raw);
 }
 
 // PUT /v1/fees/definitions/{id}
-export function updateFeeDefinition(id: string, data: Partial<FeeDefinition>): Promise<FeeDefinition> {
-  return apiPut<FeeDefinition>(`/api/v1/fees/definitions/${id}`, data);
+export async function updateFeeDefinition(id: string, data: Partial<FeeDefinition>): Promise<FeeDefinition> {
+  const payload = toBackendFeeDefinition({ ...data, id } as Omit<FeeDefinition, 'id' | 'createdAt'> & { id: string });
+  const raw = await apiPut<RawFeeDefinition>(`/api/v1/fees/definitions/${id}`, payload);
+  return mapFeeDefinition(raw);
 }
 
-// GET /v1/fees/preview/{feeCode}?amount=X
-export function previewFee(feeCode: string, amount: number): Promise<FeePreviewResult> {
-  return apiGet<FeePreviewResult>(`/api/v1/fees/preview/${encodeURIComponent(feeCode)}`, { amount });
+// GET /v1/fees/preview/{feeCode}?amount=X — returns FeeEngine.FeeResult
+export async function previewFee(feeCode: string, amount: number): Promise<FeePreviewResult> {
+  const raw = await apiGet<BackendFeeResult>(`/api/v1/fees/preview/${encodeURIComponent(feeCode)}`, { amount });
+  return mapFeeResult(raw);
 }
 
 // Preview event fees — maps POST /v1/fees/charge/event to PreviewChargeResult shape
@@ -197,8 +380,8 @@ export async function previewCharge(
     feeId: r.feeCode ?? '',
     feeName: r.feeName ?? r.feeCode ?? '',
     calculatedAmount: r.feeAmount ?? r.totalAmount ?? 0,
-    vatAmount: r.vatAmount ?? 0,
-    breakdown: r.breakdown ?? '',
+    vatAmount: r.taxAmount ?? r.vatAmount ?? 0,
+    breakdown: r.breakdown ?? `${r.calculationType ?? 'FLAT'} on ${r.baseAmount ?? 0}`,
   }));
 
   return {
@@ -213,7 +396,7 @@ export async function previewCharge(
   };
 }
 
-// POST /v1/fees/charge?feeCode=X&accountId=Y&amount=Z
+// POST /v1/fees/charge?feeCode=X&accountId=Y&amount=Z — returns FeeEngine.FeeResult
 export async function chargeFee(
   feeCode: string,
   accountId: string,
@@ -222,23 +405,41 @@ export async function chargeFee(
 ): Promise<FeePreviewResult> {
   const params: Record<string, unknown> = { feeCode, accountId, amount };
   if (triggerRef) params.triggerRef = triggerRef;
-  const { data } = await api.post<ApiResponse<FeePreviewResult>>('/api/v1/fees/charge', undefined, { params });
-  return data.data;
+  const { data } = await api.post<ApiResponse<BackendFeeResult>>('/api/v1/fees/charge', undefined, { params });
+  return mapFeeResult(data.data);
 }
 
-// POST /v1/fees/waive/{chargeLogId}?waivedBy=X&reason=Y
-export async function waiveFee(chargeLogId: string, waivedBy: string, reason: string): Promise<FeeCharge> {
-  const { data } = await api.post<ApiResponse<FeeCharge>>(
+// POST /v1/fees/waive/{chargeLogId}?reason=Y
+// Note: backend uses currentActorProvider for waivedBy, so waivedBy param is ignored server-side.
+export async function waiveFee(chargeLogId: string, _waivedBy: string, reason: string): Promise<FeeCharge> {
+  const { data } = await api.post<ApiResponse<RawFeeChargeLog>>(
     `/api/v1/fees/waive/${encodeURIComponent(chargeLogId)}`,
     undefined,
-    { params: { waivedBy, reason } },
+    { params: { reason } },
   );
-  return data.data;
+  return mapFeeChargeLog(data.data);
 }
 
-// GET /v1/fees/history/account/{accountId}
-export function getAccountFeeHistory(accountId: string): Promise<FeeCharge[]> {
-  return apiGet<FeeCharge[]>(`/api/v1/fees/history/account/${accountId}`);
+// GET /v1/fees/history/account/{accountId}?page=X&size=Y
+export async function getAccountFeeHistory(
+  accountId: string,
+  page = 0,
+  size = 50,
+): Promise<FeeCharge[]> {
+  const { data } = await api.get<ApiResponse<RawFeeChargeLog[]>>(
+    `/api/v1/fees/history/account/${accountId}`,
+    { params: { page, size } },
+  );
+  return (data.data ?? []).map(mapFeeChargeLog);
+}
+
+// GET /v1/fees/charge?page=X&size=Y — list all charge logs (paginated)
+export async function listCharges(page = 0, size = 50): Promise<FeeCharge[]> {
+  const { data } = await api.get<ApiResponse<RawFeeChargeLog[]>>(
+    '/api/v1/fees/charge',
+    { params: { page, size } },
+  );
+  return (data.data ?? []).map(mapFeeChargeLog);
 }
 
 // Backward-compat alias — require an identifier instead of silently pretending history is empty.
@@ -249,9 +450,21 @@ export function getFeeChargeHistory(feeId?: string): Promise<FeeCharge[]> {
   return getAccountFeeHistory(feeId);
 }
 
-// GET /v1/fees/waivers/pending
-export function getPendingWaivers(): Promise<FeeWaiver[]> {
-  return apiGet<FeeWaiver[]>('/api/v1/fees/waivers/pending');
+// GET /v1/fees/waivers/pending — returns FeeChargeLog[] with status=PENDING
+export async function getPendingWaivers(): Promise<FeeWaiver[]> {
+  const { data } = await api.get<ApiResponse<RawFeeChargeLog[]>>('/api/v1/fees/waivers/pending');
+  return (data.data ?? []).map((raw) => ({
+    id: String(raw.id),
+    chargeId: String(raw.id),
+    feeId: raw.feeCode,
+    accountId: String(raw.accountId),
+    amount: raw.feeAmount + raw.taxAmount,
+    reason: raw.waiverReason ?? '',
+    requestedBy: raw.waivedBy ?? '',
+    authorizedBy: undefined,
+    status: 'PENDING' as const,
+    createdAt: raw.createdAt,
+  }));
 }
 
 // Backend waive = approve; route through waiveFee
@@ -270,9 +483,25 @@ export function approveWaiver(waiverId: string, authorizedBy: string): Promise<F
   }));
 }
 
-// POST /v1/fees/waivers/{waiverId}/reject
-export function rejectWaiver(waiverId: string, reason: string): Promise<FeeWaiver> {
-  return apiPost<FeeWaiver>(`/api/v1/fees/waivers/${waiverId}/reject`, { reason });
+// POST /v1/fees/waivers/{waiverId}/reject — backend returns FeeChargeLog
+export async function rejectWaiver(waiverId: string, reason: string): Promise<FeeWaiver> {
+  const { data } = await api.post<ApiResponse<RawFeeChargeLog>>(
+    `/api/v1/fees/waivers/${waiverId}/reject`,
+    { reason },
+  );
+  const raw = data.data;
+  return {
+    id: String(raw.id),
+    chargeId: String(raw.id),
+    feeId: raw.feeCode,
+    accountId: String(raw.accountId),
+    amount: raw.feeAmount + raw.taxAmount,
+    reason: raw.waiverReason ?? reason,
+    requestedBy: raw.waivedBy ?? '',
+    authorizedBy: undefined,
+    status: 'REJECTED' as const,
+    createdAt: raw.createdAt,
+  };
 }
 
 // POST /v1/fees/bulk-post
@@ -291,13 +520,39 @@ export function previewBulkFeeJob(feeId: string): Promise<BulkFeePreview> {
 }
 
 // POST /v1/fees/charges/{chargeLogId}/reverse
-export function reverseFeeCharge(chargeLogId: string): Promise<FeeCharge> {
-  return apiPost<FeeCharge>(`/api/v1/fees/charges/${chargeLogId}/reverse`);
+// Reversal is implemented as a waive with status set to REVERSED by the backend.
+// If the dedicated /charges/{id}/reverse endpoint doesn't exist, fall back to waive.
+export async function reverseFeeCharge(chargeLogId: string): Promise<FeeCharge> {
+  try {
+    const { data } = await api.post<ApiResponse<RawFeeChargeLog>>(
+      `/api/v1/fees/charges/${chargeLogId}/reverse`,
+    );
+    return mapFeeChargeLog(data.data);
+  } catch (err: unknown) {
+    // Fallback: if reverse endpoint returns 404, use waive with reversal reason
+    const axErr = err as { response?: { status?: number } };
+    if (axErr?.response?.status === 404 || axErr?.response?.status === 405) {
+      return waiveFee(chargeLogId, '', 'Fee charge reversed');
+    }
+    throw err;
+  }
 }
 
-// GET /v1/fees/waivers — all waivers (not just pending)
-export function getAllWaivers(): Promise<FeeWaiver[]> {
-  return apiGet<FeeWaiver[]>('/api/v1/fees/waivers');
+// GET /v1/fees/waivers — all waivers (not just pending). Backend returns FeeChargeLog[].
+export async function getAllWaivers(): Promise<FeeWaiver[]> {
+  const { data } = await api.get<ApiResponse<RawFeeChargeLog[]>>('/api/v1/fees/waivers');
+  return (data.data ?? []).map((raw) => ({
+    id: String(raw.id),
+    chargeId: String(raw.id),
+    feeId: raw.feeCode,
+    accountId: String(raw.accountId),
+    amount: raw.feeAmount + raw.taxAmount,
+    reason: raw.waiverReason ?? '',
+    requestedBy: raw.waivedBy ?? '',
+    authorizedBy: raw.wasWaived ? raw.waivedBy : undefined,
+    status: (raw.status === 'WAIVED' ? 'APPROVED' : raw.status === 'REJECTED' ? 'REJECTED' : 'PENDING') as FeeWaiver['status'],
+    createdAt: raw.createdAt,
+  }));
 }
 
 export const feeApi = {
@@ -311,6 +566,7 @@ export const feeApi = {
   waiveFee,
   getAccountFeeHistory,
   getFeeChargeHistory,
+  listCharges,
   getPendingWaivers,
   getAllWaivers,
   approveWaiver,
