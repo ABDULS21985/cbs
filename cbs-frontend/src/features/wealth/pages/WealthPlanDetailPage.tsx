@@ -241,7 +241,14 @@ function AllocationTab({ plan }: { plan: WealthPlan }) {
   const [rebalanceMsg, setRebalanceMsg] = useState<string | null>(null);
 
   const allocations: AssetAllocation[] = (() => {
-    if (plan.allocations && plan.allocations.length > 0) return plan.allocations;
+    if (plan.allocations && plan.allocations.length > 0) {
+      return plan.allocations.map((a) => ({
+        assetClass: String(a.assetClass || ''),
+        percentage: Number(a.percentage || 0),
+        currentValue: Number(a.currentValue || 0),
+        targetPercentage: Number(a.targetPercentage || 0),
+      }));
+    }
     // Build from currentAllocation / targetAllocation maps
     const keys = new Set([
       ...Object.keys(plan.currentAllocation || {}),

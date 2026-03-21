@@ -137,6 +137,28 @@ export function ReportsHomePage() {
             </button>
           ))}
         </div>
+
+        {/* Related Tools */}
+        <div className="border-t border-border pt-6 mt-2">
+          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Related Tools</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {relatedTools.map((tool) => (
+              <button
+                key={tool.path}
+                onClick={() => navigate(tool.path)}
+                className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-border bg-card p-5 text-left hover:bg-muted/40 hover:shadow-sm transition-all"
+              >
+                <div className={`rounded-lg p-2.5 ${tool.color}`}>
+                  <tool.icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold">{tool.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{tool.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </>
   );

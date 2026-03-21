@@ -232,12 +232,12 @@ export function WealthAnalyticsPage() {
     if (!plans) return [];
     const goalMap: Record<string, { total: number; onTrack: number }> = {};
     for (const plan of plans) {
-      if (plan.financialGoals) {
-        for (const g of plan.financialGoals) {
-          if (!goalMap[g.name]) goalMap[g.name] = { total: 0, onTrack: 0 };
-          goalMap[g.name].total++;
-          if (g.onTrack) goalMap[g.name].onTrack++;
-        }
+      const goals = (plan.financialGoals || plan.goals || []) as Record<string, unknown>[];
+      for (const g of goals) {
+        const gName = String(g.name || g.goalName || 'Unknown');
+        if (!goalMap[gName]) goalMap[gName] = { total: 0, onTrack: 0 };
+        goalMap[gName].total++;
+        if (g.onTrack || g.status === 'ON_TRACK') goalMap[gName].onTrack++;
       }
     }
     return Object.entries(goalMap).map(([name, data]) => ({

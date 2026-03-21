@@ -9,6 +9,7 @@ import {
   getGeographicConcentration,
   getProductMix,
   getVintageData,
+  getVintageMatrix,
   getNplTrend,
   getProvisionWaterfall,
   getTopObligors,
@@ -19,6 +20,7 @@ import {
   type GeographicConcentration,
   type ProductMix,
   type VintageCell,
+  type VintageCellEntry,
   type NplTrendPoint,
   type ProvisionWaterfallItem,
   type TopObligor,
@@ -142,6 +144,8 @@ export function LoanAnalyticsPage() {
   const [geography, setGeography] = useState<GeographicConcentration[]>([]);
   const [products, setProducts] = useState<ProductMix[]>([]);
   const [vintage, setVintage] = useState<VintageCell[]>([]);
+  const [vintageMatrix, setVintageMatrix] = useState<VintageCellEntry[]>([]);
+  const [vintageView, setVintageView] = useState<'simple' | 'matrix'>('matrix');
   const [nplTrend, setNplTrend] = useState<NplTrendPoint[]>([]);
   const [waterfall, setWaterfall] = useState<ProvisionWaterfallItem[]>([]);
   const [obligors, setObligors] = useState<TopObligor[]>([]);

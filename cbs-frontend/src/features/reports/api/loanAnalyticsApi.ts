@@ -63,6 +63,15 @@ export interface VintageCell {
   defaultRate: number;
 }
 
+export interface VintageCellEntry {
+  vintage: string;
+  month: number;
+  defaultRate: number;
+  lossRate: number;
+  count: number;
+  amount: number;
+}
+
 export interface NplTrendPoint {
   month: string;
   nplAmount: number;
@@ -239,7 +248,11 @@ export function getProductMix(): Promise<ProductMix[]> {
 }
 
 export function getVintageData(): Promise<VintageCell[]> {
-  return apiGet<VintageCell[]>('/api/v1/reports/loans/vintage-matrix');
+  return apiGet<VintageCell[]>('/api/v1/reports/loans/vintage');
+}
+
+export function getVintageMatrix(): Promise<VintageCellEntry[]> {
+  return apiGet<VintageCellEntry[]>('/api/v1/reports/loans/vintage-matrix');
 }
 
 export function getNplTrend(): Promise<NplTrendPoint[]> {
