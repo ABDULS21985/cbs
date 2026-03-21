@@ -64,11 +64,7 @@ export function TerminalDetailPage() {
 
   const sendHeartbeat = useMutation({
     mutationFn: () =>
-      posTerminalsApi.heartbeat({
-        terminalId,
-        status: 'ONLINE',
-        softwareVersion: terminal?.softwareVersion ?? '1.0.0',
-      }),
+      posTerminalsApi.heartbeat(terminalId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos-terminals'] });
       toast.success('Heartbeat sent');

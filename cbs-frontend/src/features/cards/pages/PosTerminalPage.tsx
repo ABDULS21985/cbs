@@ -45,8 +45,10 @@ function DeployTerminalForm({ onClose }: { onClose: () => void }) {
   });
 
   const [form, setForm] = useState({
+    terminalId: '',
     terminalType: 'COUNTERTOP',
     merchantId: '',
+    merchantName: '',
     locationAddress: '',
     supportsContactless: true,
     supportsChip: true,
@@ -70,6 +72,10 @@ function DeployTerminalForm({ onClose }: { onClose: () => void }) {
         >
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <label className="text-sm font-medium text-muted-foreground">Terminal ID</label>
+              <input className="w-full mt-1 input" placeholder="TID-001" value={form.terminalId} onChange={(e) => update('terminalId', e.target.value)} required />
+            </div>
+            <div>
               <label className="text-sm font-medium text-muted-foreground">Terminal Type</label>
               <select className="w-full mt-1 input" value={form.terminalType} onChange={(e) => update('terminalType', e.target.value)}>
                 <option value="COUNTERTOP">Countertop</option>
@@ -78,9 +84,15 @@ function DeployTerminalForm({ onClose }: { onClose: () => void }) {
                 <option value="SOFTPOS">SoftPOS</option>
               </select>
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Merchant ID</label>
               <input className="w-full mt-1 input" placeholder="MER-001" value={form.merchantId} onChange={(e) => update('merchantId', e.target.value)} required />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Merchant Name</label>
+              <input className="w-full mt-1 input" placeholder="Merchant name" value={form.merchantName} onChange={(e) => update('merchantName', e.target.value)} required />
             </div>
           </div>
           <div>
