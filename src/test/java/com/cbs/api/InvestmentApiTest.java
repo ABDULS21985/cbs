@@ -2,30 +2,30 @@ package com.cbs.api;
 
 import com.cbs.AbstractIntegrationTest;
 import com.cbs.TestSecurityConfig;
-import io.restassured.RestAssured;
-import io.restassured.http.ContentType;
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @Import(TestSecurityConfig.class)
 class InvestmentApiTest extends AbstractIntegrationTest {
 
-    @LocalServerPort
-    private int port;
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private static int counter = 0;
-
-    @BeforeEach
-    void setup() {
-        RestAssured.port = port;
-        RestAssured.basePath = "/api";
-    }
 
     private String uniqueCode() {
         return "PTF-" + System.currentTimeMillis() + "-" + (++counter);
@@ -33,12 +33,9 @@ class InvestmentApiTest extends AbstractIntegrationTest {
 
     @Test
     @DisplayName("POST /v1/investment-portfolios - should create portfolio and return 201")
-    void createPortfolio_returns201() {
+    void createPortfolio_returns201() throws Exception {
         String code = uniqueCode();
-
-        given()
-            .contentType(ContentType.JSON)
-            .body(String.format("""
+        ResponseEntity<String> response = postJson("/v1/investment-portfolios", String.format("""
                 {
                     "portfolioCode": "%s",
                     "portfolioName": "Test Growth Portfolio",
@@ -53,25 +50,20 @@ class InvestmentApiTest extends AbstractIntegrationTest {
                     "benchmarkCode": "SP500",
                     "portfolioManagerId": "PM-001"
                 }
-                """, code))
-        .when()
-            .post("/v1/investment-portfolios")
-        .then()
-            .statusCode(201)
-            .body("success", is(true))
-            .body("data.id", notNullValue())
-            .body("data.portfolioCode", equalTo(code));
+                """, code));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data").path("id").isMissingNode()).isFalse();
+        assertThat(body.path("data").path("portfolioCode").asText()).isEqualTo(code);
     }
 
     @Test
     @DisplayName("POST /v1/investment-portfolios/{code}/holdings - should add holding and return 201")
-    void addHolding_returns201() {
+    void addHolding_returns201() throws Exception {
         String code = uniqueCode();
-
-        // Create the portfolio first
-        given()
-            .contentType(ContentType.JSON)
-            .body(String.format("""
+        assertThat(postJson("/v1/investment-portfolios", String.format("""
                 {
                     "portfolioCode": "%s",
                     "portfolioName": "Holding Test Portfolio",
@@ -81,16 +73,9 @@ class InvestmentApiTest extends AbstractIntegrationTest {
                     "currency": "USD",
                     "initialInvestment": 100000.00
                 }
-                """, code))
-        .when()
-            .post("/v1/investment-portfolios")
-        .then()
-            .statusCode(201);
+                """, code)).getStatusCode().value()).isEqualTo(201);
 
-        // Add a holding
-        given()
-            .contentType(ContentType.JSON)
-            .body("""
+        ResponseEntity<String> response = postJson("/v1/investment-portfolios/{code}/holdings", """
                 {
                     "instrumentCode": "AAPL",
                     "instrumentName": "Apple Inc.",
@@ -100,25 +85,20 @@ class InvestmentApiTest extends AbstractIntegrationTest {
                     "currentPrice": 180.00,
                     "currency": "USD"
                 }
-                """)
-        .when()
-            .post("/v1/investment-portfolios/{code}/holdings", code)
-        .then()
-            .statusCode(201)
-            .body("success", is(true))
-            .body("data.id", notNullValue())
-            .body("data.instrumentCode", equalTo("AAPL"));
+                """, code);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data").path("id").isMissingNode()).isFalse();
+        assertThat(body.path("data").path("instrumentCode").asText()).isEqualTo("AAPL");
     }
 
     @Test
     @DisplayName("POST /v1/investment-portfolios/{code}/valuate - should valuate portfolio and return 200")
-    void valuatePortfolio_returns200() {
+    void valuatePortfolio_returns200() throws Exception {
         String code = uniqueCode();
-
-        // Create portfolio
-        given()
-            .contentType(ContentType.JSON)
-            .body(String.format("""
+        assertThat(postJson("/v1/investment-portfolios", String.format("""
                 {
                     "portfolioCode": "%s",
                     "portfolioName": "Valuation Test Portfolio",
@@ -128,32 +108,18 @@ class InvestmentApiTest extends AbstractIntegrationTest {
                     "currency": "USD",
                     "initialInvestment": 200000.00
                 }
-                """, code))
-        .when()
-            .post("/v1/investment-portfolios")
-        .then()
-            .statusCode(201);
+                """, code)).getStatusCode().value()).isEqualTo(201);
 
-        // Valuate portfolio
-        given()
-            .contentType(ContentType.JSON)
-        .when()
-            .post("/v1/investment-portfolios/{code}/valuate", code)
-        .then()
-            .statusCode(200)
-            .body("success", is(true))
-            .body("data.portfolioCode", equalTo(code));
+        ResponseEntity<String> response = restTemplate.postForEntity("/v1/investment-portfolios/{code}/valuate", null, String.class, code);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(objectMapper.readTree(response.getBody()).path("data").path("portfolioCode").asText()).isEqualTo(code);
     }
 
     @Test
     @DisplayName("GET /v1/investment-portfolios/{code} - should return portfolio by code with 200")
-    void getPortfolioByCode_returns200() {
+    void getPortfolioByCode_returns200() throws Exception {
         String code = uniqueCode();
-
-        // Create portfolio
-        given()
-            .contentType(ContentType.JSON)
-            .body(String.format("""
+        assertThat(postJson("/v1/investment-portfolios", String.format("""
                 {
                     "portfolioCode": "%s",
                     "portfolioName": "Retrieval Test Portfolio",
@@ -163,21 +129,19 @@ class InvestmentApiTest extends AbstractIntegrationTest {
                     "currency": "USD",
                     "initialInvestment": 75000.00
                 }
-                """, code))
-        .when()
-            .post("/v1/investment-portfolios")
-        .then()
-            .statusCode(201);
+                """, code)).getStatusCode().value()).isEqualTo(201);
 
-        // Get portfolio by code
-        given()
-            .contentType(ContentType.JSON)
-        .when()
-            .get("/v1/investment-portfolios/{code}", code)
-        .then()
-            .statusCode(200)
-            .body("success", is(true))
-            .body("data.portfolioCode", equalTo(code))
-            .body("data.portfolioName", equalTo("Retrieval Test Portfolio"));
+        ResponseEntity<String> response = restTemplate.getForEntity("/v1/investment-portfolios/{code}", String.class, code);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data").path("portfolioCode").asText()).isEqualTo(code);
+        assertThat(body.path("data").path("portfolioName").asText()).isEqualTo("Retrieval Test Portfolio");
+    }
+
+    private ResponseEntity<String> postJson(String path, String payload, Object... uriVars) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return restTemplate.postForEntity(path, new HttpEntity<>(payload, headers), String.class, uriVars);
     }
 }

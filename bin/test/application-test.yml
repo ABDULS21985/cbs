@@ -3,7 +3,7 @@ spring:
     name: cbs-core-banking-test
 
   datasource:
-    url: ${CBS_TEST_DB_URL:jdbc:postgresql://localhost:5432/cbs}
+    url: ${CBS_TEST_DB_URL:jdbc:postgresql://localhost:5433/cbs}
     username: ${CBS_TEST_DB_USERNAME:cbs_admin}
     password: ${CBS_TEST_DB_PASSWORD:cbs_password}
     driver-class-name: ${CBS_TEST_DB_DRIVER:org.postgresql.Driver}
@@ -63,6 +63,11 @@ management:
       show-components: always
       probes:
         enabled: true
+  health:
+    mail:
+      enabled: false
+    redis:
+      enabled: false
 
 logging:
   level:

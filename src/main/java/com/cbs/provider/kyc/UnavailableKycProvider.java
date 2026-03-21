@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 @Component
+@ConditionalOnMissingBean(KycProvider.class)
 @RequiredArgsConstructor
 public class UnavailableKycProvider implements KycProvider {
 

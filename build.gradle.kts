@@ -66,10 +66,6 @@ dependencies {
     // Jackson extras
     implementation("org.springframework.boot:spring-boot-jackson2")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-hibernate6")
-
-    // Hypersistence utils for PostgreSQL JSON types
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.8.3")
 
     // JWT / OAuth2 Resource Server
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
@@ -88,7 +84,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-resttestclient")
     testImplementation("org.testcontainers:junit-jupiter:1.20.3")
     testImplementation("org.testcontainers:postgresql:1.20.3")
-    testImplementation("io.rest-assured:rest-assured:5.4.0")
+    testImplementation("io.rest-assured:rest-assured:5.5.2")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testCompileOnly("org.projectlombok:lombok:$lombokVersion")

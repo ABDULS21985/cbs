@@ -235,7 +235,7 @@ class ChannelExperienceTest {
             assertThat(result.getTotalExpenses()).isNotNull();
             assertThat(result.getSavingsRate()).isNotNull();
             assertThat(result.getFinancialHealthScore()).isBetween(0, 100);
-            assertThat(result.getExpenseBreakdown()).isNull();
+            assertThat(result.getExpenseBreakdown()).isEmpty();
             verify(snapshotRepository).save(any(PfmSnapshot.class));
         }
     }

@@ -2,29 +2,30 @@ package com.cbs.api;
 
 import com.cbs.AbstractIntegrationTest;
 import com.cbs.TestSecurityConfig;
-import io.restassured.RestAssured;
-import io.restassured.http.ContentType;
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @Import(TestSecurityConfig.class)
 class CustomerApiTest extends AbstractIntegrationTest {
 
-    @LocalServerPort
-    private int port;
-    private static int counter = 0;
+    @Autowired
+    private TestRestTemplate restTemplate;
 
-    @BeforeEach
-    void setup() {
-        RestAssured.port = port;
-        RestAssured.basePath = "/api";
-    }
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private static int counter = 0;
 
     private String uniqueEmail(String localPart) {
         return localPart + "+" + System.currentTimeMillis() + "-" + (++counter) + "@example.com";
@@ -36,10 +37,8 @@ class CustomerApiTest extends AbstractIntegrationTest {
 
     @Test
     @DisplayName("POST /v1/customers - should create customer and return 201 with success=true and non-null id")
-    void createCustomer_returns201() {
-        given()
-            .contentType(ContentType.JSON)
-            .body(String.format("""
+    void createCustomer_returns201() throws Exception {
+        ResponseEntity<String> response = postJson("/v1/customers", String.format("""
                 {
                     "customerType": "INDIVIDUAL",
                     "firstName": "John",
@@ -51,57 +50,42 @@ class CustomerApiTest extends AbstractIntegrationTest {
                     "phonePrimary": "%s",
                     "branchCode": "BR001"
                 }
-                """, uniqueEmail("john.doe"), uniquePhone()))
-        .when()
-            .post("/v1/customers")
-        .then()
-            .statusCode(201)
-            .body("success", is(true))
-            .body("data.id", notNullValue())
-            .body("message", equalTo("Customer created successfully"));
+                """, uniqueEmail("john.doe"), uniquePhone()));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data").path("id").isMissingNode()).isFalse();
+        assertThat(body.path("message").asText()).isEqualTo("Customer created successfully");
     }
 
     @Test
     @DisplayName("GET /v1/customers/{id} - nonexistent customer should return 404")
     void getCustomer_notFound_returns404() {
-        given()
-            .contentType(ContentType.JSON)
-        .when()
-            .get("/v1/customers/{customerId}", 999999999L)
-        .then()
-            .statusCode(404);
+        ResponseEntity<String> response = restTemplate.getForEntity("/v1/customers/{customerId}", String.class, 999999999L);
+        assertThat(response.getStatusCode().value()).isEqualTo(404);
     }
 
     @Test
     @DisplayName("POST /v1/accounts - should open account and return 201")
-    void createAccount_returns201() {
-        // First create a customer to get a valid customerId
-        Long customerId =
-            given()
-                .contentType(ContentType.JSON)
-                .body(String.format("""
-                    {
-                        "customerType": "INDIVIDUAL",
-                        "firstName": "Alice",
-                        "lastName": "Smith",
-                        "dateOfBirth": "1985-03-20",
-                        "nationality": "NGA",
-                        "email": "%s",
-                        "phonePrimary": "%s",
-                        "branchCode": "BR001"
-                    }
-                    """, uniqueEmail("alice.smith"), uniquePhone()))
-            .when()
-                .post("/v1/customers")
-            .then()
-                .statusCode(201)
-                .extract()
-                .jsonPath().getLong("data.id");
+    void createAccount_returns201() throws Exception {
+        ResponseEntity<String> customerResponse = postJson("/v1/customers", String.format("""
+                {
+                    "customerType": "INDIVIDUAL",
+                    "firstName": "Alice",
+                    "lastName": "Smith",
+                    "dateOfBirth": "1985-03-20",
+                    "nationality": "NGA",
+                    "email": "%s",
+                    "phonePrimary": "%s",
+                    "branchCode": "BR001"
+                }
+                """, uniqueEmail("alice.smith"), uniquePhone()));
 
-        // Open an account for that customer
-        given()
-            .contentType(ContentType.JSON)
-            .body(String.format("""
+        assertThat(customerResponse.getStatusCode().value()).isEqualTo(201);
+        Long customerId = objectMapper.readTree(customerResponse.getBody()).path("data").path("id").asLong();
+
+        ResponseEntity<String> accountResponse = postJson("/v1/accounts", String.format("""
                 {
                     "customerId": %d,
                     "productCode": "SA-STD",
@@ -110,66 +94,57 @@ class CustomerApiTest extends AbstractIntegrationTest {
                     "currencyCode": "NGN",
                     "branchCode": "BR001"
                 }
-                """, customerId))
-        .when()
-            .post("/v1/accounts")
-        .then()
-            .statusCode(201)
-            .body("success", is(true))
-            .body("data.id", notNullValue());
+                """, customerId));
+
+        assertThat(accountResponse.getStatusCode().value()).isEqualTo(201);
+        JsonNode body = objectMapper.readTree(accountResponse.getBody());
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data").path("id").isMissingNode()).isFalse();
     }
 
     @Test
-    @DisplayName("GET /v1/accounts/customer/{customerId} - should return 200 with list of accounts")
-    void getCustomerAccounts_returns200() {
-        // Create a customer
-        Long customerId =
-            given()
-                .contentType(ContentType.JSON)
-                .body(String.format("""
-                    {
-                        "customerType": "INDIVIDUAL",
-                        "firstName": "Bob",
-                        "lastName": "Jones",
-                        "dateOfBirth": "1980-01-10",
-                        "nationality": "NGA",
-                        "email": "%s",
-                        "phonePrimary": "%s",
-                        "branchCode": "BR001"
-                    }
-                    """, uniqueEmail("bob.jones"), uniquePhone()))
-            .when()
-                .post("/v1/customers")
-            .then()
-                .statusCode(201)
-                .extract()
-                .jsonPath().getLong("data.id");
+    @DisplayName("GET /v1/accounts/customer/{id} - should return 200 with list of accounts")
+    void getCustomerAccounts_returns200() throws Exception {
+        ResponseEntity<String> customerResponse = postJson("/v1/customers", String.format("""
+                {
+                    "customerType": "INDIVIDUAL",
+                    "firstName": "Bob",
+                    "lastName": "Jones",
+                    "dateOfBirth": "1980-01-10",
+                    "nationality": "NGA",
+                    "email": "%s",
+                    "phonePrimary": "%s",
+                    "branchCode": "BR001"
+                }
+                """, uniqueEmail("bob.jones"), uniquePhone()));
 
-        // Get accounts for that customer (may be empty list, but should return 200)
-        given()
-            .contentType(ContentType.JSON)
-        .when()
-            .get("/v1/accounts/customer/{customerId}", customerId)
-        .then()
-            .statusCode(200)
-            .body("success", is(true))
-            .body("data", instanceOf(java.util.List.class));
+        assertThat(customerResponse.getStatusCode().value()).isEqualTo(201);
+        Long customerId = objectMapper.readTree(customerResponse.getBody()).path("data").path("id").asLong();
+
+        ResponseEntity<String> response = restTemplate.getForEntity("/v1/accounts/customer/{customerId}", String.class, customerId);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data").isArray()).isTrue();
     }
 
     @Test
     @DisplayName("POST /v1/customers - missing required customerType should return 400")
     void createCustomer_missingRequiredFields_returnsError() {
-        given()
-            .contentType(ContentType.JSON)
-            .body("""
+        ResponseEntity<String> response = postJson("/v1/customers", """
                 {
                     "firstName": "NoType",
                     "lastName": "User"
                 }
-                """)
-        .when()
-            .post("/v1/customers")
-        .then()
-            .statusCode(400);
+                """);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(400);
+    }
+
+    private ResponseEntity<String> postJson(String path, String payload) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return restTemplate.postForEntity(path, new HttpEntity<>(payload, headers), String.class);
     }
 }

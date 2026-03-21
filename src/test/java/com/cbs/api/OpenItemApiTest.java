@@ -2,30 +2,30 @@ package com.cbs.api;
 
 import com.cbs.AbstractIntegrationTest;
 import com.cbs.TestSecurityConfig;
-import io.restassured.RestAssured;
-import io.restassured.http.ContentType;
-import org.junit.jupiter.api.BeforeEach;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @Import(TestSecurityConfig.class)
 class OpenItemApiTest extends AbstractIntegrationTest {
 
-    @LocalServerPort
-    private int port;
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     private static int counter = 0;
-
-    @BeforeEach
-    void setup() {
-        RestAssured.port = port;
-        RestAssured.basePath = "/api";
-    }
 
     private String uniqueCode() {
         return "OI-" + System.currentTimeMillis() + "-" + (++counter);
@@ -33,12 +33,9 @@ class OpenItemApiTest extends AbstractIntegrationTest {
 
     @Test
     @DisplayName("POST /v1/open-items - should create open item and return 201")
-    void createOpenItem_returns201() {
+    void createOpenItem_returns201() throws Exception {
         String code = uniqueCode();
-
-        given()
-            .contentType(ContentType.JSON)
-            .body(String.format("""
+        ResponseEntity<String> response = postJson("/v1/open-items", String.format("""
                 {
                     "itemCode": "%s",
                     "itemType": "SUSPENSE_ENTRY",
@@ -50,26 +47,20 @@ class OpenItemApiTest extends AbstractIntegrationTest {
                     "valueDate": "2026-03-18",
                     "priority": "HIGH"
                 }
-                """, code))
-        .when()
-            .post("/v1/open-items")
-        .then()
-            .statusCode(201)
-            .body("success", is(true))
-            .body("data.id", notNullValue())
-            .body("data.itemCode", equalTo(code))
-            .body("data.status", equalTo("OPEN"));
+                """, code));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(201);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data").path("itemCode").asText()).isEqualTo(code);
+        assertThat(body.path("data").path("status").asText()).isEqualTo("OPEN");
     }
 
     @Test
     @DisplayName("POST /v1/open-items/{code}/resolve - should resolve item and return 200")
-    void resolveOpenItem_returns200() {
+    void resolveOpenItem_returns200() throws Exception {
         String code = uniqueCode();
-
-        // Create the open item first
-        given()
-            .contentType(ContentType.JSON)
-            .body(String.format("""
+        assertThat(postJson("/v1/open-items", String.format("""
                 {
                     "itemCode": "%s",
                     "itemType": "UNMATCHED_TXN",
@@ -81,35 +72,28 @@ class OpenItemApiTest extends AbstractIntegrationTest {
                     "valueDate": "2026-03-18",
                     "priority": "MEDIUM"
                 }
-                """, code))
-        .when()
-            .post("/v1/open-items")
-        .then()
-            .statusCode(201);
+                """, code)).getStatusCode().value()).isEqualTo(201);
 
-        // Resolve the open item
-        given()
-            .contentType(ContentType.JSON)
-            .queryParam("action", "WRITE_OFF")
-            .queryParam("notes", "Resolved during integration testing")
-        .when()
-            .post("/v1/open-items/{code}/resolve", code)
-        .then()
-            .statusCode(200)
-            .body("success", is(true))
-            .body("data.itemCode", equalTo(code))
-            .body("data.resolutionAction", equalTo("WRITE_OFF"));
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/v1/open-items/{code}/resolve?action=WRITE_OFF&notes={notes}",
+                null,
+                String.class,
+                code,
+                "Resolved during integration testing"
+        );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data").path("itemCode").asText()).isEqualTo(code);
+        assertThat(body.path("data").path("resolutionAction").asText()).isEqualTo("WRITE_OFF");
     }
 
     @Test
     @DisplayName("GET /v1/open-items/open - should return list of open items with 200")
-    void getOpenItems_returns200() {
-        // Ensure at least one open item exists
+    void getOpenItems_returns200() throws Exception {
         String code = uniqueCode();
-
-        given()
-            .contentType(ContentType.JSON)
-            .body(String.format("""
+        assertThat(postJson("/v1/open-items", String.format("""
                 {
                     "itemCode": "%s",
                     "itemType": "SUSPENSE_ENTRY",
@@ -121,21 +105,19 @@ class OpenItemApiTest extends AbstractIntegrationTest {
                     "valueDate": "2026-03-18",
                     "priority": "LOW"
                 }
-                """, code))
-        .when()
-            .post("/v1/open-items")
-        .then()
-            .statusCode(201);
+                """, code)).getStatusCode().value()).isEqualTo(201);
 
-        // Get all open items
-        given()
-            .contentType(ContentType.JSON)
-        .when()
-            .get("/v1/open-items/open")
-        .then()
-            .statusCode(200)
-            .body("success", is(true))
-            .body("data", instanceOf(java.util.List.class))
-            .body("data.size()", greaterThanOrEqualTo(1));
+        ResponseEntity<String> response = restTemplate.getForEntity("/v1/open-items/open", String.class);
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.path("success").asBoolean()).isTrue();
+        assertThat(body.path("data").isArray()).isTrue();
+        assertThat(body.path("data").size()).isGreaterThanOrEqualTo(1);
+    }
+
+    private ResponseEntity<String> postJson(String path, String payload) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        return restTemplate.postForEntity(path, new HttpEntity<>(payload, headers), String.class);
     }
 }
