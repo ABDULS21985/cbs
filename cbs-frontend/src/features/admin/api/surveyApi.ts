@@ -7,16 +7,16 @@ export const surveysApi = {
     apiPost<CustomerSurvey>('/api/v1/surveys', data),
 
   /** POST /v1/surveys/{code}/launch */
-  create: (code: string, data: Partial<CustomerSurvey>) =>
+  launchSurvey: (code: string, data: Partial<CustomerSurvey>) =>
     apiPost<CustomerSurvey>(`/api/v1/surveys/${code}/launch`, data),
 
   /** POST /v1/surveys/{code}/respond */
   respond: (code: string, data: Partial<SurveyResponse>) =>
     apiPost<SurveyResponse>(`/api/v1/surveys/${code}/respond`, data),
 
-  /** POST /v1/surveys/{code}/close */
-  respond2: (code: string, data: Partial<SurveyResponse>) =>
-    apiPost<SurveyResponse>(`/api/v1/surveys/${code}/close`, data),
+  /** POST /v1/surveys/{code}/respond */
+  submitResponse: (code: string, data: Partial<SurveyResponse>) =>
+    apiPost<SurveyResponse>(`/api/v1/surveys/${code}/respond`, data),
 
   /** POST /v1/surveys/{code}/close — alias for close */
   closeSurvey: (code: string) =>
@@ -27,7 +27,7 @@ export const surveysApi = {
     apiGet<CustomerSurvey[]>(`/api/v1/surveys/type/${type}`),
 
   /** GET /v1/surveys/{code}/responses */
-  getByType2: (code: string) =>
+  getResponses: (code: string) =>
     apiGet<SurveyResponse[]>(`/api/v1/surveys/${code}/responses`),
 
 };

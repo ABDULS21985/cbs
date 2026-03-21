@@ -442,7 +442,7 @@ export function useCampaignPerformance(code: string) {
 export function useActiveCampaigns(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: KEYS.campaigns.active,
-    queryFn: () => campaignsApi.performance2(params),
+    queryFn: () => campaignsApi.getActiveSummary(params),
     staleTime: 30_000,
   });
 }
@@ -450,8 +450,8 @@ export function useActiveCampaigns(params?: Record<string, unknown>) {
 export function useApproveCampaign() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, data }: { code: string; data: Partial<Parameters<typeof campaignsApi.create>[1]> }) =>
-      campaignsApi.create(code, data),
+    mutationFn: ({ code, data }: { code: string; data: Partial<Parameters<typeof campaignsApi.approveCampaign>[1]> }) =>
+      campaignsApi.approveCampaign(code, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.campaigns.all });
     },
@@ -471,7 +471,7 @@ export function useLaunchCampaign() {
 export function useRecordCampaignMetrics() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => campaignsApi.launch2(code),
+    mutationFn: (code: string) => campaignsApi.recordMetrics(code),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.campaigns.all });
     },
@@ -1138,19 +1138,19 @@ export function useCreateProductBundle() {
 // PRODUCT ANALYTICS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function useProductAnalyticsByProduct(code: string) {
+export function useProductAnalyticsByProduct(code: string, periodType: string = 'MONTHLY') {
   return useQuery({
-    queryKey: KEYS.productAnalytics.byProduct(code),
-    queryFn: () => productAnalyticsApi.getByProduct(code),
+    queryKey: [...KEYS.productAnalytics.byProduct(code), periodType],
+    queryFn: () => productAnalyticsApi.getByProduct(code, periodType),
     staleTime: 30_000,
     enabled: !!code,
   });
 }
 
-export function useProductAnalyticsByFamily(family: string) {
+export function useProductAnalyticsByFamily(family: string, periodType: string = 'MONTHLY', periodDate: string = new Date().toISOString().slice(0, 10)) {
   return useQuery({
-    queryKey: KEYS.productAnalytics.byFamily(family),
-    queryFn: () => productAnalyticsApi.getByFamily(family),
+    queryKey: [...KEYS.productAnalytics.byFamily(family), periodType, periodDate],
+    queryFn: () => productAnalyticsApi.getByFamily(family, periodType, periodDate),
     staleTime: 30_000,
     enabled: !!family,
   });
@@ -1656,7 +1656,7 @@ export function useProviderExtFailover() {
 export function useSalesLeadsByAssignee(assignedTo: string) {
   return useQuery({
     queryKey: KEYS.salesLeads.byAssignee(assignedTo),
-    queryFn: () => salesLeadsApi.assign2(assignedTo),
+    queryFn: () => salesLeadsApi.getByAssignee(assignedTo),
     staleTime: 30_000,
     enabled: !!assignedTo,
   });
@@ -1674,8 +1674,8 @@ export function useSalesLeadsByStage(stage: string) {
 export function useAdvanceSalesLead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ number, data }: { number: string; data: Parameters<typeof salesLeadsApi.create>[1] }) =>
-      salesLeadsApi.create(number, data),
+    mutationFn: ({ number, data }: { number: string; data: Parameters<typeof salesLeadsApi.advanceLead>[1] }) =>
+      salesLeadsApi.advanceLead(number, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.salesLeads.all });
     },
@@ -1699,7 +1699,7 @@ export function useAssignSalesLead() {
 export function useSalesPlansByRegion(region: string) {
   return useQuery({
     queryKey: KEYS.salesPlans.byRegion(region),
-    queryFn: () => salesPlansApi.recordActual2(region),
+    queryFn: () => salesPlansApi.getPlansByRegion(region),
     staleTime: 30_000,
     enabled: !!region,
   });
@@ -1750,7 +1750,7 @@ export function useSalesSupportArticles(params?: Record<string, unknown>) {
 export function useSalesSupportCollateral(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: KEYS.salesSupport.collateral(params),
-    queryFn: () => salesSupportApi.searchArticles2(params),
+    queryFn: () => salesSupportApi.searchCollateral(params),
     staleTime: 60_000,
   });
 }
@@ -1825,7 +1825,7 @@ export function useSurveysByType(type: string) {
 export function useSurveyResponses(code: string) {
   return useQuery({
     queryKey: KEYS.surveys.responses(code),
-    queryFn: () => surveysApi.getByType2(code),
+    queryFn: () => surveysApi.getResponses(code),
     staleTime: 30_000,
     enabled: !!code,
   });
@@ -1834,8 +1834,8 @@ export function useSurveyResponses(code: string) {
 export function useLaunchSurvey() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, data }: { code: string; data: Parameters<typeof surveysApi.create>[1] }) =>
-      surveysApi.create(code, data),
+    mutationFn: ({ code, data }: { code: string; data: Parameters<typeof surveysApi.launchSurvey>[1] }) =>
+      surveysApi.launchSurvey(code, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.surveys.all });
     },
@@ -1856,8 +1856,8 @@ export function useRespondToSurvey() {
 export function useCloseSurvey() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, data }: { code: string; data: Parameters<typeof surveysApi.respond2>[1] }) =>
-      surveysApi.respond2(code, data),
+    mutationFn: ({ code, data }: { code: string; data: Parameters<typeof surveysApi.submitResponse>[1] }) =>
+      surveysApi.submitResponse(code, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.surveys.all });
     },

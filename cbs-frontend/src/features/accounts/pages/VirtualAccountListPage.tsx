@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { VirtualAccountTable } from '../components/virtual/VirtualAccountTable';
 import {
   getVirtualAccounts,
@@ -75,6 +76,7 @@ export function VirtualAccountListPage() {
       setShowDialog(false);
       reset();
     },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to create virtual account'),
   });
 
   const sweepMutation = useMutation({
@@ -82,6 +84,7 @@ export function VirtualAccountListPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['virtual-accounts'] });
     },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Bulk sweep failed'),
   });
 
   const deactivateMutation = useDeactivateVirtualAccount();
@@ -91,6 +94,7 @@ export function VirtualAccountListPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['virtual-accounts'] });
     },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to activate account'),
   });
 
   const {

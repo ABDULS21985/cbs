@@ -44,7 +44,7 @@ export function SurveyManagementPage() {
 
   const { data: responses = [] } = useQuery({
     queryKey: ['surveys', 'responses', selectedSurvey?.surveyCode],
-    queryFn: () => surveysApi.getByType2(selectedSurvey!.surveyCode),
+    queryFn: () => surveysApi.getResponses(selectedSurvey!.surveyCode),
     enabled: !!selectedSurvey,
   });
 
@@ -54,7 +54,7 @@ export function SurveyManagementPage() {
     onError: () => toast.error('Failed to create survey'),
   });
   const launchMut = useMutation({
-    mutationFn: (code: string) => surveysApi.create(code, {}),
+    mutationFn: (code: string) => surveysApi.launchSurvey(code, {}),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['surveys'] }); toast.success('Survey launched'); },
     onError: () => toast.error('Failed to launch'),
   });

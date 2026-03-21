@@ -59,7 +59,7 @@ export function SalesManagementPage() {
   });
   const { data: collateral = [] } = useQuery({
     queryKey: ['sales', 'collateral'],
-    queryFn: () => salesSupportApi.searchArticles2(),
+    queryFn: () => salesSupportApi.searchCollateral(),
   });
 
   const createLeadMut = useMutation({
@@ -68,7 +68,7 @@ export function SalesManagementPage() {
     onError: () => toast.error('Failed to create lead'),
   });
   const advanceMut = useMutation({
-    mutationFn: ({ number, stage }: { number: string; stage: string }) => salesLeadsApi.create(number, { stage } as any),
+    mutationFn: ({ number, stage }: { number: string; stage: string }) => salesLeadsApi.advanceLead(number, { stage } as any),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sales', 'leads'] }); toast.success('Lead advanced'); },
     onError: () => toast.error('Failed to advance lead'),
   });

@@ -1,6 +1,7 @@
 package com.cbs.admin.controller;
 
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.admin.service.AdminUserService;
 import com.cbs.billing.entity.Biller;
 import com.cbs.billing.repository.BillerRepository;
 import com.cbs.channel.repository.ChannelSessionRepository;
@@ -49,19 +50,23 @@ public class AdminController {
     private final AccountRepository accountRepository;
     private final CustomerRepository customerRepository;
     private final LoanAccountRepository loanAccountRepository;
+    private final AdminUserService adminUserService;
 
     // ===========================
     // USERS, ROLES, PERMISSIONS
     // ===========================
 
     @GetMapping("/users")
-    @Operation(summary = "List all users from user_role_assignment joined with security_role")
+    @Operation(summary = "List all users from user_role_assignment joined with security_role, enriched with Keycloak profiles")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUsers() {
         List<Map<String, Object>> users = new ArrayList<>();
+
+        // Pre-fetch Keycloak users and build a username index for efficient lookups
+        Map<String, Map<String, Object>> kcUsernameIndex = adminUserService.getUsernameIndex();
+        Map<String, Map<String, Object>> kcIdIndex = adminUserService.getUserIdIndex();
+
         try {
-            // user_role_assignment has: user_id, role_id, assigned_at, assigned_by, is_active, branch_scope, tenant_id
-            // User profile data (fullName, email) lives in Keycloak — we derive sensible defaults
             Query query = entityManager.createNativeQuery(
                     "SELECT ura.user_id, ura.assigned_by, ura.assigned_at, sr.role_name, ura.is_active, ura.branch_scope " +
                     "FROM cbs.user_role_assignment ura " +
@@ -70,39 +75,38 @@ public class AdminController {
                     "ORDER BY ura.user_id ASC");
             @SuppressWarnings("unchecked")
             List<Object[]> rows = query.getResultList();
-            Map<Long, Map<String, Object>> userMap = new LinkedHashMap<>();
+
+            // Group rows by user_id, collecting roles and metadata
+            Map<Long, List<String>> userRoles = new LinkedHashMap<>();
+            Map<Long, Object[]> userFirstRow = new LinkedHashMap<>();
             for (Object[] row : rows) {
                 Long userId = row[0] != null ? ((Number) row[0]).longValue() : 0L;
-                Map<String, Object> user = userMap.computeIfAbsent(userId, k -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("id", userId.toString());
-                    m.put("username", "user-" + userId);
-                    m.put("fullName", "User " + userId);
-                    m.put("email", "user-" + userId + "@cbs.local");
-                    m.put("phone", null);
-                    m.put("roles", new ArrayList<String>());
-                    m.put("branchId", row[5] != null ? row[5].toString() : "HQ");
-                    m.put("branchName", row[5] != null ? row[5].toString() : "Head Office");
-                    m.put("department", "Operations");
-                    m.put("reportingTo", null);
-                    m.put("status", Boolean.TRUE.equals(row[4]) ? "ACTIVE" : "DISABLED");
-                    m.put("lastLogin", null);
-                    m.put("createdAt", row[2] != null ? row[2].toString() : null);
-                    m.put("mfaEnabled", false);
-                    m.put("ipRestriction", null);
-                    m.put("loginHoursFrom", null);
-                    m.put("loginHoursTo", null);
-                    return m;
-                });
+                userFirstRow.putIfAbsent(userId, row);
+                userRoles.computeIfAbsent(userId, k -> new ArrayList<>());
                 if (row[3] != null) {
-                    @SuppressWarnings("unchecked")
-                    List<String> roles = (List<String>) user.get("roles");
-                    roles.add(row[3].toString());
+                    userRoles.get(userId).add(row[3].toString());
                 }
             }
-            users.addAll(userMap.values());
+
+            // Build CbsUser objects, merging with Keycloak profile data
+            for (Map.Entry<Long, Object[]> entry : userFirstRow.entrySet()) {
+                Long userId = entry.getKey();
+                Object[] row = entry.getValue();
+                String branchScope = row[5] != null ? row[5].toString() : null;
+                boolean isActive = Boolean.TRUE.equals(row[4]);
+                String assignedAt = row[2] != null ? row[2].toString() : null;
+                List<String> roles = userRoles.getOrDefault(userId, List.of());
+
+                // Try to find the Keycloak user by synthetic username or by Keycloak ID
+                Map<String, Object> kcUser = kcUsernameIndex.get(("user-" + userId).toLowerCase());
+                if (kcUser == null) {
+                    kcUser = kcIdIndex.get(userId.toString());
+                }
+
+                users.add(adminUserService.buildCbsUser(userId, kcUser, roles, branchScope, isActive, assignedAt));
+            }
         } catch (Exception e) {
-            // Tables may not exist yet - return empty
+            // Tables may not exist yet — return empty
         }
         return ResponseEntity.ok(ApiResponse.ok(users));
     }
@@ -193,10 +197,14 @@ public class AdminController {
     // ===========================
 
     @GetMapping("/sessions")
-    @Operation(summary = "Active sessions list from channel_session table")
+    @Operation(summary = "Active sessions list from channel_session table, enriched with Keycloak user names")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSessions() {
         List<Map<String, Object>> sessions = new ArrayList<>();
+
+        // Pre-fetch Keycloak username index for resolving customer IDs to real names
+        Map<String, Map<String, Object>> kcUsernameIndex = adminUserService.getUsernameIndex();
+
         try {
             Query query = entityManager.createNativeQuery(
                     "SELECT cs.id, cs.session_id, cs.customer_id, cs.channel, cs.ip_address, cs.user_agent, " +
@@ -205,20 +213,27 @@ public class AdminController {
                     "ORDER BY cs.last_activity_at DESC LIMIT 200");
             @SuppressWarnings("unchecked")
             List<Object[]> rows = query.getResultList();
+
             // Track customer IDs for multiple-session detection
             Map<Long, Integer> customerSessionCount = new LinkedHashMap<>();
             for (Object[] row : rows) {
                 Long customerId = row[2] != null ? ((Number) row[2]).longValue() : 0L;
                 customerSessionCount.merge(customerId, 1, Integer::sum);
             }
+
             for (Object[] row : rows) {
                 Map<String, Object> session = new LinkedHashMap<>();
                 Long customerId = row[2] != null ? ((Number) row[2]).longValue() : 0L;
                 int sessionCount = customerSessionCount.getOrDefault(customerId, 1);
+
+                // Resolve user identity from Keycloak when available
+                String username = adminUserService.resolveSessionUsername(customerId, kcUsernameIndex);
+                String fullName = adminUserService.resolveSessionFullName(customerId, kcUsernameIndex);
+
                 session.put("id", row[1] != null ? row[1].toString() : row[0].toString());
                 session.put("userId", customerId.toString());
-                session.put("username", "user-" + customerId);
-                session.put("fullName", "User " + customerId);
+                session.put("username", username);
+                session.put("fullName", fullName);
                 session.put("ip", row[4] != null ? row[4].toString() : "unknown");
                 session.put("loginTime", row[6] != null ? row[6].toString() : Instant.now().toString());
                 session.put("lastActivity", row[7] != null ? row[7].toString() : Instant.now().toString());
@@ -462,31 +477,61 @@ public class AdminController {
     // ===========================
 
     @GetMapping("/users/{id}")
-    @Operation(summary = "Get user detail by ID")
+    @Operation(summary = "Get user detail by ID, enriched with Keycloak profile")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getUser(@PathVariable Long id) {
-        Map<String, Object> user = new LinkedHashMap<>();
-        user.put("id", id.toString());
-        user.put("username", "user-" + id);
-        user.put("fullName", "User " + id);
-        user.put("email", "user-" + id + "@cbs.local");
-        user.put("status", "ACTIVE");
-        user.put("roles", new ArrayList<>());
-        user.put("branchId", "HQ");
-        user.put("branchName", "Head Office");
-        user.put("department", "Operations");
-        user.put("mfaEnabled", false);
-        user.put("createdAt", Instant.now().toString());
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getUser(@PathVariable String id) {
+        // Collect roles and branch scope from CBS database
+        List<String> roles = new ArrayList<>();
+        String branchScope = null;
+        boolean isActive = true;
+        String assignedAt = null;
+
         try {
             Query query = entityManager.createNativeQuery(
-                    "SELECT sr.role_name FROM cbs.user_role_assignment ura " +
+                    "SELECT sr.role_name, ura.branch_scope, ura.is_active, ura.assigned_at " +
+                    "FROM cbs.user_role_assignment ura " +
                     "JOIN cbs.security_role sr ON ura.role_id = sr.id " +
                     "WHERE ura.user_id = :userId AND ura.is_active = true");
-            query.setParameter("userId", id);
+            // Try parsing as Long for the DB query; if id is a UUID it will be handled differently
+            try {
+                query.setParameter("userId", Long.parseLong(id));
+            } catch (NumberFormatException e) {
+                // Keycloak UUID — query won't match numeric user_id, roles will be empty
+                query.setParameter("userId", -1L);
+            }
             @SuppressWarnings("unchecked")
-            List<Object> roleNames = query.getResultList();
-            user.put("roles", roleNames.stream().map(Object::toString).collect(Collectors.toList()));
+            List<Object[]> rows = query.getResultList();
+            for (Object[] row : rows) {
+                if (row[0] != null) roles.add(row[0].toString());
+                if (branchScope == null && row[1] != null) branchScope = row[1].toString();
+                if (row[2] != null) isActive = Boolean.TRUE.equals(row[2]);
+                if (assignedAt == null && row[3] != null) assignedAt = row[3].toString();
+            }
         } catch (Exception ignored) { }
+
+        // Try to resolve the Keycloak user — by UUID first, then by username index
+        Map<String, Object> kcUser = adminUserService.getKeycloakUser(id);
+        if (kcUser == null) {
+            // Might be a numeric CBS user_id — try username index
+            Map<String, Map<String, Object>> usernameIndex = adminUserService.getUsernameIndex();
+            kcUser = usernameIndex.get(("user-" + id).toLowerCase());
+        }
+
+        Long numericId;
+        try {
+            numericId = Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            numericId = 0L;
+        }
+
+        Map<String, Object> user = adminUserService.buildCbsUser(numericId, kcUser, roles, branchScope, isActive, assignedAt);
+        // Preserve the original ID (could be UUID from Keycloak)
+        if (kcUser != null && kcUser.get("id") != null) {
+            user.put("id", kcUser.get("id").toString());
+        } else {
+            user.put("id", id);
+        }
+
         return ResponseEntity.ok(ApiResponse.ok(user));
     }
 

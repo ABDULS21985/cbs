@@ -13,6 +13,7 @@ import {
   DollarSign,
   CalendarDays,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 import { formatMoney, formatPercent } from '@/lib/formatters';
@@ -66,7 +67,10 @@ function AddMemberDialog({ poolCode, onClose }: AddMemberDialogProps) {
           fxRateToBase: data.fxRateToBase,
         },
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: onClose,
+        onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to add pool member'),
+      },
     );
   };
 
@@ -409,6 +413,7 @@ function PoolCard({ pool, onAddMember }: PoolCardProps) {
   const handleCalculate = () => {
     calculateMutation.mutate(pool.poolCode, {
       onSuccess: (data) => setCalcResult(data),
+      onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to calculate notional pool'),
     });
   };
 

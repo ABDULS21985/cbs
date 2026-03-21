@@ -105,7 +105,7 @@ describe('AccountListPage', () => {
     expect(screen.getByText('Amara Primary Savings')).toBeInTheDocument();
     expect(screen.getByText('TechVentures Current')).toBeInTheDocument();
     expect(screen.getByText('Dormant USD Account')).toBeInTheDocument();
-    expect(screen.getByText('HQ01')).toBeInTheDocument();
+    expect(screen.getAllByText('HQ01')[0]).toBeInTheDocument();
     expect(screen.getByText('LG02')).toBeInTheDocument();
   });
 

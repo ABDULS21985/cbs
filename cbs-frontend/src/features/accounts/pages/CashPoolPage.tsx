@@ -1184,7 +1184,8 @@ export function CashPoolPage() {
           try {
             const participants = await getParticipants(pool.poolCode);
             counts[pool.poolCode] = participants.filter((p) => p.isActive && p.participantRole !== 'HEADER').length;
-          } catch {
+          } catch (err) {
+            console.error('Failed to load participants for pool', pool.poolCode, err);
             counts[pool.poolCode] = 0;
           }
         }),

@@ -74,7 +74,8 @@ const mockHolds = [
     amount: 2500,
     reason: 'Regulatory compliance check',
     placedBy: 'System',
-    dateCreated: '2024-03-01',
+    holdType: 'LIEN',
+    createdAt: '2024-03-01T00:00:00Z',
     releaseDate: '2024-04-01',
     status: 'ACTIVE',
   },
@@ -84,15 +85,16 @@ const mockHolds = [
     amount: 1000,
     reason: 'Fraud investigation',
     placedBy: 'Compliance Officer',
-    dateCreated: '2024-02-15',
+    holdType: 'LIEN',
+    createdAt: '2024-02-15T00:00:00Z',
     status: 'RELEASED',
   },
 ];
 
 const mockMaintenanceHistory = [
   {
-    id: 'MH001',
-    date: '2024-03-10T10:00:00Z',
+    id: 1001,
+    createdAt: '2024-03-10T10:00:00Z',
     action: 'STATUS_CHANGE',
     performedBy: 'admin@cbs.bank',
     details: 'Status changed from DORMANT to ACTIVE',

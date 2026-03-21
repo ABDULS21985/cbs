@@ -7,7 +7,7 @@ export const campaignsApi = {
     apiPost<MarketingCampaign>('/api/v1/campaigns', data),
 
   /** POST /v1/campaigns/{code}/approve */
-  create: (code: string, data: Partial<MarketingCampaign>) =>
+  approveCampaign: (code: string, data: Partial<MarketingCampaign>) =>
     apiPost<MarketingCampaign>(`/api/v1/campaigns/${code}/approve`, data),
 
   /** POST /v1/campaigns/{code}/launch */
@@ -15,7 +15,7 @@ export const campaignsApi = {
     apiPost<MarketingCampaign>(`/api/v1/campaigns/${code}/launch`),
 
   /** POST /v1/campaigns/{code}/metrics */
-  launch2: (code: string) =>
+  recordMetrics: (code: string) =>
     apiPost<MarketingCampaign>(`/api/v1/campaigns/${code}/metrics`),
 
   /** GET /v1/campaigns/{code}/performance */
@@ -26,8 +26,8 @@ export const campaignsApi = {
   getActive: (params?: Record<string, unknown>) =>
     apiGet<MarketingCampaign[]>('/api/v1/campaigns/active', params),
 
-  /** Alias */
-  performance2: (params?: Record<string, unknown>) =>
+  /** GET /v1/campaigns/active — alias with generic return */
+  getActiveSummary: (params?: Record<string, unknown>) =>
     apiGet<Record<string, unknown>>('/api/v1/campaigns/active', params),
 
 };

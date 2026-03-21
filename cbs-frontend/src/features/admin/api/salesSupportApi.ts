@@ -23,8 +23,8 @@ export const salesSupportApi = {
     apiGet<SalesKnowledgeArticle[]>('/api/v1/sales-support/articles', params),
 
   /** GET /v1/sales-support/collateral */
-  searchArticles2: (params?: Record<string, unknown>) =>
-    apiGet<SalesKnowledgeArticle[]>('/api/v1/sales-support/collateral', params),
+  searchCollateral: (params?: Record<string, unknown>) =>
+    apiGet<SalesCollateral[]>('/api/v1/sales-support/collateral', params),
 
   /** POST /v1/sales-support/articles/{code}/view */
   recordView: (code: string) =>

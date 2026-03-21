@@ -19,8 +19,8 @@ export const salesPlansApi = {
     apiPost<SalesTarget>(`/api/v1/sales-plans/targets/${code}/record`),
 
   /** GET /v1/sales-plans/region/{region} */
-  recordActual2: (region: string) =>
-    apiGet<SalesTarget>(`/api/v1/sales-plans/region/${region}`),
+  getPlansByRegion: (region: string) =>
+    apiGet<SalesPlan[]>(`/api/v1/sales-plans/region/${region}`),
 
   /** GET /v1/sales-plans/officer/{id}/targets */
   getTargetsByOfficer: (id: number) =>

@@ -176,7 +176,7 @@ export function toggleSchedule(id: number | string): Promise<ScheduledNotificati
 // ─── Send ─────────────────────────────────────────────────────────────────────
 
 export function sendNotification(data: { templateId: number; recipients: string[]; mergeData: Record<string, string> }): Promise<unknown> {
-  return apiPost('/api/v1/notifications/send', data);
+  return apiPost('/api/v1/notifications/send-by-template', data);
 }
 // ─── Template Versions ───────────────────────────────────────────────────────
 

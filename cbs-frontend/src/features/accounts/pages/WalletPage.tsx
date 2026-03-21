@@ -243,7 +243,7 @@ function ConvertModal({ accountId, wallets, sourceWallet, onClose }: {
   const convertMut = useConvertWallet();
 
   const targetWallet = wallets.find(w => w.id === Number(targetId));
-  const { data: rates } = useFxRates(
+  const { data: rates, isError: fxError } = useFxRates(
     sourceWallet.currencyCode,
     targetWallet?.currencyCode,
   );
@@ -316,7 +316,14 @@ function ConvertModal({ accountId, wallets, sourceWallet, onClose }: {
         </div>
 
         {/* Rate preview */}
-        {targetWallet && (
+        {targetWallet && fxError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-900/40 p-3">
+            <p className="text-sm text-red-700 dark:text-red-400">
+              Unable to fetch exchange rate. Please try again later.
+            </p>
+          </div>
+        )}
+        {targetWallet && !fxError && (
           <div className="rounded-lg border p-3 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Exchange Rate</span>

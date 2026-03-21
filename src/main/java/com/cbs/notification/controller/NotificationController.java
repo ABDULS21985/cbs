@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController @RequestMapping("/v1/notifications") @RequiredArgsConstructor
 @Tag(name = "Notifications", description = "Multi-channel notification engine with templates and preferences")
@@ -49,6 +50,36 @@ public class NotificationController {
             @RequestParam(required = false) String email, @RequestParam(required = false) String phone,
             @RequestParam(required = false) String name, @RequestBody Map<String, String> params) {
         return ResponseEntity.ok(ApiResponse.ok(notificationService.sendEventNotification(eventType, customerId, email, phone, name, params)));
+    }
+
+    @PostMapping("/send-by-template")
+    @Operation(summary = "Send notification using a template with merge data")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendByTemplate(@RequestBody Map<String, Object> body) {
+        Long templateId = body.get("templateId") instanceof Number ? ((Number) body.get("templateId")).longValue() : null;
+        if (templateId == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.ok(Map.of("error", "templateId is required")));
+        }
+        NotificationTemplate template = templateRepository.findById(templateId)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Template not found: " + templateId));
+
+        @SuppressWarnings("unchecked")
+        List<String> recipients = (List<String>) body.getOrDefault("recipients", List.of());
+        @SuppressWarnings("unchecked")
+        Map<String, String> mergeData = (Map<String, String>) body.getOrDefault("mergeData", Map.of());
+
+        String resolvedBody = template.resolveBody(mergeData);
+        String resolvedSubject = template.resolveSubject(mergeData);
+
+        int sent = 0, failed = 0;
+        for (String recipient : recipients) {
+            try {
+                notificationService.sendDirect(template.getChannel(), recipient, "",
+                        resolvedSubject != null ? resolvedSubject : "", resolvedBody, null, template.getEventType());
+                sent++;
+            } catch (Exception e) { failed++; }
+        }
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("sent", sent, "failed", failed, "total", recipients.size())));
     }
 
     @PostMapping("/send-direct")
@@ -148,8 +179,30 @@ public class NotificationController {
 
     @GetMapping("/templates")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<NotificationTemplate>>> listTemplates() {
-        return ResponseEntity.ok(ApiResponse.ok(notificationService.getAllTemplates()));
+    public ResponseEntity<ApiResponse<List<NotificationTemplate>>> listTemplates(
+            @RequestParam(required = false) String channel,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search) {
+        List<NotificationTemplate> templates = notificationService.getAllTemplates();
+
+        if (channel != null && !channel.isBlank()) {
+            NotificationChannel ch = NotificationChannel.valueOf(channel);
+            templates = templates.stream().filter(t -> t.getChannel() == ch).collect(Collectors.toList());
+        }
+        if (status != null && !status.isBlank()) {
+            boolean active = "ACTIVE".equalsIgnoreCase(status);
+            templates = templates.stream().filter(t -> Boolean.TRUE.equals(t.getIsActive()) == active).collect(Collectors.toList());
+        }
+        if (search != null && !search.isBlank()) {
+            String q = search.toLowerCase();
+            templates = templates.stream()
+                    .filter(t -> (t.getTemplateName() != null && t.getTemplateName().toLowerCase().contains(q))
+                            || (t.getTemplateCode() != null && t.getTemplateCode().toLowerCase().contains(q)))
+                    .collect(Collectors.toList());
+        }
+
+        return ResponseEntity.ok(ApiResponse.ok(templates));
     }
 
     @PostMapping("/templates")
@@ -236,12 +289,22 @@ public class NotificationController {
     @GetMapping("/delivery-stats")
     @Operation(summary = "Notification delivery success rates")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getDeliveryStats() {
-        long total = notificationLogRepository.count();
-        long sent = notificationLogRepository.countByStatus("SENT");
-        long delivered = notificationLogRepository.countByStatus("DELIVERED");
-        long failed = notificationLogRepository.countByStatus("FAILED");
-        long pending = notificationLogRepository.countByStatus("PENDING");
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDeliveryStats(
+            @RequestParam(required = false) Integer days) {
+        List<NotificationLog> logs;
+        if (days != null && days > 0) {
+            Instant since = Instant.now().minus(days, ChronoUnit.DAYS);
+            logs = notificationLogRepository.findAll().stream()
+                    .filter(n -> n.getCreatedAt() != null && n.getCreatedAt().isAfter(since))
+                    .toList();
+        } else {
+            logs = notificationLogRepository.findAll();
+        }
+        long total = logs.size();
+        long sent = logs.stream().filter(n -> "SENT".equals(n.getStatus())).count();
+        long delivered = logs.stream().filter(n -> "DELIVERED".equals(n.getStatus())).count();
+        long failed = logs.stream().filter(n -> "FAILED".equals(n.getStatus())).count();
+        long pending = logs.stream().filter(n -> "PENDING".equals(n.getStatus())).count();
         double deliveryRate = total > 0 ? (double) (sent + delivered) / total * 100.0 : 0.0;
         double failureRate = total > 0 ? (double) failed / total * 100.0 : 0.0;
 
@@ -259,13 +322,14 @@ public class NotificationController {
     @GetMapping("/failures")
     @Operation(summary = "Failed notifications")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<NotificationLog>>> getFailures(
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getFailures(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<NotificationLog> result = notificationLogRepository.findAll(pageable);
-        List<NotificationLog> failures = result.getContent().stream()
+        List<Map<String, Object>> failures = result.getContent().stream()
                 .filter(n -> "FAILED".equals(n.getStatus()))
+                .map(this::toFailureRecord)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok(failures, PageMeta.from(result)));
     }
@@ -451,11 +515,12 @@ public class NotificationController {
     @GetMapping("/delivery-stats/failures")
     @Operation(summary = "Recent delivery failures")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<NotificationLog>>> getDeliveryFailures() {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDeliveryFailures() {
         Pageable pageable = PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<NotificationLog> result = notificationLogRepository.findAll(pageable);
-        List<NotificationLog> failures = result.getContent().stream()
+        List<Map<String, Object>> failures = result.getContent().stream()
                 .filter(n -> "FAILED".equals(n.getStatus()) || "BOUNCED".equals(n.getStatus()))
+                .map(this::toFailureRecord)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok(failures));
     }
@@ -526,5 +591,19 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Map<String, String>>> deleteNotification(@PathVariable Long id) {
         notificationLogRepository.deleteById(id);
         return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "deleted", "true")));
+    }
+
+    // ── Helper: project NotificationLog → FailureRecord shape expected by frontend ──
+
+    private Map<String, Object> toFailureRecord(NotificationLog log) {
+        Map<String, Object> record = new LinkedHashMap<>();
+        record.put("id", log.getId());
+        record.put("templateCode", log.getTemplateCode());
+        record.put("channel", log.getChannel() != null ? log.getChannel().name() : null);
+        record.put("recipientAddress", log.getRecipientAddress());
+        record.put("failureReason", log.getFailureReason());
+        record.put("createdAt", log.getCreatedAt() != null ? log.getCreatedAt().toString() : null);
+        record.put("status", log.getStatus());
+        return record;
     }
 }

@@ -6,6 +6,7 @@ import {
   Wallet, CheckCircle2, AlertCircle, Hash, Link2, X, CheckCheck,
   ArrowDownUp, Plus, Minus, Power, DollarSign, Clock,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage } from '@/components/shared/TabsPage';
 import { StatCard } from '@/components/shared/StatCard';
@@ -210,7 +211,7 @@ function TransactionsTab({ vaId }: { vaId: number }) {
 
 function MatchingRulesTab({ vaId }: { vaId: number }) {
   const queryClient = useQueryClient();
-  const [toast, setToast] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ['va-rules', vaId],
@@ -221,9 +222,10 @@ function MatchingRulesTab({ vaId }: { vaId: number }) {
     mutationFn: (updatedRules: MatchingRule[]) => updateMatchingRules(vaId, updatedRules),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['va-rules', vaId] });
-      setToast('Matching rules saved successfully');
-      setTimeout(() => setToast(null), 3000);
+      setToastMsg('Matching rules saved successfully');
+      setTimeout(() => setToastMsg(null), 3000);
     },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to save matching rules'),
   });
 
   if (isLoading) {
@@ -244,10 +246,10 @@ function MatchingRulesTab({ vaId }: { vaId: number }) {
 
   return (
     <div className="p-6">
-      {toast && (
+      {toastMsg && (
         <div className="mb-4 flex items-center gap-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900/40 px-4 py-3">
           <CheckCheck className="w-4 h-4 text-green-700 dark:text-green-400 flex-shrink-0" />
-          <span className="text-sm text-green-700 dark:text-green-400">{toast}</span>
+          <span className="text-sm text-green-700 dark:text-green-400">{toastMsg}</span>
         </div>
       )}
       <div className="mb-4">
@@ -276,20 +278,21 @@ function UnmatchedTab({ vaId }: { vaId: number }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['va-transactions', vaId] });
     },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to match transaction'),
   });
 
-  const [toast, setToast] = useState<{ type: 'match' | 'writeoff'; ref: string } | null>(null);
+  const [toastInfo, setToastInfo] = useState<{ type: 'match' | 'writeoff'; ref: string } | null>(null);
 
   const handleMatch = (txn: VATransaction) => {
     matchMutation.mutate({ txnId: txn.id, matchedRef: `MANUAL-${txn.reference}` });
-    setToast({ type: 'match', ref: txn.reference });
-    setTimeout(() => setToast(null), 4000);
+    setToastInfo({ type: 'match', ref: txn.reference });
+    setTimeout(() => setToastInfo(null), 4000);
   };
 
   const handleWriteOff = (txn: VATransaction) => {
     matchMutation.mutate({ txnId: txn.id, matchedRef: 'WRITE-OFF' });
-    setToast({ type: 'writeoff', ref: txn.reference });
-    setTimeout(() => setToast(null), 4000);
+    setToastInfo({ type: 'writeoff', ref: txn.reference });
+    setTimeout(() => setToastInfo(null), 4000);
   };
 
   if (isLoading) {
@@ -302,16 +305,16 @@ function UnmatchedTab({ vaId }: { vaId: number }) {
 
   return (
     <div className="p-6 space-y-4">
-      {toast && (
+      {toastInfo && (
         <div
           className={cn(
             'flex items-center gap-2 rounded-lg border px-4 py-3',
-            toast.type === 'match'
+            toastInfo.type === 'match'
               ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/40'
               : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-900/40',
           )}
         >
-          {toast.type === 'match' ? (
+          {toastInfo.type === 'match' ? (
             <Link2 className="w-4 h-4 text-blue-700 dark:text-blue-400 flex-shrink-0" />
           ) : (
             <X className="w-4 h-4 text-amber-700 dark:text-amber-400 flex-shrink-0" />
@@ -319,14 +322,14 @@ function UnmatchedTab({ vaId }: { vaId: number }) {
           <span
             className={cn(
               'text-sm',
-              toast.type === 'match'
+              toastInfo.type === 'match'
                 ? 'text-blue-700 dark:text-blue-400'
                 : 'text-amber-700 dark:text-amber-400',
             )}
           >
-            {toast.type === 'match'
-              ? `Manual match initiated for reference: ${toast.ref}`
-              : `Write-off initiated for reference: ${toast.ref}`}
+            {toastInfo.type === 'match'
+              ? `Manual match initiated for reference: ${toastInfo.ref}`
+              : `Write-off initiated for reference: ${toastInfo.ref}`}
           </span>
         </div>
       )}
@@ -454,6 +457,7 @@ export function VirtualAccountDetailPage() {
       setCreditAmount('');
       setCreditRef('');
     },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to credit account'),
   });
 
   const debitMutation = useMutation({
@@ -464,6 +468,7 @@ export function VirtualAccountDetailPage() {
       setDebitModal(false);
       setDebitAmount('');
     },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to debit account'),
   });
 
   const deactivateMutation = useMutation({
@@ -472,6 +477,7 @@ export function VirtualAccountDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['virtual-account', id] });
       setDeactivateModal(false);
     },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Failed to deactivate account'),
   });
 
   const sweepMutation = useMutation({
@@ -482,6 +488,7 @@ export function VirtualAccountDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['va-sweep-history'] });
       setSweepModal(false);
     },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Sweep failed'),
   });
 
   // ── Loading / Error states ────────────────────────────────────────────────

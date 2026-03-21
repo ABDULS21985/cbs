@@ -1,3 +1,6 @@
+import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.compile.JavaCompile
+
 plugins {
     java
     id("org.springframework.boot") version "4.0.4"
@@ -11,7 +14,7 @@ val lombokVersion = "1.18.44"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
@@ -91,15 +94,15 @@ dependencies {
     testAnnotationProcessor("org.projectlombok:lombok:$lombokVersion")
 }
 
-tasks.withType<Test>().configureEach {
+tasks.test {
     useJUnitPlatform()
     maxHeapSize = "2g"
     forkEvery = 100
     jvmArgs("--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED")
 }
 
-tasks.withType<JavaCompile>().configureEach {
-    options.release.set(25)
+tasks.compileJava {
+    options.release.set(21)
     options.compilerArgs.addAll(listOf(
         "-Amapstruct.defaultComponentModel=spring",
         "-Amapstruct.unmappedTargetPolicy=IGNORE"

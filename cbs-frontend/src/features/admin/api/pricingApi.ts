@@ -18,9 +18,9 @@ export const pricingApi = {
   getActiveDiscounts: (params?: Record<string, unknown>) =>
     apiGet<DiscountScheme[]>('/api/v1/pricing/discounts/active', params),
 
-  /** POST /v1/pricing/discounts/evaluate */
+  /** GET /v1/pricing/discounts/evaluate */
   evaluateDiscount: () =>
-    apiPost<DiscountScheme>('/api/v1/pricing/discounts/evaluate'),
+    apiGet<DiscountScheme>('/api/v1/pricing/discounts/evaluate'),
 
   /** POST /v1/pricing/special-pricing */
   createSpecialPricing: (data: Partial<SpecialPricingAgreement>) =>
