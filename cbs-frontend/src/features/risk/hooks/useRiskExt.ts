@@ -8,11 +8,15 @@ import { liquidityRiskApi } from '../api/liquidityRiskExtApi';
 import { creditMarginApi } from '../api/creditMarginApi';
 import { businessRiskApi } from '../api/businessRiskApi';
 import { riskContributionApi } from '../api/riskContributionApi';
+import { businessContributionApi } from '../api/businessContributionApi';
+import { transactionLimitApi } from '../api/transactionLimitApi';
 import type { FraudRule } from '../types/fraudExt';
 import type { AmlRule } from '../types/amlExt';
 import type { OpRiskKri } from '../types/opriskExt';
 import type { MarginCall } from '../types/creditMargin';
 import type { BusinessRiskAssessment } from '../types/businessRisk';
+import type { BusinessContribution } from '../types/businessContribution';
+import type { TransactionLimit, LimitType } from '../types/transactionLimit';
 
 // ─── Query Key Factories ────────────────────────────────────────────────────────
 
@@ -68,6 +72,26 @@ export const RISK_EXT_KEYS = {
     ['risk-contribution', 'portfolio', code, date] as const,
   riskContributionBU: (bu: string, date: string) =>
     ['risk-contribution', 'business-unit', bu, date] as const,
+
+  // Business Contribution
+  businessContribution: ['business-contribution'] as const,
+  businessContributionTop: (periodType: string, limit: number) =>
+    ['business-contribution', 'top', periodType, limit] as const,
+  businessContributionUnder: (periodType: string) =>
+    ['business-contribution', 'underperformers', periodType] as const,
+  businessContributionBU: (bu: string) =>
+    ['business-contribution', 'business-unit', bu] as const,
+  businessContributionProduct: (family: string) =>
+    ['business-contribution', 'product', family] as const,
+  businessContributionRegion: (region: string) =>
+    ['business-contribution', 'region', region] as const,
+
+  // Transaction Limits
+  transactionLimits: ['transaction-limits'] as const,
+  transactionLimitsByAccount: (accountId: number) =>
+    ['transaction-limits', 'account', accountId] as const,
+  transactionLimitUsage: (accountId: number, limitType: string) =>
+    ['transaction-limits', 'usage', accountId, limitType] as const,
 } as const;
 
 // ─── Fraud Ext Hooks ────────────────────────────────────────────────────────────
@@ -353,7 +377,7 @@ export function useMarginCall(ref: string) {
 export function useMarginCallsByCounterparty(code: string) {
   return useQuery({
     queryKey: RISK_EXT_KEYS.marginCallsByCounterparty(code),
-    queryFn: () => creditMarginApi.byCounterparty(code),
+    queryFn: () => creditMarginApi.getByCounterparty(code),
     staleTime: 30_000,
     enabled: !!code,
   });
@@ -362,7 +386,7 @@ export function useMarginCallsByCounterparty(code: string) {
 export function useOpenMarginCalls(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: [...RISK_EXT_KEYS.openMarginCalls, params] as const,
-    queryFn: () => creditMarginApi.byCounterparty2(params),
+    queryFn: () => creditMarginApi.getOpenCalls(params),
     staleTime: 30_000,
   });
 }
@@ -381,7 +405,7 @@ export function useAcknowledgeMarginCall() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ ref, data }: { ref: string; data: Partial<MarginCall> }) =>
-      creditMarginApi.issue2(ref, data),
+      creditMarginApi.acknowledge(ref, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: RISK_EXT_KEYS.creditMargin });
     },
@@ -402,7 +426,7 @@ export function useSettleMarginCall() {
 export function usePostCollateral() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) => creditMarginApi.settle2(data),
+    mutationFn: (data: Record<string, unknown>) => creditMarginApi.postCollateral(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: RISK_EXT_KEYS.creditMargin });
     },
@@ -423,17 +447,28 @@ export function useBusinessRiskByDomain(domain: string) {
 export function useBusinessRiskByRating(rating: string) {
   return useQuery({
     queryKey: RISK_EXT_KEYS.businessRiskByRating(rating),
-    queryFn: () => businessRiskApi.getByDomain2(rating),
+    queryFn: () => businessRiskApi.getByRating(rating),
     staleTime: 60_000,
     enabled: !!rating,
+  });
+}
+
+export function useCreateBusinessRiskAssessment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<BusinessRiskAssessment>) =>
+      businessRiskApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: RISK_EXT_KEYS.businessRisk });
+    },
   });
 }
 
 export function useCompleteBusinessRiskAssessment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, data }: { code: string; data: Partial<BusinessRiskAssessment> }) =>
-      businessRiskApi.create(code, data),
+    mutationFn: (code: string) =>
+      businessRiskApi.complete(code),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: RISK_EXT_KEYS.businessRisk });
     },
@@ -457,5 +492,93 @@ export function useRiskContributionByBU(bu: string, date: string) {
     queryFn: () => riskContributionApi.getByBU(bu, date),
     staleTime: 60_000,
     enabled: !!bu && !!date,
+  });
+}
+
+// ─── Business Contribution Hooks ───────────────────────────────────────────────
+
+export function useBusinessContributionTop(periodType: string, limit: number) {
+  return useQuery({
+    queryKey: RISK_EXT_KEYS.businessContributionTop(periodType, limit),
+    queryFn: () => businessContributionApi.getTopContributors({ periodType, limit }),
+    staleTime: 60_000,
+    enabled: !!periodType && limit > 0,
+  });
+}
+
+export function useBusinessContributionUnderperformers(periodType: string) {
+  return useQuery({
+    queryKey: RISK_EXT_KEYS.businessContributionUnder(periodType),
+    queryFn: () => businessContributionApi.getUnderperformers({ periodType }),
+    staleTime: 60_000,
+    enabled: !!periodType,
+  });
+}
+
+export function useBusinessContributionByBU(bu: string) {
+  return useQuery({
+    queryKey: RISK_EXT_KEYS.businessContributionBU(bu),
+    queryFn: () => businessContributionApi.getByBusinessUnit(bu),
+    staleTime: 60_000,
+    enabled: !!bu,
+  });
+}
+
+export function useBusinessContributionByProduct(family: string) {
+  return useQuery({
+    queryKey: RISK_EXT_KEYS.businessContributionProduct(family),
+    queryFn: () => businessContributionApi.getByProduct(family),
+    staleTime: 60_000,
+    enabled: !!family,
+  });
+}
+
+export function useBusinessContributionByRegion(region: string) {
+  return useQuery({
+    queryKey: RISK_EXT_KEYS.businessContributionRegion(region),
+    queryFn: () => businessContributionApi.getByRegion(region),
+    staleTime: 60_000,
+    enabled: !!region,
+  });
+}
+
+// ─── Transaction Limit Hooks ──────────────────────────────────────────────────
+
+export function useTransactionLimitsByAccount(accountId: number) {
+  return useQuery({
+    queryKey: RISK_EXT_KEYS.transactionLimitsByAccount(accountId),
+    queryFn: () => transactionLimitApi.getByAccount(accountId),
+    staleTime: 30_000,
+    enabled: accountId > 0,
+  });
+}
+
+export function useTransactionLimitUsage(accountId: number, limitType: LimitType) {
+  return useQuery({
+    queryKey: RISK_EXT_KEYS.transactionLimitUsage(accountId, limitType),
+    queryFn: () => transactionLimitApi.getUsage(accountId, limitType),
+    staleTime: 15_000,
+    enabled: accountId > 0,
+  });
+}
+
+export function useCreateTransactionLimit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<TransactionLimit>) => transactionLimitApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: RISK_EXT_KEYS.transactionLimits });
+    },
+  });
+}
+
+export function useUpdateTransactionLimit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, params }: { id: number; params: { maxAmount?: number; maxCount?: number } }) =>
+      transactionLimitApi.update(id, params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: RISK_EXT_KEYS.transactionLimits });
+    },
   });
 }

@@ -38,4 +38,26 @@ public class UssdController {
     public ResponseEntity<ApiResponse<List<UssdMenu>>> getRootMenus() {
         return ResponseEntity.ok(ApiResponse.ok(ussdService.getRootMenus()));
     }
+
+    @GetMapping("/menus/all")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    @Operation(summary = "Get all USSD menus (root and child)")
+    public ResponseEntity<ApiResponse<List<UssdMenu>>> getAllMenus() {
+        return ResponseEntity.ok(ApiResponse.ok(ussdService.getAllMenus()));
+    }
+
+    @PutMapping("/menus/{id}")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    @Operation(summary = "Update an existing USSD menu")
+    public ResponseEntity<ApiResponse<UssdMenu>> updateMenu(@PathVariable Long id, @RequestBody UssdMenu menu) {
+        return ResponseEntity.ok(ApiResponse.ok(ussdService.updateMenu(id, menu)));
+    }
+
+    @DeleteMapping("/menus/{id}")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    @Operation(summary = "Delete a USSD menu")
+    public ResponseEntity<ApiResponse<Void>> deleteMenu(@PathVariable Long id) {
+        ussdService.deleteMenu(id);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
 }

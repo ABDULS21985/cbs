@@ -1,5 +1,5 @@
 import api, { apiGet, apiPost } from '@/lib/api';
-import type { TransactionDisputeSummary } from './transactionApi';
+import type { PageMeta, TransactionDisputeSummary } from './transactionApi';
 
 export interface DisputeRecord {
   id: number;
@@ -45,6 +45,7 @@ export interface RaiseDisputeRequest {
 export interface DisputeListResponse {
   content: DisputeRecord[];
   totalElements?: number;
+  page?: PageMeta;
 }
 
 function triggerBlobDownload(blob: Blob, filename: string) {
@@ -75,6 +76,7 @@ export const disputeApi = {
     return {
       content: response.data.data as DisputeRecord[],
       totalElements: response.data.page?.totalElements as number | undefined,
+      page: response.data.page as PageMeta | undefined,
     };
   },
 

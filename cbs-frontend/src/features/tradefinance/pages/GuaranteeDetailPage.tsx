@@ -11,7 +11,40 @@ import { InfoGrid } from '@/components/shared/InfoGrid';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { tradeFinanceExtApi } from '../api/tradeFinanceExtApi';
+import { guaranteesApi } from '../api/guaranteeApi';
+
+// Use a flexible type since backend returns full entity
+interface GuaranteeDetail {
+  id: number;
+  guaranteeNumber?: string;
+  guaranteeRef?: string;
+  guaranteeType?: string;
+  applicant?: { id?: number; name?: string } | string;
+  beneficiaryName?: string;
+  beneficiary?: string;
+  beneficiaryAddress?: string;
+  amount: number;
+  currencyCode?: string;
+  currency?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  claimExpiryDate?: string;
+  autoExtend?: boolean;
+  extensionPeriodDays?: number;
+  underlyingContractRef?: string;
+  purpose?: string;
+  governingLaw?: string;
+  isDemandGuarantee?: boolean;
+  claimConditions?: string[];
+  marginPercentage?: number;
+  marginAmount?: number;
+  commissionRate?: number;
+  commissionAmount?: number;
+  claimedAmount?: number;
+  claimAmount?: number;
+  status: string;
+  [key: string]: unknown;
+}
 
 export function GuaranteeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,7 +52,7 @@ export function GuaranteeDetailPage() {
 
   const { data: bg, isLoading, isError } = useQuery({
     queryKey: ['trade-finance', 'guarantee', bgId],
-    queryFn: () => tradeFinanceExtApi.getGuarantee(bgId),
+    queryFn: () => guaranteesApi.getGuarantee(bgId) as Promise<GuaranteeDetail>,
     enabled: !!bgId,
   });
 
@@ -30,7 +63,7 @@ export function GuaranteeDetailPage() {
 
   const handleClaim = () => {
     setClaiming(true);
-    tradeFinanceExtApi.claimGuarantee(bgId, claimAmount).then(() => {
+    guaranteesApi.claimGuarantee(bgId, claimAmount).then(() => {
       toast.success('Guarantee claim processed');
       qc.invalidateQueries({ queryKey: ['trade-finance', 'guarantee', bgId] });
       setShowClaim(false);
@@ -38,41 +71,47 @@ export function GuaranteeDetailPage() {
   };
 
   useEffect(() => {
-    document.title = bg ? `BG ${bg.guaranteeNumber} | CBS` : 'Bank Guarantee | CBS';
+    const ref = bg?.guaranteeNumber ?? bg?.guaranteeRef ?? '';
+    document.title = ref ? `BG ${ref} | CBS` : 'Bank Guarantee | CBS';
   }, [bg]);
 
   if (isLoading) return <><PageHeader title="Loading..." backTo="/trade-finance" /><div className="page-container flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div></>;
   if (isError || !bg) return <><PageHeader title="Guarantee Not Found" backTo="/trade-finance" /><div className="page-container text-center py-20 text-muted-foreground"><AlertTriangle className="w-8 h-8 mx-auto mb-2" /><p>Failed to load bank guarantee</p></div></>;
 
-  const availableForClaim = (bg.amount ?? 0) - (bg.claimedAmount ?? 0);
+  const claimed = bg.claimedAmount ?? bg.claimAmount ?? 0;
+  const availableForClaim = (bg.amount ?? 0) - claimed;
+  const bgRef = bg.guaranteeNumber ?? bg.guaranteeRef ?? '';
+  const beneficiary = bg.beneficiaryName ?? bg.beneficiary ?? '';
+  const ccy = bg.currencyCode ?? bg.currency ?? 'NGN';
+  const applicantName = typeof bg.applicant === 'object' && bg.applicant ? (bg.applicant.name ?? `#${bg.applicant.id}`) : String(bg.applicant ?? '—');
 
   const infoItems = [
-    { label: 'Guarantee Number', value: bg.guaranteeNumber, mono: true, copyable: true },
+    { label: 'Guarantee Number', value: bgRef, mono: true, copyable: true },
     { label: 'Type', value: String(bg.guaranteeType ?? '').replace(/_/g, ' ') },
-    { label: 'Applicant', value: bg.applicant?.name ?? `#${bg.applicant?.id}` },
-    { label: 'Beneficiary', value: bg.beneficiaryName },
+    { label: 'Applicant', value: applicantName },
+    { label: 'Beneficiary', value: beneficiary },
     { label: 'Amount', value: bg.amount, format: 'money' as const },
-    { label: 'Currency', value: bg.currencyCode },
+    { label: 'Currency', value: ccy },
     { label: 'Issue Date', value: bg.issueDate ? formatDate(bg.issueDate) : '—' },
     { label: 'Expiry Date', value: bg.expiryDate ? formatDate(bg.expiryDate) : '—' },
     { label: 'Claim Expiry', value: bg.claimExpiryDate ? formatDate(bg.claimExpiryDate) : '—' },
     { label: 'Auto Extend', value: bg.autoExtend ? `Yes (${bg.extensionPeriodDays ?? 0} days)` : 'No' },
     { label: 'Demand Guarantee', value: bg.isDemandGuarantee ? 'Yes' : 'No' },
-    { label: 'Governing Law', value: bg.governingLaw ?? '—' },
-    { label: 'Contract Ref', value: bg.underlyingContractRef ?? '—' },
+    { label: 'Governing Law', value: String(bg.governingLaw ?? '—') },
+    { label: 'Contract Ref', value: String(bg.underlyingContractRef ?? '—') },
     { label: 'Margin %', value: `${bg.marginPercentage ?? 0}%` },
     { label: 'Margin Amount', value: bg.marginAmount ?? 0, format: 'money' as const },
     { label: 'Commission Rate', value: `${bg.commissionRate ?? 0}%` },
     { label: 'Commission', value: bg.commissionAmount ?? 0, format: 'money' as const },
-    { label: 'Claimed Amount', value: bg.claimedAmount ?? 0, format: 'money' as const },
+    { label: 'Claimed Amount', value: claimed, format: 'money' as const },
     { label: 'Status', value: bg.status },
   ];
 
   return (
     <>
       <PageHeader
-        title={`BG ${bg.guaranteeNumber}`}
-        subtitle={`${String(bg.guaranteeType ?? '').replace(/_/g, ' ')} • ${bg.beneficiaryName}`}
+        title={`BG ${bgRef}`}
+        subtitle={`${String(bg.guaranteeType ?? '').replace(/_/g, ' ')} • ${beneficiary}`}
         backTo="/trade-finance?tab=guarantees"
         actions={
           <div className="flex items-center gap-2">
@@ -91,8 +130,8 @@ export function GuaranteeDetailPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Guarantee Amount" value={formatMoney(bg.amount)} icon={Shield} />
           <StatCard label="Available" value={formatMoney(availableForClaim)} icon={CheckCircle2} />
-          <StatCard label="Claimed" value={formatMoney(bg.claimedAmount ?? 0)} icon={DollarSign} />
-          <StatCard label="Currency" value={bg.currencyCode} icon={Globe} />
+          <StatCard label="Claimed" value={formatMoney(claimed)} icon={DollarSign} />
+          <StatCard label="Currency" value={ccy} icon={Globe} />
         </div>
 
         <div className="card p-6"><InfoGrid items={infoItems} columns={4} /></div>
@@ -125,7 +164,7 @@ export function GuaranteeDetailPage() {
             <button onClick={() => setShowClaim(false)} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
             <h3 className="text-lg font-semibold mb-4">Process Guarantee Claim</h3>
             <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">Available: <span className="font-mono font-bold">{formatMoney(availableForClaim)} {bg.currencyCode}</span></p>
+              <p className="text-xs text-muted-foreground">Available: <span className="font-mono font-bold">{formatMoney(availableForClaim)} {ccy}</span></p>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Claim Amount</label>
                 <input type="number" step="0.01" max={availableForClaim}

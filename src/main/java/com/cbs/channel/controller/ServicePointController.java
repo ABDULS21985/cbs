@@ -63,4 +63,23 @@ public class ServicePointController {
     public ResponseEntity<ApiResponse<List<ServicePoint>>> getAvailableServicePoints(@RequestParam(required = false) String type) {
         return ResponseEntity.ok(ApiResponse.ok(service.getAvailableServicePoints(type)));
     }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<ServicePoint>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getServicePointById(id)));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<ServicePoint>> update(@PathVariable Long id, @RequestBody ServicePoint servicePoint) {
+        return ResponseEntity.ok(ApiResponse.ok(service.updateServicePoint(id, servicePoint)));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
+        service.deleteServicePoint(id);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
 }

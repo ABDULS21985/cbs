@@ -1,12 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { disputeApi, type RaiseDisputeRequest } from '../api/disputeApi';
 
-export function useDisputes(status?: string) {
+interface UseDisputesOptions {
+  status?: string;
+  page?: number;
+  size?: number;
+}
+
+export function useDisputes(options: UseDisputesOptions = {}) {
   const queryClient = useQueryClient();
+  const { status, page = 0, size = 20 } = options;
 
   const disputesQuery = useQuery({
-    queryKey: ['transaction-disputes', status ?? 'ALL'],
-    queryFn: () => disputeApi.listDisputes({ status, page: 0, size: 100 }),
+    queryKey: ['transaction-disputes', status ?? 'ALL', page, size],
+    queryFn: () => disputeApi.listDisputes({ status, page, size }),
     staleTime: 30_000,
   });
 
@@ -45,6 +52,7 @@ export function useDisputes(status?: string) {
 
   return {
     disputes: disputesQuery.data?.content ?? [],
+    pageMeta: disputesQuery.data?.page,
     totalDisputes: disputesQuery.data?.totalElements ?? 0,
     dashboard: dashboardQuery.data,
     isLoading: disputesQuery.isLoading || dashboardQuery.isLoading,

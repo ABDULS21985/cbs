@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Loader2, PieChart, BarChart3, TrendingDown, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { riskContributionApi } from '../api/riskContributionApi';
+import { useRiskContributionPortfolio, useRiskContributionByBU } from '../hooks/useRiskExt';
 import type { RiskContribution } from '../types/riskContribution';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -107,17 +106,15 @@ export function RiskContributionPage() {
   const [buCode, setBuCode] = useState('RETAIL');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
 
-  const portfolioQuery = useQuery({
-    queryKey: ['riskContribution', 'portfolio', portfolioCode, date],
-    queryFn: () => riskContributionApi.calculate(portfolioCode, date),
-    enabled: viewMode === 'portfolio',
-  });
+  const portfolioQuery = useRiskContributionPortfolio(
+    viewMode === 'portfolio' ? portfolioCode : '',
+    viewMode === 'portfolio' ? date : '',
+  );
 
-  const buQuery = useQuery({
-    queryKey: ['riskContribution', 'bu', buCode, date],
-    queryFn: () => riskContributionApi.getByBU(buCode, date),
-    enabled: viewMode === 'bu',
-  });
+  const buQuery = useRiskContributionByBU(
+    viewMode === 'bu' ? buCode : '',
+    viewMode === 'bu' ? date : '',
+  );
 
   // Portfolio returns single item, BU returns list
   const items: RiskContribution[] = viewMode === 'portfolio'

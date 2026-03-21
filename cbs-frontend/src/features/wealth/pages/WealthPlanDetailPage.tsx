@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { wealthApi, type WealthPlan, type WealthGoal, type AssetAllocation } from '../api/wealthApi';
 import { usePlan, useActivatePlan, useClosePlan } from '../hooks/useWealthData';
+import { useHasRole } from '@/hooks/usePermission';
 import { exportWealthPlanPdf } from '../lib/wealthExport';
 import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -381,18 +382,18 @@ function GoalsTab({ plan }: { plan: WealthPlan }) {
   });
 
   useEffect(() => {
-    const mapped: WealthGoal[] = (plan.goals && plan.goals.length > 0)
-      ? plan.goals
-      : (plan.financialGoals || []).map((g, i) => ({
-          id: String(i),
-          name: g.name,
-          targetAmount: g.target,
-          currentAmount: g.current,
-          targetDate: '',
-          priority: 'MEDIUM' as const,
-          status: g.onTrack ? ('ON_TRACK' as const) : ('AT_RISK' as const),
-          monthlyContribution: 0,
-        }));
+    const rawGoals = (plan.goals && plan.goals.length > 0) ? plan.goals : (plan.financialGoals || []);
+    const mapped: WealthGoal[] = rawGoals.map((g, i) => ({
+      id: String(g.id ?? i),
+      name: String(g.name ?? g.goalName ?? 'Goal'),
+      targetAmount: Number(g.targetAmount ?? g.target ?? 0),
+      currentAmount: Number(g.currentAmount ?? g.current ?? 0),
+      targetDate: String(g.targetDate ?? ''),
+      priority: (g.priority as WealthGoal['priority']) ?? 'MEDIUM',
+      status: g.onTrack === false ? ('AT_RISK' as const)
+        : (g.status as WealthGoal['status']) ?? 'ON_TRACK',
+      monthlyContribution: Number(g.monthlyContribution ?? 0),
+    }));
     setGoals(mapped);
   }, [plan]);
 
@@ -850,6 +851,7 @@ export function WealthPlanDetailPage() {
   const activatePlan = useActivatePlan();
   const closePlanMutation = useClosePlan();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const isAdmin = useHasRole('CBS_ADMIN');
 
   function handleActivate() {
     if (!code) return;
@@ -890,7 +892,7 @@ export function WealthPlanDetailPage() {
               Export PDF
             </button>
             <StatusBadge status={plan.status} size="md" dot />
-            {plan.status === 'DRAFT' && (
+            {isAdmin && plan.status === 'DRAFT' && (
               <button
                 onClick={handleActivate}
                 disabled={activatePlan.isPending}
@@ -900,7 +902,7 @@ export function WealthPlanDetailPage() {
                 {activatePlan.isPending ? 'Activating…' : 'Activate'}
               </button>
             )}
-            {plan.status === 'ACTIVE' && (
+            {isAdmin && plan.status === 'ACTIVE' && (
               <button
                 onClick={() => code && closePlanMutation.mutate({ code, reason: 'Client request' })}
                 disabled={closePlanMutation.isPending}

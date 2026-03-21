@@ -14,6 +14,8 @@ import {
   Plus,
   X,
   ExternalLink,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -27,8 +29,11 @@ import {
   useExpireIdleSessions,
   useUssdMenus,
   useCreateUssdMenu,
+  useUpdateUssdMenu,
+  useDeleteUssdMenu,
   useChannelActivitySummaries,
   useCreateActivitySummary,
+  useLogChannelActivity,
 } from '../hooks/useDigitalBanking';
 import type { UssdMenu, ChannelActivitySummary } from '../api/digitalBankingApi';
 
@@ -352,67 +357,136 @@ function CreateMenuDialog({ open, onClose, onSubmit, isPending }: CreateMenuDial
   );
 }
 
-const ussdMenuColumns: ColumnDef<UssdMenu, unknown>[] = [
-  {
-    accessorKey: 'menuCode',
-    header: 'Menu Code',
-    cell: ({ row }) => (
-      <span className="font-mono text-sm font-medium">{row.original.menuCode}</span>
-    ),
-  },
-  {
-    accessorKey: 'title',
-    header: 'Title',
-    cell: ({ row }) => <span className="text-sm font-medium">{row.original.title}</span>,
-  },
-  {
-    accessorKey: 'parentMenuCode',
-    header: 'Parent',
-    cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">
-        {row.original.parentMenuCode ?? '—'}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'actionType',
-    header: 'Action',
-    cell: ({ row }) => (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
-        {row.original.actionType}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'displayOrder',
-    header: 'Order',
-    cell: ({ row }) => (
-      <span className="text-sm tabular-nums">{row.original.displayOrder}</span>
-    ),
-  },
-  {
-    accessorKey: 'requiresPin',
-    header: 'PIN',
-    cell: ({ row }) =>
-      row.original.requiresPin ? (
-        <CheckCircle2 className="w-4 h-4 text-green-600" />
-      ) : (
-        <XCircle className="w-4 h-4 text-muted-foreground" />
-      ),
-  },
-  {
-    accessorKey: 'isActive',
-    header: 'Status',
-    cell: ({ row }) => (
-      <StatusBadge status={row.original.isActive ? 'ACTIVE' : 'INACTIVE'} dot />
-    ),
-  },
-];
+// ─── Edit Menu Dialog ─────────────────────────────────────────────────────────
+
+interface EditMenuDialogProps {
+  menu: UssdMenu;
+  open: boolean;
+  onClose: () => void;
+  onSave: (data: Partial<UssdMenu>) => void;
+  isPending: boolean;
+}
+
+function EditMenuDialog({ menu, open, onClose, onSave, isPending }: EditMenuDialogProps) {
+  const [form, setForm] = useState({
+    menuCode: menu.menuCode,
+    parentMenuCode: menu.parentMenuCode ?? '',
+    displayOrder: String(menu.displayOrder),
+    title: menu.title,
+    shortcode: menu.shortcode ?? '',
+    actionType: menu.actionType,
+    serviceCode: menu.serviceCode ?? '',
+    requiresPin: menu.requiresPin,
+    isActive: menu.isActive,
+  });
+
+  if (!open) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      menuCode: form.menuCode,
+      parentMenuCode: form.parentMenuCode || null,
+      displayOrder: parseInt(form.displayOrder, 10) || 0,
+      title: form.title,
+      shortcode: form.shortcode || null,
+      actionType: form.actionType,
+      serviceCode: form.serviceCode || null,
+      requiresPin: form.requiresPin,
+      isActive: form.isActive,
+    });
+  };
+
+  const inputCls =
+    'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-card rounded-xl shadow-2xl border w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-card">
+            <h2 className="text-base font-semibold">Edit USSD Menu</h2>
+            <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Menu Code *</label>
+                <input required className={inputCls} value={form.menuCode} onChange={(e) => setForm((f) => ({ ...f, menuCode: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Display Order</label>
+                <input type="number" min={0} className={inputCls} value={form.displayOrder} onChange={(e) => setForm((f) => ({ ...f, displayOrder: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Title *</label>
+              <input required className={inputCls} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Parent Menu Code</label>
+                <input className={inputCls} value={form.parentMenuCode} onChange={(e) => setForm((f) => ({ ...f, parentMenuCode: e.target.value }))} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Short Code</label>
+                <input className={inputCls} value={form.shortcode} onChange={(e) => setForm((f) => ({ ...f, shortcode: e.target.value }))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Action Type *</label>
+                <select className={inputCls} value={form.actionType} onChange={(e) => setForm((f) => ({ ...f, actionType: e.target.value }))}>
+                  <option value="MENU">Menu</option>
+                  <option value="SERVICE">Service</option>
+                  <option value="INPUT">Input</option>
+                  <option value="DISPLAY">Display</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Service Code</label>
+                <input className={inputCls} value={form.serviceCode} onChange={(e) => setForm((f) => ({ ...f, serviceCode: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={form.requiresPin} onChange={(e) => setForm((f) => ({ ...f, requiresPin: e.target.checked }))} />
+                Requires PIN
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={form.isActive} onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))} />
+                Active
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+                Cancel
+              </button>
+              <button type="submit" disabled={isPending} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+                {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── USSD Menu Management Tab ─────────────────────────────────────────────────
 
 function UssdMenuTab() {
   const { data: menus = [], isLoading } = useUssdMenus();
   const { mutate: createMenu, isPending } = useCreateUssdMenu();
+  const { mutate: updateMenu, isPending: isUpdating } = useUpdateUssdMenu();
+  const { mutate: deleteMenu, isPending: isDeleting } = useDeleteUssdMenu();
   const [showCreate, setShowCreate] = useState(false);
+  const [editingMenu, setEditingMenu] = useState<UssdMenu | null>(null);
+  const [deletingMenu, setDeletingMenu] = useState<UssdMenu | null>(null);
 
   const rootMenus = menus.filter((m) => !m.parentMenuCode);
   const subMenus = menus.filter((m) => !!m.parentMenuCode);
@@ -426,6 +500,109 @@ function UssdMenuTab() {
       onError: () => toast.error('Failed to create USSD menu'),
     });
   };
+
+  const handleUpdate = (data: Partial<UssdMenu>) => {
+    if (!editingMenu) return;
+    updateMenu(
+      { id: editingMenu.id, menu: data },
+      {
+        onSuccess: () => {
+          toast.success('USSD menu updated');
+          setEditingMenu(null);
+        },
+        onError: () => toast.error('Failed to update USSD menu'),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    if (!deletingMenu) return;
+    deleteMenu(deletingMenu.id, {
+      onSuccess: () => {
+        toast.success('USSD menu deleted');
+        setDeletingMenu(null);
+      },
+      onError: () => toast.error('Failed to delete USSD menu'),
+    });
+  };
+
+  const ussdMenuColumns: ColumnDef<UssdMenu, unknown>[] = useMemo(
+    () => [
+      {
+        accessorKey: 'menuCode',
+        header: 'Menu Code',
+        cell: ({ row }) => <span className="font-mono text-sm font-medium">{row.original.menuCode}</span>,
+      },
+      {
+        accessorKey: 'title',
+        header: 'Title',
+        cell: ({ row }) => <span className="text-sm font-medium">{row.original.title}</span>,
+      },
+      {
+        accessorKey: 'parentMenuCode',
+        header: 'Parent',
+        cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.parentMenuCode ?? '—'}</span>,
+      },
+      {
+        accessorKey: 'actionType',
+        header: 'Action',
+        cell: ({ row }) => (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+            {row.original.actionType}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'displayOrder',
+        header: 'Order',
+        cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.displayOrder}</span>,
+      },
+      {
+        accessorKey: 'requiresPin',
+        header: 'PIN',
+        cell: ({ row }) =>
+          row.original.requiresPin ? (
+            <CheckCircle2 className="w-4 h-4 text-green-600" />
+          ) : (
+            <XCircle className="w-4 h-4 text-muted-foreground" />
+          ),
+      },
+      {
+        accessorKey: 'isActive',
+        header: 'Status',
+        cell: ({ row }) => <StatusBadge status={row.original.isActive ? 'ACTIVE' : 'INACTIVE'} dot />,
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingMenu(row.original);
+              }}
+              className="p-1.5 rounded-md hover:bg-muted transition-colors"
+              title="Edit"
+            >
+              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeletingMenu(row.original);
+              }}
+              className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              title="Delete"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+            </button>
+          </div>
+        ),
+      },
+    ],
+    [],
+  );
 
   return (
     <div className="space-y-5">
@@ -464,6 +641,47 @@ function UssdMenuTab() {
         onSubmit={handleCreate}
         isPending={isPending}
       />
+
+      {editingMenu && (
+        <EditMenuDialog
+          menu={editingMenu}
+          open={!!editingMenu}
+          onClose={() => setEditingMenu(null)}
+          onSave={handleUpdate}
+          isPending={isUpdating}
+        />
+      )}
+
+      {deletingMenu && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setDeletingMenu(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-card rounded-xl shadow-2xl border w-full max-w-sm">
+              <div className="px-6 py-4 border-b">
+                <h2 className="text-base font-semibold text-red-600">Delete USSD Menu</h2>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Are you sure you want to delete menu <span className="font-semibold text-foreground">{deletingMenu.title}</span> ({deletingMenu.menuCode})?
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => setDeletingMenu(null)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

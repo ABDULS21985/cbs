@@ -65,7 +65,7 @@ export function useExpireIdleSessions() {
 export function useUssdMenus() {
   return useQuery({
     queryKey: KEYS.ussdMenus,
-    queryFn: () => ussdApi.getRootMenus(),
+    queryFn: () => ussdApi.getAllMenus(),
     staleTime: 60_000,
     gcTime: 120_000,
   });
@@ -81,6 +81,27 @@ export function useCreateUssdMenu() {
         serviceCode?: string;
       },
     ) => ussdApi.createMenu(menu),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.ussdMenus });
+    },
+  });
+}
+
+export function useUpdateUssdMenu() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, menu }: { id: number; menu: Partial<UssdMenu> }) =>
+      ussdApi.updateMenu(id, menu),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.ussdMenus });
+    },
+  });
+}
+
+export function useDeleteUssdMenu() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => ussdApi.deleteMenu(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.ussdMenus });
     },

@@ -55,34 +55,39 @@ public class AdminController {
     // ===========================
 
     @GetMapping("/users")
-    @Operation(summary = "List all users from security_role and user_role_assignment tables")
+    @Operation(summary = "List all users from user_role_assignment joined with security_role")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUsers() {
         List<Map<String, Object>> users = new ArrayList<>();
         try {
+            // user_role_assignment has: user_id, role_id, assigned_at, assigned_by, is_active
+            // (no username/email — those live in Keycloak; we join role_name from security_role)
             Query query = entityManager.createNativeQuery(
-                    "SELECT ura.user_id, ura.username, ura.email, ura.assigned_at, sr.role_name " +
+                    "SELECT ura.user_id, ura.assigned_by, ura.assigned_at, sr.role_name, ura.is_active " +
                     "FROM cbs.user_role_assignment ura " +
                     "LEFT JOIN cbs.security_role sr ON ura.role_id = sr.id " +
-                    "ORDER BY ura.username ASC");
+                    "WHERE ura.is_active = true " +
+                    "ORDER BY ura.user_id ASC");
             @SuppressWarnings("unchecked")
             List<Object[]> rows = query.getResultList();
-            Map<String, Map<String, Object>> userMap = new LinkedHashMap<>();
+            Map<Long, Map<String, Object>> userMap = new LinkedHashMap<>();
             for (Object[] row : rows) {
-                String username = row[1] != null ? row[1].toString() : "unknown";
-                Map<String, Object> user = userMap.computeIfAbsent(username, k -> {
+                Long userId = row[0] != null ? ((Number) row[0]).longValue() : 0L;
+                Map<String, Object> user = userMap.computeIfAbsent(userId, k -> {
                     Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("userId", row[0]);
-                    m.put("username", username);
-                    m.put("email", row[2]);
-                    m.put("assignedAt", row[3]);
+                    m.put("userId", userId);
+                    m.put("username", "user-" + userId);
+                    m.put("email", null);
+                    m.put("assignedBy", row[1]);
+                    m.put("assignedAt", row[2]);
                     m.put("roles", new ArrayList<String>());
+                    m.put("isActive", row[4]);
                     return m;
                 });
-                if (row[4] != null) {
+                if (row[3] != null) {
                     @SuppressWarnings("unchecked")
                     List<String> roles = (List<String>) user.get("roles");
-                    roles.add(row[4].toString());
+                    roles.add(row[3].toString());
                 }
             }
             users.addAll(userMap.values());
@@ -124,13 +129,13 @@ public class AdminController {
         List<Map<String, Object>> permissions = new ArrayList<>();
         try {
             Query query = entityManager.createNativeQuery(
-                    "SELECT id, permission_name, resource, action, description, is_active FROM cbs.security_permission ORDER BY permission_name ASC");
+                    "SELECT id, permission_code, resource, action, description, is_active FROM cbs.security_permission ORDER BY resource ASC, action ASC");
             @SuppressWarnings("unchecked")
             List<Object[]> rows = query.getResultList();
             for (Object[] row : rows) {
                 Map<String, Object> perm = new LinkedHashMap<>();
                 perm.put("id", row[0]);
-                perm.put("permissionName", row[1]);
+                perm.put("permissionCode", row[1]);
                 perm.put("resource", row[2]);
                 perm.put("action", row[3]);
                 perm.put("description", row[4]);
@@ -174,10 +179,13 @@ public class AdminController {
             @RequestParam(defaultValue = "50") int size) {
         List<Map<String, Object>> history = new ArrayList<>();
         try {
+            // Schema: id, event_id, event_category, severity, event_source, event_type,
+            // description, user_id, username, ip_address, user_agent, created_at, action_taken
             Query query = entityManager.createNativeQuery(
-                    "SELECT id, event_type, username, ip_address, user_agent, event_timestamp, success, failure_reason " +
+                    "SELECT id, event_type, username, ip_address, user_agent, created_at, " +
+                    "severity, description, action_taken " +
                     "FROM cbs.security_event WHERE event_category = 'AUTHENTICATION' " +
-                    "ORDER BY event_timestamp DESC LIMIT :limit OFFSET :offset");
+                    "ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
             query.setParameter("limit", size);
             query.setParameter("offset", page * size);
             @SuppressWarnings("unchecked")
@@ -190,8 +198,9 @@ public class AdminController {
                 event.put("ipAddress", row[3]);
                 event.put("userAgent", row[4]);
                 event.put("eventTimestamp", row[5]);
-                event.put("success", row[6]);
-                event.put("failureReason", row[7]);
+                event.put("severity", row[6]);
+                event.put("description", row[7]);
+                event.put("actionTaken", row[8]);
                 history.add(event);
             }
         } catch (Exception e) {

@@ -8,9 +8,14 @@ interface DisputeTrackingTableProps {
   disputes: DisputeRecord[];
   isLoading: boolean;
   onView: (dispute: DisputeRecord) => void;
-  onRespond: (dispute: DisputeRecord) => void;
-  onEscalate: (dispute: DisputeRecord) => void;
-  onClose: (dispute: DisputeRecord) => void;
+  onRespond?: (dispute: DisputeRecord) => void;
+  onEscalate?: (dispute: DisputeRecord) => void;
+  onClose?: (dispute: DisputeRecord) => void;
+  pageIndex?: number;
+  pageSize?: number;
+  totalRows?: number;
+  onPageChange?: (pageIndex: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 export function DisputeTrackingTable({
@@ -20,6 +25,11 @@ export function DisputeTrackingTable({
   onRespond,
   onEscalate,
   onClose,
+  pageIndex = 0,
+  pageSize = 10,
+  totalRows,
+  onPageChange,
+  onPageSizeChange,
 }: DisputeTrackingTableProps) {
   const columns = useMemo<ColumnDef<DisputeRecord>[]>(
     () => [
@@ -32,7 +42,11 @@ export function DisputeTrackingTable({
           <span className="font-mono text-sm">{formatMoney(row.original.amount, row.original.currencyCode)}</span>
         ),
       },
-      { accessorKey: 'reasonCode', header: 'Reason' },
+      {
+        accessorKey: 'reasonCode',
+        header: 'Reason',
+        cell: ({ row }) => row.original.reasonCode?.replaceAll('_', ' '),
+      },
       {
         accessorKey: 'status',
         header: 'Status',
@@ -52,22 +66,34 @@ export function DisputeTrackingTable({
         id: 'actions',
         header: 'Actions',
         enableSorting: false,
-        cell: ({ row }) => (
-          <div className="flex flex-wrap gap-2 py-2">
-            <button onClick={(event) => { event.stopPropagation(); onView(row.original); }} className="text-xs text-primary hover:underline">
-              View
-            </button>
-            <button onClick={(event) => { event.stopPropagation(); onRespond(row.original); }} className="text-xs text-primary hover:underline">
-              Respond
-            </button>
-            <button onClick={(event) => { event.stopPropagation(); onEscalate(row.original); }} className="text-xs text-primary hover:underline">
-              Escalate
-            </button>
-            <button onClick={(event) => { event.stopPropagation(); onClose(row.original); }} className="text-xs text-primary hover:underline">
-              Close
-            </button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const canRespond = row.original.status === 'PENDING' && Boolean(onRespond);
+          const canEscalate = ['PENDING', 'UNDER_REVIEW'].includes(row.original.status) && Boolean(onEscalate);
+          const canClose = !['RESOLVED', 'REJECTED'].includes(row.original.status) && Boolean(onClose);
+
+          return (
+            <div className="flex flex-wrap gap-2 py-2">
+              <button onClick={(event) => { event.stopPropagation(); onView(row.original); }} className="text-xs text-primary hover:underline">
+                View
+              </button>
+              {canRespond && (
+                <button onClick={(event) => { event.stopPropagation(); onRespond?.(row.original); }} className="text-xs text-primary hover:underline">
+                  Respond
+                </button>
+              )}
+              {canEscalate && (
+                <button onClick={(event) => { event.stopPropagation(); onEscalate?.(row.original); }} className="text-xs text-primary hover:underline">
+                  Escalate
+                </button>
+              )}
+              {canClose && (
+                <button onClick={(event) => { event.stopPropagation(); onClose?.(row.original); }} className="text-xs text-primary hover:underline">
+                  Close
+                </button>
+              )}
+            </div>
+          );
+        },
       },
     ],
     [onClose, onEscalate, onRespond, onView],
@@ -79,6 +105,18 @@ export function DisputeTrackingTable({
       data={disputes}
       isLoading={isLoading}
       emptyMessage="No disputes found"
+      manualPagination={
+        totalRows !== undefined && onPageChange
+          ? {
+              pageIndex,
+              pageSize,
+              pageCount: Math.max(1, Math.ceil(totalRows / pageSize)),
+              rowCount: totalRows,
+              onPageChange,
+              onPageSizeChange,
+            }
+          : undefined
+      }
     />
   );
 }

@@ -77,6 +77,7 @@ const labelOverrides: Record<string, string> = {
   risk: 'Market Risk',
   instruments: 'Financial Instruments',
   competitors: 'Competitor Intelligence',
+  'financial-statements': 'Financial Statements',
 };
 
 function toLabel(segment: string): string {

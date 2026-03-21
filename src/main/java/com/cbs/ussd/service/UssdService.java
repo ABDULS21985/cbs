@@ -87,5 +87,31 @@ public class UssdService {
     public UssdMenu createMenu(UssdMenu menu) { return menuRepository.save(menu); }
     public List<UssdMenu> getRootMenus() { return menuRepository.findByParentMenuCodeIsNullAndIsActiveTrueOrderByDisplayOrderAsc(); }
 
+    public List<UssdMenu> getAllMenus() { return menuRepository.findAll(); }
+
+    @Transactional
+    public UssdMenu updateMenu(Long id, UssdMenu updated) {
+        UssdMenu existing = menuRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("USSD Menu not found with id: " + id));
+        existing.setMenuCode(updated.getMenuCode());
+        existing.setParentMenuCode(updated.getParentMenuCode());
+        existing.setDisplayOrder(updated.getDisplayOrder());
+        existing.setTitle(updated.getTitle());
+        existing.setShortcode(updated.getShortcode());
+        existing.setActionType(updated.getActionType());
+        existing.setServiceCode(updated.getServiceCode());
+        existing.setRequiresPin(updated.getRequiresPin());
+        existing.setIsActive(updated.getIsActive());
+        return menuRepository.save(existing);
+    }
+
+    @Transactional
+    public void deleteMenu(Long id) {
+        if (!menuRepository.existsById(id)) {
+            throw new RuntimeException("USSD Menu not found with id: " + id);
+        }
+        menuRepository.deleteById(id);
+    }
+
     public record UssdResponse(String sessionId, String text, boolean continueSession) {}
 }

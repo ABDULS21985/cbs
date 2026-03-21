@@ -44,10 +44,6 @@ public class TransactionReversalWorkflowService {
     private final TransactionAuditService transactionAuditService;
     private final CbsProperties cbsProperties;
 
-    public TransactionReversalRequestRepository getRepository() {
-        return reversalRequestRepository;
-    }
-
     public TransactionWorkflowDto.ReversalPreview preview(Long transactionId, TransactionWorkflowDto.ReversalRequest request) {
         TransactionJournal transaction = transactionService.getTransactionEntity(transactionId);
         boolean originalDebit = isDebitLike(transaction);
@@ -218,6 +214,14 @@ public class TransactionReversalWorkflowService {
         TransactionReversalRequest request = reversalRequestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("TransactionReversalRequest", "id", requestId));
         return toRecord(request);
+    }
+
+    public TransactionWorkflowDto.ReversalCounts getCounts() {
+        return TransactionWorkflowDto.ReversalCounts.builder()
+                .pendingApproval(reversalRequestRepository.countByStatus("PENDING_APPROVAL"))
+                .completed(reversalRequestRepository.countByStatus("COMPLETED"))
+                .rejected(reversalRequestRepository.countByStatus("REJECTED"))
+                .build();
     }
 
     private TransactionWorkflowDto.ReversalResult executeReversal(TransactionReversalRequest request, String actor) {

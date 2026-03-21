@@ -16,6 +16,8 @@ import {
   Wifi,
   WifiOff,
   Wrench,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -26,8 +28,10 @@ import {
   useServicePointMetrics,
   useStartInteraction,
   useEndInteraction,
+  useUpdateServicePoint,
+  useDeleteServicePoint,
 } from '../hooks/useChannels';
-import type { ServicePointInteraction } from '../api/channelApi';
+import type { ServicePoint, ServicePointInteraction } from '../api/channelApi';
 
 // ─── Start Interaction Dialog ─────────────────────────────────────────────────
 
@@ -239,6 +243,228 @@ function EndInteractionDialog({ open, onClose, onSubmit, isPending }: EndInterac
   );
 }
 
+// ─── Edit Service Point Dialog ───────────────────────────────────────────────
+
+interface EditSPDialogProps {
+  servicePoint: ServicePoint;
+  open: boolean;
+  onClose: () => void;
+  onSave: (payload: Partial<ServicePoint>) => void;
+  isPending: boolean;
+}
+
+function EditSPDialog({ servicePoint, open, onClose, onSave, isPending }: EditSPDialogProps) {
+  const [form, setForm] = useState({
+    servicePointName: servicePoint.servicePointName,
+    servicePointType: servicePoint.servicePointType,
+    locationId: servicePoint.locationId?.toString() ?? '',
+    deviceId: servicePoint.deviceId ?? '',
+    isAccessible: servicePoint.isAccessible,
+    staffRequired: servicePoint.staffRequired,
+    assignedStaffId: servicePoint.assignedStaffId ?? '',
+    maxConcurrentCustomers: String(servicePoint.maxConcurrentCustomers),
+    avgServiceTimeMinutes: servicePoint.avgServiceTimeMinutes?.toString() ?? '',
+    status: servicePoint.status,
+  });
+
+  if (!open) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      servicePointName: form.servicePointName,
+      servicePointType: form.servicePointType,
+      locationId: form.locationId ? parseInt(form.locationId, 10) : null,
+      deviceId: form.deviceId || null,
+      supportedServices: servicePoint.supportedServices,
+      operatingHours: servicePoint.operatingHours,
+      isAccessible: form.isAccessible,
+      staffRequired: form.staffRequired,
+      assignedStaffId: form.assignedStaffId || null,
+      maxConcurrentCustomers: parseInt(form.maxConcurrentCustomers, 10) || 1,
+      avgServiceTimeMinutes: form.avgServiceTimeMinutes ? parseInt(form.avgServiceTimeMinutes, 10) : null,
+      status: form.status,
+    });
+  };
+
+  const inputCls =
+    'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-card rounded-xl shadow-2xl border w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-card">
+            <h2 className="text-base font-semibold">Edit Service Point</h2>
+            <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Name *</label>
+              <input
+                required
+                className={inputCls}
+                value={form.servicePointName}
+                onChange={(e) => setForm((f) => ({ ...f, servicePointName: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Type *</label>
+                <select
+                  className={inputCls}
+                  value={form.servicePointType}
+                  onChange={(e) => setForm((f) => ({ ...f, servicePointType: e.target.value }))}
+                >
+                  <option value="BRANCH">Branch</option>
+                  <option value="ATM">ATM</option>
+                  <option value="KIOSK">Kiosk</option>
+                  <option value="AGENT">Agent</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+                <select
+                  className={inputCls}
+                  value={form.status}
+                  onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                >
+                  <option value="ONLINE">Online</option>
+                  <option value="OFFLINE">Offline</option>
+                  <option value="MAINTENANCE">Maintenance</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Max Concurrent</label>
+                <input
+                  type="number"
+                  min={1}
+                  className={inputCls}
+                  value={form.maxConcurrentCustomers}
+                  onChange={(e) => setForm((f) => ({ ...f, maxConcurrentCustomers: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Avg Time (min)</label>
+                <input
+                  type="number"
+                  min={1}
+                  className={inputCls}
+                  value={form.avgServiceTimeMinutes}
+                  onChange={(e) => setForm((f) => ({ ...f, avgServiceTimeMinutes: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Device ID</label>
+              <input
+                className={inputCls}
+                value={form.deviceId}
+                onChange={(e) => setForm((f) => ({ ...f, deviceId: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Assigned Staff ID</label>
+              <input
+                className={inputCls}
+                value={form.assignedStaffId}
+                onChange={(e) => setForm((f) => ({ ...f, assignedStaffId: e.target.value }))}
+              />
+            </div>
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.staffRequired}
+                  onChange={(e) => setForm((f) => ({ ...f, staffRequired: e.target.checked }))}
+                />
+                Staff Required
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isAccessible}
+                  onChange={(e) => setForm((f) => ({ ...f, isAccessible: e.target.checked }))}
+                />
+                Accessible
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Delete Confirmation Dialog ──────────────────────────────────────────────
+
+interface DeleteConfirmDialogProps {
+  open: boolean;
+  name: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  isPending: boolean;
+}
+
+function DeleteConfirmDialog({ open, name, onClose, onConfirm, isPending }: DeleteConfirmDialogProps) {
+  if (!open) return null;
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-card rounded-xl shadow-2xl border w-full max-w-sm">
+          <div className="px-6 py-4 border-b">
+            <h2 className="text-base font-semibold text-red-600">Delete Service Point</h2>
+          </div>
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete <span className="font-semibold text-foreground">{name}</span>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onConfirm}
+                disabled={isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Status Icon ─────────────────────────────────────────────────────────────
 
 function StatusIcon({ status }: { status: string }) {
@@ -272,9 +498,13 @@ export function ServicePointDetailPage() {
   const { data: metrics, isLoading: metricsLoading } = useServicePointMetrics(servicePointId || undefined);
   const { mutate: startInteraction, isPending: starting } = useStartInteraction();
   const { mutate: endInteraction, isPending: ending } = useEndInteraction();
+  const { mutate: updateSP, isPending: updating } = useUpdateServicePoint();
+  const { mutate: deleteSP, isPending: deleting } = useDeleteServicePoint();
 
   const [showStartDialog, setShowStartDialog] = useState(false);
   const [showEndDialog, setShowEndDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const servicePoint = useMemo(
     () => allPoints.find((sp) => sp.id === servicePointId),
@@ -305,6 +535,29 @@ export function ServicePointDetailPage() {
         onError: () => toast.error('Failed to end interaction'),
       },
     );
+  };
+
+  const handleUpdate = (payload: Partial<ServicePoint>) => {
+    updateSP(
+      { id: servicePointId, payload },
+      {
+        onSuccess: () => {
+          toast.success('Service point updated');
+          setShowEditDialog(false);
+        },
+        onError: () => toast.error('Failed to update service point'),
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    deleteSP(servicePointId, {
+      onSuccess: () => {
+        toast.success('Service point deleted');
+        navigate('/channels');
+      },
+      onError: () => toast.error('Failed to delete service point'),
+    });
   };
 
   if (pointsLoading) {
@@ -380,6 +633,20 @@ export function ServicePointDetailPage() {
               >
                 <XCircle className="w-4 h-4" />
                 End Interaction
+              </button>
+              <button
+                onClick={() => setShowEditDialog(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                <Pencil className="w-4 h-4" />
+                Edit
+              </button>
+              <button
+                onClick={() => setShowDeleteDialog(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
               </button>
             </div>
           </div>
@@ -517,6 +784,24 @@ export function ServicePointDetailPage() {
         onClose={() => setShowEndDialog(false)}
         onSubmit={handleEndInteraction}
         isPending={ending}
+      />
+
+      {servicePoint && showEditDialog && (
+        <EditSPDialog
+          servicePoint={servicePoint}
+          open={showEditDialog}
+          onClose={() => setShowEditDialog(false)}
+          onSave={handleUpdate}
+          isPending={updating}
+        />
+      )}
+
+      <DeleteConfirmDialog
+        open={showDeleteDialog}
+        name={servicePoint?.servicePointName ?? ''}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleDelete}
+        isPending={deleting}
       />
     </>
   );

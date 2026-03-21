@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { DataTable } from '@/components/shared/DataTable';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import {
@@ -481,13 +482,15 @@ export function WealthManagementPage() {
               <Download className="w-4 h-4" />
               Export
             </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors no-print"
-            >
-              <Plus className="w-4 h-4" />
-              New Plan
-            </button>
+            <RoleGuard roles="CBS_ADMIN">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors no-print"
+              >
+                <Plus className="w-4 h-4" />
+                New Plan
+              </button>
+            </RoleGuard>
           </div>
         }
       />

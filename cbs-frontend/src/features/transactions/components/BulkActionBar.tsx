@@ -6,6 +6,7 @@ interface BulkActionBarProps {
   onPrintSelected: () => void;
   onDisputeSelected: () => void;
   onClearSelection: () => void;
+  canDispute?: boolean;
 }
 
 export function BulkActionBar({
@@ -14,6 +15,7 @@ export function BulkActionBar({
   onPrintSelected,
   onDisputeSelected,
   onClearSelection,
+  canDispute = true,
 }: BulkActionBarProps) {
   if (count < 1) return null;
 
@@ -42,13 +44,15 @@ export function BulkActionBar({
             <Printer className="h-4 w-4" />
             Print Selected
           </button>
-          <button
-            onClick={onDisputeSelected}
-            className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-100 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
-          >
-            <AlertTriangle className="h-4 w-4" />
-            Dispute Selected
-          </button>
+          {canDispute && (
+            <button
+              onClick={onDisputeSelected}
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 transition-colors hover:bg-amber-100 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300 dark:hover:bg-amber-900/30"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Dispute Selected
+            </button>
+          )}
           <button
             onClick={onClearSelection}
             className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPostParams } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams, apiPut, apiDelete } from '@/lib/api';
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -161,6 +161,18 @@ export const channelApi = {
   // Available service points — GET /v1/service-points/available
   getAvailableServicePoints: (type?: string) =>
     apiGet<ServicePoint[]>('/api/v1/service-points/available', type ? { type } : undefined),
+
+  // Get service point by ID — GET /v1/service-points/{id}
+  getServicePointById: (id: number) =>
+    apiGet<ServicePoint>(`/api/v1/service-points/${id}`),
+
+  // Update service point — PUT /v1/service-points/{id} (@RequestBody)
+  updateServicePoint: (id: number, payload: Partial<ServicePoint>) =>
+    apiPut<ServicePoint>(`/api/v1/service-points/${id}`, payload),
+
+  // Delete service point — DELETE /v1/service-points/{id}
+  deleteServicePoint: (id: number) =>
+    apiDelete<void>(`/api/v1/service-points/${id}`),
 
   // Start interaction — POST /v1/service-points/{id}/interaction/start (@RequestBody)
   startInteraction: (servicePointId: number, interaction: Partial<ServicePointInteraction>) =>

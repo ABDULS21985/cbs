@@ -107,4 +107,36 @@ public class ServicePointService {
         }
         return servicePointRepository.findByServicePointTypeAndStatusOrderByServicePointNameAsc(type, "ONLINE");
     }
+
+    public ServicePoint getServicePointById(Long id) {
+        return servicePointRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ServicePoint", "id", id));
+    }
+
+    @Transactional
+    public ServicePoint updateServicePoint(Long id, ServicePoint updated) {
+        ServicePoint existing = servicePointRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("ServicePoint", "id", id));
+        existing.setServicePointName(updated.getServicePointName());
+        existing.setServicePointType(updated.getServicePointType());
+        existing.setLocationId(updated.getLocationId());
+        existing.setDeviceId(updated.getDeviceId());
+        existing.setSupportedServices(updated.getSupportedServices());
+        existing.setOperatingHours(updated.getOperatingHours());
+        existing.setIsAccessible(updated.getIsAccessible());
+        existing.setStaffRequired(updated.getStaffRequired());
+        existing.setAssignedStaffId(updated.getAssignedStaffId());
+        existing.setMaxConcurrentCustomers(updated.getMaxConcurrentCustomers());
+        existing.setAvgServiceTimeMinutes(updated.getAvgServiceTimeMinutes());
+        existing.setStatus(updated.getStatus());
+        return servicePointRepository.save(existing);
+    }
+
+    @Transactional
+    public void deleteServicePoint(Long id) {
+        if (!servicePointRepository.existsById(id)) {
+            throw new ResourceNotFoundException("ServicePoint", "id", id);
+        }
+        servicePointRepository.deleteById(id);
+    }
 }

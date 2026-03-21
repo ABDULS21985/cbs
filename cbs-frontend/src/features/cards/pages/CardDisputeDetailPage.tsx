@@ -20,16 +20,19 @@ import {
 import { DisputeWorkflow } from '../components/DisputeWorkflow';
 import { DisputeTimelineView } from '../components/DisputeTimeline';
 import type { DisputeStatus } from '../types/cardExt';
+import { DISPUTE_STATUS_LABELS, isTerminalDisputeStatus } from '../types/cardExt';
 
 const STATUS_COLORS: Record<string, string> = {
-  OPEN: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  INVESTIGATING: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  INITIATED: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  INVESTIGATION: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   CHARGEBACK_FILED: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   REPRESENTMENT: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  PRE_ARBITRATION: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   ARBITRATION: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  RESOLVED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  ESCALATED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  CLOSED: 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400',
+  RESOLVED_CUSTOMER: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  RESOLVED_MERCHANT: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  WITHDRAWN: 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400',
+  EXPIRED: 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400',
 };
 
 function InfoItem({ label, value, mono, red }: { label: string; value: string | number | null | undefined; mono?: boolean; red?: boolean }) {
@@ -94,18 +97,18 @@ export function CardDisputeDetailPage() {
   );
 
   const status = dispute.status as DisputeStatus;
-  const canCredit = (status === 'OPEN' || status === 'INVESTIGATING') && !dispute.provisionalCreditAmount;
-  const canChargeback = status === 'INVESTIGATING';
+  const canCredit = (status === 'INITIATED' || status === 'INVESTIGATION') && !dispute.provisionalCreditAmount;
+  const canChargeback = status === 'INVESTIGATION';
   const canRepresent = status === 'CHARGEBACK_FILED';
-  const canArbitrate = status === 'REPRESENTMENT';
-  const canResolve = ['INVESTIGATING', 'REPRESENTMENT', 'ARBITRATION'].includes(status);
-  const isTerminal = status === 'RESOLVED' || status === 'CLOSED';
+  const canArbitrate = status === 'REPRESENTMENT' || status === 'PRE_ARBITRATION';
+  const canResolve = ['INVESTIGATION', 'REPRESENTMENT', 'PRE_ARBITRATION', 'ARBITRATION'].includes(status);
+  const isTerminal = isTerminalDisputeStatus(status);
 
   return (
     <>
       <PageHeader title={dispute.disputeRef} subtitle={`${dispute.merchantName ?? 'Unknown Merchant'} · ${dispute.cardScheme}`}
         backTo="/cards/disputes"
-        actions={<span className={cn('inline-flex items-center px-3 py-1 rounded-full text-sm font-medium', STATUS_COLORS[status])}>{status.replace(/_/g, ' ')}</span>} />
+        actions={<span className={cn('inline-flex items-center px-3 py-1 rounded-full text-sm font-medium', STATUS_COLORS[status] || 'bg-gray-100 text-gray-600')}>{DISPUTE_STATUS_LABELS[status] ?? status.replace(/_/g, ' ')}</span>} />
 
       <div className="page-container space-y-6">
         {/* Workflow stepper */}

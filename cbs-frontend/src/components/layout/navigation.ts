@@ -202,9 +202,11 @@ export const navigationItems: NavSection[] = [
         children: [
           { label: 'Dashboard', path: '/wealth' },
           { label: 'Analytics', path: '/wealth/analytics' },
-          { label: 'Plans', path: '/wealth' },
           { label: 'Advisors', path: '/wealth/advisors' },
           { label: 'Trusts', path: '/wealth/trusts' },
+          { label: 'Portfolios', path: '/investments' },
+          { label: 'Funds', path: '/investments/funds' },
+          { label: 'Bank Portfolios', path: '/investments/bank-portfolios' },
         ],
       },
     ],
@@ -353,6 +355,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Business Risk', path: '/risk/business-risk' },
           { label: 'Risk Attribution', path: '/risk/contribution' },
           { label: 'RAROC & Contribution', path: '/risk/business-contribution' },
+          { label: 'Transaction Limits', path: '/risk/limits' },
         ],
       },
       {
@@ -459,6 +462,10 @@ export const navigationItems: NavSection[] = [
           { label: 'Regulatory', path: '/reports/regulatory' },
           { label: 'Custom', path: '/reports/custom' },
           { label: 'Compliance Downloads', path: '/reports/compliance-downloads' },
+          { label: 'Financial Statements', path: '/reports/financial-statements' },
+          // Cross-feature links
+          { label: 'Documents', path: '/operations/documents' },
+          { label: 'Statements', path: '/accounts/statements' },
         ],
       },
       {
@@ -466,6 +473,7 @@ export const navigationItems: NavSection[] = [
         children: [
           { label: 'Dashboard', path: '/admin' },
           { label: 'Users & Roles', path: '/admin/users' },
+          { label: 'Security', path: '/admin/security' },
           { label: 'Parameters', path: '/admin/parameters' },
           { label: 'Products', path: '/admin/products' },
           { label: 'Fees & Charges', path: '/admin/fees' },

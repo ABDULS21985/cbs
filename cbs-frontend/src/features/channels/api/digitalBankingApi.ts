@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import api from '@/lib/api';
 import type { ApiResponse } from '@/types/common';
 
@@ -154,6 +154,18 @@ export const ussdApi = {
         { params },
       )
       .then((r) => r.data.data),
+
+  // GET /v1/ussd/menus/all — get all menus (root + children)
+  getAllMenus: () =>
+    apiGet<UssdMenu[]>('/api/v1/ussd/menus/all'),
+
+  // PUT /v1/ussd/menus/{id} — update menu (@RequestBody)
+  updateMenu: (id: number, menu: Partial<UssdMenu>) =>
+    apiPut<UssdMenu>(`/api/v1/ussd/menus/${id}`, menu),
+
+  // DELETE /v1/ussd/menus/{id} — delete menu
+  deleteMenu: (id: number) =>
+    apiDelete<void>(`/api/v1/ussd/menus/${id}`),
 };
 
 // ─── Channel Activity API (extended) ─────────────────────────────────────────

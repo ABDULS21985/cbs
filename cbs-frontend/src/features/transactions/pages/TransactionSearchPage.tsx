@@ -22,6 +22,7 @@ import { ConfirmDialog, EmptyState } from '@/components/shared';
 import { exportToExcel } from '@/lib/export/excelExport';
 import { exportToPdf } from '@/lib/export/pdfExport';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/authStore';
 
 import { useTransactionSearch } from '../hooks/useTransactionSearch';
 import { SavedSearches } from '../components/SavedSearches';
@@ -397,6 +398,7 @@ function hasAnySearchCriteria(current: ReturnType<typeof useTransactionSearch>['
 }
 
 export function TransactionSearchPage() {
+  const user = useAuthStore((state) => state.user);
   const [liveMode, setLiveMode] = useState(() => localStorage.getItem(LIVE_MODE_STORAGE_KEY) === 'true');
   const [soundEnabled, setSoundEnabled] = useState(() => localStorage.getItem(LIVE_SOUND_STORAGE_KEY) === 'true');
   const [viewMode, setViewMode] = useState<ViewMode>(
@@ -459,6 +461,9 @@ export function TransactionSearchPage() {
   } = useTransactionSearch(liveMode ? 10_000 : false);
 
   const { hasErrors } = useMemo(() => getTransactionSearchValidationErrors(filters), [filters]);
+  const roles = user?.roles ?? [];
+  const canGenerateStatement = roles.includes('CBS_ADMIN') || roles.includes('CBS_OFFICER') || roles.includes('PORTAL_USER');
+  const canFileDispute = roles.includes('CBS_ADMIN') || roles.includes('CBS_OFFICER') || roles.includes('PORTAL_USER');
   const isInitialResultsLoading = isLoading && transactions.length === 0;
   const highlightedIds = useMemo(
     () => Array.from(new Set([...flashingTransactionIds, ...(highlightedTransactionId ? [highlightedTransactionId] : [])])),
@@ -915,13 +920,15 @@ export function TransactionSearchPage() {
               )}
             </div>
 
-            <button
-              onClick={() => setStatementGeneratorOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
-            >
-              <FileText className="h-4 w-4" />
-              Generate Statement
-            </button>
+            {canGenerateStatement && (
+              <button
+                onClick={() => setStatementGeneratorOpen(true)}
+                className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+              >
+                <FileText className="h-4 w-4" />
+                Generate Statement
+              </button>
+            )}
 
             <button
               onClick={() => setShortcutHelpOpen(true)}
@@ -1136,6 +1143,7 @@ export function TransactionSearchPage() {
         onPrintSelected={handlePrintSelected}
         onDisputeSelected={() => setDisputeModalOpen(true)}
         onClearSelection={clearSelection}
+        canDispute={canFileDispute}
       />
 
       <ErrorBoundary fallback={<TransactionErrorState onRetry={handleCloseDetail} />}>
@@ -1146,14 +1154,16 @@ export function TransactionSearchPage() {
         />
       </ErrorBoundary>
 
-      <StatementGenerator
-        open={statementGeneratorOpen}
-        initialAccountNumber={filters.accountNumber || selectedTransaction?.accountNumber || selectedTransaction?.fromAccount || ''}
-        initialEmail={selectedTransaction?.customerEmail}
-        onClose={() => setStatementGeneratorOpen(false)}
-      />
+      {canGenerateStatement && (
+        <StatementGenerator
+          open={statementGeneratorOpen}
+          initialAccountNumber={filters.accountNumber || selectedTransaction?.accountNumber || selectedTransaction?.fromAccount || ''}
+          initialEmail={selectedTransaction?.customerEmail}
+          onClose={() => setStatementGeneratorOpen(false)}
+        />
+      )}
 
-      {disputeModalOpen && (
+      {canFileDispute && disputeModalOpen && (
         <>
           <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setDisputeModalOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

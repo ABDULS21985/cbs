@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Shield, Plus, CheckCircle2, AlertTriangle, Clock, Search, Filter, X,
   Loader2, ChevronRight, Target, TrendingUp,
@@ -7,6 +7,13 @@ import {
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { businessRiskApi } from '../api/businessRiskApi';
+import {
+  useBusinessRiskByDomain,
+  useBusinessRiskByRating,
+  useCreateBusinessRiskAssessment,
+  useCompleteBusinessRiskAssessment,
+  RISK_EXT_KEYS,
+} from '../hooks/useRiskExt';
 import type { BusinessRiskAssessment } from '../types/businessRisk';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -50,14 +57,7 @@ function formatDate(d: string | null): string {
 // ─── Create Assessment Modal ─────────────────────────────────────────────────
 
 function CreateAssessmentModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const queryClient = useQueryClient();
-  const createMutation = useMutation({
-    mutationFn: (data: Partial<BusinessRiskAssessment>) => businessRiskApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['businessRisk'] });
-      onClose();
-    },
-  });
+  const createMutation = useCreateBusinessRiskAssessment();
 
   const [form, setForm] = useState({
     assessmentName: '',
@@ -77,7 +77,7 @@ function CreateAssessmentModal({ open, onClose }: { open: boolean; onClose: () =
     createMutation.mutate({
       ...form,
       assessmentDate: new Date().toISOString().slice(0, 10),
-    });
+    }, { onSuccess: () => onClose() });
   }
 
   return (
@@ -217,29 +217,14 @@ function AssessmentCard({ assessment, onComplete }: { assessment: BusinessRiskAs
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function BusinessRiskPage() {
-  const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [viewMode, setViewMode] = useState<'domain' | 'rating'>('domain');
   const [selectedDomain, setSelectedDomain] = useState('STRATEGIC');
   const [selectedRating, setSelectedRating] = useState('HIGH');
 
-  const domainQuery = useQuery({
-    queryKey: ['businessRisk', 'domain', selectedDomain],
-    queryFn: () => businessRiskApi.getByDomain(selectedDomain),
-  });
-
-  const ratingQuery = useQuery({
-    queryKey: ['businessRisk', 'rating', selectedRating],
-    queryFn: () => businessRiskApi.getByRating(selectedRating),
-    enabled: viewMode === 'rating',
-  });
-
-  const completeMutation = useMutation({
-    mutationFn: (code: string) => businessRiskApi.complete(code),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['businessRisk'] });
-    },
-  });
+  const domainQuery = useBusinessRiskByDomain(selectedDomain);
+  const ratingQuery = useBusinessRiskByRating(viewMode === 'rating' ? selectedRating : '');
+  const completeMutation = useCompleteBusinessRiskAssessment();
 
   const assessments = viewMode === 'domain' ? (domainQuery.data ?? []) : (ratingQuery.data ?? []);
   const isLoading = viewMode === 'domain' ? domainQuery.isLoading : ratingQuery.isLoading;

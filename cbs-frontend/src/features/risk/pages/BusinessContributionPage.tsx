@@ -1,12 +1,17 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
   Loader2, TrendingUp, TrendingDown, DollarSign, BarChart3, Building2,
   Package, Globe, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { businessContributionApi } from '../api/businessContributionApi';
+import {
+  useBusinessContributionTop,
+  useBusinessContributionUnderperformers,
+  useBusinessContributionByBU,
+  useBusinessContributionByProduct,
+  useBusinessContributionByRegion,
+} from '../hooks/useRiskExt';
 import type { BusinessContribution } from '../types/businessContribution';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -115,35 +120,11 @@ export function BusinessContributionPage() {
   const [periodType, setPeriodType] = useState('MONTHLY');
   const [limit, setLimit] = useState(10);
 
-  const topQuery = useQuery({
-    queryKey: ['businessContribution', 'top', periodType, limit],
-    queryFn: () => businessContributionApi.getTopContributors({ periodType, limit }),
-    enabled: view === 'top',
-  });
-
-  const underQuery = useQuery({
-    queryKey: ['businessContribution', 'underperformers', periodType],
-    queryFn: () => businessContributionApi.getUnderperformers({ periodType }),
-    enabled: view === 'underperformers',
-  });
-
-  const buQuery = useQuery({
-    queryKey: ['businessContribution', 'bu', buFilter],
-    queryFn: () => businessContributionApi.getByBusinessUnit(buFilter),
-    enabled: view === 'bu',
-  });
-
-  const productQuery = useQuery({
-    queryKey: ['businessContribution', 'product', productFilter],
-    queryFn: () => businessContributionApi.getByProduct(productFilter),
-    enabled: view === 'product',
-  });
-
-  const regionQuery = useQuery({
-    queryKey: ['businessContribution', 'region', regionFilter],
-    queryFn: () => businessContributionApi.getByRegion(regionFilter),
-    enabled: view === 'region',
-  });
+  const topQuery = useBusinessContributionTop(view === 'top' ? periodType : '', view === 'top' ? limit : 0);
+  const underQuery = useBusinessContributionUnderperformers(view === 'underperformers' ? periodType : '');
+  const buQuery = useBusinessContributionByBU(view === 'bu' ? buFilter : '');
+  const productQuery = useBusinessContributionByProduct(view === 'product' ? productFilter : '');
+  const regionQuery = useBusinessContributionByRegion(view === 'region' ? regionFilter : '');
 
   const queryMap: Record<ViewDimension, { data: BusinessContribution[] | undefined; isLoading: boolean }> = {
     top: topQuery,

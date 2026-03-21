@@ -53,6 +53,7 @@ import {
   CreditRiskDashboardPage,
   ComplianceDashboardPage,
   ComplianceDownloadsPage,
+  FinancialStatementsPage,
   AmlDashboardPage,
   AmlAlertDetailPage,
   FraudDashboardPage,
@@ -134,6 +135,7 @@ import {
   BusinessRiskPage,
   RiskContributionPage,
   BusinessContributionPage,
+  TransactionLimitsPage,
   OrderManagementPage,
   PaymentAnalyticsPage,
   PortalAccountsPage,
@@ -194,6 +196,7 @@ import {
   TransactionSearchPage,
   TreasuryAlmReportsPage,
   UserAdminPage,
+  SecurityAdminPage,
   UserProfilePage,
   VirtualAccountDetailPage,
   VirtualAccountListPage,
@@ -684,6 +687,7 @@ export function AppRouter() {
           <Route path="business-risk" element={<BusinessRiskPage />} />
           <Route path="contribution" element={<RiskContributionPage />} />
           <Route path="business-contribution" element={<BusinessContributionPage />} />
+          <Route path="limits" element={<TransactionLimitsPage />} />
         </Route>
 
         {/* Compliance */}
@@ -756,12 +760,14 @@ export function AppRouter() {
           <Route path="operations" element={<OperationalReportsPage />} />
           <Route path="regulatory" element={<RegulatoryReportsPage />} />
           <Route path="compliance-downloads" element={<ComplianceDownloadsPage />} />
+          <Route path="financial-statements" element={<FinancialStatementsPage />} />
         </Route>
 
         {/* Admin */}
         <Route path="/admin" element={<Outlet />}>
           <Route index element={<AdminHomePage />} />
           <Route path="users" element={<UserAdminPage />} />
+          <Route path="security" element={<SecurityAdminPage />} />
           <Route path="parameters" element={<SystemParametersPage />} />
           <Route path="products" element={<ProductFactoryPage />} />
           <Route path="products/new" element={<ProductCreatePage />} />

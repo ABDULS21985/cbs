@@ -156,6 +156,10 @@ export const UserAdminPage = lazyNamed(
   () => import('@/features/admin/pages/UserAdminPage'),
   'UserAdminPage',
 );
+export const SecurityAdminPage = lazyNamed(
+  () => import('@/features/admin/pages/SecurityAdminPage'),
+  'SecurityAdminPage',
+);
 export const SystemParametersPage = lazyNamed(
   () => import('@/features/admin/pages/SystemParametersPage'),
   'SystemParametersPage',
@@ -603,6 +607,10 @@ export const BusinessContributionPage = lazyNamed(
   () => import('@/features/risk/pages/BusinessContributionPage'),
   'BusinessContributionPage',
 );
+export const TransactionLimitsPage = lazyNamed(
+  () => import('@/features/risk/pages/TransactionLimitsPage'),
+  'TransactionLimitsPage',
+);
 
 export const RegulatoryReturnsPage = lazyNamed(
   () => import('@/features/compliance/pages/RegulatoryReturnsPage'),
@@ -749,6 +757,10 @@ export const RegulatoryReportsPage = lazyNamed(
 export const ComplianceDownloadsPage = lazyNamed(
   () => import('@/features/reports/pages/ComplianceDownloadsPage'),
   'ComplianceDownloadsPage',
+);
+export const FinancialStatementsPage = lazyNamed(
+  () => import('@/features/reports/pages/FinancialStatementsPage'),
+  'FinancialStatementsPage',
 );
 
 export const WealthManagementPage = lazyNamed(

@@ -33,6 +33,7 @@ public class TransactionStatementService {
     private final AccountRepository accountRepository;
     private final TransactionJournalRepository transactionJournalRepository;
     private final CurrentCustomerProvider currentCustomerProvider;
+    private final com.cbs.notification.service.NotificationService notificationService;
 
     public StatementDownload generateStatement(TransactionWorkflowDto.StatementRequest request) {
         if (request == null || !StringUtils.hasText(request.getAccountNumber())) {
@@ -83,12 +84,43 @@ public class TransactionStatementService {
         if (!StringUtils.hasText(email)) {
             throw new BusinessException("Customer email is not available for statement delivery", "STATEMENT_EMAIL_REQUIRED");
         }
+
+        // Generate the statement
+        StatementDownload statement = generateStatement(request);
+        String customerName = account.getCustomer() != null ? account.getCustomer().getDisplayName() : "Customer";
+        Long customerId = account.getCustomer() != null ? account.getCustomer().getId() : null;
+
+        // Dispatch via NotificationService — EMAIL channel
+        String subject = "Account Statement — " + account.getAccountNumber();
+        String body = "Dear " + HtmlUtils.htmlEscape(customerName) + ",<br><br>"
+                + "Please find your account statement for " + account.getAccountNumber() + " attached.<br><br>"
+                + "This statement covers the period from "
+                + (request.getFromDate() != null ? request.getFromDate().toString() : "account opening")
+                + " to " + (request.getToDate() != null ? request.getToDate().toString() : "today") + ".<br><br>"
+                + "Regards,<br>BellBank";
+
+        notificationService.sendDirect(
+                com.cbs.notification.entity.NotificationChannel.EMAIL,
+                email, customerName, subject, body, customerId, "STATEMENT_DELIVERY"
+        );
+
+        // Also send an IN_APP notification
+        if (customerId != null) {
+            notificationService.sendDirect(
+                    com.cbs.notification.entity.NotificationChannel.IN_APP,
+                    customerId.toString(), customerName,
+                    "Statement Sent",
+                    "Your account statement for " + account.getAccountNumber() + " has been sent to " + email + ".",
+                    customerId, "STATEMENT_DELIVERY"
+            );
+        }
+
         return TransactionWorkflowDto.StatementDelivery.builder()
-                .status("QUEUED")
+                .status("SENT")
                 .accountNumber(account.getAccountNumber())
                 .emailAddress(email)
                 .generatedAt(Instant.now())
-                .message("Statement delivery queued for " + email)
+                .message("Statement dispatched to " + email)
                 .build();
     }
 

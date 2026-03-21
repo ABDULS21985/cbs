@@ -2,8 +2,64 @@
 
 export type { Card, CardType, CardScheme, CardStatus, CardTransaction } from './card';
 
-export type DisputeType = 'CHARGEBACK' | 'FRAUD' | 'SERVICE_NOT_RENDERED' | 'DUPLICATE' | 'ATM_FAILED' | 'UNAUTHORIZED' | 'COUNTERFEIT' | 'OTHER';
-export type DisputeStatus = 'OPEN' | 'INVESTIGATING' | 'CHARGEBACK_FILED' | 'REPRESENTMENT' | 'ARBITRATION' | 'RESOLVED' | 'ESCALATED' | 'CLOSED';
+// Backend DisputeType enum — must match CardDisputeService/DisputeType.java exactly
+export type DisputeType =
+  | 'FRAUD'
+  | 'MERCHANDISE_NOT_RECEIVED'
+  | 'DEFECTIVE_MERCHANDISE'
+  | 'DUPLICATE_CHARGE'
+  | 'INCORRECT_AMOUNT'
+  | 'CANCELLED_RECURRING'
+  | 'NOT_RECOGNISED'
+  | 'SERVICE_NOT_PROVIDED'
+  | 'ATM_DISPUTE'
+  | 'OTHER';
+
+// Backend DisputeStatus enum — must match CardDisputeService/DisputeStatus.java exactly
+export type DisputeStatus =
+  | 'INITIATED'
+  | 'INVESTIGATION'
+  | 'CHARGEBACK_FILED'
+  | 'REPRESENTMENT'
+  | 'PRE_ARBITRATION'
+  | 'ARBITRATION'
+  | 'RESOLVED_CUSTOMER'
+  | 'RESOLVED_MERCHANT'
+  | 'WITHDRAWN'
+  | 'EXPIRED';
+
+/** Human-readable labels for DisputeType */
+export const DISPUTE_TYPE_LABELS: Record<DisputeType, string> = {
+  FRAUD: 'Fraud',
+  MERCHANDISE_NOT_RECEIVED: 'Merchandise Not Received',
+  DEFECTIVE_MERCHANDISE: 'Defective Merchandise',
+  DUPLICATE_CHARGE: 'Duplicate Charge',
+  INCORRECT_AMOUNT: 'Incorrect Amount',
+  CANCELLED_RECURRING: 'Cancelled Recurring',
+  NOT_RECOGNISED: 'Not Recognised',
+  SERVICE_NOT_PROVIDED: 'Service Not Provided',
+  ATM_DISPUTE: 'ATM Dispute',
+  OTHER: 'Other',
+};
+
+/** Human-readable labels for DisputeStatus */
+export const DISPUTE_STATUS_LABELS: Record<DisputeStatus, string> = {
+  INITIATED: 'Open',
+  INVESTIGATION: 'Investigating',
+  CHARGEBACK_FILED: 'Chargeback Filed',
+  REPRESENTMENT: 'Representment',
+  PRE_ARBITRATION: 'Pre-Arbitration',
+  ARBITRATION: 'Arbitration',
+  RESOLVED_CUSTOMER: 'Resolved (Customer)',
+  RESOLVED_MERCHANT: 'Resolved (Merchant)',
+  WITHDRAWN: 'Withdrawn',
+  EXPIRED: 'Expired',
+};
+
+/** Whether a status is terminal (no further actions possible) */
+export function isTerminalDisputeStatus(status: DisputeStatus | string): boolean {
+  return ['RESOLVED_CUSTOMER', 'RESOLVED_MERCHANT', 'WITHDRAWN', 'EXPIRED'].includes(status);
+}
 export type TokenStatus = 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'EXPIRED';
 export type WalletProvider = 'APPLE_PAY' | 'GOOGLE_PAY' | 'SAMSUNG_PAY' | 'GARMIN_PAY' | 'OTHER';
 
@@ -21,10 +77,24 @@ export interface CardExtCustomer {
 }
 
 export interface DisputeTimeline {
-  timestamp: string;
+  timestamp?: string;
+  createdAt?: string;
   action: string;
-  actor: string;
+  actor?: string;
+  performedBy?: string;
+  fromStatus?: string;
+  toStatus?: string;
   notes?: string;
+}
+
+/** Get the effective actor name from a timeline entry */
+export function getTimelineActor(entry: DisputeTimeline): string {
+  return entry.actor || entry.performedBy || 'System';
+}
+
+/** Get the effective timestamp from a timeline entry */
+export function getTimelineTimestamp(entry: DisputeTimeline): string {
+  return entry.timestamp || entry.createdAt || '';
 }
 
 export interface CardDispute {

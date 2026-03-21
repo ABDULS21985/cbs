@@ -76,11 +76,28 @@ public final class TransactionWorkflowDto {
         private String contactEmail;
         private String contactPhone;
         private String status;
+        private String assignedTo;
         private Instant filedAt;
+        private String filedBy;
         private Instant lastUpdatedAt;
+        private String updatedBy;
+        private Instant closedAt;
+        private String closedBy;
         private String responseNotes;
         private String escalationNotes;
+        private String closingNotes;
         private List<Long> supportingDocumentIds;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ReversalCounts {
+        private long pendingApproval;
+        private long completed;
+        private long rejected;
     }
 
     @Getter

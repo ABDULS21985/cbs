@@ -22,7 +22,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useChannelConfigs, useSaveChannelConfig, useChannelSessionCounts, useCleanupSessions, useChannelSessions, useEndChannelSession } from '../hooks/useChannels';
-import { useHandoffSession } from '../hooks/useChannelsExt';
+import { useHandoffSession, useCreateSession } from '../hooks/useChannelsExt';
 import type { ChannelConfig, ChannelSession } from '../api/channelApi';
 
 // ─── Channel Icons ────────────────────────────────────────────────────────────

@@ -131,7 +131,7 @@ export function useCustomerLCs(customerId: number) {
 export function useSettleLcDirect() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => lcApi.settleLC(id),
+    mutationFn: ({ id, amount }: { id: number; amount: number }) => lcApi.settleLC(id, amount),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.lcs.all });
     },
@@ -218,7 +218,7 @@ export function useCustomerGuarantees(customerId: number) {
 export function useClaimGuaranteeDirect() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => guaranteesApi.claimGuarantee(id),
+    mutationFn: ({ id, amount }: { id: number; amount: number }) => guaranteesApi.claimGuarantee(id, amount),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.guarantees.all });
     },

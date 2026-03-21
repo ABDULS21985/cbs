@@ -155,7 +155,7 @@ export function LoanAnalyticsPage() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [s, dpd, matrix, sec, geo, prod, vint, npl, wf, obl] = await Promise.all([
+      const [s, dpd, matrix, sec, geo, prod, vint, vintMat, npl, wf, obl] = await Promise.all([
         getLoanPortfolioStats(),
         getDpdBuckets(),
         getDpdMatrix(),
@@ -163,6 +163,7 @@ export function LoanAnalyticsPage() {
         getGeographicConcentration(),
         getProductMix(),
         getVintageData(),
+        getVintageMatrix(),
         getNplTrend(),
         getProvisionWaterfall(),
         getTopObligors(),
@@ -174,6 +175,7 @@ export function LoanAnalyticsPage() {
       setGeography(geo);
       setProducts(prod);
       setVintage(vint);
+      setVintageMatrix(vintMat);
       setNplTrend(npl);
       setWaterfall(wf);
       setObligors(obl);
@@ -193,7 +195,16 @@ export function LoanAnalyticsPage() {
   }
 
   // Derived data
-  const vintageCohorts = useMemo(() => buildVintageCohorts(vintage), [vintage]);
+  const vintageMatrixAsCells = useMemo<VintageCell[]>(
+    () => vintageMatrix.map((entry) => ({
+      vintage: entry.vintage,
+      month: `M${entry.month}`,
+      defaultRate: entry.defaultRate,
+    })),
+    [vintageMatrix],
+  );
+  const activeVintageData = vintageView === 'matrix' ? vintageMatrixAsCells : vintage;
+  const vintageCohorts = useMemo(() => buildVintageCohorts(activeVintageData), [activeVintageData]);
   const concentrationData = useMemo(
     () => buildConcentrationData(sectors, geography, products, obligors),
     [sectors, geography, products, obligors],
@@ -276,8 +287,8 @@ export function LoanAnalyticsPage() {
           )}
         </div>
 
-        {/* Vintage Analysis Chart (new) */}
-        {loading || vintage.length === 0 ? (
+        {/* Vintage Analysis Chart */}
+        {loading || activeVintageData.length === 0 ? (
           <SectionSkeleton height={380} />
         ) : (
           <VintageAnalysisChart data={vintageCohorts} />
@@ -310,12 +321,37 @@ export function LoanAnalyticsPage() {
           )}
         </div>
 
-        {/* Vintage Heatmap — full width (existing) */}
-        <div>
-          {loading || vintage.length === 0 ? (
+        {/* Vintage Heatmap — full width */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Vintage source:</span>
+            <div className="flex items-center gap-0.5 rounded-md border border-border bg-muted/30 p-0.5">
+              <button
+                onClick={() => setVintageView('simple')}
+                className={
+                  vintageView === 'simple'
+                    ? 'px-2.5 py-1 text-xs font-medium rounded bg-background shadow text-foreground'
+                    : 'px-2.5 py-1 text-xs font-medium rounded text-muted-foreground hover:text-foreground transition-colors'
+                }
+              >
+                Simple
+              </button>
+              <button
+                onClick={() => setVintageView('matrix')}
+                className={
+                  vintageView === 'matrix'
+                    ? 'px-2.5 py-1 text-xs font-medium rounded bg-background shadow text-foreground'
+                    : 'px-2.5 py-1 text-xs font-medium rounded text-muted-foreground hover:text-foreground transition-colors'
+                }
+              >
+                Full Matrix
+              </button>
+            </div>
+          </div>
+          {loading || activeVintageData.length === 0 ? (
             <SectionSkeleton height={280} />
           ) : (
-            <VintageHeatmap data={vintage} />
+            <VintageHeatmap data={activeVintageData} />
           )}
         </div>
 

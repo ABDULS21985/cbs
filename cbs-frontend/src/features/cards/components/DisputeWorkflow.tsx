@@ -1,37 +1,52 @@
 import { CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DisputeStatus, DisputeTimeline as TimelineEntry } from '../types/cardExt';
+import { getTimelineTimestamp } from '../types/cardExt';
 
 const STAGES: { key: DisputeStatus; label: string }[] = [
-  { key: 'OPEN', label: 'Open' },
-  { key: 'INVESTIGATING', label: 'Investigating' },
+  { key: 'INITIATED', label: 'Open' },
+  { key: 'INVESTIGATION', label: 'Investigating' },
   { key: 'CHARGEBACK_FILED', label: 'Chargeback' },
   { key: 'REPRESENTMENT', label: 'Representment' },
+  { key: 'PRE_ARBITRATION', label: 'Pre-Arbitration' },
   { key: 'ARBITRATION', label: 'Arbitration' },
-  { key: 'RESOLVED', label: 'Resolved' },
-  { key: 'CLOSED', label: 'Closed' },
+  { key: 'RESOLVED_CUSTOMER', label: 'Resolved' },
 ];
 
+// Terminal statuses map to the last visible stage
+const TERMINAL_MAP: Record<string, number> = {
+  RESOLVED_CUSTOMER: 6,
+  RESOLVED_MERCHANT: 6,
+  WITHDRAWN: 6,
+  EXPIRED: 6,
+};
+
 interface DisputeWorkflowProps {
-  currentStatus: DisputeStatus;
+  currentStatus: DisputeStatus | string;
   timeline?: TimelineEntry[];
 }
 
 export function DisputeWorkflow({ currentStatus, timeline = [] }: DisputeWorkflowProps) {
-  const currentIdx = STAGES.findIndex(s => s.key === currentStatus);
+  const directIdx = STAGES.findIndex(s => s.key === currentStatus);
+  const currentIdx = directIdx >= 0 ? directIdx : (TERMINAL_MAP[currentStatus] ?? -1);
 
   // Find date for each stage from timeline
   const stageDates: Record<string, string> = {};
   timeline.forEach(e => {
+    const toStatus = e.toStatus?.toUpperCase() ?? '';
     const action = e.action?.toUpperCase() ?? '';
+    const ts = getTimelineTimestamp(e);
     for (const stage of STAGES) {
-      if (action.includes(stage.key) || action.includes(stage.label.toUpperCase())) {
-        if (!stageDates[stage.key]) stageDates[stage.key] = e.timestamp;
+      if (toStatus === stage.key || action.includes(stage.key) || action.includes(stage.label.toUpperCase())) {
+        if (!stageDates[stage.key] && ts) stageDates[stage.key] = ts;
       }
     }
   });
-  // Always mark OPEN from first timeline event
-  if (timeline.length > 0 && !stageDates.OPEN) stageDates.OPEN = timeline[timeline.length - 1]?.timestamp;
+  // Always mark INITIATED from first timeline event
+  if (timeline.length > 0 && !stageDates.INITIATED) {
+    const firstTs = getTimelineTimestamp(timeline[timeline.length - 1]);
+    if (firstTs) stageDates.INITIATED = firstTs;
+  }
 
   return (
     <>
@@ -45,7 +60,6 @@ export function DisputeWorkflow({ currentStatus, timeline = [] }: DisputeWorkflo
 
           return (
             <div key={stage.key} className="flex items-center flex-1 min-w-0">
-              {/* Node */}
               <div className="flex flex-col items-center">
                 <div className={cn(
                   'w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors',
@@ -65,7 +79,6 @@ export function DisputeWorkflow({ currentStatus, timeline = [] }: DisputeWorkflo
                   </span>
                 )}
               </div>
-              {/* Connector */}
               {i < STAGES.length - 1 && (
                 <div className={cn('flex-1 h-0.5 mx-1', i < currentIdx ? 'bg-green-500' : 'bg-border')} />
               )}

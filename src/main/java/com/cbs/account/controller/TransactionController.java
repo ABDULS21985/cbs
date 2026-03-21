@@ -267,12 +267,7 @@ public class TransactionController {
     @GetMapping("/reversals/counts")
     @Operation(summary = "Get reversal request counts by status")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getReversalCounts() {
-        var reversalRepo = transactionReversalWorkflowService.getRepository();
-        return ResponseEntity.ok(ApiResponse.ok(Map.of(
-                "pendingApproval", reversalRepo.countByStatus("PENDING_APPROVAL"),
-                "completed", reversalRepo.countByStatus("COMPLETED"),
-                "rejected", reversalRepo.countByStatus("REJECTED")
-        )));
+    public ResponseEntity<ApiResponse<TransactionWorkflowDto.ReversalCounts>> getReversalCounts() {
+        return ResponseEntity.ok(ApiResponse.ok(transactionReversalWorkflowService.getCounts()));
     }
 }

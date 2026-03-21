@@ -152,3 +152,36 @@ export function useEndInteraction() {
     },
   });
 }
+
+export function useServicePointById(id: number) {
+  return useQuery({
+    queryKey: ['channels', 'service-point', id] as const,
+    queryFn: () => channelApi.getServicePointById(id),
+    staleTime: 30_000,
+    enabled: id > 0,
+  });
+}
+
+export function useUpdateServicePoint() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<ServicePoint> }) =>
+      channelApi.updateServicePoint(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.servicePoints });
+      queryClient.invalidateQueries({ queryKey: QK.servicePointStatus });
+      queryClient.invalidateQueries({ queryKey: ['channels', 'service-point'] });
+    },
+  });
+}
+
+export function useDeleteServicePoint() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => channelApi.deleteServicePoint(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.servicePoints });
+      queryClient.invalidateQueries({ queryKey: QK.servicePointStatus });
+    },
+  });
+}

@@ -284,11 +284,14 @@ export const transactionApi = {
     return apiPost<StatementDelivery>('/api/v1/transactions/statement/email', request);
   },
 
-  listReversals: async (params?: { status?: string; mine?: boolean; page?: number; size?: number }): Promise<{ content: ReversalListItem[]; totalElements?: number }> => {
+  listReversals: async (
+    params?: { status?: string; mine?: boolean; page?: number; size?: number },
+  ): Promise<{ content: ReversalListItem[]; totalElements?: number; page?: PageMeta }> => {
     const { data } = await api.get('/api/v1/transactions/reversals', { params });
     return {
       content: data.data as ReversalListItem[],
       totalElements: data.page?.totalElements as number | undefined,
+      page: data.page as PageMeta | undefined,
     };
   },
 

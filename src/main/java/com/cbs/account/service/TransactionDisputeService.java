@@ -304,10 +304,16 @@ public class TransactionDisputeService {
                 .contactEmail(dispute.getContactEmail())
                 .contactPhone(dispute.getContactPhone())
                 .status(dispute.getStatus())
+                .assignedTo(dispute.getAssignedTo())
                 .filedAt(dispute.getFiledAt())
+                .filedBy(dispute.getFiledBy())
                 .lastUpdatedAt(dispute.getLastUpdatedAt())
+                .updatedBy(dispute.getUpdatedBy())
+                .closedAt(dispute.getClosedAt())
+                .closedBy(dispute.getClosedBy())
                 .responseNotes(dispute.getResponseNotes())
                 .escalationNotes(dispute.getEscalationNotes())
+                .closingNotes(dispute.getClosingNotes())
                 .supportingDocumentIds(dispute.getSupportingDocumentIds())
                 .build();
     }

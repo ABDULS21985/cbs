@@ -123,8 +123,11 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
   });
 
   const detail = transactionDetail ?? transaction;
-  const canReverse = detail?.status === 'COMPLETED';
-  const canDispute = detail ? isDisputeEligible(detail) : false;
+  const roles = user?.roles ?? [];
+  const canManageReversals = roles.includes('CBS_ADMIN') || roles.includes('CBS_OFFICER');
+  const canFileDispute = canManageReversals || roles.includes('PORTAL_USER');
+  const canReverse = canManageReversals && detail?.status === 'COMPLETED';
+  const canDispute = canFileDispute && detail ? isDisputeEligible(detail) : false;
 
   const auditEvents = useMemo(() => detail?.auditTrail ?? [], [detail?.auditTrail]);
 

@@ -5,6 +5,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters';
 import type { DisputeTimeline as TimelineEntry } from '../types/cardExt';
+import { getTimelineActor, getTimelineTimestamp } from '../types/cardExt';
 
 // Map action keywords to icons and colors
 function getEventStyle(action: string): { icon: React.ElementType; color: string; bg: string } {
@@ -38,7 +39,7 @@ interface DisputeTimelineProps {
 
 export function DisputeTimelineView({ events }: DisputeTimelineProps) {
   // Newest first
-  const sorted = [...events].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const sorted = [...events].sort((a, b) => new Date(getTimelineTimestamp(b)).getTime() - new Date(getTimelineTimestamp(a)).getTime());
 
   if (sorted.length === 0) {
     return <p className="text-sm text-muted-foreground py-4 text-center">No timeline events recorded.</p>;
@@ -60,9 +61,9 @@ export function DisputeTimelineView({ events }: DisputeTimelineProps) {
               <p className="text-sm font-medium">{event.action}</p>
               {event.notes && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{event.notes}</p>}
               <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                <span>{event.actor}</span>
+                <span>{getTimelineActor(event)}</span>
                 <span>·</span>
-                <span>{formatDateTime(event.timestamp)}</span>
+                <span>{formatDateTime(getTimelineTimestamp(event))}</span>
               </div>
             </div>
           </div>
