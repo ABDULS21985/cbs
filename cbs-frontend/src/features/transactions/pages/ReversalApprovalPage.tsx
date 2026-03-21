@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ElementType } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -18,7 +18,7 @@ import { formatDateTime, formatMoney, formatRelative } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useHasRole } from '@/hooks/usePermission';
 import { TransactionErrorState } from '../components/TransactionErrorState';
-import { transactionApi, type ReversalListItem } from '../api/transactionApi';
+import { transactionApi } from '../api/transactionApi';
 
 const STATUS_FILTERS = [
   { value: '', label: 'All' },
@@ -35,7 +35,7 @@ function DashboardCard({
 }: {
   label: string;
   value: number;
-  icon: React.ElementType;
+  icon: ElementType;
   tone: string;
 }) {
   return (

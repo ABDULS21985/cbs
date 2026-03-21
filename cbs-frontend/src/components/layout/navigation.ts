@@ -97,7 +97,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Analytics', path: '/payments/analytics', roles: ['CBS_ADMIN', 'CBS_OFFICER', 'CBS_VIEWER'] },
           { label: 'Reversal Queue', path: '/payments/reversals', roles: ['CBS_ADMIN', 'CBS_OFFICER'] },
           { label: 'Disputes', path: '/payments/disputes', roles: ['CBS_ADMIN', 'CBS_OFFICER', 'PORTAL_USER'] },
-          { label: 'Compliance', path: '/payments/compliance', roles: ['CBS_ADMIN', 'COMPLIANCE'] },
+          { label: 'Compliance', path: '/payments/compliance', roles: ['CBS_ADMIN', 'CBS_OFFICER', 'COMPLIANCE'] },
           { label: 'Standing Orders', path: '/payments/standing-orders', roles: ['CBS_ADMIN', 'CBS_OFFICER'] },
           { label: 'Bill Payments', path: '/payments/bills', roles: ['CBS_ADMIN', 'CBS_OFFICER'] },
           { label: 'Bulk Payments', path: '/payments/bulk', roles: ['CBS_ADMIN', 'CBS_OFFICER'] },

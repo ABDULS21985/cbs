@@ -1360,7 +1360,7 @@ export const FxRatesPage = lazyNamed(
   'FxRatesPage',
 );
 export const LiquidityRiskPage = lazy(() => import('@/features/treasury/pages/LiquidityRiskPage'));
-export const MarketRiskPage = lazy(() => import('@/features/treasury/pages/MarketRiskPage'));
+export const TreasuryMarketRiskPage = lazy(() => import('@/features/treasury/pages/MarketRiskPage'));
 export const ComplianceAssessmentsPage = lazyNamed(
   () => import('@/features/compliance/pages/ComplianceAssessmentsPage'),
   'ComplianceAssessmentsPage',

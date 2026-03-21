@@ -29,11 +29,20 @@ export interface TreasuryDeal {
 
 export interface BookDealRequest {
   type: DealType;
+  // UI convenience fields (used by the deal form)
+  counterparty: string;
+  currency: string;
+  amount: number;
+  rate: number;
+  maturityDate: string;
+  valueDate?: string;
+  deskId: string;
+  // Backend @RequestParam fields (populated in the API call from the above)
   counterpartyId?: number;
-  leg1Currency: string;
-  leg1Amount: number;
+  leg1Currency?: string;
+  leg1Amount?: number;
   leg1AccountId?: number;
-  leg1ValueDate: string;
+  leg1ValueDate?: string;
   leg2Currency?: string;
   leg2Amount?: number;
   leg2AccountId?: number;
@@ -42,14 +51,6 @@ export interface BookDealRequest {
   yieldRate?: number;
   tenorDays?: number;
   dealer?: string;
-  // Convenience aliases used by the UI form
-  currency?: string;
-  amount?: number;
-  rate?: number;
-  maturityDate?: string;
-  valueDate?: string;
-  counterparty?: string;
-  deskId?: string;
 }
 
 export interface AmendDealRequest {
@@ -408,8 +409,12 @@ const DEAL_TYPE_MAP: Record<string, DealType> = {
 };
 
 /** Maps frontend DealType to backend enum */
-const DEAL_TYPE_REVERSE: Record<DealType, string> = {
+const DEAL_TYPE_REVERSE: Partial<Record<DealType, string>> = {
   FX: 'FX_SPOT', REPO: 'REPO', BOND: 'BOND_PURCHASE', MM: 'MONEY_MARKET_PLACEMENT', TB: 'TBILL_PURCHASE',
+  FX_SPOT: 'FX_SPOT', FX_FORWARD: 'FX_FORWARD', FX_SWAP: 'FX_SWAP',
+  MONEY_MARKET_PLACEMENT: 'MONEY_MARKET_PLACEMENT', MONEY_MARKET_BORROWING: 'MONEY_MARKET_BORROWING',
+  BOND_PURCHASE: 'BOND_PURCHASE', BOND_SALE: 'BOND_SALE',
+  REVERSE_REPO: 'REVERSE_REPO', TBILL_PURCHASE: 'TBILL_PURCHASE', TBILL_DISCOUNT: 'TBILL_DISCOUNT',
 };
 
 /** Maps backend DealStatus to frontend status */

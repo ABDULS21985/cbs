@@ -490,11 +490,31 @@ export function AppRouter() {
         <Route path="/payments" element={<Outlet />}>
           <Route index element={<PaymentsDashboardPage />} />
           <Route path="new" element={<NewTransferPage />} />
-          <Route path="history" element={<TransactionSearchPage />} />
-          <Route path="analytics" element={<TransactionAnalyticsPage />} />
-          <Route path="disputes" element={<TransactionDisputePage />} />
-          <Route path="reversals" element={<ReversalApprovalPage />} />
-          <Route path="compliance" element={<TransactionCompliancePage />} />
+          <Route path="history" element={
+            <ProtectedRoute requiredRoles={['CBS_ADMIN', 'CBS_OFFICER', 'CBS_VIEWER']}>
+              <TransactionSearchPage />
+            </ProtectedRoute>
+          } />
+          <Route path="analytics" element={
+            <ProtectedRoute requiredRoles={['CBS_ADMIN', 'CBS_OFFICER', 'CBS_VIEWER']}>
+              <TransactionAnalyticsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="disputes" element={
+            <ProtectedRoute requiredRoles={['CBS_ADMIN', 'CBS_OFFICER', 'PORTAL_USER']}>
+              <TransactionDisputePage />
+            </ProtectedRoute>
+          } />
+          <Route path="reversals" element={
+            <ProtectedRoute requiredRoles={['CBS_ADMIN', 'CBS_OFFICER']}>
+              <ReversalApprovalPage />
+            </ProtectedRoute>
+          } />
+          <Route path="compliance" element={
+            <ProtectedRoute requiredRoles={['CBS_ADMIN', 'CBS_OFFICER', 'COMPLIANCE']}>
+              <TransactionCompliancePage />
+            </ProtectedRoute>
+          } />
           <Route path="standing-orders" element={<StandingOrderListPage />} />
           <Route path="standing-orders/:id" element={<StandingOrderDetailPage />} />
           <Route path="bills" element={<BillPaymentPage />} />

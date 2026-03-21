@@ -247,6 +247,136 @@ function EditConfigDialog({ config, open, onClose, onSave, isPending }: EditConf
   );
 }
 
+// ─── Create Session Dialog ────────────────────────────────────────────────────
+
+interface CreateSessionDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (params: {
+    channel: string;
+    customerId?: number;
+    deviceId?: string;
+    deviceType?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }) => void;
+  isPending: boolean;
+}
+
+function CreateSessionDialog({ open, onClose, onSubmit, isPending }: CreateSessionDialogProps) {
+  const [form, setForm] = useState({
+    channel: 'WEB',
+    customerId: '',
+    deviceId: '',
+    deviceType: '',
+    ipAddress: '',
+    userAgent: '',
+  });
+
+  if (!open) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      channel: form.channel,
+      customerId: form.customerId ? parseInt(form.customerId, 10) : undefined,
+      deviceId: form.deviceId || undefined,
+      deviceType: form.deviceType || undefined,
+      ipAddress: form.ipAddress || undefined,
+      userAgent: form.userAgent || undefined,
+    });
+  };
+
+  const inputCls =
+    'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-card rounded-xl shadow-2xl border w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-card">
+            <h2 className="text-base font-semibold">Create Channel Session</h2>
+            <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Channel *</label>
+              <select
+                className={inputCls}
+                value={form.channel}
+                onChange={(e) => setForm((f) => ({ ...f, channel: e.target.value }))}
+              >
+                {['WEB', 'MOBILE', 'ATM', 'BRANCH', 'USSD', 'IVR', 'WHATSAPP', 'POS', 'AGENT', 'API'].map((ch) => (
+                  <option key={ch} value={ch}>{ch}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Customer ID</label>
+              <input
+                type="number"
+                className={inputCls}
+                value={form.customerId}
+                onChange={(e) => setForm((f) => ({ ...f, customerId: e.target.value }))}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Device ID</label>
+                <input
+                  className={inputCls}
+                  value={form.deviceId}
+                  onChange={(e) => setForm((f) => ({ ...f, deviceId: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Device Type</label>
+                <input
+                  className={inputCls}
+                  value={form.deviceType}
+                  onChange={(e) => setForm((f) => ({ ...f, deviceType: e.target.value }))}
+                  placeholder="e.g. MOBILE, DESKTOP"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">IP Address</label>
+              <input
+                className={inputCls}
+                value={form.ipAddress}
+                onChange={(e) => setForm((f) => ({ ...f, ipAddress: e.target.value }))}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Create Session
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Handoff Dialog ──────────────────────────────────────────────────────────
 
 interface HandoffDialogProps {
@@ -359,7 +489,9 @@ function LiveSessionsPanel() {
   const { mutate: cleanup, isPending: cleaning } = useCleanupSessions();
   const { mutate: endSession } = useEndChannelSession();
   const { mutate: handoffSession, isPending: handingOff } = useHandoffSession();
+  const { mutate: createSession, isPending: creatingSession } = useCreateSession();
   const [handoffTarget, setHandoffTarget] = useState<ChannelSession | null>(null);
+  const [showCreateSession, setShowCreateSession] = useState(false);
 
   const total = counts ? Object.values(counts).reduce((a, b) => a + (b as number), 0) : 0;
 
@@ -384,6 +516,16 @@ function LiveSessionsPanel() {
         setHandoffTarget(null);
       },
       onError: () => toast.error('Handoff failed'),
+    });
+  };
+
+  const handleCreateSession = (params: Parameters<typeof createSession>[0]) => {
+    createSession(params, {
+      onSuccess: () => {
+        toast.success('Session created');
+        setShowCreateSession(false);
+      },
+      onError: () => toast.error('Failed to create session'),
     });
   };
 
@@ -417,6 +559,13 @@ function LiveSessionsPanel() {
             <p className="text-xs text-muted-foreground mt-0.5">{total} total across all channels</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateSession(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Create Session
+            </button>
             <button
               onClick={handleCleanup}
               disabled={cleaning}
@@ -515,6 +664,13 @@ function LiveSessionsPanel() {
           isPending={handingOff}
         />
       )}
+
+      <CreateSessionDialog
+        open={showCreateSession}
+        onClose={() => setShowCreateSession(false)}
+        onSubmit={handleCreateSession}
+        isPending={creatingSession}
+      />
     </div>
   );
 }

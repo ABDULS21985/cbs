@@ -13,7 +13,10 @@ import {
   Building2,
   Phone,
   Radio,
+  Plus,
+  X,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, StatusBadge } from '@/components/shared';
@@ -22,6 +25,7 @@ import { cn } from '@/lib/utils';
 import {
   useChannelActivityLogs,
   useCustomerChannelActivity,
+  useLogChannelActivity,
 } from '../hooks/useDigitalBanking';
 import type { ChannelActivityLog } from '../api/digitalBankingApi';
 
@@ -135,16 +139,133 @@ const columns: ColumnDef<ChannelActivityLog, unknown>[] = [
   },
 ];
 
+// ─── Log Activity Dialog ─────────────────────────────────────────────────────
+
+interface LogActivityDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (data: Record<string, unknown>) => void;
+  isPending: boolean;
+}
+
+function LogActivityDialog({ open, onClose, onSubmit, isPending }: LogActivityDialogProps) {
+  const [form, setForm] = useState({
+    customerId: '',
+    channel: 'WEB',
+    activityType: 'LOGIN',
+    resultStatus: 'SUCCESS',
+    ipAddress: '',
+    responseTimeMs: '',
+    errorCode: '',
+  });
+
+  if (!open) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      customerId: form.customerId ? parseInt(form.customerId, 10) : null,
+      channel: form.channel,
+      activityType: form.activityType,
+      resultStatus: form.resultStatus,
+      ipAddress: form.ipAddress || null,
+      responseTimeMs: form.responseTimeMs ? parseInt(form.responseTimeMs, 10) : null,
+      errorCode: form.errorCode || null,
+    });
+  };
+
+  const inputCls =
+    'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-card rounded-xl shadow-2xl border w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-card">
+            <h2 className="text-base font-semibold">Log Channel Activity</h2>
+            <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Customer ID</label>
+                <input type="number" className={inputCls} value={form.customerId} onChange={(e) => setForm((f) => ({ ...f, customerId: e.target.value }))} placeholder="Optional" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Channel *</label>
+                <select className={inputCls} value={form.channel} onChange={(e) => setForm((f) => ({ ...f, channel: e.target.value }))}>
+                  {['WEB', 'MOBILE', 'ATM', 'BRANCH', 'USSD', 'IVR', 'WHATSAPP', 'POS', 'AGENT', 'API'].map((ch) => (
+                    <option key={ch} value={ch}>{ch}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Activity Type *</label>
+                <select className={inputCls} value={form.activityType} onChange={(e) => setForm((f) => ({ ...f, activityType: e.target.value }))}>
+                  {['LOGIN', 'LOGOUT', 'TRANSFER', 'BALANCE_CHECK', 'PAYMENT', 'STATEMENT', 'PASSWORD_CHANGE', 'PIN_CHANGE', 'REGISTRATION', 'OTHER'].map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Result *</label>
+                <select className={inputCls} value={form.resultStatus} onChange={(e) => setForm((f) => ({ ...f, resultStatus: e.target.value }))}>
+                  <option value="SUCCESS">Success</option>
+                  <option value="FAILURE">Failure</option>
+                  <option value="ERROR">Error</option>
+                  <option value="TIMEOUT">Timeout</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">IP Address</label>
+                <input className={inputCls} value={form.ipAddress} onChange={(e) => setForm((f) => ({ ...f, ipAddress: e.target.value }))} placeholder="Optional" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Response Time (ms)</label>
+                <input type="number" className={inputCls} value={form.responseTimeMs} onChange={(e) => setForm((f) => ({ ...f, responseTimeMs: e.target.value }))} placeholder="Optional" />
+              </div>
+            </div>
+            {form.resultStatus !== 'SUCCESS' && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Error Code</label>
+                <input className={inputCls} value={form.errorCode} onChange={(e) => setForm((f) => ({ ...f, errorCode: e.target.value }))} placeholder="e.g. AUTH_FAILED" />
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">
+                Cancel
+              </button>
+              <button type="submit" disabled={isPending} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Log Activity
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function ChannelActivityLogsPage() {
   const [customerFilter, setCustomerFilter] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
   const [isCustomerMode, setIsCustomerMode] = useState(false);
+  const [showLogDialog, setShowLogDialog] = useState(false);
 
   const customerId = isCustomerMode && customerFilter ? parseInt(customerFilter, 10) : 0;
 
   const { data: allLogs = [], isLoading: allLoading } = useChannelActivityLogs();
+  const { mutate: logActivity, isPending: logging } = useLogChannelActivity();
   const { data: customerLogs = [], isLoading: customerLoading } = useCustomerChannelActivity(
     customerId,
     channelFilter || undefined,
@@ -176,6 +297,16 @@ export function ChannelActivityLogsPage() {
     } else {
       setIsCustomerMode(false);
     }
+  };
+
+  const handleLogActivity = (data: Record<string, unknown>) => {
+    logActivity(data, {
+      onSuccess: () => {
+        toast.success('Activity logged');
+        setShowLogDialog(false);
+      },
+      onError: () => toast.error('Failed to log activity'),
+    });
   };
 
   const inputCls =
@@ -252,14 +383,23 @@ export function ChannelActivityLogsPage() {
 
         {/* Data Table */}
         <div className="rounded-xl border bg-card overflow-hidden">
-          <div className="px-5 py-4 border-b">
-            <h3 className="text-sm font-semibold">Activity Logs</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {isCustomerMode && customerId
-                ? `Showing logs for customer ${customerId}`
-                : 'Showing all channel activity logs'}
-              {channelFilter ? ` filtered by ${channelFilter}` : ''}
-            </p>
+          <div className="px-5 py-4 border-b flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">Activity Logs</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isCustomerMode && customerId
+                  ? `Showing logs for customer ${customerId}`
+                  : 'Showing all channel activity logs'}
+                {channelFilter ? ` filtered by ${channelFilter}` : ''}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowLogDialog(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Log Activity
+            </button>
           </div>
           <div className="p-4">
             <DataTable
@@ -272,6 +412,13 @@ export function ChannelActivityLogsPage() {
             />
           </div>
         </div>
+
+        <LogActivityDialog
+          open={showLogDialog}
+          onClose={() => setShowLogDialog(false)}
+          onSubmit={handleLogActivity}
+          isPending={logging}
+        />
       </div>
     </>
   );

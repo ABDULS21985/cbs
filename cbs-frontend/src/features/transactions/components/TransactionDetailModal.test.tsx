@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { clearAuth, createMockUser, setAuthUser } from '@/test/helpers';
 import { TransactionDetailModal } from './TransactionDetailModal';
 
 const { getTransaction, reverseTransaction, downloadReceipt } = vi.hoisted(() => ({
@@ -68,12 +69,14 @@ const transaction = {
 
 describe('TransactionDetailModal', () => {
   beforeEach(() => {
+    setAuthUser(createMockUser({ roles: ['CBS_ADMIN'] }));
     getTransaction.mockResolvedValue(transaction);
     reverseTransaction.mockResolvedValue({ message: 'ok' });
     downloadReceipt.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
+    clearAuth();
     vi.clearAllMocks();
   });
 

@@ -34,7 +34,7 @@ interface BookDealDialogProps {
 }
 
 // Settlement date offsets by deal type
-const SETTLEMENT_OFFSETS: Record<DealType, number> = { FX: 2, MM: 1, BOND: 3, REPO: 1, TB: 1 };
+const SETTLEMENT_OFFSETS: Partial<Record<DealType, number>> = { FX: 2, MM: 1, BOND: 3, REPO: 1, TB: 1, FX_SPOT: 2, FX_FORWARD: 2, FX_SWAP: 2, MONEY_MARKET_PLACEMENT: 1, MONEY_MARKET_BORROWING: 1, BOND_PURCHASE: 3, BOND_SALE: 3, REVERSE_REPO: 1, TBILL_PURCHASE: 1, TBILL_DISCOUNT: 1 };
 
 function addBusinessDays(date: Date, days: number): Date {
   const result = new Date(date);
