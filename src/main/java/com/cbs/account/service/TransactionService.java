@@ -1,6 +1,7 @@
 package com.cbs.account.service;
 
 import com.cbs.account.dto.GlEntryDto;
+import com.cbs.account.dto.TransactionAnalyticsDto;
 import com.cbs.account.dto.TransactionResponse;
 import com.cbs.account.dto.TransactionSearchCriteria;
 import com.cbs.account.dto.TransactionSummary;
@@ -26,15 +27,24 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.util.HtmlUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.time.temporal.TemporalAdjusters;
 
 @Service
 @RequiredArgsConstructor
@@ -79,6 +89,270 @@ public class TransactionService {
     public TransactionJournal getTransactionEntity(Long id) {
         return transactionJournalRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
+    }
+
+    public TransactionAnalyticsDto.Summary getAnalyticsSummary(LocalDate fromDate, LocalDate toDate) {
+        AnalyticsWindow window = resolveAnalyticsWindow(fromDate, toDate);
+        Object[] aggregates = transactionJournalRepository.aggregateAnalyticsSummary(window.from(), window.to());
+
+        long totalTransactions = toLong(aggregates, 0);
+        BigDecimal totalValue = toBigDecimal(aggregates, 1);
+        BigDecimal averageValue = toBigDecimal(aggregates, 2);
+        long failedCount = toLong(aggregates, 3);
+        long reversedCount = toLong(aggregates, 4);
+
+        TransactionAnalyticsDto.LargestTransaction largestTransaction = transactionJournalRepository
+                .findTopByPostingDateBetweenAndTransactionTypeNotOrderByAmountDescCreatedAtDesc(
+                        window.from(),
+                        window.to(),
+                        TransactionType.REVERSAL
+                )
+                .map(transaction -> new TransactionAnalyticsDto.LargestTransaction(
+                        transaction.getId(),
+                        transaction.getTransactionRef(),
+                        transaction.getAmount()
+                ))
+                .orElse(null);
+
+        List<TransactionAnalyticsDto.ChannelMetric> channelMetrics = loadChannelMetrics(window.from(), window.to());
+        TransactionAnalyticsDto.ChannelShare mostUsedChannel = channelMetrics.isEmpty()
+                ? null
+                : buildChannelShare(channelMetrics.get(0), totalTransactions);
+
+        return new TransactionAnalyticsDto.Summary(
+                totalTransactions,
+                totalValue,
+                averageValue,
+                largestTransaction,
+                mostUsedChannel,
+                percentage(failedCount, totalTransactions),
+                percentage(reversedCount, totalTransactions)
+        );
+    }
+
+    public List<TransactionAnalyticsDto.VolumeTrendPoint> getVolumeTrend(LocalDate fromDate, LocalDate toDate, String granularity) {
+        AnalyticsWindow window = resolveAnalyticsWindow(fromDate, toDate);
+        List<DailyVolumeAggregate> dailyPoints = transactionJournalRepository.aggregateVolumeTrend(window.from(), window.to())
+                .stream()
+                .map(this::toDailyVolumeAggregate)
+                .toList();
+
+        return switch (normalizeGranularity(granularity)) {
+            case "week" -> groupVolumeTrendByWeek(dailyPoints, window.to());
+            case "month" -> groupVolumeTrendByMonth(dailyPoints, window.to());
+            default -> dailyPoints.stream()
+                    .map(point -> new TransactionAnalyticsDto.VolumeTrendPoint(
+                            point.date(),
+                            point.date(),
+                            point.date().format(DateTimeFormatter.ofPattern("dd MMM")),
+                            point.creditCount(),
+                            point.debitCount(),
+                            point.creditValue(),
+                            point.debitValue(),
+                            point.creditValue().add(point.debitValue())
+                    ))
+                    .toList();
+        };
+    }
+
+    public TransactionAnalyticsDto.CategoryAnalytics getCategoryAnalytics(LocalDate fromDate, LocalDate toDate) {
+        AnalyticsWindow window = resolveAnalyticsWindow(fromDate, toDate);
+        List<Object[]> rows = transactionJournalRepository.aggregateSpendCategories(window.from(), window.to());
+        BigDecimal totalSpend = rows.stream()
+                .map(row -> toBigDecimal(row, 1))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        List<TransactionAnalyticsDto.CategoryBreakdown> categories = rows.stream()
+                .map(row -> new TransactionAnalyticsDto.CategoryBreakdown(
+                        String.valueOf(row[0]),
+                        toBigDecimal(row, 1),
+                        toLong(row, 2),
+                        toBigDecimal(row, 3),
+                        percentage(toBigDecimal(row, 1), totalSpend)
+                ))
+                .toList();
+
+        LocalDate trendFrom = window.to().minusMonths(5).withDayOfMonth(1);
+        List<TransactionAnalyticsDto.CategoryTrendPoint> trend = transactionJournalRepository
+                .aggregateSpendCategoryTrend(trendFrom, window.to())
+                .stream()
+                .map(row -> {
+                    LocalDate periodStart = toLocalDate(row, 0);
+                    return new TransactionAnalyticsDto.CategoryTrendPoint(
+                            periodStart.format(DateTimeFormatter.ofPattern("MMM yyyy")),
+                            periodStart,
+                            String.valueOf(row[1]),
+                            toBigDecimal(row, 2)
+                    );
+                })
+                .toList();
+
+        return new TransactionAnalyticsDto.CategoryAnalytics(totalSpend, categories, trend);
+    }
+
+    public TransactionAnalyticsDto.ChannelAnalytics getChannelAnalytics(LocalDate fromDate, LocalDate toDate) {
+        AnalyticsWindow window = resolveAnalyticsWindow(fromDate, toDate);
+        List<TransactionAnalyticsDto.ChannelMetric> channels = loadChannelMetrics(window.from(), window.to());
+        LocalDate trendFrom = window.to().minusMonths(11).withDayOfMonth(1);
+        List<TransactionAnalyticsDto.ChannelTrendPoint> successRateTrend = transactionJournalRepository
+                .aggregateChannelSuccessTrend(trendFrom, window.to())
+                .stream()
+                .map(row -> {
+                    LocalDate periodStart = toLocalDate(row, 0);
+                    String channel = normalizeChannelLabel((String) row[1]);
+                    long count = toLong(row, 2);
+                    long successCount = toLong(row, 3);
+                    return new TransactionAnalyticsDto.ChannelTrendPoint(
+                            periodStart.format(DateTimeFormatter.ofPattern("MMM yy")),
+                            periodStart,
+                            channel,
+                            percentage(successCount, count)
+                    );
+                })
+                .toList();
+
+        return new TransactionAnalyticsDto.ChannelAnalytics(channels, successRateTrend);
+    }
+
+    public List<TransactionAnalyticsDto.TopAccount> getTopAccounts(LocalDate fromDate, LocalDate toDate, Integer requestedLimit) {
+        AnalyticsWindow window = resolveAnalyticsWindow(fromDate, toDate);
+        int limit = Math.max(10, Math.min(requestedLimit == null ? 50 : requestedLimit, 200));
+        return transactionJournalRepository.aggregateTopAccounts(window.from(), window.to(), limit)
+                .stream()
+                .map(row -> {
+                    BigDecimal totalDebit = toBigDecimal(row, 4);
+                    BigDecimal totalCredit = toBigDecimal(row, 5);
+                    return new TransactionAnalyticsDto.TopAccount(
+                            String.valueOf(row[1]),
+                            String.valueOf(row[2]),
+                            toLong(row, 3),
+                            totalDebit,
+                            totalCredit,
+                            totalCredit.subtract(totalDebit),
+                            toLocalDate(row, 6)
+                    );
+                })
+                .toList();
+    }
+
+    public TransactionAnalyticsDto.FailureAnalysis getFailureAnalysis(LocalDate fromDate, LocalDate toDate) {
+        AnalyticsWindow window = resolveAnalyticsWindow(fromDate, toDate);
+
+        List<TransactionAnalyticsDto.FailureTrendPoint> trend = transactionJournalRepository.aggregateFailureTrend(window.from(), window.to())
+                .stream()
+                .map(row -> {
+                    long failureCount = toLong(row, 1);
+                    long totalCount = toLong(row, 2);
+                    return new TransactionAnalyticsDto.FailureTrendPoint(
+                            toLocalDate(row, 0),
+                            failureCount,
+                            totalCount,
+                            percentage(failureCount, totalCount)
+                    );
+                })
+                .toList();
+
+        long totalFailures = trend.stream().mapToLong(TransactionAnalyticsDto.FailureTrendPoint::failureCount).sum();
+        long totalTransactions = trend.stream().mapToLong(TransactionAnalyticsDto.FailureTrendPoint::totalCount).sum();
+
+        List<TransactionAnalyticsDto.FailureReason> reasons = transactionJournalRepository.aggregateFailureReasons(window.from(), window.to())
+                .stream()
+                .map(row -> new TransactionAnalyticsDto.FailureReason(
+                        String.valueOf(row[0]),
+                        toLong(row, 1),
+                        percentage(toLong(row, 1), totalFailures)
+                ))
+                .toList();
+
+        List<TransactionAnalyticsDto.FailureHotspot> hotspots = transactionJournalRepository.aggregateFailureHotspots(window.from(), window.to())
+                .stream()
+                .map(row -> new TransactionAnalyticsDto.FailureHotspot(
+                        toInt(row, 0),
+                        toLong(row, 1)
+                ))
+                .toList();
+
+        List<TransactionAnalyticsDto.FailingAccount> topFailingAccounts = transactionJournalRepository
+                .aggregateTopFailingAccounts(window.from(), window.to(), 10)
+                .stream()
+                .map(row -> {
+                    Long accountId = toLongObject(row, 0);
+                    TransactionJournal latestFailure = accountId == null
+                            ? null
+                            : transactionJournalRepository.findTopByAccountIdAndStatusAndPostingDateBetweenOrderByCreatedAtDesc(
+                                    accountId,
+                                    "FAILED",
+                                    window.from(),
+                                    window.to()
+                            ).orElse(null);
+                    return new TransactionAnalyticsDto.FailingAccount(
+                            String.valueOf(row[1]),
+                            String.valueOf(row[2]),
+                            toLong(row, 3),
+                            latestFailure != null ? classifyFailureReason(latestFailure) : "Other",
+                            toLocalDate(row, 4)
+                    );
+                })
+                .toList();
+
+        BigDecimal failureRate = percentage(totalFailures, totalTransactions);
+        return new TransactionAnalyticsDto.FailureAnalysis(
+                failureRate,
+                failureRate.compareTo(new BigDecimal("5")) > 0,
+                trend,
+                reasons,
+                hotspots,
+                topFailingAccounts
+        );
+    }
+
+    public TransactionAnalyticsDto.Heatmap getHourlyHeatmap(LocalDate fromDate, LocalDate toDate) {
+        AnalyticsWindow window = resolveAnalyticsWindow(fromDate, toDate);
+        Map<String, Long> counts = new HashMap<>();
+        List<Long> populatedCounts = new ArrayList<>();
+
+        transactionJournalRepository.aggregateHourlyHeatmap(window.from(), window.to())
+                .forEach(row -> {
+                    int dayOfWeek = toInt(row, 0);
+                    int hour = toInt(row, 1);
+                    long count = toLong(row, 2);
+                    counts.put(dayOfWeek + ":" + hour, count);
+                    populatedCounts.add(count);
+                });
+
+        BigDecimal average = populatedCounts.isEmpty()
+                ? BigDecimal.ZERO
+                : BigDecimal.valueOf(populatedCounts.stream().mapToLong(Long::longValue).average().orElse(0));
+        BigDecimal standardDeviation = calculateStandardDeviation(populatedCounts, average);
+        BigDecimal anomalyThreshold = average.add(standardDeviation.multiply(BigDecimal.valueOf(2)));
+
+        List<TransactionAnalyticsDto.HeatmapCell> cells = IntStream.rangeClosed(1, 7)
+                .boxed()
+                .flatMap(dayOfWeek -> IntStream.range(0, 24).mapToObj(hour -> {
+                    long count = counts.getOrDefault(dayOfWeek + ":" + hour, 0L);
+                    boolean anomaly = BigDecimal.valueOf(count).compareTo(anomalyThreshold) > 0 && count > 0;
+                    return new TransactionAnalyticsDto.HeatmapCell(
+                            dayOfWeek,
+                            dayLabel(dayOfWeek),
+                            hour,
+                            count,
+                            anomaly
+                    );
+                }))
+                .toList();
+
+        List<TransactionAnalyticsDto.Anomaly> anomalies = cells.stream()
+                .filter(TransactionAnalyticsDto.HeatmapCell::anomaly)
+                .map(cell -> new TransactionAnalyticsDto.Anomaly(
+                        cell.dayLabel(),
+                        cell.hour(),
+                        cell.count(),
+                        average.setScale(2, RoundingMode.HALF_UP),
+                        standardDeviation.setScale(2, RoundingMode.HALF_UP)
+                ))
+                .toList();
+
+        return new TransactionAnalyticsDto.Heatmap(cells, anomalies, anomalies.size());
     }
 
     public byte[] renderReceiptHtml(TransactionJournal transaction) {
@@ -461,5 +735,277 @@ public class TransactionService {
 
     private String escape(String value) {
         return HtmlUtils.htmlEscape(value == null ? "" : value);
+    }
+
+    private List<TransactionAnalyticsDto.ChannelMetric> loadChannelMetrics(LocalDate fromDate, LocalDate toDate) {
+        return transactionJournalRepository.aggregateChannelMetrics(fromDate, toDate)
+                .stream()
+                .map(row -> {
+                    long count = toLong(row, 1);
+                    BigDecimal value = toBigDecimal(row, 2);
+                    long successCount = toLong(row, 3);
+                    return new TransactionAnalyticsDto.ChannelMetric(
+                            normalizeChannelLabel((String) row[0]),
+                            count,
+                            value,
+                            percentage(successCount, count),
+                            count == 0 ? BigDecimal.ZERO : value.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP)
+                    );
+                })
+                .toList();
+    }
+
+    private TransactionAnalyticsDto.ChannelShare buildChannelShare(TransactionAnalyticsDto.ChannelMetric metric, long totalTransactions) {
+        return new TransactionAnalyticsDto.ChannelShare(
+                metric.channel(),
+                percentage(metric.volume(), totalTransactions),
+                metric.volume(),
+                metric.value(),
+                metric.successRate(),
+                metric.averageValue()
+        );
+    }
+
+    private DailyVolumeAggregate toDailyVolumeAggregate(Object[] row) {
+        return new DailyVolumeAggregate(
+                toLocalDate(row, 0),
+                toLong(row, 1),
+                toBigDecimal(row, 2),
+                toLong(row, 3),
+                toBigDecimal(row, 4)
+        );
+    }
+
+    private List<TransactionAnalyticsDto.VolumeTrendPoint> groupVolumeTrendByWeek(List<DailyVolumeAggregate> dailyPoints, LocalDate reportEnd) {
+        Map<LocalDate, TrendAccumulator> grouped = new LinkedHashMap<>();
+        for (DailyVolumeAggregate point : dailyPoints) {
+            LocalDate weekStart = point.date().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+            LocalDate weekEnd = point.date().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+            TrendAccumulator bucket = grouped.computeIfAbsent(weekStart, start -> new TrendAccumulator(start, weekEnd.isAfter(reportEnd) ? reportEnd : weekEnd));
+            bucket.add(point);
+        }
+        return grouped.values().stream().map(TrendAccumulator::toWeekPoint).toList();
+    }
+
+    private List<TransactionAnalyticsDto.VolumeTrendPoint> groupVolumeTrendByMonth(List<DailyVolumeAggregate> dailyPoints, LocalDate reportEnd) {
+        Map<LocalDate, TrendAccumulator> grouped = new LinkedHashMap<>();
+        for (DailyVolumeAggregate point : dailyPoints) {
+            LocalDate monthStart = point.date().withDayOfMonth(1);
+            LocalDate monthEnd = point.date().with(TemporalAdjusters.lastDayOfMonth());
+            TrendAccumulator bucket = grouped.computeIfAbsent(monthStart, start -> new TrendAccumulator(start, monthEnd.isAfter(reportEnd) ? reportEnd : monthEnd));
+            bucket.add(point);
+        }
+        return grouped.values().stream().map(TrendAccumulator::toMonthPoint).toList();
+    }
+
+    private String normalizeGranularity(String granularity) {
+        if (!StringUtils.hasText(granularity)) {
+            return "day";
+        }
+        String normalized = granularity.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "week", "month" -> normalized;
+            default -> "day";
+        };
+    }
+
+    private String normalizeChannelLabel(String rawChannel) {
+        if (!StringUtils.hasText(rawChannel)) {
+            return "SYSTEM";
+        }
+        return "INTERNET".equalsIgnoreCase(rawChannel) ? "WEB" : rawChannel.toUpperCase(Locale.ROOT);
+    }
+
+    private String classifyFailureReason(TransactionJournal transaction) {
+        String content = ((transaction.getNarration() == null ? "" : transaction.getNarration()) + " " +
+                (transaction.getExternalRef() == null ? "" : transaction.getExternalRef())).toLowerCase(Locale.ROOT);
+        if (content.contains("insufficient")) {
+            return "Insufficient Funds";
+        }
+        if (content.contains("limit")) {
+            return "Limit Exceeded";
+        }
+        if (content.contains("invalid") || content.contains("account not found")) {
+            return "Invalid Account";
+        }
+        if (content.contains("system") || content.contains("timeout") || content.contains("network") || content.contains("switch")) {
+            return "System Error";
+        }
+        return "Other";
+    }
+
+    private AnalyticsWindow resolveAnalyticsWindow(LocalDate fromDate, LocalDate toDate) {
+        LocalDate resolvedTo = toDate != null ? toDate : LocalDate.now();
+        LocalDate resolvedFrom = fromDate != null ? fromDate : resolvedTo.minusDays(29);
+        if (resolvedFrom.isAfter(resolvedTo)) {
+            return new AnalyticsWindow(resolvedTo, resolvedFrom);
+        }
+        return new AnalyticsWindow(resolvedFrom, resolvedTo);
+    }
+
+    private BigDecimal percentage(long numerator, long denominator) {
+        if (denominator <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(numerator)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(denominator), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal percentage(BigDecimal numerator, BigDecimal denominator) {
+        if (denominator == null || denominator.compareTo(BigDecimal.ZERO) == 0 || numerator == null) {
+            return BigDecimal.ZERO;
+        }
+        return numerator.multiply(BigDecimal.valueOf(100))
+                .divide(denominator, 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calculateStandardDeviation(List<Long> values, BigDecimal average) {
+        if (values.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        double avg = average.doubleValue();
+        double variance = values.stream()
+                .mapToDouble(value -> Math.pow(value - avg, 2))
+                .average()
+                .orElse(0);
+        return BigDecimal.valueOf(Math.sqrt(variance));
+    }
+
+    private long toLong(Object[] row, int index) {
+        return row != null && row.length > index ? toLong(row[index]) : 0L;
+    }
+
+    private Long toLongObject(Object[] row, int index) {
+        return row != null && row.length > index ? toLongObject(row[index]) : null;
+    }
+
+    private BigDecimal toBigDecimal(Object[] row, int index) {
+        return row != null && row.length > index ? toBigDecimal(row[index]) : BigDecimal.ZERO;
+    }
+
+    private LocalDate toLocalDate(Object[] row, int index) {
+        if (row == null || row.length <= index) {
+            return null;
+        }
+        return toLocalDate(row[index]);
+    }
+
+    private int toInt(Object[] row, int index) {
+        return row != null && row.length > index ? toInt(row[index]) : 0;
+    }
+
+    private long toLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return value == null ? 0L : Long.parseLong(value.toString());
+    }
+
+    private Long toLongObject(Object value) {
+        return value == null ? null : toLong(value);
+    }
+
+    private int toInt(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return value == null ? 0 : Integer.parseInt(value.toString());
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value instanceof BigDecimal decimal) {
+            return decimal;
+        }
+        if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue()).setScale(2, RoundingMode.HALF_UP);
+        }
+        return value == null ? BigDecimal.ZERO : new BigDecimal(value.toString());
+    }
+
+    private LocalDate toLocalDate(Object value) {
+        if (value instanceof LocalDate localDate) {
+            return localDate;
+        }
+        if (value instanceof java.sql.Date sqlDate) {
+            return sqlDate.toLocalDate();
+        }
+        if (value instanceof java.sql.Timestamp timestamp) {
+            return timestamp.toLocalDateTime().toLocalDate();
+        }
+        return value == null ? null : LocalDate.parse(value.toString());
+    }
+
+    private String dayLabel(int dayOfWeek) {
+        return switch (dayOfWeek) {
+            case 1 -> "Mon";
+            case 2 -> "Tue";
+            case 3 -> "Wed";
+            case 4 -> "Thu";
+            case 5 -> "Fri";
+            case 6 -> "Sat";
+            case 7 -> "Sun";
+            default -> "Day";
+        };
+    }
+
+    private record AnalyticsWindow(LocalDate from, LocalDate to) {
+    }
+
+    private record DailyVolumeAggregate(
+            LocalDate date,
+            long creditCount,
+            BigDecimal creditValue,
+            long debitCount,
+            BigDecimal debitValue
+    ) {
+    }
+
+    private static final class TrendAccumulator {
+        private final LocalDate periodStart;
+        private final LocalDate periodEnd;
+        private long creditCount;
+        private long debitCount;
+        private BigDecimal creditValue = BigDecimal.ZERO;
+        private BigDecimal debitValue = BigDecimal.ZERO;
+
+        private TrendAccumulator(LocalDate periodStart, LocalDate periodEnd) {
+            this.periodStart = periodStart;
+            this.periodEnd = periodEnd;
+        }
+
+        private void add(DailyVolumeAggregate point) {
+            creditCount += point.creditCount();
+            debitCount += point.debitCount();
+            creditValue = creditValue.add(point.creditValue());
+            debitValue = debitValue.add(point.debitValue());
+        }
+
+        private TransactionAnalyticsDto.VolumeTrendPoint toWeekPoint() {
+            return new TransactionAnalyticsDto.VolumeTrendPoint(
+                    periodStart,
+                    periodEnd,
+                    periodStart.format(DateTimeFormatter.ofPattern("dd MMM")) + " - " +
+                            periodEnd.format(DateTimeFormatter.ofPattern("dd MMM")),
+                    creditCount,
+                    debitCount,
+                    creditValue,
+                    debitValue,
+                    creditValue.add(debitValue)
+            );
+        }
+
+        private TransactionAnalyticsDto.VolumeTrendPoint toMonthPoint() {
+            return new TransactionAnalyticsDto.VolumeTrendPoint(
+                    periodStart,
+                    periodEnd,
+                    periodStart.format(DateTimeFormatter.ofPattern("MMM yyyy")),
+                    creditCount,
+                    debitCount,
+                    creditValue,
+                    debitValue,
+                    creditValue.add(debitValue)
+            );
+        }
     }
 }

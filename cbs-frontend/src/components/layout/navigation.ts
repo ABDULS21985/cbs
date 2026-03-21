@@ -171,6 +171,22 @@ export const navigationItems: NavSection[] = [
     ],
   },
   {
+    title: 'ADVISORY',
+    items: [
+      {
+        label: 'Advisory Services', icon: Briefcase, path: '/advisory', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
+        children: [
+          { label: 'Dashboard', path: '/advisory' },
+          { label: 'M&A Advisory', path: '/advisory/ma' },
+          { label: 'Tax Advisory', path: '/advisory/tax' },
+          { label: 'Corporate Finance', path: '/advisory/corporate-finance' },
+          { label: 'Project Finance', path: '/advisory/project-finance' },
+          { label: 'Suitability', path: '/advisory/suitability' },
+        ],
+      },
+    ],
+  },
+  {
     title: 'TREASURY',
     items: [
       {
@@ -223,6 +239,10 @@ export const navigationItems: NavSection[] = [
           { label: 'Custody', path: '/capital-markets/custody' },
           { label: 'Positions', path: '/capital-markets/positions' },
           { label: 'Models', path: '/capital-markets/models' },
+          { label: 'Suitability', path: '/capital-markets/suitability' },
+          { label: 'Securitization', path: '/capital-markets/securitization' },
+          { label: 'Program Trading', path: '/capital-markets/program-trading' },
+          { label: 'Economic Capital', path: '/capital-markets/economic-capital' },
           { label: 'Quotes', path: '/capital-markets/quotes' },
           { label: 'Valuation', path: '/capital-markets/valuation' },
         ],
@@ -243,6 +263,8 @@ export const navigationItems: NavSection[] = [
           { label: 'Dashboard', path: '/alm' },
           { label: 'Duration Analytics', path: '/alm/duration' },
           { label: 'Liquidity Gap', path: '/alm/liquidity' },
+          { label: 'NII Sensitivity', path: '/alm/nii-sensitivity' },
+          { label: 'IRR Analysis', path: '/alm/irr' },
           { label: 'Stress Testing', path: '/alm/stress-testing' },
           { label: 'ALCO Report', path: '/alm/alco-report' },
           { label: 'Regulatory', path: '/alm/regulatory' },

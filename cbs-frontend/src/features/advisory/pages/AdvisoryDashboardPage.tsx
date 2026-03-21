@@ -1,31 +1,66 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Plus, Briefcase, TrendingUp, DollarSign, Users } from 'lucide-react';
+import { Briefcase, TrendingUp, DollarSign, Users } from 'lucide-react';
 import {
-  LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge, TabsPage } from '@/components/shared';
-import { advisoryApi } from '../api/advisoryApi';
-import type {
-  CorporateFinanceEngagement,
-  MaEngagement,
-  ProjectFacility,
-  TaxEngagement,
-} from '../api/advisoryApi';
+import { advisoryApi, type CorporateFinanceEngagement, type ProjectFacility, type TaxAdvisoryEngagement } from '../api/advisoryApi';
+import type { MaEngagement } from '../types/maAdvisory';
+import { QK } from '../hooks/useAdvisory';
 import { formatMoney } from '@/lib/formatters';
+import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 
 // ─── Column definitions ───────────────────────────────────────────────────────
 
+// M&A Advisory — real entity fields
+const maCols: ColumnDef<MaEngagement, any>[] = [
+  {
+    accessorKey: 'engagementCode',
+    header: 'Code',
+    cell: ({ row }) => (
+      <Link
+        to={`/advisory/ma`}
+        className="font-mono text-xs text-primary hover:underline"
+      >
+        {row.original.engagementCode}
+      </Link>
+    ),
+  },
+  { accessorKey: 'clientName', header: 'Client' },
+  { accessorKey: 'targetName', header: 'Target', cell: ({ row }) => row.original.targetName || '—' },
+  {
+    accessorKey: 'engagementType',
+    header: 'Type',
+    cell: ({ row }) => <StatusBadge status={row.original.engagementType} />,
+  },
+  {
+    accessorKey: 'estimatedDealValue',
+    header: 'Est. Value',
+    cell: ({ row }) => (
+      <span className="font-mono text-sm">
+        {row.original.estimatedDealValue
+          ? formatMoney(row.original.estimatedDealValue, row.original.transactionCurrency)
+          : '—'}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => <StatusBadge status={row.original.status} dot />,
+  },
+];
+
+// Corporate Finance — backend not yet implemented
 const cfCols: ColumnDef<CorporateFinanceEngagement, any>[] = [
   {
     accessorKey: 'code',
     header: 'Code',
-    cell: ({ row }) => (
-      <span className="font-mono text-xs text-primary">{row.original.code}</span>
-    ),
+    cell: ({ row }) => <span className="font-mono text-xs text-primary">{row.original.code}</span>,
   },
   { accessorKey: 'client', header: 'Client' },
   {
@@ -52,54 +87,14 @@ const cfCols: ColumnDef<CorporateFinanceEngagement, any>[] = [
   },
 ];
 
-const maCols: ColumnDef<MaEngagement, any>[] = [
-  {
-    accessorKey: 'code',
-    header: 'Code',
-    cell: ({ row }) => (
-      <span className="font-mono text-xs text-primary">{row.original.code}</span>
-    ),
-  },
-  { accessorKey: 'buyer', header: 'Buyer' },
-  { accessorKey: 'target', header: 'Target' },
-  {
-    accessorKey: 'transactionType',
-    header: 'Type',
-    cell: ({ row }) => <StatusBadge status={row.original.transactionType} />,
-  },
-  {
-    accessorKey: 'estimatedValue',
-    header: 'Est. Value',
-    cell: ({ row }) => (
-      <span className="font-mono text-sm">{formatMoney(row.original.estimatedValue, row.original.currency)}</span>
-    ),
-  },
-  {
-    accessorKey: 'stage',
-    header: 'Stage',
-    cell: ({ row }) => <StatusBadge status={row.original.stage} />,
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => <StatusBadge status={row.original.status} dot />,
-  },
-];
-
+// Project Finance — backend not yet implemented
 const pfCols: ColumnDef<ProjectFacility, any>[] = [
   {
     accessorKey: 'code',
     header: 'Code',
-    cell: ({ row }) => (
-      <span className="font-mono text-xs text-primary">{row.original.code}</span>
-    ),
+    cell: ({ row }) => <span className="font-mono text-xs text-primary">{row.original.code}</span>,
   },
   { accessorKey: 'projectName', header: 'Project' },
-  {
-    accessorKey: 'sector',
-    header: 'Sector',
-    cell: ({ row }) => <StatusBadge status={row.original.sector} />,
-  },
   { accessorKey: 'sponsor', header: 'Sponsor' },
   {
     accessorKey: 'totalCost',
@@ -131,26 +126,30 @@ const pfCols: ColumnDef<ProjectFacility, any>[] = [
   },
 ];
 
-const taxCols: ColumnDef<TaxEngagement, any>[] = [
+// Tax Advisory — real entity fields
+const taxCols: ColumnDef<TaxAdvisoryEngagement, any>[] = [
   {
-    accessorKey: 'code',
+    accessorKey: 'engagementCode',
     header: 'Code',
     cell: ({ row }) => (
-      <span className="font-mono text-xs text-primary">{row.original.code}</span>
+      <Link to="/advisory/tax" className="font-mono text-xs text-primary hover:underline">
+        {row.original.engagementCode}
+      </Link>
     ),
   },
-  { accessorKey: 'client', header: 'Client' },
-  { accessorKey: 'jurisdiction', header: 'Jurisdiction' },
+  { accessorKey: 'clientName', header: 'Client' },
   {
-    accessorKey: 'serviceType',
-    header: 'Service',
-    cell: ({ row }) => <StatusBadge status={row.original.serviceType} />,
+    accessorKey: 'engagementType',
+    header: 'Type',
+    cell: ({ row }) => <StatusBadge status={row.original.engagementType} />,
   },
   {
-    accessorKey: 'estimatedFee',
-    header: 'Est. Fee',
+    accessorKey: 'advisoryFee',
+    header: 'Advisory Fee',
     cell: ({ row }) => (
-      <span className="font-mono text-sm">{formatMoney(row.original.estimatedFee, row.original.currency)}</span>
+      <span className="font-mono text-sm">
+        {row.original.advisoryFee ? formatMoney(row.original.advisoryFee) : '—'}
+      </span>
     ),
   },
   {
@@ -163,58 +162,55 @@ const taxCols: ColumnDef<TaxEngagement, any>[] = [
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export function AdvisoryDashboardPage() {
-  const [showNewDialog, setShowNewDialog] = useState(false);
-  void showNewDialog;
-
   const now = new Date();
   const fromYtd = `${now.getFullYear()}-01-01`;
   const toYtd = now.toISOString().slice(0, 10);
 
-  const { data: cfMandates = [], isLoading: cfLoading } = useQuery({
-    queryKey: ['advisory', 'corporate-finance', 'active'],
-    queryFn: () => advisoryApi.getCorporateFinanceActive(),
-  });
-  const { data: cfRevenue = [] } = useQuery({
-    queryKey: ['advisory', 'corporate-finance', 'revenue', fromYtd, toYtd],
-    queryFn: () => advisoryApi.getCorporateFinanceRevenue(fromYtd, toYtd),
-  });
   const { data: maMandates = [], isLoading: maLoading } = useQuery({
-    queryKey: ['advisory', 'ma-advisory', 'active'],
+    queryKey: QK.maActive,
     queryFn: () => advisoryApi.getMaAdvisoryActive(),
   });
-  const { data: maWorkload = [] } = useQuery({
-    queryKey: ['advisory', 'ma-advisory', 'workload'],
+  const { data: maWorkload = {} } = useQuery({
+    queryKey: QK.maWorkload,
     queryFn: () => advisoryApi.getMaAdvisoryWorkload(),
   });
+  const { data: maRevenue = 0 } = useQuery({
+    queryKey: QK.maRevenue(fromYtd, toYtd),
+    queryFn: () => advisoryApi.getMaAdvisoryRevenue(fromYtd, toYtd),
+  });
+  const { data: maPipeline = {} } = useQuery({
+    queryKey: QK.maPipeline,
+    queryFn: () => advisoryApi.getMaAdvisoryPipeline(),
+  });
+  const { data: cfMandates = [], isLoading: cfLoading } = useQuery({
+    queryKey: QK.corporateFinanceActive,
+    queryFn: () => advisoryApi.getCorporateFinanceActive(),
+    retry: false,
+  });
   const { data: pfFacilities = [], isLoading: pfLoading } = useQuery({
-    queryKey: ['advisory', 'project-finance', 'facilities', 'ACTIVE'],
+    queryKey: QK.projectFacilities('ACTIVE'),
     queryFn: () => advisoryApi.getProjectFacilities('ACTIVE'),
+    retry: false,
   });
   const { data: taxEngagements = [], isLoading: taxLoading } = useQuery({
-    queryKey: ['advisory', 'tax-advisory', 'active'],
+    queryKey: QK.taxActive,
     queryFn: () => advisoryApi.getTaxAdvisoryActive(),
   });
 
-  const activeMandates = cfMandates.length + maMandates.length + taxEngagements.length;
-  const pipelineValue = cfMandates.reduce((s, m) => s + (m.estimatedFee || 0), 0)
-    + maMandates.reduce((s, m) => s + (m.estimatedValue || 0), 0);
-  const revenueYtd = cfRevenue.reduce((s, r) => s + (r.revenue || 0), 0);
-  const avgUtilization =
-    maWorkload.length > 0
-      ? maWorkload.reduce((s, w) => s + (w.utilizationPct || 0), 0) / maWorkload.length
-      : 0;
+  const activeMandates = maMandates.length + cfMandates.length + taxEngagements.length;
+  const maPipelineValue = maMandates.reduce((s, m) => s + (m.estimatedDealValue || 0), 0);
+  const cfPipelineValue = cfMandates.reduce((s, m) => s + (m.estimatedFee || 0), 0);
 
-  // Revenue trend – merge CF + MA revenue by period
-  const revenueByPeriod: Record<string, { period: string; cfRevenue: number; maRevenue: number }> = {};
-  for (const r of cfRevenue) {
-    revenueByPeriod[r.period] = { period: r.period, cfRevenue: r.revenue, maRevenue: 0 };
-  }
-  const revenueTrend = Object.values(revenueByPeriod).slice(-12);
+  // M&A pipeline chart: status → count from backend Map<String,Long>
+  const pipelineChartData = Object.entries(maPipeline).map(([status, count]) => ({ status, count }));
 
-  // Tax engagements by service type
+  // M&A workload: banker → count from backend Map<String,Long>
+  const workloadEntries = Object.entries(maWorkload);
+
+  // Tax engagements by type
   const taxByType: Record<string, number> = {};
   for (const e of taxEngagements) {
-    taxByType[e.serviceType] = (taxByType[e.serviceType] || 0) + 1;
+    taxByType[e.engagementType] = (taxByType[e.engagementType] || 0) + 1;
   }
   const taxChartData = Object.entries(taxByType).map(([type, count]) => ({ type, count }));
 
@@ -222,7 +218,7 @@ export function AdvisoryDashboardPage() {
     <>
       <PageHeader
         title="Advisory Services"
-        subtitle="Corporate Finance, M&A, Project Finance & Tax Advisory hub"
+        subtitle="M&A, Corporate Finance, Project Finance & Tax Advisory hub"
       />
       <div className="page-container space-y-6">
         {/* KPI Cards */}
@@ -235,45 +231,40 @@ export function AdvisoryDashboardPage() {
             loading={cfLoading || maLoading || taxLoading}
           />
           <StatCard
-            label="Pipeline Value"
-            value={pipelineValue}
+            label="M&A Pipeline Value"
+            value={maPipelineValue + cfPipelineValue}
             format="money"
             compact
             icon={DollarSign}
             loading={cfLoading || maLoading}
           />
           <StatCard
-            label="Revenue YTD"
-            value={revenueYtd}
+            label="M&A Revenue YTD"
+            value={maRevenue}
             format="money"
             compact
             icon={TrendingUp}
           />
           <StatCard
-            label="Team Utilization"
-            value={avgUtilization}
-            format="percent"
+            label="Active Bankers"
+            value={workloadEntries.length}
+            format="number"
             icon={Users}
           />
         </div>
 
-        {/* Revenue Trend */}
-        {revenueTrend.length > 0 && (
+        {/* M&A Pipeline chart */}
+        {pipelineChartData.length > 0 && (
           <div className="rounded-xl border bg-card p-4">
-            <h3 className="text-sm font-semibold mb-4">Revenue Trend</h3>
+            <h3 className="text-sm font-semibold mb-4">M&A Pipeline by Stage</h3>
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={revenueTrend}>
+              <BarChart data={pipelineChartData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="period" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip
-                  formatter={(v: number) => formatMoney(v)}
-                  contentStyle={{ fontSize: 12 }}
-                />
-                <Legend />
-                <Line type="monotone" dataKey="cfRevenue" name="Corp Finance" stroke="#6366f1" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="maRevenue" name="M&A" stroke="#f59e0b" strokeWidth={2} dot={false} />
-              </LineChart>
+                <XAxis dataKey="status" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ fontSize: 12 }} />
+                <Bar dataKey="count" name="Engagements" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}
@@ -283,64 +274,29 @@ export function AdvisoryDashboardPage() {
           syncWithUrl
           tabs={[
             {
-              id: 'corporate-finance',
-              label: 'Corporate Finance',
-              badge: cfMandates.length || undefined,
-              content: (
-                <div className="p-4 space-y-3">
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setShowNewDialog(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
-                    >
-                      <Plus className="w-4 h-4" /> New +
-                    </button>
-                  </div>
-                  <DataTable
-                    columns={cfCols}
-                    data={cfMandates}
-                    isLoading={cfLoading}
-                    enableGlobalFilter
-                    enableExport
-                    exportFilename="corporate-finance-mandates"
-                    emptyMessage="No active mandates"
-                  />
-                </div>
-              ),
-            },
-            {
               id: 'ma-advisory',
               label: 'M&A Advisory',
               badge: maMandates.length || undefined,
               content: (
                 <div className="p-4 space-y-4">
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setShowNewDialog(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+                  <div className="flex items-center justify-between">
+                    <Link
+                      to="/advisory/ma"
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
                     >
-                      <Plus className="w-4 h-4" /> New +
-                    </button>
+                      Manage all M&A engagements <ChevronRight className="w-3 h-3" />
+                    </Link>
                   </div>
                   {/* Workload per banker */}
-                  {maWorkload.length > 0 && (
+                  {workloadEntries.length > 0 && (
                     <div className="rounded-xl border bg-card p-4">
-                      <h4 className="text-sm font-semibold mb-3">Banker Workload</h4>
+                      <h4 className="text-sm font-semibold mb-3">Lead Banker Workload</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {maWorkload.map((w) => (
-                          <div key={w.banker} className="flex items-center gap-3 p-3 rounded-lg border">
+                        {workloadEntries.map(([banker, count]) => (
+                          <div key={banker} className="flex items-center gap-3 p-3 rounded-lg border">
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{w.banker}</p>
-                              <p className="text-xs text-muted-foreground">{w.activeEngagements} engagements</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-mono font-semibold">{w.utilizationPct.toFixed(0)}%</p>
-                              <div className="w-16 bg-muted rounded-full h-1.5 mt-1">
-                                <div
-                                  className={`h-1.5 rounded-full ${w.utilizationPct >= 90 ? 'bg-red-500' : w.utilizationPct >= 70 ? 'bg-amber-500' : 'bg-green-500'}`}
-                                  style={{ width: `${Math.min(w.utilizationPct, 100)}%` }}
-                                />
-                              </div>
+                              <p className="text-sm font-medium truncate">{banker}</p>
+                              <p className="text-xs text-muted-foreground">{count} active engagement{count !== 1 ? 's' : ''}</p>
                             </div>
                           </div>
                         ))}
@@ -353,34 +309,8 @@ export function AdvisoryDashboardPage() {
                     isLoading={maLoading}
                     enableGlobalFilter
                     enableExport
-                    exportFilename="ma-advisory-mandates"
+                    exportFilename="ma-advisory-active"
                     emptyMessage="No active M&A mandates"
-                  />
-                </div>
-              ),
-            },
-            {
-              id: 'project-finance',
-              label: 'Project Finance',
-              badge: pfFacilities.length || undefined,
-              content: (
-                <div className="p-4 space-y-3">
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setShowNewDialog(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
-                    >
-                      <Plus className="w-4 h-4" /> New +
-                    </button>
-                  </div>
-                  <DataTable
-                    columns={pfCols}
-                    data={pfFacilities}
-                    isLoading={pfLoading}
-                    enableGlobalFilter
-                    enableExport
-                    exportFilename="project-facilities"
-                    emptyMessage="No active project facilities"
                   />
                 </div>
               ),
@@ -391,22 +321,22 @@ export function AdvisoryDashboardPage() {
               badge: taxEngagements.length || undefined,
               content: (
                 <div className="p-4 space-y-4">
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => setShowNewDialog(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+                  <div className="flex items-center justify-between">
+                    <Link
+                      to="/advisory/tax"
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
                     >
-                      <Plus className="w-4 h-4" /> New +
-                    </button>
+                      Manage all tax engagements <ChevronRight className="w-3 h-3" />
+                    </Link>
                   </div>
                   {taxChartData.length > 0 && (
                     <div className="rounded-xl border bg-card p-4">
-                      <h4 className="text-sm font-semibold mb-3">Engagements by Service Type</h4>
+                      <h4 className="text-sm font-semibold mb-3">Engagements by Type</h4>
                       <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={taxChartData}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                           <XAxis dataKey="type" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                           <Tooltip contentStyle={{ fontSize: 12 }} />
                           <Bar dataKey="count" name="Engagements" fill="#6366f1" radius={[4, 4, 0, 0]} />
                         </BarChart>
@@ -419,8 +349,60 @@ export function AdvisoryDashboardPage() {
                     isLoading={taxLoading}
                     enableGlobalFilter
                     enableExport
-                    exportFilename="tax-advisory-engagements"
+                    exportFilename="tax-advisory-active"
                     emptyMessage="No active tax engagements"
+                  />
+                </div>
+              ),
+            },
+            {
+              id: 'corporate-finance',
+              label: 'Corporate Finance',
+              badge: cfMandates.length || undefined,
+              content: (
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Link
+                      to="/advisory/corporate-finance"
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      Manage corporate finance mandates <ChevronRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                  <DataTable
+                    columns={cfCols}
+                    data={cfMandates}
+                    isLoading={cfLoading}
+                    enableGlobalFilter
+                    enableExport
+                    exportFilename="corporate-finance-mandates"
+                    emptyMessage="No active corporate finance mandates"
+                  />
+                </div>
+              ),
+            },
+            {
+              id: 'project-finance',
+              label: 'Project Finance',
+              badge: pfFacilities.length || undefined,
+              content: (
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Link
+                      to="/advisory/project-finance"
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      Manage project facilities <ChevronRight className="w-3 h-3" />
+                    </Link>
+                  </div>
+                  <DataTable
+                    columns={pfCols}
+                    data={pfFacilities}
+                    isLoading={pfLoading}
+                    enableGlobalFilter
+                    enableExport
+                    exportFilename="project-facilities"
+                    emptyMessage="No active project facilities"
                   />
                 </div>
               ),

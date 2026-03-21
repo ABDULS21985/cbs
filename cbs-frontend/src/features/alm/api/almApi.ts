@@ -96,31 +96,57 @@ export interface GapBucket {
   eveImpact?: number;
 }
 
+/**
+ * Aligns with the backend AlmGapReport entity fields (camelCase via Jackson).
+ * Backend fields: id, reportDate, currencyCode, buckets, totalRsa, totalRsl,
+ * cumulativeGap, gapRatio, niiBase, niiUp100bp, niiDown100bp, niiSensitivity,
+ * eveBase, eveUp200bp, eveDown200bp, eveSensitivity, weightedAvgDurationAssets,
+ * weightedAvgDurationLiabs, durationGap, status, generatedBy, approvedBy, createdAt
+ */
 export interface AlmGapReport {
   id: number;
-  asOfDate: string;
-  currency: string;
-  status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED';
-  shockScenario: ShockScenario;
+  /** ISO date string — maps to backend `reportDate` */
+  reportDate: string;
+  /** 3-char currency code — maps to backend `currencyCode` */
+  currencyCode: string;
+  /** Time bucket data as JSONB list */
   buckets: GapBucket[];
-  totalAssets: number;
-  totalLiabilities: number;
-  netGap: number;
-  approvedAt?: string;
+  totalRsa: number;
+  totalRsl: number;
+  cumulativeGap: number;
+  gapRatio: number;
+  niiBase: number;
+  niiUp100bp: number;
+  niiDown100bp: number;
+  niiSensitivity: number;
+  eveBase: number;
+  eveUp200bp: number;
+  eveDown200bp: number;
+  eveSensitivity: number;
+  weightedAvgDurationAssets?: number;
+  weightedAvgDurationLiabs?: number;
+  durationGap?: number;
+  /** 'DRAFT' | 'FINAL' */
+  status: string;
+  generatedBy?: string;
   approvedBy?: string;
   createdAt: string;
 }
 
+/**
+ * Aligns with backend AlmScenario entity.
+ * Backend fields: id, scenarioName, scenarioType, shiftBps (JSONB map),
+ * description, isRegulatory, isActive, createdAt
+ */
 export interface AlmScenario {
   id: number;
-  name: string;
-  type: string;
-  shockBps: number;
+  scenarioName: string;
+  scenarioType: string;
+  /** JSONB map of tenor -> bps */
+  shiftBps: Record<string, number>;
   description: string;
   isRegulatory: boolean;
-  status: 'ACTIVE' | 'INACTIVE';
-  requiredCapital?: number;
-  computedImpact?: number;
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -167,6 +193,24 @@ export interface AlmPosition {
   liquidityGap: number;
 }
 
+/**
+ * Duration analytics response — mirrors the Map<String,Object> returned by
+ * AlmService.calculateDurationAnalytics(). All keys are camelCase.
+ */
+export interface DurationAnalytics {
+  portfolioCode: string;
+  macaulayDurationAssets: number;
+  modifiedDurationAssets: number;
+  modifiedDurationLiabilities: number;
+  durationGap: number;
+  dv01: number;
+  totalAssetValue: number;
+  totalLiabValue: number;
+  dv01Ladder: Dv01LadderRow[];
+  keyRateDurations: KeyRateDurationPoint[];
+  computedAt: string;
+}
+
 export interface DurationMetrics {
   portfolioCode: string;
   assetDuration: number;
@@ -193,47 +237,52 @@ export interface Dv01LadderRow {
 export interface KeyRateDurationPoint {
   tenor: string;
   assetKrd: number;
+  /** Backend returns 'liabilityKrd' */
   liabilityKrd: number;
   netKrd: number;
 }
 
-export interface DurationAnalytics {
-  portfolioCode: string;
-  macaulayDurationAssets: number;
-  modifiedDurationAssets: number;
-  modifiedDurationLiabilities: number;
-  durationGap: number;
-  dv01: number;
-  totalAssetValue: number;
-  totalLiabValue: number;
-  dv01Ladder: Dv01LadderRow[];
-  keyRateDurations: KeyRateDurationPoint[];
-  computedAt: string;
-}
-
 export const almApi = {
   // Gap Reports
-  getGapReport: (date: string) =>
-    apiGet<AlmGapReport>(`/api/v1/alm/gap-report/${date}`),
+  /** Returns List<AlmGapReport> — we take first item or empty array */
+  getGapReportsByDate: (date: string) =>
+    apiGet<AlmGapReport[]>(`/api/v1/alm/gap-report/${date}`),
 
   getGapReports: () =>
     apiGet<AlmGapReport[]>('/api/v1/alm/gap-report'),
 
-  generateGapReport: (payload: {
-    asOfDate: string;
-    currency: string;
-    shockScenario: ShockScenario;
-  }) => apiPost<AlmGapReport>('/api/v1/alm/gap-report', payload),
+  /**
+   * Backend uses @RequestParam not @RequestBody for most fields.
+   * The buckets array is @RequestBody.
+   * We pass everything as query params + buckets in body.
+   */
+  generateGapReport: (params: {
+    reportDate: string;
+    currencyCode: string;
+    totalRsa: number;
+    totalRsl: number;
+    buckets?: Array<Record<string, unknown>>;
+    avgAssetDuration?: number;
+    avgLiabDuration?: number;
+  }) => {
+    const { reportDate, currencyCode, totalRsa, totalRsl, avgAssetDuration, avgLiabDuration, buckets = [] } = params;
+    const query = new URLSearchParams({
+      reportDate,
+      currencyCode,
+      totalRsa: String(totalRsa),
+      totalRsl: String(totalRsl),
+      ...(avgAssetDuration !== undefined ? { avgAssetDuration: String(avgAssetDuration) } : {}),
+      ...(avgLiabDuration !== undefined ? { avgLiabDuration: String(avgLiabDuration) } : {}),
+    });
+    return apiPost<AlmGapReport>(`/api/v1/alm/gap-report?${query}`, buckets);
+  },
 
   approveGapReport: (id: number) =>
     apiPost<AlmGapReport>(`/api/v1/alm/gap-report/${id}/approve`),
 
-  // Duration
-  getPortfolioDuration: (portfolioCode: string) =>
-    apiGet<DurationMetrics>(`/api/v1/alm/duration/${portfolioCode}`),
-
-  getDurationAnalytics: (portfolioCode: string) =>
-    apiGet<DurationAnalytics>(`/api/v1/alm/duration/${portfolioCode}`),
+  // Duration — returns Map<String,Object> cast as DurationAnalytics
+  getDurationAnalytics: (portfolioCode: string, yieldRate = 5.0) =>
+    apiGet<DurationAnalytics>(`/api/v1/alm/duration/${portfolioCode}`, { yieldRate }),
 
   // Scenarios
   getScenarios: () =>
@@ -243,17 +292,18 @@ export const almApi = {
     apiGet<AlmScenario[]>('/api/v1/alm/scenarios/regulatory'),
 
   createScenario: (payload: {
-    name: string;
-    type: string;
-    shockBps: number;
+    scenarioName: string;
+    scenarioType: string;
+    shiftBps: Record<string, number>;
     description: string;
+    isRegulatory?: boolean;
   }) => apiPost<AlmScenario>('/api/v1/alm/scenarios', payload),
 
   // Full ALM Positions (returns array of rows, one per bucket)
   getAlmPositions: (date: string, currency: string) =>
     apiGet<AlmPositionRow[]>(`/api/v1/alm-full/${date}/${currency}`),
 
-  calculateAlmPosition: (payload: { asOfDate: string; currency: string }) =>
+  calculateAlmPosition: (payload: AlmPositionRow) =>
     apiPost<AlmPositionRow>('/api/v1/alm-full', payload),
 
   // ALCO Pack

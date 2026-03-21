@@ -59,14 +59,14 @@ export function TdFrameworkDetailPage() {
   const canCheckRate = agreement.status === 'ACTIVE';
 
   const handleApprove = () => {
-    approveMutation.mutate({ number: agreement.agreementNumber, approvedBy }, {
+    approveMutation.mutate({ agreementNumber: agreement.agreementNumber, approvedBy }, {
       onSuccess: () => { toast.success('Framework approved'); setShowApprove(false); },
       onError: () => toast.error('Failed to approve'),
     });
   };
 
   const handleCheckRate = () => {
-    checkRateMutation.mutate({ number: agreement.agreementNumber, amount: calcAmount, tenorDays: calcTenor }, {
+    checkRateMutation.mutate({ agreementNumber: agreement.agreementNumber, amount: calcAmount, tenorDays: calcTenor }, {
       onSuccess: (data) => setCalcResult(data),
       onError: () => toast.error('Rate check failed'),
     });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle, XCircle, Edit, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -8,12 +8,10 @@ import { InfoGrid } from '@/components/shared/InfoGrid';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { FormSection } from '@/components/shared/FormSection';
 import { ConfirmDialog } from '@/components/shared';
-import { AgreementViewer } from '../components/AgreementViewer';
-import { SignaturePad } from '../components/SignaturePad';
-import { AmendmentTimeline } from '../components/AmendmentTimeline';
-import { agreementApi } from '../api/agreementApi';
 import { useActivateAgreement, useTerminateAgreement } from '../hooks/useAgreementsExt';
 import { formatDate } from '@/lib/formatters';
+import { apiGet } from '@/lib/api';
+import type { CustomerAgreement } from '../types/agreementExt';
 
 export function AgreementDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,18 +24,8 @@ export function AgreementDetailPage() {
 
   const { data: agreement, isLoading } = useQuery({
     queryKey: ['agreements', 'detail', Number(id)],
-    queryFn: () => agreementApi.getById(Number(id)),
-    enabled: !!id,
-  });
-
-  const signMutation = useMutation({
-    mutationFn: ({ sig, type }: { sig: string; type: 'CANVAS' | 'TYPED' }) =>
-      agreementApi.sign(Number(id), sig, type),
-    onSuccess: () => {
-      toast.success('Agreement signed successfully');
-      queryClient.invalidateQueries({ queryKey: ['agreements'] });
-    },
-    onError: () => toast.error('Failed to sign agreement'),
+    queryFn: () => apiGet<CustomerAgreement>(`/api/v1/agreements/${id}`),
+    enabled: !!id && Number(id) > 0,
   });
 
   const activateMutation = useActivateAgreement();
@@ -45,7 +33,7 @@ export function AgreementDetailPage() {
 
   const handleActivate = () => {
     if (!agreement) return;
-    activateMutation.mutate(agreement.agreementCode, {
+    activateMutation.mutate(agreement.agreementNumber, {
       onSuccess: () => {
         toast.success('Agreement activated');
         queryClient.invalidateQueries({ queryKey: ['agreements'] });
@@ -57,18 +45,15 @@ export function AgreementDetailPage() {
 
   const handleTerminate = () => {
     if (!agreement || !terminateReason.trim()) return;
-    terminateMutation.mutate(
-      { id: agreement.id, reason: terminateReason },
-      {
-        onSuccess: () => {
-          toast.success('Agreement terminated');
-          queryClient.invalidateQueries({ queryKey: ['agreements'] });
-          setTerminateOpen(false);
-          setTerminateReason('');
-        },
-        onError: () => toast.error('Failed to terminate agreement'),
+    terminateMutation.mutate(agreement.agreementNumber, {
+      onSuccess: () => {
+        toast.success('Agreement terminated');
+        queryClient.invalidateQueries({ queryKey: ['agreements'] });
+        setTerminateOpen(false);
+        setTerminateReason('');
       },
-    );
+      onError: () => toast.error('Failed to terminate agreement'),
+    });
   };
 
   if (isLoading || !agreement) {
@@ -91,8 +76,8 @@ export function AgreementDetailPage() {
     <>
       <PageHeader
         title={agreement.title}
-        subtitle={`${agreement.agreementCode} · v${agreement.version}`}
-        backTo="/agreements"
+        subtitle={`${agreement.agreementNumber} · ${agreement.agreementType.replace(/_/g, ' ')}`}
+        backTo="/agreements/list"
         actions={
           <div className="flex items-center gap-2">
             {status === 'DRAFT' && (
@@ -120,7 +105,7 @@ export function AgreementDetailPage() {
               </button>
             )}
             <button
-              onClick={() => navigate('/agreements')}
+              onClick={() => navigate('/agreements/list')}
               className="inline-flex items-center gap-2 px-3 py-2 border rounded-lg text-sm hover:bg-muted transition-colors"
             >
               <ArrowLeft className="w-4 h-4" /> Back
@@ -129,76 +114,57 @@ export function AgreementDetailPage() {
         }
       />
       <div className="page-container space-y-6">
-        {/* Termination banner */}
-        {status === 'TERMINATED' && agreement.amendments && (
+        {status === 'TERMINATED' && (
           <div className="flex items-start gap-3 p-4 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">
             <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm font-semibold text-red-700 dark:text-red-400">Agreement Terminated</p>
-              <p className="text-sm text-red-600 dark:text-red-500 mt-0.5">
-                This agreement has been terminated and is no longer active.
-              </p>
+              {agreement.terminationReason && (
+                <p className="text-sm text-red-600 dark:text-red-500 mt-0.5">{agreement.terminationReason}</p>
+              )}
             </div>
           </div>
         )}
 
-        {/* Info section */}
         <FormSection title="Agreement Information">
           <InfoGrid
             columns={4}
             items={[
-              { label: 'Agreement Number', value: agreement.agreementCode, mono: true, copyable: true },
-              { label: 'Customer', value: agreement.customerName || String(agreement.customerId) },
+              { label: 'Agreement Number', value: agreement.agreementNumber, mono: true, copyable: true },
+              { label: 'Customer ID', value: String(agreement.customerId), mono: true },
               { label: 'Type', value: agreement.agreementType.replace(/_/g, ' ') },
               { label: 'Status', value: <StatusBadge status={agreement.status} dot /> },
-              { label: 'Effective Date', value: agreement.effectiveDate || '—', format: agreement.effectiveDate ? 'date' : undefined },
-              { label: 'Expiry Date', value: agreement.expiryDate || '—', format: agreement.expiryDate ? 'date' : undefined },
-              { label: 'Auto-Renew', value: '—' },
-              { label: 'Notice Period', value: '—' },
-              { label: 'Product', value: agreement.productName || '—' },
-              { label: 'Document Ref', value: '—' },
-              { label: 'Signed', value: agreement.signedAt || 'Not yet signed', format: agreement.signedAt ? 'datetime' : undefined },
-              { label: 'Version', value: `v${agreement.version}` },
+              { label: 'Effective From', value: agreement.effectiveFrom || '—', format: agreement.effectiveFrom ? 'date' : undefined },
+              { label: 'Effective To', value: agreement.effectiveTo || 'Open-ended', format: agreement.effectiveTo ? 'date' : undefined },
+              { label: 'Auto-Renew', value: agreement.autoRenew ? `Yes (${agreement.renewalTermMonths ?? '?'} months)` : 'No' },
+              { label: 'Notice Period', value: agreement.noticePeriodDays ? `${agreement.noticePeriodDays} days` : '—' },
+              { label: 'Document Ref', value: agreement.documentRef || '—' },
+              { label: 'Signed By Customer', value: agreement.signedByCustomer || 'Not yet' },
+              { label: 'Signed By Bank', value: agreement.signedByBank || 'Not yet' },
+              { label: 'Signed Date', value: agreement.signedDate || '—', format: agreement.signedDate ? 'date' : undefined },
               { label: 'Created At', value: agreement.createdAt, format: 'datetime' },
-              { label: 'Updated At', value: agreement.updatedAt, format: 'datetime' },
+              { label: 'Updated At', value: agreement.updatedAt || '—', format: agreement.updatedAt ? 'datetime' : undefined },
             ]}
           />
         </FormSection>
 
-        {/* Description */}
-        {agreement.content && (
-          <AgreementViewer title="Agreement Content" content={agreement.content} />
-        )}
-
-        {/* Signature pad */}
-        {agreement.status === 'PENDING_SIGNATURE' && (
-          <FormSection title="Digital Signature">
-            <SignaturePad
-              onSignatureChange={(sig, type) => {
-                if (sig) signMutation.mutate({ sig, type });
-              }}
-            />
+        {agreement.description && (
+          <FormSection title="Description">
+            <p className="text-sm whitespace-pre-wrap">{agreement.description}</p>
           </FormSection>
         )}
-
-        {/* Amendment timeline */}
-        <FormSection title="Amendment History" collapsible defaultOpen={false}>
-          <AmendmentTimeline amendments={agreement.amendments || []} />
-        </FormSection>
       </div>
 
-      {/* Activate confirmation */}
       <ConfirmDialog
         open={activateOpen}
         onClose={() => setActivateOpen(false)}
         onConfirm={handleActivate}
         title="Activate Agreement"
-        description={`This will activate agreement "${agreement.title}" (${agreement.agreementCode}). The agreement will become effective immediately.`}
+        description={`This will activate agreement "${agreement.title}" (${agreement.agreementNumber}). The agreement will become effective immediately.`}
         confirmLabel="Activate"
         isLoading={activateMutation.isPending}
       />
 
-      {/* Terminate dialog with reason */}
       {terminateOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setTerminateOpen(false)} />
@@ -207,7 +173,7 @@ export function AgreementDetailPage() {
               <div>
                 <h3 className="text-lg font-semibold">Terminate Agreement</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  This will permanently terminate agreement <strong>{agreement.agreementCode}</strong>. Please provide a reason.
+                  This will permanently terminate agreement <strong>{agreement.agreementNumber}</strong>. Please provide a reason.
                 </p>
               </div>
               <div>

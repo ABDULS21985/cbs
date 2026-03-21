@@ -64,8 +64,8 @@ export function StressTestingPage() {
   // Filter scenarios
   const allScenarios = [...scenarios];
   const filtered = allScenarios.filter(s => {
-    if (filterCategory && s.type !== filterCategory) return false;
-    if (filterSearch && !s.name.toLowerCase().includes(filterSearch.toLowerCase())) return false;
+    if (filterCategory && s.scenarioType !== filterCategory) return false;
+    if (filterSearch && !s.scenarioName.toLowerCase().includes(filterSearch.toLowerCase())) return false;
     return true;
   });
 
@@ -311,7 +311,7 @@ export function StressTestingPage() {
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 {isReg && <Shield className="w-4 h-4 text-amber-500 flex-shrink-0" />}
-                                <h3 className="font-semibold text-sm truncate">{scenario.name}</h3>
+                                <h3 className="font-semibold text-sm truncate">{scenario.scenarioName}</h3>
                                 {isReg && (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 flex-shrink-0">
                                     Required
@@ -320,11 +320,11 @@ export function StressTestingPage() {
                               </div>
                               <p className="text-xs text-muted-foreground line-clamp-1">{scenario.description || 'No description'}</p>
                               <div className="flex items-center gap-3 mt-2 text-xs">
-                                <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full font-medium', CATEGORY_COLORS[scenario.type] || CATEGORY_COLORS.CUSTOM)}>
-                                  {scenario.type}
+                                <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full font-medium', CATEGORY_COLORS[scenario.scenarioType] || CATEGORY_COLORS.CUSTOM)}>
+                                  {scenario.scenarioType}
                                 </span>
-                                <span className="font-mono">{scenario.shockBps > 0 ? '+' : ''}{scenario.shockBps}bps</span>
-                                <StatusBadge status={scenario.status} />
+                                <span className="font-mono">{Object.keys(scenario.shiftBps).length > 0 ? `avg ${Math.round(Object.values(scenario.shiftBps).reduce((s, v) => s + v, 0) / Object.values(scenario.shiftBps).length)}bps` : '0bps'}</span>
+                                <StatusBadge status={scenario.isActive ? 'ACTIVE' : 'INACTIVE'} />
                               </div>
                             </div>
                           </div>

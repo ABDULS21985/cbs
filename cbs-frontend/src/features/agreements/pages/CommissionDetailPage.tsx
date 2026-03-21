@@ -22,7 +22,7 @@ import {
   useCalculatePayout,
   useApprovePayout,
 } from '../hooks/useAgreementsExt';
-import type { CommissionPayout } from '../../admin/types/commission';
+import type { CommissionPayout } from '../types/agreementExt';
 
 export function CommissionDetailPage() {
   const { code } = useParams<{ code: string }>();

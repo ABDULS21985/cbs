@@ -85,4 +85,11 @@ export const cardsApi = {
   deactivate: (tokenId: number) =>
     apiPost<CardToken>(`/api/v1/cards/tokens/${tokenId}/deactivate`),
 
+  /** POST /v1/cards/tokens/provision/{cardId} — provision new token for wallet */
+  provisionToken: (cardId: number, data: { walletProvider: string; deviceName: string; deviceType: string }) =>
+    apiPost<CardToken>(`/api/v1/cards/tokens/provision/${cardId}`, data),
+
+  /** POST /v1/cards/tokens/deactivate-all/{cardId} — deactivate all tokens for a card */
+  deactivateAllTokens: (cardId: number) =>
+    apiPost<void>(`/api/v1/cards/tokens/deactivate-all/${cardId}`),
 };

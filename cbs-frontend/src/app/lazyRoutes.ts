@@ -931,6 +931,14 @@ export const AdvisoryDashboardPage = lazyNamed(
   () => import('@/features/advisory/pages/AdvisoryDashboardPage'),
   'AdvisoryDashboardPage',
 );
+export const MaAdvisoryPage = lazyNamed(
+  () => import('@/features/advisory/pages/MaAdvisoryPage'),
+  'MaAdvisoryPage',
+);
+export const TaxAdvisoryPage = lazyNamed(
+  () => import('@/features/advisory/pages/TaxAdvisoryPage'),
+  'TaxAdvisoryPage',
+);
 export const CorporateFinancePage = lazyNamed(
   () => import('@/features/advisory/pages/CorporateFinancePage'),
   'CorporateFinancePage',
@@ -972,6 +980,14 @@ export const AlcoReportPage = lazyNamed(
 export const RegulatorySubmissionPage = lazyNamed(
   () => import('@/features/alm/pages/RegulatorySubmissionPage'),
   'RegulatorySubmissionPage',
+);
+export const NiiSensitivityPage = lazyNamed(
+  () => import('@/features/alm/pages/NiiSensitivityPage'),
+  'NiiSensitivityPage',
+);
+export const IrrAnalysisPage = lazyNamed(
+  () => import('@/features/alm/pages/IrrAnalysisPage'),
+  'IrrAnalysisPage',
 );
 
 export const CustodySettlementPage = lazyNamed(

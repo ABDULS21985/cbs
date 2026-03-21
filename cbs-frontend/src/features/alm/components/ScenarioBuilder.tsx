@@ -76,7 +76,12 @@ export function ScenarioBuilder({ onCreated }: ScenarioBuilderProps) {
   const handleSave = () => {
     if (!name) return;
     createScenario.mutate(
-      { name, type: 'CUSTOM', shockBps: avgShock, description: `${description}${fxShock ? ` | FX shock: ${fxShock}%` : ''}` },
+      {
+        scenarioName: name,
+        scenarioType: 'CUSTOM',
+        shiftBps: shifts,
+        description: `${description}${fxShock ? ` | FX shock: ${fxShock}%` : ''}`,
+      },
       { onSuccess: () => { setName(''); setDescription(''); resetShifts(); onCreated?.(); } },
     );
   };

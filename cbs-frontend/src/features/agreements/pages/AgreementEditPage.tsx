@@ -24,7 +24,7 @@ export function AgreementEditPage() {
 
   const handleSubmit = (data: CreateCustomerAgreementPayload) => {
     updateMutation.mutate(
-      { id: numId, data },
+      { id: numId, data: data as any },
       {
         onSuccess: () => {
           toast.success('Agreement updated successfully');

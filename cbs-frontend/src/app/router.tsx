@@ -244,6 +244,8 @@ import {
   InvestBankPortfolioPage,
   InvestmentAnalyticsPage,
   AdvisoryDashboardPage,
+  MaAdvisoryPage,
+  TaxAdvisoryPage,
   CorporateFinancePage,
   ProjectFinancePage,
   SuitabilityPage,
@@ -254,6 +256,8 @@ import {
   StressTestingPage,
   AlcoReportPage,
   RegulatorySubmissionPage,
+  NiiSensitivityPage,
+  IrrAnalysisPage,
   CustodySettlementPage,
   CustodyHubPage,
   SecuritiesFailsPage,
@@ -508,6 +512,8 @@ export function AppRouter() {
         {/* Advisory */}
         <Route path="/advisory" element={<Outlet />}>
           <Route index element={<AdvisoryDashboardPage />} />
+          <Route path="ma" element={<MaAdvisoryPage />} />
+          <Route path="tax" element={<TaxAdvisoryPage />} />
           <Route path="corporate-finance" element={<CorporateFinancePage />} />
           <Route path="project-finance" element={<ProjectFinancePage />} />
           <Route path="suitability" element={<SuitabilityPage />} />
@@ -526,6 +532,8 @@ export function AppRouter() {
           <Route path="alco-report" element={<AlcoReportPage />} />
           <Route path="regulatory" element={<RegulatorySubmissionPage />} />
           <Route path="duration" element={<DurationAnalyticsPage />} />
+          <Route path="nii-sensitivity" element={<NiiSensitivityPage />} />
+          <Route path="irr" element={<IrrAnalysisPage />} />
         </Route>
 
         {/* Custody */}

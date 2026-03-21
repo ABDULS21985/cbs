@@ -187,7 +187,10 @@ export function SensitivityHeatMap({ report, loading }: SensitivityHeatMapProps)
   if (loading) return <div className="h-48 rounded-xl bg-muted animate-pulse" />;
 
   const NII_LIMIT = 15; // % of capital
-  const g = report?.netGap ?? 0;
+  // Use cumulativeGap (the correct field name from backend AlmGapReport entity)
+  const g = report?.cumulativeGap ?? 0;
+  // Use totalRsa (rate-sensitive assets) as a proxy for Tier-1 capital base
+  const reportTotalAssets = (report?.totalRsa ?? 0) + (report?.totalRsl ?? 0);
   const scenarios: HeatMapRow[] = [
     { scenario: '+100bps Parallel', niiImpact: g * 0.01 / 1e6, eveImpact: -g * 0.015 / 1e6, pctOfCapital: 0, breach: false },
     { scenario: '+200bps Parallel', niiImpact: g * 0.02 / 1e6, eveImpact: -g * 0.03 / 1e6, pctOfCapital: 0, breach: false },
@@ -200,7 +203,7 @@ export function SensitivityHeatMap({ report, loading }: SensitivityHeatMapProps)
     { scenario: 'Short-End Up (+200)', niiImpact: g * 0.018 / 1e6, eveImpact: -g * 0.012 / 1e6, pctOfCapital: 0, breach: false },
     { scenario: 'Inversion', niiImpact: -g * 0.012 / 1e6, eveImpact: g * 0.025 / 1e6, pctOfCapital: 0, breach: false },
   ].map((r) => {
-    const capital = (report?.totalAssets ?? 1) * 0.08;
+    const capital = (reportTotalAssets > 0 ? reportTotalAssets : 1) * 0.08;
     const p = capital > 0 ? Math.abs(r.niiImpact * 1e6) / capital * 100 : 0;
     return { ...r, pctOfCapital: p, breach: p > NII_LIMIT };
   });

@@ -115,7 +115,7 @@ export function createTdSummary(data: Partial<TdFrameworkSummary>) {
 }
 
 export function getMaturityLadder(agreementId: number) {
-  return apiGet<Record<string, unknown>[]>(
+  return apiGet<Record<string, number>>(
     `/api/v1/td-framework-summary/${agreementId}/maturity-ladder`,
   );
 }

@@ -18,7 +18,7 @@ import {
   useCalculatePayout,
   useApprovePayout,
 } from '../hooks/useAgreementsExt';
-import type { CommissionAgreement, CommissionPayout } from '../../admin/types/commission';
+import type { CommissionAgreement, CommissionPayout } from '../types/agreementExt';
 
 // ── Create Agreement Dialog ──────────────────────────────────────────────────
 

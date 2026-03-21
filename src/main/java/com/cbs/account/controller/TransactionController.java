@@ -1,5 +1,6 @@
 package com.cbs.account.controller;
 
+import com.cbs.account.dto.TransactionAnalyticsDto;
 import com.cbs.account.dto.TransactionResponse;
 import com.cbs.account.dto.TransactionSearchCriteria;
 import com.cbs.account.dto.TransactionSummary;
@@ -86,6 +87,71 @@ public class TransactionController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<TransactionResponse>> getTransaction(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(transactionService.getTransaction(id)));
+    }
+
+    @GetMapping("/analytics/summary")
+    @Operation(summary = "Get transaction analytics KPI summary")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<TransactionAnalyticsDto.Summary>> getAnalyticsSummary(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionService.getAnalyticsSummary(from, to)));
+    }
+
+    @GetMapping("/analytics/volume-trend")
+    @Operation(summary = "Get transaction volume and value trend")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<java.util.List<TransactionAnalyticsDto.VolumeTrendPoint>>> getVolumeTrend(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false, defaultValue = "day") String granularity) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionService.getVolumeTrend(from, to, granularity)));
+    }
+
+    @GetMapping("/analytics/categories")
+    @Operation(summary = "Get spend category analytics")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<TransactionAnalyticsDto.CategoryAnalytics>> getCategoryAnalytics(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionService.getCategoryAnalytics(from, to)));
+    }
+
+    @GetMapping("/analytics/channels")
+    @Operation(summary = "Get channel performance analytics")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<TransactionAnalyticsDto.ChannelAnalytics>> getChannelAnalytics(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionService.getChannelAnalytics(from, to)));
+    }
+
+    @GetMapping("/analytics/top-accounts")
+    @Operation(summary = "Get top accounts by activity")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<java.util.List<TransactionAnalyticsDto.TopAccount>>> getTopAccounts(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false, defaultValue = "50") Integer limit) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionService.getTopAccounts(from, to, limit)));
+    }
+
+    @GetMapping("/analytics/failures")
+    @Operation(summary = "Get transaction failure analytics")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<TransactionAnalyticsDto.FailureAnalysis>> getFailureAnalytics(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionService.getFailureAnalysis(from, to)));
+    }
+
+    @GetMapping("/analytics/hourly-heatmap")
+    @Operation(summary = "Get hourly transaction velocity heatmap")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<TransactionAnalyticsDto.Heatmap>> getHourlyHeatmap(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionService.getHourlyHeatmap(from, to)));
     }
 
     @PostMapping("/{id}/reverse")

@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { almApi, type ShockScenario, type ActionItemStatus } from '../api/almApi';
+import { almApi, type ActionItemStatus } from '../api/almApi';
 
 const KEYS = {
-  gapReport: (date: string) => ['alm', 'gap-report', date],
+  gapReportsByDate: (date: string) => ['alm', 'gap-reports', date],
+  gapReports: () => ['alm', 'gap-reports'],
   positions: (date: string, currency: string) => ['alm', 'positions', date, currency],
   scenarios: () => ['alm', 'scenarios'],
   regulatoryScenarios: () => ['alm', 'scenarios', 'regulatory'],
-  duration: (portfolioCode: string) => ['alm', 'duration', portfolioCode],
+  durationAnalytics: (portfolioCode: string) => ['alm', 'duration-analytics', portfolioCode],
   alcoPacks: () => ['alm', 'alco-packs'],
   alcoPack: (id: number) => ['alm', 'alco-pack', id],
   alcoPackByMonth: (month: string) => ['alm', 'alco-pack', 'month', month],
@@ -18,11 +19,19 @@ const KEYS = {
   allSubmissions: () => ['alm', 'submissions'],
 };
 
-export function useAlmGapReport(date: string) {
+export function useAlmGapReportsByDate(date: string) {
   return useQuery({
-    queryKey: KEYS.gapReport(date),
-    queryFn: () => almApi.getGapReport(date),
+    queryKey: KEYS.gapReportsByDate(date),
+    queryFn: () => almApi.getGapReportsByDate(date),
     enabled: !!date,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useAlmGapReports() {
+  return useQuery({
+    queryKey: KEYS.gapReports(),
+    queryFn: () => almApi.getGapReports(),
     staleTime: 5 * 60_000,
   });
 }
@@ -56,12 +65,17 @@ export function useGenerateGapReport() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: {
-      asOfDate: string;
-      currency: string;
-      shockScenario: ShockScenario;
+      reportDate: string;
+      currencyCode: string;
+      totalRsa: number;
+      totalRsl: number;
+      buckets?: Array<Record<string, unknown>>;
+      avgAssetDuration?: number;
+      avgLiabDuration?: number;
     }) => almApi.generateGapReport(payload),
-    onSuccess: (_data, { asOfDate }) => {
-      queryClient.invalidateQueries({ queryKey: KEYS.gapReport(asOfDate) });
+    onSuccess: (_data, { reportDate }) => {
+      queryClient.invalidateQueries({ queryKey: KEYS.gapReportsByDate(reportDate) });
+      queryClient.invalidateQueries({ queryKey: KEYS.gapReports() });
     },
   });
 }
@@ -70,10 +84,11 @@ export function useCreateScenario() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: {
-      name: string;
-      type: string;
-      shockBps: number;
+      scenarioName: string;
+      scenarioType: string;
+      shiftBps: Record<string, number>;
       description: string;
+      isRegulatory?: boolean;
     }) => almApi.createScenario(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.scenarios() });
@@ -81,18 +96,10 @@ export function useCreateScenario() {
   });
 }
 
-export function usePortfolioDuration(portfolioCode: string) {
+export function useDurationAnalytics(portfolioCode: string, yieldRate?: number) {
   return useQuery({
-    queryKey: KEYS.duration(portfolioCode),
-    queryFn: () => almApi.getPortfolioDuration(portfolioCode),
-    enabled: !!portfolioCode,
-  });
-}
-
-export function useDurationAnalytics(portfolioCode: string) {
-  return useQuery({
-    queryKey: ['alm', 'duration-analytics', portfolioCode],
-    queryFn: () => almApi.getDurationAnalytics(portfolioCode),
+    queryKey: [...KEYS.durationAnalytics(portfolioCode), yieldRate ?? 5.0],
+    queryFn: () => almApi.getDurationAnalytics(portfolioCode, yieldRate),
     enabled: !!portfolioCode,
     staleTime: 5 * 60_000,
   });
