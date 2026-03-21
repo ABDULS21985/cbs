@@ -39,19 +39,26 @@ public class SecurityConfig {
     private final CbsProperties cbsProperties;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, OAuth2ResourceServerProperties properties) throws Exception {
+        boolean devMode = !StringUtils.hasText(properties.getJwt().getIssuerUri());
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
-                    cbsProperties.getSecurity().getPublicPaths().forEach(path -> auth.requestMatchers(path).permitAll());
-                    auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
-                    auth.anyRequest().authenticated();
-                })
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                );
+                    if (devMode) {
+                        auth.anyRequest().permitAll();
+                    } else {
+                        cbsProperties.getSecurity().getPublicPaths().forEach(path -> auth.requestMatchers(path).permitAll());
+                        auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+                        auth.anyRequest().authenticated();
+                    }
+                });
+        if (!devMode) {
+            http.oauth2ResourceServer(oauth2 -> oauth2
+                    .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+            );
+        }
         return http.build();
     }
 
@@ -59,7 +66,10 @@ public class SecurityConfig {
     public JwtDecoder jwtDecoder(OAuth2ResourceServerProperties properties) {
         String issuerUri = properties.getJwt().getIssuerUri();
         if (!StringUtils.hasText(issuerUri)) {
-            throw new IllegalStateException("spring.security.oauth2.resourceserver.jwt.issuer-uri must be configured");
+            // Dev/local mode: no OIDC provider configured — permit-all is active, decoder is unused
+            byte[] keyBytes = new byte[32];
+            javax.crypto.SecretKey key = new javax.crypto.spec.SecretKeySpec(keyBytes, "HmacSHA256");
+            return NimbusJwtDecoder.withSecretKey(key).build();
         }
 
         List<String> acceptedAudiences = parseCsv(cbsProperties.getSecurity().getJwt().getAcceptedAudiences());

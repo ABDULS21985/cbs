@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
-import { Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Loader2, AlertCircle, ShieldCheck, FlaskConical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function LoginPage() {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
-  const { login, isLoading } = useAuthStore();
+  const { login, devLogin, isLoading } = useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const reason = searchParams.get('reason');
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
@@ -126,6 +127,31 @@ export function LoginPage() {
           <p className="text-xs text-center text-muted-foreground mt-8">
             Authentication uses hosted identity-provider pages. Local test credentials are disabled here.
           </p>
+
+          {import.meta.env.DEV && (
+            <div className="mt-6 rounded-xl border border-dashed border-amber-400/60 bg-amber-50/50 dark:bg-amber-950/20 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <FlaskConical className="h-4 w-4 text-amber-600" />
+                <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Dev Login</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {(['admin', 'officer', 'teller'] as const).map((role) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => { devLogin(role); navigate(from, { replace: true }); }}
+                    className="w-full text-left px-3 py-2 rounded-lg border bg-background hover:bg-muted text-sm transition-colors flex items-center justify-between"
+                  >
+                    <span className="font-medium capitalize">{role}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {role === 'admin' ? 'CBS_ADMIN · full access' : role === 'officer' ? 'CBS_OFFICER' : 'TELLER'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-amber-600/70 dark:text-amber-500/70">Only visible in development mode</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

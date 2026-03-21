@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-03-20T18:12:00+0100",
+    date = "2026-03-21T02:24:43+0100",
     comments = "version: 1.6.2, compiler: Eclipse JDT (IDE) 3.45.0.v20260224-0835, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
@@ -137,7 +137,9 @@ public class AccountMapperImpl implements AccountMapper {
 
         transactionResponse.accountNumber( journalAccountAccountNumber( journal ) );
         transactionResponse.amount( journal.getAmount() );
-        transactionResponse.channel( journal.getChannel() );
+        if ( journal.getChannel() != null ) {
+            transactionResponse.channel( journal.getChannel().name() );
+        }
         transactionResponse.contraAccountNumber( journal.getContraAccountNumber() );
         transactionResponse.createdAt( journal.getCreatedAt() );
         transactionResponse.createdBy( journal.getCreatedBy() );

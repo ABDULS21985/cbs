@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDownload } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
 import api from '@/lib/api';
 
 export interface TransactionSearchParams {
@@ -75,6 +75,18 @@ export const transactionApi = {
   },
 
   downloadReceipt: async (id: string): Promise<void> => {
-    return apiDownload(`/api/v1/transactions/${id}/receipt`, `receipt-${id}.pdf`);
+    const response = await api.get(`/api/v1/transactions/${id}/receipt`, { responseType: 'blob' });
+    const contentType = String(response.headers['content-type'] ?? 'application/octet-stream');
+    const contentDisposition = String(response.headers['content-disposition'] ?? '');
+    const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+    const fallbackName = contentType.includes('text/html') ? `receipt-${id}.html` : `receipt-${id}.pdf`;
+    const filename = filenameMatch?.[1] ?? fallbackName;
+
+    const blob = new Blob([response.data], { type: contentType });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(link.href);
   },
 };

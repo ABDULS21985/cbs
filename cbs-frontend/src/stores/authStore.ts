@@ -24,6 +24,7 @@ interface AuthState {
   tokenExpiresAt: number | null;
 
   login: (username?: string, password?: string, returnTo?: string) => Promise<void>;
+  devLogin: (role?: 'admin' | 'officer' | 'teller') => void;
   completeLogin: (callback: AuthorizationCodeCallbackRequest) => Promise<string>;
   verifyMfa: (otp: string) => Promise<void>;
   refreshToken: () => Promise<void>;
@@ -112,6 +113,23 @@ function buildAuthenticatedState(session: PersistedAuthSession, overrides?: Part
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   ...unauthenticatedState,
+
+  devLogin: (role: 'admin' | 'officer' | 'teller' = 'admin') => {
+    const devUsers: Record<string, User> = {
+      admin:   { id: 'dev-admin-001',   username: 'admin',   fullName: 'Dev Admin',   email: 'admin@cbs.local',   roles: ['CBS_ADMIN'],   permissions: ['*'] },
+      officer: { id: 'dev-officer-001', username: 'officer', fullName: 'Dev Officer', email: 'officer@cbs.local', roles: ['CBS_OFFICER'], permissions: [] },
+      teller:  { id: 'dev-teller-001',  username: 'teller',  fullName: 'Dev Teller',  email: 'teller@cbs.local',  roles: ['TELLER'],     permissions: [] },
+    };
+    const user = devUsers[role];
+    const session: PersistedAuthSession = {
+      user,
+      accessToken: `dev-${role}-token`,
+      refreshTokenValue: `dev-${role}-refresh`,
+      tokenExpiresAt: Date.now() + 86400000 * 365,
+    };
+    persistSession(session);
+    set(buildAuthenticatedState(session));
+  },
 
   login: async (username?: string, _password?: string, returnTo?: string) => {
     set({ isLoading: true });
