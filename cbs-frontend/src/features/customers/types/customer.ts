@@ -25,6 +25,21 @@ export type CustomerRiskRating =
 
 export type CustomerKycStatus = 'PENDING' | 'VERIFIED' | 'EXPIRED';
 
+export type AddressType = 'RESIDENTIAL' | 'OFFICE' | 'REGISTERED' | 'MAILING' | 'NEXT_OF_KIN';
+export type ContactType = 'PHONE' | 'EMAIL' | 'FAX' | 'SOCIAL';
+export type NoteType = 'GENERAL' | 'COMPLAINT' | 'INTERACTION' | 'KYC' | 'RISK' | 'INTERNAL';
+export type RelationshipType =
+  | 'PARENT_COMPANY'
+  | 'SUBSIDIARY'
+  | 'GUARANTOR'
+  | 'BENEFICIAL_OWNER'
+  | 'DIRECTOR'
+  | 'SIGNATORY'
+  | 'NEXT_OF_KIN'
+  | 'SPOUSE'
+  | 'GUARDIAN'
+  | 'OTHER';
+
 export interface CustomerAddress {
   id: number;
   addressType: string;
@@ -37,6 +52,8 @@ export interface CustomerAddress {
   district?: string | null;
   landmark?: string | null;
   isPrimary?: boolean | null;
+  isVerified?: boolean | null;
+  verifiedAt?: string | null;
 }
 
 export interface CustomerIdentification {
@@ -462,4 +479,47 @@ export interface RelationshipEdge {
 export interface RelationshipGraphData {
   nodes: RelationshipNode[];
   edges: RelationshipEdge[];
+}
+
+// ── Sub-resource Payloads ────────────────────────────────────────────────────
+
+export interface AddAddressPayload {
+  addressType: AddressType;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state?: string;
+  country: string;
+  postalCode?: string;
+  district?: string;
+  landmark?: string;
+  isPrimary?: boolean;
+}
+
+export interface AddContactPayload {
+  contactType: ContactType;
+  contactValue: string;
+  label?: string;
+  isPrimary?: boolean;
+}
+
+export interface AddNotePayload {
+  noteType?: NoteType;
+  subject?: string;
+  content: string;
+  isPinned?: boolean;
+}
+
+export interface AddRelationshipPayload {
+  relatedCustomerId: number;
+  relationshipType: RelationshipType;
+  ownershipPercentage?: number;
+  notes?: string;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+}
+
+export interface CustomerStatusChangePayload {
+  newStatus: CustomerStatus;
+  reason: string;
 }

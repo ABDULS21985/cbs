@@ -1,18 +1,31 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { custodyApi, type CustodyType } from '../api/custodyApi';
+import {
+  custodyApi,
+  type CreateCustodyAccountPayload,
+  type CreateSettlementInstructionPayload,
+  type CreateSettlementBatchPayload,
+} from '../api/custodyApi';
 
 const KEYS = {
   allAccounts: ['custody', 'accounts'] as const,
-  customerAccounts: (customerId: string) => ['custody', 'accounts', 'customer', customerId],
+  customerAccounts: (customerId: number) => ['custody', 'accounts', 'customer', customerId],
   account: (code: string) => ['custody', 'accounts', code],
   dashboard: () => ['settlements', 'dashboard'],
   instructions: () => ['settlements', 'instructions'],
-  failedSettlements: () => ['settlements', 'failed'],
   instruction: (ref: string) => ['settlements', 'instructions', ref],
+  failedSettlements: () => ['settlements', 'failed'],
   batches: () => ['settlements', 'batches'],
 };
 
-export function useCustomerCustodyAccounts(customerId: string) {
+export function useAllCustodyAccounts() {
+  return useQuery({
+    queryKey: KEYS.allAccounts,
+    queryFn: () => custodyApi.getAllCustodyAccounts(),
+    staleTime: 30_000,
+  });
+}
+
+export function useCustomerCustodyAccounts(customerId: number) {
   return useQuery({
     queryKey: KEYS.customerAccounts(customerId),
     queryFn: () => custodyApi.getCustomerCustodyAccounts(customerId),
@@ -36,10 +49,10 @@ export function useSettlementDashboard() {
   });
 }
 
-export function useFailedSettlements() {
+export function useSettlementInstructions() {
   return useQuery({
-    queryKey: KEYS.failedSettlements(),
-    queryFn: () => custodyApi.getFailedSettlements(),
+    queryKey: KEYS.instructions(),
+    queryFn: () => custodyApi.getInstructions(),
     staleTime: 30_000,
   });
 }
@@ -52,71 +65,10 @@ export function useSettlementInstruction(ref: string) {
   });
 }
 
-export function useCreateCustodyAccount() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: {
-      customerId: string;
-      custodyType: CustodyType;
-      denomination: string;
-      custodian: string;
-    }) => custodyApi.openCustodyAccount(payload),
-    onSuccess: (_data, { customerId }) => {
-      queryClient.invalidateQueries({ queryKey: KEYS.customerAccounts(customerId) });
-    },
-  });
-}
-
-export function useCreateSettlementInstruction() {
-  return useMutation({
-    mutationFn: (payload: {
-      from: string;
-      to: string;
-      amount: number;
-      currency: string;
-      settlementDate: string;
-      instrumentCode: string;
-    }) => custodyApi.createSettlementInstruction(payload),
-  });
-}
-
-export function useSubmitSettlement() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ref: string) => custodyApi.submitSettlement(ref),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: KEYS.dashboard() });
-    },
-  });
-}
-
-export function useRecordSettlementResult() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ ref, settled, reason }: { ref: string; settled: boolean; reason?: string }) =>
-      custodyApi.recordSettlementResult(ref, settled, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: KEYS.failedSettlements() });
-      queryClient.invalidateQueries({ queryKey: KEYS.dashboard() });
-      queryClient.invalidateQueries({ queryKey: KEYS.instructions() });
-    },
-  });
-}
-
-// ─── New hooks ──────────────────────────────────────────────────────────────
-
-export function useAllCustodyAccounts() {
+export function useFailedSettlements() {
   return useQuery({
-    queryKey: KEYS.allAccounts,
-    queryFn: () => custodyApi.getAllCustodyAccounts(),
-    staleTime: 30_000,
-  });
-}
-
-export function useSettlementInstructions() {
-  return useQuery({
-    queryKey: KEYS.instructions(),
-    queryFn: () => custodyApi.getInstructions(),
+    queryKey: KEYS.failedSettlements(),
+    queryFn: () => custodyApi.getFailedSettlements(),
     staleTime: 30_000,
   });
 }
@@ -129,11 +81,22 @@ export function useSettlementBatches() {
   });
 }
 
-export function useMatchInstructions() {
+export function useCreateCustodyAccount() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ ref1, ref2 }: { ref1: string; ref2: string }) =>
-      custodyApi.matchInstructions(ref1, ref2),
+    mutationFn: (payload: CreateCustodyAccountPayload) =>
+      custodyApi.openCustodyAccount(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.allAccounts });
+    },
+  });
+}
+
+export function useCreateSettlementInstruction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateSettlementInstructionPayload) =>
+      custodyApi.createSettlementInstruction(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.instructions() });
       queryClient.invalidateQueries({ queryKey: KEYS.dashboard() });
@@ -141,13 +104,49 @@ export function useMatchInstructions() {
   });
 }
 
+export function useMatchInstructions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ refA, refB }: { refA: string; refB: string }) =>
+      custodyApi.matchInstructions(refA, refB),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.instructions() });
+      queryClient.invalidateQueries({ queryKey: KEYS.dashboard() });
+    },
+  });
+}
+
+export function useSubmitSettlement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ref: string) => custodyApi.submitSettlement(ref),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.instructions() });
+      queryClient.invalidateQueries({ queryKey: KEYS.dashboard() });
+    },
+  });
+}
+
+export function useRecordSettlementResult() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ref, settled }: { ref: string; settled: boolean }) =>
+      custodyApi.recordSettlementResult(ref, settled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.failedSettlements() });
+      queryClient.invalidateQueries({ queryKey: KEYS.dashboard() });
+      queryClient.invalidateQueries({ queryKey: KEYS.instructions() });
+    },
+  });
+}
+
 export function useCreateSettlementBatch() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (instructionRefs: string[]) => custodyApi.createSettlementBatch(instructionRefs),
+    mutationFn: (payload: CreateSettlementBatchPayload) =>
+      custodyApi.createSettlementBatch(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.batches() });
-      queryClient.invalidateQueries({ queryKey: KEYS.instructions() });
     },
   });
 }

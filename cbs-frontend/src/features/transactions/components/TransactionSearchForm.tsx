@@ -244,6 +244,18 @@ export function TransactionSearchForm({
               ))}
             </select>
           </div>
+
+          <div className="flex items-end">
+            <label className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+              <input
+                type="checkbox"
+                checked={filters.flaggedOnly}
+                onChange={(e) => onChange({ flaggedOnly: e.target.checked })}
+                className="h-4 w-4 rounded border"
+              />
+              Show Flagged Only
+            </label>
+          </div>
         </div>
       </FormSection>
     </div>

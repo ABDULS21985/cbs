@@ -1,77 +1,174 @@
 import { apiGet, apiPost } from '@/lib/api';
+import api from '@/lib/api';
 
-export type CustodyType = 'SECURITIES' | 'DERIVATIVES' | 'MIXED';
-export type SettlementStatus = 'PENDING' | 'MATCHED' | 'SUBMITTED' | 'SETTLED' | 'FAILED';
+// ─── Custody Account (matches CustodyAccount entity) ─────────────────────────
 
 export interface CustodyAccount {
   id: number;
-  code: string;
-  customerId: string;
-  custodyType: CustodyType;
-  denomination: string;
-  custodian: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-  openedAt: string;
-  holdings?: { instrumentCode: string; quantity: number; marketValue: number }[];
+  accountCode: string;
+  accountName: string;
+  customerId: number;
+  accountType: string;
+  currency: string;
+  totalAssetsValue: number;
+  securitiesCount: number;
+  settlementEnabled: boolean;
+  corporateActions: boolean;
+  incomeCollection: boolean;
+  proxyVoting: boolean;
+  taxReclaim: boolean;
+  fxServices: boolean;
+  securitiesLending: boolean;
+  custodyFeeBps: number;
+  transactionFee?: number;
+  subCustodian?: string;
+  depositoryId?: string;
+  status: 'PENDING' | 'ACTIVE';
+  openedAt?: string;
 }
+
+// ─── Settlement Instruction (matches SettlementInstruction entity) ────────────
+
+export type InstructionType =
+  | 'DVP' | 'FOP' | 'RECEIVE_VS_PAYMENT' | 'DELIVERY_VS_PAYMENT'
+  | 'RECEIVE_FREE' | 'DELIVERY_FREE' | 'INTERNAL_TRANSFER';
+
+export type SettlementCycle = 'T0' | 'T1' | 'T2' | 'T3';
+
+export type MatchStatus = 'UNMATCHED' | 'MATCHED' | 'ALLEGED' | 'DISPUTED';
+
+export type SettlementStatus =
+  | 'CREATED' | 'MATCHED' | 'SETTLING' | 'SETTLED'
+  | 'PARTIALLY_SETTLED' | 'FAILED' | 'CANCELLED';
 
 export interface SettlementInstruction {
   id: number;
-  ref: string;
-  fromAccount: string;
-  toAccount: string;
-  amount: number;
-  currency: string;
-  settlementDate: string;
-  instrumentCode: string;
+  instructionRef: string;
+  custodyAccountId: number;
+  tradeRef?: string;
+  instructionType?: InstructionType;
+  settlementCycle?: SettlementCycle;
+  instrumentCode?: string;
+  instrumentName?: string;
+  isin?: string;
+  quantity?: number;
+  settlementAmount?: number;
+  currency?: string;
+  counterpartyCode?: string;
+  counterpartyName?: string;
+  counterpartyBic?: string;
+  counterpartyAccountRef?: string;
+  depositoryCode?: string;
+  placeOfSettlement?: string;
+  intendedSettlementDate?: string;
+  actualSettlementDate?: string;
+  matchStatus: MatchStatus;
+  matchedAt?: string;
+  priorityFlag: boolean;
+  holdReason?: string;
+  failReason?: string;
+  failedSince?: string;
+  penaltyAmount: number;
   status: SettlementStatus;
-  failureReason?: string;
-  matchedWith?: string;
-  submittedAt?: string;
-  settledAt?: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
-export interface SettlementDashboard {
-  totalToday: number;
-  pending: number;
-  failed: number;
-  settled: number;
-  settledPercent: number;
-  totalValueSettled: number;
-  totalValuePending: number;
-}
+// ─── Settlement Dashboard (matches Map<String,Long> from backend) ─────────────
+
+export type SettlementDashboard = {
+  totalPending: number;
+  totalSettled: number;
+  totalFailed: number;
+};
+
+// ─── Settlement Batch (matches SettlementBatch entity) ───────────────────────
+
+export type BatchStatus = 'PREPARING' | 'SUBMITTED' | 'IN_PROGRESS' | 'COMPLETED' | 'PARTIALLY_COMPLETED';
 
 export interface SettlementBatch {
   id: number;
   batchRef: string;
-  instructions: string[];
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  createdAt: string;
-  completedAt?: string;
+  depositoryCode?: string;
+  settlementDate?: string;
+  totalInstructions: number;
   settledCount: number;
   failedCount: number;
+  pendingCount: number;
+  totalDebitAmount?: number;
+  totalCreditAmount?: number;
+  netAmount?: number;
+  currency?: string;
+  cutoffTime?: string;
+  submittedAt?: string;
+  completedAt?: string;
+  status: BatchStatus;
+  createdAt?: string;
 }
+
+// ─── Create Payloads ─────────────────────────────────────────────────────────
+
+export interface CreateCustodyAccountPayload {
+  accountName: string;
+  customerId: number;
+  accountType: string;
+  currency?: string;
+  subCustodian?: string;
+  depositoryId?: string;
+  custodyFeeBps?: number;
+  transactionFee?: number;
+  settlementEnabled?: boolean;
+  corporateActions?: boolean;
+  incomeCollection?: boolean;
+  proxyVoting?: boolean;
+  taxReclaim?: boolean;
+  fxServices?: boolean;
+  securitiesLending?: boolean;
+}
+
+export interface CreateSettlementInstructionPayload {
+  custodyAccountId: number;
+  instructionType: InstructionType;
+  settlementCycle?: SettlementCycle;
+  instrumentCode?: string;
+  instrumentName?: string;
+  isin?: string;
+  quantity?: number;
+  settlementAmount?: number;
+  currency?: string;
+  counterpartyCode?: string;
+  counterpartyName?: string;
+  counterpartyBic?: string;
+  counterpartyAccountRef?: string;
+  depositoryCode?: string;
+  placeOfSettlement?: string;
+  intendedSettlementDate: string;   // LocalDate: "YYYY-MM-DD"
+  priorityFlag?: boolean;
+}
+
+export interface CreateSettlementBatchPayload {
+  depositoryCode?: string;
+  settlementDate: string;           // LocalDate: "YYYY-MM-DD"
+  currency?: string;
+  cutoffTime?: string;              // LocalTime: "HH:MM"
+}
+
+// ─── API ─────────────────────────────────────────────────────────────────────
 
 export const custodyApi = {
   // Custody Accounts
   getAllCustodyAccounts: () =>
     apiGet<CustodyAccount[]>('/api/v1/custody'),
 
-  openCustodyAccount: (payload: {
-    customerId: string;
-    custodyType: CustodyType;
-    denomination: string;
-    custodian: string;
-  }) => apiPost<CustodyAccount>('/api/v1/custody', payload),
+  openCustodyAccount: (payload: CreateCustodyAccountPayload) =>
+    apiPost<CustodyAccount>('/api/v1/custody', payload),
 
   getCustodyAccount: (code: string) =>
     apiGet<CustodyAccount>(`/api/v1/custody/${code}`),
 
-  getCustomerCustodyAccounts: (customerId: string) =>
+  getCustomerCustodyAccounts: (customerId: number) =>
     apiGet<CustodyAccount[]>(`/api/v1/custody/customer/${customerId}`),
 
-  // Settlement Dashboard
+  // Settlement Dashboard — returns Map<String,Long>
   getSettlementDashboard: () =>
     apiGet<SettlementDashboard>('/api/v1/settlements/dashboard'),
 
@@ -82,23 +179,27 @@ export const custodyApi = {
   getSettlementInstruction: (ref: string) =>
     apiGet<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}`),
 
-  createSettlementInstruction: (payload: {
-    fromAccount: string;
-    toAccount: string;
-    amount: number;
-    currency: string;
-    settlementDate: string;
-    instrumentCode: string;
-  }) => apiPost<SettlementInstruction>('/api/v1/settlements/instructions', payload),
+  createSettlementInstruction: (payload: CreateSettlementInstructionPayload) =>
+    apiPost<SettlementInstruction>('/api/v1/settlements/instructions', payload),
 
-  matchInstructions: (ref1: string, ref2: string) =>
-    apiPost<{ matched: boolean }>('/api/v1/settlements/instructions/match', { ref1, ref2 }),
+  // Backend: GET|POST /instructions/match?refA=...&refB=...
+  matchInstructions: (refA: string, refB: string) => {
+    const params = new URLSearchParams({ refA, refB });
+    return api.post<{ data: SettlementInstruction[] }>(
+      `/api/v1/settlements/instructions/match?${params}`,
+    ).then((r) => r.data.data);
+  },
 
   submitSettlement: (ref: string) =>
     apiPost<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/submit`),
 
-  recordSettlementResult: (ref: string, settled: boolean, reason?: string) =>
-    apiPost<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/result`, { settled, reason }),
+  // Backend: POST /{ref}/result?settled=true/false
+  recordSettlementResult: (ref: string, settled: boolean) => {
+    const params = new URLSearchParams({ settled: String(settled) });
+    return api.post<{ data: SettlementInstruction }>(
+      `/api/v1/settlements/instructions/${ref}/result?${params}`,
+    ).then((r) => r.data.data);
+  },
 
   // Failed Settlements
   getFailedSettlements: () =>
@@ -108,6 +209,6 @@ export const custodyApi = {
   getBatches: () =>
     apiGet<SettlementBatch[]>('/api/v1/settlements/batches'),
 
-  createSettlementBatch: (instructionRefs: string[]) =>
-    apiPost<SettlementBatch>('/api/v1/settlements/batches', { instructionRefs }),
+  createSettlementBatch: (payload: CreateSettlementBatchPayload) =>
+    apiPost<SettlementBatch>('/api/v1/settlements/batches', payload),
 };

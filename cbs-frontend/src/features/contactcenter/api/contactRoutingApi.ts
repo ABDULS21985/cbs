@@ -10,9 +10,9 @@ export const contactRoutingApi = {
   listActiveRules: (params?: Record<string, unknown>) =>
     apiGet<RoutingRule[]>('/api/v1/contact-routing/rules', params),
 
-  /** POST /v1/contact-routing/route */
-  routeContact: () =>
-    apiPost<Record<string, unknown>>('/api/v1/contact-routing/route'),
+  /** POST /v1/contact-routing/route?customerId=...&reason=...&channel=... */
+  routeContact: (customerId: number, reason: string, channel: string) =>
+    apiPost<Record<string, string>>(`/api/v1/contact-routing/route?customerId=${customerId}&reason=${encodeURIComponent(reason)}&channel=${encodeURIComponent(channel)}`),
 
   /** PUT /v1/contact-routing/agents/{agentId}/state */
   updateAgentState: (agentId: string | number, newState: string) =>
@@ -30,9 +30,13 @@ export const contactRoutingApi = {
   requestCallback: (data: Partial<CallbackRequest>) =>
     apiPost<CallbackRequest>('/api/v1/contact-routing/callbacks', data),
 
-  /** POST /v1/contact-routing/callbacks/{id}/attempt */
-  attemptCallback: (id: number) =>
-    apiPost<CallbackRequest>(`/api/v1/contact-routing/callbacks/${id}/attempt`),
+  /** POST /v1/contact-routing/callbacks/{id}/attempt?outcome=... */
+  attemptCallback: (id: number, outcome: string = 'ANSWERED') =>
+    apiPost<CallbackRequest>(`/api/v1/contact-routing/callbacks/${id}/attempt?outcome=${encodeURIComponent(outcome)}`),
+
+  /** GET /v1/contact-routing/callbacks */
+  getCallbacks: () =>
+    apiGet<CallbackRequest[]>('/api/v1/contact-routing/callbacks'),
 
   /** GET /v1/contact-routing/queues/center/{centerId} */
   getQueueDashboard: (centerId: number) =>

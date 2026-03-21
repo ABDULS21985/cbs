@@ -1,8 +1,9 @@
-import { apiGet, apiPatch, apiPost } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
+import api from '@/lib/api';
 import type { Counterparty } from '../types/counterparty';
 
 export const counterpartiesApi = {
-  /** POST /v1/counterparties */
+  /** POST /v1/counterparties (CBS_ADMIN only) */
   create: (data: {
     counterpartyCode: string;
     counterpartyName: string;
@@ -19,19 +20,23 @@ export const counterpartiesApi = {
     csaAgreement?: boolean;
   }) => apiPost<Counterparty>('/api/v1/counterparties', data),
 
-  /** PATCH /v1/counterparties/{code}/exposure */
-  updateExposure: (code: string, currentExposure: number) =>
-    apiPatch<Counterparty>(`/api/v1/counterparties/${code}/exposure`, { currentExposure }),
+  // Backend: PATCH /{code}/exposure?exposure=... (CBS_ADMIN only, @RequestParam BigDecimal exposure)
+  updateExposure: (code: string, exposure: number) => {
+    const params = new URLSearchParams({ exposure: String(exposure) });
+    return api.patch<{ data: Counterparty }>(
+      `/api/v1/counterparties/${code}/exposure?${params}`,
+    ).then((r) => r.data.data);
+  },
 
-  /** POST /v1/counterparties/{code}/verify-kyc */
-  verifyKyc: (code: string, data: { reviewedBy: string; kycStatus: string; reviewDate: string }) =>
-    apiPost<Counterparty>(`/api/v1/counterparties/${code}/verify-kyc`, data),
+  // Backend: POST /{code}/verify-kyc — no body, CBS_ADMIN only
+  verifyKyc: (code: string) =>
+    apiPost<Counterparty>(`/api/v1/counterparties/${code}/verify-kyc`),
 
   /** GET /v1/counterparties/type/{type} */
   byType: (type: string) =>
     apiGet<Counterparty[]>(`/api/v1/counterparties/type/${type}`),
 
-  /** GET /v1/counterparties/pending-kyc */
-  pendingKyc: (params?: Record<string, unknown>) =>
-    apiGet<Counterparty[]>('/api/v1/counterparties/pending-kyc', params),
+  /** GET /v1/counterparties/pending-kyc (CBS_ADMIN only) */
+  pendingKyc: () =>
+    apiGet<Counterparty[]>('/api/v1/counterparties/pending-kyc'),
 };

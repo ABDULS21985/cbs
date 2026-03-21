@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/shared';
 import { WidgetCard } from '../components/WidgetCard';
@@ -6,18 +7,38 @@ import { BarChartWidget } from '../widgets/BarChartWidget';
 import { PieChartWidget } from '../widgets/PieChartWidget';
 import { RecentTransactionsWidget } from '../widgets/RecentTransactionsWidget';
 import { PendingApprovalsWidget } from '../widgets/PendingApprovalsWidget';
-import { Wallet, Landmark, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Wallet, Landmark, AlertTriangle, Users, CreditCard, Clock } from 'lucide-react';
 import { useDashboardStats } from '../hooks/useDashboardData';
 
 export function DashboardPage() {
+  useEffect(() => { document.title = 'Dashboard | CBS'; }, []);
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
+
+  // Compute NPL ratio from real backend fields
+  const nplRatio = stats?.loanPortfolio && stats.loanPortfolio > 0
+    ? ((stats.nplAmount ?? 0) / stats.loanPortfolio) * 100
+    : 0;
 
   return (
     <>
       <PageHeader title="Dashboard" subtitle="Welcome back. Here's your banking overview." />
       <div className="page-container space-y-4">
-        {/* Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Stat Cards — mapped to GET /v1/dashboard/stats response fields */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <StatCard
+            label="Customers"
+            value={stats?.totalCustomers ?? 0}
+            format="number"
+            loading={statsLoading}
+            icon={Users}
+          />
+          <StatCard
+            label="Accounts"
+            value={stats?.totalAccounts ?? 0}
+            format="number"
+            loading={statsLoading}
+            icon={Wallet}
+          />
           <StatCard
             label="Total Deposits"
             value={stats?.totalDeposits ?? 0}
@@ -27,8 +48,8 @@ export function DashboardPage() {
             icon={Wallet}
           />
           <StatCard
-            label="Active Loans"
-            value={stats?.activeLoans ?? 0}
+            label="Loan Portfolio"
+            value={stats?.loanPortfolio ?? 0}
             format="money"
             compact
             loading={statsLoading}
@@ -36,18 +57,17 @@ export function DashboardPage() {
           />
           <StatCard
             label="NPL Ratio"
-            value={stats?.nplRatio ?? 0}
+            value={nplRatio}
             format="percent"
             loading={statsLoading}
             icon={AlertTriangle}
           />
           <StatCard
-            label="Revenue MTD"
-            value={stats?.revenueMtd ?? 0}
-            format="money"
-            compact
+            label="Active Cards"
+            value={stats?.activeCards ?? 0}
+            format="number"
             loading={statsLoading}
-            icon={TrendingUp}
+            icon={CreditCard}
           />
         </div>
 

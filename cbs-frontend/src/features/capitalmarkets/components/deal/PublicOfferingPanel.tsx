@@ -1,9 +1,11 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { StatusBadge } from '@/components/shared';
 import { InfoGrid } from '@/components/shared/InfoGrid';
 import { formatMoney, formatDate } from '@/lib/formatters';
-import { Send, Check, FileText } from 'lucide-react';
+import { Send, Check, FileText, DoorOpen, DoorClosed } from 'lucide-react';
 import { usePublicOfferingByDeal, useSubmitOfferingToRegulator, useRecordAllotment } from '../../hooks/useCapitalMarketsExt';
+import { capitalMarketsApi } from '../../api/capitalMarketsApi';
 
 interface PublicOfferingPanelProps {
   dealId: number;
@@ -12,8 +14,17 @@ interface PublicOfferingPanelProps {
 
 export function PublicOfferingPanel({ dealId, currency }: PublicOfferingPanelProps) {
   const { data: offering, isLoading } = usePublicOfferingByDeal(dealId);
+  const qc = useQueryClient();
   const submitMut = useSubmitOfferingToRegulator();
   const allotMut = useRecordAllotment();
+  const openMut = useMutation({
+    mutationFn: (id: number) => capitalMarketsApi.openOffering(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['capital-markets-ext', 'publicOfferings'] }); },
+  });
+  const closeMut = useMutation({
+    mutationFn: (id: number) => capitalMarketsApi.closeOffering(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['capital-markets-ext', 'publicOfferings'] }); },
+  });
 
   if (isLoading) return <div className="h-48 bg-muted animate-pulse rounded-xl" />;
 
@@ -58,6 +69,26 @@ export function PublicOfferingPanel({ dealId, currency }: PublicOfferingPanelPro
           >
             <Send className="w-4 h-4" />
             {submitMut.isPending ? 'Submitting...' : 'Submit to Regulator'}
+          </button>
+        )}
+        {offering.status === 'PENDING' && (
+          <button
+            onClick={() => openMut.mutate(offering.id, { onSuccess: () => toast.success('Offering opened for applications') })}
+            disabled={openMut.isPending}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            <DoorOpen className="w-4 h-4" />
+            {openMut.isPending ? 'Opening...' : 'Open Offering'}
+          </button>
+        )}
+        {offering.status === 'OPEN' && (
+          <button
+            onClick={() => closeMut.mutate(offering.id, { onSuccess: () => toast.success('Offering closed') })}
+            disabled={closeMut.isPending}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
+          >
+            <DoorClosed className="w-4 h-4" />
+            {closeMut.isPending ? 'Closing...' : 'Close Offering'}
           </button>
         )}
         {(offering.status === 'OPEN' || offering.status === 'CLOSED') && (

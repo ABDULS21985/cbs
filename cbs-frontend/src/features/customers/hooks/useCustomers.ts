@@ -224,6 +224,94 @@ export function useDeleteIdentification() {
   });
 }
 
+// ── Address Mutations ───────────────────────────────────────────────────────
+
+export function useAddAddress() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, data }: { customerId: number; data: import('../types/customer').AddAddressPayload }) =>
+      customerApi.addAddress(customerId, data),
+    onSuccess: (_data, { customerId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) });
+    },
+  });
+}
+
+export function useUpdateAddress() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, addressId, data }: { customerId: number; addressId: number; data: import('../types/customer').AddAddressPayload }) =>
+      customerApi.updateAddress(customerId, addressId, data),
+    onSuccess: (_data, { customerId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) });
+    },
+  });
+}
+
+export function useDeleteAddress() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, addressId }: { customerId: number; addressId: number }) =>
+      customerApi.deleteAddress(customerId, addressId),
+    onSuccess: (_data, { customerId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) });
+    },
+  });
+}
+
+// ── Contact Mutations ───────────────────────────────────────────────────────
+
+export function useAddContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, data }: { customerId: number; data: import('../types/customer').AddContactPayload }) =>
+      customerApi.addContact(customerId, data),
+    onSuccess: (_data, { customerId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) });
+    },
+  });
+}
+
+// ── Note Mutations ──────────────────────────────────────────────────────────
+
+export function useAddNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, data }: { customerId: number; data: import('../types/customer').AddNotePayload }) =>
+      customerApi.addNote(customerId, data),
+    onSuccess: (_data, { customerId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) });
+    },
+  });
+}
+
+// ── Relationship Mutations ──────────────────────────────────────────────────
+
+export function useAddRelationship() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, data }: { customerId: number; data: import('../types/customer').AddRelationshipPayload }) =>
+      customerApi.addRelationship(customerId, data),
+    onSuccess: (_data, { customerId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) });
+    },
+  });
+}
+
+// ── Status Change ───────────────────────────────────────────────────────────
+
+export function useChangeCustomerStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, data }: { customerId: number; data: import('../types/customer').CustomerStatusChangePayload }) =>
+      customerApi.changeStatus(customerId, data),
+    onSuccess: (_data, { customerId }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) });
+      qc.invalidateQueries({ queryKey: queryKeys.customers.all });
+    },
+  });
+}
+
 export function useCustomerFiltersFromUrl() {
   const [searchParams, setSearchParams] = useSearchParams();
 

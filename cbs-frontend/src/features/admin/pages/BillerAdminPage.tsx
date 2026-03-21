@@ -12,21 +12,24 @@ import type { Biller, BillerCategory, BillerCreateRequest } from '../types/bille
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// Must match com.cbs.billing.entity.BillerCategory exactly
 const BILLER_CATEGORIES: BillerCategory[] = [
-  'ELECTRICITY', 'WATER', 'INTERNET', 'TV', 'INSURANCE',
-  'GOVERNMENT', 'EDUCATION', 'TELECOMMUNICATIONS', 'OTHERS',
+  'UTILITY', 'TELECOM', 'INSURANCE', 'GOVERNMENT', 'EDUCATION',
+  'CABLE_TV', 'INTERNET', 'WATER', 'TAX', 'SUBSCRIPTION', 'OTHER',
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  ELECTRICITY: 'bg-yellow-100 text-yellow-800',
-  WATER: 'bg-blue-100 text-blue-800',
-  INTERNET: 'bg-violet-100 text-violet-800',
-  TV: 'bg-pink-100 text-pink-800',
+  UTILITY: 'bg-yellow-100 text-yellow-800',
+  TELECOM: 'bg-orange-100 text-orange-800',
   INSURANCE: 'bg-green-100 text-green-800',
   GOVERNMENT: 'bg-slate-100 text-slate-800',
   EDUCATION: 'bg-indigo-100 text-indigo-800',
-  TELECOMMUNICATIONS: 'bg-orange-100 text-orange-800',
-  OTHERS: 'bg-gray-100 text-gray-800',
+  CABLE_TV: 'bg-pink-100 text-pink-800',
+  INTERNET: 'bg-violet-100 text-violet-800',
+  WATER: 'bg-blue-100 text-blue-800',
+  TAX: 'bg-red-100 text-red-800',
+  SUBSCRIPTION: 'bg-teal-100 text-teal-800',
+  OTHER: 'bg-gray-100 text-gray-800',
 };
 
 // ─── Biller Form Modal ───────────────────────────────────────────────────────
@@ -43,7 +46,7 @@ function BillerFormModal({ biller, onClose }: BillerFormProps) {
   const [form, setForm] = useState<BillerCreateRequest>({
     billerCode: biller?.billerCode ?? '',
     billerName: biller?.billerName ?? '',
-    billerCategory: biller?.billerCategory ?? 'OTHERS',
+    billerCategory: biller?.billerCategory ?? 'OTHER',
     settlementBankCode: biller?.settlementBankCode ?? '',
     settlementAccountNumber: biller?.settlementAccountNumber ?? '',
     customerIdLabel: biller?.customerIdLabel ?? 'Account Number',
@@ -262,7 +265,7 @@ export function BillerAdminPage() {
       accessorKey: 'billerCategory',
       header: 'Category',
       cell: ({ row }) => (
-        <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', CATEGORY_COLORS[row.original.billerCategory] || CATEGORY_COLORS.OTHERS)}>
+        <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', CATEGORY_COLORS[row.original.billerCategory] || CATEGORY_COLORS.OTHER)}>
           {row.original.billerCategory}
         </span>
       ),

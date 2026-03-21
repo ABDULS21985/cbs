@@ -12,6 +12,9 @@ import type { DialogueMessage } from '../types/dialogue';
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
 export const CONTACT_CENTER_KEYS = {
+  // Centers
+  centers: ['contact-center', 'centers'] as const,
+
   // Interactions
   interactions: ['contact-center', 'interactions'] as const,
   interactionsByCustomer: (customerId: number) =>
@@ -75,7 +78,8 @@ export function useCreateInteraction() {
 export function useAssignInteraction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => contactCenterApi.assignInteraction(id),
+    mutationFn: ({ id, agentId }: { id: string; agentId: string }) =>
+      contactCenterApi.assignInteraction(id, agentId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.interactions });
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.routing });
@@ -86,10 +90,31 @@ export function useAssignInteraction() {
 export function useCompleteInteraction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => contactCenterApi.completeInteraction(id),
+    mutationFn: ({ id, disposition, sentiment, fcr }: { id: string; disposition: string; sentiment?: string; fcr?: boolean }) =>
+      contactCenterApi.completeInteraction(id, disposition, sentiment, fcr),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.interactions });
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.routing });
+    },
+  });
+}
+
+// ─── Center Hooks ────────────────────────────────────────────────────────────
+
+export function useCenters() {
+  return useQuery({
+    queryKey: CONTACT_CENTER_KEYS.centers,
+    queryFn: () => contactCenterApi.getCenters(),
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateCenter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Record<string, unknown>) => contactCenterApi.createCenter(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.centers });
     },
   });
 }
@@ -117,7 +142,8 @@ export function useCreateRoutingRule() {
 export function useRouteContact() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => contactRoutingApi.routeContact(),
+    mutationFn: ({ customerId, reason, channel }: { customerId: number; reason: string; channel: string }) =>
+      contactRoutingApi.routeContact(customerId, reason, channel),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.routing });
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.interactions });
@@ -157,7 +183,8 @@ export function useRequestCallback() {
 export function useAttemptCallback() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => contactRoutingApi.attemptCallback(id),
+    mutationFn: ({ id, outcome }: { id: number; outcome?: string }) =>
+      contactRoutingApi.attemptCallback(id, outcome),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.routing });
     },

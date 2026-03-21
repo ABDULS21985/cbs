@@ -1,17 +1,29 @@
 import { apiGet, apiPost } from '@/lib/api';
-import type { ChannelSession } from '../types/channelExt';
+import type { ChannelSession } from './channelApi';
 
-export const channelsApi = {
-  /** GET /v1/channels/sessions */
+export const channelsExtApi = {
+  /** GET /v1/channels/sessions — list all sessions (paged) */
   listSessions: (params?: Record<string, unknown>) =>
     apiGet<ChannelSession[]>('/api/v1/channels/sessions', params),
 
-  /** POST /v1/channels/sessions/{sessionId}/touch */
-  touch: (sessionId: number) =>
+  /** POST /v1/channels/sessions/{sessionId}/touch — @PathVariable String sessionId */
+  touch: (sessionId: string) =>
     apiPost<void>(`/api/v1/channels/sessions/${sessionId}/touch`),
 
-  /** GET /v1/channels/sessions/cleanup */
+  /** GET /v1/channels/sessions/cleanup — returns Map<String, Integer> */
   getCleanupInfo: (params?: Record<string, unknown>) =>
-    apiGet<Record<string, unknown>>('/api/v1/channels/sessions/cleanup', params),
+    apiGet<Record<string, number>>('/api/v1/channels/sessions/cleanup', params),
 
+  /** POST /v1/channels/sessions/{sessionId}/handoff */
+  handoff: (
+    sessionId: string,
+    params: { targetChannel: string; deviceId?: string; ipAddress?: string },
+  ) =>
+    apiGet<ChannelSession>(
+      `/api/v1/channels/sessions/${sessionId}/handoff`,
+      params as Record<string, unknown>,
+    ),
 };
+
+// Keep the old export name for any imports that used it
+export const channelsApi = channelsExtApi;

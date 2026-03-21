@@ -26,4 +26,5 @@ public class TransactionSearchCriteria {
     private String type;
     private String channel;
     private String status;
+    private Boolean flaggedOnly;
 }

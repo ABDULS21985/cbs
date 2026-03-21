@@ -44,4 +44,10 @@ public class TransactionResponse {
     private BigDecimal creditAmount;
     private BigDecimal fee;
     private List<GlEntryDto> glEntries;
+    private Boolean amlFlagged;
+    private TransactionWorkflowDto.AmlFlag amlFlag;
+    private List<TransactionWorkflowDto.AuditTrailEvent> auditTrail;
+    private TransactionWorkflowDto.DisputeSummary latestDispute;
+    private String customerEmail;
+    private String customerPhone;
 }

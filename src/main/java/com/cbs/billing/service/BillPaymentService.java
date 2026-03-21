@@ -52,6 +52,34 @@ public class BillPaymentService {
         return billerRepository.findByIsActiveTrueOrderByBillerNameAsc();
     }
 
+    public List<Biller> getAllBillers() {
+        return billerRepository.findAllByOrderByBillerNameAsc();
+    }
+
+    @Transactional
+    public Biller updateBiller(Long id, Biller updates) {
+        Biller existing = getBiller(id);
+        if (updates.getBillerName() != null) existing.setBillerName(updates.getBillerName());
+        if (updates.getBillerCategory() != null) existing.setBillerCategory(updates.getBillerCategory());
+        if (updates.getSettlementBankCode() != null) existing.setSettlementBankCode(updates.getSettlementBankCode());
+        if (updates.getSettlementAccountNumber() != null) existing.setSettlementAccountNumber(updates.getSettlementAccountNumber());
+        if (updates.getCustomerIdLabel() != null) existing.setCustomerIdLabel(updates.getCustomerIdLabel());
+        if (updates.getCustomerIdRegex() != null) existing.setCustomerIdRegex(updates.getCustomerIdRegex());
+        if (updates.getMinAmount() != null) existing.setMinAmount(updates.getMinAmount());
+        if (updates.getMaxAmount() != null) existing.setMaxAmount(updates.getMaxAmount());
+        if (updates.getCurrencyCode() != null) existing.setCurrencyCode(updates.getCurrencyCode());
+        if (updates.getFlatFee() != null) existing.setFlatFee(updates.getFlatFee());
+        if (updates.getPercentageFee() != null) existing.setPercentageFee(updates.getPercentageFee());
+        if (updates.getFeeCap() != null) existing.setFeeCap(updates.getFeeCap());
+        if (updates.getFeeBearer() != null) existing.setFeeBearer(updates.getFeeBearer());
+        if (updates.getContactEmail() != null) existing.setContactEmail(updates.getContactEmail());
+        if (updates.getContactPhone() != null) existing.setContactPhone(updates.getContactPhone());
+        if (updates.getIsActive() != null) existing.setIsActive(updates.getIsActive());
+        Biller saved = billerRepository.save(existing);
+        log.info("Biller updated: code={}, name={}", saved.getBillerCode(), saved.getBillerName());
+        return saved;
+    }
+
     public List<Biller> getBillersByCategory(BillerCategory category) {
         return billerRepository.findByBillerCategoryAndIsActiveTrue(category);
     }

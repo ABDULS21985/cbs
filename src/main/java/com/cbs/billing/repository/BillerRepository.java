@@ -13,4 +13,5 @@ public interface BillerRepository extends JpaRepository<Biller, Long> {
     Optional<Biller> findByBillerCode(String billerCode);
     List<Biller> findByBillerCategoryAndIsActiveTrue(BillerCategory category);
     List<Biller> findByIsActiveTrueOrderByBillerNameAsc();
+    List<Biller> findAllByOrderByBillerNameAsc();
 }

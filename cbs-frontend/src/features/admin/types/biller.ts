@@ -1,13 +1,16 @@
+// Must match com.cbs.billing.entity.BillerCategory exactly
 export type BillerCategory =
-  | 'ELECTRICITY'
-  | 'WATER'
-  | 'INTERNET'
-  | 'TV'
+  | 'UTILITY'
+  | 'TELECOM'
   | 'INSURANCE'
   | 'GOVERNMENT'
   | 'EDUCATION'
-  | 'TELECOMMUNICATIONS'
-  | 'OTHERS';
+  | 'CABLE_TV'
+  | 'INTERNET'
+  | 'WATER'
+  | 'TAX'
+  | 'SUBSCRIPTION'
+  | 'OTHER';
 
 export interface Biller {
   id: number;

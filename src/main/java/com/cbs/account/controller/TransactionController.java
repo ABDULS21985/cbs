@@ -4,7 +4,9 @@ import com.cbs.account.dto.TransactionAnalyticsDto;
 import com.cbs.account.dto.TransactionResponse;
 import com.cbs.account.dto.TransactionSearchCriteria;
 import com.cbs.account.dto.TransactionSummary;
-import com.cbs.account.service.AccountPostingService;
+import com.cbs.account.dto.TransactionWorkflowDto;
+import com.cbs.account.service.TransactionReversalWorkflowService;
+import com.cbs.account.service.TransactionStatementService;
 import com.cbs.account.service.TransactionService;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
@@ -33,8 +35,9 @@ import java.util.Map;
 @Tag(name = "Transaction Search", description = "Cross-account transaction search, detail, and reversal")
 public class TransactionController {
 
-    private final AccountPostingService accountPostingService;
     private final TransactionService transactionService;
+    private final TransactionReversalWorkflowService transactionReversalWorkflowService;
+    private final TransactionStatementService transactionStatementService;
 
     @GetMapping
     @Operation(summary = "Search transactions across all accounts")
@@ -50,6 +53,7 @@ public class TransactionController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String channel,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) Boolean flaggedOnly,
             @RequestParam(required = false) Integer pageSize,
             Pageable pageable) {
 
@@ -70,6 +74,7 @@ public class TransactionController {
                 .type(type)
                 .channel(channel)
                 .status(status)
+                .flaggedOnly(flaggedOnly)
                 .build();
 
         Page<TransactionResponse> result = transactionService.search(criteria, effectivePageable);
@@ -157,13 +162,40 @@ public class TransactionController {
     @PostMapping("/{id}/reverse")
     @Operation(summary = "Reverse a transaction")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> reverseTransaction(
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<TransactionWorkflowDto.ReversalResult>> reverseTransaction(
+            @PathVariable Long id,
+            @RequestBody(required = false) TransactionWorkflowDto.ReversalRequest body) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionReversalWorkflowService.submit(id, body)));
+    }
+
+    @PostMapping("/{id}/reversal/preview")
+    @Operation(summary = "Preview reversal impact")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<TransactionWorkflowDto.ReversalPreview>> previewReversal(
+            @PathVariable Long id,
+            @RequestBody(required = false) TransactionWorkflowDto.ReversalRequest body) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionReversalWorkflowService.preview(id, body)));
+    }
+
+    @PostMapping("/reversals/{id}/approve")
+    @Operation(summary = "Approve a pending reversal request")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN')")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<TransactionWorkflowDto.ReversalResult>> approveReversal(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionReversalWorkflowService.approve(id)));
+    }
+
+    @PostMapping("/reversals/{id}/reject")
+    @Operation(summary = "Reject a pending reversal request")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN')")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<TransactionWorkflowDto.ReversalResult>> rejectReversal(
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body) {
-        String reason = body != null ? body.get("reason") : null;
-        AccountPostingService.ReversalResult reversal = accountPostingService.reverseTransaction(id, reason);
         return ResponseEntity.ok(ApiResponse.ok(
-                Map.of("message", "Transaction reversed successfully", "reversalRef", reversal.reversalGroupRef())));
+                transactionReversalWorkflowService.reject(id, body != null ? body.get("reason") : null)
+        ));
     }
 
     @GetMapping("/{id}/receipt")
@@ -177,5 +209,35 @@ public class TransactionController {
                         "attachment; filename=receipt-" + transaction.getTransactionRef() + ".html")
                 .contentType(MediaType.TEXT_HTML)
                 .body(html);
+    }
+
+    @GetMapping("/reversals/{id}/advice")
+    @Operation(summary = "Download reversal advice letter")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<byte[]> downloadReversalAdvice(@PathVariable Long id) {
+        TransactionReversalWorkflowService.AdviceDownload file = transactionReversalWorkflowService.downloadAdvice(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + file.filename())
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .body(file.content());
+    }
+
+    @PostMapping("/statement")
+    @Operation(summary = "Generate transaction statement")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<byte[]> generateStatement(@RequestBody TransactionWorkflowDto.StatementRequest request) {
+        TransactionStatementService.StatementDownload file = transactionStatementService.generateStatement(request);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + file.filename())
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .body(file.content());
+    }
+
+    @PostMapping("/statement/email")
+    @Operation(summary = "Queue transaction statement delivery by email")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<TransactionWorkflowDto.StatementDelivery>> emailStatement(
+            @RequestBody TransactionWorkflowDto.StatementRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(transactionStatementService.queueEmail(request)));
     }
 }

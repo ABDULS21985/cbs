@@ -239,9 +239,10 @@ export function TransactionResultsTable({
       enableColumnVisibility
       emptyMessage="No transactions found"
       getRowClassName={(transaction) =>
-        highlightedTransactionIds.includes(String(transaction.id))
-          ? 'bg-green-50/70 dark:bg-green-900/15'
-          : undefined
+        cn(
+          transaction.amlFlagged && 'bg-red-50/70 dark:bg-red-950/20',
+          highlightedTransactionIds.includes(String(transaction.id)) && 'bg-green-50/70 dark:bg-green-900/15',
+        ) || undefined
       }
       manualPagination={{
         pageIndex,

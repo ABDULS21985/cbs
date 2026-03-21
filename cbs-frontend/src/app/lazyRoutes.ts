@@ -845,6 +845,10 @@ export const CapitalMarketsDealDetailPage = lazyNamed(
   () => import('@/features/capitalmarkets/pages/DealDetailPage'),
   'DealDetailPage',
 );
+export const PlacementDetailPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/PlacementDetailPage'),
+  'PlacementDetailPage',
+);
 export const CmTradeOpsPage = lazyNamed(
   () => import('@/features/capitalmarkets/pages/TradeOpsPage'),
   'TradeOpsPage',
@@ -1047,6 +1051,14 @@ export const CustodyValuationRunPage = lazyNamed(
 export const ChannelManagementPage = lazyNamed(
   () => import('@/features/channels/pages/ChannelManagementPage'),
   'ChannelManagementPage',
+);
+export const ChannelConfigPage = lazyNamed(
+  () => import('@/features/channels/pages/ChannelConfigPage'),
+  'ChannelConfigPage',
+);
+export const DigitalBankingPage = lazyNamed(
+  () => import('@/features/channels/pages/DigitalBankingPage'),
+  'DigitalBankingPage',
 );
 
 export const OpenBankingPage = lazyNamed(

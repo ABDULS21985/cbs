@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPut } from '@/lib/api';
-import type { ContactInteraction } from '../types/contactCenterExt';
+import type { ContactCenter, ContactInteraction } from '../types/contactCenterExt';
+import type { CallbackRequest } from '../types/contactRouting';
 
 export interface AgentState {
   agentId: string; agentName: string;
@@ -79,7 +80,15 @@ function mapQueueStatus(queue: BackendQueueStatus): QueueStatus {
 }
 
 export const contactCenterApi = {
-  // Agent & Queue — no .catch() so React Query exposes isError properly
+  // ─── Centers ─────────────────────────────────────────────────────────────────
+  /** GET /v1/contact-center — list all configured centers */
+  getCenters: () =>
+    apiGet<ContactCenter[]>('/api/v1/contact-center'),
+  /** POST /v1/contact-center — create a new center */
+  createCenter: (data: Partial<ContactCenter>) =>
+    apiPost<ContactCenter>('/api/v1/contact-center', data),
+
+  // ─── Agents & Queues ─────────────────────────────────────────────────────────
   getAgentStates: () => apiGet<BackendAgentState[]>('/api/v1/contact-center/agents').then((agents) => agents.map(mapAgentState)),
   updateAgentState: (agentId: string, state: string) => apiPut<void>(`/api/v1/contact-routing/agents/${agentId}/state?newState=${encodeURIComponent(state)}`),
   getQueueStatus: () => apiGet<BackendQueueStatus[]>('/api/v1/contact-center/queues').then((queues) => queues.map(mapQueueStatus)),
@@ -89,17 +98,34 @@ export const contactCenterApi = {
   saveDisposition: (interactionId: string, data: CallDisposition) => apiPost<void>(`/api/v1/contact-center/interactions/${interactionId}/dispose`, data),
   scheduleCallback: (data: { customerId: number; phone: string; preferredTime: string; reason: string }) => apiPost<void>('/api/v1/contact-center/callbacks', data),
 
-  // Interactions (consolidated from contactCenterExtApi.ts — renamed from assign2/byCustomer2)
+  // ─── Interactions ────────────────────────────────────────────────────────────
+  /** GET /v1/contact-center/interactions — all interactions */
+  getAllInteractions: () =>
+    apiGet<ContactInteraction[]>('/api/v1/contact-center/interactions'),
+  /** POST /v1/contact-center/interactions — start a new interaction */
   createInteraction: (data: Record<string, unknown>) =>
-    apiPost<Record<string, unknown>>('/api/v1/contact-center/interactions', data),
-  assignInteraction: (id: number) =>
-    apiPost<Record<string, unknown>>(`/api/v1/contact-center/interactions/${id}/assign`),
-  completeInteraction: (id: number) =>
-    apiPost<Record<string, unknown>>(`/api/v1/contact-center/interactions/${id}/complete`),
+    apiPost<ContactInteraction>('/api/v1/contact-center/interactions', data),
+  /** POST /v1/contact-center/interactions/{id}/assign?agentId=... */
+  assignInteraction: (id: string, agentId: string) =>
+    apiPost<ContactInteraction>(`/api/v1/contact-center/interactions/${id}/assign?agentId=${encodeURIComponent(agentId)}`),
+  /** POST /v1/contact-center/interactions/{id}/complete?disposition=...&sentiment=...&fcr=... */
+  completeInteraction: (id: string, disposition: string, sentiment?: string, fcr?: boolean) => {
+    const params = new URLSearchParams({ disposition });
+    if (sentiment) params.set('sentiment', sentiment);
+    if (fcr !== undefined) params.set('fcr', String(fcr));
+    return apiPost<ContactInteraction>(`/api/v1/contact-center/interactions/${id}/complete?${params.toString()}`);
+  },
   getInteractionsByCustomer: (customerId: number) =>
     apiGet<ContactInteraction[]>(`/api/v1/contact-center/interactions/customer/${customerId}`),
   getInteractionsByAgent: (agentId: string | number) =>
     apiGet<ContactInteraction[]>(`/api/v1/contact-center/interactions/agent/${agentId}`),
+
+  // ─── Callbacks ───────────────────────────────────────────────────────────────
+  /** GET /v1/contact-center/callbacks */
+  getCallbacks: () =>
+    apiGet<CallbackRequest[]>('/api/v1/contact-center/callbacks'),
+
+  // ─── Supervisor ──────────────────────────────────────────────────────────────
   sendSupervisorMessage: (agentId: string, agentName: string, subject: string, body: string) =>
     apiPost<Record<string, unknown>>('/api/v1/notifications/send-direct', {
       channel: 'IN_APP',

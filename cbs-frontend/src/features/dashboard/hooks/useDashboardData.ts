@@ -3,35 +3,39 @@ import { apiGet } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { dashboardApi } from '../api/dashboardApi';
 
-// Dashboard stats from various CBS endpoints
+/** GET /v1/dashboard/stats — real SQL aggregation of customer, account, loan, card, transaction KPIs */
 export function useDashboardStats() {
   return useQuery({
     queryKey: queryKeys.dashboard.stats,
-    queryFn: async () => {
-      // Aggregate from multiple endpoints
-      try {
-        const [customers] = await Promise.allSettled([
-          apiGet<any[]>('/api/v1/customers', { page: 0, size: 1 }),
-        ]);
-        return {
-          totalCustomers: customers.status === 'fulfilled' ? (customers.value as any)?.totalElements || 0 : 0,
-          totalDeposits: 0, // Would come from GL summary endpoint
-          activeLoans: 0,
-          nplRatio: 0,
-          revenueMtd: 0,
-        };
-      } catch {
-        return { totalCustomers: 0, totalDeposits: 0, activeLoans: 0, nplRatio: 0, revenueMtd: 0 };
-      }
-    },
-    staleTime: 60_000, // 1 minute
+    queryFn: () => apiGet<{
+      totalCustomers?: number;
+      activeCustomers?: number;
+      totalAccounts?: number;
+      totalBalance?: number;
+      totalDeposits?: number;
+      totalLoans?: number;
+      loanPortfolio?: number;
+      nplAmount?: number;
+      activeCards?: number;
+      pendingTransactions?: number;
+    }>('/api/v1/dashboard/stats'),
+    staleTime: 60_000,
   });
 }
 
+/** GET /v1/dashboard/recent-transactions — last 20 transactions from payment_instruction */
 export function useRecentTransactions() {
   return useQuery({
     queryKey: queryKeys.dashboard.recentTransactions,
-    queryFn: () => apiGet<any[]>('/api/v1/payments', { page: 0, size: 10, sort: 'createdAt', direction: 'DESC' }),
+    queryFn: () => apiGet<Array<{
+      id: number;
+      reference: string;
+      amount: number;
+      currency: string;
+      type: string;
+      status: string;
+      createdAt: string;
+    }>>('/api/v1/dashboard/recent-transactions'),
     staleTime: 30_000,
   });
 }

@@ -223,6 +223,7 @@ import {
   MarketMakingPage,
   CapitalMarketsDashboardPage,
   CapitalMarketsDealDetailPage,
+  PlacementDetailPage,
   CmTradeOpsPage,
   CmSettlementPage,
   CmCustodyPage,
@@ -272,6 +273,8 @@ import {
   CustodyValuationPage,
   CustodyValuationRunPage,
   ChannelManagementPage,
+  ChannelConfigPage,
+  DigitalBankingPage,
   OpenBankingPage,
   OBTppDetailPage,
   OBConsentMgmtPage,
@@ -498,6 +501,8 @@ export function AppRouter() {
           <Route path="economic-capital" element={<EconomicCapitalPage />} />
           <Route path="quotes" element={<QuoteManagementPage />} />
           <Route path="valuation" element={<ValuationPage />} />
+          <Route path="market-making" element={<MarketMakingPage />} />
+          <Route path="placements/:code" element={<PlacementDetailPage />} />
           <Route path=":id" element={<CapitalMarketsDealDetailPage />} />
         </Route>
 
@@ -561,6 +566,8 @@ export function AppRouter() {
         {/* Channels */}
         <Route path="/channels" element={<Outlet />}>
           <Route index element={<ChannelManagementPage />} />
+          <Route path="config" element={<ChannelConfigPage />} />
+          <Route path="digital" element={<DigitalBankingPage />} />
         </Route>
 
         {/* Open Banking */}

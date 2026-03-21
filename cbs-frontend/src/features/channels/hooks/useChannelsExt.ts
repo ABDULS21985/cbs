@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { channelsApi } from '../api/channelExtApi';
-import { channelActivityApi } from '../api/channelActivityApi';
-import type { ChannelActivityLog } from '../types/channelActivity';
+import { channelsExtApi } from '../api/channelExtApi';
+import { channelActivityExtApi } from '../api/digitalBankingApi';
+import type { ChannelActivityLog } from '../api/digitalBankingApi';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
@@ -24,15 +24,16 @@ const KEYS = {
 export function useChannelSessions(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: KEYS.sessions.list(params),
-    queryFn: () => channelsApi.listSessions(params),
+    queryFn: () => channelsExtApi.listSessions(params),
     staleTime: 15_000,
+    gcTime: 30_000,
   });
 }
 
 export function useChannelCleanupInfo(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: KEYS.sessions.cleanup(params),
-    queryFn: () => channelsApi.getCleanupInfo(params),
+    queryFn: () => channelsExtApi.getCleanupInfo(params),
     staleTime: 30_000,
   });
 }
@@ -40,7 +41,8 @@ export function useChannelCleanupInfo(params?: Record<string, unknown>) {
 export function useTouchSession() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (sessionId: number) => channelsApi.touch(sessionId),
+    // Backend: POST /v1/channels/sessions/{sessionId}/touch — sessionId is a String
+    mutationFn: (sessionId: string) => channelsExtApi.touch(sessionId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.sessions.all });
     },
@@ -52,7 +54,7 @@ export function useTouchSession() {
 export function useCustomerChannelActivity(id: number) {
   return useQuery({
     queryKey: KEYS.activity.byCustomer(id),
-    queryFn: () => channelActivityApi.getCustomerActivity(id),
+    queryFn: () => channelActivityExtApi.getCustomerActivity(id),
     enabled: !!id,
     staleTime: 30_000,
   });
@@ -61,7 +63,7 @@ export function useCustomerChannelActivity(id: number) {
 export function useLogChannelActivity() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<ChannelActivityLog>) => channelActivityApi.log(data),
+    mutationFn: (data: Partial<ChannelActivityLog>) => channelActivityExtApi.logActivity(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.activity.all });
     },
@@ -71,7 +73,12 @@ export function useLogChannelActivity() {
 export function useSummarizeChannelActivity() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => channelActivityApi.summarize(),
+    mutationFn: (params: {
+      customerId: number;
+      channel: string;
+      periodType: string;
+      periodDate: string;
+    }) => channelActivityExtApi.createSummary(params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.activity.all });
     },

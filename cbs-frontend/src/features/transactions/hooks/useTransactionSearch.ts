@@ -15,6 +15,7 @@ export interface TransactionFilters {
   type: TransactionSearchParams['type'];
   channel: TransactionSearchParams['channel'];
   status: TransactionSearchParams['status'];
+  flaggedOnly: boolean;
   page: number;
   pageSize: number;
 }
@@ -47,6 +48,7 @@ const DEFAULT_FILTERS: TransactionFilters = {
   type: 'ALL',
   channel: 'ALL',
   status: 'ALL',
+  flaggedOnly: false,
   page: 0,
   pageSize: 20,
 };
@@ -71,6 +73,7 @@ function getInitialFilters(searchParams: URLSearchParams): TransactionFilters {
     type: (searchParams.get('type') as TransactionFilters['type']) ?? DEFAULT_FILTERS.type,
     channel: (searchParams.get('ch') as TransactionFilters['channel']) ?? DEFAULT_FILTERS.channel,
     status: (searchParams.get('st') as TransactionFilters['status']) ?? DEFAULT_FILTERS.status,
+    flaggedOnly: searchParams.get('flag') === '1',
   };
 }
 
@@ -84,11 +87,12 @@ function mergeUrlFilters(base: TransactionFilters, searchParams: URLSearchParams
     type: (searchParams.get('type') as TransactionFilters['type']) ?? DEFAULT_FILTERS.type,
     channel: (searchParams.get('ch') as TransactionFilters['channel']) ?? DEFAULT_FILTERS.channel,
     status: (searchParams.get('st') as TransactionFilters['status']) ?? DEFAULT_FILTERS.status,
+    flaggedOnly: searchParams.get('flag') === '1',
   };
 }
 
 function hasUrlFilters(searchParams: URLSearchParams): boolean {
-  return ['q', 'acc', 'from', 'to', 'type', 'ch', 'st'].some((key) => {
+  return ['q', 'acc', 'from', 'to', 'type', 'ch', 'st', 'flag'].some((key) => {
     const value = searchParams.get(key);
     return value !== null && value !== '';
   });
@@ -103,6 +107,7 @@ function toSearchParams(filters: TransactionFilters): URLSearchParams {
   if (filters.type && filters.type !== 'ALL') next.set('type', filters.type);
   if (filters.channel && filters.channel !== 'ALL') next.set('ch', filters.channel);
   if (filters.status && filters.status !== 'ALL') next.set('st', filters.status);
+  if (filters.flaggedOnly) next.set('flag', '1');
   return next;
 }
 
@@ -118,6 +123,7 @@ function areFiltersEqual(left: TransactionFilters, right: TransactionFilters): b
     left.type === right.type &&
     left.channel === right.channel &&
     left.status === right.status &&
+    left.flaggedOnly === right.flaggedOnly &&
     left.page === right.page &&
     left.pageSize === right.pageSize
   );
@@ -137,6 +143,7 @@ function sanitizeFilters(filters: TransactionFilters): TransactionFilters {
     type: filters.type ?? DEFAULT_FILTERS.type,
     channel: filters.channel ?? DEFAULT_FILTERS.channel,
     status: filters.status ?? DEFAULT_FILTERS.status,
+    flaggedOnly: Boolean(filters.flaggedOnly),
     page: Number.isFinite(filters.page) ? filters.page : 0,
     pageSize: Number.isFinite(filters.pageSize) ? filters.pageSize : DEFAULT_FILTERS.pageSize,
   };
@@ -179,6 +186,7 @@ function getSearchDisplayParts(filters: TransactionFilters): string[] {
   if (filters.customerId.trim()) parts.push(`Cust ${filters.customerId.trim()}`);
   if (filters.type && filters.type !== 'ALL') parts.push(filters.type);
   if (filters.status && filters.status !== 'ALL') parts.push(filters.status);
+  if (filters.flaggedOnly) parts.push('Flagged only');
   if (filters.dateFrom || filters.dateTo) {
     parts.push([filters.dateFrom || 'Start', filters.dateTo || 'Now'].join(' - '));
   }
@@ -266,6 +274,7 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
     type: submittedFilters.type !== 'ALL' ? submittedFilters.type : undefined,
     channel: submittedFilters.channel !== 'ALL' ? submittedFilters.channel : undefined,
     status: submittedFilters.status !== 'ALL' ? submittedFilters.status : undefined,
+    flaggedOnly: submittedFilters.flaggedOnly || undefined,
     page: submittedFilters.page,
     pageSize: submittedFilters.pageSize,
   }), [submittedFilters]);
@@ -288,6 +297,7 @@ export function useTransactionSearch(refreshIntervalMs: number | false = false) 
       type: previousPeriodFilters.type !== 'ALL' ? previousPeriodFilters.type : undefined,
       channel: previousPeriodFilters.channel !== 'ALL' ? previousPeriodFilters.channel : undefined,
       status: previousPeriodFilters.status !== 'ALL' ? previousPeriodFilters.status : undefined,
+      flaggedOnly: previousPeriodFilters.flaggedOnly || undefined,
       page: 0,
       pageSize: 1,
     };

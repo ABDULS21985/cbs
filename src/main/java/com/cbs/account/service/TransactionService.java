@@ -5,12 +5,16 @@ import com.cbs.account.dto.TransactionAnalyticsDto;
 import com.cbs.account.dto.TransactionResponse;
 import com.cbs.account.dto.TransactionSearchCriteria;
 import com.cbs.account.dto.TransactionSummary;
+import com.cbs.account.dto.TransactionWorkflowDto;
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.entity.TransactionType;
+import com.cbs.account.repository.TransactionDisputeRepository;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.aml.entity.AmlAlert;
+import com.cbs.aml.repository.AmlAlertRepository;
 import com.cbs.gl.entity.JournalEntry;
 import com.cbs.gl.entity.JournalLine;
 import jakarta.persistence.EntityNotFoundException;
@@ -20,6 +24,7 @@ import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +62,9 @@ public class TransactionService {
 
     private final TransactionJournalRepository transactionJournalRepository;
     private final AccountRepository accountRepository;
+    private final AmlAlertRepository amlAlertRepository;
+    private final TransactionDisputeRepository transactionDisputeRepository;
+    private final TransactionAuditService transactionAuditService;
 
     public Page<TransactionResponse> search(TransactionSearchCriteria criteria, Pageable pageable) {
         return transactionJournalRepository.findAll(buildSpecification(criteria), pageable)
@@ -83,12 +91,27 @@ public class TransactionService {
     }
 
     public TransactionResponse getTransaction(Long id) {
-        return toResponse(getTransactionEntity(id));
+        TransactionJournal transaction = getTransactionEntity(id);
+        transactionAuditService.recordEvent(
+                transaction,
+                "VIEWED",
+                "Transaction viewed",
+                transaction.getChannel() != null ? transaction.getChannel().name() : null,
+                Map.of("transactionRef", transaction.getTransactionRef())
+        );
+        return toDetailedResponse(transaction);
     }
 
     public TransactionJournal getTransactionEntity(Long id) {
         return transactionJournalRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
+    }
+
+    public List<TransactionJournal> findTransactions(TransactionSearchCriteria criteria) {
+        return transactionJournalRepository.findAll(
+                buildSpecification(criteria),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
     }
 
     public TransactionAnalyticsDto.Summary getAnalyticsSummary(LocalDate fromDate, LocalDate toDate) {
@@ -438,6 +461,7 @@ public class TransactionService {
         Account primaryAccount = transaction.getAccount();
         Account contraAccount = resolveContraAccount(transaction);
         boolean outgoing = isOutgoing(transaction);
+        TransactionWorkflowDto.AmlFlag amlFlag = resolveAmlFlag(transaction);
 
         String fromAccount = outgoing
                 ? primaryAccount.getAccountNumber()
@@ -482,7 +506,18 @@ public class TransactionService {
                 .creditAmount(isCreditLike(transaction) ? transaction.getAmount() : null)
                 .fee(BigDecimal.ZERO)
                 .glEntries(mapGlEntries(transaction.getJournal()))
+                .amlFlagged(amlFlag != null)
+                .amlFlag(amlFlag)
+                .latestDispute(resolveLatestDispute(transaction.getId()))
+                .customerEmail(primaryAccount.getCustomer() != null ? primaryAccount.getCustomer().getEmail() : null)
+                .customerPhone(primaryAccount.getCustomer() != null ? primaryAccount.getCustomer().getPhonePrimary() : null)
                 .build();
+    }
+
+    private TransactionResponse toDetailedResponse(TransactionJournal transaction) {
+        TransactionResponse response = toResponse(transaction);
+        response.setAuditTrail(transactionAuditService.getAuditTrail(transaction));
+        return response;
     }
 
     private Specification<TransactionJournal> buildSpecification(TransactionSearchCriteria criteria) {
@@ -537,6 +572,17 @@ public class TransactionService {
             Predicate statusPredicate = buildStatusPredicate(criteria.getStatus(), root, builder);
             if (statusPredicate != null) {
                 predicates.add(statusPredicate);
+            }
+
+            if (Boolean.TRUE.equals(criteria.getFlaggedOnly())) {
+                List<String> flaggedRefs = amlAlertRepository.findAllFlaggedAlerts().stream()
+                        .flatMap(alert -> alert.getTriggerTransactions().stream())
+                        .distinct()
+                        .toList();
+                if (flaggedRefs.isEmpty()) {
+                    return builder.disjunction();
+                }
+                predicates.add(root.get("transactionRef").in(flaggedRefs));
             }
 
             return builder.and(predicates.toArray(new Predicate[0]));
@@ -735,6 +781,52 @@ public class TransactionService {
 
     private String escape(String value) {
         return HtmlUtils.htmlEscape(value == null ? "" : value);
+    }
+
+    private TransactionWorkflowDto.AmlFlag resolveAmlFlag(TransactionJournal transaction) {
+        if (!StringUtils.hasText(transaction.getTransactionRef())) {
+            return null;
+        }
+        return amlAlertRepository.findLatestByTransactionRef(transaction.getTransactionRef())
+                .map(this::toAmlFlag)
+                .orElse(null);
+    }
+
+    private TransactionWorkflowDto.AmlFlag toAmlFlag(AmlAlert alert) {
+        return TransactionWorkflowDto.AmlFlag.builder()
+                .alertRef(alert.getAlertRef())
+                .caseRef(alert.getSarReference() != null ? alert.getSarReference() : alert.getAlertRef())
+                .description(alert.getDescription())
+                .score(deriveAmlScore(alert))
+                .flaggedAt(alert.getCreatedAt())
+                .build();
+    }
+
+    private Integer deriveAmlScore(AmlAlert alert) {
+        int base = switch ((alert.getSeverity() == null ? "" : alert.getSeverity().toUpperCase(Locale.ROOT))) {
+            case "HIGH" -> 82;
+            case "MEDIUM" -> 71;
+            default -> 58;
+        };
+        if ("HIGH".equalsIgnoreCase(alert.getPriority())) {
+            base += 8;
+        } else if ("LOW".equalsIgnoreCase(alert.getPriority())) {
+            base -= 6;
+        }
+        return Math.max(0, Math.min(base, 100));
+    }
+
+    private TransactionWorkflowDto.DisputeSummary resolveLatestDispute(Long transactionId) {
+        return transactionDisputeRepository.findTopByTransactionIdOrderByFiledAtDesc(transactionId)
+                .map(dispute -> TransactionWorkflowDto.DisputeSummary.builder()
+                        .id(dispute.getId())
+                        .disputeRef(dispute.getDisputeRef())
+                        .reasonCode(dispute.getReasonCode())
+                        .status(dispute.getStatus())
+                        .filedAt(dispute.getFiledAt())
+                        .lastUpdatedAt(dispute.getLastUpdatedAt())
+                        .build())
+                .orElse(null);
     }
 
     private List<TransactionAnalyticsDto.ChannelMetric> loadChannelMetrics(LocalDate fromDate, LocalDate toDate) {

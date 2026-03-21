@@ -1,21 +1,30 @@
-import api, { apiGet, apiPost, apiPatch, apiPut, apiUpload } from '@/lib/api';
+import api, { apiGet, apiPost, apiPatch, apiPut, apiDelete, apiUpload } from '@/lib/api';
 import type { ApiResponse, PageMeta, PaginationParams } from '@/types/common';
 import type {
+  AddAddressPayload,
+  AddContactPayload,
+  AddNotePayload,
+  AddRelationshipPayload,
   BvnVerifyResult,
   Customer,
   CustomerAccount,
+  CustomerAddress,
   CustomerAuditChange,
   CustomerAuditEntry,
   CustomerCard,
   CustomerCase,
   CustomerCommunication,
+  CustomerContact,
   CustomerCounts,
   CustomerDocument,
   CustomerFilters,
   CustomerIdentification,
   CustomerListItem,
   CustomerLoan,
+  CustomerNote,
+  CustomerRelationship,
   CustomerSegment,
+  CustomerStatusChangePayload,
   CustomerTransaction,
   KycStats,
   OnboardingFormData,
@@ -723,5 +732,65 @@ export const customerApi = {
 
   getRelationshipGraph(id: number) {
     return apiGet<import('../types/customer').RelationshipGraphData>(`/api/v1/customers/${id}/relationships/graph`);
+  },
+
+  // ── Address CRUD ────────────────────────────────────────────────────────────
+
+  getAddresses(customerId: number) {
+    return apiGet<CustomerAddress[]>(`/api/v1/customers/${customerId}/addresses`);
+  },
+
+  addAddress(customerId: number, data: AddAddressPayload) {
+    return apiPost<CustomerAddress>(`/api/v1/customers/${customerId}/addresses`, data);
+  },
+
+  updateAddress(customerId: number, addressId: number, data: AddAddressPayload) {
+    return apiPut<CustomerAddress>(`/api/v1/customers/${customerId}/addresses/${addressId}`, data);
+  },
+
+  deleteAddress(customerId: number, addressId: number) {
+    return apiDelete<void>(`/api/v1/customers/${customerId}/addresses/${addressId}`);
+  },
+
+  // ── Contact Management ──────────────────────────────────────────────────────
+
+  getContacts(customerId: number) {
+    return apiGet<CustomerContact[]>(`/api/v1/customers/${customerId}/contacts`);
+  },
+
+  addContact(customerId: number, data: AddContactPayload) {
+    return apiPost<CustomerContact>(`/api/v1/customers/${customerId}/contacts`, data);
+  },
+
+  // ── Notes Management ────────────────────────────────────────────────────────
+
+  getNotes(customerId: number, params?: { page?: number; size?: number }) {
+    return apiGet<CustomerNote[]>(`/api/v1/customers/${customerId}/notes`, params as Record<string, unknown>);
+  },
+
+  addNote(customerId: number, data: AddNotePayload) {
+    return apiPost<CustomerNote>(`/api/v1/customers/${customerId}/notes`, data);
+  },
+
+  // ── Relationship Management ─────────────────────────────────────────────────
+
+  getRelationships(customerId: number) {
+    return apiGet<CustomerRelationship[]>(`/api/v1/customers/${customerId}/relationships`);
+  },
+
+  addRelationship(customerId: number, data: AddRelationshipPayload) {
+    return apiPost<CustomerRelationship>(`/api/v1/customers/${customerId}/relationships`, data);
+  },
+
+  // ── Status Change ───────────────────────────────────────────────────────────
+
+  changeStatus(customerId: number, data: CustomerStatusChangePayload) {
+    return apiPatch<Customer>(`/api/v1/customers/${customerId}/status`, data);
+  },
+
+  // ── Dashboard Stats ─────────────────────────────────────────────────────────
+
+  getDashboardStats() {
+    return apiGet<Record<string, number>>('/api/v1/customers/dashboard/stats');
   },
 };

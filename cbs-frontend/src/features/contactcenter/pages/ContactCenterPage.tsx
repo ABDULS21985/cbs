@@ -333,6 +333,112 @@ function RequestCallbackForm({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Assign Interaction Dialog ───────────────────────────────────────────────
+
+function AssignInteractionDialog({ interaction, agents, onClose }: { interaction: ContactInteraction; agents: AgentState[]; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [agentId, setAgentId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const available = agents.filter((a) => a.state === 'AVAILABLE');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!agentId) return;
+    setSubmitting(true);
+    contactCenterApi.assignInteraction(interaction.interactionId, agentId).then(() => {
+      toast.success('Interaction assigned');
+      qc.invalidateQueries({ queryKey: ['contact-center'] });
+      onClose();
+    }).catch(() => toast.error('Failed to assign')).finally(() => setSubmitting(false));
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+        <h2 className="text-lg font-semibold mb-1">Assign Interaction</h2>
+        <p className="text-xs text-muted-foreground mb-4 font-mono">{interaction.interactionId}</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Available Agent</label>
+            <select value={agentId} onChange={(e) => setAgentId(e.target.value)} required className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+              <option value="">Select agent...</option>
+              {available.map((a) => <option key={a.agentId} value={a.agentId}>{a.agentName} ({a.agentId})</option>)}
+            </select>
+            {available.length === 0 && <p className="text-xs text-amber-600 mt-1">No agents currently available</p>}
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+            <button type="submit" disabled={submitting || !agentId} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+              {submitting ? 'Assigning...' : 'Assign'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Complete Interaction Dialog ─────────────────────────────────────────────
+
+function CompleteInteractionDialog({ interaction, onClose }: { interaction: ContactInteraction; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [disposition, setDisposition] = useState('RESOLVED');
+  const [sentiment, setSentiment] = useState('NEUTRAL');
+  const [fcr, setFcr] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    contactCenterApi.completeInteraction(interaction.interactionId, disposition, sentiment, fcr).then(() => {
+      toast.success('Interaction completed');
+      qc.invalidateQueries({ queryKey: ['contact-center'] });
+      onClose();
+    }).catch(() => toast.error('Failed to complete')).finally(() => setSubmitting(false));
+  };
+
+  const fc = 'w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+        <h2 className="text-lg font-semibold mb-1">Complete Interaction</h2>
+        <p className="text-xs text-muted-foreground mb-4 font-mono">{interaction.interactionId}</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Disposition</label>
+            <select value={disposition} onChange={(e) => setDisposition(e.target.value)} className={fc}>
+              {['RESOLVED', 'ESCALATED', 'CALLBACK_SCHEDULED', 'TRANSFERRED', 'VOICEMAIL', 'NO_ANSWER', 'FOLLOW_UP_REQUIRED'].map((d) => (
+                <option key={d} value={d}>{d.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Sentiment</label>
+            <select value={sentiment} onChange={(e) => setSentiment(e.target.value)} className={fc}>
+              {['POSITIVE', 'NEUTRAL', 'NEGATIVE', 'VERY_NEGATIVE'].map((s) => (
+                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="fcr" checked={fcr} onChange={(e) => setFcr(e.target.checked)} className="rounded" />
+            <label htmlFor="fcr" className="text-sm font-medium">First Contact Resolution</label>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+            <button type="submit" disabled={submitting} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+              {submitting ? 'Completing...' : 'Complete'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Wallboard View ─────────────────────────────────────────────────────────
 
 function WallboardView({ agents, queues, onExit }: { agents: AgentState[]; queues: QueueStatus[]; onExit: () => void }) {
@@ -397,6 +503,8 @@ export function ContactCenterPage() {
   const [showWallboard, setShowWallboard] = useState(false);
   const [showNewInteraction, setShowNewInteraction] = useState(false);
   const [showRequestCallback, setShowRequestCallback] = useState(false);
+  const [showAssign, setShowAssign] = useState<ContactInteraction | null>(null);
+  const [showComplete, setShowComplete] = useState<ContactInteraction | null>(null);
   const [agentFilter, setAgentFilter] = useState('');
 
   // Real-time polling — no .catch() so isError works
@@ -483,6 +591,27 @@ export function ContactCenterPage() {
     {
       accessorKey: 'firstContactResolution', header: 'FCR',
       cell: ({ row }) => row.original.firstContactResolution ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <span className="text-xs text-muted-foreground">—</span>,
+    },
+    {
+      id: 'actions', header: 'Actions',
+      cell: ({ row }) => {
+        const ix = row.original;
+        const isActive = ix.status === 'ACTIVE' || ix.status === 'QUEUED';
+        return (
+          <div className="flex gap-1">
+            {(ix.status === 'QUEUED' || (!ix.agentId && isActive)) && (
+              <button onClick={(e) => { e.stopPropagation(); setShowAssign(ix); }} className="px-2 py-1 text-[10px] font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400">
+                Assign
+              </button>
+            )}
+            {isActive && ix.agentId && (
+              <button onClick={(e) => { e.stopPropagation(); setShowComplete(ix); }} className="px-2 py-1 text-[10px] font-medium rounded bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400">
+                Complete
+              </button>
+            )}
+          </div>
+        );
+      },
     },
   ];
 

@@ -25,7 +25,7 @@ public class BillerAdminController {
     @Operation(summary = "List all billers including inactive")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<List<Biller>>> listAll() {
-        return ResponseEntity.ok(ApiResponse.ok(billPaymentService.getAllActiveBillers()));
+        return ResponseEntity.ok(ApiResponse.ok(billPaymentService.getAllBillers()));
     }
 
     @PostMapping
@@ -41,6 +41,6 @@ public class BillerAdminController {
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Biller>> update(@PathVariable Long id, @RequestBody Biller biller) {
         biller.setId(id);
-        return ResponseEntity.ok(ApiResponse.ok(billPaymentService.createBiller(biller)));
+        return ResponseEntity.ok(ApiResponse.ok(billPaymentService.updateBiller(id, biller)));
     }
 }

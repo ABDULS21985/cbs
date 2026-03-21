@@ -2,6 +2,7 @@ package com.cbs.billing.entity;
 
 import com.cbs.account.entity.Account;
 import com.cbs.common.audit.AuditableEntity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -33,6 +34,7 @@ public class Biller extends AuditableEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "settlement_account_id")
+    @JsonIgnore
     private Account settlementAccount;
 
     @Column(name = "settlement_bank_code", length = 20)

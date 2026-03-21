@@ -2,6 +2,7 @@ import {
   LayoutDashboard, Users, Landmark, HandCoins, ArrowLeftRight, CreditCard,
   TrendingUp, ShieldAlert, Scale, Settings2, BarChart3, Shield,
   FileText, MessageSquare, Headphones, Activity, Building2, Briefcase, Globe,
+  Smartphone,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -248,6 +249,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Economic Capital', path: '/capital-markets/economic-capital' },
           { label: 'Quotes', path: '/capital-markets/quotes' },
           { label: 'Valuation', path: '/capital-markets/valuation' },
+          { label: 'Market Making', path: '/capital-markets/market-making' },
         ],
       },
       {
@@ -345,6 +347,14 @@ export const navigationItems: NavSection[] = [
           { label: 'Marketplace', path: '/operations/gateway/marketplace' },
           { label: 'Events', path: '/operations/gateway/events' },
           { label: 'Data Lake', path: '/operations/gateway/data-lake' },
+        ],
+      },
+      {
+        label: 'Channels', icon: Smartphone, path: '/channels', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
+        children: [
+          { label: 'Overview', path: '/channels' },
+          { label: 'Channel Config', path: '/channels/config' },
+          { label: 'Digital Banking', path: '/channels/digital' },
         ],
       },
       {
