@@ -82,6 +82,7 @@ export const navigationItems: NavSection[] = [
         children: [
           { label: 'New Transfer', path: '/payments/new' },
           { label: 'History', path: '/payments/history' },
+          { label: 'Analytics', path: '/payments/analytics' },
           { label: 'Standing Orders', path: '/payments/standing-orders' },
           { label: 'Bill Payments', path: '/payments/bills' },
           { label: 'Bulk Payments', path: '/payments/bulk' },
@@ -97,6 +98,8 @@ export const navigationItems: NavSection[] = [
           { label: 'Merchants', path: '/cards/merchants' },
           { label: 'POS Terminals', path: '/cards/pos' },
           { label: 'Clearing & Settlement', path: '/cards/clearing' },
+          { label: 'Networks', path: '/cards/networks' },
+          { label: 'Digital Wallets', path: '/cards/tokens' },
         ],
       },
       {

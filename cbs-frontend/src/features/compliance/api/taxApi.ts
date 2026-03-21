@@ -1,5 +1,5 @@
 import { apiGet, apiPost } from '@/lib/api';
-import type { TaxRule, TaxTransaction } from '../types/tax';
+import type { TaxPreview, TaxRule, TaxTransaction } from '../types/tax';
 
 export const taxApi = {
   /** POST /v1/tax/rules */
@@ -8,7 +8,7 @@ export const taxApi = {
 
   /** GET /v1/tax/preview */
   preview: (params?: Record<string, unknown>) =>
-    apiGet<TaxService.TaxPreview[]>('/api/v1/tax/preview', params),
+    apiGet<TaxPreview[]>('/api/v1/tax/preview', params),
 
   /** GET /v1/tax/history/account/{accountId} */
   getAccountHistory: (accountId: number) =>

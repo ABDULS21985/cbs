@@ -21,7 +21,6 @@ import {
   useCloseTaxEngagement,
   useTaxAdvisoryRevenue,
 } from '../hooks/useAdvisory';
-import { advisoryApi } from '../api/advisoryApi';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

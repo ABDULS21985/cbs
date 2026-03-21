@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
 import api from '@/lib/api';
 import type { MaEngagement } from '../types/maAdvisory';
 

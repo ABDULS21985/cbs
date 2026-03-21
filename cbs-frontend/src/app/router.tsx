@@ -113,6 +113,8 @@ import {
   MortgageOriginationPage,
   MortgageListPage,
   NewCasePage,
+  RcaPage,
+  RcaDashboardPage,
   NewFeeDefinitionPage,
   FeeWaiverDashboardPage,
   NewFixedDepositPage,
@@ -171,6 +173,7 @@ import {
   TemplateManagementPage,
   TradeFinancePage,
   TradeOpsPage,
+  TransactionAnalyticsPage,
   TransactionSearchPage,
   TreasuryAlmReportsPage,
   UserAdminPage,
@@ -298,6 +301,8 @@ import {
   TerminalDetailPage,
   CardRequestPage,
   CardIssuancePage,
+  CardNetworkPage,
+  CardTokenPage,
   TreasuryPositionsPage,
   FxRatesPage,
   ComplianceAssessmentsPage,
@@ -431,6 +436,7 @@ export function AppRouter() {
           <Route index element={<PaymentsDashboardPage />} />
           <Route path="new" element={<NewTransferPage />} />
           <Route path="history" element={<TransactionSearchPage />} />
+          <Route path="analytics" element={<TransactionAnalyticsPage />} />
           <Route path="standing-orders" element={<StandingOrderListPage />} />
           <Route path="standing-orders/:id" element={<StandingOrderDetailPage />} />
           <Route path="bills" element={<BillPaymentPage />} />
@@ -456,6 +462,8 @@ export function AppRouter() {
           <Route path="disputes/:disputeId" element={<CardDisputeDetailPage />} />
           <Route path="request" element={<CardRequestPage />} />
           <Route path="issuance" element={<CardIssuancePage />} />
+          <Route path="networks" element={<CardNetworkPage />} />
+          <Route path="tokens" element={<CardTokenPage />} />
         </Route>
 
         {/* Treasury */}
@@ -726,7 +734,9 @@ export function AppRouter() {
         <Route path="/cases" element={<Outlet />}>
           <Route index element={<CaseListPage />} />
           <Route path="new" element={<NewCasePage />} />
+          <Route path="rca-dashboard" element={<RcaDashboardPage />} />
           <Route path=":id" element={<CaseDetailPage />} />
+          <Route path=":id/rca" element={<RcaPage />} />
         </Route>
 
         {/* Wealth & Trust */}

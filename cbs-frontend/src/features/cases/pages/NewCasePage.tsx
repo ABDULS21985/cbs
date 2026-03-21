@@ -9,9 +9,9 @@ import { caseApi, type CustomerCase } from '../api/caseApi';
 const subCategories: Record<string, string[]> = {
   COMPLAINT: ['Service Quality', 'Charges/Fees', 'Account Issues', 'Card Issues', 'ATM/POS', 'Online Banking', 'Staff Behaviour'],
   SERVICE_REQUEST: ['Account Update', 'Card Request', 'Statement', 'Reference Letter', 'Cheque Book', 'Token/OTP'],
-  ENQUIRY: ['Product Information', 'Balance Inquiry', 'Rate Inquiry', 'General'],
+  INQUIRY: ['Product Information', 'Balance Inquiry', 'Rate Inquiry', 'General'],
   DISPUTE: ['Transaction Dispute', 'Charge Dispute', 'Interest Dispute'],
-  FRAUD: ['Unauthorized Transaction', 'Phishing', 'Card Fraud', 'Identity Theft'],
+  FRAUD_REPORT: ['Unauthorized Transaction', 'Phishing', 'Card Fraud', 'Identity Theft'],
 };
 
 export function NewCasePage() {
@@ -79,9 +79,9 @@ export function NewCasePage() {
                   <option value="">Select type...</option>
                   <option value="COMPLAINT">Complaint</option>
                   <option value="SERVICE_REQUEST">Service Request</option>
-                  <option value="ENQUIRY">Enquiry</option>
+                  <option value="INQUIRY">Inquiry</option>
                   <option value="DISPUTE">Dispute</option>
-                  <option value="FRAUD">Fraud</option>
+                  <option value="FRAUD_REPORT">Fraud Report</option>
                 </select>
               </div>
               <div>

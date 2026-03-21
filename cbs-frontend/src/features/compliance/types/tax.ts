@@ -1,5 +1,13 @@
 // Auto-generated from backend entities
 
+export interface TaxPreview {
+  taxCode: string;
+  taxName: string;
+  taxType: string;
+  rate: number;
+  amount: number;
+}
+
 export interface TaxRule {
   id: number;
   taxCode: string;

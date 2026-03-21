@@ -161,6 +161,10 @@ export const TransactionSearchPage = lazyNamed(
   () => import('@/features/transactions/pages/TransactionSearchPage'),
   'TransactionSearchPage',
 );
+export const TransactionAnalyticsPage = lazyNamed(
+  () => import('@/features/transactions/pages/TransactionAnalyticsPage'),
+  'TransactionAnalyticsPage',
+);
 
 export const GoalListPage = lazyNamed(
   () => import('@/features/goals/pages/GoalListPage'),
@@ -284,6 +288,14 @@ export const CaseDetailPage = lazyNamed(
 export const NewCasePage = lazyNamed(
   () => import('@/features/cases/pages/NewCasePage'),
   'NewCasePage',
+);
+export const RcaPage = lazyNamed(
+  () => import('@/features/cases/pages/RcaPage'),
+  'RcaPage',
+);
+export const RcaDashboardPage = lazyNamed(
+  () => import('@/features/cases/pages/RcaDashboardPage'),
+  'RcaDashboardPage',
 );
 
 export const PortalDashboard = lazyNamed(
@@ -1160,6 +1172,14 @@ export const CardRequestPage = lazyNamed(
 export const CardIssuancePage = lazyNamed(
   () => import('@/features/cards/pages/CardIssuancePage'),
   'CardIssuancePage',
+);
+export const CardNetworkPage = lazyNamed(
+  () => import('@/features/cards/pages/CardNetworkPage'),
+  'CardNetworkPage',
+);
+export const CardTokenPage = lazyNamed(
+  () => import('@/features/cards/pages/CardTokenPage'),
+  'CardTokenPage',
 );
 export const TreasuryPositionsPage = lazyNamed(
   () => import('@/features/treasury/pages/TreasuryPositionsPage'),

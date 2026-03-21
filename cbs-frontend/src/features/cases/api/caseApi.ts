@@ -1,19 +1,22 @@
 import { apiGet, apiPost, apiPut, apiUpload } from '@/lib/api';
 
+export type CaseNoteType = 'INTERNAL' | 'CUSTOMER' | 'ESCALATION' | 'RESOLUTION';
+
 export interface CustomerCase {
   id: number;
   caseNumber: string;
   customerId: number;
   customerName: string;
   customerSegment?: string;
-  caseType: 'COMPLAINT' | 'SERVICE_REQUEST' | 'ENQUIRY' | 'DISPUTE' | 'FRAUD';
+  caseType: 'COMPLAINT' | 'SERVICE_REQUEST' | 'INQUIRY' | 'DISPUTE' | 'FRAUD_REPORT';
   subCategory?: string;
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-  status: 'OPEN' | 'IN_PROGRESS' | 'ESCALATED' | 'PENDING_CUSTOMER' | 'RESOLVED' | 'CLOSED';
+  status: 'OPEN' | 'IN_PROGRESS' | 'ESCALATED' | 'PENDING_CUSTOMER' | 'PENDING_INTERNAL' | 'RESOLVED' | 'CLOSED' | 'REOPENED';
   subject: string;
   description: string;
   assignedTo?: string;
   assignedToName?: string;
+  assignedTeam?: string;
   escalatedTo?: string;
   rootCause?: string;
   resolution?: string;
@@ -34,6 +37,7 @@ export interface CustomerCase {
 export interface CaseActivity {
   id: number;
   type: 'NOTE' | 'STATUS_CHANGE' | 'ASSIGNMENT' | 'ESCALATION' | 'ATTACHMENT' | 'RESOLUTION';
+  noteType?: CaseNoteType;
   content: string;
   previousValue?: string;
   newValue?: string;
@@ -70,16 +74,16 @@ export const caseApi = {
     apiPost<CustomerCase>('/api/v1/cases', data),
   update: (caseNumber: string, data: Partial<CustomerCase>) =>
     apiPut<CustomerCase>(`/api/v1/cases/${caseNumber}`, data),
-  assign: (caseNumber: string, assignedTo: string) =>
-    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/assign`, { assignedTo }),
+  assign: (caseNumber: string, assignedTo: string, team?: string) =>
+    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/assign`, { assignedTo, ...(team ? { team } : {}) }),
   escalate: (caseNumber: string, escalatedTo: string, reason: string) =>
-    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/escalate`, { escalatedTo, reason }),
-  resolve: (caseNumber: string, resolution: string, rootCause?: string) =>
-    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/resolve`, { resolution, rootCause }),
-  close: (caseNumber: string) =>
-    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/close`, {}),
-  addNote: (caseNumber: string, content: string) =>
-    apiPost<CaseActivity>(`/api/v1/cases/${caseNumber}/notes`, { content }),
+    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/escalate?escalateTo=${encodeURIComponent(escalatedTo)}&reason=${encodeURIComponent(reason)}`),
+  resolve: (caseNumber: string, resolutionType: string, summary: string) =>
+    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/resolve?resolutionType=${encodeURIComponent(resolutionType)}&summary=${encodeURIComponent(summary)}`),
+  close: (caseNumber: string, reason?: string) =>
+    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/close${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`),
+  addNote: (caseNumber: string, content: string, noteType: CaseNoteType = 'INTERNAL') =>
+    apiPost<CaseActivity>(`/api/v1/cases/${caseNumber}/notes`, { content, noteType }),
   addAttachment: (caseNumber: string, file: File) =>
     apiUpload<CaseAttachment>(`/api/v1/cases/${caseNumber}/attachments`, file),
   getStats: () =>

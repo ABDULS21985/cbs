@@ -81,6 +81,49 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
             END
             """;
 
+    String AGGREGATE_SPEND_CATEGORIES_QUERY = """
+            SELECT
+            """ + SPEND_CATEGORY_CASE + """
+                AS category_code,
+                COALESCE(SUM(tj.amount), 0) AS total_amount,
+                COUNT(*) AS txn_count,
+                COALESCE(AVG(tj.amount), 0) AS avg_amount
+            FROM cbs.transaction_journal tj
+            WHERE tj.posting_date BETWEEN :fromDate AND :toDate
+            AND tj.status = 'POSTED'
+            AND COALESCE(tj.is_reversed, false) = false
+            AND tj.transaction_type IN ('DEBIT', 'TRANSFER_OUT', 'FEE_DEBIT', 'LIEN_PLACEMENT')
+            GROUP BY 1
+            ORDER BY total_amount DESC
+            """;
+
+    String AGGREGATE_SPEND_CATEGORY_TREND_QUERY = """
+            SELECT
+                DATE_TRUNC('month', tj.posting_date)::date AS period_start,
+            """ + SPEND_CATEGORY_CASE + """
+                AS category_code,
+                COALESCE(SUM(tj.amount), 0) AS total_amount
+            FROM cbs.transaction_journal tj
+            WHERE tj.posting_date BETWEEN :fromDate AND :toDate
+            AND tj.status = 'POSTED'
+            AND COALESCE(tj.is_reversed, false) = false
+            AND tj.transaction_type IN ('DEBIT', 'TRANSFER_OUT', 'FEE_DEBIT', 'LIEN_PLACEMENT')
+            GROUP BY 1, 2
+            ORDER BY period_start, category_code
+            """;
+
+    String AGGREGATE_FAILURE_REASONS_QUERY = """
+            SELECT
+            """ + FAILURE_REASON_CASE + """
+                AS failure_reason,
+                COUNT(*) AS failure_count
+            FROM cbs.transaction_journal tj
+            WHERE tj.posting_date BETWEEN :fromDate AND :toDate
+            AND tj.status = 'FAILED'
+            GROUP BY 1
+            ORDER BY failure_count DESC, failure_reason ASC
+            """;
+
     Optional<TransactionJournal> findByTransactionRef(String transactionRef);
 
     Page<TransactionJournal> findByAccountIdOrderByCreatedAtDesc(Long accountId, Pageable pageable);
@@ -352,37 +395,12 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate);
 
-    @Query(value = """
-            SELECT
-                """ + SPEND_CATEGORY_CASE + """ AS category_code,
-                COALESCE(SUM(tj.amount), 0) AS total_amount,
-                COUNT(*) AS txn_count,
-                COALESCE(AVG(tj.amount), 0) AS avg_amount
-            FROM cbs.transaction_journal tj
-            WHERE tj.posting_date BETWEEN :fromDate AND :toDate
-            AND tj.status = 'POSTED'
-            AND COALESCE(tj.is_reversed, false) = false
-            AND tj.transaction_type IN ('DEBIT', 'TRANSFER_OUT', 'FEE_DEBIT', 'LIEN_PLACEMENT')
-            GROUP BY 1
-            ORDER BY total_amount DESC
-            """, nativeQuery = true)
+    @Query(value = AGGREGATE_SPEND_CATEGORIES_QUERY, nativeQuery = true)
     List<Object[]> aggregateSpendCategories(
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate);
 
-    @Query(value = """
-            SELECT
-                DATE_TRUNC('month', tj.posting_date)::date AS period_start,
-                """ + SPEND_CATEGORY_CASE + """ AS category_code,
-                COALESCE(SUM(tj.amount), 0) AS total_amount
-            FROM cbs.transaction_journal tj
-            WHERE tj.posting_date BETWEEN :fromDate AND :toDate
-            AND tj.status = 'POSTED'
-            AND COALESCE(tj.is_reversed, false) = false
-            AND tj.transaction_type IN ('DEBIT', 'TRANSFER_OUT', 'FEE_DEBIT', 'LIEN_PLACEMENT')
-            GROUP BY 1, 2
-            ORDER BY period_start, category_code
-            """, nativeQuery = true)
+    @Query(value = AGGREGATE_SPEND_CATEGORY_TREND_QUERY, nativeQuery = true)
     List<Object[]> aggregateSpendCategoryTrend(
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate);
@@ -452,16 +470,7 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate);
 
-    @Query(value = """
-            SELECT
-                """ + FAILURE_REASON_CASE + """ AS failure_reason,
-                COUNT(*) AS failure_count
-            FROM cbs.transaction_journal tj
-            WHERE tj.posting_date BETWEEN :fromDate AND :toDate
-            AND tj.status = 'FAILED'
-            GROUP BY 1
-            ORDER BY failure_count DESC, failure_reason ASC
-            """, nativeQuery = true)
+    @Query(value = AGGREGATE_FAILURE_REASONS_QUERY, nativeQuery = true)
     List<Object[]> aggregateFailureReasons(
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate);
