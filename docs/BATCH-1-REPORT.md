@@ -1,7 +1,7 @@
 # CBS Batch 1 — Completion Report
 ## Capabilities 1–5: Customer & Account Management Foundation
 
-**Stack:** Java 21 · Spring Boot 3.3.5 · PostgreSQL · Flyway · MapStruct · Lombok · OAuth2/JWT  
+**Stack:** Java 25 · Spring Boot 4.0.4 · PostgreSQL · Flyway · MapStruct · Lombok · OAuth2/JWT
 **Type:** Greenfield  
 **Date:** 2026-03-17
 
@@ -167,7 +167,7 @@
 ## Build Instructions
 
 ```bash
-# Prerequisites: Java 21, PostgreSQL 16, Redis
+# Prerequisites: Java 25, PostgreSQL 16, Redis
 # 1. Clone and enter directory
 cd cbs
 

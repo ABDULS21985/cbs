@@ -26,6 +26,8 @@ import java.util.Map;
 public class TradeFinanceController {
 
     private final TradeFinanceService tradeService;
+    private final com.cbs.trade.repository.LcAmendmentRepository lcAmendmentRepository;
+    private final com.cbs.trade.repository.LcDocumentPresentationRepository lcDocPresentationRepository;
 
     // ========== LETTERS OF CREDIT ==========
 
@@ -242,5 +244,74 @@ public class TradeFinanceController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<List<TradeDocument>>> getLcDocuments(@PathVariable Long lcId) {
         return ResponseEntity.ok(ApiResponse.ok(tradeService.getLcDocuments(lcId)));
+    }
+
+    // ========== LC AMENDMENTS ==========
+
+    @GetMapping("/lc/{lcId}/amendments")
+    @Operation(summary = "List amendments for an LC")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<LcAmendment>>> getLcAmendments(@PathVariable Long lcId) {
+        return ResponseEntity.ok(ApiResponse.ok(lcAmendmentRepository.findByLcIdOrderByAmendmentNumberDesc(lcId)));
+    }
+
+    @PostMapping("/lc/{lcId}/amendments")
+    @Operation(summary = "Request an LC amendment")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<LcAmendment>> createLcAmendment(
+            @PathVariable Long lcId,
+            @RequestBody LcAmendment amendment) {
+        amendment.setLcId(lcId);
+        amendment.setAmendmentNumber(lcAmendmentRepository.countByLcId(lcId) + 1);
+        amendment.setStatus("PENDING");
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(lcAmendmentRepository.save(amendment)));
+    }
+
+    @PostMapping("/lc/{lcId}/amendments/{amendmentId}/approve")
+    @Operation(summary = "Approve an LC amendment")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<LcAmendment>> approveLcAmendment(
+            @PathVariable Long lcId,
+            @PathVariable Long amendmentId) {
+        LcAmendment amendment = lcAmendmentRepository.findById(amendmentId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("LcAmendment", "id", amendmentId));
+        amendment.setStatus("ACCEPTED");
+        return ResponseEntity.ok(ApiResponse.ok(lcAmendmentRepository.save(amendment)));
+    }
+
+    @PostMapping("/lc/{lcId}/amendments/{amendmentId}/reject")
+    @Operation(summary = "Reject an LC amendment")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<LcAmendment>> rejectLcAmendment(
+            @PathVariable Long lcId,
+            @PathVariable Long amendmentId) {
+        LcAmendment amendment = lcAmendmentRepository.findById(amendmentId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("LcAmendment", "id", amendmentId));
+        amendment.setStatus("REJECTED");
+        return ResponseEntity.ok(ApiResponse.ok(lcAmendmentRepository.save(amendment)));
+    }
+
+    // ========== LC DOCUMENT PRESENTATIONS ==========
+
+    @GetMapping("/lc/{lcId}/presentations")
+    @Operation(summary = "List document presentations for an LC")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<LcDocumentPresentation>>> getLcPresentations(@PathVariable Long lcId) {
+        return ResponseEntity.ok(ApiResponse.ok(lcDocPresentationRepository.findByLcIdOrderByPresentationNumberDesc(lcId)));
+    }
+
+    @PostMapping("/lc/{lcId}/presentations")
+    @Operation(summary = "Submit a document presentation against an LC")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<LcDocumentPresentation>> createLcPresentation(
+            @PathVariable Long lcId,
+            @RequestBody LcDocumentPresentation presentation) {
+        presentation.setLcId(lcId);
+        presentation.setPresentationNumber(lcDocPresentationRepository.countByLcId(lcId) + 1);
+        presentation.setExaminationStatus("PENDING");
+        if (presentation.getPresentedDate() == null) {
+            presentation.setPresentedDate(java.time.LocalDate.now());
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(lcDocPresentationRepository.save(presentation)));
     }
 }

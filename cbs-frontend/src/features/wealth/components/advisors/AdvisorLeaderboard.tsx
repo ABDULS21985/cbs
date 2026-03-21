@@ -74,7 +74,7 @@ export function AdvisorLeaderboard({ advisors }: AdvisorLeaderboardProps) {
         case 'clientCount':
           return b.clientCount - a.clientCount;
         case 'satisfaction':
-          return b.satisfaction - a.satisfaction;
+          return (b.satisfaction ?? 0) - (a.satisfaction ?? 0);
         default:
           return 0;
       }
@@ -146,9 +146,9 @@ export function AdvisorLeaderboard({ advisors }: AdvisorLeaderboardProps) {
                   <span className="font-semibold text-sm truncate">{advisor.name}</span>
                 </div>
                 <div className="flex items-center gap-1 mt-1">
-                  {renderStars(advisor.satisfaction)}
+                  {renderStars(advisor.satisfaction ?? 0)}
                   <span className="text-xs text-muted-foreground ml-1">
-                    {advisor.satisfaction.toFixed(1)}
+                    {(advisor.satisfaction ?? 0).toFixed(1)}
                   </span>
                 </div>
               </div>

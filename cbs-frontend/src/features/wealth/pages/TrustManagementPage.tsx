@@ -201,6 +201,7 @@ export function TrustManagementPage() {
     try {
       await apiPost('/api/v1/trusts', {
         ...form,
+        grantorCustomerId: parseInt(form.grantorCustomerId, 10) || 0,
         corpusValue: parseFloat(form.corpusValue) || 0,
         annualFeePct: parseFloat(form.annualFeePct) || 0,
       });

@@ -349,7 +349,7 @@ export function exportAdvisorReportPdf(
       <span class="label">Email</span><span class="value">${advisor.email}</span>
       <span class="label">Phone</span><span class="value">${advisor.phone}</span>
       <span class="label">Specializations</span><span class="value">${(advisor.specializations ?? []).join(', ') || 'N/A'}</span>
-      <span class="label">Join Date</span><span class="value">${formatDate(advisor.joinDate)}</span>
+      <span class="label">Join Date</span><span class="value">${advisor.joinDate ? formatDate(advisor.joinDate) : 'N/A'}</span>
       <span class="label">Client Satisfaction</span><span class="value">${advisor.satisfaction != null ? formatPercent(advisor.satisfaction) : 'N/A'}</span>
     </div>
 
@@ -408,9 +408,9 @@ export function exportTrustStatementPdf(
   const beneficiaryRows = (trust.beneficiaries ?? [])
     .map(
       (b) => `<tr>
-        <td>${b.name}</td>
-        <td>${b.relationship}</td>
-        <td style="text-align:right">${formatPercent(b.sharePercent)}</td>
+        <td>${b.name ?? ''}</td>
+        <td>${b.relationship ?? b.type ?? ''}</td>
+        <td style="text-align:right">${formatPercent(Number(b.sharePercent ?? b.share_pct ?? 0))}</td>
       </tr>`
     )
     .join('');
@@ -564,9 +564,9 @@ export function exportAumReportExcel(
         a.clientCount,
         a.aum.toFixed(2),
         a.avgReturn.toFixed(2),
-        a.revenue.toFixed(2),
-        a.satisfaction.toFixed(2),
-        escapeCsvValue(a.joinDate),
+        (a.revenue ?? 0).toFixed(2),
+        (a.satisfaction ?? 0).toFixed(2),
+        escapeCsvValue(a.joinDate ?? ''),
         escapeCsvValue((a.specializations ?? []).join('; ')),
       ].join(',')
     );
@@ -584,7 +584,7 @@ export function exportAumReportExcel(
         escapeCsvValue(t.trustCode),
         escapeCsvValue(t.trustName),
         escapeCsvValue(t.trustType),
-        escapeCsvValue(t.grantorName),
+        escapeCsvValue(`Customer #${t.grantorCustomerId}`),
         escapeCsvValue(t.trusteeName),
         t.corpusValue.toFixed(2),
         t.incomeYtd.toFixed(2),

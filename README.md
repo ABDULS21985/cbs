@@ -50,7 +50,7 @@ DigiCore CBS is a full-stack core banking system designed for multi-jurisdiction
 | Component | Technology |
 |-----------|-----------|
 | Language | Java 25 |
-| Framework | Spring Boot 3.3.5 |
+| Framework | Spring Boot 4.0.4 |
 | Security | Spring Security + OAuth2 Resource Server (JWT) |
 | Database | PostgreSQL 16 |
 | ORM | Hibernate 6 / Spring Data JPA |
@@ -784,7 +784,7 @@ cba/
 ├── build.gradle.kts               # Gradle build (Kotlin DSL)
 ├── ecosystem.config.js            # PM2 process definitions
 ├── backend.env.example            # Environment variable reference
-└── gradle/wrapper/                # Gradle 8.13 wrapper
+└── gradle/wrapper/                # Gradle 9.1.0 wrapper
 ```
 
 ---

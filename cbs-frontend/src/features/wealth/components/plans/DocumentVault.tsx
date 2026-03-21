@@ -60,18 +60,18 @@ export function DocumentVault({ planCode }: DocumentVaultProps) {
               </tr>
             </thead>
             <tbody>
-              {docs.map((doc) => (
-                <tr key={doc.id} className="border-t hover:bg-muted/30 transition-colors">
+              {docs.map((doc, idx) => (
+                <tr key={String(doc.id ?? idx)} className="border-t hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium flex items-center gap-2">
                     <FileText className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                    {doc.name}
+                    {String(doc.name ?? 'Document')}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{doc.type}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{doc.uploadedBy}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{doc.uploadDate ? formatDate(doc.uploadDate) : '—'}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{String(doc.type ?? '—')}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{String(doc.uploadedBy ?? '—')}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{doc.uploadDate ? formatDate(String(doc.uploadDate)) : '—'}</td>
                   <td className="px-4 py-3 text-center">
                     {doc.url ? (
-                      <a href={doc.url} download className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-muted transition-colors text-primary">
+                      <a href={String(doc.url)} download className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-muted transition-colors text-primary">
                         <Download className="w-3.5 h-3.5" />
                       </a>
                     ) : (

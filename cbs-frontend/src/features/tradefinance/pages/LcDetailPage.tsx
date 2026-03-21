@@ -149,6 +149,205 @@ function DocumentsTab({ lcId }: { lcId: number }) {
   );
 }
 
+// ─── Amendments Tab ──────────────────────────────────────────────────────────
+
+function AmendmentsTab({ lcId }: { lcId: number }) {
+  const qc = useQueryClient();
+  const { data: amendments = [], isLoading } = useQuery({
+    queryKey: ['trade-finance', 'lc', lcId, 'amendments'],
+    queryFn: () => tradeFinanceExtApi.getLcAmendments(lcId),
+    enabled: !!lcId,
+  });
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ amendmentType: 'AMOUNT', oldValue: '', newValue: '', description: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = () => {
+    setSubmitting(true);
+    tradeFinanceExtApi.createLcAmendment(lcId, form).then(() => {
+      toast.success('Amendment requested');
+      qc.invalidateQueries({ queryKey: ['trade-finance', 'lc', lcId, 'amendments'] });
+      setShowAdd(false);
+      setForm({ amendmentType: 'AMOUNT', oldValue: '', newValue: '', description: '' });
+    }).catch(() => toast.error('Failed')).finally(() => setSubmitting(false));
+  };
+
+  const handleApprove = (id: number) => {
+    tradeFinanceExtApi.approveLcAmendment(lcId, id).then(() => {
+      toast.success('Amendment approved');
+      qc.invalidateQueries({ queryKey: ['trade-finance', 'lc', lcId] });
+    }).catch(() => toast.error('Failed'));
+  };
+
+  const handleReject = (id: number) => {
+    tradeFinanceExtApi.rejectLcAmendment(lcId, id).then(() => {
+      toast.success('Amendment rejected');
+      qc.invalidateQueries({ queryKey: ['trade-finance', 'lc', lcId] });
+    }).catch(() => toast.error('Failed'));
+  };
+
+  const fc = 'w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
+
+  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <div className="p-5 space-y-4">
+      <div className="flex justify-end">
+        <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
+          <Plus className="w-3.5 h-3.5" /> Request Amendment
+        </button>
+      </div>
+      {amendments.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground"><FileText className="w-8 h-8 mx-auto mb-2 opacity-40" /><p>No amendments</p></div>
+      ) : (
+        <div className="space-y-3">
+          {amendments.map((a) => (
+            <div key={a.id} className="rounded-lg border bg-card p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-muted-foreground">#{a.amendmentNumber}</span>
+                  <span className="text-sm font-medium">{String(a.amendmentType ?? '').replace(/_/g, ' ')}</span>
+                </div>
+                <StatusBadge status={a.status} />
+              </div>
+              <p className="text-sm">{a.description}</p>
+              <div className="flex gap-4 text-xs text-muted-foreground">
+                {a.oldValue && <span>Old: <span className="font-mono">{a.oldValue}</span></span>}
+                {a.newValue && <span>New: <span className="font-mono font-bold">{a.newValue}</span></span>}
+              </div>
+              {a.status === 'PENDING' && (
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => handleApprove(a.id)} className="px-2 py-1 text-[10px] font-medium rounded bg-green-100 text-green-700 hover:bg-green-200">Approve</button>
+                  <button onClick={() => handleReject(a.id)} className="px-2 py-1 text-[10px] font-medium rounded bg-red-100 text-red-700 hover:bg-red-200">Reject</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showAdd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+            <button onClick={() => setShowAdd(false)} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+            <h3 className="text-lg font-semibold mb-4">Request LC Amendment</h3>
+            <div className="space-y-3">
+              <div><label className="text-xs font-medium text-muted-foreground">Type</label>
+                <select className={fc} value={form.amendmentType} onChange={(e) => setForm((f) => ({ ...f, amendmentType: e.target.value }))}>
+                  {['AMOUNT', 'EXPIRY_DATE', 'BENEFICIARY', 'GOODS_DESCRIPTION', 'DOCUMENTS', 'SHIPMENT_DATE', 'OTHER'].map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+                </select>
+              </div>
+              <div><label className="text-xs font-medium text-muted-foreground">Old Value</label><input className={fc} value={form.oldValue} onChange={(e) => setForm((f) => ({ ...f, oldValue: e.target.value }))} /></div>
+              <div><label className="text-xs font-medium text-muted-foreground">New Value</label><input className={fc} value={form.newValue} onChange={(e) => setForm((f) => ({ ...f, newValue: e.target.value }))} /></div>
+              <div><label className="text-xs font-medium text-muted-foreground">Description</label><textarea className={fc} rows={2} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} required /></div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setShowAdd(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+                <button onClick={handleSubmit} disabled={submitting || !form.description} className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  {submitting ? 'Submitting...' : 'Submit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Presentations Tab ───────────────────────────────────────────────────────
+
+function PresentationsTab({ lcId }: { lcId: number }) {
+  const qc = useQueryClient();
+  const { data: presentations = [], isLoading } = useQuery({
+    queryKey: ['trade-finance', 'lc', lcId, 'presentations'],
+    queryFn: () => tradeFinanceExtApi.getLcPresentations(lcId),
+    enabled: !!lcId,
+  });
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ documentsPresented: '' as string, amountClaimed: 0 });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = () => {
+    setSubmitting(true);
+    const docs = form.documentsPresented.split(',').map((d) => d.trim()).filter(Boolean);
+    tradeFinanceExtApi.createLcPresentation(lcId, { documentsPresented: docs, amountClaimed: form.amountClaimed }).then(() => {
+      toast.success('Presentation submitted');
+      qc.invalidateQueries({ queryKey: ['trade-finance', 'lc', lcId, 'presentations'] });
+      setShowAdd(false);
+    }).catch(() => toast.error('Failed')).finally(() => setSubmitting(false));
+  };
+
+  const fc = 'w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
+
+  if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <div className="p-5 space-y-4">
+      <div className="flex justify-end">
+        <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
+          <Plus className="w-3.5 h-3.5" /> New Presentation
+        </button>
+      </div>
+      {presentations.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground"><FileText className="w-8 h-8 mx-auto mb-2 opacity-40" /><p>No document presentations</p></div>
+      ) : (
+        <div className="space-y-3">
+          {presentations.map((p) => (
+            <div key={p.id} className="rounded-lg border bg-card p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-muted-foreground">Presentation #{p.presentationNumber}</span>
+                  <span className="text-xs">{formatDate(p.presentedDate)}</span>
+                </div>
+                <StatusBadge status={p.examinationStatus} />
+              </div>
+              <div className="flex gap-4 text-sm">
+                <span>Amount Claimed: <span className="font-mono font-bold">{formatMoney(p.amountClaimed)}</span></span>
+                {p.settlementAmount != null && <span>Settled: <span className="font-mono font-bold">{formatMoney(p.settlementAmount)}</span></span>}
+              </div>
+              {p.documentsPresented?.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {p.documentsPresented.map((doc, i) => (
+                    <span key={i} className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary">{doc}</span>
+                  ))}
+                </div>
+              )}
+              {p.discrepancies?.length > 0 && (
+                <div className="rounded-md bg-red-50 dark:bg-red-900/10 p-2 text-xs text-red-700 dark:text-red-400">
+                  <span className="font-medium">Discrepancies:</span> {p.discrepancies.join(', ')}
+                  {p.discrepancyWaived && <span className="ml-2 text-green-600 font-medium">(Waived)</span>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showAdd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+            <button onClick={() => setShowAdd(false)} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+            <h3 className="text-lg font-semibold mb-4">Submit Document Presentation</h3>
+            <div className="space-y-3">
+              <div><label className="text-xs font-medium text-muted-foreground">Amount Claimed</label><input type="number" step="0.01" className={fc} value={form.amountClaimed || ''} onChange={(e) => setForm((f) => ({ ...f, amountClaimed: Number(e.target.value) }))} required /></div>
+              <div><label className="text-xs font-medium text-muted-foreground">Documents Presented (comma-separated)</label>
+                <textarea className={fc} rows={3} value={form.documentsPresented} onChange={(e) => setForm((f) => ({ ...f, documentsPresented: e.target.value }))}
+                  placeholder="Bill of Lading, Commercial Invoice, Packing List" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setShowAdd(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+                <button onClick={handleSubmit} disabled={submitting || !form.amountClaimed} className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  {submitting ? 'Submitting...' : 'Submit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function LcDetailPage() {
@@ -259,6 +458,14 @@ export function LcDetailPage() {
           )}
         </div>
       ),
+    },
+    {
+      id: 'amendments', label: 'Amendments',
+      content: <AmendmentsTab lcId={lcId} />,
+    },
+    {
+      id: 'presentations', label: 'Presentations',
+      content: <PresentationsTab lcId={lcId} />,
     },
     {
       id: 'documents', label: 'Documents',

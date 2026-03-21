@@ -244,7 +244,13 @@ export function TrustDetailPage() {
                 <div className="p-6">
                   <BeneficiaryManager
                     trustCode={trust.trustCode}
-                    beneficiaries={trust.beneficiaries ?? []}
+                    beneficiaries={(trust.beneficiaries ?? []).map((b, i) => ({
+                      id: String(b.id ?? i),
+                      name: String(b.name ?? ''),
+                      relationship: String(b.relationship ?? b.type ?? ''),
+                      sharePercent: Number(b.sharePercent ?? b.share_pct ?? 0),
+                      contactInfo: String(b.contactInfo ?? b.contact ?? ''),
+                    }))}
                     currency={trust.currency}
                   />
                 </div>

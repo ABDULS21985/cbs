@@ -142,6 +142,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Collections', path: '/trade-finance?tab=collections' },
           { label: 'SCF & Factoring', path: '/trade-finance?tab=scf' },
           { label: 'Documents', path: '/trade-finance?tab=documents' },
+          { label: 'Trade Ops', path: '/trade-finance?tab=tradeops' },
         ],
       },
     ],

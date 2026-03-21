@@ -108,7 +108,7 @@ export interface Advisor {
   clientCount: number;
   aum: number;
   avgReturn: number;
-  totalPlans: number;
+  totalPlans?: number;
   status: string;
   // Detail endpoint only:
   specializations?: string[];

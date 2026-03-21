@@ -1253,6 +1253,156 @@ function CollectionsTab() {
   );
 }
 
+function TradeOpsTab() {
+  const { data: confirmations = [], isLoading: confLoading } = useQuery({
+    queryKey: ['trade-ops', 'confirmations'],
+    queryFn: async () => {
+      const { tradeOpsApi } = await import('../api/tradeOpsApi');
+      return tradeOpsApi.listConfirmations();
+    },
+    staleTime: 30_000,
+  });
+  const { data: clearing = [], isLoading: clearLoading } = useQuery({
+    queryKey: ['trade-ops', 'clearing'],
+    queryFn: async () => {
+      const { tradeOpsApi } = await import('../api/tradeOpsApi');
+      return tradeOpsApi.listClearing();
+    },
+    staleTime: 30_000,
+  });
+  const { data: reports = [], isLoading: repLoading } = useQuery({
+    queryKey: ['trade-ops', 'reports'],
+    queryFn: async () => {
+      const { tradeOpsApi } = await import('../api/tradeOpsApi');
+      return tradeOpsApi.listReports();
+    },
+    staleTime: 30_000,
+  });
+
+  const qc = useQueryClient();
+  const handleMatch = async () => {
+    const { tradeOpsApi } = await import('../api/tradeOpsApi');
+    tradeOpsApi.matchConfirmations().then(() => {
+      toast.success('Matching completed');
+      qc.invalidateQueries({ queryKey: ['trade-ops', 'confirmations'] });
+    }).catch(() => toast.error('Matching failed'));
+  };
+
+  const unmatched = confirmations.filter((c) => c.matchStatus === 'UNMATCHED');
+  const matched = confirmations.filter((c) => c.matchStatus === 'MATCHED');
+  const pendingClear = clearing.filter((c) => c.status === 'SUBMITTED' || c.status === 'PENDING');
+
+  return (
+    <div className="p-4 space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="card p-3"><p className="text-xs text-muted-foreground">Total Confirmations</p><p className="text-lg font-bold mt-1">{confirmations.length}</p></div>
+        <div className="card p-3"><p className="text-xs text-muted-foreground">Unmatched</p><p className="text-lg font-bold mt-1 text-amber-600">{unmatched.length}</p></div>
+        <div className="card p-3"><p className="text-xs text-muted-foreground">Pending Clearing</p><p className="text-lg font-bold mt-1 text-blue-600">{pendingClear.length}</p></div>
+        <div className="card p-3"><p className="text-xs text-muted-foreground">Trade Reports</p><p className="text-lg font-bold mt-1">{reports.length}</p></div>
+      </div>
+
+      {/* Confirmations */}
+      <div className="rounded-xl border bg-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold">Trade Confirmations</h3>
+          {unmatched.length > 0 && (
+            <button onClick={handleMatch} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90">
+              Run Matching
+            </button>
+          )}
+        </div>
+        {confLoading ? <div className="py-8 text-center text-muted-foreground">Loading...</div> : confirmations.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No trade confirmations</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-xs text-muted-foreground">
+                <th className="text-left py-2 px-2">Ref</th><th className="text-left py-2 px-2">Trade Ref</th>
+                <th className="text-left py-2 px-2">Instrument</th><th className="text-left py-2 px-2">Counterparty</th>
+                <th className="text-right py-2 px-2">Amount</th><th className="text-left py-2 px-2">Match</th><th className="text-left py-2 px-2">Status</th>
+              </tr></thead>
+              <tbody className="divide-y">
+                {confirmations.slice(0, 15).map((c) => (
+                  <tr key={c.id} className="hover:bg-muted/20">
+                    <td className="py-2 px-2 font-mono text-xs">{c.confirmationRef}</td>
+                    <td className="py-2 px-2 font-mono text-xs">{c.tradeRef}</td>
+                    <td className="py-2 px-2 text-xs">{c.instrumentType}</td>
+                    <td className="py-2 px-2 text-xs">{c.counterpartyName}</td>
+                    <td className="py-2 px-2 text-right font-mono text-xs">{formatMoney(c.amount, c.currency)}</td>
+                    <td className="py-2 px-2"><StatusBadge status={c.matchStatus} /></td>
+                    <td className="py-2 px-2"><StatusBadge status={c.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Clearing Queue */}
+      <div className="rounded-xl border bg-card p-5">
+        <h3 className="text-sm font-semibold mb-4">Clearing Queue</h3>
+        {clearLoading ? <div className="py-4 text-center text-muted-foreground">Loading...</div> : clearing.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No clearing submissions</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-xs text-muted-foreground">
+                <th className="text-left py-2 px-2">Ref</th><th className="text-left py-2 px-2">CCP</th>
+                <th className="text-left py-2 px-2">Trade</th><th className="text-right py-2 px-2">Notional</th>
+                <th className="text-right py-2 px-2">Initial Margin</th><th className="text-left py-2 px-2">Status</th>
+              </tr></thead>
+              <tbody className="divide-y">
+                {clearing.slice(0, 10).map((c) => (
+                  <tr key={c.id} className="hover:bg-muted/20">
+                    <td className="py-2 px-2 font-mono text-xs">{c.submissionRef}</td>
+                    <td className="py-2 px-2 text-xs">{c.ccpName}</td>
+                    <td className="py-2 px-2 font-mono text-xs">{c.tradeRef}</td>
+                    <td className="py-2 px-2 text-right font-mono text-xs">{formatMoney(c.notionalAmount, c.currency)}</td>
+                    <td className="py-2 px-2 text-right font-mono text-xs">{formatMoney(c.initialMargin, c.marginCurrency)}</td>
+                    <td className="py-2 px-2"><StatusBadge status={c.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Reports */}
+      <div className="rounded-xl border bg-card p-5">
+        <h3 className="text-sm font-semibold mb-4">Trade Reports</h3>
+        {repLoading ? <div className="py-4 text-center text-muted-foreground">Loading...</div> : reports.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No trade reports</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b text-xs text-muted-foreground">
+                <th className="text-left py-2 px-2">Ref</th><th className="text-left py-2 px-2">Type</th>
+                <th className="text-left py-2 px-2">Regime</th><th className="text-left py-2 px-2">UTI</th>
+                <th className="text-left py-2 px-2">Repository</th><th className="text-left py-2 px-2">Status</th>
+              </tr></thead>
+              <tbody className="divide-y">
+                {reports.slice(0, 10).map((r) => (
+                  <tr key={r.id} className="hover:bg-muted/20">
+                    <td className="py-2 px-2 font-mono text-xs">{r.reportRef}</td>
+                    <td className="py-2 px-2 text-xs">{r.reportType}</td>
+                    <td className="py-2 px-2 text-xs">{r.regime}</td>
+                    <td className="py-2 px-2 font-mono text-xs">{r.uti}</td>
+                    <td className="py-2 px-2 text-xs">{r.tradeRepository}</td>
+                    <td className="py-2 px-2"><StatusBadge status={r.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DocumentsTab() {
   const [verifyingDoc, setVerifyingDoc] = useState<TradeDocument | null>(null);
 
@@ -1420,6 +1570,11 @@ export function TradeFinanceHubPage() {
               id: 'documents',
               label: 'Documents',
               content: <DocumentsTab />,
+            },
+            {
+              id: 'tradeops',
+              label: 'Trade Ops',
+              content: <TradeOpsTab />,
             },
           ]}
         />
