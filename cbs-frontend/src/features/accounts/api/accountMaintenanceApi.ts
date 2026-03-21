@@ -147,6 +147,39 @@ function mapAccountBasicInfo(raw: BackendAccountResponse): AccountBasicInfo {
   };
 }
 
+interface BackendAccountLimit {
+  id: number;
+  limitType: string;
+  limitValue: number;
+  previousValue?: number | null;
+  reason?: string | null;
+  effectiveDate?: string | null;
+  performedBy?: string | null;
+}
+
+function mapLimitsFromBackend(limits: BackendAccountLimit[]): AccountBasicInfo['limits'] {
+  const result = {
+    dailyTransaction: 0,
+    perTransaction: 0,
+    withdrawal: 0,
+    posAtm: 0,
+    onlineTransaction: 0,
+  };
+
+  for (const limit of limits) {
+    const value = limit.limitValue ?? 0;
+    switch (limit.limitType) {
+      case 'DAILY_TRANSACTION': result.dailyTransaction = value; break;
+      case 'PER_TRANSACTION': result.perTransaction = value; break;
+      case 'WITHDRAWAL': result.withdrawal = value; break;
+      case 'POS_ATM': result.posAtm = value; break;
+      case 'ONLINE_TRANSACTION': result.onlineTransaction = value; break;
+    }
+  }
+
+  return result;
+}
+
 function mapMaintenanceHistory(raw: BackendMaintenanceHistory): MaintenanceHistoryItem {
   return {
     id: String(raw.id),
@@ -163,8 +196,13 @@ function mapMaintenanceHistory(raw: BackendMaintenanceHistory): MaintenanceHisto
 
 export const accountMaintenanceApi = {
   getAccountBasicInfo: async (accountId: string): Promise<AccountBasicInfo> => {
-    const raw = await apiGet<BackendAccountResponse>(`/api/v1/accounts/${accountId}`);
-    return mapAccountBasicInfo(raw);
+    const [raw, limits] = await Promise.all([
+      apiGet<BackendAccountResponse>(`/api/v1/accounts/${accountId}`),
+      apiGet<BackendAccountLimit[]>(`/api/v1/accounts/${accountId}/limits`).catch(() => [] as BackendAccountLimit[]),
+    ]);
+    const info = mapAccountBasicInfo(raw);
+    info.limits = mapLimitsFromBackend(limits);
+    return info;
   },
 
   getMaintenanceHistory: async (accountId: string): Promise<MaintenanceHistoryItem[]> => {

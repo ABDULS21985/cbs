@@ -49,7 +49,7 @@ DigiCore CBS is a full-stack core banking system designed for multi-jurisdiction
 ### Backend
 | Component | Technology |
 |-----------|-----------|
-| Language | Java 21 |
+| Language | Java 25 |
 | Framework | Spring Boot 3.3.5 |
 | Security | Spring Security + OAuth2 Resource Server (JWT) |
 | Database | PostgreSQL 16 |
@@ -60,7 +60,7 @@ DigiCore CBS is a full-stack core banking system designed for multi-jurisdiction
 | JSON | Jackson + Hypersistence Utils (PostgreSQL JSON) |
 | API Docs | SpringDoc OpenAPI 2.6.0 (Swagger UI) |
 | Observability | Micrometer + Prometheus + Spring Actuator |
-| Build | Gradle 8.13 (Kotlin DSL) |
+| Build | Gradle 9.1.0 (Kotlin DSL) |
 | Testing | JUnit 5, Testcontainers, REST Assured, ArchUnit |
 
 ### Frontend
@@ -122,16 +122,16 @@ The frontend proxies all `/api/*` requests to the backend at runtime. Authentica
 ## Prerequisites
 
 - **Docker** — for PostgreSQL, Redis, and Keycloak
-- **Java 21** — for building and running the backend (`openjdk@21`)
+- **Java 25** — for building and running the backend (`openjdk@25`)
 - **Node.js 20+** — for the frontend
 - **PM2** — process manager (`npm install -g pm2`)
 
-> The Gradle wrapper and `openjdk@21` (via Homebrew) handle the Java toolchain automatically.
+> The Gradle wrapper and `openjdk@25` (via Homebrew) handle the Java toolchain automatically.
 
 ### Verify installations
 
 ```bash
-java --version       # openjdk 21+
+java --version       # openjdk 25+
 node --version       # v20+
 docker --version     # 24+
 pm2 --version        # 5+
@@ -193,8 +193,8 @@ After Keycloak starts at `http://localhost:8180`:
 ### 3. Build and start backend
 
 ```bash
-# Build the JAR (requires openjdk@21)
-JAVA_HOME=/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
+# Build the JAR (requires openjdk@25)
+JAVA_HOME="$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home" \
   ./gradlew bootJar --no-daemon
 
 # Install frontend dependencies
@@ -282,7 +282,7 @@ pm2 stop all                     # stop everything
 ### Backend only
 
 ```bash
-JAVA_HOME=/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
+JAVA_HOME="$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home" \
   SPRING_PROFILES_ACTIVE=dev \
   CBS_OAUTH2_ISSUER_URI=http://localhost:8180/realms/cbs \
   java -jar build/libs/cbs-1.0.0-SNAPSHOT.jar
@@ -298,12 +298,12 @@ npm run dev        # starts at http://localhost:3001
 ### Build backend from source
 
 ```bash
-# Requires openjdk@21 (brew install openjdk@21)
-JAVA_HOME=/usr/local/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
+# Requires openjdk@25 (brew install openjdk@25)
+JAVA_HOME="$(brew --prefix openjdk@25)/libexec/openjdk.jdk/Contents/Home" \
   ./gradlew bootJar --no-daemon
 ```
 
-> **Note:** The Gradle wrapper requires Java 21 for compilation (Kotlin 2.0 DSL + toolchain). The built JAR runs on any JVM 21+.
+> **Note:** The Gradle wrapper is pinned to Gradle 9.1.0 and the backend toolchain is pinned to Java 25. The built JAR runs on any JVM 25+.
 
 ---
 
@@ -765,7 +765,7 @@ See `backend.env.example` for a full annotated reference.
 cba/
 ├── src/
 │   └── main/
-│       ├── java/com/cbs/          # 150+ domain packages (Java 21)
+│       ├── java/com/cbs/          # 150+ domain packages (Java 25)
 │       └── resources/
 │           ├── application.yml    # Main Spring Boot config
 │           ├── application-*.yml  # Profile-specific overrides

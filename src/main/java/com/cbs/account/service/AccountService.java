@@ -512,6 +512,55 @@ public class AccountService {
     }
 
     @Transactional
+    public AccountHold placeHold(String accountNumber, PlaceHoldRequest request) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
+
+        if (!account.isActive()) {
+            throw new BusinessException("Cannot place hold on non-active account (status: " +
+                    account.getStatus() + ")", "ACCOUNT_NOT_ACTIVE");
+        }
+
+        if (request.getAmount().compareTo(account.getAvailableBalance()) > 0) {
+            throw new BusinessException("Hold amount exceeds available balance", "INSUFFICIENT_BALANCE");
+        }
+
+        String reference = request.getReference();
+        if (reference == null || reference.isBlank()) {
+            Long seq = holdRepository.getNextHoldSequence();
+            reference = String.format("HOLD-%s-%06d", account.getAccountNumber(), seq);
+        }
+
+        if (holdRepository.findByReference(reference).isPresent()) {
+            throw new BusinessException("A hold with reference '" + reference + "' already exists", "DUPLICATE_HOLD_REFERENCE");
+        }
+
+        AccountHold hold = AccountHold.builder()
+                .account(account)
+                .reference(reference)
+                .amount(request.getAmount())
+                .reason(request.getReason())
+                .placedBy("SYSTEM")
+                .holdType(request.getHoldType() != null ? request.getHoldType() : "LIEN")
+                .status("ACTIVE")
+                .releaseDate(request.getReleaseDate())
+                .build();
+
+        AccountHold saved = holdRepository.save(hold);
+
+        // Increase lien amount on account
+        account.setLienAmount(account.getLienAmount().add(request.getAmount()));
+        accountRepository.save(account);
+
+        logMaintenance(account.getId(), "HOLD_PLACED",
+                "Hold " + reference + " placed for " + request.getAmount() + ": " + request.getReason(), "SYSTEM");
+
+        log.info("Hold placed: account={}, reference={}, amount={}", accountNumber, reference, request.getAmount());
+
+        return saved;
+    }
+
+    @Transactional
     public void releaseHold(String accountNumber, Long holdId, String reason) {
         Account account = accountRepository.findByAccountNumber(accountNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
@@ -531,6 +580,26 @@ public class AccountService {
 
         logMaintenance(account.getId(), "HOLD_RELEASED",
                 "Hold " + hold.getReference() + " released: " + reason, "SYSTEM");
+    }
+
+    // ========================================================================
+    // LIMITS
+    // ========================================================================
+
+    public List<AccountLimitDto> getAccountLimits(String accountNumber) {
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "accountNumber", accountNumber));
+        return limitRepository.findByAccountId(account.getId()).stream()
+                .map(limit -> AccountLimitDto.builder()
+                        .id(limit.getId())
+                        .limitType(limit.getLimitType())
+                        .limitValue(limit.getLimitValue())
+                        .previousValue(limit.getPreviousValue())
+                        .reason(limit.getReason())
+                        .effectiveDate(limit.getEffectiveDate())
+                        .performedBy(limit.getPerformedBy())
+                        .build())
+                .toList();
     }
 
     // ========================================================================

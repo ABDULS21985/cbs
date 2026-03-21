@@ -22,7 +22,9 @@ export function HoldsTab({ accountId }: HoldsTabProps) {
 
   const placeHoldMut = useMutation({
     mutationFn: () => apiPost(`/api/v1/accounts/${accountId}/holds`, {
-      amount: holdForm.amount, reason: holdForm.reason, reference: holdForm.reference || `HOLD-${Date.now()}`,
+      amount: holdForm.amount,
+      reason: holdForm.reason,
+      reference: holdForm.reference || undefined,
       releaseDate: holdForm.releaseDate || undefined,
     }),
     onSuccess: () => {
@@ -88,7 +90,7 @@ export function HoldsTab({ accountId }: HoldsTabProps) {
       cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
     },
     {
-      accessorKey: 'dateCreated',
+      accessorKey: 'createdAt',
       header: 'Date Placed',
       cell: ({ getValue }) => <span className="text-sm">{formatDate(getValue<string>())}</span>,
     },

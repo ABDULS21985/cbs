@@ -44,7 +44,7 @@ export interface CreatedAccount {
 
 export interface ComplianceCheckRequest {
   customerId: string;
-  productId: string;
+  productCode: string;
 }
 
 export interface ComplianceCheckResult {
@@ -297,7 +297,7 @@ export const accountOpeningApi = {
   runComplianceCheck: async (data: ComplianceCheckRequest): Promise<ComplianceCheckResult> => {
     return apiPost<ComplianceCheckResult>('/api/v1/accounts/compliance-check', {
       customerId: Number(data.customerId),
-      productCode: data.productId,
+      productCode: data.productCode,
     });
   },
 

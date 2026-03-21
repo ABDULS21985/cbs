@@ -234,7 +234,7 @@ export function useAccountOpening() {
     mutationFn: () =>
       accountOpeningApi.runComplianceCheck({
         customerId: state.formData.customerId!,
-        productId: state.formData.productId!,
+        productCode: state.formData.productId!,
       }),
     onSuccess: (result) => {
       dispatch({ type: 'SET_COMPLIANCE_RESULT', result });

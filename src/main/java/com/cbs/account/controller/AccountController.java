@@ -186,6 +186,17 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.ok(accountService.getAccountHolds(accountNumber)));
     }
 
+    @PostMapping("/{accountNumber}/holds")
+    @Operation(summary = "Place a hold/lien on an account")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<com.cbs.account.entity.AccountHold>> placeHold(
+            @PathVariable String accountNumber,
+            @Valid @RequestBody PlaceHoldRequest request) {
+        com.cbs.account.entity.AccountHold hold = accountService.placeHold(accountNumber, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(hold, "Hold placed successfully"));
+    }
+
     @PostMapping("/{accountNumber}/holds/{holdId}/release")
     @Operation(summary = "Release a hold on an account")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -195,6 +206,14 @@ public class AccountController {
             @RequestBody Map<String, String> data) {
         accountService.releaseHold(accountNumber, holdId, data.getOrDefault("reason", "Released"));
         return ResponseEntity.ok(ApiResponse.ok(null, "Hold released successfully"));
+    }
+
+    @GetMapping("/{accountNumber}/limits")
+    @Operation(summary = "Get current transaction limits for an account")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AccountLimitDto>>> getAccountLimits(
+            @PathVariable String accountNumber) {
+        return ResponseEntity.ok(ApiResponse.ok(accountService.getAccountLimits(accountNumber)));
     }
 
     @GetMapping("/{accountNumber}/linked-products")

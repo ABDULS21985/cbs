@@ -1,4 +1,4 @@
-import { useMemo, useState, type ElementType } from 'react';
+import { useEffect, useMemo, useState, type ElementType } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -69,6 +69,10 @@ export function TransactionDisputePage() {
   const [actionDispute, setActionDispute] = useState<DisputeRecord | null>(null);
   const [actionNotes, setActionNotes] = useState('');
   const [closeOutcome, setCloseOutcome] = useState<'RESOLVED' | 'REJECTED'>('RESOLVED');
+
+  useEffect(() => {
+    document.title = 'Transaction Disputes | CBS';
+  }, []);
 
   const {
     disputes,

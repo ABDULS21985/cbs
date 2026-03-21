@@ -64,6 +64,10 @@ export function ReversalApprovalPage() {
   const [rejectReason, setRejectReason] = useState('');
 
   useEffect(() => {
+    document.title = 'Reversal Queue | CBS';
+  }, []);
+
+  useEffect(() => {
     if (!canApprove) {
       setMineOnly(true);
     }

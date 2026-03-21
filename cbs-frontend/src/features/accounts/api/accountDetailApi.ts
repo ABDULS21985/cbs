@@ -57,8 +57,11 @@ export interface Hold {
   amount: number;
   reason: string;
   placedBy: string;
-  dateCreated: string;
+  holdType: string;
+  createdAt: string;
   releaseDate?: string;
+  releasedBy?: string;
+  releaseReason?: string;
   status: string;
 }
 
