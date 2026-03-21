@@ -25,9 +25,9 @@ const columns: ColumnDef<Card, unknown>[] = [
     ),
   },
   {
-    accessorKey: 'customerName',
+    accessorKey: 'customerDisplayName',
     header: 'Customer',
-    cell: ({ row }) => <span className="font-medium text-sm">{row.original.customerName}</span>,
+    cell: ({ row }) => <span className="font-medium text-sm">{row.original.customerDisplayName}</span>,
   },
   {
     accessorKey: 'cardType',
@@ -35,11 +35,11 @@ const columns: ColumnDef<Card, unknown>[] = [
     cell: ({ row }) => <StatusBadge status={row.original.cardType} />,
   },
   {
-    accessorKey: 'scheme',
+    accessorKey: 'cardScheme',
     header: 'Scheme',
     cell: ({ row }) => (
-      <span className={cn('text-xs font-bold', SCHEME_COLORS[row.original.scheme])}>
-        {row.original.scheme}
+      <span className={cn('text-xs font-bold', SCHEME_COLORS[row.original.cardScheme])}>
+        {row.original.cardScheme}
       </span>
     ),
   },
@@ -49,11 +49,11 @@ const columns: ColumnDef<Card, unknown>[] = [
     cell: ({ row }) => <StatusBadge status={row.original.status} dot />,
   },
   {
-    accessorKey: 'issuedDate',
+    accessorKey: 'issueDate',
     header: 'Issued',
     cell: ({ row }) => (
       <span className="text-xs text-muted-foreground">
-        {row.original.issuedDate ? formatDate(row.original.issuedDate) : '—'}
+        {row.original.issueDate ? formatDate(row.original.issueDate) : '—'}
       </span>
     ),
   },
@@ -92,9 +92,9 @@ export function CardIssuancePage() {
 
   const pendingIssuance = allCards.filter((c) => c.status === 'PENDING_ACTIVATION').length;
   const issuedToday = allCards.filter((c) => {
-    if (!c.issuedDate) return false;
+    if (!c.issueDate) return false;
     const today = new Date().toISOString().split('T')[0];
-    return c.issuedDate.startsWith(today);
+    return c.issueDate.startsWith(today);
   }).length;
   const activeCount = allCards.filter((c) => c.status === 'ACTIVE').length;
   const courierCount = allCards.filter((c) => c.deliveryMethod === 'COURIER' && c.status === 'PENDING_ACTIVATION').length;

@@ -149,7 +149,7 @@ export function CardRequestPage() {
     const input: IssueCardInput = {
       customerId: customer.id,
       cardType,
-      scheme,
+      cardScheme: scheme,
       accountId: selectedAccount.id,
       cardholderName,
       deliveryMethod,

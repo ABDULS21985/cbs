@@ -28,12 +28,11 @@ const columns: ColumnDef<Merchant, any>[] = [
     cell: ({ row }) => <span className="font-medium">{row.original.merchantName}</span>,
   },
   {
-    accessorKey: 'mcc',
+    accessorKey: 'merchantCategoryCode',
     header: 'MCC',
     cell: ({ row }) => (
       <div>
-        <span className="font-mono text-xs">{row.original.mcc}</span>
-        <span className="block text-xs text-muted-foreground">{row.original.mccDescription}</span>
+        <span className="font-mono text-xs">{row.original.merchantCategoryCode}</span>
       </div>
     ),
   },
@@ -43,9 +42,9 @@ const columns: ColumnDef<Merchant, any>[] = [
     cell: ({ row }) => <span className="text-sm tabular-nums">{row.original.terminalCount}</span>,
   },
   {
-    accessorKey: 'monthlyVolume',
+    accessorKey: 'monthlyVolumeLimit',
     header: 'Monthly Volume',
-    cell: ({ row }) => <span className="text-sm tabular-nums font-medium">{formatMoney(row.original.monthlyVolume)}</span>,
+    cell: ({ row }) => <span className="text-sm tabular-nums font-medium">{formatMoney(row.original.monthlyVolumeLimit)}</span>,
   },
   {
     accessorKey: 'mdrRate',
@@ -76,9 +75,9 @@ const columns: ColumnDef<Merchant, any>[] = [
     cell: ({ row }) => <StatusBadge status={row.original.status} dot />,
   },
   {
-    accessorKey: 'onboardedDate',
+    accessorKey: 'onboardedAt',
     header: 'Onboarded',
-    cell: ({ row }) => <span className="text-xs text-muted-foreground tabular-nums">{formatDate(row.original.onboardedDate)}</span>,
+    cell: ({ row }) => <span className="text-xs text-muted-foreground tabular-nums">{formatDate(row.original.onboardedAt)}</span>,
   },
 ];
 
@@ -95,13 +94,13 @@ export function MerchantListPage() {
     let result = merchants;
     if (statusFilter) result = result.filter((m) => m.status === statusFilter);
     if (riskFilter) result = result.filter((m) => m.riskCategory === riskFilter);
-    if (mccSearch) result = result.filter((m) => m.mcc.includes(mccSearch) || m.mccDescription.toLowerCase().includes(mccSearch.toLowerCase()));
+    if (mccSearch) result = result.filter((m) => m.merchantCategoryCode.includes(mccSearch));
     if (highCbOnly) result = result.filter((m) => m.chargebackRate > 1);
     return result;
   }, [merchants, statusFilter, riskFilter, mccSearch, highCbOnly]);
 
-  const totalVolume = merchants.reduce((s, m) => s + m.monthlyVolume, 0);
-  const mdrRevenue = merchants.reduce((s, m) => s + (m.monthlyVolume * m.mdrRate) / 100, 0);
+  const totalVolume = merchants.reduce((s, m) => s + (m.monthlyVolumeLimit ?? 0), 0);
+  const mdrRevenue = merchants.reduce((s, m) => s + ((m.monthlyVolumeLimit ?? 0) * m.mdrRate) / 100, 0);
   const highRisk = merchants.filter((m) => m.riskCategory === 'HIGH' || m.riskCategory === 'PROHIBITED').length;
   const avgCb = merchants.length > 0 ? merchants.reduce((s, m) => s + m.chargebackRate, 0) / merchants.length : 0;
 
@@ -138,10 +137,9 @@ export function MerchantListPage() {
               className="h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
               <option value="">All</option>
+              <option value="PENDING">Pending</option>
               <option value="ACTIVE">Active</option>
-              <option value="ONBOARDING">Onboarding</option>
               <option value="SUSPENDED">Suspended</option>
-              <option value="TERMINATED">Terminated</option>
             </select>
           </div>
           <div>

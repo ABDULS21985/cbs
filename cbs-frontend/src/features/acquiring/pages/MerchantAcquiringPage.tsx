@@ -1251,6 +1251,7 @@ function TerminalsTab() {
                         </button>
                       )}
                     </div>
+                    )}
                   </td>
                 </tr>
               ))}

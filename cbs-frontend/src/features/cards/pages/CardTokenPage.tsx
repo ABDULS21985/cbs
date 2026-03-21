@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { cardsApi } from '../api/cardExtApi';
 import type { CardToken } from '../types/cardExt';
 
-const WALLET_ICONS: Record<string, string> = { APPLE_PAY: '🍎', GOOGLE_PAY: '🟢', SAMSUNG_PAY: '🔵', GARMIN_PAY: '⌚', OTHER: '📱' };
+const WALLET_ICONS: Record<string, string> = { APPLE_PAY: '🍎', GOOGLE_PAY: '🟢', SAMSUNG_PAY: '🔵', GARMIN_PAY: '⌚', FITBIT_PAY: '⌚', MERCHANT_TOKEN: '🏪', ISSUER_TOKEN: '🏦', COF_TOKEN: '💳' };
 
 export function CardTokenPage() {
   useEffect(() => { document.title = 'Card Tokens | CBS'; }, []);
@@ -100,7 +100,7 @@ export function CardTokenPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Wallet Provider *</label>
                 <select value={provisionForm.walletProvider} onChange={e => setProvisionForm(p => ({ ...p, walletProvider: e.target.value }))} className={fc}>
-                  {['APPLE_PAY', 'GOOGLE_PAY', 'SAMSUNG_PAY', 'GARMIN_PAY'].map(w => <option key={w} value={w}>{w.replace(/_/g, ' ')}</option>)}
+                  {['APPLE_PAY', 'GOOGLE_PAY', 'SAMSUNG_PAY', 'GARMIN_PAY', 'FITBIT_PAY', 'MERCHANT_TOKEN', 'ISSUER_TOKEN', 'COF_TOKEN'].map(w => <option key={w} value={w}>{w.replace(/_/g, ' ')}</option>)}
                 </select></div>
               <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Device Type</label>
                 <select value={provisionForm.deviceType} onChange={e => setProvisionForm(p => ({ ...p, deviceType: e.target.value }))} className={fc}>

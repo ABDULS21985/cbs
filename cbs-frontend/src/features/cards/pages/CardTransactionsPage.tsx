@@ -10,10 +10,10 @@ import { Loader2, ReceiptText } from 'lucide-react';
 
 const columns: ColumnDef<CardTransaction, any>[] = [
   { accessorKey: 'transactionDate', header: 'Date/Time', cell: ({ row }) => <span className="text-xs">{formatDate(row.original.transactionDate)}</span> },
-  { accessorKey: 'cardMasked', header: 'Card', cell: ({ row }) => <span className="font-mono text-xs">{row.original.cardMasked}</span> },
+  { accessorKey: 'cardReference', header: 'Card', cell: ({ row }) => <span className="font-mono text-xs">{row.original.cardReference}</span> },
   { accessorKey: 'merchantName', header: 'Merchant' },
-  { accessorKey: 'mccDescription', header: 'MCC', cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.mcc} — {row.original.mccDescription}</span> },
-  { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.amount, row.original.currency)}</span> },
+  { accessorKey: 'merchantCategoryCode', header: 'MCC', cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.merchantCategoryCode}</span> },
+  { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.amount, row.original.currencyCode)}</span> },
   { accessorKey: 'authCode', header: 'Auth Code', cell: ({ row }) => <span className="font-mono text-xs">{row.original.authCode || '—'}</span> },
   { accessorKey: 'responseCode', header: 'Response', cell: ({ row }) => (
     <span className={cn('font-mono text-xs font-medium', row.original.responseCode === '00' ? 'text-green-600' : 'text-red-600')}>
@@ -22,16 +22,6 @@ const columns: ColumnDef<CardTransaction, any>[] = [
   )},
   { accessorKey: 'channel', header: 'Channel', cell: ({ row }) => <StatusBadge status={row.original.channel} /> },
   { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} /> },
-  { accessorKey: 'fraudScore', header: 'Fraud', cell: ({ row }) => {
-    const score = row.original.fraudScore;
-    const riskLabel = score > 50 ? 'High Risk' : score > 30 ? 'Medium' : 'Low';
-    const colorCls = score > 50 ? 'text-red-600' : score > 30 ? 'text-amber-600' : 'text-green-600';
-    return (
-      <span className={cn('font-mono text-xs font-medium', colorCls)} aria-label={`Fraud score ${score} out of 100 — ${riskLabel}`}>
-        {score}/100 <span className="ml-1 font-sans">{riskLabel}</span>
-      </span>
-    );
-  }},
 ];
 
 export function CardTransactionsPage() {
@@ -43,7 +33,7 @@ export function CardTransactionsPage() {
 
   const { data: transactions = [], isLoading } = useCardTransactions(Object.keys(filters).length > 0 ? filters : undefined);
 
-  const approved = transactions.filter((t) => t.status === 'APPROVED');
+  const approved = transactions.filter((t) => t.status === 'AUTHORIZED');
   const declined = transactions.filter((t) => t.status === 'DECLINED');
   const totalValue = approved.reduce((s, t) => s + t.amount, 0);
 
