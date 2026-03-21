@@ -114,6 +114,14 @@ export const StatementGeneratorPage = lazyNamed(
   () => import('@/features/statements/pages/StatementGeneratorPage'),
   'StatementGeneratorPage',
 );
+export const StatementHistoryPage = lazyNamed(
+  () => import('@/features/statements/pages/StatementHistoryPage'),
+  'StatementHistoryPage',
+);
+export const MiniStatementPage = lazyNamed(
+  () => import('@/features/statements/pages/MiniStatementPage'),
+  'MiniStatementPage',
+);
 
 export const FeeScheduleListPage = lazyNamed(
   () => import('@/features/fees/pages/FeeScheduleListPage'),

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { RefreshCw, CheckCircle } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatementRequestForm } from '../components/StatementRequestForm';
 import { StatementPreview } from '../components/StatementPreview';
@@ -30,7 +30,7 @@ function Toast({ message, type }: ToastProps) {
         ? 'bg-green-600 text-white'
         : 'bg-destructive text-destructive-foreground'
     }`}>
-      {type === 'success' && <CheckCircle className="w-4 h-4" />}
+      {type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
       {message}
     </div>
   );
@@ -46,7 +46,7 @@ export function StatementGeneratorPage() {
   const [certificateData, setCertificateData] = useState<CertificateData | null>(null);
   const [confirmationData, setConfirmationData] = useState<AccountConfirmationData | null>(null);
   const [activeTab, setActiveTab] = useState<'statement' | 'certificate' | 'confirmation' | 'subscriptions'>('statement');
-  const [currentAccountId, setCurrentAccountId] = useState('acc-001');
+  const [currentAccountId, setCurrentAccountId] = useState('');
   const [toast, setToast] = useState<ToastProps | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -99,16 +99,12 @@ export function StatementGeneratorPage() {
         format,
       );
     },
-    onSuccess: (url, { format }) => {
-      // Simulate download via anchor click
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `statement_${statementData?.accountNumber ?? 'account'}_${format.toLowerCase()}.${format === 'EXCEL' ? 'xlsx' : format.toLowerCase()}`;
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      showToast(`Downloading ${format} statement…`);
+    onSuccess: (_data, { format }) => {
+      // The backend returns JSON metadata, not a blob. Use window.print() for PDF.
+      if (format === 'PDF') {
+        window.print();
+      }
+      showToast(`Statement ${format} ready`);
     },
     onError: () => showToast('Download failed', 'error'),
   });
@@ -124,14 +120,16 @@ export function StatementGeneratorPage() {
         email,
       );
     },
-    onSuccess: () => showToast('Statement emailed successfully'),
+    onSuccess: (data) => showToast(data.message || 'Statement emailed successfully'),
     onError: () => showToast('Email failed — please try again', 'error'),
   });
 
   // ── Subscriptions ──────────────────────────────────────────────
   const { data: subscriptions = [] } = useQuery({
-    queryKey: ['subscriptions', currentAccountId],
+    queryKey: ['statement-subscriptions', currentAccountId],
     queryFn: () => statementApi.getSubscriptions(currentAccountId),
+    enabled: !!currentAccountId,
+    staleTime: 2 * 60 * 1000,
   });
 
   const saveSub = useMutation({
@@ -141,7 +139,7 @@ export function StatementGeneratorPage() {
       return statementApi.createSubscription({ ...rest, accountId: currentAccountId });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions', currentAccountId] });
+      queryClient.invalidateQueries({ queryKey: ['statement-subscriptions', currentAccountId] });
       showToast('Subscription saved');
     },
     onError: () => showToast('Failed to save subscription', 'error'),
@@ -150,7 +148,7 @@ export function StatementGeneratorPage() {
   const cancelSub = useMutation({
     mutationFn: (id: string) => statementApi.deleteSubscription(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['subscriptions', currentAccountId] });
+      queryClient.invalidateQueries({ queryKey: ['statement-subscriptions', currentAccountId] });
       showToast('Subscription cancelled');
     },
     onError: () => showToast('Failed to cancel subscription', 'error'),
@@ -260,7 +258,7 @@ export function StatementGeneratorPage() {
                 data={statementData}
                 loading={generateMutation.isPending}
                 onDownload={(format) => downloadMutation.mutate({ format })}
-                onEmail={(email) => emailMutation.mutateAsync(email)}
+                onEmail={(email) => emailMutation.mutateAsync(email).then(() => {})}
               />
             )}
 

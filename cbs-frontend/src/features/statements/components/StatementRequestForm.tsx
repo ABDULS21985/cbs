@@ -81,7 +81,15 @@ export function StatementRequestForm({
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['statement-accounts'],
-    queryFn: () => apiGet<AccountOption[]>('/api/v1/accounts/selector'),
+    queryFn: async () => {
+      // Backend GET /v1/accounts returns paginated accounts with accountNumber + accountName
+      const result = await apiGet<{ content: Array<{ id: number; accountNumber: string; accountName: string; currencyCode: string }> }>('/v1/accounts', { page: 0, size: 100 });
+      const list = Array.isArray(result) ? result : (result?.content ?? []);
+      return list.map((a: { id: number; accountNumber: string; accountName: string; currencyCode: string }) => ({
+        id: String(a.id),
+        label: `${a.accountNumber} — ${a.accountName} (${a.currencyCode})`,
+      }));
+    },
     staleTime: 5 * 60 * 1000,
   });
 

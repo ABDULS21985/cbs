@@ -11,3 +11,5 @@ export { StatementSubscriptionForm } from './components/StatementSubscriptionFor
 
 // Pages
 export { StatementGeneratorPage } from './pages/StatementGeneratorPage';
+export { StatementHistoryPage } from './pages/StatementHistoryPage';
+export { MiniStatementPage } from './pages/MiniStatementPage';

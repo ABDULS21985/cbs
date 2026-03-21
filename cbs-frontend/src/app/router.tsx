@@ -172,6 +172,8 @@ import {
   StandingOrderDetailPage,
   StandingOrderListPage,
   StatementGeneratorPage,
+  StatementHistoryPage,
+  MiniStatementPage,
   SyndicationPage,
   SyndicationDetailPage,
   PosLendingPage,
@@ -436,6 +438,8 @@ export function AppRouter() {
           <Route path="notional-pooling" element={<NotionalPoolPage />} />
           <Route path="wallets" element={<WalletPage />} />
           <Route path="statements" element={<StatementGeneratorPage />} />
+          <Route path="statements/history" element={<StatementHistoryPage />} />
+          <Route path="statements/mini" element={<MiniStatementPage />} />
         </Route>
 
         {/* Lending */}

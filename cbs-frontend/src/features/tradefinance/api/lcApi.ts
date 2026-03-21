@@ -2,20 +2,19 @@ import { apiGet, apiPost } from '@/lib/api';
 import type { LetterOfCredit } from '../types/lc';
 
 export const lcApi = {
-  /** GET /lc/{id} */
+  /** GET /v1/trade-finance/lc/{id} */
   getLC: (id: number) =>
-    apiGet<LetterOfCredit>(`/api/lc/${id}`),
+    apiGet<LetterOfCredit>(`/api/v1/trade-finance/lc/${id}`),
 
-  /** GET /lc/customer/{customerId} */
+  /** GET /v1/trade-finance/lc/customer/{customerId} */
   getCustomerLCs: (customerId: number) =>
-    apiGet<LetterOfCredit[]>(`/api/lc/customer/${customerId}`),
+    apiGet<LetterOfCredit[]>(`/api/v1/trade-finance/lc/customer/${customerId}`),
 
-  /** POST /lc/{id}/settle */
-  settleLC: (id: number) =>
-    apiPost<LetterOfCredit>(`/api/lc/${id}/settle`),
+  /** POST /v1/trade-finance/lc/{id}/settle?amount=... */
+  settleLC: (id: number, amount: number) =>
+    apiPost<LetterOfCredit>(`/api/v1/trade-finance/lc/${id}/settle?amount=${amount}`),
 
-  /** POST /lc/batch/expire */
+  /** POST /v1/trade-finance/lc/batch/expire */
   expireLCs: () =>
-    apiPost<Record<string, unknown>>('/api/lc/batch/expire'),
-
+    apiPost<Record<string, number>>('/api/v1/trade-finance/lc/batch/expire'),
 };
