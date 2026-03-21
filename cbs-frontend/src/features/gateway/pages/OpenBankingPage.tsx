@@ -13,7 +13,7 @@ import {
 import type { ColumnDef } from '@tanstack/react-table';
 import type { ApiClientRegistration, OpenBankingConsent } from '../types/integration';
 import {
-  useApiClients, useRegisterApiClient, useDeactivateApiClient,
+  useApiClients, useRegisterApiClient,
   useOpenBankingConsents, useCreateConsent, useAuthoriseConsent, useRevokeConsent,
 } from '../hooks/useGatewayData';
 import { toast } from 'sonner';
@@ -176,7 +176,7 @@ function CreateConsentDialog({ onClose }: { onClose: () => void }) {
 
 function ApiClientsTab({ onRegister }: { onRegister: () => void }) {
   const { data: clients = [], isLoading } = useApiClients();
-  const deactivate = useDeactivateApiClient();
+  // Note: No backend deactivate endpoint exists — button disabled
 
   const columns: ColumnDef<ApiClientRegistration, any>[] = [
     { accessorKey: 'clientId', header: 'Client ID', cell: ({ row }) => <CopyText text={row.original.clientId} /> },

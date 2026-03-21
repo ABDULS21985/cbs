@@ -147,3 +147,29 @@ export function useCustomerNotifications(customerId: number, page = 0, size = 20
     staleTime: 15_000,
   });
 }
+
+// ─── Send Direct ─────────────────────────────────────────────────────────────
+
+export function useSendDirect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: import('../types/notificationExt').SendDirectRequest) =>
+      notificationApi.sendDirect(params),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
+// ─── Send Bulk ───────────────────────────────────────────────────────────────
+
+export function useSendBulk() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: import('../types/notificationExt').SendBulkRequest) =>
+      notificationApi.sendBulk(params),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}

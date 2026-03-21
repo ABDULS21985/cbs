@@ -4,22 +4,23 @@ import { Mail, MessageSquare, Bell, Smartphone, Send, Clock, Loader2, ChevronDow
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
-import { useSendNotification } from '../hooks/useNotificationsExt';
+import { useSendNotification, useSendDirect, useSendBulk } from '../hooks/useNotificationsExt';
 import { RecipientSelector, type RecipientSelection } from '../components/RecipientSelector';
 import { TemplateSelector } from '../components/TemplateSelector';
 import { NotificationPreviewCard } from '../components/NotificationPreviewCard';
 import { ScheduleConfig, type ScheduleResult } from '../components/ScheduleConfig';
 import { createScheduledNotification } from '@/features/admin/api/notificationAdminApi';
-import type { NotificationTemplate } from '../types/notificationExt';
+import type { NotificationTemplate, NotificationChannel } from '../types/notificationExt';
 
 // ── Channel config ───────────────────────────────────────────────────────────
 
-const CHANNELS = [
+const CHANNELS: { id: NotificationChannel; label: string; icon: typeof Mail; color: string; bg: string }[] = [
   { id: 'EMAIL', label: 'Email', icon: Mail, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
   { id: 'SMS', label: 'SMS', icon: MessageSquare, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
   { id: 'PUSH', label: 'Push', icon: Bell, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
   { id: 'IN_APP', label: 'In-App', icon: Smartphone, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-] as const;
+  { id: 'WEBHOOK', label: 'Webhook', icon: Globe, color: 'text-cyan-600', bg: 'bg-cyan-50 dark:bg-cyan-900/20' },
+];
 
 // ── Section component ────────────────────────────────────────────────────────
 
