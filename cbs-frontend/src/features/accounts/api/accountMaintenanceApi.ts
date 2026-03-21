@@ -65,13 +65,7 @@ export interface AccountBasicInfo {
   interestRate: number;
   signatories: Signatory[];
   signingRule: string;
-  limits: {
-    dailyTransaction: number;
-    perTransaction: number;
-    withdrawal: number;
-    posAtm: number;
-    onlineTransaction: number;
-  };
+  limits: Record<string, number>;
 }
 
 // Backend AccountResponse shape for mapping
@@ -137,13 +131,7 @@ function mapAccountBasicInfo(raw: BackendAccountResponse): AccountBasicInfo {
     interestRate: raw.applicableInterestRate ?? 0,
     signatories,
     signingRule,
-    limits: {
-      dailyTransaction: 0,
-      perTransaction: 0,
-      withdrawal: 0,
-      posAtm: 0,
-      onlineTransaction: 0,
-    },
+    limits: {},
   };
 }
 
@@ -157,23 +145,26 @@ interface BackendAccountLimit {
   performedBy?: string | null;
 }
 
-function mapLimitsFromBackend(limits: BackendAccountLimit[]): AccountBasicInfo['limits'] {
-  const result = {
-    dailyTransaction: 0,
-    perTransaction: 0,
-    withdrawal: 0,
-    posAtm: 0,
-    onlineTransaction: 0,
+function mapLimitsFromBackend(limits: BackendAccountLimit[]): Record<string, number> {
+  const result: Record<string, number> = {};
+
+  const typeToKey: Record<string, string> = {
+    DAILY_DEBIT: 'dailyDebit',
+    DAILY_CREDIT: 'dailyCredit',
+    PER_TRANSACTION: 'perTransaction',
+    MONTHLY_DEBIT: 'monthlyDebit',
+    MONTHLY_CREDIT: 'monthlyCredit',
+    WITHDRAWAL: 'withdrawal',
+    POS_ATM: 'posAtm',
+    ONLINE_TRANSACTION: 'onlineTransaction',
+    // Legacy fallback
+    DAILY_TRANSACTION: 'dailyDebit',
   };
 
   for (const limit of limits) {
-    const value = limit.limitValue ?? 0;
-    switch (limit.limitType) {
-      case 'DAILY_TRANSACTION': result.dailyTransaction = value; break;
-      case 'PER_TRANSACTION': result.perTransaction = value; break;
-      case 'WITHDRAWAL': result.withdrawal = value; break;
-      case 'POS_ATM': result.posAtm = value; break;
-      case 'ONLINE_TRANSACTION': result.onlineTransaction = value; break;
+    const key = typeToKey[limit.limitType];
+    if (key) {
+      result[key] = limit.limitValue ?? 0;
     }
   }
 

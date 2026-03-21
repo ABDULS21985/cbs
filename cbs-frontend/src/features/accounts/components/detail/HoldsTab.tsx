@@ -18,13 +18,14 @@ export function HoldsTab({ accountId }: HoldsTabProps) {
   const [holdToRelease, setHoldToRelease] = useState<Hold | null>(null);
   const [releaseReason, setReleaseReason] = useState('');
   const [showPlaceHold, setShowPlaceHold] = useState(false);
-  const [holdForm, setHoldForm] = useState({ amount: 0, reason: '', reference: '', releaseDate: '' });
+  const [holdForm, setHoldForm] = useState({ amount: 0, reason: '', reference: '', holdType: 'LIEN', releaseDate: '' });
 
   const placeHoldMut = useMutation({
     mutationFn: () => apiPost(`/api/v1/accounts/${accountId}/holds`, {
       amount: holdForm.amount,
       reason: holdForm.reason,
       reference: holdForm.reference || undefined,
+      holdType: holdForm.holdType || undefined,
       releaseDate: holdForm.releaseDate || undefined,
     }),
     onSuccess: () => {
@@ -32,7 +33,7 @@ export function HoldsTab({ accountId }: HoldsTabProps) {
       queryClient.invalidateQueries({ queryKey: ['accounts', 'detail', accountId] });
       toast.success('Hold placed successfully');
       setShowPlaceHold(false);
-      setHoldForm({ amount: 0, reason: '', reference: '', releaseDate: '' });
+      setHoldForm({ amount: 0, reason: '', reference: '', holdType: 'LIEN', releaseDate: '' });
     },
     onError: () => toast.error('Failed to place hold'),
   });
@@ -172,6 +173,15 @@ export function HoldsTab({ accountId }: HoldsTabProps) {
                   <input type="number" step="0.01" value={holdForm.amount || ''} onChange={e => setHoldForm(p => ({ ...p, amount: Number(e.target.value) }))} className={cn(fc, 'font-mono')} /></div>
                 <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Reason *</label>
                   <textarea value={holdForm.reason} onChange={e => setHoldForm(p => ({ ...p, reason: e.target.value }))} rows={2} className={fc} placeholder="Reason for placing hold" /></div>
+                <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Hold Type</label>
+                  <select value={holdForm.holdType} onChange={e => setHoldForm(p => ({ ...p, holdType: e.target.value }))} className={fc}>
+                    <option value="LIEN">Lien</option>
+                    <option value="REGULATORY">Regulatory</option>
+                    <option value="COURT_ORDER">Court Order</option>
+                    <option value="COLLATERAL">Collateral</option>
+                    <option value="DISPUTE">Dispute</option>
+                    <option value="OTHER">Other</option>
+                  </select></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Reference</label>
                     <input value={holdForm.reference} onChange={e => setHoldForm(p => ({ ...p, reference: e.target.value }))} className={cn(fc, 'font-mono')} placeholder="Auto-generated" /></div>

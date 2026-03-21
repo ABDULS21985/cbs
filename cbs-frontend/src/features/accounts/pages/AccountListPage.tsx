@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
 import { useNavigate } from 'react-router-dom';
-import { Landmark, Users, Wallet, TrendingUp } from 'lucide-react';
+import { Landmark, Users, Wallet, TrendingUp, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
@@ -143,7 +143,19 @@ export function AccountListPage() {
 
   return (
     <>
-      <PageHeader title="All Accounts" subtitle="Account listing and management" />
+      <PageHeader
+        title="All Accounts"
+        subtitle="Account listing and management"
+        actions={
+          <button
+            onClick={() => navigate('/accounts/open')}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Open Account
+          </button>
+        }
+      />
       <div className="page-container space-y-6">
         {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -4,13 +4,19 @@ import { acquiringApi } from '../api/acquiringApi';
 const QK = {
   activeMerchants: ['acquiring', 'merchants', 'active'] as const,
   highRiskMerchants: ['acquiring', 'merchants', 'high-risk'] as const,
+  allMerchants: ['acquiring', 'merchants', 'all'] as const,
   merchantFacilities: (merchantId: number) =>
     ['acquiring', 'facilities', 'merchant', merchantId] as const,
   merchantSettlements: (merchantId: number) =>
     ['acquiring', 'settlements', 'merchant', merchantId] as const,
   chargebacks: ['acquiring', 'chargebacks'] as const,
   pciCompliance: ['acquiring', 'compliance', 'pci'] as const,
+  facilities: ['acquiring', 'facilities'] as const,
+  settlements: ['acquiring', 'settlements'] as const,
+  terminals: ['acquiring', 'terminals'] as const,
 };
+
+// ── Merchant Queries ─────────────────────────────────────────────────────────
 
 export function useActiveMerchants() {
   return useQuery({
@@ -28,6 +34,16 @@ export function useHighRiskMerchants() {
   });
 }
 
+export function useAllMerchants() {
+  return useQuery({
+    queryKey: QK.allMerchants,
+    queryFn: () => acquiringApi.getAllMerchants(),
+    staleTime: 30_000,
+  });
+}
+
+// ── Facility Queries ─────────────────────────────────────────────────────────
+
 export function useMerchantFacilities(merchantId: number) {
   return useQuery({
     queryKey: QK.merchantFacilities(merchantId),
@@ -35,6 +51,8 @@ export function useMerchantFacilities(merchantId: number) {
     enabled: !!merchantId,
   });
 }
+
+// ── Settlement Queries ───────────────────────────────────────────────────────
 
 export function useMerchantSettlements(merchantId: number) {
   return useQuery({
@@ -44,6 +62,8 @@ export function useMerchantSettlements(merchantId: number) {
   });
 }
 
+// ── Chargeback Queries ───────────────────────────────────────────────────────
+
 export function useChargebacks() {
   return useQuery({
     queryKey: QK.chargebacks,
@@ -51,6 +71,8 @@ export function useChargebacks() {
     staleTime: 30_000,
   });
 }
+
+// ── PCI Compliance ───────────────────────────────────────────────────────────
 
 export function usePciCompliance() {
   return useQuery({
@@ -60,6 +82,18 @@ export function usePciCompliance() {
   });
 }
 
+// ── POS Terminal Queries ─────────────────────────────────────────────────────
+
+export function useAllTerminals() {
+  return useQuery({
+    queryKey: QK.terminals,
+    queryFn: () => acquiringApi.getAllTerminals(),
+    staleTime: 30_000,
+  });
+}
+
+// ── Merchant Mutations ───────────────────────────────────────────────────────
+
 export function useOnboardMerchant() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -67,44 +101,53 @@ export function useOnboardMerchant() {
       acquiringApi.onboardMerchant(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.activeMerchants });
+      queryClient.invalidateQueries({ queryKey: QK.allMerchants });
     },
   });
 }
 
+/** activate expects the merchantId STRING (e.g. "MCH-ABCDEF1234") */
 export function useActivateMerchant() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => acquiringApi.activateMerchant(id),
+    mutationFn: (merchantId: string) => acquiringApi.activateMerchant(merchantId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.activeMerchants });
+      queryClient.invalidateQueries({ queryKey: QK.allMerchants });
     },
   });
 }
 
+/** suspend expects the merchantId STRING + reason */
 export function useSuspendMerchant() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
-      acquiringApi.suspendMerchant(id, reason),
+    mutationFn: ({ merchantId, reason }: { merchantId: string; reason: string }) =>
+      acquiringApi.suspendMerchant(merchantId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.activeMerchants });
       queryClient.invalidateQueries({ queryKey: QK.highRiskMerchants });
+      queryClient.invalidateQueries({ queryKey: QK.allMerchants });
     },
   });
 }
 
+// ── Settlement Mutations ─────────────────────────────────────────────────────
+
+/** processSettlement takes merchantId (number) + single date (ISO string) */
 export function useProcessSettlement() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ merchantId, date }: { merchantId: number; date: string }) =>
       acquiringApi.processSettlement(merchantId, date),
     onSuccess: (_, { merchantId }) => {
-      queryClient.invalidateQueries({
-        queryKey: QK.merchantSettlements(merchantId),
-      });
+      queryClient.invalidateQueries({ queryKey: QK.merchantSettlements(merchantId) });
+      queryClient.invalidateQueries({ queryKey: QK.settlements });
     },
   });
 }
+
+// ── Chargeback Mutations ─────────────────────────────────────────────────────
 
 export function useRecordChargeback() {
   const queryClient = useQueryClient();
@@ -117,13 +160,26 @@ export function useRecordChargeback() {
   });
 }
 
+export function useSubmitRepresentment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, responseRef, evidence }: { id: number; responseRef: string; evidence: Record<string, unknown> }) =>
+      acquiringApi.submitRepresentment(id, responseRef, evidence),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.chargebacks });
+    },
+  });
+}
+
+// ── Facility Mutations ───────────────────────────────────────────────────────
+
 export function useSetupFacility() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: Parameters<typeof acquiringApi.setupFacility>[0]) =>
       acquiringApi.setupFacility(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['acquiring', 'facilities'] });
+      queryClient.invalidateQueries({ queryKey: QK.facilities });
     },
   });
 }
@@ -133,18 +189,31 @@ export function useActivateFacility() {
   return useMutation({
     mutationFn: (id: number) => acquiringApi.activateFacility(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['acquiring', 'facilities'] });
+      queryClient.invalidateQueries({ queryKey: QK.facilities });
     },
   });
 }
 
-export function useSubmitRepresentment() {
+// ── POS Terminal Mutations ───────────────────────────────────────────────────
+
+export function useRegisterTerminal() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, responseRef, evidence }: { id: number; responseRef: string; evidence: Record<string, unknown> }) =>
-      acquiringApi.submitRepresentment(id, responseRef, evidence),
+    mutationFn: (payload: Parameters<typeof acquiringApi.registerTerminal>[0]) =>
+      acquiringApi.registerTerminal(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QK.chargebacks });
+      queryClient.invalidateQueries({ queryKey: QK.terminals });
+    },
+  });
+}
+
+export function useUpdateTerminalStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ terminalId, status }: { terminalId: string; status: string }) =>
+      acquiringApi.updateTerminalStatus(terminalId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.terminals });
     },
   });
 }
