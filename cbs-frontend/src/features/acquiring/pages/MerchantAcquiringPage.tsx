@@ -1221,6 +1221,7 @@ function TerminalsTab() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
+                    {isAdmin && (
                     <div className="flex items-center gap-1">
                       {t.operationalStatus === 'ACTIVE' && (
                         <button

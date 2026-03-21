@@ -9,6 +9,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { FormSection } from '@/components/shared/FormSection';
 import { ConfirmDialog } from '@/components/shared';
 import { useActivateAgreement, useTerminateAgreement } from '../hooks/useAgreementsExt';
+import { useHasRole } from '@/hooks/usePermission';
 import { formatDate } from '@/lib/formatters';
 import { apiGet } from '@/lib/api';
 import type { CustomerAgreement } from '../types/agreementExt';
@@ -28,6 +29,7 @@ export function AgreementDetailPage() {
     enabled: !!id && Number(id) > 0,
   });
 
+  const isAdmin = useHasRole('CBS_ADMIN');
   const activateMutation = useActivateAgreement();
   const terminateMutation = useTerminateAgreement();
 

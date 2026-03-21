@@ -574,7 +574,7 @@ function DisputesTab({ cardId }: { cardId: number }) {
 
 function AuditTab({ card }: { card: import('../types/card').Card }) {
   const events = [
-    { id: '1', action: 'Card Issued', performedBy: 'System', performedAt: card.issueDate + 'T10:00:00Z', details: `${card.cardScheme} ${card.cardType} card issued via ${card.deliveryMethod}` },
+    { id: '1', action: 'Card Issued', performedBy: 'System', performedAt: card.issueDate + 'T10:00:00Z', details: `${card.cardScheme} ${card.cardType} card issued` },
     { id: '2', action: 'Card Activated', performedBy: 'Branch Officer', performedAt: card.issueDate + 'T14:00:00Z', details: 'Card activated and ready for use' },
   ];
 
@@ -660,7 +660,7 @@ export function CardDetailPage() {
               { label: 'Linked Account', value: card.accountNumber, mono: true, copyable: true },
               { label: 'Issue Date', value: card.issueDate, format: 'date' },
               { label: 'Expiry Date', value: card.expiryDate },
-              { label: 'Delivery', value: card.deliveryMethod?.replace(/_/g, ' ') ?? '—' },
+              { label: 'Tier', value: card.cardTier ?? '—' },
               { label: 'Customer', value: card.customerDisplayName },
               { label: 'Customer ID', value: card.customerId, mono: true },
             ]} />
@@ -686,7 +686,7 @@ export function CardDetailPage() {
                       { label: 'Issue Date', value: card.issueDate, format: 'date' },
                       { label: 'Expiry', value: card.expiryDate },
                       { label: 'Status', value: <StatusBadge status={card.status} dot /> },
-                      { label: 'Delivery', value: card.deliveryMethod?.replace(/_/g, ' ') ?? '—' },
+                      { label: 'Tier', value: card.cardTier ?? '—' },
                     ]} />
                   </div>
                   <div className="rounded-lg border p-5">
