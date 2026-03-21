@@ -37,6 +37,24 @@ public class LoanController {
     private final CurrentActorProvider currentActorProvider;
 
     // Applications
+
+    @GetMapping("/applications")
+    @Operation(summary = "List all loan applications with optional status filter")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<LoanApplicationResponse>>> listApplications(
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<LoanApplicationResponse> result;
+        if (status != null && !status.isBlank()) {
+            result = loanService.getApplicationsByStatus(
+                    com.cbs.lending.entity.LoanApplicationStatus.valueOf(status), pageable);
+        } else {
+            result = loanService.getAllApplications(pageable);
+        }
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
     @PostMapping("/applications")
     @Operation(summary = "Submit a new loan application")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

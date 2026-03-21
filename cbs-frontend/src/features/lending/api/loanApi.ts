@@ -266,7 +266,11 @@ export const loanApi = {
     apiGet<BackendLoanProductDto[]>('/api/v1/loans/products/islamic')
       .then((list) => list.map(mapLoanProduct)),
 
-  // Applications
+  // Applications — list all with optional status filter
+  listApplications: (params?: { status?: string; page?: number; size?: number }) =>
+    apiGet<BackendLoanApplicationResponse[]>('/api/v1/loans/applications', params as Record<string, unknown>)
+      .then((list) => list.map(mapLoanApplication)),
+
   submitApplication: (data: LoanApplicationRequest) =>
     apiPost<BackendLoanApplicationResponse>('/api/v1/loans/applications', data)
       .then(mapLoanApplication),

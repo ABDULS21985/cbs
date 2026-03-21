@@ -138,6 +138,14 @@ public class LoanOriginationService {
         return applicationRepository.findByCustomerId(customerId, pageable).map(this::toApplicationResponse);
     }
 
+    public Page<LoanApplicationResponse> getAllApplications(Pageable pageable) {
+        return applicationRepository.findAll(pageable).map(this::toApplicationResponse);
+    }
+
+    public Page<LoanApplicationResponse> getApplicationsByStatus(LoanApplicationStatus status, Pageable pageable) {
+        return applicationRepository.findByStatus(status, pageable).map(this::toApplicationResponse);
+    }
+
     @Transactional
     public CreditDecisionResponse runCreditCheck(Long applicationId) {
         LoanApplication app = applicationRepository.findByIdWithDetails(applicationId)

@@ -183,6 +183,13 @@ cbs:
     allow-synthetic-services: ${CBS_ALLOW_SYNTHETIC_SERVICES:false}
     allow-internal-kyc: ${CBS_ALLOW_INTERNAL_KYC:false}
 
+  keycloak:
+    admin:
+      server-url: ${CBS_KEYCLOAK_URL:}
+      realm: ${CBS_KEYCLOAK_REALM:cbs}
+      client-id: ${CBS_KEYCLOAK_ADMIN_CLIENT_ID:cbs-admin-cli}
+      client-secret: ${CBS_KEYCLOAK_ADMIN_CLIENT_SECRET:}
+
   security:
     cors:
       allowed-origins: ${CBS_CORS_ORIGINS:}

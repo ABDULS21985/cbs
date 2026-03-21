@@ -7,9 +7,12 @@ import { loanApi, type LoanApplicationRequest } from '../api/loanApi';
 export function useLoanApplications(filters?: LoanFilters) {
   return useQuery({
     queryKey: queryKeys.loans.applications(filters as Record<string, unknown> | undefined),
-    // Note: backend only supports GET /applications/customer/{id} — no list-all endpoint
-    // Passing customerId 0 as a "list all" fallback until backend adds a proper list endpoint
-    queryFn: () => loanApi.getCustomerApplications(0),
+    // Uses GET /v1/loans/applications with optional status filter
+    queryFn: () => loanApi.listApplications({
+      status: (filters as Record<string, unknown> | undefined)?.status as string | undefined,
+      page: 0,
+      size: 100,
+    }),
   });
 }
 

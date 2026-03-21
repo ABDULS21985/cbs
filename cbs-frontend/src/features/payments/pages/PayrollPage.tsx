@@ -202,3 +202,82 @@ function CreatePayrollDialog({ open, onClose, onSubmit, isSubmitting }: { open: 
     </Dialog>
   );
 }
+
+function AddEmployeesDialog({ open, batchId, onClose, onSubmit, isSubmitting }: { open: boolean; batchId: string; onClose: () => void; onSubmit: (batchId: string, items: Partial<PayrollItem>[]) => void; isSubmitting: boolean }) {
+  const [csvText, setCsvText] = useState('');
+  const [parsed, setParsed] = useState<Partial<PayrollItem>[]>([]);
+  const [parseError, setParseError] = useState('');
+
+  const handleParse = () => {
+    setParseError('');
+    const lines = csvText.trim().split('\n').filter(Boolean);
+    if (lines.length === 0) { setParseError('No data entered'); return; }
+
+    const items: Partial<PayrollItem>[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const parts = lines[i].split(',').map((s) => s.trim());
+      if (parts.length < 4) { setParseError(`Line ${i + 1}: expected at least 4 fields (employeeId, name, accountNumber, netAmount)`); return; }
+      const [employeeId, employeeName, creditAccountNumber, netAmountStr, grossStr, taxStr, bankCode] = parts;
+      const netAmount = Number(netAmountStr);
+      if (!employeeId || !employeeName || !creditAccountNumber || isNaN(netAmount) || netAmount <= 0) {
+        setParseError(`Line ${i + 1}: invalid data`);
+        return;
+      }
+      items.push({
+        employeeId,
+        employeeName,
+        creditAccountNumber,
+        netAmount,
+        grossAmount: grossStr ? Number(grossStr) : netAmount,
+        taxAmount: taxStr ? Number(taxStr) : 0,
+        creditBankCode: bankCode || undefined,
+        pensionAmount: 0,
+        otherDeductions: 0,
+      });
+    }
+    setParsed(items);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader><DialogTitle>Add Employees to Batch {batchId}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Paste CSV (one employee per line)</Label>
+            <p className="text-xs text-muted-foreground mb-1">Format: employeeId, name, accountNumber, netAmount [, grossAmount, taxAmount, bankCode]</p>
+            <Textarea
+              rows={8}
+              value={csvText}
+              onChange={(e) => { setCsvText(e.target.value); setParsed([]); setParseError(''); }}
+              placeholder={`EMP001, Adeola Johnson, 0123456789, 450000, 600000, 50000, 044\nEMP002, Kunle Adeyemi, 0987654321, 380000, 500000, 40000, 058`}
+              className="font-mono text-xs"
+            />
+          </div>
+          {parseError && <p className="text-sm text-red-600">{parseError}</p>}
+          {parsed.length === 0 ? (
+            <Button variant="outline" onClick={handleParse} disabled={!csvText.trim()}>Parse ({csvText.trim().split('\n').filter(Boolean).length} lines)</Button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-green-600 font-medium">Parsed {parsed.length} employees successfully</p>
+              <div className="max-h-48 overflow-auto border rounded text-xs">
+                <table className="w-full">
+                  <thead className="bg-muted text-muted-foreground"><tr><th className="px-2 py-1 text-left">ID</th><th className="px-2 py-1 text-left">Name</th><th className="px-2 py-1 text-left">Account</th><th className="px-2 py-1 text-right">Net</th><th className="px-2 py-1 text-right">Gross</th><th className="px-2 py-1 text-right">Tax</th></tr></thead>
+                  <tbody>{parsed.map((p, i) => (
+                    <tr key={i} className="border-t"><td className="px-2 py-1 font-mono">{p.employeeId}</td><td className="px-2 py-1">{p.employeeName}</td><td className="px-2 py-1 font-mono">{p.creditAccountNumber}</td><td className="px-2 py-1 text-right">{formatMoney(p.netAmount ?? 0)}</td><td className="px-2 py-1 text-right">{formatMoney(p.grossAmount ?? 0)}</td><td className="px-2 py-1 text-right">{formatMoney(p.taxAmount ?? 0)}</td></tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => onSubmit(batchId, parsed)} disabled={isSubmitting || parsed.length === 0}>
+            {isSubmitting && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Add {parsed.length} Employees
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

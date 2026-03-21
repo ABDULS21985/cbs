@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Zap, Hand, PlusCircle, Sparkles } from 'lucide-react';
+import { useHasRole } from '@/hooks/usePermission';
 import { cn } from '@/lib/utils';
 import { formatMoney, formatMoneyCompact } from '@/lib/formatters';
 import type { SavingsGoal } from '../api/goalApi';
@@ -35,6 +36,7 @@ function timeRemaining(targetDate: string | null): { label: string; urgent: bool
 export function GoalCard({ goal, onCelebrate }: GoalCardProps) {
   const navigate = useNavigate();
   const [showContribute, setShowContribute] = useState(false);
+  const canModify = useHasRole(['CBS_ADMIN', 'CBS_OFFICER', 'PORTAL_USER']);
 
   const pct = goal.progressPercentage;
   const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0);
@@ -126,7 +128,7 @@ export function GoalCard({ goal, onCelebrate }: GoalCardProps) {
         </div>
 
         {/* Quick Contribute Button */}
-        {!isCompleted && !isInactive && (
+        {!isCompleted && !isInactive && canModify && (
           <button
             onClick={(e) => { e.stopPropagation(); setShowContribute(true); }}
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
