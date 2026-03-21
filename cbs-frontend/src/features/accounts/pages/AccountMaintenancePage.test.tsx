@@ -73,6 +73,9 @@ function setupDefaultHandlers() {
     http.get('/api/v1/accounts/:id', () =>
       HttpResponse.json(wrap(mockAccountBasicInfo)),
     ),
+    http.get('/api/v1/accounts/:id/limits', () =>
+      HttpResponse.json(wrap([])),
+    ),
     http.get('/api/v1/accounts/:id/maintenance-history', () =>
       HttpResponse.json(wrap(mockMaintenanceHistory)),
     ),
@@ -170,6 +173,9 @@ describe('AccountMaintenancePage', () => {
     server.use(
       http.get('/api/v1/accounts/:id', () =>
         HttpResponse.json(wrap(mockAccountBasicInfo)),
+      ),
+      http.get('/api/v1/accounts/:id/limits', () =>
+        HttpResponse.json(wrap([])),
       ),
       http.get('/api/v1/accounts/:id/maintenance-history', () =>
         HttpResponse.json(wrap(mockMaintenanceHistory)),
