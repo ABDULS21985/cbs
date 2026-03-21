@@ -173,10 +173,10 @@ describe('AccountDetailPage', () => {
     renderDetail();
 
     await waitFor(() => {
-      expect(screen.getByText('Account not found')).toBeInTheDocument();
+      expect(screen.getByText('Failed to load account')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/could not be loaded/i)).toBeInTheDocument();
+    expect(screen.getByText(/unable to retrieve account/i)).toBeInTheDocument();
   });
 
   it('shows error state when account returns 404', async () => {
@@ -350,7 +350,7 @@ describe('AccountDetailPage', () => {
     });
   });
 
-  it('shows all six tab labels', async () => {
+  it('shows all tab labels', async () => {
     setupDefaultHandlers();
     renderDetail();
 
@@ -359,7 +359,9 @@ describe('AccountDetailPage', () => {
     expect(screen.getByRole('button', { name: /overview/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /transactions/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /interest/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /signatories/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^holds$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /limits/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /linked products/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /audit/i })).toBeInTheDocument();
   });
@@ -394,8 +396,8 @@ describe('AccountDetailPage', () => {
 
     await waitForAccountLoad();
 
-    // The AccountDetailsTab shows signatories section
-    expect(screen.getByText('Signatories')).toBeInTheDocument();
+    // The AccountDetailsTab shows signatories section (also appears as tab label)
+    expect(screen.getAllByText('Signatories').length).toBeGreaterThan(0);
     expect(screen.getByText('PRIMARY')).toBeInTheDocument();
   });
 

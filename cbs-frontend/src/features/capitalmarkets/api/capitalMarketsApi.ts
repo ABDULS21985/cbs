@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 
 // ─── Deal Types & Interfaces ─────────────────────────────────────────────────
 
@@ -243,10 +243,10 @@ export const capitalMarketsApi = {
     apiGet<CapitalMarketsDeal>(`/api/v1/capital-markets/${code}`),
   createDeal: (input: CreateDealInput) =>
     apiPost<CapitalMarketsDeal>('/api/v1/capital-markets', input),
-  priceDeal: (code: string, input: PricingInput) =>
-    apiPost<CapitalMarketsDeal>(`/api/v1/capital-markets/${code}/pricing`, input),
-  allotDeal: (code: string) =>
-    apiPost<CapitalMarketsDeal>(`/api/v1/capital-markets/${code}/allotment`),
+  priceDeal: (code: string, price: number) =>
+    apiPostParams<CapitalMarketsDeal>(`/api/v1/capital-markets/${code}/pricing`, { price }),
+  allotDeal: (code: string, method: string = 'PRO_RATA') =>
+    apiPostParams<CapitalMarketsDeal>(`/api/v1/capital-markets/${code}/allotment`, { method }),
   settleDeal: (code: string) =>
     apiPost<CapitalMarketsDeal>(`/api/v1/capital-markets/${code}/settle`),
   addInvestor: (dealId: number, input: InvestorInput) =>

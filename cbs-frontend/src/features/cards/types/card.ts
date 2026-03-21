@@ -1,28 +1,32 @@
-// ─── Card Types (canonical source) ───────────────────────────────────────────
+// ─── Card Types (canonical source — aligned with backend CardResponse DTO) ──
 
-export type CardType = 'DEBIT' | 'CREDIT' | 'PREPAID';
-export type CardScheme = 'VISA' | 'MASTERCARD' | 'VERVE';
-export type CardStatus = 'ACTIVE' | 'BLOCKED' | 'EXPIRED' | 'PENDING_ACTIVATION' | 'SUSPENDED' | 'HOTLISTED' | 'DESTROYED';
+export type CardType = 'DEBIT' | 'CREDIT' | 'PREPAID' | 'VIRTUAL';
+export type CardScheme = 'VISA' | 'MASTERCARD' | 'VERVE' | 'AMEX' | 'UNIONPAY' | 'LOCAL';
+export type CardStatus =
+  | 'PENDING_ACTIVATION'
+  | 'ACTIVE'
+  | 'BLOCKED'
+  | 'HOT_LISTED'
+  | 'EXPIRED'
+  | 'REPLACED'
+  | 'CANCELLED'
+  | 'LOST'
+  | 'STOLEN';
 
 export interface Card {
   id: number;
+  cardReference: string;
   cardNumberMasked: string;
-  customerName: string;
-  customerId: number;
-  cardType: CardType;
-  scheme: CardScheme;
-  accountNumber: string;
   accountId: number;
+  accountNumber: string;
+  customerId: number;
+  customerDisplayName: string;
+  cardType: CardType;
+  cardScheme: CardScheme;
+  cardTier: string;
+  cardholderName: string;
+  issueDate: string;
   expiryDate: string;
-  nameOnCard: string;
-  status: CardStatus;
-  issuedDate: string;
-  deliveryMethod: string;
-  controls: CardControls;
-  // Extended fields from backend entity (optional, present on detail view)
-  cardNumberHash?: string;
-  cardReference?: string;
-  cardTier?: string;
   lastUsedDate?: string;
   dailyPosLimit?: number;
   dailyAtmLimit?: number;
@@ -32,13 +36,18 @@ export interface Card {
   creditLimit?: number;
   availableCredit?: number;
   outstandingBalance?: number;
-  minimumPayment?: number;
-  paymentDueDate?: string;
-  interestRate?: number;
+  contactlessEnabled?: boolean;
+  onlineEnabled?: boolean;
+  internationalEnabled?: boolean;
+  atmEnabled?: boolean;
+  posEnabled?: boolean;
   pinRetriesRemaining?: number;
+  status: CardStatus;
   blockReason?: string;
   currencyCode?: string;
   branchCode?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CardControls {
@@ -47,7 +56,6 @@ export interface CardControls {
   onlineEnabled: boolean;
   internationalEnabled: boolean;
   contactlessEnabled: boolean;
-  recurringEnabled: boolean;
 }
 
 export interface CardLimits {
@@ -60,54 +68,60 @@ export interface CardLimits {
 export interface CardTransaction {
   id: number;
   transactionRef: string;
-  cardMasked: string;
-  merchantName: string;
-  merchantId: string;
-  mcc: string;
-  mccDescription: string;
+  cardId: number;
+  cardReference: string;
+  accountId: number;
+  accountNumber: string;
+  transactionType: string;
+  channel: string;
   amount: number;
-  currency: string;
-  authCode: string;
-  responseCode: string;
-  responseDescription: string;
-  channel: 'POS' | 'ATM' | 'ONLINE' | 'CONTACTLESS';
-  transactionDate: string;
-  status: 'APPROVED' | 'DECLINED' | 'REVERSED' | 'PENDING';
-  fraudScore: number;
-  // Extended fields (optional, present in detailed transaction views)
+  currencyCode: string;
   billingAmount?: number;
   billingCurrency?: string;
   fxRate?: number;
+  merchantName: string;
+  merchantId: string;
+  merchantCategoryCode: string;
   terminalId?: string;
   merchantCity?: string;
   merchantCountry?: string;
-  isInternational?: boolean;
+  international?: boolean;
+  authCode: string;
+  responseCode: string;
+  status: string;
   declineReason?: string;
-  isDisputed?: boolean;
+  disputed?: boolean;
   disputeReason?: string;
   disputeDate?: string;
+  transactionDate: string;
   settlementDate?: string;
-  createdAt?: string;
 }
 
 export interface Merchant {
   id: number;
   merchantId: string;
   merchantName: string;
-  mcc: string;
-  mccDescription: string;
-  terminalCount: number;
-  monthlyVolume: number;
-  mdrRate: number;
-  chargebackRate: number;
-  riskCategory: 'LOW' | 'MEDIUM' | 'HIGH' | 'PROHIBITED';
-  status: 'ACTIVE' | 'ONBOARDING' | 'SUSPENDED' | 'TERMINATED';
-  onboardedDate: string;
+  tradingName?: string;
+  merchantCategoryCode: string;
+  businessType?: string;
+  registrationNumber?: string;
+  taxId?: string;
   contactName?: string;
-  contactEmail?: string;
   contactPhone?: string;
-  bankAccountNumber?: string;
+  contactEmail?: string;
+  address?: string;
+  settlementAccountId?: number;
   settlementFrequency?: string;
+  mdrRate: number;
+  terminalCount: number;
+  monthlyVolumeLimit?: number;
+  riskCategory: string;
+  chargebackRate: number;
+  monitoringLevel?: string;
+  status: string;
+  onboardedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PosTerminal {

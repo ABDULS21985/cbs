@@ -133,7 +133,7 @@ function LiveExecutionsTab() {
             <div className="flex gap-2 pt-1">
               {ex.status === 'RUNNING' && <button className="btn-secondary text-xs px-2 py-1 flex items-center gap-1" onClick={() => pause.mutate(ex.executionRef, { onSuccess: () => toast.success('Paused') })}><Pause className="w-3 h-3" /> Pause</button>}
               {ex.status === 'PAUSED' && <button className="btn-primary text-xs px-2 py-1 flex items-center gap-1" onClick={() => resume.mutate(ex.executionRef, { onSuccess: () => toast.success('Resumed') })}><Play className="w-3 h-3" /> Resume</button>}
-              <button className="btn-secondary text-xs px-2 py-1 flex items-center gap-1 text-red-600" onClick={() => cancel.mutate(ex.executionRef, { onSuccess: () => toast.success('Cancelled') })}><Ban className="w-3 h-3" /> Cancel</button>
+              <button className="btn-secondary text-xs px-2 py-1 flex items-center gap-1 text-red-600" onClick={() => cancel.mutate({ ref: ex.executionRef, reason: 'Cancelled by user' }, { onSuccess: () => toast.success('Cancelled') })}><Ban className="w-3 h-3" /> Cancel</button>
             </div>
           </div>
         ))}

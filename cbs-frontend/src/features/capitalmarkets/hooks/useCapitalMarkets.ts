@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { capitalMarketsApi } from '../api/capitalMarketsApi';
 import type {
   CreateDealInput,
-  PricingInput,
   InvestorInput,
   CreatePlacementInput,
   FundingInput,
@@ -61,8 +60,8 @@ export function useCreateDeal() {
 export function usePriceDeal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, input }: { code: string; input: PricingInput }) =>
-      capitalMarketsApi.priceDeal(code, input),
+    mutationFn: ({ code, price }: { code: string; price: number }) =>
+      capitalMarketsApi.priceDeal(code, price),
     onSuccess: (_data, { code }) => {
       qc.invalidateQueries({ queryKey: keys.pipeline });
       qc.invalidateQueries({ queryKey: keys.deal(code) });
@@ -73,8 +72,9 @@ export function usePriceDeal() {
 export function useAllotDeal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => capitalMarketsApi.allotDeal(code),
-    onSuccess: (_data, code) => {
+    mutationFn: ({ code, method }: { code: string; method?: string }) =>
+      capitalMarketsApi.allotDeal(code, method),
+    onSuccess: (_data, { code }) => {
       qc.invalidateQueries({ queryKey: keys.pipeline });
       qc.invalidateQueries({ queryKey: keys.deal(code) });
     },

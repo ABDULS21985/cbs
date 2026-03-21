@@ -8,7 +8,7 @@ import { modelOpsApi } from '../api/modelOpsApi';
 import { economicCapitalApi } from '../api/economicCapitalApi';
 import { quotesApi } from '../api/quoteApi';
 import type { SecuritizationVehicle } from '../types/securitization';
-import type { SuitabilityCheck } from '../types/suitability';
+import type { ClientRiskProfile, SuitabilityCheck } from '../types/suitability';
 import type { TradingStrategy, ProgramExecution } from '../types/programTrading';
 import type { ModelBacktest } from '../types/quantModel';
 import type { QuoteRequest, PriceQuote } from '../types/quote';
@@ -76,7 +76,7 @@ export const CAPITAL_MARKETS_EXT_KEYS = {
 export function useSecuritizationsByType(type: string) {
   return useQuery({
     queryKey: CAPITAL_MARKETS_EXT_KEYS.securitizationByType(type),
-    queryFn: () => securitizationApi.byType(type),
+    queryFn: () => securitizationApi.getByType(type),
     enabled: !!type,
     staleTime: 30_000,
   });
@@ -85,16 +85,27 @@ export function useSecuritizationsByType(type: string) {
 export function useActiveSecuritizations(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: [...CAPITAL_MARKETS_EXT_KEYS.securitizationActive(), params],
-    queryFn: () => securitizationApi.byType2(params),
+    queryFn: () => securitizationApi.getActive(params),
     staleTime: 30_000,
+  });
+}
+
+export function useCreateSecuritization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<SecuritizationVehicle>) =>
+      securitizationApi.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CAPITAL_MARKETS_EXT_KEYS.securitization });
+    },
   });
 }
 
 export function useIssueSecuritization() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, data }: { code: string; data: Partial<SecuritizationVehicle> }) =>
-      securitizationApi.create(code, data),
+    mutationFn: (code: string) =>
+      securitizationApi.issue(code),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CAPITAL_MARKETS_EXT_KEYS.securitization });
     },
@@ -114,25 +125,66 @@ export function useSuitabilityProfiles(params?: Record<string, unknown>) {
 export function useSuitabilityChecks(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: [...CAPITAL_MARKETS_EXT_KEYS.suitabilityChecks(), params],
-    queryFn: () => suitabilityApi.getExpired(params),
+    queryFn: () => suitabilityApi.listChecks(params),
     staleTime: 60_000,
   });
 }
 
-export function useCustomerSuitabilityCheck(customerId: number) {
+export function useExpiredProfiles() {
+  return useQuery({
+    queryKey: [...CAPITAL_MARKETS_EXT_KEYS.suitability, 'expired'],
+    queryFn: () => suitabilityApi.getExpiredProfiles(),
+    staleTime: 60_000,
+  });
+}
+
+export function useCustomerSuitabilityChecks(customerId: number) {
   return useQuery({
     queryKey: CAPITAL_MARKETS_EXT_KEYS.suitabilityByCustomer(customerId),
-    queryFn: () => suitabilityApi.acknowledge(customerId),
+    queryFn: () => suitabilityApi.getCustomerChecks(customerId),
     enabled: !!customerId,
     staleTime: 60_000,
+  });
+}
+
+export function useCreateRiskProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<ClientRiskProfile>) =>
+      suitabilityApi.createProfile(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CAPITAL_MARKETS_EXT_KEYS.suitability });
+    },
+  });
+}
+
+export function usePerformSuitabilityCheck() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<SuitabilityCheck>) =>
+      suitabilityApi.performCheck(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CAPITAL_MARKETS_EXT_KEYS.suitability });
+    },
   });
 }
 
 export function useOverrideSuitabilityCheck() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ ref, data }: { ref: string; data: Partial<SuitabilityCheck> }) =>
-      suitabilityApi.performCheck(ref, data),
+    mutationFn: ({ ref, justification, approver }: { ref: string; justification: string; approver: string }) =>
+      suitabilityApi.overrideCheck(ref, justification, approver),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CAPITAL_MARKETS_EXT_KEYS.suitability });
+    },
+  });
+}
+
+export function useAcknowledgeSuitabilityCheck() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ref: string) =>
+      suitabilityApi.acknowledgeCheck(ref),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CAPITAL_MARKETS_EXT_KEYS.suitability });
     },
@@ -216,7 +268,8 @@ export function useResumeExecution() {
 export function useCancelExecution() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (ref: string) => programTradingApi.cancelExecution(ref),
+    mutationFn: ({ ref, reason }: { ref: string; reason: string }) =>
+      programTradingApi.cancelExecution(ref, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CAPITAL_MARKETS_EXT_KEYS.programTrading });
     },
@@ -307,7 +360,7 @@ export function useRecordBacktest() {
 export function useModelOpsEvents(code: string) {
   return useQuery({
     queryKey: CAPITAL_MARKETS_EXT_KEYS.modelOpsEvents(code),
-    queryFn: () => modelOpsApi.record(code),
+    queryFn: () => modelOpsApi.getEvents(code),
     enabled: !!code,
     staleTime: 60_000,
   });
@@ -364,7 +417,8 @@ export function useSubmitQuoteRequest() {
 export function useGenerateQuote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<PriceQuote>) => quotesApi.generateQuote(data),
+    mutationFn: ({ requestId, data }: { requestId: number; data: Partial<PriceQuote> }) =>
+      quotesApi.generateQuote(requestId, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CAPITAL_MARKETS_EXT_KEYS.quotes });
     },

@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-03-21T22:35:43+0100",
+    date = "2026-03-21T22:53:45+0100",
     comments = "version: 1.6.2, compiler: Eclipse JDT (IDE) 3.45.0.v20260224-0835, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
@@ -31,17 +31,17 @@ public class AcquiringMapperImpl implements AcquiringMapper {
 
         AcquiringFacility.AcquiringFacilityBuilder<?, ?> acquiringFacility = AcquiringFacility.builder();
 
-        acquiringFacility.merchantId( request.getMerchantId() );
+        acquiringFacility.chargebackLimitPct( request.getChargebackLimitPct() );
+        acquiringFacility.dailyTransactionLimit( request.getDailyTransactionLimit() );
         acquiringFacility.facilityType( request.getFacilityType() );
+        acquiringFacility.mdrRatePct( request.getMdrRatePct() );
+        acquiringFacility.merchantId( request.getMerchantId() );
+        acquiringFacility.monthlyVolumeLimit( request.getMonthlyVolumeLimit() );
         acquiringFacility.processorConnection( request.getProcessorConnection() );
-        acquiringFacility.terminalIdPrefix( request.getTerminalIdPrefix() );
+        acquiringFacility.reserveHoldPct( request.getReserveHoldPct() );
         acquiringFacility.settlementCurrency( request.getSettlementCurrency() );
         acquiringFacility.settlementCycle( request.getSettlementCycle() );
-        acquiringFacility.mdrRatePct( request.getMdrRatePct() );
-        acquiringFacility.dailyTransactionLimit( request.getDailyTransactionLimit() );
-        acquiringFacility.monthlyVolumeLimit( request.getMonthlyVolumeLimit() );
-        acquiringFacility.chargebackLimitPct( request.getChargebackLimitPct() );
-        acquiringFacility.reserveHoldPct( request.getReserveHoldPct() );
+        acquiringFacility.terminalIdPrefix( request.getTerminalIdPrefix() );
 
         return acquiringFacility.build();
     }
@@ -54,25 +54,25 @@ public class AcquiringMapperImpl implements AcquiringMapper {
 
         FacilityResponse.FacilityResponseBuilder facilityResponse = FacilityResponse.builder();
 
-        facilityResponse.id( entity.getId() );
-        facilityResponse.merchantId( entity.getMerchantId() );
+        facilityResponse.chargebackLimitPct( entity.getChargebackLimitPct() );
+        facilityResponse.createdAt( entity.getCreatedAt() );
+        facilityResponse.dailyTransactionLimit( entity.getDailyTransactionLimit() );
         facilityResponse.facilityType( entity.getFacilityType() );
+        facilityResponse.fraudScreeningEnabled( entity.getFraudScreeningEnabled() );
+        facilityResponse.id( entity.getId() );
+        facilityResponse.mdrRatePct( entity.getMdrRatePct() );
+        facilityResponse.merchantId( entity.getMerchantId() );
+        facilityResponse.monthlyVolumeLimit( entity.getMonthlyVolumeLimit() );
+        facilityResponse.pciComplianceDate( entity.getPciComplianceDate() );
+        facilityResponse.pciComplianceStatus( entity.getPciComplianceStatus() );
         facilityResponse.processorConnection( entity.getProcessorConnection() );
-        facilityResponse.terminalIdPrefix( entity.getTerminalIdPrefix() );
+        facilityResponse.reserveBalance( entity.getReserveBalance() );
+        facilityResponse.reserveHoldPct( entity.getReserveHoldPct() );
         facilityResponse.settlementCurrency( entity.getSettlementCurrency() );
         facilityResponse.settlementCycle( entity.getSettlementCycle() );
-        facilityResponse.mdrRatePct( entity.getMdrRatePct() );
-        facilityResponse.dailyTransactionLimit( entity.getDailyTransactionLimit() );
-        facilityResponse.monthlyVolumeLimit( entity.getMonthlyVolumeLimit() );
-        facilityResponse.chargebackLimitPct( entity.getChargebackLimitPct() );
-        facilityResponse.reserveHoldPct( entity.getReserveHoldPct() );
-        facilityResponse.reserveBalance( entity.getReserveBalance() );
-        facilityResponse.pciComplianceStatus( entity.getPciComplianceStatus() );
-        facilityResponse.pciComplianceDate( entity.getPciComplianceDate() );
-        facilityResponse.fraudScreeningEnabled( entity.getFraudScreeningEnabled() );
-        facilityResponse.threeDSecureEnabled( entity.getThreeDSecureEnabled() );
         facilityResponse.status( entity.getStatus() );
-        facilityResponse.createdAt( entity.getCreatedAt() );
+        facilityResponse.terminalIdPrefix( entity.getTerminalIdPrefix() );
+        facilityResponse.threeDSecureEnabled( entity.getThreeDSecureEnabled() );
         facilityResponse.updatedAt( entity.getUpdatedAt() );
 
         return facilityResponse.build();
@@ -100,23 +100,23 @@ public class AcquiringMapperImpl implements AcquiringMapper {
 
         SettlementResponse.SettlementResponseBuilder settlementResponse = SettlementResponse.builder();
 
-        settlementResponse.id( entity.getId() );
-        settlementResponse.merchantId( entity.getMerchantId() );
-        settlementResponse.facilityId( entity.getFacilityId() );
-        settlementResponse.settlementDate( entity.getSettlementDate() );
-        settlementResponse.grossTransactionAmount( entity.getGrossTransactionAmount() );
-        settlementResponse.transactionCount( entity.getTransactionCount() );
-        settlementResponse.mdrDeducted( entity.getMdrDeducted() );
-        settlementResponse.otherFeesDeducted( entity.getOtherFeesDeducted() );
         settlementResponse.chargebackDeductions( entity.getChargebackDeductions() );
+        settlementResponse.createdAt( entity.getCreatedAt() );
+        settlementResponse.facilityId( entity.getFacilityId() );
+        settlementResponse.grossTransactionAmount( entity.getGrossTransactionAmount() );
+        settlementResponse.id( entity.getId() );
+        settlementResponse.mdrDeducted( entity.getMdrDeducted() );
+        settlementResponse.merchantId( entity.getMerchantId() );
+        settlementResponse.netSettlementAmount( entity.getNetSettlementAmount() );
+        settlementResponse.otherFeesDeducted( entity.getOtherFeesDeducted() );
         settlementResponse.refundDeductions( entity.getRefundDeductions() );
         settlementResponse.reserveHeld( entity.getReserveHeld() );
-        settlementResponse.netSettlementAmount( entity.getNetSettlementAmount() );
-        settlementResponse.settlementAccountId( entity.getSettlementAccountId() );
-        settlementResponse.settlementReference( entity.getSettlementReference() );
         settlementResponse.settledAt( entity.getSettledAt() );
+        settlementResponse.settlementAccountId( entity.getSettlementAccountId() );
+        settlementResponse.settlementDate( entity.getSettlementDate() );
+        settlementResponse.settlementReference( entity.getSettlementReference() );
         settlementResponse.status( entity.getStatus() );
-        settlementResponse.createdAt( entity.getCreatedAt() );
+        settlementResponse.transactionCount( entity.getTransactionCount() );
         settlementResponse.updatedAt( entity.getUpdatedAt() );
 
         return settlementResponse.build();
@@ -144,16 +144,16 @@ public class AcquiringMapperImpl implements AcquiringMapper {
 
         MerchantChargeback.MerchantChargebackBuilder<?, ?> merchantChargeback = MerchantChargeback.builder();
 
-        merchantChargeback.merchantId( request.getMerchantId() );
-        merchantChargeback.originalTransactionRef( request.getOriginalTransactionRef() );
-        merchantChargeback.transactionDate( request.getTransactionDate() );
-        merchantChargeback.transactionAmount( request.getTransactionAmount() );
         merchantChargeback.cardNetwork( request.getCardNetwork() );
-        merchantChargeback.reasonCode( request.getReasonCode() );
-        merchantChargeback.reasonDescription( request.getReasonDescription() );
         merchantChargeback.chargebackAmount( request.getChargebackAmount() );
         merchantChargeback.currency( request.getCurrency() );
         merchantChargeback.evidenceDeadline( request.getEvidenceDeadline() );
+        merchantChargeback.merchantId( request.getMerchantId() );
+        merchantChargeback.originalTransactionRef( request.getOriginalTransactionRef() );
+        merchantChargeback.reasonCode( request.getReasonCode() );
+        merchantChargeback.reasonDescription( request.getReasonDescription() );
+        merchantChargeback.transactionAmount( request.getTransactionAmount() );
+        merchantChargeback.transactionDate( request.getTransactionDate() );
 
         return merchantChargeback.build();
     }
@@ -166,28 +166,28 @@ public class AcquiringMapperImpl implements AcquiringMapper {
 
         ChargebackResponse.ChargebackResponseBuilder chargebackResponse = ChargebackResponse.builder();
 
-        chargebackResponse.id( entity.getId() );
-        chargebackResponse.merchantId( entity.getMerchantId() );
-        chargebackResponse.originalTransactionRef( entity.getOriginalTransactionRef() );
-        chargebackResponse.transactionDate( entity.getTransactionDate() );
-        chargebackResponse.transactionAmount( entity.getTransactionAmount() );
+        chargebackResponse.arbitrationRequired( entity.getArbitrationRequired() );
         chargebackResponse.cardNetwork( entity.getCardNetwork() );
-        chargebackResponse.reasonCode( entity.getReasonCode() );
-        chargebackResponse.reasonDescription( entity.getReasonDescription() );
         chargebackResponse.chargebackAmount( entity.getChargebackAmount() );
+        chargebackResponse.createdAt( entity.getCreatedAt() );
         chargebackResponse.currency( entity.getCurrency() );
         chargebackResponse.evidenceDeadline( entity.getEvidenceDeadline() );
-        chargebackResponse.merchantResponseRef( entity.getMerchantResponseRef() );
+        chargebackResponse.financialImpact( entity.getFinancialImpact() );
+        chargebackResponse.id( entity.getId() );
         Map<String, Object> map = entity.getMerchantEvidence();
         if ( map != null ) {
             chargebackResponse.merchantEvidence( new LinkedHashMap<String, Object>( map ) );
         }
-        chargebackResponse.representmentSubmitted( entity.getRepresentmentSubmitted() );
-        chargebackResponse.arbitrationRequired( entity.getArbitrationRequired() );
+        chargebackResponse.merchantId( entity.getMerchantId() );
+        chargebackResponse.merchantResponseRef( entity.getMerchantResponseRef() );
+        chargebackResponse.originalTransactionRef( entity.getOriginalTransactionRef() );
         chargebackResponse.outcome( entity.getOutcome() );
-        chargebackResponse.financialImpact( entity.getFinancialImpact() );
+        chargebackResponse.reasonCode( entity.getReasonCode() );
+        chargebackResponse.reasonDescription( entity.getReasonDescription() );
+        chargebackResponse.representmentSubmitted( entity.getRepresentmentSubmitted() );
         chargebackResponse.status( entity.getStatus() );
-        chargebackResponse.createdAt( entity.getCreatedAt() );
+        chargebackResponse.transactionAmount( entity.getTransactionAmount() );
+        chargebackResponse.transactionDate( entity.getTransactionDate() );
         chargebackResponse.updatedAt( entity.getUpdatedAt() );
 
         return chargebackResponse.build();

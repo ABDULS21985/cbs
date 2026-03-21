@@ -3,6 +3,7 @@ package com.cbs.alm.service;
 import com.cbs.alm.entity.*;
 import com.cbs.alm.repository.*;
 import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.fixedincome.entity.SecurityHolding;
 import com.cbs.fixedincome.repository.SecurityHoldingRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -22,6 +24,10 @@ public class AlmService {
     private final AlmGapReportRepository gapReportRepository;
     private final AlmScenarioRepository scenarioRepository;
     private final SecurityHoldingRepository holdingRepository;
+    private final AlcoPackRepository alcoPackRepository;
+    private final AlcoActionItemRepository actionItemRepository;
+    private final AlmRegulatoryReturnRepository regulatoryReturnRepository;
+    private final AlmRegulatorySubmissionRepository regulatorySubmissionRepository;
     private final CurrentActorProvider currentActorProvider;
 
     /**
@@ -430,5 +436,262 @@ public class AlmService {
         comparison.put("scenarios", results);
         comparison.put("comparedAt", java.time.Instant.now().toString());
         return comparison;
+    }
+
+    // ===================================================================
+    // ALCO PACK MANAGEMENT
+    // ===================================================================
+
+    public List<AlcoPack> getAllAlcoPacks() {
+        return alcoPackRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public AlcoPack getAlcoPack(Long id) {
+        return alcoPackRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("AlcoPack", "id", id));
+    }
+
+    public AlcoPack getAlcoPackByMonth(String month) {
+        return alcoPackRepository.findTopByMonthOrderByPackVersionDesc(month)
+                .orElseThrow(() -> new ResourceNotFoundException("AlcoPack", "month", month));
+    }
+
+    @Transactional
+    public AlcoPack createAlcoPack(AlcoPack pack) {
+        pack.setPreparedBy(currentActorProvider.getCurrentActor());
+        pack.setCreatedAt(Instant.now());
+        pack.setUpdatedAt(Instant.now());
+        AlcoPack saved = alcoPackRepository.save(pack);
+        log.info("ALCO pack created: month={}, id={}", saved.getMonth(), saved.getId());
+        return saved;
+    }
+
+    @Transactional
+    public AlcoPack updateAlcoPack(Long id, List<String> sections, String executiveSummary) {
+        AlcoPack pack = getAlcoPack(id);
+        if (!"DRAFT".equals(pack.getStatus())) {
+            throw new IllegalStateException("Can only update packs in DRAFT status");
+        }
+        pack.setSections(sections);
+        pack.setExecutiveSummary(executiveSummary);
+        pack.setUpdatedAt(Instant.now());
+        return alcoPackRepository.save(pack);
+    }
+
+    @Transactional
+    public AlcoPack submitAlcoPackForReview(Long id) {
+        AlcoPack pack = getAlcoPack(id);
+        if (!"DRAFT".equals(pack.getStatus())) {
+            throw new IllegalStateException("Pack must be in DRAFT status to submit for review");
+        }
+        pack.setStatus("PENDING_REVIEW");
+        pack.setUpdatedAt(Instant.now());
+        log.info("ALCO pack submitted for review: id={}", id);
+        return alcoPackRepository.save(pack);
+    }
+
+    @Transactional
+    public AlcoPack approveAlcoPack(Long id) {
+        AlcoPack pack = getAlcoPack(id);
+        if (!"PENDING_REVIEW".equals(pack.getStatus())) {
+            throw new IllegalStateException("Pack must be PENDING_REVIEW to approve");
+        }
+        pack.setStatus("APPROVED");
+        pack.setApprovedBy(currentActorProvider.getCurrentActor());
+        pack.setApprovedAt(Instant.now());
+        pack.setUpdatedAt(Instant.now());
+        log.info("ALCO pack approved: id={}, by={}", id, pack.getApprovedBy());
+        return alcoPackRepository.save(pack);
+    }
+
+    @Transactional
+    public AlcoPack distributeAlcoPack(Long id) {
+        AlcoPack pack = getAlcoPack(id);
+        if (!"APPROVED".equals(pack.getStatus())) {
+            throw new IllegalStateException("Pack must be APPROVED to distribute");
+        }
+        pack.setStatus("DISTRIBUTED");
+        pack.setDistributedAt(Instant.now());
+        pack.setUpdatedAt(Instant.now());
+        log.info("ALCO pack distributed: id={}", id);
+        return alcoPackRepository.save(pack);
+    }
+
+    public List<AlcoPack> getAlcoPackVersions(String month) {
+        return alcoPackRepository.findByMonthOrderByPackVersionDesc(month);
+    }
+
+    /**
+     * Generate executive summary from latest ALM data.
+     */
+    public Map<String, Object> generateExecutiveSummary(String month) {
+        List<AlmGapReport> reports = gapReportRepository.findAll();
+        AlmGapReport latest = reports.isEmpty() ? null : reports.get(reports.size() - 1);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("ALCO Executive Summary — ").append(month).append("\n\n");
+        if (latest != null) {
+            sb.append("As at ").append(latest.getReportDate()).append(", the bank's interest rate risk position is as follows:\n\n");
+            sb.append("- Net Interest Income (NII) base: ").append(fmtBd(latest.getNiiBase())).append("\n");
+            sb.append("- NII sensitivity to +100bp: ").append(fmtBd(latest.getNiiSensitivity())).append("\n");
+            sb.append("- Economic Value of Equity (EVE) base: ").append(fmtBd(latest.getEveBase())).append("\n");
+            sb.append("- EVE sensitivity to +200bp: ").append(fmtBd(latest.getEveSensitivity())).append("\n");
+            sb.append("- Duration gap: ").append(latest.getDurationGap() != null ? latest.getDurationGap().toPlainString() + " years" : "N/A").append("\n");
+            sb.append("- Cumulative repricing gap: ").append(fmtBd(latest.getCumulativeGap())).append("\n\n");
+            sb.append("The gap ratio stands at ").append(latest.getGapRatio() != null ? latest.getGapRatio().toPlainString() : "N/A");
+            sb.append(", indicating the bank is ").append(latest.getCumulativeGap() != null && latest.getCumulativeGap().signum() > 0 ? "asset-sensitive" : "liability-sensitive");
+            sb.append(" in the current rate environment.\n\n");
+            sb.append("Key actions from the previous ALCO meeting are being tracked and updated.");
+        } else {
+            sb.append("No gap report data available for summary generation. Generate a gap report first.");
+        }
+
+        return Map.of("summary", sb.toString());
+    }
+
+    private String fmtBd(BigDecimal v) {
+        if (v == null) return "N/A";
+        if (v.abs().compareTo(new BigDecimal("1000000000")) >= 0)
+            return v.divide(new BigDecimal("1000000000"), 1, RoundingMode.HALF_UP).toPlainString() + "B";
+        if (v.abs().compareTo(new BigDecimal("1000000")) >= 0)
+            return v.divide(new BigDecimal("1000000"), 1, RoundingMode.HALF_UP).toPlainString() + "M";
+        return v.toPlainString();
+    }
+
+    // ===================================================================
+    // ACTION ITEMS
+    // ===================================================================
+
+    public List<AlcoActionItem> getAllActionItems() {
+        return actionItemRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    @Transactional
+    public AlcoActionItem createActionItem(AlcoActionItem item) {
+        long count = actionItemRepository.count();
+        item.setItemNumber("AI-" + String.format("%04d", count + 1));
+        item.setCreatedAt(Instant.now());
+        item.setUpdatedAt(Instant.now());
+        AlcoActionItem saved = actionItemRepository.save(item);
+        log.info("Action item created: {} - {}", saved.getItemNumber(), saved.getDescription());
+        return saved;
+    }
+
+    @Transactional
+    public AlcoActionItem updateActionItemStatus(Long id, String status, String updateNotes) {
+        AlcoActionItem item = actionItemRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("AlcoActionItem", "id", id));
+        item.setStatus(status);
+        if (updateNotes != null) {
+            item.setUpdateNotes(updateNotes);
+        }
+        item.setUpdatedAt(Instant.now());
+        log.info("Action item updated: {} -> {}", item.getItemNumber(), status);
+        return actionItemRepository.save(item);
+    }
+
+    // ===================================================================
+    // REGULATORY RETURNS & SUBMISSIONS
+    // ===================================================================
+
+    public List<AlmRegulatoryReturn> getAllRegulatoryReturns() {
+        return regulatoryReturnRepository.findAllByOrderByNextDueAsc();
+    }
+
+    public AlmRegulatoryReturn getRegulatoryReturn(Long id) {
+        return regulatoryReturnRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("AlmRegulatoryReturn", "id", id));
+    }
+
+    /**
+     * Validate a regulatory return — populates data from latest ALM computations and runs business rules.
+     */
+    @Transactional
+    public Map<String, Object> validateRegulatoryReturn(Long id) {
+        AlmRegulatoryReturn ret = getRegulatoryReturn(id);
+
+        // Auto-populate return data from latest ALM computations
+        List<AlmGapReport> reports = gapReportRepository.findAll();
+        AlmGapReport latest = reports.isEmpty() ? null : reports.get(reports.size() - 1);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        List<Map<String, Object>> errors = new ArrayList<>();
+        List<Map<String, Object>> warnings = new ArrayList<>();
+
+        if (latest != null) {
+            data.put("reportDate", latest.getReportDate().toString());
+            data.put("niiBase", latest.getNiiBase());
+            data.put("niiSensitivityUp100bp", latest.getNiiSensitivity());
+            data.put("eveBase", latest.getEveBase());
+            data.put("eveSensitivityUp200bp", latest.getEveSensitivity());
+            data.put("totalRsa", latest.getTotalRsa());
+            data.put("totalRsl", latest.getTotalRsl());
+            data.put("cumulativeGap", latest.getCumulativeGap());
+            data.put("durationGap", latest.getDurationGap());
+            data.put("gapRatio", latest.getGapRatio());
+
+            // Business rule validations
+            if (latest.getDurationGap() != null && latest.getDurationGap().abs().compareTo(new BigDecimal("5")) > 0) {
+                warnings.add(Map.of("field", "durationGap", "rule", "DURATION_GAP_LIMIT",
+                        "message", "Duration gap exceeds 5-year regulatory guideline", "severity", "WARNING"));
+            }
+            BigDecimal niiPct = latest.getNiiSensitivity() != null && latest.getNiiBase() != null && latest.getNiiBase().signum() != 0
+                    ? latest.getNiiSensitivity().abs().divide(latest.getNiiBase().abs(), 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
+                    : BigDecimal.ZERO;
+            if (niiPct.compareTo(new BigDecimal("15")) > 0) {
+                errors.add(Map.of("field", "niiSensitivity", "rule", "NII_DECLINE_15PCT",
+                        "message", "NII sensitivity exceeds 15% regulatory threshold (" + niiPct.setScale(1, RoundingMode.HALF_UP) + "%)", "severity", "ERROR"));
+            }
+        } else {
+            errors.add(Map.of("field", "data", "rule", "MISSING_DATA",
+                    "message", "No ALM gap report data available. Generate a gap report before validating.", "severity", "ERROR"));
+        }
+
+        ret.setData(data);
+        ret.setValidationErrors(errors);
+        ret.setValidationWarnings(warnings);
+        if (errors.isEmpty()) {
+            ret.setStatus("VALIDATED");
+        }
+        ret.setUpdatedAt(Instant.now());
+        regulatoryReturnRepository.save(ret);
+
+        return Map.of("errors", errors, "warnings", warnings);
+    }
+
+    @Transactional
+    public AlmRegulatorySubmission submitRegulatoryReturn(Long id) {
+        AlmRegulatoryReturn ret = getRegulatoryReturn(id);
+        if (!"VALIDATED".equals(ret.getStatus())) {
+            throw new IllegalStateException("Return must be VALIDATED before submission. Run validation first.");
+        }
+
+        String actor = currentActorProvider.getCurrentActor();
+        String refNumber = "CBN-" + ret.getCode() + "-" + System.currentTimeMillis();
+
+        AlmRegulatorySubmission submission = AlmRegulatorySubmission.builder()
+                .returnId(ret.getId())
+                .returnCode(ret.getCode())
+                .submittedBy(actor)
+                .referenceNumber(refNumber)
+                .build();
+        AlmRegulatorySubmission saved = regulatorySubmissionRepository.save(submission);
+
+        ret.setStatus("SUBMITTED");
+        ret.setLastSubmissionDate(Instant.now());
+        ret.setLastSubmittedBy(actor);
+        ret.setUpdatedAt(Instant.now());
+        regulatoryReturnRepository.save(ret);
+
+        log.info("Regulatory return submitted: code={}, ref={}, by={}", ret.getCode(), refNumber, actor);
+        return saved;
+    }
+
+    public List<AlmRegulatorySubmission> getSubmissionsForReturn(Long returnId) {
+        return regulatorySubmissionRepository.findByReturnIdOrderBySubmissionDateDesc(returnId);
+    }
+
+    public List<AlmRegulatorySubmission> getAllSubmissions() {
+        return regulatorySubmissionRepository.findAllByOrderBySubmissionDateDesc();
     }
 }

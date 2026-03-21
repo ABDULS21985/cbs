@@ -10,29 +10,33 @@ export const posTerminalsApi = {
   getById: (terminalId: string) =>
     apiGet<PosTerminal>(`/api/v1/pos-terminals/${terminalId}`),
 
-  /** POST /v1/pos-terminals/heartbeat */
-  heartbeat: (payload: { terminalId: string; status: string; softwareVersion: string }) =>
-    apiPost<PosTerminal>('/api/v1/pos-terminals/heartbeat', payload),
+  /** POST /v1/pos-terminals/{terminalId}/heartbeat — path variable, no body */
+  heartbeat: (terminalId: string) =>
+    apiPost<PosTerminal>(`/api/v1/pos-terminals/${terminalId}/heartbeat`),
 
-  /** POST /v1/pos-terminals/heartbeat2 */
-  heartbeat2: (payload: { terminalId: string; operationalStatus: string }) =>
-    apiPost<PosTerminal>('/api/v1/pos-terminals/heartbeat2', payload),
+  /** POST /v1/pos-terminals/{terminalId}/status */
+  updateStatus: (terminalId: string, status: string) =>
+    apiPost<PosTerminal>(`/api/v1/pos-terminals/${terminalId}/status`, { status }),
 
   /** GET /v1/pos-terminals/merchant/{merchantId} */
-  byMerchant: (merchantId: number) =>
+  byMerchant: (merchantId: string) =>
     apiGet<PosTerminal[]>(`/api/v1/pos-terminals/merchant/${merchantId}`),
 
-  /** POST /v1/pos-terminals (deploy new terminal) */
+  /** POST /v1/pos-terminals (register new terminal) */
   deploy: (payload: {
+    terminalId: string;
     terminalType: string;
     merchantId: string;
+    merchantName: string;
+    merchantCategoryCode?: string;
     locationAddress: string;
-    supportsContactless: boolean;
-    supportsChip: boolean;
-    supportsMagstripe: boolean;
-    supportsPin: boolean;
-    supportsQr: boolean;
-    maxTransactionAmount: number;
-    acquiringBankCode: string;
+    supportsContactless?: boolean;
+    supportsChip?: boolean;
+    supportsMagstripe?: boolean;
+    supportsPin?: boolean;
+    supportsQr?: boolean;
+    maxTransactionAmount?: number;
+    acquiringBankCode?: string;
+    softwareVersion?: string;
   }) => apiPost<PosTerminal>('/api/v1/pos-terminals', payload),
 };

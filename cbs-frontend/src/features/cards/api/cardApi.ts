@@ -1,15 +1,19 @@
 import { apiGet, apiPost, apiPatch } from '@/lib/api';
-import type { Card, CardTransaction, Merchant, PosTerminal } from '../types/card';
+import type { Card, CardTransaction, Merchant } from '../types/card';
+import type { PosTerminal } from '../types/posTerminal';
 
 export interface IssueCardInput {
-  customerId: number;
-  cardType: Card['cardType'];
-  scheme: Card['scheme'];
   accountId: number;
+  cardType: Card['cardType'];
+  cardScheme: Card['cardScheme'];
   cardholderName: string;
-  deliveryMethod: string;
-  branchCode?: string;
   cardTier?: string;
+  expiryDate?: string;
+  dailyPosLimit?: number;
+  dailyAtmLimit?: number;
+  dailyOnlineLimit?: number;
+  singleTxnLimit?: number;
+  creditLimit?: number;
 }
 
 export const cardApi = {
@@ -19,7 +23,8 @@ export const cardApi = {
   blockCard: (id: number, reason: string) => apiPost<Card>(`/api/v1/cards/${id}/block`, { reason }),
   activateCard: (id: number) => apiPost<Card>(`/api/v1/cards/${id}/activate`),
   hotlistCard: (id: number, reason: string) => apiPost<Card>(`/api/v1/cards/${id}/hotlist`, { reason }),
-  updateControls: (id: number, controls: Partial<Card['controls']>) => apiPatch<Card>(`/api/v1/cards/${id}/controls`, controls),
+  updateControls: (id: number, controls: Partial<import('../types/card').CardControls>) =>
+    apiPatch<Card>(`/api/v1/cards/${id}/controls`, controls),
   getCardTransactions: (cardId: number) => apiGet<CardTransaction[]>(`/api/v1/cards/${cardId}/transactions`),
   issueCard: (data: IssueCardInput) => apiPost<Card>('/api/v1/cards', data),
   requestCard: (data: Record<string, unknown>) => apiPost<Card>('/api/v1/cards/request', data),
@@ -30,16 +35,23 @@ export const cardApi = {
   getMerchant: (id: number) => apiGet<Merchant>(`/api/v1/merchants/${id}`),
   onboardMerchant: (data: {
     merchantName: string;
-    mcc: string;
-    mccDescription?: string;
+    merchantCategoryCode: string;
+    businessType: string;
     mdrRate: number;
-    riskCategory?: string;
+    riskCategory: string;
     contactName?: string;
     contactEmail?: string;
     contactPhone?: string;
-    bankAccountNumber?: string;
+    address?: string;
+    settlementAccountId?: number;
     settlementFrequency?: string;
+    monthlyVolumeLimit?: number;
   }) => apiPost<Merchant>('/api/v1/merchants', data),
+
+  suspendMerchant: (merchantId: string, reason: string) =>
+    apiPost<Merchant>(`/api/v1/merchants/${merchantId}/suspend`, { reason }),
+  activateMerchant: (merchantId: string) =>
+    apiPost<Merchant>(`/api/v1/merchants/${merchantId}/activate`),
 
   getTerminals: () => apiGet<PosTerminal[]>('/api/v1/pos-terminals'),
 };

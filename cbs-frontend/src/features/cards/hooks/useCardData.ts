@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost, apiPatch } from '@/lib/api';
-import type { Card, CardTransaction, Merchant, PosTerminal, CardControls } from '../types/card';
+import type { Card, CardTransaction, Merchant, CardControls } from '../types/card';
 import { handleApiError } from '@/lib/errorHandler';
 import { cardApi } from '../api/cardApi';
 

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-03-21T22:35:42+0100",
+    date = "2026-03-21T22:53:45+0100",
     comments = "version: 1.6.2, compiler: Eclipse JDT (IDE) 3.45.0.v20260224-0835, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
@@ -24,21 +24,21 @@ public class MerchantMapperImpl implements MerchantMapper {
 
         MerchantProfile.MerchantProfileBuilder merchantProfile = MerchantProfile.builder();
 
-        merchantProfile.merchantName( request.getMerchantName() );
-        merchantProfile.tradingName( request.getTradingName() );
-        merchantProfile.merchantCategoryCode( request.getMerchantCategoryCode() );
+        merchantProfile.address( request.getAddress() );
         merchantProfile.businessType( request.getBusinessType() );
-        merchantProfile.registrationNumber( request.getRegistrationNumber() );
-        merchantProfile.taxId( request.getTaxId() );
+        merchantProfile.contactEmail( request.getContactEmail() );
         merchantProfile.contactName( request.getContactName() );
         merchantProfile.contactPhone( request.getContactPhone() );
-        merchantProfile.contactEmail( request.getContactEmail() );
-        merchantProfile.address( request.getAddress() );
+        merchantProfile.mdrRate( request.getMdrRate() );
+        merchantProfile.merchantCategoryCode( request.getMerchantCategoryCode() );
+        merchantProfile.merchantName( request.getMerchantName() );
+        merchantProfile.monthlyVolumeLimit( request.getMonthlyVolumeLimit() );
+        merchantProfile.registrationNumber( request.getRegistrationNumber() );
+        merchantProfile.riskCategory( request.getRiskCategory() );
         merchantProfile.settlementAccountId( request.getSettlementAccountId() );
         merchantProfile.settlementFrequency( request.getSettlementFrequency() );
-        merchantProfile.mdrRate( request.getMdrRate() );
-        merchantProfile.monthlyVolumeLimit( request.getMonthlyVolumeLimit() );
-        merchantProfile.riskCategory( request.getRiskCategory() );
+        merchantProfile.taxId( request.getTaxId() );
+        merchantProfile.tradingName( request.getTradingName() );
 
         return merchantProfile.build();
     }
@@ -51,29 +51,29 @@ public class MerchantMapperImpl implements MerchantMapper {
 
         MerchantResponse.MerchantResponseBuilder merchantResponse = MerchantResponse.builder();
 
-        merchantResponse.id( entity.getId() );
-        merchantResponse.merchantId( entity.getMerchantId() );
-        merchantResponse.merchantName( entity.getMerchantName() );
-        merchantResponse.tradingName( entity.getTradingName() );
-        merchantResponse.merchantCategoryCode( entity.getMerchantCategoryCode() );
+        merchantResponse.address( entity.getAddress() );
         merchantResponse.businessType( entity.getBusinessType() );
-        merchantResponse.registrationNumber( entity.getRegistrationNumber() );
-        merchantResponse.taxId( entity.getTaxId() );
+        merchantResponse.chargebackRate( entity.getChargebackRate() );
+        merchantResponse.contactEmail( entity.getContactEmail() );
         merchantResponse.contactName( entity.getContactName() );
         merchantResponse.contactPhone( entity.getContactPhone() );
-        merchantResponse.contactEmail( entity.getContactEmail() );
-        merchantResponse.address( entity.getAddress() );
+        merchantResponse.createdAt( entity.getCreatedAt() );
+        merchantResponse.id( entity.getId() );
+        merchantResponse.mdrRate( entity.getMdrRate() );
+        merchantResponse.merchantCategoryCode( entity.getMerchantCategoryCode() );
+        merchantResponse.merchantId( entity.getMerchantId() );
+        merchantResponse.merchantName( entity.getMerchantName() );
+        merchantResponse.monitoringLevel( entity.getMonitoringLevel() );
+        merchantResponse.monthlyVolumeLimit( entity.getMonthlyVolumeLimit() );
+        merchantResponse.onboardedAt( entity.getOnboardedAt() );
+        merchantResponse.registrationNumber( entity.getRegistrationNumber() );
+        merchantResponse.riskCategory( entity.getRiskCategory() );
         merchantResponse.settlementAccountId( entity.getSettlementAccountId() );
         merchantResponse.settlementFrequency( entity.getSettlementFrequency() );
-        merchantResponse.mdrRate( entity.getMdrRate() );
-        merchantResponse.terminalCount( entity.getTerminalCount() );
-        merchantResponse.monthlyVolumeLimit( entity.getMonthlyVolumeLimit() );
-        merchantResponse.riskCategory( entity.getRiskCategory() );
-        merchantResponse.chargebackRate( entity.getChargebackRate() );
-        merchantResponse.monitoringLevel( entity.getMonitoringLevel() );
         merchantResponse.status( entity.getStatus() );
-        merchantResponse.onboardedAt( entity.getOnboardedAt() );
-        merchantResponse.createdAt( entity.getCreatedAt() );
+        merchantResponse.taxId( entity.getTaxId() );
+        merchantResponse.terminalCount( entity.getTerminalCount() );
+        merchantResponse.tradingName( entity.getTradingName() );
         merchantResponse.updatedAt( entity.getUpdatedAt() );
 
         return merchantResponse.build();

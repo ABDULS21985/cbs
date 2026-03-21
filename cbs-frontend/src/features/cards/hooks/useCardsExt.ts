@@ -361,27 +361,94 @@ export function useProcessSwitchTransaction() {
 export function useCardNetwork(network: string) {
   return useQuery({
     queryKey: cardKeys.network(network),
-    queryFn: () => cardNetworksApi.register(network),
+    queryFn: () => cardNetworksApi.getByNetwork(network),
     ...CARD_QUERY_DEFAULTS,
     enabled: !!network,
   });
 }
 
+export function useAllCardNetworks() {
+  return useQuery({
+    queryKey: cardKeys.networks,
+    queryFn: () => cardNetworksApi.getAll(),
+    ...CARD_QUERY_DEFAULTS,
+  });
+}
+
+export function useRegisterNetwork() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof cardNetworksApi.register>[0]) =>
+      cardNetworksApi.register(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.networks });
+    },
+  });
+}
+
+export function useDeployTerminal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof posTerminalsApi.deploy>[0]) =>
+      posTerminalsApi.deploy(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.terminals });
+    },
+  });
+}
+
+export function useSuspendMerchant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ merchantId, reason }: { merchantId: string; reason: string }) => {
+      const { apiPost } = require('@/lib/api');
+      return apiPost(`/api/v1/merchants/${merchantId}/suspend`, { reason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.merchants });
+    },
+  });
+}
+
+export function useActivateMerchant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (merchantId: string) => {
+      const { apiPost } = require('@/lib/api');
+      return apiPost(`/api/v1/merchants/${merchantId}/activate`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.merchants });
+    },
+  });
+}
+
+export function useProvisionToken() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ cardId, ...data }: { cardId: number; walletProvider: string; deviceName: string; deviceType: string }) =>
+      cardsApi.provisionToken(cardId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.tokens });
+    },
+  });
+}
+
 // ─── POS Terminal Hooks ─────────────────────────────────────────────────────
 
-export function usePosTerminalsByMerchant(merchantId: number) {
+export function usePosTerminalsByMerchant(merchantId: string) {
   return useQuery({
-    queryKey: cardKeys.posByMerchant(merchantId),
+    queryKey: cardKeys.posByMerchant(Number(merchantId) || 0),
     queryFn: () => posTerminalsApi.byMerchant(merchantId),
     ...CARD_QUERY_DEFAULTS,
-    enabled: merchantId > 0,
+    enabled: !!merchantId,
   });
 }
 
 export function usePosTerminalHeartbeat() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (terminalId: number) => posTerminalsApi.heartbeat(terminalId),
+    mutationFn: (terminalId: string) => posTerminalsApi.heartbeat(terminalId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cardKeys.terminals });
     },
@@ -394,7 +461,8 @@ export const usePosHeartbeat = usePosTerminalHeartbeat;
 export function useUpdatePosTerminalStatus() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (terminalId: number) => posTerminalsApi.heartbeat2(terminalId),
+    mutationFn: ({ terminalId, status }: { terminalId: string; status: string }) =>
+      posTerminalsApi.updateStatus(terminalId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cardKeys.terminals });
     },

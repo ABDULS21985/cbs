@@ -87,10 +87,11 @@ public class CardService {
     @Transactional
     public Card activateCard(Long cardId) {
         Card card = getCard(cardId);
-        if (card.getStatus() != CardStatus.PENDING_ACTIVATION) {
-            throw new BusinessException("Card is not pending activation", "CARD_NOT_PENDING");
+        if (card.getStatus() != CardStatus.PENDING_ACTIVATION && card.getStatus() != CardStatus.BLOCKED) {
+            throw new BusinessException("Card must be pending activation or blocked to activate", "CARD_NOT_ACTIVATABLE");
         }
         card.setStatus(CardStatus.ACTIVE);
+        card.setBlockReason(null);
         return cardRepository.save(card);
     }
 

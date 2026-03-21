@@ -60,8 +60,8 @@ export const DISPUTE_STATUS_LABELS: Record<DisputeStatus, string> = {
 export function isTerminalDisputeStatus(status: DisputeStatus | string): boolean {
   return ['RESOLVED_CUSTOMER', 'RESOLVED_MERCHANT', 'WITHDRAWN', 'EXPIRED'].includes(status);
 }
-export type TokenStatus = 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'EXPIRED';
-export type WalletProvider = 'APPLE_PAY' | 'GOOGLE_PAY' | 'SAMSUNG_PAY' | 'GARMIN_PAY' | 'OTHER';
+export type TokenStatus = 'REQUESTED' | 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'EXPIRED';
+export type WalletProvider = 'APPLE_PAY' | 'GOOGLE_PAY' | 'SAMSUNG_PAY' | 'GARMIN_PAY' | 'FITBIT_PAY' | 'MERCHANT_TOKEN' | 'ISSUER_TOKEN' | 'COF_TOKEN';
 
 export interface CardExtAccount {
   id: number;

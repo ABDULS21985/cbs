@@ -182,7 +182,7 @@ export interface DiscountScheme {
   effectiveTo: string | null;
   approvedBy: string | null;
   approvalDate: string | null;
-  status: 'DRAFT' | 'ACTIVE' | 'EXHAUSTED';
+  status: 'DRAFT' | 'APPROVED' | 'ACTIVE' | 'EXHAUSTED' | 'EXPIRED' | 'SUSPENDED';
   createdAt: string;
   updatedAt: string;
 }

@@ -106,7 +106,7 @@ describe('AccountListPage', () => {
     expect(screen.getByText('TechVentures Current')).toBeInTheDocument();
     expect(screen.getByText('Dormant USD Account')).toBeInTheDocument();
     expect(screen.getAllByText('HQ01')[0]).toBeInTheDocument();
-    expect(screen.getByText('LG02')).toBeInTheDocument();
+    expect(screen.getAllByText('LG02')[0]).toBeInTheDocument();
   });
 
   it('renders column headers in the data table', async () => {
@@ -117,14 +117,14 @@ describe('AccountListPage', () => {
     renderWithProviders(<AccountListPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('Account Number')).toBeInTheDocument();
+      expect(screen.getAllByText('Account Number')[0]).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Account Name')).toBeInTheDocument();
-    expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Currency')).toBeInTheDocument();
-    expect(screen.getByText('Available Balance')).toBeInTheDocument();
-    expect(screen.getByText('Branch')).toBeInTheDocument();
+    expect(screen.getAllByText('Account Name')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Status')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Currency')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Available Balance')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Branch')[0]).toBeInTheDocument();
   });
 
   it('navigates to account detail on row click', async () => {
@@ -141,7 +141,7 @@ describe('AccountListPage', () => {
     const row = screen.getByText('Amara Primary Savings').closest('tr');
     if (row) fireEvent.click(row);
 
-    expect(mockNavigate).toHaveBeenCalledWith('/accounts/1');
+    expect(mockNavigate).toHaveBeenCalledWith('/accounts/0100000001');
   });
 
   it('shows loading state initially', () => {

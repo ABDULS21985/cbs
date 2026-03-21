@@ -252,6 +252,7 @@ import {
   SecuritiesPositionPage,
   QuantModelPage,
   CmSuitabilityPage,
+  CmMarketMakingPage,
   SecuritizationPage,
   ProgramTradingPage,
   EconomicCapitalPage,
@@ -580,7 +581,7 @@ export function AppRouter() {
           <Route path="economic-capital" element={<EconomicCapitalPage />} />
           <Route path="quotes" element={<QuoteManagementPage />} />
           <Route path="valuation" element={<ValuationPage />} />
-          <Route path="market-making" element={<MarketMakingPage />} />
+          <Route path="market-making" element={<CmMarketMakingPage />} />
           <Route path="placements/:code" element={<PlacementDetailPage />} />
           <Route path=":id" element={<CapitalMarketsDealDetailPage />} />
         </Route>

@@ -1,5 +1,7 @@
 package com.cbs.alm.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -26,10 +28,12 @@ public class AlcoPack {
     @Column(name = "approved_at") private Instant approvedAt;
     @Column(name = "distributed_at") private Instant distributedAt;
 
+    @JsonProperty("version")
     @Column(name = "pack_version", nullable = false) @Builder.Default private Integer packVersion = 1;
 
     @Column(name = "created_at") @Builder.Default private Instant createdAt = Instant.now();
     @Column(name = "updated_at") @Builder.Default private Instant updatedAt = Instant.now();
 
-    @Version @Column(name = "version") private Long version;
+    @JsonIgnore
+    @Version @Column(name = "version") private Long optimisticLock;
 }

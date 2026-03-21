@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 
 export type ConfirmationStatus = 'PENDING' | 'CONFIRMED' | 'MATCHED' | 'REJECTED';
 export type MatchStatus = 'MATCHED' | 'ALLEGED' | 'UNMATCHED';
@@ -87,8 +87,8 @@ export const tradeOpsApi = {
     settlementDate: string;
   }) => apiPost<TradeConfirmation>('/api/v1/trade-ops/confirmations', payload),
 
-  matchConfirmations: (ourRef: string, theirRef: string) =>
-    apiPost<{ matched: boolean; matchRef: string }>('/api/v1/trade-ops/confirmations/match', { ourRef, theirRef }),
+  matchConfirmations: (refA: string, refB: string) =>
+    apiPostParams<TradeConfirmation[]>('/api/v1/trade-ops/confirmations/match', { refA, refB }),
 
   getUnmatchedConfirmations: () =>
     apiGet<TradeConfirmation[]>('/api/v1/trade-ops/confirmations/unmatched'),

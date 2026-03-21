@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, DataTable, TabsPage } from '@/components/shared';
-import { formatDate, formatMoney, formatPercent } from '@/lib/formatters';
+import { formatDate, formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ShieldCheck, Users, AlertTriangle, X, Send } from 'lucide-react';
@@ -9,6 +9,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import {
   useSuitabilityProfiles,
   useSuitabilityChecks,
+  useExpiredProfiles,
   useOverrideSuitabilityCheck,
 } from '../hooks/useCapitalMarketsExt';
 import type { ClientRiskProfile, SuitabilityCheck } from '../types/suitability';
@@ -95,7 +96,7 @@ function ChecksTab() {
             <button onClick={() => setOverrideRef(null)} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
             <h2 className="text-lg font-semibold mb-4">Override Suitability Check</h2>
             <p className="text-sm text-muted-foreground mb-4">Ref: {overrideRef}</p>
-            <form onSubmit={(e) => { e.preventDefault(); override.mutate({ ref: overrideRef, data: { overrideApplied: true, overrideJustification: justification } }, { onSuccess: () => { toast.success('Override applied'); setOverrideRef(null); } }); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); override.mutate({ ref: overrideRef, justification, approver: 'current-user' }, { onSuccess: () => { toast.success('Override applied'); setOverrideRef(null); } }); }} className="space-y-4">
               <div><label className="text-sm font-medium text-muted-foreground">Justification</label><textarea className="w-full mt-1 input min-h-[80px]" value={justification} onChange={(e) => setJustification(e.target.value)} required placeholder="Provide justification for override..." /></div>
               <div className="flex justify-end gap-2"><button type="button" onClick={() => setOverrideRef(null)} className="btn-secondary">Cancel</button><button type="submit" disabled={override.isPending} className="btn-primary">{override.isPending ? 'Applying...' : 'Apply Override'}</button></div>
             </form>
@@ -109,9 +110,7 @@ function ChecksTab() {
 // ── Expired Profiles Tab ────────────────────────────────────────────────────
 
 function ExpiredProfilesTab() {
-  const { data: profiles = [], isLoading } = useSuitabilityProfiles();
-  const today = new Date().toISOString().split('T')[0];
-  const expired = useMemo(() => (profiles as ClientRiskProfile[]).filter((p) => p.nextReviewDate && p.nextReviewDate < today), [profiles, today]);
+  const { data: expired = [], isLoading } = useExpiredProfiles();
 
   const columns = useMemo<ColumnDef<ClientRiskProfile, unknown>[]>(() => [
     { accessorKey: 'profileCode', header: 'Code', cell: ({ row }) => <span className="font-mono text-xs font-medium text-primary">{row.original.profileCode}</span> },
@@ -124,7 +123,7 @@ function ExpiredProfilesTab() {
 
   return (
     <div className="p-4">
-      <DataTable columns={columns} data={expired} isLoading={isLoading} pageSize={15} emptyMessage="No expired profiles" />
+      <DataTable columns={columns} data={expired as ClientRiskProfile[]} isLoading={isLoading} pageSize={15} emptyMessage="No expired profiles" />
     </div>
   );
 }
@@ -136,8 +135,7 @@ export function SuitabilityPage() {
 
   const { data: profiles = [] } = useSuitabilityProfiles();
   const { data: checks = [] } = useSuitabilityChecks();
-  const today = new Date().toISOString().split('T')[0];
-  const expired = (profiles as ClientRiskProfile[]).filter((p) => p.nextReviewDate && p.nextReviewDate < today);
+  const { data: expired = [] } = useExpiredProfiles();
 
   return (
     <>
@@ -146,14 +144,14 @@ export function SuitabilityPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Total Profiles" value={(profiles as ClientRiskProfile[]).length} format="number" icon={Users} />
           <StatCard label="Checks Performed" value={(checks as SuitabilityCheck[]).length} format="number" icon={ShieldCheck} />
-          <StatCard label="Expired Profiles" value={expired.length} format="number" icon={AlertTriangle} />
+          <StatCard label="Expired Profiles" value={(expired as ClientRiskProfile[]).length} format="number" icon={AlertTriangle} />
           <StatCard label="Unsuitable" value={(checks as SuitabilityCheck[]).filter((c) => c.overallResult === 'UNSUITABLE').length} format="number" icon={AlertTriangle} />
         </div>
         <div className="card overflow-hidden">
           <TabsPage syncWithUrl tabs={[
             { id: 'profiles', label: 'Risk Profiles', badge: (profiles as ClientRiskProfile[]).length || undefined, content: <RiskProfilesTab /> },
             { id: 'checks', label: 'Suitability Checks', content: <ChecksTab /> },
-            { id: 'expired', label: 'Expired Profiles', badge: expired.length || undefined, content: <ExpiredProfilesTab /> },
+            { id: 'expired', label: 'Expired Profiles', badge: (expired as ClientRiskProfile[]).length || undefined, content: <ExpiredProfilesTab /> },
           ]} />
         </div>
       </div>

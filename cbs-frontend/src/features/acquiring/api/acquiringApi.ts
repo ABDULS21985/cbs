@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPostParams, apiPut } from '@/lib/api';
+import { apiGet, apiPost, apiPut } from '@/lib/api';
 
 // ─── Types aligned with Java backend entities ───────────────────────────────
 
@@ -159,9 +159,9 @@ export const acquiringApi = {
   activateMerchant: (merchantId: string) =>
     apiPost<Merchant>(`/api/v1/merchants/${encodeURIComponent(merchantId)}/activate`),
 
-  /** Backend uses @PathVariable merchantId STRING + @RequestParam reason */
+  /** Backend uses @PathVariable merchantId STRING + @RequestBody SuspendMerchantRequest */
   suspendMerchant: (merchantId: string, reason: string) =>
-    apiPostParams<Merchant>(`/api/v1/merchants/${encodeURIComponent(merchantId)}/suspend`, { reason }),
+    apiPost<Merchant>(`/api/v1/merchants/${encodeURIComponent(merchantId)}/suspend`, { reason }),
 
   // ── Facilities (AcquiringController: /v1/acquiring/facilities) ─────────────
 
@@ -188,7 +188,7 @@ export const acquiringApi = {
 
   /** Backend uses @RequestParam merchantId (Long) + @RequestParam date (LocalDate ISO) */
   processSettlement: (merchantId: number, date: string) =>
-    apiPostParams<MerchantSettlement>('/api/v1/acquiring/settlements/process', { merchantId, date }),
+    apiPost<MerchantSettlement>(`/api/v1/acquiring/settlements/process?merchantId=${merchantId}&date=${date}`),
 
   // ── Chargebacks (AcquiringController: /v1/acquiring/chargebacks) ───────────
 
@@ -198,12 +198,9 @@ export const acquiringApi = {
   recordChargeback: (payload: Partial<Chargeback>) =>
     apiPost<Chargeback>('/api/v1/acquiring/chargebacks', payload),
 
-  /** Backend: @PathVariable id + @RequestParam responseRef + @RequestBody Map<String, Object> evidence */
+  /** Backend: @PathVariable id + @RequestBody SubmitRepresentmentRequest { responseRef, evidence } */
   submitRepresentment: (id: number, responseRef: string, evidence: Record<string, unknown>) =>
-    apiPost<Chargeback>(
-      `/api/v1/acquiring/chargebacks/${id}/representment?responseRef=${encodeURIComponent(responseRef)}`,
-      evidence,
-    ),
+    apiPost<Chargeback>(`/api/v1/acquiring/chargebacks/${id}/representment`, { responseRef, evidence }),
 
   // ── PCI Compliance ─────────────────────────────────────────────────────────
 
@@ -219,7 +216,7 @@ export const acquiringApi = {
     apiPost<PosTerminal>('/api/v1/pos-terminals', payload),
 
   updateTerminalStatus: (terminalId: string, status: string) =>
-    apiPostParams<PosTerminal>(`/api/v1/pos-terminals/${encodeURIComponent(terminalId)}/status`, { status }),
+    apiPost<PosTerminal>(`/api/v1/pos-terminals/${encodeURIComponent(terminalId)}/status`, { status }),
 
   getTerminalsByMerchant: (merchantId: string) =>
     apiGet<PosTerminal[]>(`/api/v1/pos-terminals/merchant/${encodeURIComponent(merchantId)}`),

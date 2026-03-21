@@ -63,7 +63,7 @@ export function PricingDashboardPage() {
 
   // Discount create form
   const [dcForm, setDcForm] = useState<Partial<CreateDiscountSchemePayload>>({
-    schemeType: 'VOLUME', discountBasis: 'PERCENTAGE', combinableWithOtherDiscounts: false,
+    schemeType: 'VOLUME_BASED', discountBasis: 'PERCENTAGE_OFF', combinableWithOtherDiscounts: false,
   });
 
   // Special pricing create form
@@ -163,7 +163,7 @@ export function PricingDashboardPage() {
                       <td className="px-4 py-3 font-medium">{s.schemeName}</td>
                       <td className="px-4 py-3 text-xs">{s.schemeType}</td>
                       <td className="px-4 py-3 text-xs">{s.discountBasis}</td>
-                      <td className="px-4 py-3 text-right font-mono">{s.discountBasis === 'PERCENTAGE' ? formatPercent(s.discountValue) : formatMoney(s.discountValue)}</td>
+                      <td className="px-4 py-3 text-right font-mono">{s.discountBasis === 'PERCENTAGE_OFF' ? formatPercent(s.discountValue) : formatMoney(s.discountValue)}</td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
                           {(s.applicableProducts || []).slice(0, 3).map(p => (
@@ -293,7 +293,7 @@ export function PricingDashboardPage() {
                     <div className="text-sm space-y-1">
                       <p>Scheme: <strong>{evaluateDiscount.data.schemeName}</strong> ({evaluateDiscount.data.schemeCode})</p>
                       <p>Type: {evaluateDiscount.data.schemeType} · Basis: {evaluateDiscount.data.discountBasis}</p>
-                      <p>Value: {evaluateDiscount.data.discountBasis === 'PERCENTAGE' ? formatPercent(evaluateDiscount.data.discountValue) : formatMoney(evaluateDiscount.data.discountValue)}</p>
+                      <p>Value: {evaluateDiscount.data.discountBasis === 'PERCENTAGE_OFF' ? formatPercent(evaluateDiscount.data.discountValue) : formatMoney(evaluateDiscount.data.discountValue)}</p>
                     </div>
                   </div>
                 )}
@@ -368,13 +368,13 @@ export function PricingDashboardPage() {
                   <input value={dcForm.schemeName || ''} onChange={e => setDcForm(p => ({ ...p, schemeName: e.target.value }))} className={fc} /></div>
                 <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Type</label>
                   <select value={dcForm.schemeType} onChange={e => setDcForm(p => ({ ...p, schemeType: e.target.value }))} className={fc}>
-                    {['VOLUME', 'LOYALTY', 'PROMOTIONAL', 'RELATIONSHIP'].map(t => <option key={t} value={t}>{t}</option>)}
+                    {['PROMOTIONAL', 'LOYALTY_TIER', 'VOLUME_BASED', 'RELATIONSHIP_BASED', 'SEASONAL', 'STAFF', 'BUNDLED_PRODUCT', 'EARLY_BIRD', 'REFERRAL', 'CORPORATE'].map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
                   </select></div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Discount Basis</label>
                   <select value={dcForm.discountBasis} onChange={e => setDcForm(p => ({ ...p, discountBasis: e.target.value }))} className={fc}>
-                    {['PERCENTAGE', 'FLAT_AMOUNT', 'TIERED'].map(b => <option key={b} value={b}>{b.replace(/_/g, ' ')}</option>)}
+                    {['PERCENTAGE_OFF', 'FLAT_REDUCTION', 'FEE_WAIVER', 'RATE_REDUCTION', 'CASHBACK', 'BONUS_INTEREST'].map(b => <option key={b} value={b}>{b.replace(/_/g, ' ')}</option>)}
                   </select></div>
                 <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Discount Value *</label>
                   <input type="number" step="0.01" value={dcForm.discountValue ?? ''} onChange={e => setDcForm(p => ({ ...p, discountValue: Number(e.target.value) }))} className={fc} /></div>

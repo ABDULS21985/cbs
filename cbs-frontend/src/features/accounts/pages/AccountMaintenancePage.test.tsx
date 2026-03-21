@@ -291,6 +291,9 @@ describe('AccountMaintenancePage', () => {
         }
         return HttpResponse.json(wrap(mockAccountBasicInfo));
       }),
+      http.get('/api/v1/accounts/:id/limits', () =>
+        HttpResponse.json(wrap([])),
+      ),
       http.get('/api/v1/accounts/:id/maintenance-history', () =>
         HttpResponse.json(wrap(mockMaintenanceHistory)),
       ),

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
   useActiveMerchants,
   useHighRiskMerchants,
@@ -328,6 +329,7 @@ function SuspendDialog({ open, merchant, onClose, onSuspend, isPending }: Suspen
 // ─── Merchants Tab ────────────────────────────────────────────────────────────
 
 function MerchantsTab() {
+  const { isAdmin } = useAuth();
   const { data: active = [], isLoading: loadingActive } = useActiveMerchants();
   const { data: highRisk = [] } = useHighRiskMerchants();
   const { mutate: onboard, isPending: onboarding } = useOnboardMerchant();
@@ -344,13 +346,15 @@ function MerchantsTab() {
         <p className="text-sm text-muted-foreground">
           {active.length} active merchants — {highRisk.length} high-risk flagged
         </p>
-        <button
-          onClick={() => setShowOnboard(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Onboard Merchant
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setShowOnboard(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Onboard Merchant
+          </button>
+        )}
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">
@@ -422,27 +426,29 @@ function MerchantsTab() {
                       {m.mdrRate != null ? `${m.mdrRate}%` : '—'}
                     </td>
                     <td className="px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        {m.status !== 'ACTIVE' && (
-                          <button
-                            onClick={() => activate(m.merchantId)}
-                            disabled={activating}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-green-300 text-green-600 text-xs font-medium hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors disabled:opacity-50"
-                          >
-                            {activating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                            Activate
-                          </button>
-                        )}
-                        {m.status === 'ACTIVE' && (
-                          <button
-                            onClick={() => setSuspendTarget(m)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 text-amber-600 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors"
-                          >
-                            <PauseCircle className="w-3 h-3" />
-                            Suspend
-                          </button>
-                        )}
-                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center gap-2">
+                          {m.status !== 'ACTIVE' && (
+                            <button
+                              onClick={() => activate(m.merchantId)}
+                              disabled={activating}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-green-300 text-green-600 text-xs font-medium hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors disabled:opacity-50"
+                            >
+                              {activating ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                              Activate
+                            </button>
+                          )}
+                          {m.status === 'ACTIVE' && (
+                            <button
+                              onClick={() => setSuspendTarget(m)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 text-amber-600 text-xs font-medium hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors"
+                            >
+                              <PauseCircle className="w-3 h-3" />
+                              Suspend
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1122,6 +1128,7 @@ function FacilitiesTab() {
 // ─── POS Terminals Tab ───────────────────────────────────────────────────────
 
 function TerminalsTab() {
+  const { isAdmin } = useAuth();
   const { data: terminals = [], isLoading } = useAllTerminals();
   const registerTerminal = useRegisterTerminal();
   const updateStatus = useUpdateTerminalStatus();
@@ -1151,9 +1158,11 @@ function TerminalsTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">{terminals.length} terminals · {activeCount} active</div>
-        <button onClick={() => setShowRegister(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
-          <Plus className="w-4 h-4" /> Register Terminal
-        </button>
+        {isAdmin && (
+          <button onClick={() => setShowRegister(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+            <Plus className="w-4 h-4" /> Register Terminal
+          </button>
+        )}
       </div>
 
       {isLoading ? (

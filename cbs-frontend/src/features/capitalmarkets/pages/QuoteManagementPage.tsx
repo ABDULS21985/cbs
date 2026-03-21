@@ -69,7 +69,7 @@ function QuoteRequestsTab() {
     { accessorKey: 'responseDeadline', header: 'Deadline', cell: ({ row }) => formatDate(row.original.responseDeadline) },
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} /> },
     { id: 'actions', header: '', cell: ({ row }) => row.original.status === 'PENDING' ? (
-      <button className="btn-primary text-xs px-2 py-1" onClick={() => generate.mutate({ instrumentType: row.original.instrumentType, currencyPair: row.original.currencyPair, tenor: row.original.tenor, notionalAmount: row.original.amount } as Partial<PriceQuote>, { onSuccess: () => toast.success('Quote generated') })}>Generate Quote</button>
+      <button className="btn-primary text-xs px-2 py-1" onClick={() => generate.mutate({ requestId: row.original.id, data: { instrumentType: row.original.instrumentType, currencyPair: row.original.currencyPair, tenor: row.original.tenor, notionalAmount: row.original.amount } as Partial<PriceQuote> }, { onSuccess: () => toast.success('Quote generated') })}>Generate Quote</button>
     ) : null },
   ], [generate]);
 

@@ -53,7 +53,7 @@ function InstructionsTab() {
   });
 
   const recordResult = useMutation({
-    mutationFn: (ref: string) => settlementApi.recordResult(ref, 'SETTLED'),
+    mutationFn: (ref: string) => settlementApi.recordResult(ref, true),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['settlements'] });
       toast.success('Settlement recorded');

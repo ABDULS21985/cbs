@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-03-21T22:35:42+0100",
+    date = "2026-03-21T22:53:45+0100",
     comments = "version: 1.6.2, compiler: Eclipse JDT (IDE) 3.45.0.v20260224-0835, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
@@ -24,22 +24,22 @@ public class PosTerminalMapperImpl implements PosTerminalMapper {
 
         PosTerminal.PosTerminalBuilder posTerminal = PosTerminal.builder();
 
-        posTerminal.terminalId( request.getTerminalId() );
-        posTerminal.terminalType( request.getTerminalType() );
+        posTerminal.acquiringBankCode( request.getAcquiringBankCode() );
+        posTerminal.batchSettlementTime( request.getBatchSettlementTime() );
+        posTerminal.locationAddress( request.getLocationAddress() );
+        posTerminal.maxTransactionAmount( request.getMaxTransactionAmount() );
+        posTerminal.merchantCategoryCode( request.getMerchantCategoryCode() );
         posTerminal.merchantId( request.getMerchantId() );
         posTerminal.merchantName( request.getMerchantName() );
-        posTerminal.merchantCategoryCode( request.getMerchantCategoryCode() );
-        posTerminal.locationAddress( request.getLocationAddress() );
-        posTerminal.supportsContactless( request.getSupportsContactless() );
+        posTerminal.settlementAccountId( request.getSettlementAccountId() );
+        posTerminal.softwareVersion( request.getSoftwareVersion() );
         posTerminal.supportsChip( request.getSupportsChip() );
+        posTerminal.supportsContactless( request.getSupportsContactless() );
         posTerminal.supportsMagstripe( request.getSupportsMagstripe() );
         posTerminal.supportsPin( request.getSupportsPin() );
         posTerminal.supportsQr( request.getSupportsQr() );
-        posTerminal.maxTransactionAmount( request.getMaxTransactionAmount() );
-        posTerminal.acquiringBankCode( request.getAcquiringBankCode() );
-        posTerminal.settlementAccountId( request.getSettlementAccountId() );
-        posTerminal.batchSettlementTime( request.getBatchSettlementTime() );
-        posTerminal.softwareVersion( request.getSoftwareVersion() );
+        posTerminal.terminalId( request.getTerminalId() );
+        posTerminal.terminalType( request.getTerminalType() );
 
         return posTerminal.build();
     }
@@ -52,28 +52,28 @@ public class PosTerminalMapperImpl implements PosTerminalMapper {
 
         TerminalResponse.TerminalResponseBuilder terminalResponse = TerminalResponse.builder();
 
+        terminalResponse.acquiringBankCode( entity.getAcquiringBankCode() );
+        terminalResponse.batchSettlementTime( entity.getBatchSettlementTime() );
+        terminalResponse.createdAt( entity.getCreatedAt() );
         terminalResponse.id( entity.getId() );
-        terminalResponse.terminalId( entity.getTerminalId() );
-        terminalResponse.terminalType( entity.getTerminalType() );
+        terminalResponse.lastHeartbeatAt( entity.getLastHeartbeatAt() );
+        terminalResponse.lastTransactionAt( entity.getLastTransactionAt() );
+        terminalResponse.locationAddress( entity.getLocationAddress() );
+        terminalResponse.maxTransactionAmount( entity.getMaxTransactionAmount() );
+        terminalResponse.merchantCategoryCode( entity.getMerchantCategoryCode() );
         terminalResponse.merchantId( entity.getMerchantId() );
         terminalResponse.merchantName( entity.getMerchantName() );
-        terminalResponse.merchantCategoryCode( entity.getMerchantCategoryCode() );
-        terminalResponse.locationAddress( entity.getLocationAddress() );
-        terminalResponse.supportsContactless( entity.getSupportsContactless() );
+        terminalResponse.operationalStatus( entity.getOperationalStatus() );
+        terminalResponse.settlementAccountId( entity.getSettlementAccountId() );
+        terminalResponse.softwareVersion( entity.getSoftwareVersion() );
         terminalResponse.supportsChip( entity.getSupportsChip() );
+        terminalResponse.supportsContactless( entity.getSupportsContactless() );
         terminalResponse.supportsMagstripe( entity.getSupportsMagstripe() );
         terminalResponse.supportsPin( entity.getSupportsPin() );
         terminalResponse.supportsQr( entity.getSupportsQr() );
-        terminalResponse.maxTransactionAmount( entity.getMaxTransactionAmount() );
-        terminalResponse.acquiringBankCode( entity.getAcquiringBankCode() );
-        terminalResponse.settlementAccountId( entity.getSettlementAccountId() );
-        terminalResponse.batchSettlementTime( entity.getBatchSettlementTime() );
-        terminalResponse.lastTransactionAt( entity.getLastTransactionAt() );
+        terminalResponse.terminalId( entity.getTerminalId() );
+        terminalResponse.terminalType( entity.getTerminalType() );
         terminalResponse.transactionsToday( entity.getTransactionsToday() );
-        terminalResponse.operationalStatus( entity.getOperationalStatus() );
-        terminalResponse.lastHeartbeatAt( entity.getLastHeartbeatAt() );
-        terminalResponse.softwareVersion( entity.getSoftwareVersion() );
-        terminalResponse.createdAt( entity.getCreatedAt() );
         terminalResponse.updatedAt( entity.getUpdatedAt() );
 
         return terminalResponse.build();

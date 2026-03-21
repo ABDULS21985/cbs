@@ -51,7 +51,7 @@ function CardPageSkeleton() {
 function CardVisual({ card }: { card: import('../types/card').Card }) {
   const [copied, setCopied] = useState(false);
   const last4 = card.cardNumberMasked.slice(-4);
-  const isBlocked = card.status === 'BLOCKED' || card.status === 'SUSPENDED';
+  const isBlocked = card.status === 'BLOCKED' || card.status === 'HOT_LISTED';
 
   const copyLast4 = () => {
     navigator.clipboard.writeText(last4);
@@ -66,10 +66,10 @@ function CardVisual({ card }: { card: import('../types/card').Card }) {
   };
 
   return (
-    <div className="relative group" role="img" aria-label={`${card.scheme} ${card.cardType} card ending in ${last4}, status ${card.status}, expires ${card.expiryDate}, holder ${card.nameOnCard}`}>
+    <div className="relative group" role="img" aria-label={`${card.cardScheme} ${card.cardType} card ending in ${last4}, status ${card.status}, expires ${card.expiryDate}, holder ${card.cardholderName}`}>
       <div className={cn(
         'w-80 h-48 rounded-2xl bg-gradient-to-br text-white p-6 flex flex-col justify-between shadow-xl transition-transform group-hover:scale-[1.02] overflow-hidden',
-        schemeColors[card.scheme] ?? 'from-[#0B1A56] via-[#1E40AF] to-[#15308A]',
+        schemeColors[card.cardScheme] ?? 'from-[#0B1A56] via-[#1E40AF] to-[#15308A]',
       )}>
         {/* Shine effect on hover */}
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none bg-gradient-to-r from-transparent via-white/10 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[200%] transition-transform duration-1000" />
@@ -80,7 +80,7 @@ function CardVisual({ card }: { card: import('../types/card').Card }) {
         </div>
 
         <div className="flex justify-between items-start">
-          <span className="text-xs font-semibold tracking-wider opacity-70">{card.scheme}</span>
+          <span className="text-xs font-semibold tracking-wider opacity-70">{card.cardScheme}</span>
           <span className="text-xs font-bold opacity-80">{card.cardType}</span>
         </div>
 
@@ -94,7 +94,7 @@ function CardVisual({ card }: { card: import('../types/card').Card }) {
         <div className="flex justify-between items-end">
           <div>
             <div className="text-[10px] opacity-60 uppercase">Card Holder</div>
-            <div className="text-sm font-medium">{card.nameOnCard}</div>
+            <div className="text-sm font-medium">{card.cardholderName}</div>
           </div>
           <div>
             <div className="text-[10px] opacity-60 uppercase">Valid Thru</div>
@@ -129,9 +129,8 @@ function ReplaceCardModal({ card, onClose }: { card: import('../types/card').Car
         customerId: card.customerId,
         accountId: card.accountId,
         cardType: card.cardType,
-        scheme: card.scheme,
-        deliveryMethod,
-        reason,
+        cardScheme: card.cardScheme,
+        cardholderName: card.cardholderName,
       },
       {
         onSuccess: () => { toast.success('Replacement card requested'); onClose(); },
@@ -180,7 +179,7 @@ function QuickActions({ card }: { card: import('../types/card').Card }) {
   const [showLostStolen, setShowLostStolen] = useState(false);
 
   const isActive = card.status === 'ACTIVE';
-  const isBlocked = card.status === 'BLOCKED' || card.status === 'SUSPENDED';
+  const isBlocked = card.status === 'BLOCKED' || card.status === 'HOT_LISTED';
 
   const handleToggleLock = () => {
     if (isActive) {
@@ -221,13 +220,13 @@ function QuickActions({ card }: { card: import('../types/card').Card }) {
       icon: RefreshCw,
       label: 'Replace',
       onClick: () => setShowReplace(true),
-      disabled: card.status === 'DESTROYED',
+      disabled: card.status === 'HOT_LISTED' || card.status === 'LOST' || card.status === 'STOLEN',
     },
     {
       icon: ShieldAlert,
       label: 'Lost/Stolen',
       onClick: () => setShowLostStolen(true),
-      disabled: card.status === 'DESTROYED',
+      disabled: card.status === 'HOT_LISTED' || card.status === 'LOST' || card.status === 'STOLEN',
     },
     {
       icon: FileText,
@@ -322,9 +321,12 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 function ControlsTab({ card }: { card: import('../types/card').Card }) {
   const updateControls = useUpdateCardControls();
-  const [controls, setControls] = useState(card.controls ?? {
-    posEnabled: false, atmEnabled: false, onlineEnabled: false,
-    internationalEnabled: false, contactlessEnabled: false, recurringEnabled: false,
+  const [controls, setControls] = useState({
+    posEnabled: card.posEnabled ?? false,
+    atmEnabled: card.atmEnabled ?? false,
+    onlineEnabled: card.onlineEnabled ?? false,
+    internationalEnabled: card.internationalEnabled ?? false,
+    contactlessEnabled: card.contactlessEnabled ?? false,
   });
 
   const toggleControl = (key: keyof typeof controls) => {
@@ -351,7 +353,6 @@ function ControlsTab({ card }: { card: import('../types/card').Card }) {
 
   const txnControls = [
     { key: 'internationalEnabled' as const, label: 'International', desc: 'Allow transactions outside your country', icon: Globe },
-    { key: 'recurringEnabled' as const, label: 'Recurring Payments', desc: 'Allow subscriptions and recurring charges', icon: Clock },
   ];
 
   const renderToggleGroup = (title: string, items: typeof channelControls) => (
@@ -395,18 +396,18 @@ function TransactionsTab({ card }: { card: import('../types/card').Card }) {
   const { data: cardTxns = [], isLoading } = useCardTransactionsByCardId(card.id);
   const disputeTxn = useDisputeTransaction();
 
-  const approved = cardTxns.filter((t) => t.status === 'APPROVED').length;
+  const authorized = cardTxns.filter((t) => t.status === 'AUTHORIZED').length;
   const declined = cardTxns.filter((t) => t.status === 'DECLINED').length;
 
   const txnCols: ColumnDef<CardTransaction, unknown>[] = [
     { accessorKey: 'transactionDate', header: 'Date', cell: ({ row }) => <span className="text-xs">{formatDate(row.original.transactionDate)}</span> },
     { accessorKey: 'merchantName', header: 'Merchant', cell: ({ row }) => <span className="font-medium">{row.original.merchantName}</span> },
-    { accessorKey: 'mccDescription', header: 'MCC', cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.mccDescription}</span> },
-    { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.amount, row.original.currency)}</span> },
+    { accessorKey: 'merchantCategoryCode', header: 'MCC', cell: ({ row }) => <span className="text-xs text-muted-foreground">{row.original.merchantCategoryCode}</span> },
+    { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.amount, row.original.currencyCode)}</span> },
     { accessorKey: 'channel', header: 'Channel', cell: ({ row }) => <StatusBadge status={row.original.channel} /> },
     { accessorKey: 'responseCode', header: 'Response', cell: ({ row }) => (
       <span className={cn('font-mono text-xs font-medium', row.original.responseCode === '00' ? 'text-green-600' : 'text-red-600')}>
-        {row.original.responseCode} — {row.original.responseDescription}
+        {row.original.responseCode}
       </span>
     )},
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} /> },
@@ -430,7 +431,7 @@ function TransactionsTab({ card }: { card: import('../types/card').Card }) {
       {/* Summary chips */}
       <div className="flex flex-wrap gap-2">
         <span className="px-3 py-1 rounded-full bg-muted text-sm font-medium">Total: {cardTxns.length}</span>
-        <span className="px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-medium dark:bg-green-900/30 dark:text-green-400">Approved: {approved}</span>
+        <span className="px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-medium dark:bg-green-900/30 dark:text-green-400">Authorized: {authorized}</span>
         <span className="px-3 py-1 rounded-full bg-red-100 text-red-800 text-sm font-medium dark:bg-red-900/30 dark:text-red-400">Declined: {declined}</span>
       </div>
 
@@ -503,7 +504,7 @@ function TokenizationTab({ cardId }: { cardId: number }) {
               <button onClick={() => suspendToken.mutate(token.id, { onSuccess: () => toast.success('Token suspended') })}
                 className="px-2 py-1 text-xs font-medium rounded bg-amber-100 text-amber-800 hover:bg-amber-200">Suspend</button>
             )}
-            {token.status === 'SUSPENDED' && (
+            {token.status === 'HOT_LISTED' && (
               <button onClick={() => resumeToken.mutate(token.id, { onSuccess: () => toast.success('Token resumed') })}
                 className="px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-800 hover:bg-green-200">Resume</button>
             )}
@@ -521,7 +522,7 @@ function TokenizationTab({ cardId }: { cardId: number }) {
 // ── Disputes Tab ─────────────────────────────────────────────────────────────
 
 function DisputesTab({ cardId }: { cardId: number }) {
-  const { data: disputes = [], isLoading } = useDisputesByStatus('OPEN');
+  const { data: disputes = [], isLoading } = useDisputesByStatus('INITIATED');
 
   const cardDisputes = disputes.filter((d: CardDispute) => d.cardId === cardId);
 
@@ -573,11 +574,11 @@ function DisputesTab({ cardId }: { cardId: number }) {
 
 function AuditTab({ card }: { card: import('../types/card').Card }) {
   const events = [
-    { id: '1', action: 'Card Issued', performedBy: 'System', performedAt: card.issuedDate + 'T10:00:00Z', details: `${card.scheme} ${card.cardType} card issued via ${card.deliveryMethod}` },
-    { id: '2', action: 'Card Activated', performedBy: 'Branch Officer', performedAt: card.issuedDate + 'T14:00:00Z', details: 'Card activated and ready for use' },
+    { id: '1', action: 'Card Issued', performedBy: 'System', performedAt: card.issueDate + 'T10:00:00Z', details: `${card.cardScheme} ${card.cardType} card issued via ${card.deliveryMethod}` },
+    { id: '2', action: 'Card Activated', performedBy: 'Branch Officer', performedAt: card.issueDate + 'T14:00:00Z', details: 'Card activated and ready for use' },
   ];
 
-  if (card.status === 'BLOCKED' || card.status === 'SUSPENDED') {
+  if (card.status === 'BLOCKED' || card.status === 'HOT_LISTED') {
     events.push({ id: '3', action: `Card ${card.status}`, performedBy: 'System', performedAt: new Date().toISOString(), details: 'Card access restricted' });
   }
 
@@ -643,7 +644,7 @@ export function CardDetailPage() {
     <>
       <PageHeader
         title={`Card ${card.cardNumberMasked}`}
-        subtitle={`${card.scheme} ${card.cardType} — ${card.customerName}`}
+        subtitle={`${card.cardScheme} ${card.cardType} — ${card.customerDisplayName}`}
         backTo="/cards"
       />
 
@@ -654,13 +655,13 @@ export function CardDetailPage() {
           <div className="flex-1">
             <InfoGrid columns={3} items={[
               { label: 'Card Type', value: card.cardType },
-              { label: 'Scheme', value: card.scheme },
+              { label: 'Scheme', value: card.cardScheme },
               { label: 'Status', value: <StatusBadge status={card.status} dot /> },
               { label: 'Linked Account', value: card.accountNumber, mono: true, copyable: true },
-              { label: 'Issue Date', value: card.issuedDate, format: 'date' },
+              { label: 'Issue Date', value: card.issueDate, format: 'date' },
               { label: 'Expiry Date', value: card.expiryDate },
               { label: 'Delivery', value: card.deliveryMethod?.replace(/_/g, ' ') ?? '—' },
-              { label: 'Customer', value: card.customerName },
+              { label: 'Customer', value: card.customerDisplayName },
               { label: 'Customer ID', value: card.customerId, mono: true },
             ]} />
           </div>
@@ -681,8 +682,8 @@ export function CardDetailPage() {
                     <h3 className="text-sm font-semibold mb-3">Card Information</h3>
                     <InfoGrid columns={2} items={[
                       { label: 'Type', value: card.cardType },
-                      { label: 'Scheme', value: card.scheme },
-                      { label: 'Issue Date', value: card.issuedDate, format: 'date' },
+                      { label: 'Scheme', value: card.cardScheme },
+                      { label: 'Issue Date', value: card.issueDate, format: 'date' },
                       { label: 'Expiry', value: card.expiryDate },
                       { label: 'Status', value: <StatusBadge status={card.status} dot /> },
                       { label: 'Delivery', value: card.deliveryMethod?.replace(/_/g, ' ') ?? '—' },

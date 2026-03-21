@@ -954,6 +954,10 @@ export const CmSuitabilityPage = lazyNamed(
   () => import('@/features/capitalmarkets/pages/SuitabilityPage'),
   'SuitabilityPage',
 );
+export const CmMarketMakingPage = lazyNamed(
+  () => import('@/features/capitalmarkets/pages/MarketMakingPage'),
+  'MarketMakingPage',
+);
 export const SecuritizationPage = lazyNamed(
   () => import('@/features/capitalmarkets/pages/SecuritizationPage'),
   'SecuritizationPage',

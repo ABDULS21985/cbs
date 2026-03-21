@@ -9,20 +9,20 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { Card } from '../types/card';
 import { cn } from '@/lib/utils';
 
-const schemeColors: Record<string, string> = { VISA: 'bg-blue-600', MASTERCARD: 'bg-red-600', VERVE: 'bg-green-600' };
-const typeColors: Record<string, string> = { DEBIT: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', CREDIT: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', PREPAID: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' };
+const schemeColors: Record<string, string> = { VISA: 'bg-blue-600', MASTERCARD: 'bg-red-600', VERVE: 'bg-green-600', AMEX: 'bg-indigo-600', UNIONPAY: 'bg-teal-600', LOCAL: 'bg-gray-600' };
+const typeColors: Record<string, string> = { DEBIT: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', CREDIT: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', PREPAID: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', VIRTUAL: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400' };
 
 const columns: ColumnDef<Card, any>[] = [
   { accessorKey: 'cardNumberMasked', header: 'Card #', cell: ({ row }) => <span className="font-mono text-sm">{row.original.cardNumberMasked}</span> },
-  { accessorKey: 'customerName', header: 'Customer' },
+  { accessorKey: 'customerDisplayName', header: 'Customer' },
   { accessorKey: 'cardType', header: 'Type', cell: ({ row }) => <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', typeColors[row.original.cardType])}>{row.original.cardType}</span> },
-  { accessorKey: 'scheme', header: 'Scheme', cell: ({ row }) => (
-    <span className="flex items-center gap-1.5"><span className={cn('w-2 h-2 rounded-full', schemeColors[row.original.scheme])} />{row.original.scheme}</span>
+  { accessorKey: 'cardScheme', header: 'Scheme', cell: ({ row }) => (
+    <span className="flex items-center gap-1.5"><span className={cn('w-2 h-2 rounded-full', schemeColors[row.original.cardScheme])} />{row.original.cardScheme}</span>
   )},
   { accessorKey: 'accountNumber', header: 'Account', cell: ({ row }) => <span className="font-mono text-xs">{row.original.accountNumber}</span> },
   { accessorKey: 'expiryDate', header: 'Expiry', cell: ({ row }) => <span className="font-mono text-sm">{row.original.expiryDate}</span> },
   { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} dot /> },
-  { accessorKey: 'issuedDate', header: 'Issued', cell: ({ row }) => formatDate(row.original.issuedDate) },
+  { accessorKey: 'issueDate', header: 'Issued', cell: ({ row }) => formatDate(row.original.issueDate) },
 ];
 
 export function CardListPage() {

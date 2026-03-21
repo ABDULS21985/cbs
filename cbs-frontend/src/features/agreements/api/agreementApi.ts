@@ -243,23 +243,5 @@ export function getAgreementTemplates() {
   return apiGet<AgreementTemplate[]>('/api/v1/agreement-templates');
 }
 
-// ── Legacy object API (for existing page/component imports) ──────────────────
-
-export const agreementApi = {
-  getByCustomer: (customerId: number) =>
-    apiGet<Agreement[]>(`/api/v1/agreements/customer/${customerId}`),
-  getAll: (filters?: Record<string, unknown>) =>
-    apiGet<Agreement[]>('/api/v1/agreements', filters),
-  getById: (id: number) =>
-    apiGet<Agreement>(`/api/v1/agreements/${id}`),
-  create: (data: Partial<Agreement>) =>
-    apiPost<Agreement>('/api/v1/agreements', data),
-  sign: (id: number, signatureData: string, signatureType: 'CANVAS' | 'TYPED') =>
-    apiPost<Agreement>(`/api/v1/agreements/${id}/sign`, { signatureData, signatureType }),
-  terminate: (id: number, reason: string) =>
-    apiPost<Agreement>(`/api/v1/agreements/${id}/terminate`, { reason }),
-  amend: (id: number, data: Partial<Agreement>) =>
-    apiPut<Agreement>(`/api/v1/agreements/${id}`, data),
-  getTemplates: () =>
-    apiGet<AgreementTemplate[]>('/api/v1/agreement-templates'),
-};
+// Legacy agreementApi object removed — use the named export functions above instead.
+// The sign/amend endpoints did not exist in the backend.

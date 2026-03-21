@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 
 export type SettlementType = 'DVP' | 'FOP' | 'RVP';
 export type SettlementInstructionStatus = 'PENDING' | 'MATCHED' | 'SUBMITTED' | 'SETTLED' | 'FAILED';
@@ -91,14 +91,14 @@ export const settlementApi = {
   getInstruction: (ref: string) =>
     apiGet<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}`),
 
-  matchInstructions: (ref1: string, ref2: string) =>
-    apiPost<{ matched: boolean }>('/api/v1/settlements/instructions/match', { ref1, ref2 }),
+  matchInstructions: (refA: string, refB: string) =>
+    apiPostParams<{ matched: boolean }>('/api/v1/settlements/instructions/match', { refA, refB }),
 
   submitInstruction: (ref: string) =>
     apiPost<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/submit`),
 
-  recordResult: (ref: string, status: 'SETTLED' | 'FAILED', failureReason?: string) =>
-    apiPost<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/result`, { status, failureReason }),
+  recordResult: (ref: string, settled: boolean) =>
+    apiPostParams<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/result`, { settled }),
 
   // Batches
   getBatches: (params?: { status?: string }) =>

@@ -106,4 +106,149 @@ public class AlmController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> compareScenarios(@RequestBody List<Long> scenarioIds) {
         return ResponseEntity.ok(ApiResponse.ok(almService.compareScenarios(scenarioIds)));
     }
+
+    // ── ALCO Pack Management ─────────────────────────────────────────────────
+
+    @GetMapping("/alco-packs")
+    @Operation(summary = "List all ALCO packs")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AlcoPack>>> listAlcoPacks() {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getAllAlcoPacks()));
+    }
+
+    @GetMapping("/alco-packs/{id}")
+    @Operation(summary = "Get ALCO pack by ID")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<AlcoPack>> getAlcoPack(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getAlcoPack(id)));
+    }
+
+    @GetMapping("/alco-packs/month/{month}")
+    @Operation(summary = "Get latest ALCO pack for a given month")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<AlcoPack>> getAlcoPackByMonth(@PathVariable String month) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getAlcoPackByMonth(month)));
+    }
+
+    @PostMapping("/alco-packs")
+    @Operation(summary = "Create a new ALCO pack")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<AlcoPack>> createAlcoPack(@RequestBody AlcoPack pack) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(almService.createAlcoPack(pack)));
+    }
+
+    @PatchMapping("/alco-packs/{id}")
+    @Operation(summary = "Update ALCO pack sections and executive summary")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<AlcoPack>> updateAlcoPack(
+            @PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        @SuppressWarnings("unchecked")
+        List<String> sections = (List<String>) payload.get("sections");
+        String executiveSummary = (String) payload.get("executiveSummary");
+        return ResponseEntity.ok(ApiResponse.ok(almService.updateAlcoPack(id, sections, executiveSummary)));
+    }
+
+    @PostMapping("/alco-packs/{id}/submit")
+    @Operation(summary = "Submit ALCO pack for review")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<AlcoPack>> submitAlcoPackForReview(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.submitAlcoPackForReview(id)));
+    }
+
+    @PostMapping("/alco-packs/{id}/approve")
+    @Operation(summary = "Approve ALCO pack")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<AlcoPack>> approveAlcoPack(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.approveAlcoPack(id)));
+    }
+
+    @PostMapping("/alco-packs/{id}/distribute")
+    @Operation(summary = "Distribute ALCO pack to members")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<AlcoPack>> distributeAlcoPack(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.distributeAlcoPack(id)));
+    }
+
+    @GetMapping("/alco-packs/month/{month}/versions")
+    @Operation(summary = "Get version history for a month")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AlcoPack>>> getAlcoPackVersions(@PathVariable String month) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getAlcoPackVersions(month)));
+    }
+
+    @PostMapping("/alco-packs/generate-summary")
+    @Operation(summary = "Auto-generate executive summary from ALM data")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> generateExecutiveSummary(@RequestBody Map<String, String> payload) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.generateExecutiveSummary(payload.get("month"))));
+    }
+
+    // ── Action Items ─────────────────────────────────────────────────────────
+
+    @GetMapping("/action-items")
+    @Operation(summary = "List all ALCO action items")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AlcoActionItem>>> listActionItems() {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getAllActionItems()));
+    }
+
+    @PostMapping("/action-items")
+    @Operation(summary = "Create an action item")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<AlcoActionItem>> createActionItem(@RequestBody AlcoActionItem item) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(almService.createActionItem(item)));
+    }
+
+    @PatchMapping("/action-items/{id}")
+    @Operation(summary = "Update action item status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<AlcoActionItem>> updateActionItem(
+            @PathVariable Long id, @RequestBody Map<String, String> payload) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                almService.updateActionItemStatus(id, payload.get("status"), payload.get("updateNotes"))));
+    }
+
+    // ── Regulatory Returns ───────────────────────────────────────────────────
+
+    @GetMapping("/regulatory-returns")
+    @Operation(summary = "List all regulatory returns")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AlmRegulatoryReturn>>> listRegulatoryReturns() {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getAllRegulatoryReturns()));
+    }
+
+    @GetMapping("/regulatory-returns/{id}")
+    @Operation(summary = "Get regulatory return detail with data and validation results")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<AlmRegulatoryReturn>> getRegulatoryReturn(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getRegulatoryReturn(id)));
+    }
+
+    @PostMapping("/regulatory-returns/{id}/validate")
+    @Operation(summary = "Validate regulatory return data")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> validateReturn(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.validateRegulatoryReturn(id)));
+    }
+
+    @PostMapping("/regulatory-returns/{id}/submit")
+    @Operation(summary = "Submit regulatory return to CBN")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<AlmRegulatorySubmission>> submitReturn(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.submitRegulatoryReturn(id)));
+    }
+
+    @GetMapping("/regulatory-returns/{returnId}/submissions")
+    @Operation(summary = "Get submission history for a return")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AlmRegulatorySubmission>>> getReturnSubmissions(@PathVariable Long returnId) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getSubmissionsForReturn(returnId)));
+    }
+
+    @GetMapping("/regulatory-submissions")
+    @Operation(summary = "Get all regulatory submissions")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<AlmRegulatorySubmission>>> getAllSubmissions() {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getAllSubmissions()));
+    }
 }

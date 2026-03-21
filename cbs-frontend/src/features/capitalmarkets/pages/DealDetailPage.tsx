@@ -95,7 +95,7 @@ export function DealDetailPage() {
       {deal.status === 'ALLOTMENT' && (
         <>
           <button
-            onClick={() => allotDeal.mutate(deal.code, { onSuccess: () => toast.success('Allotment executed') })}
+            onClick={() => allotDeal.mutate({ code: deal.code }, { onSuccess: () => toast.success('Allotment executed') })}
             disabled={allotDeal.isPending}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
           >

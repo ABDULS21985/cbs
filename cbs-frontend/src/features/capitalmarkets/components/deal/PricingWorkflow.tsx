@@ -5,7 +5,7 @@ import { MoneyInput } from '@/components/shared/MoneyInput';
 import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { usePriceDeal } from '../../hooks/useCapitalMarkets';
-import type { CapitalMarketsDeal, Investor, PricingInput } from '../../api/capitalMarketsApi';
+import type { CapitalMarketsDeal, Investor } from '../../api/capitalMarketsApi';
 
 interface PricingWorkflowProps {
   deal: CapitalMarketsDeal;
@@ -15,7 +15,7 @@ interface PricingWorkflowProps {
 export function PricingWorkflow({ deal, investors }: PricingWorkflowProps) {
   const priceMut = usePriceDeal();
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState<PricingInput>({
+  const [form, setForm] = useState({
     finalPrice: 0,
     yieldRate: 0,
     allotmentDate: '',
@@ -42,7 +42,7 @@ export function PricingWorkflow({ deal, investors }: PricingWorkflowProps) {
       return;
     }
     priceMut.mutate(
-      { code: deal.code, input: form },
+      { code: deal.code, price: form.finalPrice },
       {
         onSuccess: () => toast.success('Pricing executed successfully'),
         onError: () => toast.error('Failed to execute pricing'),

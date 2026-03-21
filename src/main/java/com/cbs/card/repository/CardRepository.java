@@ -19,4 +19,10 @@ public interface CardRepository extends JpaRepository<Card, Long> {
     List<Card> findByAccountIdAndStatus(Long accountId, CardStatus status);
     @Query("SELECT c FROM Card c JOIN FETCH c.account JOIN FETCH c.customer WHERE c.id = :id")
     Optional<Card> findByIdWithDetails(@Param("id") Long id);
+
+    @Query("SELECT c FROM Card c JOIN FETCH c.account JOIN FETCH c.customer")
+    List<Card> findAllWithDetails();
+
+    @Query("SELECT c FROM Card c JOIN FETCH c.account JOIN FETCH c.customer WHERE c.customer.id = :customerId")
+    List<Card> findByCustomerIdWithDetails(@Param("customerId") Long customerId);
 }

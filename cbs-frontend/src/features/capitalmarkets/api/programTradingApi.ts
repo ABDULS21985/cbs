@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 import type { ProgramExecution, TradingStrategy } from '../types/programTrading';
 
 export const programTradingApi = {
@@ -22,9 +22,9 @@ export const programTradingApi = {
   resumeExecution: (ref: string) =>
     apiPost<ProgramExecution>(`/api/v1/program-trading/executions/${ref}/resume`),
 
-  /** POST /v1/program-trading/executions/{ref}/cancel */
-  cancelExecution: (ref: string) =>
-    apiPost<ProgramExecution>(`/api/v1/program-trading/executions/${ref}/cancel`),
+  /** POST /v1/program-trading/executions/{ref}/cancel — backend expects @RequestParam reason */
+  cancelExecution: (ref: string, reason: string) =>
+    apiPostParams<ProgramExecution>(`/api/v1/program-trading/executions/${ref}/cancel`, { reason }),
 
   /** GET /v1/program-trading/strategies/{code}/slippage */
   getSlippageReport: (code: string) =>
