@@ -87,8 +87,13 @@ export interface TemplatePreview {
 
 // ─── API Functions ────────────────────────────────────────────────────────────
 
-export function getTemplates(): Promise<NotificationTemplate[]> {
-  return apiGet<NotificationTemplate[]>('/api/v1/notifications/templates');
+export function getTemplates(params?: {
+  channel?: NotificationChannel;
+  category?: string;
+  status?: string;
+  search?: string;
+}): Promise<NotificationTemplate[]> {
+  return apiGet<NotificationTemplate[]>('/api/v1/notifications/templates', params as Record<string, unknown> | undefined);
 }
 
 export function getTemplateById(id: number | string): Promise<NotificationTemplate> {
@@ -135,8 +140,8 @@ export function testChannelSend(channel: NotificationChannel, recipient: string)
 
 // ─── Delivery Stats ───────────────────────────────────────────────────────────
 
-export function getDeliveryStats(): Promise<DeliveryStats> {
-  return apiGet<DeliveryStats>('/api/v1/notifications/delivery-stats');
+export function getDeliveryStats(days?: number): Promise<DeliveryStats> {
+  return apiGet<DeliveryStats>('/api/v1/notifications/delivery-stats', days ? { days } : undefined);
 }
 
 export function getDeliveryTrend(): Promise<DeliveryTrendEntry[]> {
@@ -166,6 +171,6 @@ export function toggleSchedule(id: number | string): Promise<ScheduledNotificati
 export function sendNotification(data: { templateId: number; recipients: string[]; mergeData: Record<string, string> }): Promise<unknown> {
   return apiPost('/api/v1/notifications/send', data);
 }
-export const getTemplateVersions = (id: number) => apiGet<any[]>(`/api/v1/notifications/templates/${id}/versions`);
+export const getTemplateVersions = (id: number | string) => apiGet<any[]>(`/api/v1/notifications/templates/${id}/versions`);
 export const getFailureRecords = (page = 0, size = 20) => apiGet<any[]>("/api/v1/notifications/failures", { page, size });
 export function createScheduledNotification(data: any): Promise<ScheduledNotification> { return apiPost("/api/v1/notifications/scheduled", data); }

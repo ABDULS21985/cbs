@@ -1,53 +1,59 @@
 import { apiGet, apiPost } from '@/lib/api';
 
 export interface ReturnStats {
-  dueThisMonth: number;
-  pendingSubmission: number;
+  totalReturns: number;
+  submitted: number;
+  draft: number;
   overdue: number;
-  submittedMtd: number;
+  pending: number;
+  byRegulator: Record<string, number>;
 }
 
 export interface RegulatoryReturn {
   id: number;
-  returnCode: string;
-  name: string;
-  regulatoryBody: 'CBN' | 'NDIC' | 'SEC' | 'FRC' | 'NFIU';
-  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
+  reportCode: string;
+  reportName: string;
+  reportType: string;
+  regulator: string;
+  reportingPeriod: string;
+  periodStartDate?: string;
+  periodEndDate?: string;
   dueDate: string;
-  period: string;
-  status: 'SCHEDULED' | 'DATA_EXTRACTION' | 'VALIDATION' | 'REVIEW' | 'APPROVED' | 'SUBMITTED' | 'ACKNOWLEDGED';
-  validationsPassed?: number;
-  validationsTotal?: number;
-  validationsFailed?: number;
-  submittedAt?: string;
-  submittedBy?: string;
-  confirmationRef?: string;
+  submissionDate?: string;
+  fileReference?: string;
+  preparedBy?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  submissionReference?: string;
+  regulatorAcknowledgement?: string;
+  status: 'DRAFT' | 'REVIEWED' | 'SUBMITTED' | 'PENDING';
 }
 
-export interface CalendarDay {
-  date: string;
-  returns: { id: number; name: string; regulatoryBody: string; status: RegulatoryReturn['status'] }[];
-}
-
-export interface ValidationRule {
-  ruleNumber: number;
-  description: string;
-  expectedValue?: string;
-  actualValue?: string;
-  difference?: string;
-  severity: 'ERROR' | 'WARNING' | 'INFO';
-  passed: boolean;
+export interface ComplianceCalendarEntry {
+  reportCode: string;
+  reportName: string;
+  regulator: string;
+  reportingPeriod: string;
+  periodStartDate: string;
+  periodEndDate: string;
+  dueDate: string;
+  status: string;
+  overdue: boolean;
 }
 
 export const regulatoryApi = {
-  getStats: () => apiGet<ReturnStats>('/api/v1/compliance/returns/stats'),
-  getCalendar: (month: string) => apiGet<CalendarDay[]>('/api/v1/compliance/returns/calendar', { month }),
-  getAll: (filters?: Record<string, unknown>) => apiGet<RegulatoryReturn[]>('/api/v1/compliance/returns', filters),
-  getById: (id: number) => apiGet<RegulatoryReturn>(`/api/v1/compliance/returns/${id}`),
-  extractData: (id: number) => apiPost<RegulatoryReturn>(`/api/v1/compliance/returns/${id}/extract`, {}),
-  validate: (id: number) => apiPost<ValidationRule[]>(`/api/v1/compliance/returns/${id}/validate`, {}),
-  submitForReview: (id: number) => apiPost<RegulatoryReturn>(`/api/v1/compliance/returns/${id}/submit-review`, {}),
-  approve: (id: number) => apiPost<RegulatoryReturn>(`/api/v1/compliance/returns/${id}/approve`, {}),
-  submitToRegulator: (id: number) => apiPost<RegulatoryReturn>(`/api/v1/compliance/returns/${id}/submit`, {}),
-  getValidationResults: (id: number) => apiGet<ValidationRule[]>(`/api/v1/compliance/returns/${id}/validations`),
+  getStats: () =>
+    apiGet<ReturnStats>('/api/v1/compliance/returns/stats'),
+
+  getCalendar: () =>
+    apiGet<ComplianceCalendarEntry[]>('/api/v1/compliance/returns/calendar'),
+
+  getAll: (filters?: Record<string, unknown>) =>
+    apiGet<RegulatoryReturn[]>('/api/v1/compliance/returns', filters),
+
+  review: (code: string) =>
+    apiPost<RegulatoryReturn>(`/api/v1/compliance-reports/${code}/review`),
+
+  submit: (code: string, submissionReference: string) =>
+    apiPost<RegulatoryReturn>(`/api/v1/compliance-reports/${code}/submit?submissionReference=${encodeURIComponent(submissionReference)}`),
 };

@@ -752,7 +752,7 @@ export function ContactCenterPage() {
                 { id: 'rank', header: '#', cell: ({ row }) => { const rank = sorted.indexOf(row.original); return rank < 3 ? <span className="text-lg">{medals[rank]}</span> : <span className="text-sm text-muted-foreground tabular-nums">{rank + 1}</span>; }},
                 ...agentPerfCols,
               ];
-              return <DataTable columns={leaderCols} data={sorted} enableGlobalFilter emptyMessage="No agents" onRowClick={(row) => navigate(`/communications/contact-center/agent/${row.agentId}`)} />;
+              return <DataTable columns={leaderCols} data={sorted} enableGlobalFilter emptyMessage="No agents" onRowClick={(row) => navigate(`/contact-center/agents/${row.agentId}`)} />;
             })()}
           </div>
 
@@ -842,6 +842,8 @@ export function ContactCenterPage() {
       {showWallboard && <WallboardView agents={agents} queues={queues} onExit={() => setShowWallboard(false)} />}
       {showNewInteraction && <NewInteractionForm onClose={() => setShowNewInteraction(false)} />}
       {showRequestCallback && <RequestCallbackForm onClose={() => setShowRequestCallback(false)} />}
+      {showAssign && <AssignInteractionDialog interaction={showAssign} agents={agents} onClose={() => setShowAssign(null)} />}
+      {showComplete && <CompleteInteractionDialog interaction={showComplete} onClose={() => setShowComplete(null)} />}
 
       <PageHeader
         title="Contact Center"

@@ -7,6 +7,7 @@ export interface User {
   permissions: string[];
   branchId?: number;
   branchName?: string;
+  customerId?: number;
   lastLogin?: string;
   avatarUrl?: string;
 }

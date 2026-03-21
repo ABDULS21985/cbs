@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Printer, Download, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Download, Loader2, Printer, ShieldAlert, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { InfoGrid, StatusBadge } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/authStore';
 import { transactionApi, type Transaction } from '../api/transactionApi';
 import { TransactionReceipt } from './TransactionReceipt';
+import { AuditTrailTimeline } from './AuditTrailTimeline';
+import { DisputeFilingForm } from './disputes/DisputeFilingForm';
+import { EnhancedReversalWorkflow } from './reversals/EnhancedReversalWorkflow';
 
 interface TransactionDetailModalProps {
   transaction: Transaction | null;
@@ -14,10 +18,24 @@ interface TransactionDetailModalProps {
   onClose: () => void;
 }
 
+type DetailTab = 'details' | 'audit';
+
+function isDisputeEligible(transaction: Transaction) {
+  if (transaction.status !== 'COMPLETED' || !transaction.postingDate) {
+    return false;
+  }
+  const postedAt = new Date(transaction.postingDate);
+  const ageMs = Date.now() - postedAt.getTime();
+  return ageMs <= 90 * 24 * 60 * 60 * 1000;
+}
+
 export function TransactionDetailModal({ transaction, open, onClose }: TransactionDetailModalProps) {
-  const [reverseOpen, setReverseOpen] = useState(false);
-  const [reverseReason, setReverseReason] = useState('');
+  const [activeTab, setActiveTab] = useState<DetailTab>('details');
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [reversalOpen, setReversalOpen] = useState(false);
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+
   const {
     data: transactionDetail,
     isLoading: isDetailLoading,
@@ -32,30 +50,17 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
 
   useEffect(() => {
     if (!open) {
-      setReverseOpen(false);
-      setReverseReason('');
+      setActiveTab('details');
+      setDisputeOpen(false);
+      setReversalOpen(false);
     }
   }, [open]);
 
   useEffect(() => {
-    setReverseOpen(false);
-    setReverseReason('');
+    setActiveTab('details');
+    setDisputeOpen(false);
+    setReversalOpen(false);
   }, [transaction?.id]);
-
-  const reverseMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      transactionApi.reverseTransaction(id, reason),
-    onSuccess: () => {
-      toast.success('Transaction reversed successfully');
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      setReverseOpen(false);
-      setReverseReason('');
-      onClose();
-    },
-    onError: () => {
-      toast.error('Failed to reverse transaction');
-    },
-  });
 
   const downloadMutation = useMutation({
     mutationFn: (id: string) => transactionApi.downloadReceipt(id),
@@ -63,8 +68,13 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
     onError: () => toast.error('Failed to download receipt'),
   });
 
-  if (!open || !transaction) return null;
   const detail = transactionDetail ?? transaction;
+  const canReverse = detail?.status === 'COMPLETED';
+  const canDispute = detail ? isDisputeEligible(detail) : false;
+
+  const auditEvents = useMemo(() => detail?.auditTrail ?? [], [detail?.auditTrail]);
+
+  if (!open || !transaction || !detail) return null;
 
   const handlePrint = () => {
     const receiptEl = document.getElementById('txn-receipt-root');
@@ -73,32 +83,43 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
     if (receiptEl) receiptEl.style.display = 'none';
   };
 
-  const canReverse = detail.status === 'COMPLETED';
+  const refreshTransaction = () => {
+    void queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    void refetchDetail();
+  };
 
   return (
     <>
-      {/* Overlay */}
-      <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-black/50" onClick={onClose} />
 
-      {/* Modal */}
-      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div className="bg-card rounded-xl shadow-2xl border w-full max-w-2xl max-h-[90vh] flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b px-6 py-4">
             <div>
               <h2 className="text-lg font-semibold">Transaction Details</h2>
-              <p className="text-sm text-muted-foreground font-mono mt-0.5">{detail.reference}</p>
+              <p className="mt-0.5 font-mono text-sm text-muted-foreground">{detail.reference}</p>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-muted transition-colors"
-            >
-              <X className="w-5 h-5" />
+            <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted">
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Body */}
-          <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+          <div className="flex items-center gap-2 border-b px-6 py-3 text-sm">
+            <button
+              onClick={() => setActiveTab('details')}
+              className={cn('rounded-lg px-3 py-1.5 font-medium', activeTab === 'details' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}
+            >
+              Details
+            </button>
+            <button
+              onClick={() => setActiveTab('audit')}
+              className={cn('rounded-lg px-3 py-1.5 font-medium', activeTab === 'audit' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted')}
+            >
+              Audit Trail
+            </button>
+          </div>
+
+          <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
             {isDetailError && !isDetailLoading && (
               <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
                 <div className="flex items-center gap-2">
@@ -114,6 +135,28 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
               </div>
             )}
 
+            {detail.amlFlag && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300">
+                <div className="flex items-start gap-2">
+                  <ShieldAlert className="mt-0.5 h-4 w-4" />
+                  <div>
+                    <p className="font-semibold">
+                      AML Flag: {detail.amlFlag.description} (Score: {detail.amlFlag.score}/100)
+                    </p>
+                    <p className="mt-1 text-xs">
+                      Flagged {detail.amlFlag.flaggedAt} | Case: {detail.amlFlag.caseRef}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {detail.latestDispute && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-300">
+                Latest dispute {detail.latestDispute.disputeRef} is {detail.latestDispute.status.replaceAll('_', ' ')}.
+              </div>
+            )}
+
             {isDetailLoading ? (
               <>
                 <div className="flex flex-wrap items-center gap-3 animate-pulse">
@@ -126,12 +169,10 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
                   <div className="space-y-2 animate-pulse">
                     <div className="h-3 w-12 rounded bg-muted" />
                     <div className="h-4 w-32 rounded bg-muted" />
-                    <div className="h-3 w-24 rounded bg-muted" />
                   </div>
                   <div className="space-y-2 animate-pulse">
                     <div className="h-3 w-8 rounded bg-muted" />
                     <div className="h-4 w-32 rounded bg-muted" />
-                    <div className="h-3 w-24 rounded bg-muted" />
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-6 rounded-lg border bg-muted/20 px-4 py-3 animate-pulse">
@@ -143,116 +184,79 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
                     <div className="h-3 w-20 rounded bg-muted" />
                     <div className="h-6 w-28 rounded bg-muted" />
                   </div>
-                  <div className="space-y-2">
-                    <div className="h-3 w-10 rounded bg-muted" />
-                    <div className="h-5 w-20 rounded bg-muted" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3 animate-pulse">
-                  <div className="space-y-2 rounded-lg border p-4">
-                    <div className="h-3 w-20 rounded bg-muted" />
-                    <div className="h-4 w-32 rounded bg-muted" />
-                  </div>
-                  <div className="space-y-2 rounded-lg border p-4">
-                    <div className="h-3 w-20 rounded bg-muted" />
-                    <div className="h-4 w-24 rounded bg-muted" />
-                  </div>
-                  <div className="space-y-2 rounded-lg border p-4">
-                    <div className="h-3 w-20 rounded bg-muted" />
-                    <div className="h-4 w-24 rounded bg-muted" />
-                  </div>
-                  <div className="space-y-2 rounded-lg border p-4 md:col-span-3">
-                    <div className="h-3 w-20 rounded bg-muted" />
-                    <div className="h-4 w-full rounded bg-muted" />
-                  </div>
                 </div>
               </>
+            ) : activeTab === 'audit' ? (
+              <AuditTrailTimeline events={auditEvents} />
             ) : (
               <>
-                {/* Type / Channel / Status row */}
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-muted text-sm font-medium">
+                  <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-sm font-medium">
                     {detail.type.replace(/_/g, ' ')}
                   </span>
-                  <span className="text-muted-foreground text-sm">via</span>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-muted text-sm font-medium">
+                  <span className="text-sm text-muted-foreground">via</span>
+                  <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-sm font-medium">
                     {detail.channel} Banking
                   </span>
                   <StatusBadge status={detail.status} size="md" dot />
                 </div>
 
-                {/* From / To */}
                 {(detail.fromAccount || detail.toAccount) && (
-                  <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/30 p-4">
                     {detail.fromAccount && (
                       <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">From</p>
-                        <p className="font-mono text-sm font-semibold">
-                          {detail.fromAccount.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3')}
-                        </p>
-                        {detail.fromAccountName && (
-                          <p className="text-sm text-muted-foreground mt-0.5">{detail.fromAccountName}</p>
-                        )}
+                        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">From</p>
+                        <p className="font-mono text-sm font-semibold">{detail.fromAccount}</p>
+                        {detail.fromAccountName && <p className="mt-0.5 text-sm text-muted-foreground">{detail.fromAccountName}</p>}
                       </div>
                     )}
                     {detail.toAccount && (
                       <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium mb-1">To</p>
-                        <p className="font-mono text-sm font-semibold">
-                          {detail.toAccount.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3')}
-                        </p>
-                        {detail.toAccountName && (
-                          <p className="text-sm text-muted-foreground mt-0.5">{detail.toAccountName}</p>
-                        )}
+                        <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">To</p>
+                        <p className="font-mono text-sm font-semibold">{detail.toAccount}</p>
+                        {detail.toAccountName && <p className="mt-0.5 text-sm text-muted-foreground">{detail.toAccountName}</p>}
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Amount row */}
-                <div className="flex flex-wrap gap-6 px-4 py-3 bg-muted/20 rounded-lg border">
+                <div className="flex flex-wrap gap-6 rounded-lg border bg-muted/20 px-4 py-3">
                   {detail.debitAmount !== undefined && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Debit Amount</p>
-                      <p className="font-mono text-lg font-bold text-red-600 dark:text-red-400">
-                        {formatMoney(detail.debitAmount)}
-                      </p>
+                      <p className="mb-0.5 text-xs text-muted-foreground">Debit Amount</p>
+                      <p className="font-mono text-lg font-bold text-red-600 dark:text-red-400">{formatMoney(detail.debitAmount)}</p>
                     </div>
                   )}
                   {detail.creditAmount !== undefined && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Credit Amount</p>
-                      <p className="font-mono text-lg font-bold text-green-600 dark:text-green-400">
-                        {formatMoney(detail.creditAmount)}
-                      </p>
+                      <p className="mb-0.5 text-xs text-muted-foreground">Credit Amount</p>
+                      <p className="font-mono text-lg font-bold text-green-600 dark:text-green-400">{formatMoney(detail.creditAmount)}</p>
                     </div>
                   )}
                   {detail.fee !== undefined && detail.fee > 0 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Fee</p>
-                      <p className="font-mono text-base font-semibold text-amber-600 dark:text-amber-400">
-                        {formatMoney(detail.fee)}
-                      </p>
+                      <p className="mb-0.5 text-xs text-muted-foreground">Fee</p>
+                      <p className="font-mono text-base font-semibold text-amber-600 dark:text-amber-400">{formatMoney(detail.fee)}</p>
                     </div>
                   )}
                 </div>
 
-                {/* Info Grid */}
                 <InfoGrid
                   columns={3}
                   items={[
                     { label: 'Date & Time', value: detail.dateTime, format: 'datetime' },
                     { label: 'Value Date', value: detail.valueDate, format: 'date' },
                     { label: 'Posting Date', value: detail.postingDate, format: 'date' },
+                    { label: 'Customer Email', value: detail.customerEmail || 'N/A' },
+                    { label: 'Customer Phone', value: detail.customerPhone || 'N/A' },
                     { label: 'Narration', value: detail.narration, span: 3 },
                   ]}
                 />
 
-                {/* GL Entries */}
                 {detail.glEntries && detail.glEntries.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-semibold mb-2">GL Entries</h3>
-                    <div className="rounded-lg border overflow-hidden">
+                    <h3 className="mb-2 text-sm font-semibold">GL Entries</h3>
+                    <div className="overflow-hidden rounded-lg border">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b bg-muted/30">
@@ -263,12 +267,12 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
                           </tr>
                         </thead>
                         <tbody className="divide-y">
-                          {detail.glEntries.map((entry, i) => (
-                            <tr key={i} className="hover:bg-muted/20">
+                          {detail.glEntries.map((entry, index) => (
+                            <tr key={index} className="hover:bg-muted/20">
                               <td className="px-3 py-2">
                                 <span
                                   className={cn(
-                                    'inline-flex items-center px-2 py-0.5 rounded text-xs font-bold',
+                                    'inline-flex items-center rounded px-2 py-0.5 text-xs font-bold',
                                     entry.type === 'DR'
                                       ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                       : 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -277,12 +281,8 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
                                   {entry.type}
                                 </span>
                               </td>
-                              <td className="px-3 py-2 font-mono text-xs">
-                                {entry.account.replace(/(\d{4})(\d{4})(\d{2})/, '$1 $2 $3')}
-                              </td>
-                              <td className="px-3 py-2 text-right font-mono text-xs font-medium">
-                                {formatMoney(entry.amount)}
-                              </td>
+                              <td className="px-3 py-2 font-mono text-xs">{entry.account}</td>
+                              <td className="px-3 py-2 text-right font-mono text-xs font-medium">{formatMoney(entry.amount)}</td>
                               <td className="px-3 py-2 text-xs text-muted-foreground">{entry.description}</td>
                             </tr>
                           ))}
@@ -295,91 +295,65 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
             )}
           </div>
 
-          {/* Footer actions */}
-          <div className="flex items-center justify-between gap-3 px-6 py-4 border-t flex-shrink-0">
+          <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePrint}
                 disabled={isDetailLoading}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border hover:bg-muted transition-colors"
+                className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-muted"
               >
-                <Printer className="w-4 h-4" />
+                <Printer className="h-4 w-4" />
                 Print Receipt
               </button>
               <button
                 onClick={() => downloadMutation.mutate(detail.id)}
                 disabled={downloadMutation.isPending || isDetailLoading}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border hover:bg-muted transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
               >
-                {downloadMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4" />
-                )}
-                Download PDF
+                {downloadMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                Download Receipt
               </button>
             </div>
 
-            {canReverse && (
-              <button
-                onClick={() => setReverseOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Reverse Transaction
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {canDispute && (
+                <button
+                  onClick={() => setDisputeOpen(true)}
+                  className="rounded-lg border border-amber-200 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-50 dark:border-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-950/20"
+                >
+                  Raise Dispute
+                </button>
+              )}
+              {canReverse && (
+                <button
+                  onClick={() => setReversalOpen(true)}
+                  className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:border-red-900/40 dark:hover:bg-red-950/30"
+                >
+                  Reverse Transaction
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Hidden printable receipt */}
       <TransactionReceipt transaction={detail} />
 
-      {/* Reverse confirmation */}
-      {reverseOpen && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-[60]" />
-          <div className="fixed inset-0 flex items-center justify-center z-[60] p-4">
-            <div className="bg-card rounded-xl shadow-2xl border w-full max-w-md p-6 space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold">Reverse Transaction</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  You are about to reverse transaction <span className="font-mono font-medium">{detail.reference}</span>.
-                  This action cannot be undone.
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1.5">Reason for Reversal</label>
-                <textarea
-                  value={reverseReason}
-                  onChange={(e) => setReverseReason(e.target.value)}
-                  rows={3}
-                  placeholder="Enter reason for reversing this transaction..."
-                  className="w-full px-3 py-2 rounded-lg border bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => { setReverseOpen(false); setReverseReason(''); }}
-                  disabled={reverseMutation.isPending}
-                  className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => reverseMutation.mutate({ id: detail.id, reason: reverseReason })}
-                  disabled={reverseMutation.isPending || !reverseReason.trim()}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {reverseMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Confirm Reversal
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      <DisputeFilingForm
+        open={disputeOpen}
+        transaction={detail}
+        defaultEmail={detail.customerEmail || user?.email}
+        defaultPhone={detail.customerPhone}
+        onClose={() => setDisputeOpen(false)}
+        onSubmitted={refreshTransaction}
+      />
+
+      <EnhancedReversalWorkflow
+        open={reversalOpen}
+        transaction={detail}
+        onClose={() => setReversalOpen(false)}
+        onCompleted={refreshTransaction}
+      />
     </>
   );
 }

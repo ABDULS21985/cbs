@@ -28,6 +28,7 @@ import { TransactionTimeline } from '../components/TransactionTimeline';
 import { TransactionSearchForm, getTransactionSearchValidationErrors } from '../components/TransactionSearchForm';
 import { TransactionResultsTable } from '../components/TransactionResultsTable';
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
+import { StatementGenerator } from '../components/StatementGenerator';
 import type { Transaction } from '../api/transactionApi';
 
 const LIVE_MODE_STORAGE_KEY = 'transactions:live-mode';
@@ -335,6 +336,7 @@ function buildActiveFilterPills(
   if (filters.type !== 'ALL') pills.push({ key: 'type', label: `Type: ${filters.type}` });
   if (filters.channel !== 'ALL') pills.push({ key: 'channel', label: `Channel: ${filters.channel}` });
   if (filters.status !== 'ALL') pills.push({ key: 'status', label: `Status: ${filters.status}` });
+  if (filters.flaggedOnly) pills.push({ key: 'flaggedOnly', label: 'Flagged Only' });
 
   return pills.map((pill) => (
     <button
@@ -386,7 +388,8 @@ function hasAnySearchCriteria(current: ReturnType<typeof useTransactionSearch>['
       current.amountTo > 0 ||
       current.type !== 'ALL' ||
       current.channel !== 'ALL' ||
-      current.status !== 'ALL',
+      current.status !== 'ALL' ||
+      current.flaggedOnly,
   );
 }
 
@@ -405,6 +408,7 @@ export function TransactionSearchPage() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [pendingExportFormat, setPendingExportFormat] = useState<ExportFormat | null>(null);
   const [largeExportWarningOpen, setLargeExportWarningOpen] = useState(false);
+  const [statementGeneratorOpen, setStatementGeneratorOpen] = useState(false);
   const [highlightedTransactionId, setHighlightedTransactionId] = useState<string | null>(null);
   const [flashingTransactionIds, setFlashingTransactionIds] = useState<string[]>([]);
   const [transactionsPerMinute, setTransactionsPerMinute] = useState(0);
@@ -634,6 +638,9 @@ export function TransactionSearchPage() {
         break;
       case 'status':
         nextFilters.status = 'ALL';
+        break;
+      case 'flaggedOnly':
+        nextFilters.flaggedOnly = false;
         break;
       default:
         return;
@@ -893,6 +900,14 @@ export function TransactionSearchPage() {
             </div>
 
             <button
+              onClick={() => setStatementGeneratorOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              <FileText className="h-4 w-4" />
+              Generate Statement
+            </button>
+
+            <button
               onClick={() => setShortcutHelpOpen(true)}
               className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
               title="Keyboard shortcuts"
@@ -1069,6 +1084,13 @@ export function TransactionSearchPage() {
         transaction={selectedTransaction}
         open={detailOpen}
         onClose={handleCloseDetail}
+      />
+
+      <StatementGenerator
+        open={statementGeneratorOpen}
+        initialAccountNumber={filters.accountNumber || selectedTransaction?.accountNumber || selectedTransaction?.fromAccount || ''}
+        initialEmail={selectedTransaction?.customerEmail}
+        onClose={() => setStatementGeneratorOpen(false)}
       />
 
       {disputeModalOpen && (

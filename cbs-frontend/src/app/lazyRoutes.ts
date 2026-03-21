@@ -36,6 +36,18 @@ export const DepositDashboardPage = lazyNamed(
   () => import('@/features/deposits/pages/DepositDashboardPage'),
   'DepositDashboardPage',
 );
+export const EscrowListPage = lazyNamed(
+  () => import('@/features/deposits/pages/escrow/EscrowListPage'),
+  'EscrowListPage',
+);
+export const EscrowDetailPage = lazyNamed(
+  () => import('@/features/deposits/pages/escrow/EscrowDetailPage'),
+  'EscrowDetailPage',
+);
+export const NewEscrowPage = lazyNamed(
+  () => import('@/features/deposits/pages/escrow/NewEscrowPage'),
+  'NewEscrowPage',
+);
 
 export const TransactionPostingPage = lazyNamed(
   () => import('@/features/accounts/pages/TransactionPostingPage'),
@@ -164,6 +176,14 @@ export const TransactionSearchPage = lazyNamed(
 export const TransactionAnalyticsPage = lazyNamed(
   () => import('@/features/transactions/pages/TransactionAnalyticsPage'),
   'TransactionAnalyticsPage',
+);
+export const TransactionDisputePage = lazyNamed(
+  () => import('@/features/transactions/pages/TransactionDisputePage'),
+  'TransactionDisputePage',
+);
+export const TransactionCompliancePage = lazyNamed(
+  () => import('@/features/transactions/pages/TransactionCompliancePage'),
+  'TransactionCompliancePage',
 );
 
 export const GoalListPage = lazyNamed(
@@ -749,6 +769,10 @@ export const KnowledgeBasePage = lazyNamed(
 export const ChatSessionsPage = lazyNamed(
   () => import('@/features/contactcenter/pages/ChatSessionsPage'),
   'ChatSessionsPage',
+);
+export const ContactCenterAdminPage = lazyNamed(
+  () => import('@/features/contactcenter/pages/ContactCenterAdminPage'),
+  'ContactCenterAdminPage',
 );
 
 export const ComplianceReportsPage = lazyNamed(

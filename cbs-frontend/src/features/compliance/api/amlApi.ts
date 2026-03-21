@@ -65,11 +65,11 @@ export const amlApi = {
 
   /** GET /v1/aml/strs */
   getStrs: (params?: Record<string, unknown>) =>
-    apiGet<Record<string, unknown>[]>('/api/v1/aml/strs', params),
+    apiGet<AmlAlert[]>('/api/v1/aml/strs', params),
 
   /** GET /v1/aml/ctrs */
   getCtrs: (params?: Record<string, unknown>) =>
-    apiGet<Record<string, unknown>[]>('/api/v1/aml/ctrs', params),
+    apiGet<AmlAlert[]>('/api/v1/aml/ctrs', params),
 
   // ─── Dashboard & Stats ──────────────────────────────────────────────────────
 

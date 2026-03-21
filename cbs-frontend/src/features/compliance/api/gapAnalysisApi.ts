@@ -10,9 +10,11 @@ export const gapAnalysisApi = {
   identify: (data: Partial<ComplianceGapAnalysis>) =>
     apiPost<ComplianceGapAnalysis>('/api/v1/gap-analysis', data),
 
-  /** POST /v1/gap-analysis/{code}/plan */
-  plan: (code: string) =>
-    apiPost<ComplianceGapAnalysis>(`/api/v1/gap-analysis/${code}/plan`),
+  /** POST /v1/gap-analysis/{code}/plan?owner=...&description=...&targetDate=... */
+  plan: (code: string, payload: { owner: string; description: string; targetDate: string }) =>
+    apiPost<ComplianceGapAnalysis>(
+      `/api/v1/gap-analysis/${code}/plan?owner=${encodeURIComponent(payload.owner)}&description=${encodeURIComponent(payload.description)}&targetDate=${encodeURIComponent(payload.targetDate)}`
+    ),
 
   /** POST /v1/gap-analysis/{code}/progress */
   progress: (code: string) =>
@@ -22,9 +24,9 @@ export const gapAnalysisApi = {
   close: (code: string) =>
     apiPost<ComplianceGapAnalysis>(`/api/v1/gap-analysis/${code}/close`),
 
-  /** POST /v1/gap-analysis/{code}/verify */
-  verify: (code: string) =>
-    apiPost<ComplianceGapAnalysis>(`/api/v1/gap-analysis/${code}/verify`),
+  /** POST /v1/gap-analysis/{code}/verify?verifiedBy=... */
+  verify: (code: string, verifiedBy: string) =>
+    apiPost<ComplianceGapAnalysis>(`/api/v1/gap-analysis/${code}/verify?verifiedBy=${encodeURIComponent(verifiedBy)}`),
 
   /** POST /v1/gap-analysis/{code}/accept-risk */
   acceptRisk: (code: string) =>
@@ -37,5 +39,4 @@ export const gapAnalysisApi = {
   /** GET /v1/gap-analysis/overdue */
   overdue: (params?: Record<string, unknown>) =>
     apiGet<ComplianceGapAnalysis[]>('/api/v1/gap-analysis/overdue', params),
-
 };

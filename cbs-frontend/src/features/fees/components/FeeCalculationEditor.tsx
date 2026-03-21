@@ -13,9 +13,13 @@ import type { FeeDefinition, FeeCalcType, FeeTier } from '../api/feeApi';
 const feeSchema = z.object({
   code: z.string().min(1, 'Fee code is required').max(30, 'Max 30 characters'),
   name: z.string().min(2, 'Fee name is required'),
-  category: z.enum(['ACCOUNT_MAINTENANCE', 'TRANSACTION', 'CARD', 'LOAN', 'TRADE', 'OTHER']),
+  category: z.enum([
+    'ACCOUNT_MAINTENANCE', 'TRANSACTION', 'CARD', 'LOAN_PROCESSING',
+    'STATEMENT', 'CHEQUE', 'SWIFT', 'ATM', 'POS', 'ONLINE',
+    'PENALTY', 'COMMISSION', 'SERVICE_CHARGE', 'OTHER',
+  ]),
   description: z.string().optional(),
-  calcType: z.enum(['FLAT', 'PERCENTAGE', 'TIERED', 'SLAB']),
+  calcType: z.enum(['FLAT', 'PERCENTAGE', 'TIERED', 'SLAB', 'MIN_OF', 'MAX_OF']),
   flatAmount: z.number().min(0).optional(),
   percentage: z.number().min(0).max(100).optional(),
   minFee: z.number().min(0).optional(),
@@ -28,6 +32,15 @@ const feeSchema = z.object({
   glIncomeAccount: z.string().min(1, 'GL Income Account is required').regex(/^\d{6,12}$/, 'Must be 6-12 digits'),
   glReceivableAccount: z.string().min(1, 'GL Receivable Account is required').regex(/^\d{6,12}$/, 'Must be 6-12 digits'),
   status: z.enum(['ACTIVE', 'INACTIVE']),
+  // ── Additional backend fields ──
+  triggerEvent: z.string().max(50).optional(),
+  currencyCode: z.string().max(3).optional(),
+  applicableChannels: z.string().optional(),
+  applicableCustomerTypes: z.string().optional(),
+  taxCode: z.string().max(20).optional(),
+  waivable: z.boolean().optional(),
+  effectiveFrom: z.string().optional(),
+  effectiveTo: z.string().optional(),
 });
 
 type FeeFormValues = z.infer<typeof feeSchema>;
@@ -60,8 +73,16 @@ const CATEGORY_OPTIONS = [
   { value: 'ACCOUNT_MAINTENANCE', label: 'Account Maintenance' },
   { value: 'TRANSACTION', label: 'Transaction' },
   { value: 'CARD', label: 'Card' },
-  { value: 'LOAN', label: 'Loan' },
-  { value: 'TRADE', label: 'Trade Finance' },
+  { value: 'LOAN_PROCESSING', label: 'Loan Processing' },
+  { value: 'STATEMENT', label: 'Statement' },
+  { value: 'CHEQUE', label: 'Cheque' },
+  { value: 'SWIFT', label: 'SWIFT' },
+  { value: 'ATM', label: 'ATM' },
+  { value: 'POS', label: 'POS' },
+  { value: 'ONLINE', label: 'Online' },
+  { value: 'PENALTY', label: 'Penalty' },
+  { value: 'COMMISSION', label: 'Commission' },
+  { value: 'SERVICE_CHARGE', label: 'Service Charge' },
   { value: 'OTHER', label: 'Other' },
 ];
 
@@ -70,6 +91,8 @@ const CALC_TYPE_OPTIONS = [
   { value: 'PERCENTAGE', label: 'Percentage', desc: 'Calculated as % of transaction amount' },
   { value: 'TIERED', label: 'Tiered Rate', desc: 'Different % rates per amount band' },
   { value: 'SLAB', label: 'Slab Fee', desc: 'Fixed fee per amount band' },
+  { value: 'MIN_OF', label: 'Minimum Of', desc: 'Lesser of flat amount and percentage calculation' },
+  { value: 'MAX_OF', label: 'Maximum Of', desc: 'Greater of flat amount and percentage calculation' },
 ];
 
 const SCHEDULE_OPTIONS = [
@@ -122,6 +145,14 @@ export function FeeCalculationEditor({ initialData, mode: initialMode, onSubmit,
       glIncomeAccount: initialData?.glIncomeAccount || '',
       glReceivableAccount: initialData?.glReceivableAccount || '',
       status: initialData?.status || 'ACTIVE',
+      triggerEvent: initialData?.triggerEvent || '',
+      currencyCode: initialData?.currencyCode || 'NGN',
+      applicableChannels: initialData?.applicableChannels || 'ALL',
+      applicableCustomerTypes: initialData?.applicableCustomerTypes || 'ALL',
+      taxCode: initialData?.taxCode || '',
+      waivable: initialData?.waivable ?? true,
+      effectiveFrom: initialData?.effectiveFrom || '',
+      effectiveTo: initialData?.effectiveTo || '',
     },
   });
 
@@ -148,6 +179,14 @@ export function FeeCalculationEditor({ initialData, mode: initialMode, onSubmit,
         glIncomeAccount: initialData.glIncomeAccount,
         glReceivableAccount: initialData.glReceivableAccount,
         status: initialData.status,
+        triggerEvent: initialData.triggerEvent || '',
+        currencyCode: initialData.currencyCode || 'NGN',
+        applicableChannels: initialData.applicableChannels || 'ALL',
+        applicableCustomerTypes: initialData.applicableCustomerTypes || 'ALL',
+        taxCode: initialData.taxCode || '',
+        waivable: initialData.waivable ?? true,
+        effectiveFrom: initialData.effectiveFrom || '',
+        effectiveTo: initialData.effectiveTo || '',
       });
       setTiers(initialData.tiers || []);
       setProducts(initialData.applicableProducts || []);
@@ -254,6 +293,24 @@ export function FeeCalculationEditor({ initialData, mode: initialMode, onSubmit,
               className={cn(inputCls(isReadOnly), 'resize-none')}
             />
           </div>
+          <div>
+            <label className={labelCls}>Trigger Event</label>
+            <input
+              {...register('triggerEvent')}
+              disabled={isReadOnly}
+              placeholder="e.g. ATM_WITHDRAWAL"
+              className={inputCls(isReadOnly)}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Currency Code</label>
+            <select {...register('currencyCode')} disabled={isReadOnly} className={selectCls(isReadOnly)}>
+              <option value="NGN">NGN</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+            </select>
+          </div>
         </div>
       </FormSection>
 
@@ -268,7 +325,7 @@ export function FeeCalculationEditor({ initialData, mode: initialMode, onSubmit,
                 {CALC_TYPE_OPTIONS.find((o) => o.value === calcType)?.label}
               </p>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2" role="radiogroup" aria-label="Fee calculation type">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2" role="radiogroup" aria-label="Fee calculation type">
                 {CALC_TYPE_OPTIONS.map((opt) => (
                   <label
                     key={opt.value}
@@ -412,6 +469,71 @@ export function FeeCalculationEditor({ initialData, mode: initialMode, onSubmit,
           {calcType === 'SLAB' && (
             <TierTableEditor tiers={tiers} onChange={setTiers} type="SLAB" readOnly={isReadOnly} />
           )}
+
+          {/* MIN_OF / MAX_OF fields */}
+          {(calcType === 'MIN_OF' || calcType === 'MAX_OF') && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Flat Amount (₦) *</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  {...register('flatAmount', { valueAsNumber: true })}
+                  disabled={isReadOnly}
+                  placeholder="500"
+                  className={inputCls(isReadOnly)}
+                />
+                {errors.flatAmount && <p className={errorCls}>{errors.flatAmount.message}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Rate (%) *</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  {...register('percentage', { valueAsNumber: true })}
+                  disabled={isReadOnly}
+                  placeholder="1.5"
+                  className={inputCls(isReadOnly)}
+                />
+                {errors.percentage && <p className={errorCls}>{errors.percentage.message}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>Apply On</label>
+                <select {...register('onAmount')} disabled={isReadOnly} className={selectCls(isReadOnly)}>
+                  <option value="DEBIT">Debit Amount</option>
+                  <option value="CREDIT">Credit Amount</option>
+                  <option value="BALANCE">Account Balance</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Minimum Fee (₦)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  {...register('minFee', { valueAsNumber: true })}
+                  disabled={isReadOnly}
+                  placeholder="0"
+                  className={inputCls(isReadOnly)}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Maximum Fee (₦)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  {...register('maxFee', { valueAsNumber: true })}
+                  disabled={isReadOnly}
+                  placeholder="No limit"
+                  className={inputCls(isReadOnly)}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </FormSection>
 
@@ -448,20 +570,103 @@ export function FeeCalculationEditor({ initialData, mode: initialMode, onSubmit,
           </label>
 
           {vatApplicable && (
-            <div className="max-w-xs">
-              <label className={labelCls}>VAT Rate (%)</label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.01}
-                {...register('vatRate', { valueAsNumber: true })}
-                disabled={isReadOnly}
-                placeholder="7.5"
-                className={inputCls(isReadOnly)}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg">
+              <div>
+                <label className={labelCls}>VAT Rate (%)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  {...register('vatRate', { valueAsNumber: true })}
+                  disabled={isReadOnly}
+                  placeholder="7.5"
+                  className={inputCls(isReadOnly)}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Tax Code</label>
+                <input
+                  {...register('taxCode')}
+                  disabled={isReadOnly}
+                  placeholder="e.g. VAT-001"
+                  className={inputCls(isReadOnly)}
+                />
+              </div>
             </div>
           )}
+        </div>
+      </FormSection>
+
+      {/* Applicability */}
+      <FormSection title="Applicability" description="Channel, customer type, and date restrictions">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Applicable Channels</label>
+            <input
+              {...register('applicableChannels')}
+              disabled={isReadOnly}
+              placeholder="ALL or comma-separated: MOBILE,WEB,ATM"
+              className={inputCls(isReadOnly)}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Applicable Customer Types</label>
+            <input
+              {...register('applicableCustomerTypes')}
+              disabled={isReadOnly}
+              placeholder="ALL or comma-separated: INDIVIDUAL,CORPORATE"
+              className={inputCls(isReadOnly)}
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <Controller
+                name="waivable"
+                control={control}
+                render={({ field }) => (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={field.value}
+                    disabled={isReadOnly}
+                    onClick={() => !isReadOnly && field.onChange(!field.value)}
+                    className={cn(
+                      'relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      field.value ? 'bg-primary' : 'bg-input',
+                      isReadOnly && 'opacity-70 cursor-not-allowed',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform',
+                        field.value ? 'translate-x-4' : 'translate-x-0',
+                      )}
+                    />
+                  </button>
+                )}
+              />
+              <span className="text-sm font-medium">Waivable</span>
+            </label>
+          </div>
+          <div>
+            <label className={labelCls}>Effective From</label>
+            <input
+              type="date"
+              {...register('effectiveFrom')}
+              disabled={isReadOnly}
+              className={inputCls(isReadOnly)}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Effective To</label>
+            <input
+              type="date"
+              {...register('effectiveTo')}
+              disabled={isReadOnly}
+              className={inputCls(isReadOnly)}
+            />
+          </div>
         </div>
       </FormSection>
 

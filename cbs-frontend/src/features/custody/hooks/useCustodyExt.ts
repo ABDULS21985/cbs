@@ -12,28 +12,26 @@ const KEYS = {
   positions: {
     all: ['custody', 'positions'] as const,
     byPortfolio: (code: string) => ['custody', 'positions', 'portfolio', code] as const,
-    movements: (positionId: number) => ['custody', 'positions', positionId, 'movements'] as const,
+    movements: (positionId: string) => ['custody', 'positions', positionId, 'movements'] as const,
+    allMovements: ['custody', 'positions', 'movements'] as const,
   },
   fails: {
     all: ['custody', 'fails'] as const,
-    dashboard: (params?: Record<string, unknown>) =>
-      ['custody', 'fails', 'dashboard', params] as const,
-    counterpartyReport: (params?: Record<string, unknown>) =>
-      ['custody', 'fails', 'counterparty-report', params] as const,
+    dashboard: ['custody', 'fails', 'dashboard'] as const,
+    counterpartyReport: ['custody', 'fails', 'counterparty-report'] as const,
   },
   valuations: {
     all: ['custody', 'valuations'] as const,
-    models: (params?: Record<string, unknown>) =>
-      ['custody', 'valuations', 'models', params] as const,
+    models: ['custody', 'valuations', 'models'] as const,
     model: (code: string) => ['custody', 'valuations', 'model', code] as const,
+    runs: ['custody', 'valuations', 'runs'] as const,
     summary: (ref: string) => ['custody', 'valuations', 'run', ref, 'summary'] as const,
     exceptions: (ref: string) => ['custody', 'valuations', 'run', ref, 'exceptions'] as const,
   },
   counterparties: {
     all: ['custody', 'counterparties'] as const,
     byType: (type: string) => ['custody', 'counterparties', 'type', type] as const,
-    pendingKyc: (params?: Record<string, unknown>) =>
-      ['custody', 'counterparties', 'pending-kyc', params] as const,
+    pendingKyc: ['custody', 'counterparties', 'pending-kyc'] as const,
   },
 } as const;
 
@@ -48,11 +46,19 @@ export function useSecuritiesPositions(portfolioCode: string) {
   });
 }
 
-export function useSecuritiesMovements(positionId: number) {
+export function useSecuritiesMovements(positionId: string) {
   return useQuery({
     queryKey: KEYS.positions.movements(positionId),
     queryFn: () => securitiesPositionsApi.getMovements(positionId),
     enabled: !!positionId,
+    staleTime: 30_000,
+  });
+}
+
+export function useAllSecuritiesMovements() {
+  return useQuery({
+    queryKey: KEYS.positions.allMovements,
+    queryFn: () => securitiesPositionsApi.listMovements(),
     staleTime: 30_000,
   });
 }
@@ -70,19 +76,29 @@ export function useRecordSecuritiesMovement() {
 
 // ─── Securities Fails ────────────────────────────────────────────────────────
 
-export function useSecuritiesFailsDashboard(params?: Record<string, unknown>) {
+export function useSecuritiesFailsDashboard() {
   return useQuery({
-    queryKey: KEYS.fails.dashboard(params),
-    queryFn: () => securitiesFailsApi.dashboard(params),
+    queryKey: KEYS.fails.dashboard,
+    queryFn: () => securitiesFailsApi.dashboard(),
     staleTime: 30_000,
   });
 }
 
-export function useSecuritiesFailsCounterpartyReport(params?: Record<string, unknown>) {
+export function useSecuritiesFailsCounterpartyReport() {
   return useQuery({
-    queryKey: KEYS.fails.counterpartyReport(params),
-    queryFn: () => securitiesFailsApi.counterpartyReport(params),
+    queryKey: KEYS.fails.counterpartyReport,
+    queryFn: () => securitiesFailsApi.counterpartyReport(),
     staleTime: 30_000,
+  });
+}
+
+export function useRecordSecuritiesFail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: securitiesFailsApi.recordFail,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.fails.dashboard });
+    },
   });
 }
 
@@ -91,7 +107,7 @@ export function useEscalateSecuritiesFail() {
   return useMutation({
     mutationFn: (ref: string) => securitiesFailsApi.escalate(ref),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.fails.all });
+      qc.invalidateQueries({ queryKey: KEYS.fails.dashboard });
     },
   });
 }
@@ -101,37 +117,41 @@ export function useBuyInSecuritiesFail() {
   return useMutation({
     mutationFn: (ref: string) => securitiesFailsApi.buyIn(ref),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.fails.all });
+      qc.invalidateQueries({ queryKey: KEYS.fails.dashboard });
     },
   });
 }
 
+// Backend: POST /{ref}/penalty?dailyRate=...
 export function usePenaltySecuritiesFail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (ref: string) => securitiesFailsApi.penalty(ref),
+    mutationFn: ({ ref, dailyRate }: { ref: string; dailyRate: number }) =>
+      securitiesFailsApi.penalty(ref, dailyRate),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.fails.all });
+      qc.invalidateQueries({ queryKey: KEYS.fails.dashboard });
     },
   });
 }
 
+// Backend: POST /{ref}/resolve?action=...&notes=...
 export function useResolveSecuritiesFail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (ref: string) => securitiesFailsApi.resolve(ref),
+    mutationFn: ({ ref, action, notes }: { ref: string; action: string; notes?: string }) =>
+      securitiesFailsApi.resolve(ref, action, notes),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.fails.all });
+      qc.invalidateQueries({ queryKey: KEYS.fails.dashboard });
     },
   });
 }
 
 // ─── Valuations ──────────────────────────────────────────────────────────────
 
-export function useValuationModels(params?: Record<string, unknown>) {
+export function useValuationModels() {
   return useQuery({
-    queryKey: KEYS.valuations.models(params),
-    queryFn: () => valuationsApi.getAllModels(params),
+    queryKey: KEYS.valuations.models,
+    queryFn: () => valuationsApi.getAllModels(),
     staleTime: 60_000,
   });
 }
@@ -142,6 +162,14 @@ export function useValuationModel(code: string) {
     queryFn: () => valuationsApi.getModel(code),
     enabled: !!code,
     staleTime: 60_000,
+  });
+}
+
+export function useValuationRuns() {
+  return useQuery({
+    queryKey: KEYS.valuations.runs,
+    queryFn: () => valuationsApi.getRuns(),
+    staleTime: 30_000,
   });
 }
 
@@ -168,17 +196,19 @@ export function useDefineValuationModel() {
   return useMutation({
     mutationFn: (data: Partial<ValuationModel>) => valuationsApi.defineModel(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.valuations.all });
+      qc.invalidateQueries({ queryKey: KEYS.valuations.models });
     },
   });
 }
 
+// Backend: POST /runs?modelId=...&date=...&runType=...
 export function useRunValuation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => valuationsApi.runValuation(),
+    mutationFn: ({ modelId, date, runType }: { modelId: number; date: string; runType: string }) =>
+      valuationsApi.runValuation(modelId, date, runType),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.valuations.all });
+      qc.invalidateQueries({ queryKey: KEYS.valuations.runs });
     },
   });
 }
@@ -200,7 +230,7 @@ export function useCompleteValuationRun() {
   return useMutation({
     mutationFn: (ref: string) => valuationsApi.completeRun(ref),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEYS.valuations.all });
+      qc.invalidateQueries({ queryKey: KEYS.valuations.runs });
     },
   });
 }
@@ -216,10 +246,10 @@ export function useCounterpartiesByType(type: string) {
   });
 }
 
-export function usePendingKycCounterparties(params?: Record<string, unknown>) {
+export function usePendingKycCounterparties() {
   return useQuery({
-    queryKey: KEYS.counterparties.pendingKyc(params),
-    queryFn: () => counterpartiesApi.pendingKyc(params),
+    queryKey: KEYS.counterparties.pendingKyc,
+    queryFn: () => counterpartiesApi.pendingKyc(),
     staleTime: 30_000,
   });
 }
@@ -238,21 +268,22 @@ export function useCreateCounterparty() {
 export function useUpdateCounterpartyExposure() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, currentExposure }: { code: string; currentExposure: number }) =>
-      counterpartiesApi.updateExposure(code, currentExposure),
+    mutationFn: ({ code, exposure }: { code: string; exposure: number }) =>
+      counterpartiesApi.updateExposure(code, exposure),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.counterparties.all });
     },
   });
 }
 
+// Backend: POST /{code}/verify-kyc — no body, CBS_ADMIN only
 export function useVerifyCounterpartyKyc() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, ...data }: { code: string; reviewedBy: string; kycStatus: string; reviewDate: string }) =>
-      counterpartiesApi.verifyKyc(code, data),
+    mutationFn: (code: string) => counterpartiesApi.verifyKyc(code),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.counterparties.all });
+      qc.invalidateQueries({ queryKey: KEYS.counterparties.pendingKyc });
     },
   });
 }

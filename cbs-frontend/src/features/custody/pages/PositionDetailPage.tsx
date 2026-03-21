@@ -14,15 +14,8 @@ export function PositionDetailPage() {
   const { positionId = '' } = useParams<{ positionId: string }>();
   const [showMovement, setShowMovement] = useState(false);
 
-  // We need to find the position — fetch by searching common portfolio codes
-  // The positionId is the string ID like "SP-XXXXXXXX"
-  // Movements are fetched by numeric id, but the API takes positionId string
-  // Let's use a query for movements which takes the numeric ID
-  const numericId = parseInt(positionId, 10);
-  const isNumeric = !isNaN(numericId);
-
-  // Try fetching movements using the position's numeric ID
-  const { data: movements = [], isLoading: movementsLoading } = useSecuritiesMovements(isNumeric ? numericId : 0);
+  // positionId is the string positionId like "SP-XXXXXXXX"
+  const { data: movements = [], isLoading: movementsLoading } = useSecuritiesMovements(positionId);
 
   // For position details, we search across known portfolios
   const { data: mainPositions = [] } = useSecuritiesPositions('MAIN');
@@ -59,7 +52,7 @@ export function PositionDetailPage() {
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} /> },
   ];
 
-  if (!position && !isNumeric) {
+  if (!position && !movementsLoading && movements.length === 0) {
     return (
       <>
         <PageHeader title="Position Not Found" backTo="/custody/positions" />

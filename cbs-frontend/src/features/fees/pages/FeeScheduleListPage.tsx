@@ -25,6 +25,20 @@ function CalcBadge({ type, fee }: { type: FeeCalcType; fee: FeeDefinition }) {
       <span className="text-sm font-medium tabular-nums">{fee.percentage ?? '—'}%</span>
     );
   }
+  if (type === 'MIN_OF') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
+        Min(₦{fee.flatAmount?.toLocaleString('en-NG') ?? '—'}, {fee.percentage ?? '—'}%)
+      </span>
+    );
+  }
+  if (type === 'MAX_OF') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400">
+        Max(₦{fee.flatAmount?.toLocaleString('en-NG') ?? '—'}, {fee.percentage ?? '—'}%)
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
       <Layers className="w-3 h-3" />
@@ -59,8 +73,16 @@ function CategoryLabel({ category }: { category: FeeCategory }) {
     ACCOUNT_MAINTENANCE: 'Account Maintenance',
     TRANSACTION: 'Transaction',
     CARD: 'Card',
-    LOAN: 'Loan',
-    TRADE: 'Trade Finance',
+    LOAN_PROCESSING: 'Loan Processing',
+    STATEMENT: 'Statement',
+    CHEQUE: 'Cheque',
+    SWIFT: 'SWIFT',
+    ATM: 'ATM',
+    POS: 'POS',
+    ONLINE: 'Online',
+    PENALTY: 'Penalty',
+    COMMISSION: 'Commission',
+    SERVICE_CHARGE: 'Service Charge',
     OTHER: 'Other',
   };
   return <span className="text-sm">{labels[category]}</span>;
@@ -73,8 +95,16 @@ const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: 'ACCOUNT_MAINTENANCE', label: 'Account Maintenance' },
   { value: 'TRANSACTION', label: 'Transaction' },
   { value: 'CARD', label: 'Card' },
-  { value: 'LOAN', label: 'Loan' },
-  { value: 'TRADE', label: 'Trade Finance' },
+  { value: 'LOAN_PROCESSING', label: 'Loan Processing' },
+  { value: 'STATEMENT', label: 'Statement' },
+  { value: 'CHEQUE', label: 'Cheque' },
+  { value: 'SWIFT', label: 'SWIFT' },
+  { value: 'ATM', label: 'ATM' },
+  { value: 'POS', label: 'POS' },
+  { value: 'ONLINE', label: 'Online' },
+  { value: 'PENALTY', label: 'Penalty' },
+  { value: 'COMMISSION', label: 'Commission' },
+  { value: 'SERVICE_CHARGE', label: 'Service Charge' },
   { value: 'OTHER', label: 'Other' },
 ];
 
@@ -84,6 +114,8 @@ const CALC_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: 'PERCENTAGE', label: 'Percentage' },
   { value: 'TIERED', label: 'Tiered' },
   { value: 'SLAB', label: 'Slab' },
+  { value: 'MIN_OF', label: 'Min Of' },
+  { value: 'MAX_OF', label: 'Max Of' },
 ];
 
 const selectCls =
@@ -286,6 +318,8 @@ export function FeeScheduleListPage() {
           PERCENTAGE: 'Percentage',
           TIERED: 'Tiered',
           SLAB: 'Slab',
+          MIN_OF: 'Min Of',
+          MAX_OF: 'Max Of',
         };
         return <span className="text-sm">{labels[v]}</span>;
       },

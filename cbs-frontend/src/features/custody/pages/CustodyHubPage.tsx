@@ -4,10 +4,9 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge } from '@/components/shared';
 import {
-  Landmark, ArrowRightLeft, FileWarning, BarChart3, Users, Wallet, RefreshCw,
+  Landmark, ArrowRightLeft, FileWarning, BarChart3, Wallet, RefreshCw,
 } from 'lucide-react';
-import { formatMoney, formatPercent, formatDate } from '@/lib/formatters';
-import { cn } from '@/lib/utils';
+import { formatMoney, formatDate } from '@/lib/formatters';
 import { toast } from 'sonner';
 import {
   useSettlementDashboard,
@@ -17,9 +16,9 @@ import {
 } from '../hooks/useCustody';
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING: '#f59e0b',
+  CREATED: '#f59e0b',
   MATCHED: '#3b82f6',
-  SUBMITTED: '#8b5cf6',
+  SETTLING: '#8b5cf6',
   SETTLED: '#22c55e',
   FAILED: '#ef4444',
 };
@@ -40,13 +39,16 @@ export function CustodyHubPage() {
   const { data: failed = [] } = useFailedSettlements();
   const submitSettlement = useSubmitSettlement();
 
-  const totalAum = accounts.reduce((s, a) =>
-    s + (a.holdings?.reduce((hs, h) => hs + (h.marketValue ?? 0), 0) ?? 0), 0);
+  // Dashboard keys from backend: totalPending, totalSettled, totalFailed
+  const totalInstructions = (dashboard?.totalPending ?? 0) + (dashboard?.totalSettled ?? 0) + (dashboard?.totalFailed ?? 0);
+  const settledPercent = totalInstructions > 0
+    ? ((dashboard?.totalSettled ?? 0) / totalInstructions) * 100
+    : 0;
 
   const statusData = dashboard ? [
-    { name: 'Pending', value: dashboard.pending, color: STATUS_COLORS.PENDING },
-    { name: 'Settled', value: dashboard.settled, color: STATUS_COLORS.SETTLED },
-    { name: 'Failed', value: dashboard.failed, color: STATUS_COLORS.FAILED },
+    { name: 'Pending', value: dashboard.totalPending, color: STATUS_COLORS.CREATED },
+    { name: 'Settled', value: dashboard.totalSettled, color: STATUS_COLORS.SETTLED },
+    { name: 'Failed', value: dashboard.totalFailed, color: STATUS_COLORS.FAILED },
   ].filter((d) => d.value > 0) : [];
 
   const handleRetry = (ref: string) => {
@@ -64,11 +66,11 @@ export function CustodyHubPage() {
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           <StatCard label="Custody Accounts" value={accounts.length} format="number" icon={Landmark} />
-          <StatCard label="Settlements Today" value={dashboard?.totalToday ?? 0} format="number" icon={ArrowRightLeft} />
-          <StatCard label="Settlement Rate" value={dashboard?.settledPercent != null ? `${dashboard.settledPercent.toFixed(1)}%` : '--'} icon={BarChart3} />
-          <StatCard label="Failed" value={dashboard?.failed ?? 0} format="number" icon={FileWarning} />
-          <StatCard label="Value Pending" value={formatMoney(dashboard?.totalValuePending ?? 0, 'USD')} icon={Wallet} />
-          <StatCard label="AUM" value={formatMoney(totalAum, 'USD')} icon={Landmark} />
+          <StatCard label="Total Settlements" value={totalInstructions} format="number" icon={ArrowRightLeft} />
+          <StatCard label="Settlement Rate" value={`${settledPercent.toFixed(1)}%`} icon={BarChart3} />
+          <StatCard label="Failed" value={dashboard?.totalFailed ?? 0} format="number" icon={FileWarning} />
+          <StatCard label="Pending" value={dashboard?.totalPending ?? 0} format="number" icon={Wallet} />
+          <StatCard label="Settled" value={dashboard?.totalSettled ?? 0} format="number" icon={Landmark} />
         </div>
 
         {/* Nav cards + chart */}
@@ -112,7 +114,7 @@ export function CustodyHubPage() {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">No settlements today</p>
+              <p className="text-sm text-muted-foreground text-center py-8">No settlement data</p>
             )}
           </div>
         </div>
@@ -129,10 +131,9 @@ export function CustodyHubPage() {
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Ref</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">From</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">To</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Amount</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Counterparty</th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Instrument</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Amount</th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Settle Date</th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Reason</th>
                     <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Action</th>
@@ -141,15 +142,14 @@ export function CustodyHubPage() {
                 <tbody className="divide-y">
                   {failed.slice(0, 10).map((f) => (
                     <tr key={f.id} className="hover:bg-muted/20">
-                      <td className="px-4 py-2.5 font-mono text-xs">{f.ref}</td>
-                      <td className="px-4 py-2.5 text-xs">{f.fromAccount}</td>
-                      <td className="px-4 py-2.5 text-xs">{f.toAccount}</td>
-                      <td className="px-4 py-2.5 text-right font-mono text-xs">{formatMoney(f.amount, f.currency)}</td>
-                      <td className="px-4 py-2.5 text-xs">{f.instrumentCode}</td>
-                      <td className="px-4 py-2.5 text-xs">{formatDate(f.settlementDate)}</td>
-                      <td className="px-4 py-2.5 text-xs text-red-600 max-w-[150px] truncate">{f.failureReason ?? '—'}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs">{f.instructionRef}</td>
+                      <td className="px-4 py-2.5 text-xs">{f.counterpartyName ?? f.counterpartyCode ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-xs">{f.instrumentCode ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-right font-mono text-xs">{formatMoney(f.settlementAmount ?? 0, f.currency ?? 'USD')}</td>
+                      <td className="px-4 py-2.5 text-xs">{f.intendedSettlementDate ? formatDate(f.intendedSettlementDate) : '—'}</td>
+                      <td className="px-4 py-2.5 text-xs text-red-600 max-w-[150px] truncate">{f.failReason ?? '—'}</td>
                       <td className="px-4 py-2.5 text-right">
-                        <button onClick={() => handleRetry(f.ref)} disabled={submitSettlement.isPending}
+                        <button onClick={() => handleRetry(f.instructionRef)} disabled={submitSettlement.isPending}
                           className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 ml-auto">
                           <RefreshCw className="w-3 h-3" /> Retry
                         </button>

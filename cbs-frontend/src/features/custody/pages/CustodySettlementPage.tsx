@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, TabsPage, DataTable } from '@/components/shared';
-import { formatMoney, formatDate, formatPercent } from '@/lib/formatters';
+import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ArrowRightLeft, CheckCircle, XCircle, Clock, AlertTriangle, Plus, X, RefreshCw, Layers, Wallet } from 'lucide-react';
@@ -51,18 +51,22 @@ function DashboardTab() {
   const { data: instructions = [] } = useSettlementInstructions();
   const { data: failed = [] } = useFailedSettlements();
 
+  // Backend returns totalPending / totalSettled / totalFailed only
+  const totalAll = (dashboard?.totalPending ?? 0) + (dashboard?.totalSettled ?? 0) + (dashboard?.totalFailed ?? 0);
+  const settledPct = totalAll > 0 ? ((dashboard?.totalSettled ?? 0) / totalAll) * 100 : 0;
+
   const statusCounts = {
-    PENDING: instructions.filter((i) => i.status === 'PENDING').length,
+    CREATED: instructions.filter((i) => i.status === 'CREATED').length,
     MATCHED: instructions.filter((i) => i.status === 'MATCHED').length,
-    SUBMITTED: instructions.filter((i) => i.status === 'SUBMITTED').length,
+    SETTLING: instructions.filter((i) => i.status === 'SETTLING').length,
     SETTLED: instructions.filter((i) => i.status === 'SETTLED').length,
     FAILED: instructions.filter((i) => i.status === 'FAILED').length,
   };
 
   const funnelStages = [
-    { label: 'Pending', count: statusCounts.PENDING, color: 'bg-amber-500' },
+    { label: 'Created', count: statusCounts.CREATED, color: 'bg-amber-500' },
     { label: 'Matched', count: statusCounts.MATCHED, color: 'bg-blue-500' },
-    { label: 'Submitted', count: statusCounts.SUBMITTED, color: 'bg-purple-500' },
+    { label: 'Settling', count: statusCounts.SETTLING, color: 'bg-purple-500' },
     { label: 'Settled', count: statusCounts.SETTLED, color: 'bg-green-500' },
   ];
   const maxCount = Math.max(...funnelStages.map((s) => s.count), 1);
@@ -70,12 +74,12 @@ function DashboardTab() {
   return (
     <div className="p-4 space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard label="Total Today" value={dashboard?.totalToday ?? 0} format="number" icon={ArrowRightLeft} />
-        <StatCard label="Pending Match" value={statusCounts.PENDING} format="number" icon={Clock} />
-        <StatCard label="Submitted" value={statusCounts.SUBMITTED} format="number" icon={Layers} />
-        <StatCard label="Settled" value={statusCounts.SETTLED} format="number" icon={CheckCircle} />
-        <StatCard label="Failed" value={statusCounts.FAILED} format="number" icon={XCircle} />
-        <StatCard label="Settlement Rate" value={dashboard?.settledPercent != null ? `${dashboard.settledPercent.toFixed(1)}%` : '--'} icon={CheckCircle} />
+        <StatCard label="Total" value={totalAll} format="number" icon={ArrowRightLeft} />
+        <StatCard label="Pending Match" value={statusCounts.CREATED} format="number" icon={Clock} />
+        <StatCard label="Settling" value={statusCounts.SETTLING} format="number" icon={Layers} />
+        <StatCard label="Settled" value={dashboard?.totalSettled ?? 0} format="number" icon={CheckCircle} />
+        <StatCard label="Failed" value={dashboard?.totalFailed ?? 0} format="number" icon={XCircle} />
+        <StatCard label="Settlement Rate" value={`${settledPct.toFixed(1)}%`} icon={CheckCircle} />
       </div>
 
       {/* Funnel */}
@@ -111,70 +115,83 @@ function DashboardTab() {
 
 // ── Instructions Tab ─────────────────────────────────────────────────────────
 
+const STATUS_FILTERS = ['', 'CREATED', 'MATCHED', 'SETTLING', 'SETTLED', 'FAILED', 'CANCELLED'] as const;
+
 function InstructionsTab() {
   const { data: instructions = [], isLoading } = useSettlementInstructions();
   const [statusFilter, setStatusFilter] = useState('');
   const [showNew, setShowNew] = useState(false);
-  const [matchTarget, setMatchTarget] = useState<string | null>(null);
+  const [matchTarget, setMatchTarget] = useState<string | null>(null); // instructionRef
   const [matchRef2, setMatchRef2] = useState('');
   const createInstruction = useCreateSettlementInstruction();
   const matchInstructions = useMatchInstructions();
   const submitSettlement = useSubmitSettlement();
   const recordResult = useRecordSettlementResult();
 
-  const [newForm, setNewForm] = useState({ fromAccount: '', toAccount: '', amount: 0, currency: 'USD', settlementDate: '', instrumentCode: '' });
+  const [newForm, setNewForm] = useState({
+    custodyAccountId: 0,
+    instructionType: 'DVP' as const,
+    settlementAmount: 0,
+    currency: 'USD',
+    intendedSettlementDate: '',
+    instrumentCode: '',
+    counterpartyCode: '',
+  });
 
   const filtered = statusFilter ? instructions.filter((i) => i.status === statusFilter) : instructions;
 
   const handleCreate = () => {
     createInstruction.mutate(newForm, {
-      onSuccess: () => { toast.success('Instruction created'); setShowNew(false); setNewForm({ fromAccount: '', toAccount: '', amount: 0, currency: 'USD', settlementDate: '', instrumentCode: '' }); },
+      onSuccess: () => {
+        toast.success('Instruction created');
+        setShowNew(false);
+        setNewForm({ custodyAccountId: 0, instructionType: 'DVP', settlementAmount: 0, currency: 'USD', intendedSettlementDate: '', instrumentCode: '', counterpartyCode: '' });
+      },
       onError: () => toast.error('Failed to create'),
     });
   };
 
   const handleMatch = () => {
     if (!matchTarget || !matchRef2.trim()) return;
-    matchInstructions.mutate({ ref1: matchTarget, ref2: matchRef2 }, {
+    matchInstructions.mutate({ refA: matchTarget, refB: matchRef2 }, {
       onSuccess: () => { toast.success('Instructions matched'); setMatchTarget(null); setMatchRef2(''); },
       onError: () => toast.error('Match failed'),
     });
   };
 
   const cols: ColumnDef<SettlementInstruction, unknown>[] = [
-    { accessorKey: 'ref', header: 'Ref', cell: ({ row }) => <code className="text-xs font-mono">{row.original.ref}</code> },
-    { accessorKey: 'fromAccount', header: 'From' },
-    { accessorKey: 'toAccount', header: 'To' },
-    { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.amount, row.original.currency)}</span> },
+    { accessorKey: 'instructionRef', header: 'Ref', cell: ({ row }) => <code className="text-xs font-mono">{row.original.instructionRef}</code> },
+    { accessorKey: 'custodyAccountId', header: 'Account' },
+    { accessorKey: 'counterpartyName', header: 'Counterparty', cell: ({ row }) => row.original.counterpartyName ?? row.original.counterpartyCode ?? '—' },
+    { accessorKey: 'settlementAmount', header: 'Amount', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.settlementAmount ?? 0, row.original.currency ?? 'USD')}</span> },
     { accessorKey: 'currency', header: 'CCY' },
-    { accessorKey: 'instrumentCode', header: 'Instrument' },
-    { accessorKey: 'settlementDate', header: 'Settle Date', cell: ({ row }) => formatDate(row.original.settlementDate) },
+    { accessorKey: 'instrumentCode', header: 'Instrument', cell: ({ row }) => row.original.instrumentCode ?? '—' },
+    { accessorKey: 'intendedSettlementDate', header: 'Settle Date', cell: ({ row }) => row.original.intendedSettlementDate ? formatDate(row.original.intendedSettlementDate) : '—' },
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} dot /> },
-    { accessorKey: 'matchedWith', header: 'Matched', cell: ({ row }) => row.original.matchedWith ? <code className="text-[10px] font-mono">{row.original.matchedWith}</code> : '—' },
     {
       id: 'actions', header: 'Actions',
       cell: ({ row }) => {
         const i = row.original;
         return (
           <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-            {i.status === 'PENDING' && (
-              <button onClick={() => setMatchTarget(i.ref)} className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">Match</button>
+            {i.status === 'CREATED' && (
+              <button onClick={() => setMatchTarget(i.instructionRef)} className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">Match</button>
             )}
             {i.status === 'MATCHED' && (
-              <button onClick={() => submitSettlement.mutate(i.ref, { onSuccess: () => toast.success('Submitted'), onError: () => toast.error('Failed') })}
+              <button onClick={() => submitSettlement.mutate(i.instructionRef, { onSuccess: () => toast.success('Submitted'), onError: () => toast.error('Failed') })}
                 className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200">Submit</button>
             )}
-            {i.status === 'SUBMITTED' && (
+            {i.status === 'SETTLING' && (
               <>
-                <button onClick={() => recordResult.mutate({ ref: i.ref, settled: true }, { onSuccess: () => toast.success('Settled'), onError: () => toast.error('Failed') })}
+                <button onClick={() => recordResult.mutate({ ref: i.instructionRef, settled: true }, { onSuccess: () => toast.success('Settled'), onError: () => toast.error('Failed') })}
                   className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200">Settle</button>
-                <button onClick={() => recordResult.mutate({ ref: i.ref, settled: false, reason: 'Manual fail' }, { onSuccess: () => toast.success('Marked failed'), onError: () => toast.error('Failed') })}
+                <button onClick={() => recordResult.mutate({ ref: i.instructionRef, settled: false }, { onSuccess: () => toast.success('Marked failed'), onError: () => toast.error('Failed') })}
                   className="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">Fail</button>
               </>
             )}
             {i.status === 'FAILED' && (
-              <button onClick={() => submitSettlement.mutate(i.ref, { onSuccess: () => toast.success('Retried'), onError: () => toast.error('Failed') })}
-                className="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200">Retry</button>
+              <button onClick={() => submitSettlement.mutate(i.instructionRef, { onSuccess: () => toast.success('Retried'), onError: () => toast.error('Failed') })}
+                className="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Retry</button>
             )}
           </div>
         );
@@ -185,8 +202,8 @@ function InstructionsTab() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex gap-2">
-          {['', 'PENDING', 'MATCHED', 'SUBMITTED', 'SETTLED', 'FAILED'].map((s) => (
+        <div className="flex gap-2 flex-wrap">
+          {STATUS_FILTERS.map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className={cn('px-3 py-1.5 rounded-full text-xs font-medium', statusFilter === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80')}>
               {s || 'All'}
@@ -204,20 +221,26 @@ function InstructionsTab() {
         <Modal title="New Settlement Instruction" onClose={() => setShowNew(false)}>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-muted-foreground">From Account</label><input value={newForm.fromAccount} onChange={(e) => setNewForm((f) => ({ ...f, fromAccount: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
-              <div><label className="text-xs text-muted-foreground">To Account</label><input value={newForm.toAccount} onChange={(e) => setNewForm((f) => ({ ...f, toAccount: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
+              <div><label className="text-xs text-muted-foreground">Custody Account ID</label><input type="number" value={newForm.custodyAccountId || ''} onChange={(e) => setNewForm((f) => ({ ...f, custodyAccountId: Number(e.target.value) }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
+              <div><label className="text-xs text-muted-foreground">Instruction Type</label>
+                <select value={newForm.instructionType} onChange={(e) => setNewForm((f) => ({ ...f, instructionType: e.target.value as typeof f.instructionType }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
+                  {['DVP', 'FOP', 'RECEIVE_VS_PAYMENT', 'DELIVERY_VS_PAYMENT', 'RECEIVE_FREE', 'DELIVERY_FREE', 'INTERNAL_TRANSFER'].map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-muted-foreground">Amount</label><input type="number" value={newForm.amount || ''} onChange={(e) => setNewForm((f) => ({ ...f, amount: Number(e.target.value) }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
+              <div><label className="text-xs text-muted-foreground">Settlement Amount</label><input type="number" value={newForm.settlementAmount || ''} onChange={(e) => setNewForm((f) => ({ ...f, settlementAmount: Number(e.target.value) }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
               <div><label className="text-xs text-muted-foreground">Currency</label><select value={newForm.currency} onChange={(e) => setNewForm((f) => ({ ...f, currency: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">{['USD', 'EUR', 'GBP', 'NGN'].map((c) => <option key={c}>{c}</option>)}</select></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-muted-foreground">Settlement Date</label><input type="date" value={newForm.settlementDate} onChange={(e) => setNewForm((f) => ({ ...f, settlementDate: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
+              <div><label className="text-xs text-muted-foreground">Settlement Date</label><input type="date" value={newForm.intendedSettlementDate} onChange={(e) => setNewForm((f) => ({ ...f, intendedSettlementDate: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
               <div><label className="text-xs text-muted-foreground">Instrument Code</label><input value={newForm.instrumentCode} onChange={(e) => setNewForm((f) => ({ ...f, instrumentCode: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
             </div>
+            <div><label className="text-xs text-muted-foreground">Counterparty Code</label><input value={newForm.counterpartyCode} onChange={(e) => setNewForm((f) => ({ ...f, counterpartyCode: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowNew(false)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-              <button onClick={handleCreate} disabled={createInstruction.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">Create</button>
+              <button onClick={handleCreate} disabled={createInstruction.isPending || !newForm.custodyAccountId || !newForm.intendedSettlementDate}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">Create</button>
             </div>
           </div>
         </Modal>
@@ -243,31 +266,30 @@ function InstructionsTab() {
 
 function BatchesTab() {
   const { data: batches = [], isLoading } = useSettlementBatches();
-  const { data: instructions = [] } = useSettlementInstructions();
   const createBatch = useCreateSettlementBatch();
   const [showCreate, setShowCreate] = useState(false);
-  const [selectedRefs, setSelectedRefs] = useState<string[]>([]);
-
-  const matchedInstructions = instructions.filter((i) => i.status === 'MATCHED');
+  const [batchForm, setBatchForm] = useState({ depositoryCode: '', settlementDate: '', currency: 'USD', cutoffTime: '' });
 
   const handleCreate = () => {
-    createBatch.mutate(selectedRefs, {
-      onSuccess: () => { toast.success('Batch created'); setShowCreate(false); setSelectedRefs([]); },
-      onError: () => toast.error('Failed'),
+    createBatch.mutate(batchForm, {
+      onSuccess: () => { toast.success('Batch created'); setShowCreate(false); setBatchForm({ depositoryCode: '', settlementDate: '', currency: 'USD', cutoffTime: '' }); },
+      onError: () => toast.error('Failed to create batch'),
     });
   };
 
   const batchCols: ColumnDef<SettlementBatch, unknown>[] = [
     { accessorKey: 'batchRef', header: 'Batch Ref', cell: ({ row }) => <code className="text-xs font-mono">{row.original.batchRef}</code> },
-    { accessorKey: 'instructions', header: 'Instructions', cell: ({ row }) => row.original.instructions.length },
+    { accessorKey: 'totalInstructions', header: 'Instructions' },
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} dot /> },
     { accessorKey: 'settledCount', header: 'Settled' },
     { accessorKey: 'failedCount', header: 'Failed' },
-    { accessorKey: 'createdAt', header: 'Created', cell: ({ row }) => formatDate(row.original.createdAt) },
+    { accessorKey: 'currency', header: 'CCY', cell: ({ row }) => row.original.currency ?? '—' },
+    { accessorKey: 'settlementDate', header: 'Settle Date', cell: ({ row }) => row.original.settlementDate ? formatDate(row.original.settlementDate) : '—' },
+    { accessorKey: 'createdAt', header: 'Created', cell: ({ row }) => row.original.createdAt ? formatDate(row.original.createdAt) : '—' },
     {
       id: 'progress', header: 'Progress',
       cell: ({ row }) => {
-        const total = row.original.instructions.length;
+        const total = row.original.totalInstructions;
         const pct = total > 0 ? (row.original.settledCount / total) * 100 : 0;
         return (
           <div className="flex items-center gap-2 min-w-[100px]">
@@ -284,8 +306,8 @@ function BatchesTab() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex justify-end">
-        <button onClick={() => setShowCreate(true)} disabled={matchedInstructions.length === 0}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+        <button onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
           <Layers className="w-4 h-4" /> Create Batch
         </button>
       </div>
@@ -295,24 +317,19 @@ function BatchesTab() {
       {showCreate && (
         <Modal title="Create Settlement Batch" onClose={() => setShowCreate(false)}>
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Select matched instructions to include in the batch:</p>
-            <div className="max-h-48 overflow-y-auto space-y-1.5">
-              {matchedInstructions.map((i) => (
-                <label key={i.ref} className="flex items-center gap-2 text-sm p-2 rounded hover:bg-muted cursor-pointer">
-                  <input type="checkbox" checked={selectedRefs.includes(i.ref)} onChange={(e) => {
-                    setSelectedRefs((prev) => e.target.checked ? [...prev, i.ref] : prev.filter((r) => r !== i.ref));
-                  }} className="rounded" />
-                  <code className="text-xs font-mono">{i.ref}</code>
-                  <span className="text-xs text-muted-foreground">{formatMoney(i.amount, i.currency)}</span>
-                </label>
-              ))}
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-muted-foreground">Settlement Date *</label><input type="date" value={batchForm.settlementDate} onChange={(e) => setBatchForm((f) => ({ ...f, settlementDate: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
+              <div><label className="text-xs text-muted-foreground">Currency</label><select value={batchForm.currency} onChange={(e) => setBatchForm((f) => ({ ...f, currency: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">{['USD', 'EUR', 'GBP', 'NGN'].map((c) => <option key={c}>{c}</option>)}</select></div>
             </div>
-            {matchedInstructions.length === 0 && <p className="text-xs text-muted-foreground">No matched instructions available.</p>}
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-muted-foreground">Depository Code</label><input value={batchForm.depositoryCode} onChange={(e) => setBatchForm((f) => ({ ...f, depositoryCode: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" placeholder="DTCC" /></div>
+              <div><label className="text-xs text-muted-foreground">Cutoff Time (HH:MM)</label><input type="time" value={batchForm.cutoffTime} onChange={(e) => setBatchForm((f) => ({ ...f, cutoffTime: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
+            </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-              <button onClick={handleCreate} disabled={createBatch.isPending || selectedRefs.length === 0}
+              <button onClick={handleCreate} disabled={createBatch.isPending || !batchForm.settlementDate}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
-                Create Batch ({selectedRefs.length})
+                Create Batch
               </button>
             </div>
           </div>
@@ -328,10 +345,15 @@ function AccountsTab() {
   const { data: accounts = [], isLoading } = useAllCustodyAccounts();
   const createAccount = useCreateCustodyAccount();
   const [showOpen, setShowOpen] = useState(false);
-  const [form, setForm] = useState({ customerId: '', custodyType: 'SECURITIES' as const, denomination: 'USD', custodian: '' });
+  const [form, setForm] = useState({
+    accountName: '',
+    customerId: 0,
+    accountType: 'SECURITIES',
+    currency: 'USD',
+    subCustodian: '',
+  });
 
   const activeCount = accounts.filter((a) => a.status === 'ACTIVE').length;
-  const totalAum = accounts.reduce((s, a) => s + (a.holdings?.reduce((hs, h) => hs + (h.marketValue ?? 0), 0) ?? 0), 0);
 
   const handleOpen = () => {
     createAccount.mutate(form, {
@@ -341,24 +363,23 @@ function AccountsTab() {
   };
 
   const cols: ColumnDef<CustodyAccount, unknown>[] = [
-    { accessorKey: 'code', header: 'Code', cell: ({ row }) => <code className="text-xs font-mono">{row.original.code}</code> },
+    { accessorKey: 'accountCode', header: 'Code', cell: ({ row }) => <code className="text-xs font-mono">{row.original.accountCode}</code> },
+    { accessorKey: 'accountName', header: 'Name' },
     { accessorKey: 'customerId', header: 'Customer' },
-    { accessorKey: 'custodyType', header: 'Type', cell: ({ row }) => <StatusBadge status={row.original.custodyType} /> },
-    { accessorKey: 'custodian', header: 'Custodian' },
-    { accessorKey: 'denomination', header: 'CCY' },
+    { accessorKey: 'accountType', header: 'Type', cell: ({ row }) => <StatusBadge status={row.original.accountType} /> },
+    { accessorKey: 'subCustodian', header: 'Sub-Custodian', cell: ({ row }) => row.original.subCustodian ?? '—' },
+    { accessorKey: 'currency', header: 'CCY' },
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} dot /> },
-    { accessorKey: 'holdings', header: 'Holdings', cell: ({ row }) => row.original.holdings?.length ?? 0 },
-    { id: 'aum', header: 'Market Value', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.holdings?.reduce((s, h) => s + (h.marketValue ?? 0), 0) ?? 0, row.original.denomination)}</span> },
-    { accessorKey: 'openedAt', header: 'Opened', cell: ({ row }) => formatDate(row.original.openedAt) },
+    { accessorKey: 'totalAssetsValue', header: 'Assets Value', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.totalAssetsValue ?? 0, row.original.currency)}</span> },
+    { accessorKey: 'openedAt', header: 'Opened', cell: ({ row }) => row.original.openedAt ? formatDate(row.original.openedAt) : '—' },
   ];
 
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <StatCard label="Total Accounts" value={accounts.length} format="number" icon={Wallet} />
           <StatCard label="Active" value={activeCount} format="number" icon={CheckCircle} />
-          <StatCard label="Total AUM" value={formatMoney(totalAum, 'USD')} icon={Wallet} />
         </div>
         <button onClick={() => setShowOpen(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
           <Plus className="w-4 h-4" /> Open Account
@@ -370,19 +391,22 @@ function AccountsTab() {
       {showOpen && (
         <Modal title="Open Custody Account" onClose={() => setShowOpen(false)}>
           <div className="space-y-3">
-            <div><label className="text-xs text-muted-foreground">Customer ID</label><input value={form.customerId} onChange={(e) => setForm((f) => ({ ...f, customerId: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" placeholder="CUST-000001" /></div>
+            <div><label className="text-xs text-muted-foreground">Account Name *</label><input value={form.accountName} onChange={(e) => setForm((f) => ({ ...f, accountName: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" placeholder="My Securities Custody Account" /></div>
+            <div><label className="text-xs text-muted-foreground">Customer ID *</label><input type="number" value={form.customerId || ''} onChange={(e) => setForm((f) => ({ ...f, customerId: Number(e.target.value) }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-muted-foreground">Custody Type</label><select value={form.custodyType} onChange={(e) => setForm((f) => ({ ...f, custodyType: e.target.value as any }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
-                <option value="SECURITIES">Securities</option><option value="DERIVATIVES">Derivatives</option><option value="MIXED">Mixed</option>
+              <div><label className="text-xs text-muted-foreground">Account Type</label><select value={form.accountType} onChange={(e) => setForm((f) => ({ ...f, accountType: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
+                <option value="SECURITIES">Securities</option>
+                <option value="DERIVATIVES">Derivatives</option>
+                <option value="MIXED">Mixed</option>
               </select></div>
-              <div><label className="text-xs text-muted-foreground">Denomination</label><select value={form.denomination} onChange={(e) => setForm((f) => ({ ...f, denomination: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
+              <div><label className="text-xs text-muted-foreground">Currency</label><select value={form.currency} onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
                 {['USD', 'EUR', 'GBP', 'NGN'].map((c) => <option key={c}>{c}</option>)}
               </select></div>
             </div>
-            <div><label className="text-xs text-muted-foreground">Custodian</label><input value={form.custodian} onChange={(e) => setForm((f) => ({ ...f, custodian: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" placeholder="Bank of New York Mellon" /></div>
+            <div><label className="text-xs text-muted-foreground">Sub-Custodian</label><input value={form.subCustodian} onChange={(e) => setForm((f) => ({ ...f, subCustodian: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" placeholder="Bank of New York Mellon" /></div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowOpen(false)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-              <button onClick={handleOpen} disabled={createAccount.isPending || !form.customerId || !form.custodian}
+              <button onClick={handleOpen} disabled={createAccount.isPending || !form.accountName || !form.customerId}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">Open Account</button>
             </div>
           </div>

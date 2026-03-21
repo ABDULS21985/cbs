@@ -128,7 +128,8 @@ export function useOverdueGapAnalysis(params?: Record<string, unknown>) {
 export function usePlanGapAnalysis() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => gapAnalysisApi.plan(code),
+    mutationFn: ({ code, owner, description, targetDate }: { code: string; owner: string; description: string; targetDate: string }) =>
+      gapAnalysisApi.plan(code, { owner, description, targetDate }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.gapAnalysis.all });
     },
@@ -158,7 +159,8 @@ export function useCloseGapAnalysis() {
 export function useVerifyGapAnalysis() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => gapAnalysisApi.verify(code),
+    mutationFn: ({ code, verifiedBy }: { code: string; verifiedBy: string }) =>
+      gapAnalysisApi.verify(code, verifiedBy),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.gapAnalysis.all });
     },

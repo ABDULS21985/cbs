@@ -3,25 +3,23 @@ import {
   complianceReportApi,
   type Regulator,
   type CreateReportPayload,
-  type SubmitForReviewPayload,
-  type SubmitToRegulatorPayload,
 } from '../api/complianceReportApi';
 
 const KEYS = {
-  byRegulator: (regulator: Regulator, page = 0) =>
-    ['compliance-reports', 'regulator', regulator, page] as const,
+  all: ['compliance-reports'] as const,
+  byRegulator: (regulator: Regulator) =>
+    ['compliance-reports', 'regulator', regulator] as const,
   overdue: () => ['compliance-reports', 'overdue'] as const,
 };
 
-export function useComplianceReports(regulator?: Regulator, page = 0) {
+export function useComplianceReports(regulator?: Regulator) {
   return useQuery({
-    queryKey: KEYS.byRegulator(regulator ?? 'CBN', page),
+    queryKey: regulator ? KEYS.byRegulator(regulator) : KEYS.all,
     queryFn: () =>
       regulator
-        ? complianceReportApi.getByRegulator(regulator, { page, size: 20 })
-        : Promise.resolve({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 }),
+        ? complianceReportApi.getByRegulator(regulator)
+        : complianceReportApi.getAll(),
     staleTime: 30_000,
-    enabled: !!regulator,
   });
 }
 
@@ -38,7 +36,7 @@ export function useCreateReport() {
   return useMutation({
     mutationFn: (payload: CreateReportPayload) => complianceReportApi.create(payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['compliance-reports'] });
+      qc.invalidateQueries({ queryKey: KEYS.all });
     },
   });
 }
@@ -46,10 +44,9 @@ export function useCreateReport() {
 export function useSubmitForReview() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, payload }: { code: string; payload: SubmitForReviewPayload }) =>
-      complianceReportApi.submitForReview(code, payload),
+    mutationFn: (code: string) => complianceReportApi.submitForReview(code),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['compliance-reports'] });
+      qc.invalidateQueries({ queryKey: KEYS.all });
     },
   });
 }
@@ -57,10 +54,10 @@ export function useSubmitForReview() {
 export function useSubmitToRegulator() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, payload }: { code: string; payload: SubmitToRegulatorPayload }) =>
-      complianceReportApi.submitToRegulator(code, payload),
+    mutationFn: ({ code, submissionReference }: { code: string; submissionReference: string }) =>
+      complianceReportApi.submitToRegulator(code, submissionReference),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['compliance-reports'] });
+      qc.invalidateQueries({ queryKey: KEYS.all });
     },
   });
 }

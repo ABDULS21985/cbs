@@ -9,10 +9,10 @@ export function useAuditSearch(params: AuditSearchParams, enabled: boolean) {
   });
 }
 
-export function useAuditSummary(params: AuditSearchParams, enabled: boolean) {
+export function useAuditSummary(enabled: boolean) {
   return useQuery({
-    queryKey: ['audit', 'summary', params],
-    queryFn: () => auditApi.getSummary(params),
+    queryKey: ['audit', 'summary'],
+    queryFn: () => auditApi.getSummary(),
     enabled,
   });
 }

@@ -2,8 +2,11 @@ import { apiGet, apiPost, apiPut } from '@/lib/api';
 import api from '@/lib/api';
 import type { ApiResponse } from '@/types/common';
 
-export type FeeCategory = 'ACCOUNT_MAINTENANCE' | 'TRANSACTION' | 'CARD' | 'LOAN' | 'TRADE' | 'OTHER';
-export type FeeCalcType = 'FLAT' | 'PERCENTAGE' | 'TIERED' | 'SLAB';
+export type FeeCategory =
+  | 'ACCOUNT_MAINTENANCE' | 'TRANSACTION' | 'CARD' | 'LOAN_PROCESSING'
+  | 'STATEMENT' | 'CHEQUE' | 'SWIFT' | 'ATM' | 'POS' | 'ONLINE'
+  | 'PENALTY' | 'COMMISSION' | 'SERVICE_CHARGE' | 'OTHER';
+export type FeeCalcType = 'FLAT' | 'PERCENTAGE' | 'TIERED' | 'SLAB' | 'MIN_OF' | 'MAX_OF';
 export type FeeSchedule = 'PER_TRANSACTION' | 'MONTHLY' | 'QUARTERLY' | 'ANNUAL';
 export type WaiverAuthority = 'OFFICER' | 'MANAGER' | 'ADMIN';
 
@@ -14,28 +17,51 @@ export interface FeeTier {
   flatFee: number;
 }
 
+/**
+ * FeeDefinition — frontend model.
+ *
+ * Backend JPA field → frontend alias
+ * -----------------------------------
+ * feeCode            → code
+ * feeName            → name
+ * feeCategory        → category
+ * calculationType    → calcType
+ * taxApplicable      → vatApplicable
+ * taxRate            → vatRate
+ * feeIncomeGlCode    → glIncomeAccount
+ * taxGlCode          → glReceivableAccount
+ */
 export interface FeeDefinition {
   id: string;
-  code: string;
-  name: string;
-  category: FeeCategory;
-  calcType: FeeCalcType;
+  code: string;                      // backend: feeCode
+  name: string;                      // backend: feeName
+  category: FeeCategory;             // backend: feeCategory
+  calcType: FeeCalcType;             // backend: calculationType
   flatAmount?: number;
   percentage?: number;
   minFee?: number;
   maxFee?: number;
   onAmount?: 'DEBIT' | 'CREDIT' | 'BALANCE';
   tiers?: FeeTier[];
-  vatApplicable: boolean;
-  vatRate?: number;
+  vatApplicable: boolean;            // backend: taxApplicable
+  vatRate?: number;                  // backend: taxRate
   schedule: FeeSchedule;
   waiverAuthority: WaiverAuthority;
-  glIncomeAccount: string;
-  glReceivableAccount: string;
+  glIncomeAccount: string;           // backend: feeIncomeGlCode
+  glReceivableAccount: string;       // backend: taxGlCode
   applicableProducts: string[];
   status: 'ACTIVE' | 'INACTIVE';
   description?: string;
   createdAt: string;
+  // ── Additional backend fields ──
+  triggerEvent?: string;             // backend: trigger_event (50 chars)
+  currencyCode?: string;             // backend: currency_code (3 chars, e.g. 'NGN')
+  applicableChannels?: string;       // backend: applicable_channels (default 'ALL')
+  applicableCustomerTypes?: string;  // backend: applicable_customer_types (default 'ALL')
+  taxCode?: string;                  // backend: tax_code (20 chars)
+  waivable?: boolean;                // backend: waivable (default true)
+  effectiveFrom?: string;            // backend: effective_from (LocalDate)
+  effectiveTo?: string;              // backend: effective_to (LocalDate)
 }
 
 export interface FeeCharge {
@@ -132,13 +158,9 @@ export function getFeeDefinitions(): Promise<FeeDefinition[]> {
   return apiGet<FeeDefinition[]>('/api/v1/fees/definitions');
 }
 
-// GET /v1/fees/definitions (find by id from list — no dedicated endpoint)
+// GET /v1/fees/definitions/{id}
 export function getFeeById(id: string): Promise<FeeDefinition> {
-  return getFeeDefinitions().then((list) => {
-    const found = list.find((f) => f.id === id || f.code === id);
-    if (!found) throw new Error(`Fee definition '${id}' not found`);
-    return found;
-  });
+  return apiGet<FeeDefinition>(`/api/v1/fees/definitions/${encodeURIComponent(id)}`);
 }
 
 // POST /v1/fees/definitions

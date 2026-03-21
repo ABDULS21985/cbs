@@ -2,76 +2,58 @@ import { apiGet } from '@/lib/api';
 
 export interface AuditEntry {
   id: number;
-  timestamp: string;
-  userId: string;
-  userName: string;
-  userRole: string;
-  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'APPROVE' | 'REJECT' | 'LOGIN' | 'LOGOUT' | 'VIEW' | 'EXPORT';
+  eventType: string;
   entityType: string;
   entityId: string;
-  description: string;
-  ipAddress: string;
-  sessionId: string;
-  changes?: FieldChange[];
-}
-
-export interface FieldChange {
-  field: string;
-  before: string | null;
-  after: string | null;
+  performedBy: string;
+  performedFromIp?: string;
+  sessionId?: string;
+  channel?: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'READ' | 'APPROVE' | 'REJECT' | 'LOGIN' | 'LOGOUT' | 'EXPORT';
+  beforeState?: Record<string, unknown>;
+  afterState?: Record<string, unknown>;
+  changedFields?: string[];
+  description?: string;
+  metadata?: Record<string, unknown>;
+  eventTimestamp: string;
+  createdAt: string;
 }
 
 export interface AuditSearchParams {
   entityType?: string;
-  entityId?: string;
   action?: string;
-  userId?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  ipAddress?: string;
+  performedBy?: string;
+  eventType?: string;
   page?: number;
   size?: number;
 }
 
-export interface AuditSummary {
-  totalResults: number;
-  creates: number;
-  updates: number;
-  deletes: number;
-  approvals: number;
+export interface AuditSummaryData {
+  totalEvents: number;
+  byAction: Record<string, number>;
+  byEntityType: Record<string, number>;
+  byUser: Record<string, number>;
 }
 
-export interface UserActivityDay {
-  date: string;
-  hour: number;
-  count: number;
-}
-
-export interface SessionInfo {
-  sessionId: string;
+export interface UserActivityHeatmapData {
   userId: string;
-  userName: string;
-  ipAddress: string;
-  userAgent: string;
-  loginTime: string;
-  logoutTime?: string;
-  duration?: string;
-  actionCount: number;
-  concurrentSessionFlag: boolean;
+  totalEvents: number;
+  heatmap: Record<string, Record<string, number>>;
 }
 
 export const auditApi = {
-  search: (params: AuditSearchParams) => apiGet<AuditEntry[]>('/api/v1/audit/search', params as Record<string, unknown>),
-  getSummary: (params: AuditSearchParams) => apiGet<AuditSummary>('/api/v1/audit/summary', params as Record<string, unknown>),
-  getEntry: (id: number) => apiGet<AuditEntry>(`/api/v1/audit/${id}`),
-  getRelatedEntries: (entityType: string, entityId: string, timestamp: string) =>
-    apiGet<AuditEntry[]>('/api/v1/audit/related', { entityType, entityId, timestamp }),
-  getUserActivity: (userId: string, dateFrom: string, dateTo: string) =>
-    apiGet<AuditEntry[]>('/api/v1/audit/user-activity', { userId, dateFrom, dateTo }),
-  getUserHeatmap: (userId: string, days?: number) =>
-    apiGet<UserActivityDay[]>('/api/v1/audit/user-heatmap', { userId, days: days || 30 }),
-  getSession: (sessionId: string) =>
-    apiGet<SessionInfo>(`/api/v1/audit/sessions/${sessionId}`),
-  getSessionActions: (sessionId: string) =>
-    apiGet<AuditEntry[]>(`/api/v1/audit/sessions/${sessionId}/actions`),
+  search: (params: AuditSearchParams) =>
+    apiGet<AuditEntry[]>('/api/v1/audit/search', params as Record<string, unknown>),
+
+  getSummary: () =>
+    apiGet<AuditSummaryData>('/api/v1/audit/summary'),
+
+  getRelatedEntries: (entityType: string, entityId: string) =>
+    apiGet<AuditEntry[]>('/api/v1/audit/related', { entityType, entityId }),
+
+  getUserActivity: (userId: string) =>
+    apiGet<AuditEntry[]>('/api/v1/audit/user-activity', { userId }),
+
+  getUserHeatmap: (userId: string) =>
+    apiGet<UserActivityHeatmapData>('/api/v1/audit/user-heatmap', { userId }),
 };

@@ -71,6 +71,9 @@ import {
   FinancialReportsPage,
   FixedDepositDetailPage,
   DepositDashboardPage,
+  EscrowListPage,
+  EscrowDetailPage,
+  NewEscrowPage,
   SegmentDetailPage,
   FixedDepositListPage,
   DepositOperationsPage,
@@ -174,6 +177,8 @@ import {
   TradeFinancePage,
   TradeOpsPage,
   TransactionAnalyticsPage,
+  TransactionCompliancePage,
+  TransactionDisputePage,
   TransactionSearchPage,
   TreasuryAlmReportsPage,
   UserAdminPage,
@@ -207,6 +212,7 @@ import {
   IvrManagerPage,
   KnowledgeBasePage,
   ChatSessionsPage,
+  ContactCenterAdminPage,
   RoutingRulesPage,
   ChannelConfigPage,
   CommsPreferencesPage,
@@ -390,6 +396,9 @@ export function AppRouter() {
           <Route path="recurring-deposits" element={<RecurringDepositListPage />} />
           <Route path="recurring-deposits/new" element={<NewRecurringDepositPage />} />
           <Route path="recurring-deposits/:id" element={<RecurringDepositDetailPage />} />
+          <Route path="escrow" element={<EscrowListPage />} />
+          <Route path="escrow/new" element={<NewEscrowPage />} />
+          <Route path="escrow/:id" element={<EscrowDetailPage />} />
           <Route path="pfm" element={<PfmDashboardPage />} />
           <Route path=":id" element={<AccountDetailPage />} />
           <Route path=":id/maintenance" element={<AccountMaintenancePage />} />
@@ -440,6 +449,8 @@ export function AppRouter() {
           <Route path="new" element={<NewTransferPage />} />
           <Route path="history" element={<TransactionSearchPage />} />
           <Route path="analytics" element={<TransactionAnalyticsPage />} />
+          <Route path="disputes" element={<TransactionDisputePage />} />
+          <Route path="compliance" element={<TransactionCompliancePage />} />
           <Route path="standing-orders" element={<StandingOrderListPage />} />
           <Route path="standing-orders/:id" element={<StandingOrderDetailPage />} />
           <Route path="bills" element={<BillPaymentPage />} />
@@ -772,8 +783,10 @@ export function AppRouter() {
         {/* Contact Center (top-level) */}
         <Route path="/contact-center" element={<Outlet />}>
           <Route index element={<ContactCenterPage />} />
+          <Route path="admin" element={<ContactCenterAdminPage />} />
           <Route path="agent" element={<AgentDashboardPage />} />
-          <Route path="agent/:id" element={<AgentWorkbenchPage />} />
+          <Route path="agent-console" element={<AgentWorkbenchPage />} />
+          <Route path="agents/:agentId" element={<AgentDetailPage />} />
           <Route path="queues" element={<QueueDashboardPage />} />
           <Route path="callbacks" element={<CallbackPage />} />
           <Route path="ivr" element={<IvrManagerPage />} />

@@ -38,6 +38,7 @@ const labelOverrides: Record<string, string> = {
   open: 'Open Account',
   new: 'New Transfer',
   'recurring-deposits': 'Recurring Deposits',
+  escrow: 'Escrow & Trust',
   'virtual-accounts': 'Virtual Accounts',
   'cash-pooling': 'Cash Pooling',
   'notional-pooling': 'Notional Pooling',
