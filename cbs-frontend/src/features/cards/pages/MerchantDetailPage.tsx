@@ -349,8 +349,8 @@ export function MerchantDetailPage() {
     { label: 'Contact', value: merchant.contactName ?? '--' },
     { label: 'Email', value: merchant.contactEmail ?? '--' },
     { label: 'Phone', value: merchant.contactPhone ?? '--' },
-    { label: 'Bank Account', value: merchant.bankAccountNumber ?? '--' },
-    { label: 'Onboarded', value: formatDate(merchant.onboardedDate) },
+    { label: 'Settlement Account', value: merchant.settlementAccountId != null ? String(merchant.settlementAccountId) : '--' },
+    { label: 'Onboarded', value: formatDate(merchant.onboardedAt) },
   ];
 
   const disputeCols: ColumnDef<CardDispute, unknown>[] = [
@@ -435,9 +435,9 @@ export function MerchantDetailPage() {
                 <ShieldAlert className="w-4 h-4" /> Suspend
               </button>
             )}
-            {merchant.status !== 'TERMINATED' && (
-              <button onClick={() => toast.error('Termination requires compliance review')} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700">
-                <X className="w-4 h-4" /> Terminate
+            {merchant.status !== 'SUSPENDED' && merchant.status !== 'PENDING' && (
+              <button onClick={() => toast.error('Suspension requires compliance review')} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700">
+                <X className="w-4 h-4" /> Suspend
               </button>
             )}
           </div>
@@ -446,7 +446,7 @@ export function MerchantDetailPage() {
 
       <div className="page-container space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <StatCard label="Monthly Volume" value={merchant.monthlyVolume} format="money" compact icon={TrendingUp} />
+          <StatCard label="Monthly Volume Limit" value={merchant.monthlyVolumeLimit} format="money" compact icon={TrendingUp} />
           <StatCard label="Terminals" value={merchant.terminalCount} format="number" icon={Terminal} />
           <StatCard label="Avg Ticket" value={avgTicket} format="money" compact icon={CreditCard} />
           <StatCard label="Chargeback %" value={merchant.chargebackRate} format="percent" icon={AlertTriangle} />

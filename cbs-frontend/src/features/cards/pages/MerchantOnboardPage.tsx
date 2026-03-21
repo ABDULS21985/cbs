@@ -18,13 +18,12 @@ const STEPS = [
 
 interface FormState {
   merchantName: string;
-  mcc: string;
-  mccDescription: string;
+  merchantCategoryCode: string;
   businessType: string;
   registrationNumber: string;
   mdrRate: number;
   settlementFrequency: string;
-  bankAccountNumber: string;
+  settlementAccountId: string;
   riskCategory: string;
   contactName: string;
   contactEmail: string;
@@ -33,13 +32,12 @@ interface FormState {
 
 const INITIAL: FormState = {
   merchantName: '',
-  mcc: '',
-  mccDescription: '',
+  merchantCategoryCode: '',
   businessType: '',
   registrationNumber: '',
   mdrRate: 1.5,
   settlementFrequency: 'DAILY',
-  bankAccountNumber: '',
+  settlementAccountId: '',
   riskCategory: 'LOW',
   contactName: '',
   contactEmail: '',
@@ -56,8 +54,8 @@ export function MerchantOnboardPage() {
     setForm((f) => ({ ...f, [field]: value }));
 
   const canProceed = () => {
-    if (step === 0) return !!form.merchantName && !!form.mcc;
-    if (step === 1) return form.mdrRate > 0 && !!form.bankAccountNumber;
+    if (step === 0) return !!form.merchantName && !!form.merchantCategoryCode && !!form.businessType;
+    if (step === 1) return form.mdrRate > 0 && !!form.settlementAccountId;
     if (step === 2) return !!form.contactName && !!form.contactEmail;
     return true;
   };
@@ -66,14 +64,14 @@ export function MerchantOnboardPage() {
     onboard.mutate(
       {
         merchantName: form.merchantName,
-        mcc: form.mcc,
-        mccDescription: form.mccDescription,
+        merchantCategoryCode: form.merchantCategoryCode,
+        businessType: form.businessType,
         mdrRate: form.mdrRate,
         riskCategory: form.riskCategory,
         contactName: form.contactName,
         contactEmail: form.contactEmail,
         contactPhone: form.contactPhone,
-        bankAccountNumber: form.bankAccountNumber,
+        settlementAccountId: parseInt(form.settlementAccountId, 10),
         settlementFrequency: form.settlementFrequency,
       },
       {

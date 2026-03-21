@@ -18,6 +18,7 @@ import {
   useCalculatePayout,
   useApprovePayout,
 } from '../hooks/useAgreementsExt';
+import { useHasRole } from '@/hooks/usePermission';
 import type { CommissionAgreement, CommissionPayout, CreateCommissionAgreementPayload } from '../types/agreementExt';
 
 // ── Create Agreement Dialog ──────────────────────────────────────────────────
