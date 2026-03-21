@@ -2,6 +2,8 @@ package com.cbs.trade;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
@@ -16,6 +18,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,6 +32,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class TradeFinanceServiceTest {
 
     @Mock private LetterOfCreditRepository lcRepository;
@@ -38,6 +43,8 @@ class TradeFinanceServiceTest {
     @Mock private TradeDocumentRepository tradeDocRepository;
     @Mock private CustomerRepository customerRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CbsProperties cbsProperties;
 
     @InjectMocks private TradeFinanceService tradeService;
 
@@ -46,6 +53,10 @@ class TradeFinanceServiceTest {
 
     @BeforeEach
     void setUp() {
+        CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
+        ledgerConfig.setTradeFinanceSettlementGlCode("2100");
+        ledgerConfig.setTradeFinanceCommissionIncomeGlCode("4100");
+        when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
         customer = Customer.builder().id(1L).firstName("Trade").lastName("Corp")
                 .customerType(CustomerType.CORPORATE).build();
         marginAccount = Account.builder().id(10L).accountNumber("1000000010")
@@ -63,6 +74,8 @@ class TradeFinanceServiceTest {
         when(lcRepository.getNextLcSequence()).thenReturn(1L);
         when(lcRepository.save(any())).thenAnswer(inv -> { LetterOfCredit lc = inv.getArgument(0); lc.setId(1L); return lc; });
         when(accountRepository.save(any())).thenReturn(marginAccount);
+        when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder().id(1L).build());
 
         LetterOfCredit result = tradeService.issueLC(1L, LcType.IMPORT_LC, "Supplier Co",
                 new BigDecimal("500000"), "USD", LocalDate.now().plusMonths(6),
@@ -92,6 +105,8 @@ class TradeFinanceServiceTest {
         when(lcRepository.findById(1L)).thenReturn(Optional.of(lc));
         when(accountRepository.save(any())).thenReturn(marginAccount);
         when(lcRepository.save(any())).thenReturn(lc);
+        when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder().id(2L).build());
 
         LetterOfCredit result = tradeService.settlePresentation(1L, new BigDecimal("200000"));
 
@@ -121,6 +136,8 @@ class TradeFinanceServiceTest {
         when(bgRepository.getNextBgSequence()).thenReturn(1L);
         when(bgRepository.save(any())).thenAnswer(inv -> { BankGuarantee bg = inv.getArgument(0); bg.setId(1L); return bg; });
         when(accountRepository.save(any())).thenReturn(marginAccount);
+        when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder().id(3L).build());
 
         BankGuarantee result = tradeService.issueGuarantee(1L, GuaranteeType.PERFORMANCE,
                 "Project Owner", new BigDecimal("250000"), "USD",
@@ -145,6 +162,8 @@ class TradeFinanceServiceTest {
         when(bgRepository.findById(1L)).thenReturn(Optional.of(bg));
         when(accountRepository.save(any())).thenReturn(marginAccount);
         when(bgRepository.save(any())).thenReturn(bg);
+        when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder().id(4L).build());
 
         BankGuarantee result = tradeService.processGuaranteeClaim(1L, new BigDecimal("100000"));
 

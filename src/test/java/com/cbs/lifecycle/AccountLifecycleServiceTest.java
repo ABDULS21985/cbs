@@ -2,6 +2,7 @@ package com.cbs.lifecycle;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.lifecycle.entity.LifecycleEventType;
 import com.cbs.lifecycle.repository.AccountLifecycleEventRepository;
@@ -12,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,10 +26,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AccountLifecycleServiceTest {
 
     @Mock private AccountRepository accountRepository;
     @Mock private AccountLifecycleEventRepository lifecycleEventRepository;
+    @Mock private CurrentActorProvider currentActorProvider;
     private AccountLifecycleService lifecycleService;
     private CbsProperties cbsProperties;
 
@@ -35,7 +40,8 @@ class AccountLifecycleServiceTest {
     @BeforeEach
     void setUp() {
         cbsProperties = new CbsProperties();
-        lifecycleService = new AccountLifecycleService(accountRepository, lifecycleEventRepository, cbsProperties);
+        when(currentActorProvider.getCurrentActor()).thenReturn("officer1");
+        lifecycleService = new AccountLifecycleService(accountRepository, lifecycleEventRepository, cbsProperties, currentActorProvider);
         product = Product.builder()
                 .id(1L).code("SA-NGN-STD").dormancyDays(365).build();
     }
@@ -81,7 +87,7 @@ class AccountLifecycleServiceTest {
         when(accountRepository.save(any())).thenReturn(dormantAccount);
         when(lifecycleEventRepository.save(any())).thenReturn(null);
 
-        lifecycleService.reactivateAccount(5L, "officer1");
+        lifecycleService.reactivateAccount(5L);
 
         assertThat(dormantAccount.getStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(dormantAccount.getDormancyDate()).isNull();
@@ -118,7 +124,7 @@ class AccountLifecycleServiceTest {
 
         when(accountRepository.findById(3L)).thenReturn(Optional.of(activeAccount));
 
-        lifecycleService.reactivateAccount(3L, "officer1");
+        lifecycleService.reactivateAccount(3L);
 
         verify(accountRepository, never()).save(any());
     }

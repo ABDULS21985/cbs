@@ -84,11 +84,12 @@ dependencies {
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
+    testImplementation("org.springframework.boot:spring-boot-restclient")
     testImplementation("org.springframework.boot:spring-boot-resttestclient")
     testImplementation("org.testcontainers:junit-jupiter:1.20.3")
     testImplementation("org.testcontainers:postgresql:1.20.3")
     testImplementation("io.rest-assured:rest-assured:5.4.0")
-    testImplementation("com.tngtech.archunit:archunit-junit5:1.2.1")
+    testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testCompileOnly("org.projectlombok:lombok:$lombokVersion")
     testAnnotationProcessor("org.projectlombok:lombok:$lombokVersion")

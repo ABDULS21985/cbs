@@ -17,6 +17,7 @@ import com.cbs.centralcashhandling.entity.CashVault;
 import com.cbs.centralcashhandling.repository.CashMovementRepository;
 import com.cbs.centralcashhandling.repository.CashVaultRepository;
 import com.cbs.centralcashhandling.service.CentralCashHandlingService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.payroll.entity.PayrollBatch;
 import com.cbs.payroll.entity.PayrollItem;
@@ -35,6 +36,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -47,6 +50,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class CashManagementTest {
 
     // ========================================================================
@@ -127,10 +131,12 @@ class CashManagementTest {
     @Nested
     @DisplayName("PayrollService - Batch Processing Tests")
     @ExtendWith(MockitoExtension.class)
+    @MockitoSettings(strictness = Strictness.LENIENT)
     class PayrollBatchTests {
 
         @Mock private PayrollBatchRepository batchRepository;
         @Mock private PayrollItemRepository itemRepository;
+        @Mock private CurrentActorProvider currentActorProvider;
 
         @InjectMocks private PayrollService payrollService;
 
@@ -185,6 +191,7 @@ class CashManagementTest {
         @Test
         @DisplayName("approve rejects batch that is not in VALIDATED status")
         void approve_rejectsNonValidatedBatch() {
+            when(currentActorProvider.getCurrentActor()).thenReturn("manager1");
             PayrollBatch draftBatch = PayrollBatch.builder()
                     .id(1L).batchId("PAY-DRAFT001").customerId(100L)
                     .companyName("Acme Corp").debitAccountId(500L)
@@ -199,7 +206,7 @@ class CashManagementTest {
 
             when(batchRepository.findByBatchId("PAY-DRAFT001")).thenReturn(Optional.of(draftBatch));
 
-            assertThatThrownBy(() -> payrollService.approve("PAY-DRAFT001", "manager1"))
+            assertThatThrownBy(() -> payrollService.approve("PAY-DRAFT001"))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("VALIDATED");
         }

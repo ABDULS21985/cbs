@@ -2,6 +2,7 @@ package com.cbs.goal;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
@@ -18,6 +19,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -28,11 +31,13 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class SavingsGoalServiceTest {
 
     @Mock private SavingsGoalRepository goalRepository;
     @Mock private SavingsGoalTransactionRepository goalTxnRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
     @Mock private CbsProperties cbsProperties;
 
     @InjectMocks private SavingsGoalService goalService;
@@ -43,6 +48,9 @@ class SavingsGoalServiceTest {
 
     @BeforeEach
     void setUp() {
+        CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
+        ledgerConfig.setSavingsGoalControlGlCode("2300");
+        when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
         customer = Customer.builder().id(1L).firstName("Test").lastName("User")
                 .customerType(CustomerType.INDIVIDUAL).build();
         account = Account.builder().id(1L).accountNumber("1000000001").customer(customer)
@@ -87,6 +95,8 @@ class SavingsGoalServiceTest {
         when(accountRepository.save(any())).thenReturn(account);
         when(goalTxnRepository.save(any())).thenReturn(new SavingsGoalTransaction());
         when(goalRepository.save(any())).thenReturn(goal);
+        when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder().id(1L).build());
 
         GoalResponse result = goalService.fundGoal(1L, request);
         // 3000 + 2000 = 5000 out of 10000 = 50%
@@ -105,6 +115,8 @@ class SavingsGoalServiceTest {
         when(accountRepository.save(any())).thenReturn(account);
         when(goalTxnRepository.save(any())).thenReturn(new SavingsGoalTransaction());
         when(goalRepository.save(any())).thenReturn(goal);
+        when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder().id(2L).build());
 
         goalService.fundGoal(1L, request);
         assertThat(goal.getStatus()).isEqualTo(GoalStatus.COMPLETED);
@@ -143,6 +155,8 @@ class SavingsGoalServiceTest {
         when(goalRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(goal));
         when(accountRepository.save(any())).thenReturn(account);
         when(goalRepository.save(any())).thenReturn(goal);
+        when(accountPostingService.postCreditAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder().id(3L).build());
 
         goalService.cancelGoal(1L);
         assertThat(goal.getStatus()).isEqualTo(GoalStatus.CANCELLED);

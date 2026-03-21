@@ -1,5 +1,6 @@
 package com.cbs.campaign;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.campaign.entity.MarketingCampaign;
 import com.cbs.campaign.repository.MarketingCampaignRepository;
@@ -24,16 +25,18 @@ import static org.mockito.Mockito.*;
 class CampaignServiceTest {
 
     @Mock private MarketingCampaignRepository campaignRepository;
+    @Mock private CurrentActorProvider currentActorProvider;
     @InjectMocks private CampaignService service;
 
     @Test @DisplayName("Campaign lifecycle: DRAFT → APPROVED → ACTIVE")
     void lifecycle() {
+        when(currentActorProvider.getCurrentActor()).thenReturn("marketing_mgr");
         MarketingCampaign c = MarketingCampaign.builder().id(1L).campaignCode("CMP-TEST")
                 .campaignName("Spring Sale").status("DRAFT").startDate(LocalDate.now()).build();
         when(campaignRepository.findByCampaignCode("CMP-TEST")).thenReturn(Optional.of(c));
         when(campaignRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        MarketingCampaign approved = service.approve("CMP-TEST", "marketing_mgr");
+        MarketingCampaign approved = service.approve("CMP-TEST");
         assertThat(approved.getStatus()).isEqualTo("APPROVED");
 
         MarketingCampaign launched = service.launch("CMP-TEST");

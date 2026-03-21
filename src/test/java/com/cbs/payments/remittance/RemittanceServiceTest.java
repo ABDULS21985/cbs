@@ -122,7 +122,7 @@ class RemittanceServiceTest {
         verify(accountPostingService).postDebitAgainstGl(any(Account.class), any(), argThat(amount ->
                         amount.compareTo(new BigDecimal("110.00")) == 0),
                 anyString(), any(), anyString(),
-                argThat(legs -> legs.size() == 2
+                org.mockito.ArgumentMatchers.<List<AccountPostingService.GlPostingLeg>>argThat(legs -> legs.size() == 2
                         && legs.get(0).glCode().equals("2101")
                         && legs.get(0).amount().compareTo(new BigDecimal("100.00")) == 0
                         && legs.get(1).glCode().equals("4001")

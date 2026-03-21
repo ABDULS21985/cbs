@@ -23,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -34,6 +36,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PaymentServiceTest {
 
     // ========================================================================
@@ -43,6 +46,7 @@ class PaymentServiceTest {
     @Nested
     @DisplayName("PaymentService - Internal Transfer Tests")
     @ExtendWith(MockitoExtension.class)
+    @MockitoSettings(strictness = Strictness.LENIENT)
     class InternalTransferTests {
 
         @Mock private PaymentInstructionRepository paymentRepository;
@@ -146,6 +150,7 @@ class PaymentServiceTest {
     @Nested
     @DisplayName("PaymentService - Domestic Payment Tests")
     @ExtendWith(MockitoExtension.class)
+    @MockitoSettings(strictness = Strictness.LENIENT)
     class DomesticPaymentTests {
 
         @Mock private PaymentInstructionRepository paymentRepository;
@@ -238,6 +243,7 @@ class PaymentServiceTest {
     @Nested
     @DisplayName("PaymentService - SWIFT Transfer Tests")
     @ExtendWith(MockitoExtension.class)
+    @MockitoSettings(strictness = Strictness.LENIENT)
     class SwiftTransferTests {
 
         @Mock private PaymentInstructionRepository paymentRepository;

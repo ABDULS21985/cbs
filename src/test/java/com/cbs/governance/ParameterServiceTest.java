@@ -1,5 +1,6 @@
 package com.cbs.governance;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.governance.entity.*;
 import com.cbs.governance.repository.*;
@@ -22,6 +23,7 @@ class ParameterServiceTest {
 
     @Mock private SystemParameterRepository parameterRepository;
     @Mock private ParameterAuditRepository auditRepository;
+    @Mock private CurrentActorProvider currentActorProvider;
     @InjectMocks private ParameterService service;
 
     @Test
@@ -31,8 +33,9 @@ class ParameterServiceTest {
                 .paramValue("5000000").valueType("DECIMAL")
                 .approvalStatus("PENDING_APPROVAL").lastModifiedBy("user_a").build();
         when(parameterRepository.findById(1L)).thenReturn(Optional.of(param));
+        when(currentActorProvider.getCurrentActor()).thenReturn("user_a");
 
-        assertThatThrownBy(() -> service.approveParameter(1L, "user_a"))
+        assertThatThrownBy(() -> service.approveParameter(1L))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("maker-checker");
     }
 
@@ -44,8 +47,9 @@ class ParameterServiceTest {
                 .approvalStatus("PENDING_APPROVAL").lastModifiedBy("user_a").build();
         when(parameterRepository.findById(1L)).thenReturn(Optional.of(param));
         when(parameterRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(currentActorProvider.getCurrentActor()).thenReturn("user_b");
 
-        SystemParameter approved = service.approveParameter(1L, "user_b");
+        SystemParameter approved = service.approveParameter(1L);
         assertThat(approved.getApprovalStatus()).isEqualTo("APPROVED");
         assertThat(approved.getApprovedBy()).isEqualTo("user_b");
     }
@@ -56,8 +60,9 @@ class ParameterServiceTest {
         SystemParameter param = SystemParameter.builder().id(1L).paramKey("system.timeout")
                 .paramValue("30").valueType("INTEGER").approvalStatus("APPROVED").build();
         when(parameterRepository.findById(1L)).thenReturn(Optional.of(param));
+        when(currentActorProvider.getCurrentActor()).thenReturn("admin");
 
-        assertThatThrownBy(() -> service.updateParameter(1L, "not-a-number", "admin", "test"))
+        assertThatThrownBy(() -> service.updateParameter(1L, "not-a-number", "test"))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("Invalid value");
     }
 }

@@ -1,5 +1,6 @@
 package com.cbs.workflow;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.workflow.entity.*;
 import com.cbs.workflow.repository.*;
@@ -29,6 +30,7 @@ class WorkflowServiceTest {
 
     @Mock private WorkflowDefinitionRepository definitionRepository;
     @Mock private WorkflowInstanceRepository instanceRepository;
+    @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks private WorkflowService workflowService;
 
@@ -36,6 +38,7 @@ class WorkflowServiceTest {
 
     @BeforeEach
     void setUp() {
+        when(currentActorProvider.getCurrentActor()).thenReturn("officer1");
         twoStepDef = WorkflowDefinition.builder()
                 .id(1L).workflowCode("LOAN_APPROVAL").workflowName("Loan Approval")
                 .entityType("LOAN_APPLICATION").triggerEvent("LOAN_SUBMITTED")
@@ -54,7 +57,7 @@ class WorkflowServiceTest {
         when(instanceRepository.save(any())).thenAnswer(inv -> { WorkflowInstance w = inv.getArgument(0); w.setId(1L); return w; });
 
         WorkflowInstance result = workflowService.initiateWorkflow("LOAN_APPLICATION", "LOAN_SUBMITTED",
-                100L, "LA000000500001", new BigDecimal("50000"), "USD", "officer1");
+                100L, "LA000000500001", new BigDecimal("50000"), "USD");
 
         assertThat(result.getStatus()).isEqualTo(WorkflowStatus.PENDING);
         assertThat(result.getTotalSteps()).isEqualTo(2);
@@ -70,7 +73,7 @@ class WorkflowServiceTest {
         when(instanceRepository.save(any())).thenAnswer(inv -> { WorkflowInstance w = inv.getArgument(0); w.setId(2L); return w; });
 
         WorkflowInstance result = workflowService.initiateWorkflow("LOAN_APPLICATION", "LOAN_SUBMITTED",
-                101L, "LA000000500002", new BigDecimal("5000"), "USD", "officer1");
+                101L, "LA000000500002", new BigDecimal("5000"), "USD");
 
         assertThat(result.getStatus()).isEqualTo(WorkflowStatus.APPROVED);
         assertThat(result.getTotalSteps()).isEqualTo(0);
@@ -92,7 +95,8 @@ class WorkflowServiceTest {
         when(instanceRepository.findById(1L)).thenReturn(Optional.of(instance));
         when(instanceRepository.save(any())).thenReturn(instance);
 
-        WorkflowInstance result = workflowService.approveStep(1L, "officer2", "Looks good");
+        when(currentActorProvider.getCurrentActor()).thenReturn("officer2");
+        WorkflowInstance result = workflowService.approveStep(1L, "Looks good");
 
         assertThat(result.getCurrentStep()).isEqualTo(2);
         assertThat(result.getStatus()).isEqualTo(WorkflowStatus.IN_PROGRESS);
@@ -115,7 +119,8 @@ class WorkflowServiceTest {
         when(instanceRepository.findById(2L)).thenReturn(Optional.of(instance));
         when(instanceRepository.save(any())).thenReturn(instance);
 
-        WorkflowInstance result = workflowService.approveStep(2L, "manager1", "Approved");
+        when(currentActorProvider.getCurrentActor()).thenReturn("manager1");
+        WorkflowInstance result = workflowService.approveStep(2L, "Approved");
 
         assertThat(result.getStatus()).isEqualTo(WorkflowStatus.APPROVED);
         assertThat(result.getCompletedAt()).isNotNull();
@@ -137,7 +142,8 @@ class WorkflowServiceTest {
         when(instanceRepository.findById(3L)).thenReturn(Optional.of(instance));
         when(instanceRepository.save(any())).thenReturn(instance);
 
-        WorkflowInstance result = workflowService.rejectStep(3L, "officer2", "Incomplete documentation");
+        when(currentActorProvider.getCurrentActor()).thenReturn("officer2");
+        WorkflowInstance result = workflowService.rejectStep(3L, "Incomplete documentation");
 
         assertThat(result.getStatus()).isEqualTo(WorkflowStatus.REJECTED);
     }
@@ -149,7 +155,7 @@ class WorkflowServiceTest {
                 .thenReturn(List.of());
 
         WorkflowInstance result = workflowService.initiateWorkflow("PAYMENT", "TRANSFER",
-                200L, "TRF001", new BigDecimal("1000"), "USD", "user1");
+                200L, "TRF001", new BigDecimal("1000"), "USD");
 
         assertThat(result).isNull();
     }

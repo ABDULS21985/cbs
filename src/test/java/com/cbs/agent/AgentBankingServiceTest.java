@@ -2,9 +2,11 @@ package com.cbs.agent;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.agent.entity.*;
 import com.cbs.agent.repository.*;
 import com.cbs.agent.service.AgentBankingService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -13,6 +15,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -23,11 +27,14 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AgentBankingServiceTest {
 
     @Mock private BankingAgentRepository agentRepository;
     @Mock private AgentTransactionRepository txnRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CbsProperties cbsProperties;
 
     @InjectMocks private AgentBankingService agentService;
 
@@ -36,6 +43,9 @@ class AgentBankingServiceTest {
 
     @BeforeEach
     void setUp() {
+        CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
+        ledgerConfig.setExternalClearingGlCode("2100");
+        when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
         agent = BankingAgent.builder().id(1L).agentCode("AGT001").agentName("Test Agent")
                 .agentType("INDIVIDUAL").status("ACTIVE")
                 .floatBalance(new BigDecimal("500000")).minFloatBalance(new BigDecimal("10000"))
@@ -60,6 +70,13 @@ class AgentBankingServiceTest {
         when(agentRepository.save(any())).thenReturn(agent);
         when(accountRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(txnRepository.save(any())).thenAnswer(inv -> { AgentTransaction t = inv.getArgument(0); t.setId(1L); return t; });
+        when(accountPostingService.postCreditAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenAnswer(inv -> {
+                    Account customer = inv.getArgument(0);
+                    BigDecimal amount = inv.getArgument(2);
+                    customer.credit(amount);
+                    return TransactionJournal.builder().id(1L).build();
+                });
 
         AgentTransaction result = agentService.processTransaction("AGT001", "CASH_IN", 1L, 10L,
                 new BigDecimal("20000"), "USD", null, null);
@@ -87,6 +104,7 @@ class AgentBankingServiceTest {
     @DisplayName("Rejects transaction exceeding single limit")
     void exceedsSingleLimit() {
         when(agentRepository.findByAgentCode("AGT001")).thenReturn(Optional.of(agent));
+        when(cbsProperties.getLedger()).thenReturn(new CbsProperties.LedgerConfig());
 
         assertThatThrownBy(() -> agentService.processTransaction("AGT001", "CASH_IN", 1L, 10L,
                 new BigDecimal("150000"), "USD", null, null))

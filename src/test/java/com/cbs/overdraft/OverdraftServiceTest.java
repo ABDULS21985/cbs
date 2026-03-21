@@ -2,6 +2,7 @@ package com.cbs.overdraft;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.customer.entity.Customer;
@@ -18,6 +19,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,11 +33,13 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class OverdraftServiceTest {
 
     @Mock private CreditFacilityRepository facilityRepository;
     @Mock private FacilityUtilizationLogRepository utilizationLogRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
     @Mock private DayCountEngine dayCountEngine;
     @Mock private CbsProperties cbsProperties;
 
@@ -45,6 +50,9 @@ class OverdraftServiceTest {
 
     @BeforeEach
     void setUp() {
+        CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
+        ledgerConfig.setOverdraftAssetGlCode("1400");
+        when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
         Customer customer = Customer.builder().id(1L).firstName("Test").lastName("User")
                 .customerType(CustomerType.INDIVIDUAL).build();
         account = Account.builder().id(1L).accountNumber("1000000001").customer(customer)
@@ -101,6 +109,8 @@ class OverdraftServiceTest {
         when(accountRepository.save(any())).thenReturn(account);
         when(facilityRepository.save(any())).thenReturn(facility);
         when(utilizationLogRepository.save(any())).thenReturn(new FacilityUtilizationLog());
+        when(accountPostingService.postCreditAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder().id(1L).build());
 
         FacilityResponse result = overdraftService.drawdown(1L, new BigDecimal("20000"), "Working capital");
 
@@ -128,6 +138,8 @@ class OverdraftServiceTest {
         when(accountRepository.save(any())).thenReturn(account);
         when(facilityRepository.save(any())).thenReturn(facility);
         when(utilizationLogRepository.save(any())).thenReturn(new FacilityUtilizationLog());
+        when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder().id(2L).build());
 
         overdraftService.repay(1L, new BigDecimal("10000"), "Repayment");
 

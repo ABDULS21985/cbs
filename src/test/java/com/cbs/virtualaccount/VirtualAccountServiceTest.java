@@ -2,6 +2,11 @@ package com.cbs.virtualaccount;
 
 import com.cbs.common.exception.BusinessException;
 import com.cbs.virtualaccount.entity.VirtualAccount;
+import com.cbs.virtualaccount.entity.VaSweepHistory;
+import com.cbs.virtualaccount.entity.VaTransaction;
+import com.cbs.virtualaccount.repository.VaMatchingRuleRepository;
+import com.cbs.virtualaccount.repository.VaSweepHistoryRepository;
+import com.cbs.virtualaccount.repository.VaTransactionRepository;
 import com.cbs.virtualaccount.repository.VirtualAccountRepository;
 import com.cbs.virtualaccount.service.VirtualAccountService;
 import org.junit.jupiter.api.DisplayName;
@@ -22,6 +27,9 @@ import static org.mockito.Mockito.*;
 class VirtualAccountServiceTest {
 
     @Mock private VirtualAccountRepository vaRepository;
+    @Mock private VaTransactionRepository txnRepository;
+    @Mock private VaMatchingRuleRepository ruleRepository;
+    @Mock private VaSweepHistoryRepository sweepHistoryRepository;
     @InjectMocks private VirtualAccountService vaService;
 
     @Test @DisplayName("Credit increases virtual balance")
@@ -30,6 +38,7 @@ class VirtualAccountServiceTest {
                 .virtualBalance(new BigDecimal("1000")).isActive(true).autoSweepEnabled(false).build();
         when(vaRepository.findByVirtualAccountNumber("VA-TEST")).thenReturn(Optional.of(va));
         when(vaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(txnRepository.save(any(VaTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         VirtualAccount result = vaService.credit("VA-TEST", new BigDecimal("500"), "INV-001");
         assertThat(result.getVirtualBalance()).isEqualByComparingTo(new BigDecimal("1500"));
@@ -43,6 +52,8 @@ class VirtualAccountServiceTest {
                 .sweepTargetBalance(new BigDecimal("2000")).sweepDirection("TO_MASTER").build();
         when(vaRepository.findByVirtualAccountNumber("VA-SWEEP")).thenReturn(Optional.of(va));
         when(vaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(txnRepository.save(any(VaTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(sweepHistoryRepository.save(any(VaSweepHistory.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Credit 8000 → balance becomes 13000 → exceeds 10000 → sweep down to 2000
         VirtualAccount result = vaService.credit("VA-SWEEP", new BigDecimal("8000"), null);

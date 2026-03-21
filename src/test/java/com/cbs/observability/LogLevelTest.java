@@ -28,6 +28,7 @@ class LogLevelTest {
     @BeforeEach
     void setUp() {
         handlerLogger = (Logger) LoggerFactory.getLogger(GlobalExceptionHandler.class);
+        ((Logger) LoggerFactory.getLogger("com.cbs")).setLevel(Level.DEBUG);
         listAppender = new ListAppender<>();
         listAppender.start();
         handlerLogger.addAppender(listAppender);

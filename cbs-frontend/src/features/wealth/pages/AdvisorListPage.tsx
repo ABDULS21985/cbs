@@ -157,7 +157,7 @@ function buildTableCols(navigate: (path: string) => void): ColumnDef<Advisor, un
     {
       accessorKey: 'joinDate',
       header: 'Join Date',
-      cell: ({ row }) => <span className="text-sm text-muted-foreground">{formatDate(row.original.joinDate)}</span>,
+      cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.joinDate ? formatDate(row.original.joinDate) : '—'}</span>,
     },
     {
       accessorKey: 'status',

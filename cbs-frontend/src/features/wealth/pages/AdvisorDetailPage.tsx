@@ -32,7 +32,7 @@ function ProfileTab({ advisor }: { advisor: any }) {
               { label: 'Email', value: advisor.email },
               { label: 'Phone', value: advisor.phone },
               { label: 'Advisor ID', value: advisor.id },
-              { label: 'Join Date', value: formatDate(advisor.joinDate) },
+              { label: 'Join Date', value: advisor.joinDate ? formatDate(advisor.joinDate) : '—' },
               { label: 'Satisfaction', value: advisor.satisfaction ? `${advisor.satisfaction}/5.0` : '—' },
               { label: 'Status', value: advisor.status ?? 'ACTIVE' },
             ].map(({ label, value }) => (
@@ -142,7 +142,7 @@ export function AdvisorDetailPage() {
               { label: 'Clients', value: String(advisor.clientCount) },
               { label: 'AUM', value: formatMoneyCompact(advisor.aum) },
               { label: 'Avg Return', value: formatPercent(advisor.avgReturn, 1) },
-              { label: 'Join Date', value: formatDate(advisor.joinDate) },
+              { label: 'Join Date', value: advisor.joinDate ? formatDate(advisor.joinDate) : '—' },
             ].map((s) => (
               <div key={s.label}>
                 <p className="text-xs text-muted-foreground">{s.label}</p>

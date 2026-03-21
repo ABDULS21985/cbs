@@ -1,5 +1,6 @@
 package com.cbs.unit.channel;
 
+import com.cbs.account.repository.TransactionJournalRepository;
 import com.cbs.common.guard.SyntheticCapabilityGuard;
 import com.cbs.casemgmt.entity.CustomerCase;
 import com.cbs.casemgmt.repository.CaseNoteRepository;
@@ -205,6 +206,7 @@ class ChannelExperienceTest {
         @Mock private PfmBudgetRepository budgetRepository;
         @Mock private PfmFinancialHealthRepository healthRepository;
         @Mock private PfmSpendingCategoryRepository categoryRepository;
+        @Mock private TransactionJournalRepository transactionJournalRepository;
         @InjectMocks private PfmService pfmService;
 
         @BeforeEach
@@ -215,6 +217,10 @@ class ChannelExperienceTest {
         @Test
         @DisplayName("generateSnapshot creates snapshot with calculated fields for customer")
         void generateSnapshot_createsWithCalculatedFields() {
+            when(transactionJournalRepository.aggregatePostedCreditsAndDebitsByCustomer(eq(300L), any(), any()))
+                    .thenReturn(new Object[]{java.math.BigDecimal.valueOf(50000), java.math.BigDecimal.valueOf(30000)});
+            when(transactionJournalRepository.aggregatePostedDebitCategoriesByCustomer(eq(300L), any(), any()))
+                    .thenReturn(List.of());
             when(snapshotRepository.save(any(PfmSnapshot.class))).thenAnswer(inv -> {
                 PfmSnapshot s = inv.getArgument(0);
                 s.setId(1L);

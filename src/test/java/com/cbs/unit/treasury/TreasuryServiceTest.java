@@ -5,6 +5,7 @@ import com.cbs.almfull.entity.AlmPosition;
 import com.cbs.almfull.repository.AlmPositionRepository;
 import com.cbs.almfull.service.AlmFullService;
 import com.cbs.common.exception.BusinessException;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.ftp.entity.FtpAllocation;
 import com.cbs.ftp.entity.FtpRateCurve;
 import com.cbs.ftp.repository.FtpAllocationRepository;
@@ -30,6 +31,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -41,6 +44,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class TreasuryServiceTest {
 
     // ========================================================================
@@ -50,11 +54,13 @@ class TreasuryServiceTest {
     @Nested
     @DisplayName("TreasuryService - Deal Lifecycle Tests")
     @ExtendWith(MockitoExtension.class)
+    @MockitoSettings(strictness = Strictness.LENIENT)
     class TreasuryDealTests {
 
         @Mock private TreasuryDealRepository dealRepository;
         @Mock private AccountRepository accountRepository;
         @Mock private CorrespondentBankRepository bankRepository;
+        @Mock private CurrentActorProvider currentActorProvider;
 
         @InjectMocks private TreasuryService treasuryService;
 
@@ -63,6 +69,7 @@ class TreasuryServiceTest {
 
         @BeforeEach
         void setUp() {
+            when(currentActorProvider.getCurrentActor()).thenReturn("confirmer1");
             pendingDeal = TreasuryDeal.builder()
                     .id(1L)
                     .dealNumber("TD0000000000001")
@@ -114,7 +121,7 @@ class TreasuryServiceTest {
             when(dealRepository.findById(1L)).thenReturn(Optional.of(pendingDeal));
             when(dealRepository.save(any(TreasuryDeal.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            TreasuryDeal result = treasuryService.confirmDeal(1L, "confirmer1");
+            TreasuryDeal result = treasuryService.confirmDeal(1L);
 
             assertThat(result.getStatus()).isEqualTo(DealStatus.CONFIRMED);
             assertThat(result.getConfirmedBy()).isEqualTo("confirmer1");
@@ -127,7 +134,7 @@ class TreasuryServiceTest {
             confirmedDeal.setStatus(DealStatus.CONFIRMED);
             when(dealRepository.findById(2L)).thenReturn(Optional.of(confirmedDeal));
 
-            assertThatThrownBy(() -> treasuryService.confirmDeal(2L, "confirmer1"))
+            assertThatThrownBy(() -> treasuryService.confirmDeal(2L))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("not pending");
         }
@@ -137,7 +144,7 @@ class TreasuryServiceTest {
         void settleDeal_rejectsNonConfirmedDeal() {
             when(dealRepository.findById(1L)).thenReturn(Optional.of(pendingDeal));
 
-            assertThatThrownBy(() -> treasuryService.settleDeal(1L, "settler1"))
+            assertThatThrownBy(() -> treasuryService.settleDeal(1L))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("confirmed first");
         }

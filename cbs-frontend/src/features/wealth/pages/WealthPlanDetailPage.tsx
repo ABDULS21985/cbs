@@ -733,7 +733,14 @@ function DocumentsTab({ planCode }: { planCode: string }) {
 
   useEffect(() => {
     wealthApi.getDocuments(planCode)
-      .then((data) => setDocs(data ?? []))
+      .then((data) => setDocs((data ?? []).map((d) => ({
+        id: String(d.id ?? ''),
+        name: String(d.name ?? 'Document'),
+        type: String(d.type ?? ''),
+        uploadedBy: String(d.uploadedBy ?? ''),
+        uploadDate: String(d.uploadDate ?? ''),
+        url: String(d.url ?? ''),
+      }))))
       .finally(() => setLoading(false));
   }, [planCode]);
 
@@ -747,11 +754,11 @@ function DocumentsTab({ planCode }: { planCode: string }) {
         ...prev,
         {
           id: result.id,
-          name: file.name,
+          name: result.name || file.name,
           type: file.type || 'application/octet-stream',
           uploadedBy: 'Current User',
-          uploadDate: new Date().toISOString(),
-          url: result.url,
+          uploadDate: result.uploadDate || new Date().toISOString(),
+          url: '',
         },
       ]);
     } catch {

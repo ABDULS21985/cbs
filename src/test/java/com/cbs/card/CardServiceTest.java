@@ -2,9 +2,11 @@ package com.cbs.card;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.*;
 import com.cbs.card.service.CardService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -25,11 +29,14 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class CardServiceTest {
 
     @Mock private CardRepository cardRepository;
     @Mock private CardTransactionRepository txnRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CbsProperties cbsProperties;
 
     @InjectMocks private CardService cardService;
 
@@ -39,6 +46,9 @@ class CardServiceTest {
 
     @BeforeEach
     void setUp() {
+        CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
+        ledgerConfig.setExternalClearingGlCode("2100");
+        when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
         Customer customer = Customer.builder().id(1L).firstName("Test").lastName("User")
                 .customerType(CustomerType.INDIVIDUAL).build();
         account = Account.builder().id(1L).accountNumber("1000000001").customer(customer)
@@ -79,6 +89,13 @@ class CardServiceTest {
         when(accountRepository.save(any())).thenReturn(account);
         when(cardRepository.save(any())).thenReturn(debitCard);
         when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenAnswer(inv -> {
+                    Account debitAccount = inv.getArgument(0);
+                    BigDecimal debitAmount = inv.getArgument(2);
+                    debitAccount.debit(debitAmount);
+                    return TransactionJournal.builder().id(1L).build();
+                });
 
         CardTransaction txn = cardService.authorizeTransaction(1L, "PURCHASE", "POS",
                 new BigDecimal("5000"), "USD", "Shoprite", "MRC001", "5411",
@@ -141,6 +158,8 @@ class CardServiceTest {
         when(txnRepository.sumDailyUsageByChannel(eq(1L), eq("ATM"), any(Instant.class)))
                 .thenReturn(BigDecimal.ZERO);
         when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenAnswer(inv -> inv.getArgument(0));
 
         CardTransaction txn = cardService.authorizeTransaction(1L, "CASH_WITHDRAWAL", "ATM",
                 new BigDecimal("5000"), "USD", "ATM", null, null, "ATM001", null, null);

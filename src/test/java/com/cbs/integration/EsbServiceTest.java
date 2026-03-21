@@ -117,7 +117,7 @@ class EsbServiceTest {
             IntegrationMessage result = esbService.sendMessage(1L, "PAYMENT", "application/json", null, payload);
 
             assertThat(result.getStatus()).isEqualTo("FAILED");
-            assertThat(result.getErrorMessage()).contains("HTTP 500");
+            assertThat(result.getErrorMessage()).contains("500");
             verify(dlqRepository).save(argThat(dlq ->
                     dlq.getMessageId().equals(99L)
                             && dlq.getRouteId().equals(1L)

@@ -49,6 +49,7 @@ class AccountServiceTest {
     @Mock private TransactionJournalRepository transactionRepository;
     @Mock private CustomerRepository customerRepository;
     @Mock private AccountHoldRepository holdRepository;
+    @Mock private AccountLimitRepository limitRepository;
     @Mock private AccountMaintenanceLogRepository maintenanceLogRepository;
     @Mock private InterestPostingHistoryRepository interestPostingHistoryRepository;
     @Mock private CardRepository cardRepository;
@@ -79,6 +80,7 @@ class AccountServiceTest {
                 transactionRepository,
                 customerRepository,
                 holdRepository,
+                limitRepository,
                 maintenanceLogRepository,
                 interestPostingHistoryRepository,
                 cardRepository,

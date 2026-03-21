@@ -346,7 +346,6 @@ import {
   TreasuryPositionsPage,
   FxRatesPage,
   LiquidityRiskPage,
-  MarketRiskPage,
   ComplianceAssessmentsPage,
   ComplianceSanctionsPage,
   ScreeningDetailPage,

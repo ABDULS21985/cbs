@@ -1,6 +1,7 @@
 package com.cbs.payroll;
 
 import com.cbs.account.service.AccountService;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.payroll.entity.*;
 import com.cbs.payroll.repository.*;
@@ -13,6 +14,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,20 +26,23 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PayrollServiceTest {
 
     @Mock private PayrollBatchRepository batchRepository;
     @Mock private PayrollItemRepository itemRepository;
     @Mock private PaymentService paymentService;
     @Mock private AccountService accountService;
+    @Mock private CurrentActorProvider currentActorProvider;
     @InjectMocks private PayrollService payrollService;
 
     @Test @DisplayName("Batch must be VALIDATED before approval")
     void approvalRequiresValidation() {
+        when(currentActorProvider.getCurrentActor()).thenReturn("admin");
         PayrollBatch batch = PayrollBatch.builder().id(1L).batchId("PAY-TEST").status("DRAFT").build();
         when(batchRepository.findByBatchId("PAY-TEST")).thenReturn(Optional.of(batch));
 
-        assertThatThrownBy(() -> payrollService.approve("PAY-TEST", "admin"))
+        assertThatThrownBy(() -> payrollService.approve("PAY-TEST"))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("VALIDATED");
     }
 

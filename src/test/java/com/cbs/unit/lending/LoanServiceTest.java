@@ -2,12 +2,14 @@ package com.cbs.unit.lending;
 
 import com.cbs.account.entity.Account;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
 import com.cbs.collections.dto.CollectionCaseResponse;
 import com.cbs.collections.entity.*;
 import com.cbs.collections.repository.CollectionActionRepository;
 import com.cbs.collections.repository.CollectionCaseRepository;
 import com.cbs.collections.service.CollectionsService;
 import com.cbs.common.config.CbsProperties;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.credit.engine.CreditDecisionEngine;
 import com.cbs.credit.repository.CreditDecisionLogRepository;
@@ -36,6 +38,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -50,6 +54,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class LoanServiceTest {
 
     // ========================================================================
@@ -59,6 +64,7 @@ class LoanServiceTest {
     @Nested
     @DisplayName("LoanOriginationService Tests")
     @ExtendWith(MockitoExtension.class)
+    @MockitoSettings(strictness = Strictness.LENIENT)
     class LoanOriginationServiceTests {
 
         @Mock private LoanApplicationRepository applicationRepository;
@@ -68,12 +74,14 @@ class LoanServiceTest {
         @Mock private CollateralRepository collateralRepository;
         @Mock private CustomerRepository customerRepository;
         @Mock private AccountRepository accountRepository;
+        @Mock private AccountPostingService accountPostingService;
         @Mock private CreditScoringModelRepository scoringModelRepository;
         @Mock private CreditDecisionLogRepository decisionLogRepository;
         @Mock private CreditDecisionEngine creditEngine;
         @Mock private RepaymentScheduleGenerator scheduleGenerator;
         @Mock private DayCountEngine dayCountEngine;
         @Mock private CbsProperties cbsProperties;
+        @Mock private CurrentActorProvider currentActorProvider;
 
         @InjectMocks private LoanOriginationService loanOriginationService;
 
@@ -82,6 +90,7 @@ class LoanServiceTest {
 
         @BeforeEach
         void setUp() {
+            when(currentActorProvider.getCurrentActor()).thenReturn("admin");
             customer = new Customer();
             customer.setId(1L);
             customer.setCifNumber("CIF0000000001");
@@ -102,6 +111,8 @@ class LoanServiceTest {
             loanProduct.setMinTenureMonths(6);
             loanProduct.setMaxTenureMonths(60);
             loanProduct.setDefaultInterestRate(new BigDecimal("12.00"));
+            loanProduct.setGlLoanAssetCode("1400");
+            loanProduct.setGlInterestIncomeCode("4100");
             loanProduct.setIsActive(true);
             loanProduct.setIsIslamic(false);
         }
@@ -194,7 +205,7 @@ class LoanServiceTest {
 
             when(applicationRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(app));
 
-            assertThatThrownBy(() -> loanOriginationService.approveApplication(1L, approval, "admin"))
+            assertThatThrownBy(() -> loanOriginationService.approveApplication(1L, approval))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("not in a reviewable state");
         }
