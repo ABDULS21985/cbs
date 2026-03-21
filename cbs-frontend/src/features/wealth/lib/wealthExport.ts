@@ -447,7 +447,7 @@ export function exportTrustStatementPdf(
     <h2>Trust Details</h2>
     <div class="summary-grid">
       <span class="label">Trustee</span><span class="value">${trust.trusteeName} (${trust.trusteeType})</span>
-      <span class="label">Grantor</span><span class="value">${trust.grantorName}</span>
+      <span class="label">Grantor</span><span class="value">${`Customer #${trust.grantorCustomerId}`}</span>
       <span class="label">Corpus Value</span><span class="value">${formatMoney(trust.corpusValue, trust.currency)}</span>
       <span class="label">Income YTD</span><span class="value">${formatMoney(trust.incomeYtd, trust.currency)}</span>
       <span class="label">Annual Fee (est.)</span><span class="value">${formatMoney(annualFee, trust.currency)}</span>

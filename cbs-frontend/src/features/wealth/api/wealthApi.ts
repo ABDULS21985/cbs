@@ -69,37 +69,53 @@ export interface WealthPlan {
   benchmarkDiff: number;
 }
 
+/** Maps to backend TrustAccount entity */
+export type TrustStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'TERMINATED' | 'REVOKED';
+export type TrustType = 'REVOCABLE' | 'IRREVOCABLE' | 'TESTAMENTARY' | 'CHARITABLE' | 'SPECIAL_NEEDS' | 'SPENDTHRIFT' | 'CONSTRUCTIVE' | 'PENSION_TRUST';
+export type TrusteeType = 'BANK_SOLE' | 'BANK_CO' | 'INDIVIDUAL' | 'CORPORATE';
+
 export interface TrustAccount {
   id: number;
   trustCode: string;
   trustName: string;
-  trustType: string;
+  trustType: TrustType;
   grantorCustomerId: number;
-  grantorName: string;
   trusteeName: string;
-  trusteeType: string;
+  trusteeType: TrusteeType;
+  currency: string;
   corpusValue: number;
   incomeYtd: number;
   distributionsYtd: number;
-  beneficiaries: Beneficiary[];
-  currency: string;
+  beneficiaries: Record<string, unknown>[];
+  distributionRules: Record<string, unknown> | null;
+  investmentPolicy: string | null;
+  annualFeePct: number | null;
+  taxId: string | null;
+  status: TrustStatus;
   inceptionDate: string;
-  status: string;
+  terminationDate: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
+/** Derived from plans - not a persisted entity */
 export interface Advisor {
   id: string;
+  advisorId?: string;
   name: string;
   email: string;
   phone: string;
   clientCount: number;
   aum: number;
   avgReturn: number;
-  joinDate: string;
-  specializations: string[];
-  revenue: number;
-  satisfaction: number;
+  totalPlans: number;
   status: string;
+  // Detail endpoint only:
+  specializations?: string[];
+  joinDate?: string;
+  // Frontend-computed (not from backend):
+  revenue?: number;
+  satisfaction?: number;
 }
 
 export interface AumDataPoint {
@@ -140,15 +156,21 @@ export interface PlanCreateRequest {
   nextReviewDate?: string;
 }
 
+/** Maps to backend TrustAccount entity (POST body) */
 export interface TrustCreateRequest {
   trustName: string;
-  trustType: string;
+  trustType: TrustType;
   grantorCustomerId: number;
   trusteeName: string;
-  trusteeType: string;
-  corpusValue: number;
-  currency: string;
-  beneficiaries: Omit<Beneficiary, 'id'>[];
+  trusteeType: TrusteeType;
+  currency?: string;
+  corpusValue?: number;
+  beneficiaries?: Record<string, unknown>[];
+  distributionRules?: Record<string, unknown>;
+  investmentPolicy?: string;
+  annualFeePct?: number;
+  taxId?: string;
+  inceptionDate: string;
 }
 
 // ─── Advisor Performance Types ──────────────────────────────────────────────
@@ -406,18 +428,16 @@ export const wealthApi = {
   createAdvisor: (data: Record<string, unknown>): Promise<Record<string, unknown>> =>
     apiPost<Record<string, unknown>>('/api/v1/wealth-management/advisors', data),
 
-  // ── Documents ──
-  uploadDocument: (code: string, file: File): Promise<{ id: string; name: string; url: string }> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    return apiPost<{ id: string; name: string; url: string }>(
+  // ── Plan Documents ──
+  // NOTE: Backend accepts JSON body (not multipart) for wealth plan documents
+  uploadDocument: (code: string, file: File): Promise<{ id: string; name: string; planCode: string; uploadDate: string }> =>
+    apiPost<{ id: string; name: string; planCode: string; uploadDate: string }>(
       `/api/v1/wealth-management/${code}/documents`,
-      formData
-    );
-  },
+      { name: file.name, type: file.type, size: file.size }
+    ),
 
-  getDocuments: (code: string): Promise<{ id: string; name: string; type: string; uploadedBy: string; uploadDate: string; url: string }[]> =>
-    apiGet<{ id: string; name: string; type: string; uploadedBy: string; uploadDate: string; url: string }[]>(
+  getDocuments: (code: string): Promise<Record<string, unknown>[]> =>
+    apiGet<Record<string, unknown>[]>(
       `/api/v1/wealth-management/${code}/documents`
     ),
 

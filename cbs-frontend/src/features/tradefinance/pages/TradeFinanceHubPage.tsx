@@ -814,25 +814,28 @@ function LcsTab() {
       accessorKey: 'lcRef',
       header: 'Ref',
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-primary">{row.original.lcRef}</span>
+        <span className="font-mono text-xs text-primary">{row.original.lcNumber ?? row.original.lcRef ?? ''}</span>
       ),
     },
-    { accessorKey: 'applicant', header: 'Applicant' },
-    { accessorKey: 'beneficiary', header: 'Beneficiary' },
+    { accessorKey: 'applicant', header: 'Applicant', cell: ({ row }) => {
+      const a = row.original.applicant;
+      return <span className="text-sm">{typeof a === 'object' && a ? (a.name ?? `#${a.id}`) : String(a ?? '—')}</span>;
+    }},
+    { accessorKey: 'beneficiaryName', header: 'Beneficiary', cell: ({ row }) => <span className="text-sm">{row.original.beneficiaryName ?? row.original.beneficiary ?? '—'}</span> },
     {
       accessorKey: 'amount',
       header: 'Amount',
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          {formatMoney(row.original.amount, row.original.currency)}
+          {formatMoney(row.original.amount, row.original.currencyCode ?? row.original.currency)}
         </span>
       ),
     },
     {
-      accessorKey: 'currency',
+      accessorKey: 'currencyCode',
       header: 'CCY',
       cell: ({ row }) => (
-        <span className="font-mono text-xs">{row.original.currency}</span>
+        <span className="font-mono text-xs">{row.original.currencyCode ?? row.original.currency ?? ''}</span>
       ),
     },
     {
@@ -850,9 +853,9 @@ function LcsTab() {
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex gap-2">
-          {row.original.status === 'ISSUED' && (
+          {(row.original.status === 'ISSUED' || row.original.status === 'ADVISED' || row.original.status === 'CONFIRMED' || row.original.status === 'PARTIALLY_UTILIZED') && (
             <button
-              onClick={() => setSettlingLc(row.original)}
+              onClick={(e) => { e.stopPropagation(); setSettlingLc(row.original); }}
               className="text-xs px-2 py-1 rounded border hover:bg-muted font-medium"
             >
               Settle
@@ -903,11 +906,14 @@ function GuaranteesTab() {
       accessorKey: 'guaranteeRef',
       header: 'Ref',
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-primary">{row.original.guaranteeRef}</span>
+        <span className="font-mono text-xs text-primary">{row.original.guaranteeNumber ?? row.original.guaranteeRef ?? ''}</span>
       ),
     },
-    { accessorKey: 'applicant', header: 'Applicant' },
-    { accessorKey: 'beneficiary', header: 'Beneficiary' },
+    { accessorKey: 'applicant', header: 'Applicant', cell: ({ row }) => {
+      const a = row.original.applicant;
+      return <span className="text-sm">{typeof a === 'object' && a ? (a.name ?? `#${a.id}`) : String(a ?? '—')}</span>;
+    }},
+    { accessorKey: 'beneficiaryName', header: 'Beneficiary', cell: ({ row }) => <span className="text-sm">{row.original.beneficiaryName ?? row.original.beneficiary ?? '—'}</span> },
     {
       accessorKey: 'guaranteeType',
       header: 'Type',
@@ -918,7 +924,7 @@ function GuaranteesTab() {
       header: 'Amount',
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          {formatMoney(row.original.amount, row.original.currency)}
+          {formatMoney(row.original.amount, row.original.currencyCode ?? row.original.currency)}
         </span>
       ),
     },
@@ -937,9 +943,9 @@ function GuaranteesTab() {
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex gap-2">
-          {row.original.status === 'ISSUED' && (
+          {(row.original.status === 'ISSUED' || row.original.status === 'ACTIVE') && (
             <button
-              onClick={() => setClaimingBg(row.original)}
+              onClick={(e) => { e.stopPropagation(); setClaimingBg(row.original); }}
               className="text-xs px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50 font-medium"
             >
               Claim

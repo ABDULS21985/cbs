@@ -126,7 +126,7 @@ const trustCols: ColumnDef<TrustAccount, unknown>[] = [
     header: 'Type',
     cell: ({ row }) => <StatusBadge status={row.original.trustType} />,
   },
-  { accessorKey: 'grantorName', header: 'Grantor' },
+  { accessorKey: 'grantorCustomerId', header: 'Grantor', cell: ({ row }) => <span className="font-mono text-sm">Customer #{row.original.grantorCustomerId}</span> },
   {
     accessorKey: 'corpusValue',
     header: 'Corpus Value',

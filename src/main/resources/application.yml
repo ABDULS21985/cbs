@@ -40,6 +40,9 @@ spring:
     table: flyway_schema_history
 
   jackson:
+    use-jackson2-defaults: true
+
+  jackson2:
     serialization:
       write-dates-as-timestamps: false
       fail-on-empty-beans: false
