@@ -1,5 +1,5 @@
 import { useTreasuryMetrics } from '../hooks/useDashboardData';
-import { Loader2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +21,6 @@ export function TreasurySnapshotWidget() {
     );
   }
 
-  // Use the most recent snapshot
   const latest = snapshots[0];
   if (!latest) {
     return <p className="text-sm text-muted-foreground text-center py-8">No treasury data available</p>;
@@ -40,18 +39,28 @@ export function TreasurySnapshotWidget() {
 
   return (
     <div className="space-y-1">
-      <p className="text-xs text-muted-foreground mb-2">
-        Snapshot: {latest.snapshotDate} · {latest.currency}
-      </p>
-      <div className="divide-y">
-        {metrics.map((m) => {
+      <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-muted/50 mb-3">
+        <span className="text-xs text-muted-foreground font-medium">
+          {latest.snapshotDate} · {latest.currency}
+        </span>
+      </div>
+      <div className="space-y-0">
+        {metrics.map((m, i) => {
           const val = m.value ?? 0;
+          const isGood = m.goodDirection === 'up' ? val > 5 : m.goodDirection === 'down' ? val < 5 : null;
           return (
-            <div key={m.label} className="flex items-center justify-between py-1.5">
+            <div key={m.label} className={cn('flex items-center justify-between py-2 px-2 rounded-lg', i % 2 === 0 && 'bg-muted/30')}>
               <span className="text-sm text-muted-foreground">{m.label}</span>
-              <span className={cn('text-sm font-mono font-medium', val > 0 ? 'text-foreground' : 'text-muted-foreground')}>
-                {formatPercent(val)}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className={cn('text-sm font-mono font-semibold', val > 0 ? 'text-foreground' : 'text-muted-foreground')}>
+                  {formatPercent(val)}
+                </span>
+                {isGood !== null && (
+                  isGood
+                    ? <TrendingUp className="w-3 h-3 text-emerald-500" />
+                    : <TrendingDown className="w-3 h-3 text-red-400" />
+                )}
+              </div>
             </div>
           );
         })}

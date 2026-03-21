@@ -7,17 +7,38 @@ import { StatusBadge, ConfirmDialog } from '@/components/shared';
 import { accountMaintenanceApi, type StatusChangeRequest } from '../../api/accountMaintenanceApi';
 
 const STATUS_TRANSITIONS: Record<string, { value: string; label: string }[]> = {
+  PENDING_ACTIVATION: [
+    { value: 'ACTIVE', label: 'Active' },
+    { value: 'CLOSED', label: 'Closed' },
+  ],
   ACTIVE: [
     { value: 'DORMANT', label: 'Dormant' },
     { value: 'FROZEN', label: 'Frozen' },
+    { value: 'PND_DEBIT', label: 'Post No Debit' },
+    { value: 'PND_CREDIT', label: 'Post No Credit' },
     { value: 'CLOSED', label: 'Closed' },
   ],
   DORMANT: [
     { value: 'ACTIVE', label: 'Active' },
     { value: 'CLOSED', label: 'Closed' },
+    { value: 'ESCHEAT', label: 'Escheat' },
   ],
   FROZEN: [
     { value: 'ACTIVE', label: 'Active' },
+    { value: 'CLOSED', label: 'Closed' },
+  ],
+  PND_DEBIT: [
+    { value: 'ACTIVE', label: 'Active' },
+    { value: 'FROZEN', label: 'Frozen' },
+    { value: 'CLOSED', label: 'Closed' },
+  ],
+  PND_CREDIT: [
+    { value: 'ACTIVE', label: 'Active' },
+    { value: 'FROZEN', label: 'Frozen' },
+    { value: 'CLOSED', label: 'Closed' },
+  ],
+  ESCHEAT: [
+    { value: 'CLOSED', label: 'Closed' },
   ],
 };
 

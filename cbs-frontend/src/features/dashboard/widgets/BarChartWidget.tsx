@@ -15,10 +15,33 @@ export function BarChartWidget({ data = defaultData, color }: BarChartWidgetProp
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data} layout="vertical" margin={{ left: 20 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
-        <XAxis type="number" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `₦${v}M`} />
-        <YAxis type="category" dataKey="name" className="text-xs" tick={{ fill: 'hsl(var(--muted-foreground))' }} width={80} />
-        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} />
-        <Bar dataKey="value" fill={color || 'hsl(var(--primary))'} radius={[0, 4, 4, 0]} />
+        <XAxis
+          type="number"
+          className="text-xs"
+          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+          tickFormatter={(v) => `₦${v}M`}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          type="category"
+          dataKey="name"
+          className="text-xs"
+          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+          width={80}
+          axisLine={false}
+          tickLine={false}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: 'hsl(var(--card))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '12px',
+            fontSize: '12px',
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+          }}
+        />
+        <Bar dataKey="value" fill={color || 'hsl(var(--primary))'} radius={[0, 6, 6, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

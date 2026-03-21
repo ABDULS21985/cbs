@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, type LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
@@ -10,9 +10,12 @@ interface PageHeaderProps {
   actions?: ReactNode;
   tabs?: ReactNode;
   className?: string;
+  icon?: LucideIcon;
+  iconBg?: string;
+  iconColor?: string;
 }
 
-export function PageHeader({ title, subtitle, backTo, actions, tabs, className }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, backTo, actions, tabs, className, icon: Icon, iconBg, iconColor }: PageHeaderProps) {
   const navigate = useNavigate();
 
   return (
@@ -26,6 +29,11 @@ export function PageHeader({ title, subtitle, backTo, actions, tabs, className }
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
+          )}
+          {Icon && (
+            <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center mt-0.5', iconBg || 'bg-primary/10')}>
+              <Icon className={cn('w-5 h-5', iconColor || 'text-primary')} />
+            </div>
           )}
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>

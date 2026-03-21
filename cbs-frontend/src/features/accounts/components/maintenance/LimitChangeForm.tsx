@@ -14,10 +14,16 @@ interface LimitConfig {
 
 const LIMIT_CONFIGS: LimitConfig[] = [
   {
-    key: 'dailyTransaction',
-    label: 'Daily Transaction Limit',
-    description: 'Maximum total amount that can be transacted in a single day',
-    limitType: 'DAILY_TRANSACTION',
+    key: 'dailyDebit',
+    label: 'Daily Debit Limit',
+    description: 'Maximum total debits per day',
+    limitType: 'DAILY_DEBIT',
+  },
+  {
+    key: 'dailyCredit',
+    label: 'Daily Credit Limit',
+    description: 'Maximum total credits per day',
+    limitType: 'DAILY_CREDIT',
   },
   {
     key: 'perTransaction',
@@ -26,21 +32,33 @@ const LIMIT_CONFIGS: LimitConfig[] = [
     limitType: 'PER_TRANSACTION',
   },
   {
+    key: 'monthlyDebit',
+    label: 'Monthly Debit Limit',
+    description: 'Maximum total debits per month',
+    limitType: 'MONTHLY_DEBIT',
+  },
+  {
+    key: 'monthlyCredit',
+    label: 'Monthly Credit Limit',
+    description: 'Maximum total credits per month',
+    limitType: 'MONTHLY_CREDIT',
+  },
+  {
     key: 'withdrawal',
     label: 'Withdrawal Limit',
-    description: 'Maximum cash withdrawal amount per day',
+    description: 'Maximum daily cash withdrawal',
     limitType: 'WITHDRAWAL',
   },
   {
     key: 'posAtm',
     label: 'POS / ATM Limit',
-    description: 'Combined daily limit for POS and ATM transactions',
+    description: 'Maximum POS or ATM transaction',
     limitType: 'POS_ATM',
   },
   {
     key: 'onlineTransaction',
     label: 'Online Transaction Limit',
-    description: 'Maximum amount for internet and mobile banking transactions',
+    description: 'Maximum online/internet banking transaction',
     limitType: 'ONLINE_TRANSACTION',
   },
 ];
@@ -56,13 +74,7 @@ type LimitState = Record<string, LimitRow>;
 
 interface LimitChangeFormProps {
   accountId: string;
-  currentLimits: {
-    dailyTransaction: number;
-    perTransaction: number;
-    withdrawal: number;
-    posAtm: number;
-    onlineTransaction: number;
-  };
+  currentLimits: Record<string, number>;
   onSuccess: () => void;
 }
 
@@ -119,7 +131,7 @@ export function LimitChangeForm({ accountId, currentLimits, onSuccess }: LimitCh
       {LIMIT_CONFIGS.map((config) => {
         const row = limits[config.key];
         const rowErrors = errors[config.key] || {};
-        const currentValue = currentLimits[config.key as keyof typeof currentLimits] || 0;
+        const currentValue = currentLimits[config.key] || 0;
 
         return (
           <div key={config.key} className="rounded-lg border p-4 space-y-3">
