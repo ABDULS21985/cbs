@@ -39,7 +39,7 @@ export function RevokeConsentDialog({
               <div>
                 <h3 className="text-sm font-semibold">Revoke Consent</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Revoke access for <strong>{consent.tppClientName ?? `TPP #${consent.tppClientId}`}</strong>.
+                  Revoke access for <strong>{consent.tppClientName ?? consent.clientId}</strong>.
                   This action cannot be undone.
                 </p>
               </div>

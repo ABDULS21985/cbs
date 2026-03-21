@@ -10,7 +10,7 @@ export function ConsentDetailCard({ consent }: ConsentDetailCardProps) {
   const items = [
     { label: 'Consent ID', value: consent.consentId, mono: true, copyable: true },
     { label: 'Status', value: <StatusBadge status={consent.status} dot /> },
-    { label: 'TPP Client', value: consent.tppClientName ?? `TPP #${consent.tppClientId}` },
+    { label: 'TPP Client', value: consent.tppClientName ?? consent.clientId },
     { label: 'Customer ID', value: String(consent.customerId), mono: true },
     { label: 'Created', value: consent.createdAt, format: 'datetime' as const },
     { label: 'Expires', value: consent.expiresAt, format: 'datetime' as const },

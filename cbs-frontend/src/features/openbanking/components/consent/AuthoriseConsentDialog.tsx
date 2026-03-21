@@ -45,7 +45,7 @@ export function AuthoriseConsentDialog({
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">TPP</span>
-                <span className="font-medium">{consent.tppClientName ?? `TPP #${consent.tppClientId}`}</span>
+                <span className="font-medium">{consent.tppClientName ?? consent.clientId}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Customer</span>

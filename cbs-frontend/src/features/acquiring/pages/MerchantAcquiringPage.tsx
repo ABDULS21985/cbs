@@ -12,6 +12,7 @@ import {
   Shield,
   RefreshCw,
   ChevronRight,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -26,12 +27,17 @@ import {
   useMerchantSettlements,
   useProcessSettlement,
   useRecordChargeback,
+  useSetupFacility,
+  useActivateFacility,
+  useSubmitRepresentment,
+  useMerchantFacilities,
 } from '../hooks/useAcquiring';
+import { useAcquiringFacilities } from '../hooks/useAcquiringExt';
 import type { RiskCategory, ChargebackStatus, Merchant } from '../api/acquiringApi';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-type Tab = 'merchants' | 'settlements' | 'chargebacks' | 'pci';
+type Tab = 'merchants' | 'facilities' | 'settlements' | 'chargebacks' | 'pci';
 
 function formatDate(iso?: string) {
   if (!iso) return '—';
@@ -898,10 +904,124 @@ function PciComplianceTab() {
   );
 }
 
+// ─── Facilities Tab ──────────────────────────────────────────────────────────
+
+function FacilitiesTab() {
+  const { data: facilities = [], isLoading } = useAcquiringFacilities();
+  const { data: merchants = [] } = useActiveMerchants();
+  const setupFacility = useSetupFacility();
+  const activateFacility = useActivateFacility();
+  const [showSetup, setShowSetup] = useState(false);
+  const [setupForm, setSetupForm] = useState({ merchantId: 0, settlementFrequency: 'DAILY' as const, discountRate: 1.5 });
+
+  const activeCount = facilities.filter((f: Record<string, unknown>) => f.status === 'ACTIVE').length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">{facilities.length} facilities · {activeCount} active</div>
+        <button onClick={() => setShowSetup(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+          <Plus className="w-4 h-4" /> Setup Facility
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>
+      ) : facilities.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">No acquiring facilities configured</div>
+      ) : (
+        <div className="rounded-lg border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 border-b"><tr>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Merchant</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Settlement</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">MDR %</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Terminals</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Status</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Actions</th>
+            </tr></thead>
+            <tbody className="divide-y">
+              {facilities.map((f: Record<string, unknown>) => (
+                <tr key={Number(f.id)} className="hover:bg-muted/20">
+                  <td className="px-4 py-2.5 font-medium">{String(f.merchantName ?? `#${f.merchantId}`)}</td>
+                  <td className="px-4 py-2.5 text-xs">{String(f.settlementFrequency ?? f.settlementCycle ?? '—')}</td>
+                  <td className="px-4 py-2.5 font-mono text-xs">{Number(f.discountRate ?? f.mdrRatePct ?? 0).toFixed(2)}%</td>
+                  <td className="px-4 py-2.5 font-mono text-xs">{String(f.terminalCount ?? '0')}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold',
+                      f.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>
+                      {String(f.status)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {f.status !== 'ACTIVE' && (
+                      <button onClick={() => activateFacility.mutate(Number(f.id))}
+                        disabled={activateFacility.isPending}
+                        className="text-xs text-primary hover:underline font-medium">
+                        Activate
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Setup Dialog */}
+      {showSetup && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowSetup(false)} />
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-xl shadow-2xl border w-full max-w-sm p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-semibold">Setup Acquiring Facility</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Merchant</label>
+                  <select value={setupForm.merchantId} onChange={(e) => setSetupForm((f) => ({ ...f, merchantId: Number(e.target.value) }))}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
+                    <option value={0}>Select merchant...</option>
+                    {merchants.map((m: Merchant) => <option key={m.id} value={m.id}>{m.businessName}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Settlement Frequency</label>
+                  <select value={setupForm.settlementFrequency} onChange={(e) => setSetupForm((f) => ({ ...f, settlementFrequency: e.target.value as 'DAILY' | 'WEEKLY' }))}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
+                    <option value="DAILY">Daily</option>
+                    <option value="WEEKLY">Weekly</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">MDR Rate (%)</label>
+                  <input type="number" step="0.01" value={setupForm.discountRate}
+                    onChange={(e) => setSetupForm((f) => ({ ...f, discountRate: parseFloat(e.target.value) || 0 }))}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button onClick={() => setShowSetup(false)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+                <button onClick={() => {
+                  setupFacility.mutate(setupForm, { onSuccess: () => setShowSetup(false) });
+                }} disabled={!setupForm.merchantId || setupFacility.isPending}
+                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  {setupFacility.isPending ? 'Creating...' : 'Setup'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof Store }> = [
   { id: 'merchants', label: 'Merchants', icon: Store },
+  { id: 'facilities', label: 'Facilities', icon: Building2 },
   { id: 'settlements', label: 'Settlements', icon: DollarSign },
   { id: 'chargebacks', label: 'Chargebacks', icon: FileWarning },
   { id: 'pci', label: 'PCI Compliance', icon: Shield },
@@ -984,6 +1104,7 @@ export function MerchantAcquiringPage() {
         </div>
 
         {tab === 'merchants' && <MerchantsTab />}
+        {tab === 'facilities' && <FacilitiesTab />}
         {tab === 'settlements' && <SettlementsTab />}
         {tab === 'chargebacks' && <ChargebacksTab />}
         {tab === 'pci' && <PciComplianceTab />}

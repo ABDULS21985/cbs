@@ -108,7 +108,7 @@ export function OpenBankingPage() {
   const filteredConsents = useMemo(() => {
     let result = consents;
     if (consentStatusFilter) result = result.filter((c) => c.status === consentStatusFilter);
-    if (consentTppFilter) result = result.filter((c) => String(c.tppClientId) === consentTppFilter);
+    if (consentTppFilter) result = result.filter((c) => c.clientId === consentTppFilter);
     if (consentSearch) {
       const q = consentSearch.toLowerCase();
       result = result.filter(
@@ -276,7 +276,7 @@ export function OpenBankingPage() {
               >
                 <option value="">All TPPs</option>
                 {clients.map((c) => (
-                  <option key={c.id} value={String(c.id)}>{c.name}</option>
+                  <option key={c.clientId} value={c.clientId}>{c.name}</option>
                 ))}
               </select>
               <div className="relative">
@@ -496,7 +496,17 @@ export function OpenBankingPage() {
       <RegisterTppSheet
         open={showRegister}
         onClose={() => setShowRegister(false)}
-        onSubmit={(payload, callbacks) => registerTpp.mutate(payload, callbacks)}
+        onSubmit={(payload, callbacks) =>
+          registerTpp.mutate(
+            {
+              name: payload.name,
+              redirectUri: payload.redirectUri,
+              scopes: payload.scopes,
+              clientType: payload.clientType,
+            },
+            callbacks,
+          )
+        }
         isPending={registerTpp.isPending}
       />
 
@@ -552,7 +562,7 @@ function CustomerConsentResults({
         <div key={c.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{c.tppClientName ?? `TPP #${c.tppClientId}`}</span>
+              <span className="text-sm font-medium">{c.tppClientName ?? c.clientId}</span>
               <StatusBadge status={c.status} dot size="sm" />
             </div>
             <div className="flex flex-wrap gap-1 mt-1">

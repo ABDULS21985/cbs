@@ -17,18 +17,6 @@ import {
   Loader2,
   Shield,
 } from 'lucide-react';
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
-
 import { useTppClients, useConsents } from '../hooks/useOpenBanking';
 import type { TppClientType } from '../api/openBankingApi';
 import { TppScopeSelector } from '../components/tpp/TppScopeSelector';
@@ -42,22 +30,6 @@ const TYPE_STYLES: Record<TppClientType, string> = {
   TPP_PISP: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   TPP_BOTH: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
 };
-
-function generateUsageTrend(days = 30) {
-  const data = [];
-  const now = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    data.push({
-      date: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-      calls: Math.floor(Math.random() * 500) + 50,
-      errors: Math.floor(Math.random() * 20),
-      latencyMs: Math.floor(Math.random() * 150) + 80,
-    });
-  }
-  return data;
-}
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -107,11 +79,9 @@ export function TppClientDetailPage() {
 
   const { data: allConsents = [], isLoading: consentsLoading } = useConsents();
   const clientConsents = useMemo(
-    () => allConsents.filter(c => c.tppClientId === client?.id),
+    () => allConsents.filter(c => c.clientId === client?.clientId),
     [allConsents, client],
   );
-
-  const usageTrend = useMemo(() => generateUsageTrend(30), []);
 
   if (isLoading) {
     return (
@@ -135,9 +105,9 @@ export function TppClientDetailPage() {
     );
   }
 
-  const totalCalls = usageTrend.reduce((s, d) => s + d.calls, 0);
-  const totalErrors = usageTrend.reduce((s, d) => s + d.errors, 0);
-  const avgLatency = Math.round(usageTrend.reduce((s, d) => s + d.latencyMs, 0) / usageTrend.length);
+  const totalCalls = client.apiCalls30d ?? client.dailyRequestCount ?? 0;
+  const totalErrors = 0;
+  const avgLatency = 0;
   const activeConsents = clientConsents.filter(c => c.status === 'AUTHORISED').length;
 
   const tabs = [
@@ -156,7 +126,7 @@ export function TppClientDetailPage() {
                   <span className="font-mono text-xs">{client.clientId}</span>
                 </InfoRow>
                 <InfoRow label="Redirect URI">
-                  <span className="font-mono text-xs break-all">{client.redirectUri}</span>
+                  <span className="font-mono text-xs break-all">{client.redirectUri || '—'}</span>
                 </InfoRow>
                 <InfoRow label="Client Type">
                   <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', TYPE_STYLES[client.clientType])}>
@@ -214,35 +184,10 @@ export function TppClientDetailPage() {
             <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <Activity className="h-4 w-4 text-muted-foreground" /> Request Volume (30 days)
             </h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={usageTrend}>
-                <defs>
-                  <linearGradient id="callsGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Area type="monotone" dataKey="calls" stroke="#3b82f6" fill="url(#callsGrad)" name="Calls" />
-                <Area type="monotone" dataKey="errors" stroke="#ef4444" fill="none" strokeDasharray="3 3" name="Errors" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="rounded-lg border bg-card p-4">
-            <h3 className="text-sm font-semibold mb-4">Response Latency (ms)</h3>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={usageTrend.slice(-14)}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Bar dataKey="latencyMs" fill="#f59e0b" name="Latency (ms)" radius={[2, 2, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="rounded-lg border border-dashed text-sm text-muted-foreground p-6 text-center">
+              Real usage trend data is not exposed by the backend for this client yet.
+              Current recorded call count: <span className="font-semibold text-foreground">{totalCalls.toLocaleString()}</span>.
+            </div>
           </div>
         </div>
       ),
@@ -278,7 +223,7 @@ export function TppClientDetailPage() {
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Redirect URI</p>
                 <div className="p-2 rounded border bg-muted/30">
-                  <code className="text-sm font-mono break-all">{client.redirectUri}</code>
+                  <code className="text-sm font-mono break-all">{client.redirectUri || 'Not configured'}</code>
                 </div>
               </div>
               <div>
@@ -329,9 +274,9 @@ export function TppClientDetailPage() {
       {/* Stat Cards */}
       <div className="px-6 grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { icon: Activity, label: 'API Calls (30d)', value: (client.apiCalls30d ?? totalCalls).toLocaleString(), color: 'text-blue-600' },
+          { icon: Activity, label: 'API Calls (30d)', value: totalCalls.toLocaleString(), color: 'text-blue-600' },
           { icon: Shield, label: 'Active Consents', value: (client.activeConsents ?? activeConsents).toString(), color: 'text-green-600' },
-          { icon: BarChart3, label: 'Avg Latency', value: `${avgLatency}ms`, color: 'text-amber-600' },
+          { icon: BarChart3, label: 'Avg Latency', value: avgLatency ? `${avgLatency}ms` : 'n/a', color: 'text-amber-600' },
           { icon: CheckCircle2, label: 'Error Rate', value: `${totalCalls ? ((totalErrors / totalCalls) * 100).toFixed(2) : '0.00'}%`, color: 'text-rose-600' },
         ].map(({ icon: Icon, label, value, color }) => (
           <div key={label} className="rounded-lg border bg-card p-4 flex items-center gap-3">

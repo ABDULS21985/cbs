@@ -116,3 +116,35 @@ export function useRecordChargeback() {
     },
   });
 }
+
+export function useSetupFacility() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof acquiringApi.setupFacility>[0]) =>
+      acquiringApi.setupFacility(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['acquiring', 'facilities'] });
+    },
+  });
+}
+
+export function useActivateFacility() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => acquiringApi.activateFacility(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['acquiring', 'facilities'] });
+    },
+  });
+}
+
+export function useSubmitRepresentment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Parameters<typeof acquiringApi.submitRepresentment>[1] }) =>
+      acquiringApi.submitRepresentment(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QK.chargebacks });
+    },
+  });
+}

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { differenceInCalendarDays, parseISO, subDays } from 'date-fns';
 import { useSearchParams } from 'react-router-dom';
 import { transactionApi, type TransactionSearchParams, type TransactionSummary, type Transaction } from '../api/transactionApi';
 
@@ -17,6 +18,23 @@ export interface TransactionFilters {
   page: number;
   pageSize: number;
 }
+
+export interface SavedSearch {
+  id: string;
+  name: string;
+  filters: TransactionFilters;
+  createdAt: string;
+}
+
+export interface RecentSearch {
+  id: string;
+  label: string;
+  filters: TransactionFilters;
+  executedAt: string;
+}
+
+const SAVED_SEARCHES_STORAGE_KEY = 'transactions:saved-searches';
+const RECENT_SEARCHES_STORAGE_KEY = 'transactions:recent-searches';
 
 const DEFAULT_FILTERS: TransactionFilters = {
   search: '',
@@ -39,6 +57,8 @@ const EMPTY_SUMMARY: TransactionSummary = {
   totalCredit: 0,
   netAmount: 0,
 };
+
+type SearchParamSyncAction = 'trigger' | 'manual-empty-search' | 'reset' | null;
 
 function getInitialFilters(searchParams: URLSearchParams): TransactionFilters {
   return {
@@ -102,14 +122,135 @@ function areFiltersEqual(left: TransactionFilters, right: TransactionFilters): b
   );
 }
 
-type SearchParamSyncAction = 'trigger' | 'manual-empty-search' | 'reset' | null;
+function sanitizeFilters(filters: TransactionFilters): TransactionFilters {
+  return {
+    ...DEFAULT_FILTERS,
+    ...filters,
+    search: filters.search ?? '',
+    accountNumber: filters.accountNumber ?? '',
+    customerId: filters.customerId ?? '',
+    dateFrom: filters.dateFrom ?? '',
+    dateTo: filters.dateTo ?? '',
+    amountFrom: Number.isFinite(filters.amountFrom) ? filters.amountFrom : 0,
+    amountTo: Number.isFinite(filters.amountTo) ? filters.amountTo : 0,
+    type: filters.type ?? DEFAULT_FILTERS.type,
+    channel: filters.channel ?? DEFAULT_FILTERS.channel,
+    status: filters.status ?? DEFAULT_FILTERS.status,
+    page: Number.isFinite(filters.page) ? filters.page : 0,
+    pageSize: Number.isFinite(filters.pageSize) ? filters.pageSize : DEFAULT_FILTERS.pageSize,
+  };
+}
 
-export function useTransactionSearch(autoRefresh = false) {
+function normalizeStoredFilters(value: unknown): TransactionFilters {
+  if (!value || typeof value !== 'object') {
+    return DEFAULT_FILTERS;
+  }
+  return sanitizeFilters(value as TransactionFilters);
+}
+
+function readStoredItems<T>(storageKey: string, normalize: (value: unknown) => T): T[] {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(normalize);
+  } catch {
+    return [];
+  }
+}
+
+function createClientId(prefix: string): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function persistStoredItems<T>(storageKey: string, items: T[]) {
+  localStorage.setItem(storageKey, JSON.stringify(items));
+}
+
+function getSearchDisplayParts(filters: TransactionFilters): string[] {
+  const parts: string[] = [];
+  if (filters.search.trim()) parts.push(filters.search.trim());
+  if (filters.accountNumber.trim()) parts.push(`Acct ${filters.accountNumber.trim()}`);
+  if (filters.customerId.trim()) parts.push(`Cust ${filters.customerId.trim()}`);
+  if (filters.type && filters.type !== 'ALL') parts.push(filters.type);
+  if (filters.status && filters.status !== 'ALL') parts.push(filters.status);
+  if (filters.dateFrom || filters.dateTo) {
+    parts.push([filters.dateFrom || 'Start', filters.dateTo || 'Now'].join(' - '));
+  }
+  return parts;
+}
+
+function buildRecentSearchLabel(filters: TransactionFilters): string {
+  const parts = getSearchDisplayParts(filters);
+  if (parts.length === 0) return 'All transactions';
+  return parts.slice(0, 3).join(' · ');
+}
+
+function getPreviousPeriodFilters(filters: TransactionFilters): TransactionFilters | null {
+  if (!filters.dateFrom || !filters.dateTo) {
+    return null;
+  }
+
+  const from = parseISO(filters.dateFrom);
+  const to = parseISO(filters.dateTo);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) {
+    return null;
+  }
+
+  const daySpan = differenceInCalendarDays(to, from) + 1;
+  const previousTo = subDays(from, 1);
+  const previousFrom = subDays(previousTo, daySpan - 1);
+
+  return sanitizeFilters({
+    ...filters,
+    dateFrom: toLocalDateStamp(previousFrom),
+    dateTo: toLocalDateStamp(previousTo),
+    page: 0,
+  });
+}
+
+function toLocalDateStamp(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function useTransactionSearch(refreshIntervalMs: number | false = false) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<TransactionFilters>(() => getInitialFilters(searchParams));
   const [submittedFilters, setSubmittedFilters] = useState<TransactionFilters>(() => getInitialFilters(searchParams));
   const [hasSearched, setHasSearched] = useState(() => hasUrlFilters(searchParams));
   const [elapsedMs, setElapsedMs] = useState<number | null>(null);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(
+    () =>
+      readStoredItems<SavedSearch>(SAVED_SEARCHES_STORAGE_KEY, (item) => {
+        const saved = item as Partial<SavedSearch>;
+        return {
+          id: typeof saved.id === 'string' ? saved.id : createClientId('saved-search'),
+          name: typeof saved.name === 'string' ? saved.name : buildRecentSearchLabel(DEFAULT_FILTERS),
+          filters: normalizeStoredFilters(saved.filters),
+          createdAt: typeof saved.createdAt === 'string' ? saved.createdAt : new Date().toISOString(),
+        };
+      }).slice(0, 10),
+  );
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>(
+    () =>
+      readStoredItems<RecentSearch>(RECENT_SEARCHES_STORAGE_KEY, (item) => {
+        const recent = item as Partial<RecentSearch>;
+        return {
+          id: typeof recent.id === 'string' ? recent.id : createClientId('recent-search'),
+          label: typeof recent.label === 'string' ? recent.label : buildRecentSearchLabel(DEFAULT_FILTERS),
+          filters: normalizeStoredFilters(recent.filters),
+          executedAt: typeof recent.executedAt === 'string' ? recent.executedAt : new Date().toISOString(),
+        };
+      }).slice(0, 5),
+  );
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<string[]>([]);
   const lastFetchStartedAtRef = useRef<number | null>(null);
   const searchParamSyncActionRef = useRef<SearchParamSyncAction>(null);
 
@@ -128,6 +269,29 @@ export function useTransactionSearch(autoRefresh = false) {
     pageSize: submittedFilters.pageSize,
   }), [submittedFilters]);
 
+  const previousPeriodFilters = useMemo(
+    () => (hasSearched ? getPreviousPeriodFilters(submittedFilters) : null),
+    [hasSearched, submittedFilters],
+  );
+
+  const previousPeriodQueryParams = useMemo<TransactionSearchParams | null>(() => {
+    if (!previousPeriodFilters) return null;
+    return {
+      search: previousPeriodFilters.search || undefined,
+      accountNumber: previousPeriodFilters.accountNumber || undefined,
+      customerId: previousPeriodFilters.customerId || undefined,
+      dateFrom: previousPeriodFilters.dateFrom || undefined,
+      dateTo: previousPeriodFilters.dateTo || undefined,
+      amountFrom: previousPeriodFilters.amountFrom > 0 ? previousPeriodFilters.amountFrom : undefined,
+      amountTo: previousPeriodFilters.amountTo > 0 ? previousPeriodFilters.amountTo : undefined,
+      type: previousPeriodFilters.type !== 'ALL' ? previousPeriodFilters.type : undefined,
+      channel: previousPeriodFilters.channel !== 'ALL' ? previousPeriodFilters.channel : undefined,
+      status: previousPeriodFilters.status !== 'ALL' ? previousPeriodFilters.status : undefined,
+      page: 0,
+      pageSize: 1,
+    };
+  }, [previousPeriodFilters]);
+
   const { data, isLoading, isFetching, isError, refetch, dataUpdatedAt } = useQuery({
     queryKey: ['transactions', 'search', submittedFilters],
     queryFn: async () => {
@@ -136,11 +300,24 @@ export function useTransactionSearch(autoRefresh = false) {
     },
     enabled: hasSearched,
     staleTime: 30_000,
-    refetchInterval: autoRefresh && hasSearched ? 30_000 : false,
+    refetchInterval: hasSearched && refreshIntervalMs ? refreshIntervalMs : false,
+  });
+
+  const { data: previousPeriodResult } = useQuery({
+    queryKey: ['transactions', 'search', 'comparison', previousPeriodFilters],
+    queryFn: () => transactionApi.searchTransactions(previousPeriodQueryParams!),
+    enabled: Boolean(hasSearched && previousPeriodQueryParams),
+    staleTime: 30_000,
   });
 
   const transactions: Transaction[] = data?.transactions ?? [];
   const summary: TransactionSummary = data?.summary ?? EMPTY_SUMMARY;
+  const previousSummary: TransactionSummary | null = previousPeriodResult?.summary ?? null;
+
+  const comparisonPeriodLabel = useMemo(() => {
+    if (!previousPeriodFilters) return null;
+    return `${previousPeriodFilters.dateFrom} to ${previousPeriodFilters.dateTo}`;
+  }, [previousPeriodFilters]);
 
   useEffect(() => {
     const nextHasUrlFilters = hasUrlFilters(searchParams);
@@ -175,16 +352,35 @@ export function useTransactionSearch(autoRefresh = false) {
     setElapsedMs(Math.max(0, Date.now() - lastFetchStartedAtRef.current));
   }, [dataUpdatedAt, hasSearched]);
 
-  const updateFilters = useCallback((partial: Partial<TransactionFilters>) => {
-    setFilters((prev) => ({ ...prev, ...partial }));
+  useEffect(() => {
+    setSelectedTransactionIds((prev) => prev.filter((id) => transactions.some((transaction) => String(transaction.id) === id)));
+  }, [transactions]);
+
+  const persistRecentSearch = useCallback((nextFilters: TransactionFilters) => {
+    setRecentSearches((prev) => {
+      const filtersToStore = sanitizeFilters(nextFilters);
+      const deduped = prev.filter((entry) => !areFiltersEqual(entry.filters, filtersToStore));
+      const updated = [
+        {
+          id: createClientId('recent-search'),
+          label: buildRecentSearchLabel(filtersToStore),
+          filters: filtersToStore,
+          executedAt: new Date().toISOString(),
+        },
+        ...deduped,
+      ].slice(0, 5);
+      persistStoredItems(RECENT_SEARCHES_STORAGE_KEY, updated);
+      return updated;
+    });
   }, []);
 
-  const triggerSearch = useCallback(() => {
-    const nextFilters = { ...filters, page: 0 };
+  const runSearch = useCallback((nextFiltersInput: TransactionFilters, options?: { forceRefetch?: boolean }) => {
+    const nextFilters = sanitizeFilters(nextFiltersInput);
     const nextSearchParams = toSearchParams(nextFilters);
     const nextSearchParamString = nextSearchParams.toString();
     const currentSearchParamString = searchParams.toString();
-    const shouldForceRefetch = hasSearched && areFiltersEqual(nextFilters, submittedFilters);
+    const shouldForceRefetch =
+      options?.forceRefetch ?? (hasSearched && areFiltersEqual(nextFilters, submittedFilters));
 
     if (nextSearchParamString && nextSearchParamString !== currentSearchParamString) {
       searchParamSyncActionRef.current = 'trigger';
@@ -197,12 +393,35 @@ export function useTransactionSearch(autoRefresh = false) {
     setFilters(nextFilters);
     setSubmittedFilters(nextFilters);
     setHasSearched(true);
-    setSearchParams(nextSearchParams);
     setElapsedMs(null);
+    setSelectedTransactionIds([]);
+    setSearchParams(nextSearchParams);
+    persistRecentSearch(nextFilters);
+
     if (shouldForceRefetch) {
       void refetch();
     }
-  }, [filters, hasSearched, refetch, searchParams, setSearchParams, submittedFilters]);
+  }, [hasSearched, persistRecentSearch, refetch, searchParams, setSearchParams, submittedFilters]);
+
+  const updateFilters = useCallback((partial: Partial<TransactionFilters>) => {
+    setFilters((prev) => sanitizeFilters({ ...prev, ...partial }));
+  }, []);
+
+  const triggerSearch = useCallback((override?: Partial<TransactionFilters>) => {
+    const nextFilters = sanitizeFilters({
+      ...filters,
+      ...override,
+      page: override?.page ?? 0,
+    });
+    runSearch(nextFilters);
+  }, [filters, runSearch]);
+
+  const searchWithFilters = useCallback((nextFilters: TransactionFilters) => {
+    runSearch({
+      ...sanitizeFilters(nextFilters),
+      page: 0,
+    }, { forceRefetch: true });
+  }, [runSearch]);
 
   const resetFilters = useCallback(() => {
     searchParamSyncActionRef.current = searchParams.toString() ? 'reset' : null;
@@ -210,28 +429,113 @@ export function useTransactionSearch(autoRefresh = false) {
     setSubmittedFilters(DEFAULT_FILTERS);
     setHasSearched(false);
     setElapsedMs(null);
+    setSelectedTransactionIds([]);
     setSearchParams(new URLSearchParams());
   }, [searchParams, setSearchParams]);
 
+  const saveCurrentSearch = useCallback((name: string) => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      return;
+    }
+
+    setSavedSearches((prev) => {
+      const filtersToStore = sanitizeFilters(filters);
+      const deduped = prev.filter((entry) => entry.name !== trimmedName);
+      const updated = [
+        {
+          id: createClientId('saved-search'),
+          name: trimmedName,
+          filters: filtersToStore,
+          createdAt: new Date().toISOString(),
+        },
+        ...deduped,
+      ].slice(0, 10);
+      persistStoredItems(SAVED_SEARCHES_STORAGE_KEY, updated);
+      return updated;
+    });
+  }, [filters]);
+
+  const deleteSavedSearch = useCallback((id: string) => {
+    setSavedSearches((prev) => {
+      const updated = prev.filter((entry) => entry.id !== id);
+      persistStoredItems(SAVED_SEARCHES_STORAGE_KEY, updated);
+      return updated;
+    });
+  }, []);
+
+  const applySavedSearch = useCallback((id: string) => {
+    const saved = savedSearches.find((entry) => entry.id === id);
+    if (!saved) return;
+    searchWithFilters(saved.filters);
+  }, [savedSearches, searchWithFilters]);
+
+  const applyRecentSearch = useCallback((id: string) => {
+    const recent = recentSearches.find((entry) => entry.id === id);
+    if (!recent) return;
+    searchWithFilters(recent.filters);
+  }, [recentSearches, searchWithFilters]);
+
   const setPage = useCallback((page: number) => {
-    setFilters((prev) => ({ ...prev, page }));
-    setSubmittedFilters((prev) => ({ ...prev, page }));
+    setFilters((prev) => sanitizeFilters({ ...prev, page }));
+    setSubmittedFilters((prev) => sanitizeFilters({ ...prev, page }));
+    setSelectedTransactionIds([]);
   }, []);
 
   const setPageSize = useCallback((pageSize: number) => {
-    setFilters((prev) => ({ ...prev, page: 0, pageSize }));
-    setSubmittedFilters((prev) => ({ ...prev, page: 0, pageSize }));
+    setFilters((prev) => sanitizeFilters({ ...prev, page: 0, pageSize }));
+    setSubmittedFilters((prev) => sanitizeFilters({ ...prev, page: 0, pageSize }));
+    setSelectedTransactionIds([]);
   }, []);
+
+  const toggleTransactionSelection = useCallback((transactionId: string) => {
+    setSelectedTransactionIds((prev) =>
+      prev.includes(transactionId)
+        ? prev.filter((id) => id !== transactionId)
+        : [...prev, transactionId]
+    );
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedTransactionIds([]);
+  }, []);
+
+  const allVisibleSelected = useMemo(
+    () => transactions.length > 0 && transactions.every((transaction) => selectedTransactionIds.includes(String(transaction.id))),
+    [selectedTransactionIds, transactions],
+  );
+
+  const someVisibleSelected = useMemo(
+    () => !allVisibleSelected && transactions.some((transaction) => selectedTransactionIds.includes(String(transaction.id))),
+    [allVisibleSelected, selectedTransactionIds, transactions],
+  );
+
+  const toggleAllVisibleTransactions = useCallback(() => {
+    if (allVisibleSelected) {
+      setSelectedTransactionIds([]);
+      return;
+    }
+    setSelectedTransactionIds(transactions.map((transaction) => String(transaction.id)));
+  }, [allVisibleSelected, transactions]);
+
+  const selectedTransactions = useMemo(
+    () => transactions.filter((transaction) => selectedTransactionIds.includes(String(transaction.id))),
+    [selectedTransactionIds, transactions],
+  );
 
   return {
     filters,
+    appliedFilters: submittedFilters,
     updateFilters,
     triggerSearch,
+    searchWithFilters,
     resetFilters,
     setPage,
     setPageSize,
     transactions,
     summary,
+    previousSummary,
+    comparisonPeriodLabel,
     isLoading,
     isFetching,
     isRefreshing: isFetching && !isLoading,
@@ -239,5 +543,18 @@ export function useTransactionSearch(autoRefresh = false) {
     refetch,
     elapsedMs,
     hasSearched,
+    savedSearches,
+    recentSearches,
+    saveCurrentSearch,
+    deleteSavedSearch,
+    applySavedSearch,
+    applyRecentSearch,
+    selectedTransactionIds,
+    selectedTransactions,
+    allVisibleSelected,
+    someVisibleSelected,
+    toggleTransactionSelection,
+    toggleAllVisibleTransactions,
+    clearSelection,
   };
 }

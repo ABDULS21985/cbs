@@ -55,7 +55,7 @@ export function ConsentManagementPage() {
         String(c.customerId).includes(search) ||
         (c.tppClientName?.toLowerCase().includes(search.toLowerCase()) ?? false);
       const matchStatus = statusFilter === 'ALL' || c.status === statusFilter;
-      const matchTpp = tppFilter === 'ALL' || String(c.tppClientId) === tppFilter;
+      const matchTpp = tppFilter === 'ALL' || c.clientId === tppFilter;
       return matchSearch && matchStatus && matchTpp;
     });
   }, [consents, search, statusFilter, tppFilter]);
@@ -93,7 +93,7 @@ export function ConsentManagementPage() {
   }
 
   function handleBulkRevoke() {
-    Promise.all(selectedConsents.map(c => revokeMutation.mutateAsync({ consentId: c.id })))
+    Promise.all(selectedConsents.map(c => revokeMutation.mutateAsync({ consentId: c.consentId })))
       .then(() => { toast.success(`${selectedConsents.length} consents revoked`); setSelectedConsents([]); })
       .catch(() => toast.error('Bulk revoke partially failed'));
   }
@@ -188,7 +188,7 @@ export function ConsentManagementPage() {
           >
             <option value="ALL">All TPP Clients</option>
             {tppClients.map(t => (
-              <option key={t.id} value={String(t.id)}>{t.name}</option>
+              <option key={t.clientId} value={t.clientId}>{t.name}</option>
             ))}
           </select>
           {selectedConsents.length > 0 && (

@@ -15,7 +15,7 @@ export function CustomerConsentSummary({ customerId, consents, onRevoke }: Custo
   const tppMap = new Map<string, ApiConsent[]>();
 
   consents.forEach((c) => {
-    const tppName = c.tppClientName ?? `TPP #${c.tppClientId}`;
+    const tppName = c.tppClientName ?? c.clientId;
     if (!tppMap.has(tppName)) tppMap.set(tppName, []);
     tppMap.get(tppName)!.push(c);
   });

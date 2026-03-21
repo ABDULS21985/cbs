@@ -12,6 +12,11 @@ import { AccountMaintenancePage } from '@/features/accounts/pages/AccountMainten
 import { AccountOpeningPage } from '@/features/accounts/pages/AccountOpeningPage';
 import { AccountDetailPage } from '@/features/accounts/pages/AccountDetailPage';
 import { PortalLayout } from '@/features/portal/layout/PortalLayout';
+import {
+  TransactionPostingPage,
+  ProductCatalogPage,
+  InterestOperationsPage,
+} from './lazyRoutes';
 import CustomerListPage from '@/features/customers/pages/CustomerListPage';
 import Customer360Page from '@/features/customers/pages/Customer360Page';
 import { CustomerAnalyticsPage as CustomerProfitabilityPage } from '@/features/customers/pages/CustomerAnalyticsPage';
@@ -357,6 +362,9 @@ export function AppRouter() {
         <Route path="/accounts" element={<Outlet />}>
           <Route index element={<AccountListPage />} />
           <Route path="open" element={<AccountOpeningPage />} />
+          <Route path="post-transaction" element={<TransactionPostingPage />} />
+          <Route path="products" element={<ProductCatalogPage />} />
+          <Route path="interest-ops" element={<InterestOperationsPage />} />
           <Route path="fixed-deposits" element={<FixedDepositListPage />} />
           <Route path="fixed-deposits/new" element={<NewFixedDepositPage />} />
           <Route path="fixed-deposits/dashboard" element={<DepositDashboardPage />} />

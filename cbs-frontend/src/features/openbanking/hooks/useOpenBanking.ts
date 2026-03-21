@@ -32,7 +32,7 @@ export function useRegisterTppClient() {
 export function useConsents(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: QK.consentsList(params),
-    queryFn: () => openBankingApi.getConsents(params),
+    queryFn: () => openBankingApi.getConsents(),
     staleTime: 30_000,
   });
 }
@@ -65,8 +65,8 @@ export function useAuthoriseConsent() {
 export function useRevokeConsent(customerId?: string | number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ consentId, reason }: { consentId: string | number; reason?: string }) =>
-      openBankingApi.revokeConsent(consentId, reason),
+    mutationFn: ({ consentId }: { consentId: string | number; reason?: string }) =>
+      openBankingApi.revokeConsent(consentId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.consents });
       if (customerId) qc.invalidateQueries({ queryKey: QK.customerConsents(customerId) });

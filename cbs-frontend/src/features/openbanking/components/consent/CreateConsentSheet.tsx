@@ -10,7 +10,14 @@ interface CreateConsentSheetProps {
   onClose: () => void;
   tppClients: TppClient[];
   onSubmit: (
-    payload: { tppClientId: number; customerId: number; scopes: string[]; expiresAt: string },
+    payload: {
+      clientId: string;
+      customerId: number;
+      consentType: string;
+      permissions: string[];
+      accountIds?: number[];
+      validityMinutes: number;
+    },
     callbacks: { onSuccess: () => void; onError: () => void },
   ) => void;
   isPending: boolean;
@@ -25,9 +32,10 @@ const EXPIRY_OPTIONS = [
 
 export function CreateConsentSheet({ open, onClose, tppClients, onSubmit, isPending }: CreateConsentSheetProps) {
   const [form, setForm] = useState({
-    tppClientId: 0,
+    clientId: '',
     customerId: '',
     scopes: [] as string[],
+    accountIdsInput: '',
     expiryDays: 90,
     customExpiry: '',
   });
@@ -37,30 +45,40 @@ export function CreateConsentSheet({ open, onClose, tppClients, onSubmit, isPend
   const inputCls =
     'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
 
-  const selectedTpp = tppClients.find((t) => t.id === form.tppClientId);
+  const selectedTpp = tppClients.find((t) => t.clientId === form.clientId);
 
-  const getExpiryDate = (): string => {
+  const getValidityMinutes = (): number => {
     if (form.expiryDays === 0 && form.customExpiry) {
-      return new Date(form.customExpiry).toISOString();
+      const now = Date.now();
+      const end = new Date(form.customExpiry).getTime();
+      return Math.max(1, Math.round((end - now) / 60_000));
     }
-    const d = new Date();
-    d.setDate(d.getDate() + (form.expiryDays || 90));
-    return d.toISOString();
+    return (form.expiryDays || 90) * 24 * 60;
+  };
+
+  const parseAccountIds = (): number[] | undefined => {
+    const parsed = form.accountIdsInput
+      .split(',')
+      .map((v) => Number(v.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    return parsed.length ? parsed : undefined;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(
       {
-        tppClientId: form.tppClientId,
+        clientId: form.clientId,
         customerId: Number(form.customerId),
-        scopes: form.scopes,
-        expiresAt: getExpiryDate(),
+        consentType: selectedTpp?.clientType ?? 'TPP_AISP',
+        permissions: form.scopes,
+        accountIds: parseAccountIds(),
+        validityMinutes: getValidityMinutes(),
       },
       {
         onSuccess: () => {
           toast.success('Consent created successfully');
-          setForm({ tppClientId: 0, customerId: '', scopes: [], expiryDays: 90, customExpiry: '' });
+          setForm({ clientId: '', customerId: '', scopes: [], accountIdsInput: '', expiryDays: 90, customExpiry: '' });
           onClose();
         },
         onError: () => toast.error('Failed to create consent'),
@@ -69,7 +87,7 @@ export function CreateConsentSheet({ open, onClose, tppClients, onSubmit, isPend
   };
 
   const handleClose = () => {
-    setForm({ tppClientId: 0, customerId: '', scopes: [], expiryDays: 90, customExpiry: '' });
+    setForm({ clientId: '', customerId: '', scopes: [], accountIdsInput: '', expiryDays: 90, customExpiry: '' });
     onClose();
   };
 
@@ -98,14 +116,14 @@ export function CreateConsentSheet({ open, onClose, tppClients, onSubmit, isPend
                 <select
                   required
                   className={inputCls}
-                  value={form.tppClientId}
-                  onChange={(e) => setForm((f) => ({ ...f, tppClientId: Number(e.target.value) }))}
+                  value={form.clientId}
+                  onChange={(e) => setForm((f) => ({ ...f, clientId: e.target.value }))}
                 >
-                  <option value={0} disabled>Select a TPP client...</option>
+                  <option value="" disabled>Select a TPP client...</option>
                   {tppClients
                     .filter((t) => t.status === 'ACTIVE')
                     .map((t) => (
-                      <option key={t.id} value={t.id}>
+                      <option key={t.clientId} value={t.clientId}>
                         {t.name} ({t.clientId})
                       </option>
                     ))}
@@ -122,6 +140,17 @@ export function CreateConsentSheet({ open, onClose, tppClients, onSubmit, isPend
                   value={form.customerId}
                   onChange={(e) => setForm((f) => ({ ...f, customerId: e.target.value }))}
                   placeholder="e.g. 1001"
+                />
+              </div>
+
+              {/* Account IDs */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Account IDs (optional)</label>
+                <input
+                  className={inputCls}
+                  value={form.accountIdsInput}
+                  onChange={(e) => setForm((f) => ({ ...f, accountIdsInput: e.target.value }))}
+                  placeholder="e.g. 1002001,1002002"
                 />
               </div>
 
@@ -180,7 +209,7 @@ export function CreateConsentSheet({ open, onClose, tppClients, onSubmit, isPend
                   type="submit"
                   disabled={
                     isPending ||
-                    !form.tppClientId ||
+                    !form.clientId ||
                     !form.customerId ||
                     form.scopes.length === 0 ||
                     (form.expiryDays === 0 && !form.customExpiry)

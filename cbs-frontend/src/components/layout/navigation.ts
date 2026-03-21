@@ -42,6 +42,9 @@ export const navigationItems: NavSection[] = [
         children: [
           { label: 'All Accounts', path: '/accounts' },
           { label: 'Open Account', path: '/accounts/open' },
+          { label: 'Post Transaction', path: '/accounts/post-transaction' },
+          { label: 'Products', path: '/accounts/products' },
+          { label: 'Interest Ops', path: '/accounts/interest-ops' },
           { label: 'Fixed Deposits', path: '/accounts/fixed-deposits' },
           { label: 'Recurring Deposits', path: '/accounts/recurring-deposits' },
           { label: 'Savings Goals', path: '/accounts/goals' },
@@ -94,6 +97,16 @@ export const navigationItems: NavSection[] = [
           { label: 'Merchants', path: '/cards/merchants' },
           { label: 'POS Terminals', path: '/cards/pos' },
           { label: 'Clearing & Settlement', path: '/cards/clearing' },
+        ],
+      },
+      {
+        label: 'Acquiring', icon: CreditCard, path: '/acquiring', roles: ['CBS_ADMIN', 'CBS_OFFICER'],
+        children: [
+          { label: 'Merchants', path: '/acquiring' },
+          { label: 'Facilities', path: '/acquiring?tab=facilities' },
+          { label: 'Settlements', path: '/acquiring?tab=settlements' },
+          { label: 'Chargebacks', path: '/acquiring?tab=chargebacks' },
+          { label: 'PCI Compliance', path: '/acquiring?tab=pci' },
         ],
       },
     ],

@@ -261,4 +261,54 @@ export const accountDetailApi = {
   getLinkedProducts: async (accountId: string): Promise<LinkedProducts> => {
     return apiGet<LinkedProducts>(`/api/v1/accounts/${accountId}/linked-products`);
   },
+
+  // ── Transaction Posting ─────────────────────────────────────────────────
+  postDebit: (data: { accountNumber: string; amount: number; narration: string; channel?: string; externalRef?: string }) =>
+    apiPost<Record<string, unknown>>('/api/v1/accounts/transactions/debit', {
+      accountNumber: data.accountNumber, transactionType: 'DEBIT', amount: data.amount,
+      narration: data.narration, channel: data.channel || 'BRANCH', externalRef: data.externalRef,
+    }),
+
+  postCredit: (data: { accountNumber: string; amount: number; narration: string; channel?: string; externalRef?: string }) =>
+    apiPost<Record<string, unknown>>('/api/v1/accounts/transactions/credit', {
+      accountNumber: data.accountNumber, transactionType: 'CREDIT', amount: data.amount,
+      narration: data.narration, channel: data.channel || 'BRANCH', externalRef: data.externalRef,
+    }),
+
+  postTransfer: (data: { fromAccountNumber: string; toAccountNumber: string; amount: number; narration: string }) =>
+    apiPost<Record<string, unknown>>('/api/v1/accounts/transactions/transfer', {
+      accountNumber: data.fromAccountNumber, contraAccountNumber: data.toAccountNumber,
+      transactionType: 'TRANSFER_OUT', amount: data.amount, narration: data.narration, channel: 'BRANCH',
+    }),
+
+  // ── Interest Operations ─────────────────────────────────────────────────
+  accrueInterest: (accountId: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/accounts/${accountId}/interest/accrue`),
+
+  postInterest: (accountId: string) =>
+    apiPost<Record<string, unknown>>(`/api/v1/accounts/${accountId}/interest/post`),
+
+  batchAccrueInterest: (productCode?: string) =>
+    apiPost<Record<string, unknown>>('/api/v1/accounts/interest/batch-accrue', undefined),
+
+  // ── Products ────────────────────────────────────────────────────────────
+  getProducts: () =>
+    apiGet<Record<string, unknown>[]>('/api/v1/accounts/products'),
+
+  getProduct: (code: string) =>
+    apiGet<Record<string, unknown>>(`/api/v1/accounts/products/${code}`),
+
+  getProductsByCategory: (category: string) =>
+    apiGet<Record<string, unknown>[]>(`/api/v1/accounts/products/category/${category}`),
+
+  // ── Dashboard ───────────────────────────────────────────────────────────
+  getSummary: () =>
+    apiGet<Record<string, unknown>>('/api/v1/accounts/summary'),
+
+  // ── Transaction Search (cross-account) ──────────────────────────────────
+  searchTransactions: (params: Record<string, unknown>) =>
+    apiGet<Record<string, unknown>[]>('/api/v1/transactions', params),
+
+  reverseTransaction: (transactionId: number) =>
+    apiPost<Record<string, unknown>>(`/api/v1/transactions/${transactionId}/reverse`),
 };

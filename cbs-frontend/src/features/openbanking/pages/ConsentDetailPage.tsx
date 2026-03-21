@@ -231,7 +231,7 @@ export function ConsentDetailPage() {
     <div className="space-y-0">
       <PageHeader
         title={`Consent ${consent.consentId}`}
-        subtitle={`Customer ${consent.customerId} · ${consent.tppClientName ?? `TPP #${consent.tppClientId}`}`}
+        subtitle={`Customer ${consent.customerId} · ${consent.tppClientName ?? consent.clientId}`}
         backTo="/open-banking/consents"
         actions={
           <div className="flex gap-2">

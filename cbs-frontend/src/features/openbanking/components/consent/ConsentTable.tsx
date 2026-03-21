@@ -38,7 +38,7 @@ export function ConsentTable({
       header: 'TPP Name',
       cell: ({ row }) => (
         <span className="text-sm font-medium">
-          {row.original.tppClientName ?? `TPP #${row.original.tppClientId}`}
+          {row.original.tppClientName ?? row.original.clientId}
         </span>
       ),
     },

@@ -37,6 +37,19 @@ export const DepositDashboardPage = lazyNamed(
   'DepositDashboardPage',
 );
 
+export const TransactionPostingPage = lazyNamed(
+  () => import('@/features/accounts/pages/TransactionPostingPage'),
+  'TransactionPostingPage',
+);
+export const ProductCatalogPage = lazyNamed(
+  () => import('@/features/accounts/pages/ProductCatalogPage'),
+  'ProductCatalogPage',
+);
+export const InterestOperationsPage = lazyNamed(
+  () => import('@/features/accounts/pages/InterestOperationsPage'),
+  'InterestOperationsPage',
+);
+
 export const ReconciliationWorkbenchPage = lazyNamed(
   () => import('@/features/reconciliation/pages/ReconciliationWorkbenchPage'),
   'ReconciliationWorkbenchPage',
