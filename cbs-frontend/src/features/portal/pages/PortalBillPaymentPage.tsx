@@ -22,9 +22,9 @@ export function PortalBillPaymentPage() {
   const { data: billers = [] } = useQuery({ queryKey: ['portal', 'billers'], queryFn: () => portalApi.getBillers() });
   const { data: accounts = [] } = useQuery({ queryKey: ['portal', 'accounts'], queryFn: () => portalApi.getAccounts() });
 
-  const validateMut = useMutation({ mutationFn: () => portalApi.validateBiller(selectedBiller?.id as number, customerRef), onSuccess: (d) => { setValidated(d); setStep(3); } });
+  const validateMut = useMutation({ mutationFn: () => portalApi.validateBiller(selectedBiller?.code as string || '', customerRef), onSuccess: (d) => { setValidated(d); setStep(3); } });
   const payMut = useMutation({
-    mutationFn: () => portalApi.payBill({ billerId: selectedBiller?.id as number, billerName: selectedBiller?.name as string, customerRef, amount, accountId }),
+    mutationFn: () => portalApi.payBill({ billerCode: selectedBiller?.code as string, billerName: selectedBiller?.name as string, customerRef, amount, accountId }),
     onSuccess: () => { toast.success('Bill paid successfully!'); setStep(4); },
     onError: () => toast.error('Payment failed'),
   });

@@ -4,6 +4,7 @@ import { Bell, CheckCheck, AlertTriangle, CreditCard, Megaphone, Settings, Loade
 import { cn } from '@/lib/utils';
 import { formatRelative } from '@/lib/formatters';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/stores/authStore';
 import { portalApi } from '../api/portalApi';
 import { Link } from 'react-router-dom';
 
@@ -12,11 +13,13 @@ const CAT_ICONS: Record<string, React.ElementType> = { Transactions: CreditCard,
 
 export function PortalNotificationsPage() {
   useEffect(() => { document.title = 'Notifications | BellBank'; }, []);
+  const { user } = useAuthStore();
+  const customerId = Number(user?.id) || 0;
   const [category, setCategory] = useState('All');
   const qc = useQueryClient();
 
   const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ['portal', 'notifications', 'all'], queryFn: () => portalApi.getNotifications(0, 50), refetchInterval: 30_000,
+    queryKey: ['portal', 'notifications', 'all', customerId], queryFn: () => portalApi.getNotifications(customerId, 0, 50), enabled: customerId > 0, refetchInterval: 30_000,
   });
 
   const markReadMut = useMutation({

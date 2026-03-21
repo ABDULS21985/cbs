@@ -252,17 +252,17 @@ export const portalApi = {
     apiGet<EnhancedDashboard>(`/api/v1/portal/dashboard/enhanced/${customerId}`),
 
   // ─── Notifications ────────────────────────────────────────────────────
-  getNotifications: (page = 0, size = 20) =>
-    apiGet<Record<string, unknown>[]>('/api/v1/portal/notifications', { page, size } as Record<string, unknown>),
+  getNotifications: (customerId: number, page = 0, size = 20) =>
+    apiGet<Record<string, unknown>[]>('/api/v1/portal/notifications', { customerId, page, size } as Record<string, unknown>),
   markNotificationsRead: (ids: number[]) =>
     apiPost<Record<string, unknown>>('/api/v1/portal/notifications/mark-read', { ids }),
 
   // ─── Bills & Airtime ──────────────────────────────────────────────────
   getBillers: () =>
     apiGet<Record<string, unknown>[]>('/api/v1/portal/billers'),
-  validateBiller: (billerId: number, customerRef: string) =>
-    apiPost<Record<string, unknown>>('/api/v1/portal/billers/validate', { billerId, customerRef }),
-  payBill: (data: { billerId: number; billerName: string; customerRef: string; amount: number; accountId: number }) =>
+  validateBiller: (billerCode: string, customerRef: string) =>
+    apiPost<Record<string, unknown>>('/api/v1/portal/billers/validate', { billerCode, customerRef }),
+  payBill: (data: { billerCode?: string; billerName: string; customerRef: string; amount: number; accountId: number }) =>
     apiPost<Record<string, unknown>>('/api/v1/portal/billers/pay', data),
   purchaseAirtime: (data: { network: string; phone: string; amount: number; type: string; accountId: number }) =>
     apiPost<Record<string, unknown>>('/api/v1/portal/airtime/purchase', data),

@@ -49,8 +49,9 @@ export function PortalLayout() {
   const [remaining, setRemaining] = useState(SESSION_MS);
   const lastActivity = useRef(Date.now());
 
+  const customerId = Number(user?.id) || 0;
   const { data: notifications = [] } = useQuery({
-    queryKey: ['portal', 'notifications'], queryFn: () => portalApi.getNotifications(0, 5), staleTime: 30_000,
+    queryKey: ['portal', 'notifications', customerId], queryFn: () => portalApi.getNotifications(customerId, 0, 5), enabled: customerId > 0, staleTime: 30_000,
   });
   const unreadCount = Array.isArray(notifications) ? notifications.filter((n: Record<string, unknown>) => !n.read).length : 0;
 
