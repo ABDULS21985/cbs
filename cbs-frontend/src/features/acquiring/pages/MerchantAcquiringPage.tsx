@@ -948,7 +948,7 @@ function PciComplianceTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {facilities.map((f: AcquiringFacility) => (
+                  {facilities.map((f) => (
                     <tr key={f.id} className="hover:bg-muted/20">
                       <td className="px-5 py-2 text-xs">Merchant #{f.merchantId}</td>
                       <td className="px-5 py-2 text-xs">{f.facilityType ?? '—'}</td>
@@ -996,7 +996,7 @@ function FacilitiesTab() {
     processorConnection: 'VISA',
   });
 
-  const activeCount = facilities.filter((f: AcquiringFacility) => f.status === 'ACTIVE').length;
+  const activeCount = facilities.filter((f) => f.status === 'ACTIVE').length;
 
   return (
     <div className="space-y-4">
@@ -1024,7 +1024,7 @@ function FacilitiesTab() {
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Actions</th>
             </tr></thead>
             <tbody className="divide-y">
-              {facilities.map((f: AcquiringFacility) => (
+              {facilities.map((f) => (
                 <tr key={f.id} className="hover:bg-muted/20">
                   <td className="px-4 py-2.5 font-medium">Merchant #{f.merchantId}</td>
                   <td className="px-4 py-2.5 text-xs">{f.facilityType ?? '—'}</td>

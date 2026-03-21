@@ -13,35 +13,34 @@ const wrap = (data: unknown) => ({ success: true, data, timestamp: new Date().to
 
 const mockCard = {
   id: 1,
+  cardReference: 'CRD-TEST001',
   cardNumberMasked: '**** **** **** 4532',
-  customerName: 'John Doe',
+  customerDisplayName: 'John Doe',
   customerId: 101,
   cardType: 'DEBIT',
-  scheme: 'VISA',
+  cardScheme: 'VISA',
   accountNumber: '0100000001',
   accountId: 1,
   expiryDate: '03/28',
-  nameOnCard: 'JOHN DOE',
+  cardholderName: 'JOHN DOE',
+  cardTier: 'CLASSIC',
   status: 'ACTIVE',
-  issuedDate: '2024-03-15',
-  deliveryMethod: 'BRANCH_PICKUP',
-  controls: {
-    posEnabled: true,
-    atmEnabled: true,
-    onlineEnabled: false,
-    internationalEnabled: false,
-    contactlessEnabled: true,
-    recurringEnabled: true,
-  },
+  issueDate: '2024-03-15',
+  contactlessEnabled: true,
+  onlineEnabled: false,
+  atmEnabled: true,
+  posEnabled: true,
+  internationalEnabled: false,
 };
 
 const mockTransactions = [
   {
-    id: 1, transactionRef: 'TXN001', cardMasked: '4532', merchantName: 'Shoprite',
-    merchantId: 'M001', mcc: '5411', mccDescription: 'Grocery Stores',
-    amount: 15000, currency: 'NGN', authCode: 'A123', responseCode: '00',
-    responseDescription: 'Approved', channel: 'POS', transactionDate: '2024-03-15',
-    status: 'APPROVED', fraudScore: 5,
+    id: 1, transactionRef: 'TXN001', cardId: 1, cardReference: 'CRD-TEST001',
+    accountId: 1, accountNumber: '0100000001',
+    merchantName: 'Shoprite', merchantId: 'M001', merchantCategoryCode: '5411',
+    amount: 15000, currencyCode: 'NGN', authCode: 'A123', responseCode: '00',
+    channel: 'POS', transactionDate: '2024-03-15',
+    status: 'AUTHORIZED', transactionType: 'PURCHASE',
   },
 ];
 

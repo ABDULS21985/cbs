@@ -22,7 +22,7 @@ const mockDisputes = [
     provisionalCreditReversed: false, evidenceDocuments: [],
     merchantResponse: '', merchantResponseDate: '',
     resolutionType: '', resolutionAmount: 0, resolutionDate: '',
-    resolutionNotes: '', status: 'OPEN', assignedTo: 'agent-1',
+    resolutionNotes: '', status: 'INITIATED', assignedTo: 'agent-1',
     createdAt: '2024-03-12T10:00:00Z', createdBy: 'customer',
     version: 0, timeline: [],
   },

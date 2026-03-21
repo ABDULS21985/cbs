@@ -167,4 +167,122 @@ class CardServiceTest {
         assertThat(txn.getStatus()).isEqualTo("DECLINED");
         assertThat(txn.getResponseCode()).isEqualTo("51");
     }
+
+    @Test
+    @DisplayName("activateCard: activates a PENDING_ACTIVATION card")
+    void activateCard_PendingCard() {
+        debitCard.setStatus(CardStatus.PENDING_ACTIVATION);
+        when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+        when(cardRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Card result = cardService.activateCard(1L);
+
+        assertThat(result.getStatus()).isEqualTo(CardStatus.ACTIVE);
+        assertThat(result.getBlockReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("activateCard: unlocks a BLOCKED card")
+    void activateCard_BlockedCard() {
+        debitCard.setStatus(CardStatus.BLOCKED);
+        debitCard.setBlockReason("Customer requested temporary lock");
+        when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+        when(cardRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Card result = cardService.activateCard(1L);
+
+        assertThat(result.getStatus()).isEqualTo(CardStatus.ACTIVE);
+        assertThat(result.getBlockReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("activateCard: rejects activation for ACTIVE card")
+    void activateCard_ActiveCard_Rejected() {
+        debitCard.setStatus(CardStatus.ACTIVE);
+        when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+            com.cbs.common.exception.BusinessException.class,
+            () -> cardService.activateCard(1L)
+        );
+    }
+
+    @Test
+    @DisplayName("blockCard: blocks an ACTIVE card with reason")
+    void blockCard_Success() {
+        when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+        when(cardRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Card result = cardService.blockCard(1L, "Customer request");
+
+        assertThat(result.getStatus()).isEqualTo(CardStatus.BLOCKED);
+        assertThat(result.getBlockReason()).isEqualTo("Customer request");
+    }
+
+    @Test
+    @DisplayName("hotlistCard: sets LOST status when reason contains 'lost'")
+    void hotlistCard_Lost() {
+        when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+        when(cardRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Card result = cardService.hotlistCard(1L, "Card lost at restaurant");
+
+        assertThat(result.getStatus()).isEqualTo(CardStatus.LOST);
+    }
+
+    @Test
+    @DisplayName("hotlistCard: sets STOLEN status when reason contains 'stolen'")
+    void hotlistCard_Stolen() {
+        when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+        when(cardRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Card result = cardService.hotlistCard(1L, "Card was stolen");
+
+        assertThat(result.getStatus()).isEqualTo(CardStatus.STOLEN);
+    }
+
+    @Test
+    @DisplayName("hotlistCard: sets HOT_LISTED status for generic reason")
+    void hotlistCard_Generic() {
+        when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+        when(cardRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Card result = cardService.hotlistCard(1L, "Fraud suspected");
+
+        assertThat(result.getStatus()).isEqualTo(CardStatus.HOT_LISTED);
+    }
+
+    @Test
+    @DisplayName("updateControls: updates individual card controls")
+    void updateControls_Success() {
+        when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+        when(cardRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        Card result = cardService.updateControls(1L, null, false, true, null, null);
+
+        assertThat(result.getIsOnlineEnabled()).isFalse();
+        assertThat(result.getIsInternationalEnabled()).isTrue();
+        assertThat(result.getIsContactlessEnabled()).isTrue(); // unchanged
+    }
+
+    @Test
+    @DisplayName("disputeTransaction: marks transaction as disputed")
+    void disputeTransaction_Success() {
+        CardTransaction existingTxn = CardTransaction.builder()
+                .id(100L).transactionRef("CTX-TX001")
+                .card(debitCard).account(account)
+                .transactionType("PURCHASE").channel("POS")
+                .amount(new BigDecimal("5000")).currencyCode("USD")
+                .status("AUTHORIZED").isDisputed(false)
+                .transactionDate(Instant.now()).build();
+        when(txnRepository.findById(100L)).thenReturn(Optional.of(existingTxn));
+        when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CardTransaction result = cardService.disputeTransaction(100L, "Unauthorized transaction");
+
+        assertThat(result.getIsDisputed()).isTrue();
+        assertThat(result.getDisputeReason()).isEqualTo("Unauthorized transaction");
+        assertThat(result.getStatus()).isEqualTo("DISPUTED");
+        assertThat(result.getDisputeDate()).isEqualTo(LocalDate.now());
+    }
 }

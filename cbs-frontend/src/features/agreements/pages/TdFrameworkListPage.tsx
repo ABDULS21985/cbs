@@ -15,6 +15,7 @@ import {
   useCheckTdRate,
   useLargeDeposits,
 } from '../hooks/useAgreementsExt';
+import { useHasRole } from '@/hooks/usePermission';
 import type { TdFrameworkAgreement, CreateTdFrameworkPayload, RateCheckResult } from '../types/agreementExt';
 
 // ── Rate Tier Row ────────────────────────────────────────────────────────────

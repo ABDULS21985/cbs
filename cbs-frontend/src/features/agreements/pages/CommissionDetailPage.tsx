@@ -72,7 +72,7 @@ export function CommissionDetailPage() {
     { accessorKey: 'status', header: 'Status', cell: ({ getValue }) => <StatusBadge status={getValue<string>()} /> },
     {
       id: 'actions', header: '', cell: ({ row }) => {
-        if (row.original.status !== 'CALCULATED') return null;
+        if (row.original.status !== 'CALCULATED' || !isAdmin) return null;
         return (
           <button
             onClick={(e) => { e.stopPropagation(); approveMut.mutate(row.original.payoutCode, { onSuccess: () => toast.success('Approved') }); }}
@@ -126,7 +126,7 @@ export function CommissionDetailPage() {
         backTo="/agreements/commissions"
         actions={
           <div className="flex items-center gap-2">
-            {agreement.status === 'DRAFT' && (
+            {agreement.status === 'DRAFT' && isAdmin && (
               <button
                 onClick={() => activateMut.mutate(agreement.agreementCode, { onSuccess: () => toast.success('Activated') })}
                 disabled={activateMut.isPending}
@@ -135,7 +135,7 @@ export function CommissionDetailPage() {
                 <Check className="w-4 h-4" /> Activate
               </button>
             )}
-            {agreement.status === 'ACTIVE' && (
+            {agreement.status === 'ACTIVE' && isAdmin && (
               <button
                 onClick={() => setShowCalc(true)}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"

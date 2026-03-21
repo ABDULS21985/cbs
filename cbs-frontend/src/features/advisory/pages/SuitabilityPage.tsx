@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Plus, ShieldCheck, AlertCircle, Clock, Users } from 'lucide-react';
+import { Plus, ShieldCheck, AlertCircle, Clock, Users, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge } from '@/components/shared';
+import { RoleGuard } from '@/components/auth/RoleGuard';
+import { useHasRole } from '@/hooks/usePermission';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import {
   useExpiredProfiles,
