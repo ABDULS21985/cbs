@@ -1,9 +1,11 @@
 import { apiGet, apiPost, apiPut } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type {
+  CustomerAgreement,
   CreateCustomerAgreementPayload,
   CreateTdFrameworkPayload,
   TdFrameworkSummary,
+  CommissionAgreement,
   CreateCommissionAgreementPayload,
   CalculatePayoutParams,
   CreateDiscountSchemePayload,
@@ -125,7 +127,8 @@ export function useActivateAgreement() {
 export function useTerminateAgreement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (agreementNumber: string) => terminateAgreement(agreementNumber),
+    mutationFn: ({ agreementNumber, reason }: { agreementNumber: string; reason?: string }) =>
+      terminateAgreement(agreementNumber, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: agreementKeys.all });
     },
@@ -296,10 +299,10 @@ export function useApprovePayout() {
   return useMutation({
     mutationFn: (payoutCode: string) => approvePayout(payoutCode),
     onSuccess: () => {
-      // Invalidate all payout-related caches
       qc.invalidateQueries({
         predicate: (q) => q.queryKey[0] === 'commission-payouts',
       });
+      qc.invalidateQueries({ queryKey: agreementKeys.commissions });
     },
   });
 }
@@ -434,34 +437,12 @@ export function useTdFramework(agreementNumber: string) {
   });
 }
 
-export function useTdMaturityLadder(agreementId?: number) {
-  return useQuery({
-    queryKey: ['td-maturity-ladder', agreementId],
-    queryFn: () => getMaturityLadder(agreementId ?? 0),
-    enabled: !!agreementId,
-  });
-}
-
-export function useTdRolloverForecast(agreementId?: number) {
-  return useQuery({
-    queryKey: ['td-rollover-forecast', agreementId],
-    queryFn: () => getRolloverForecast(agreementId ?? 0),
-    enabled: !!agreementId,
-  });
-}
-
-export function useTdHistory(agreementId?: number) {
-  return useQuery({
-    queryKey: ['td-history', agreementId],
-    queryFn: () => getTdSummaryHistory(agreementId ?? 0),
-    enabled: !!agreementId,
-  });
-}
+// useTdMaturityLadder, useTdRolloverForecast, useTdHistory removed — use useMaturityLadder, useRolloverForecast, useTdSummaryHistory instead
 
 export function useCommissionAgreement(code: string) {
   return useQuery({
     queryKey: ['commission-agreement', code],
-    queryFn: () => apiGet<any>(`/api/v1/commissions/agreements/${code}`),
+    queryFn: () => apiGet<CommissionAgreement>(`/api/v1/commissions/agreements/${code}`),
     enabled: !!code,
   });
 }
@@ -469,7 +450,7 @@ export function useCommissionAgreement(code: string) {
 export function useAgreement(id: number) {
   return useQuery({
     queryKey: ['agreement', id],
-    queryFn: () => apiGet<any>(`/api/v1/agreements/${id}`),
+    queryFn: () => apiGet<CustomerAgreement>(`/api/v1/agreements/${id}`),
     enabled: !!id && id > 0,
   });
 }
@@ -477,8 +458,8 @@ export function useAgreement(id: number) {
 export function useUpdateAgreement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) =>
-      apiPut<any>(`/api/v1/agreements/${id}`, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<CustomerAgreement> }) =>
+      apiPut<CustomerAgreement>(`/api/v1/agreements/${id}`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['agreements'] }),
   });
 }

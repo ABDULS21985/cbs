@@ -22,10 +22,12 @@ public class AgreementService {
         return agreementRepository.save(a);
     }
     @Transactional
-    public CustomerAgreement terminate(String number) {
+    public CustomerAgreement terminate(String number, String reason) {
         CustomerAgreement a = agreementRepository.findByAgreementNumber(number)
                 .orElseThrow(() -> new ResourceNotFoundException("CustomerAgreement", "agreementNumber", number));
-        a.setStatus("TERMINATED"); a.setUpdatedAt(Instant.now());
+        a.setStatus("TERMINATED");
+        if (reason != null && !reason.isBlank()) a.setTerminationReason(reason);
+        a.setUpdatedAt(Instant.now());
         return agreementRepository.save(a);
     }
     public List<CustomerAgreement> getByCustomer(Long customerId) { return agreementRepository.findByCustomerIdOrderByCreatedAtDesc(customerId); }

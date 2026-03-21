@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiPatchParams } from '@/lib/api';
 
 // ─── Types matching backend SystemParameter entity ───────────────────────────
 
@@ -88,57 +88,66 @@ export interface SystemInfo {
 
 // ─── API Functions — all hit real backend endpoints ──────────────────────────
 
+/** Base path for AdminController parameter endpoints */
+const ADMIN_PARAMS = '/api/v1/admin/parameters';
+/** Base path for ParameterController (governance) CRUD with maker-checker */
+const GOV_PARAMS = '/api/v1/governance/parameters';
+
 export const parameterApi = {
-  // Parameters
+  // Parameters — read from AdminController, CRUD via governance
   getParameters: (params?: { category?: string; search?: string }): Promise<SystemParameter[]> =>
-    apiGet<SystemParameter[]>('/api/v1/parameters', params as Record<string, unknown>),
+    apiGet<SystemParameter[]>(ADMIN_PARAMS, params as Record<string, unknown>),
 
   getParameter: (code: string): Promise<SystemParameter> =>
-    apiGet<SystemParameter>(`/api/v1/parameters/${code}`),
+    apiGet<SystemParameter>(`${GOV_PARAMS}/key/${code}`),
 
   createParameter: (data: Partial<SystemParameter>): Promise<SystemParameter> =>
-    apiPost<SystemParameter>('/api/v1/parameters', data),
+    apiPost<SystemParameter>(GOV_PARAMS, data),
 
+  /** PATCH /v1/governance/parameters/{id}?newValue=...&reason=... */
   updateParameter: (code: string, data: { value: string; reason: string }): Promise<SystemParameter> =>
-    apiPost<SystemParameter>(`/api/v1/parameters/${code}`, data),
+    apiPatchParams<SystemParameter>(`${GOV_PARAMS}/${code}`, { newValue: data.value, reason: data.reason }),
 
   updateParameterById: (id: number, data: { value: string; reason: string }): Promise<SystemParameter> =>
-    apiPut<SystemParameter>(`/api/v1/parameters/${id}`, data),
+    apiPatchParams<SystemParameter>(`${GOV_PARAMS}/${id}`, { newValue: data.value, reason: data.reason }),
 
-  getParameterHistory: (code: string): Promise<ParameterAudit[]> =>
-    apiGet<ParameterAudit[]>(`/api/v1/parameters/${code}/history`),
+  getParameterHistory: (id: number): Promise<ParameterAudit[]> =>
+    apiGet<ParameterAudit[]>(`${GOV_PARAMS}/${id}/audit`),
+
+  approveParameter: (id: number): Promise<SystemParameter> =>
+    apiPost<SystemParameter>(`${GOV_PARAMS}/${id}/approve`),
 
   // Feature Flags
   getFeatureFlags: (): Promise<SystemParameter[]> =>
-    apiGet<SystemParameter[]>('/api/v1/parameters/feature-flags'),
+    apiGet<SystemParameter[]>(`${ADMIN_PARAMS}/feature-flags`),
 
   toggleFeatureFlag: (code: string, enabled: boolean, reason: string): Promise<SystemParameter> =>
-    apiPost<SystemParameter>(`/api/v1/parameters/feature-flags/${code}`, { enabled, reason }),
+    apiPost<SystemParameter>(`${ADMIN_PARAMS}/feature-flags/${code}`, { enabled, reason }),
 
   // Rate Tables
   getRateTables: (): Promise<SystemParameter[]> =>
-    apiGet<SystemParameter[]>('/api/v1/parameters/rate-tables'),
+    apiGet<SystemParameter[]>(`${ADMIN_PARAMS}/rate-tables`),
 
   getRateTable: (id: number): Promise<SystemParameter> =>
-    apiGet<SystemParameter>(`/api/v1/parameters/rate-tables/${id}`),
+    apiGet<SystemParameter>(`${ADMIN_PARAMS}/rate-tables/${id}`),
 
   createRateTable: (data: { name: string; type?: string; tiers?: RateTier[] }): Promise<SystemParameter> =>
-    apiPost<SystemParameter>('/api/v1/parameters/rate-tables', data),
+    apiPost<SystemParameter>(`${ADMIN_PARAMS}/rate-tables`, data),
 
   updateRateTable: (id: number, data: RateTableUpdateRequest): Promise<SystemParameter> =>
-    apiPost<SystemParameter>(`/api/v1/parameters/rate-tables/${id}`, data),
+    apiPost<SystemParameter>(`${ADMIN_PARAMS}/rate-tables/${id}`, data),
 
   // Lookup Codes
   getLookupCodes: (params?: { category?: string }): Promise<SystemParameter[]> =>
-    apiGet<SystemParameter[]>('/api/v1/parameters/lookup-codes', params as Record<string, unknown>),
+    apiGet<SystemParameter[]>(`${ADMIN_PARAMS}/lookup-codes`, params as Record<string, unknown>),
 
   createLookupCode: (data: CreateLookupRequest): Promise<SystemParameter> =>
-    apiPost<SystemParameter>('/api/v1/parameters/lookup-codes', data),
+    apiPost<SystemParameter>(`${ADMIN_PARAMS}/lookup-codes`, data),
 
   updateLookupCode: (id: number, data: Partial<{ code: string; description: string; status: string }>): Promise<SystemParameter> =>
-    apiPost<SystemParameter>(`/api/v1/parameters/lookup-codes/${id}`, data),
+    apiPost<SystemParameter>(`${ADMIN_PARAMS}/lookup-codes/${id}`, data),
 
   // System Info
   getSystemInfo: (): Promise<SystemInfo> =>
-    apiGet<SystemInfo>('/api/v1/parameters/system-info'),
+    apiGet<SystemInfo>(`${ADMIN_PARAMS}/system-info`),
 };

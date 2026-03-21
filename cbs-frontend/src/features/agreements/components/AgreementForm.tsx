@@ -5,12 +5,17 @@ import type { CustomerAgreement, CreateCustomerAgreementPayload } from '../types
 import { cn } from '@/lib/utils';
 
 const AGREEMENT_TYPES = [
-  { value: 'LOAN_AGREEMENT', label: 'Loan Agreement' },
-  { value: 'DEPOSIT_AGREEMENT', label: 'Deposit Agreement' },
-  { value: 'SERVICE_AGREEMENT', label: 'Service Agreement' },
-  { value: 'CUSTODY_AGREEMENT', label: 'Custody Agreement' },
-  { value: 'TRADING_AGREEMENT', label: 'Trading Agreement' },
-  { value: 'GENERAL', label: 'General' },
+  { value: 'MASTER_SERVICE', label: 'Master Service' },
+  { value: 'PRODUCT_SPECIFIC', label: 'Product Specific' },
+  { value: 'FEE_SCHEDULE', label: 'Fee Schedule' },
+  { value: 'LIMIT_AGREEMENT', label: 'Limit Agreement' },
+  { value: 'CHANNEL_ACCESS', label: 'Channel Access' },
+  { value: 'DATA_SHARING', label: 'Data Sharing' },
+  { value: 'PRIVACY_CONSENT', label: 'Privacy Consent' },
+  { value: 'POWER_OF_ATTORNEY', label: 'Power of Attorney' },
+  { value: 'GUARANTEE', label: 'Guarantee' },
+  { value: 'COLLATERAL', label: 'Collateral' },
+  { value: 'NDA', label: 'NDA' },
 ];
 
 interface AgreementFormProps {
@@ -30,7 +35,7 @@ interface FormErrors {
 
 export function AgreementForm({ initialData, onSubmit, isLoading, submitLabel = 'Submit' }: AgreementFormProps) {
   const [form, setForm] = useState<CreateCustomerAgreementPayload>({
-    agreementType: initialData?.agreementType || 'GENERAL',
+    agreementType: initialData?.agreementType || 'MASTER_SERVICE',
     title: initialData?.title || '',
     description: initialData?.description || '',
     customerId: initialData?.customerId || 0,
@@ -48,7 +53,7 @@ export function AgreementForm({ initialData, onSubmit, isLoading, submitLabel = 
   useEffect(() => {
     if (initialData) {
       setForm({
-        agreementType: initialData.agreementType || 'GENERAL',
+        agreementType: initialData.agreementType || 'MASTER_SERVICE',
         title: initialData.title || '',
         description: initialData.description || '',
         customerId: initialData.customerId || 0,

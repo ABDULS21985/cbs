@@ -43,12 +43,13 @@ export function CommissionManagementPage() {
     onError: () => toast.error('Failed to create agreement'),
   });
   const activateMutation = useMutation({
-    mutationFn: (code: string) => commissionsApi.createAgreement2(code, {}),
+    mutationFn: (code: string) => commissionsApi.activateAgreement(code),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['commissions'] }); toast.success('Agreement activated'); },
     onError: () => toast.error('Failed to activate'),
   });
   const calcPayoutMutation = useMutation({
-    mutationFn: (code: string) => commissionsApi.calculatePayout(code),
+    mutationFn: ({ code, params }: { code: string; params: { grossSales: number; qualifyingSales: number; period: string } }) =>
+      commissionsApi.calculatePayout(code, params),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['commissions'] }); toast.success('Payout calculated'); },
     onError: () => toast.error('Failed to calculate payout'),
   });
@@ -64,7 +65,7 @@ export function CommissionManagementPage() {
     { id: 'actions', header: '', cell: ({ row }) => (
       <div className="flex gap-1">
         {row.original.status === 'DRAFT' && <button onClick={() => activateMutation.mutate(row.original.agreementCode)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground text-xs" title="Activate"><CheckCircle className="w-4 h-4" /></button>}
-        {row.original.status === 'ACTIVE' && <button onClick={() => calcPayoutMutation.mutate(row.original.agreementCode)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground text-xs" title="Calculate Payout"><Banknote className="w-4 h-4" /></button>}
+        {row.original.status === 'ACTIVE' && <button onClick={() => calcPayoutMutation.mutate({ code: row.original.agreementCode, params: { grossSales: 0, qualifyingSales: 0, period: new Date().toISOString().slice(0, 7) } })} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground text-xs" title="Calculate Payout"><Banknote className="w-4 h-4" /></button>}
       </div>
     )},
   ], [activateMutation, calcPayoutMutation]);

@@ -87,4 +87,45 @@ class SuitabilityServiceTest {
         assertThat(result.getOverrideApplied()).isTrue();
         assertThat(result.getOverrideApprovedBy()).isEqualTo("ADMIN-001");
     }
+
+    @Test @DisplayName("Liquidity check fails when proposed amount exceeds max single investment")
+    void liquidityCheckFails() {
+        ClientRiskProfile profile = buildProfile("AGGRESSIVE", "EXTENSIVE", new BigDecimal("85"), true);
+        // maxSingleInvestmentPct=25%, liquidNetWorth=1,000,000 → max = 250,000
+        SuitabilityCheck check = buildCheck(1L, "MEDIUM_RISK", new BigDecimal("300000"));
+        when(profileRepository.findById(1L)).thenReturn(Optional.of(profile));
+        when(checkRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        SuitabilityCheck result = service.performSuitabilityCheck(check);
+
+        assertThat(result.getLiquidityCheck()).isFalse();
+        // Liquidity fail is critical
+        assertThat(result.getOverallResult()).isEqualTo("UNSUITABLE");
+    }
+
+    @Test @DisplayName("Acknowledge disclosure sets acknowledged flag and timestamp")
+    void acknowledgeDisclosure() {
+        SuitabilityCheck check = new SuitabilityCheck();
+        check.setId(1L); check.setCheckRef("SC-ACK"); check.setClientAcknowledged(false);
+        when(checkRepository.findByCheckRef("SC-ACK")).thenReturn(Optional.of(check));
+        when(checkRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        SuitabilityCheck result = service.acknowledgeDisclosure("SC-ACK");
+
+        assertThat(result.getClientAcknowledged()).isTrue();
+        assertThat(result.getClientAcknowledgedAt()).isNotNull();
+    }
+
+    @Test @DisplayName("No experience yields non-critical failure (SUITABLE_WITH_WARNING)")
+    void noExperienceWarning() {
+        ClientRiskProfile profile = buildProfile("AGGRESSIVE", "NONE", new BigDecimal("85"), true);
+        SuitabilityCheck check = buildCheck(1L, "MEDIUM_RISK", new BigDecimal("100000"));
+        when(profileRepository.findById(1L)).thenReturn(Optional.of(profile));
+        when(checkRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        SuitabilityCheck result = service.performSuitabilityCheck(check);
+
+        assertThat(result.getExperienceMatch()).isFalse();
+        assertThat(result.getOverallResult()).isEqualTo("SUITABLE_WITH_WARNING");
+    }
 }

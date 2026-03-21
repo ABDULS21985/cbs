@@ -31,8 +31,8 @@ public class AgreementController {
         return ResponseEntity.ok(ApiResponse.ok(agreementService.activate(number)));
     }
     @PostMapping("/{number}/terminate") @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<CustomerAgreement>> terminate(@PathVariable String number) {
-        return ResponseEntity.ok(ApiResponse.ok(agreementService.terminate(number)));
+    public ResponseEntity<ApiResponse<CustomerAgreement>> terminate(@PathVariable String number, @RequestParam(required = false) String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(agreementService.terminate(number, reason)));
     }
     @GetMapping("/{id}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CustomerAgreement>> getById(@PathVariable Long id) {

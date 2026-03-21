@@ -16,7 +16,7 @@ export interface CustomerAgreement {
   signedByCustomer: string;
   signedByBank: string;
   signedDate: string;
-  status: 'DRAFT' | 'ACTIVE' | 'TERMINATED';
+  status: 'DRAFT' | 'PENDING_SIGNATURE' | 'ACTIVE' | 'SUSPENDED' | 'EXPIRED' | 'TERMINATED' | 'RENEWED';
   terminationReason: string;
   createdAt: string;
   updatedAt?: string;
@@ -24,7 +24,7 @@ export interface CustomerAgreement {
 
 export type CreateCustomerAgreementPayload = Omit<
   CustomerAgreement,
-  'id' | 'agreementNumber' | 'status' | 'createdAt' | 'updatedAt' | 'signedByCustomer' | 'signedByBank' | 'signedDate'
+  'id' | 'agreementNumber' | 'status' | 'createdAt' | 'updatedAt' | 'signedByCustomer' | 'signedByBank' | 'signedDate' | 'terminationReason'
 >;
 
 // ── TD Framework ─────────────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ export interface TdFrameworkAgreement {
   maxDepositAmount: number | null;
   minTenorDays: number;
   maxTenorDays: number;
-  rateStructure: 'FIXED' | 'TIERED' | 'BENCHMARK';
+  rateStructure: 'FIXED' | 'TIERED' | 'NEGOTIATED' | 'BENCHMARK_LINKED';
   baseRate: number | null;
   rateTiers: RateTier[] | null;
   benchmarkReference: string | null;
@@ -58,7 +58,7 @@ export interface TdFrameworkAgreement {
   earlyWithdrawalPenaltyPct: number | null;
   partialWithdrawalAllowed: boolean;
   partialWithdrawalMin: number | null;
-  status: 'DRAFT' | 'PENDING_APPROVAL' | 'ACTIVE' | 'EXPIRED';
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'ACTIVE' | 'SUSPENDED' | 'EXPIRED' | 'TERMINATED';
   effectiveFrom: string;
   effectiveTo: string | null;
   approvedBy: string | null;
@@ -119,7 +119,7 @@ export interface CommissionAgreement {
   clawbackConditions: Record<string, unknown>;
   effectiveFrom: string;
   effectiveTo: string;
-  status: 'DRAFT' | 'ACTIVE' | 'SUSPENDED' | 'EXPIRED';
+  status: 'DRAFT' | 'ACTIVE' | 'SUSPENDED' | 'TERMINATED' | 'EXPIRED';
 }
 
 export type CreateCommissionAgreementPayload = Omit<
@@ -148,7 +148,7 @@ export interface CommissionPayout {
   paymentAccountId: number;
   paymentReference: string;
   paidAt: string;
-  status: 'CALCULATED' | 'APPROVED' | 'PAID';
+  status: 'CALCULATED' | 'APPROVED' | 'PAID' | 'REVERSED' | 'ON_HOLD';
 }
 
 export interface CalculatePayoutParams {
@@ -215,7 +215,7 @@ export interface SpecialPricingAgreement {
   currentRelationshipValue: number | null;
   effectiveFrom: string | null;
   effectiveTo: string | null;
-  status: 'DRAFT' | 'ACTIVE' | 'UNDER_REVIEW' | 'EXPIRED';
+  status: 'DRAFT' | 'APPROVED' | 'ACTIVE' | 'UNDER_REVIEW' | 'EXPIRED' | 'TERMINATED';
   createdAt: string;
   updatedAt: string;
 }
@@ -232,5 +232,7 @@ export interface AgreementTemplate {
   name: string;
   type: string;
   content: string;
+  description?: string;
+  isActive?: boolean;
   [key: string]: unknown;
 }

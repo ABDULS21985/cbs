@@ -130,6 +130,7 @@ export const navigationItems: NavSection[] = [
           { label: 'Facilities', path: '/acquiring?tab=facilities' },
           { label: 'Settlements', path: '/acquiring?tab=settlements' },
           { label: 'Chargebacks', path: '/acquiring?tab=chargebacks' },
+          { label: 'Terminals', path: '/acquiring?tab=terminals' },
           { label: 'PCI Compliance', path: '/acquiring?tab=pci' },
         ],
       },

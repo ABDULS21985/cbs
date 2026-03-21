@@ -42,6 +42,11 @@ export interface ProviderFailoverConfig {
   maxRetries: number;
 }
 
+// ─── Request types ───────────────────────────────────────────────────────
+
+export type RegisterProviderRequest = Partial<ServiceProvider>;
+export type UpdateProviderRequest = Partial<ServiceProvider>;
+
 // ─── API ──────────────────────────────────────────────────────────────────
 
 export const providerApi = {

@@ -39,7 +39,8 @@ function useFxRates(source?: string, target?: string) {
       const params = new URLSearchParams();
       if (source) params.set('sourceCurrency', source);
       if (target) params.set('targetCurrency', target);
-      const { data } = await (await import('@/lib/api')).default.get(
+      const apiModule = await import('@/lib/api');
+      const { data } = await apiModule.default.get<{ data: Array<{ sourceCurrency: string; targetCurrency: string; buyRate: number; sellRate: number; midRate: number; }> }>(
         `/api/v1/fx/rate?${params.toString()}`
       );
       return data.data as Array<{

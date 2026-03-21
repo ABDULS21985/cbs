@@ -28,9 +28,11 @@ const ENGAGEMENT_TYPES: { value: MaEngagementType; label: string }[] = [
   { value: 'SELL_SIDE', label: 'Sell-Side Advisory' },
   { value: 'MERGER', label: 'Merger' },
   { value: 'DIVESTITURE', label: 'Divestiture' },
-  { value: 'MBO', label: 'Management Buyout' },
-  { value: 'JOINT_VENTURE', label: 'Joint Venture' },
-  { value: 'SPIN_OFF', label: 'Spin-Off' },
+  { value: 'MANAGEMENT_BUYOUT', label: 'Management Buyout' },
+  { value: 'LEVERAGED_BUYOUT', label: 'Leveraged Buyout' },
+  { value: 'RESTRUCTURING', label: 'Restructuring' },
+  { value: 'FAIRNESS_OPINION', label: 'Fairness Opinion' },
+  { value: 'VALUATION_ONLY', label: 'Valuation Only' },
 ];
 
 const ROLES: { value: MaRole; label: string }[] = [
@@ -38,7 +40,8 @@ const ROLES: { value: MaRole; label: string }[] = [
   { value: 'JOINT_ADVISER', label: 'Joint Adviser' },
   { value: 'BUY_SIDE_ADVISER', label: 'Buy-Side Adviser' },
   { value: 'SELL_SIDE_ADVISER', label: 'Sell-Side Adviser' },
-  { value: 'FAIRNESS_OPINION', label: 'Fairness Opinion' },
+  { value: 'FAIRNESS_OPINION_PROVIDER', label: 'Fairness Opinion Provider' },
+  { value: 'VALUATION_ADVISER', label: 'Valuation Adviser' },
 ];
 
 const MILESTONE_FIELDS: { value: string; label: string }[] = [

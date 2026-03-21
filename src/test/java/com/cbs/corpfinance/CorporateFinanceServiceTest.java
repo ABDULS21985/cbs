@@ -74,4 +74,57 @@ class CorporateFinanceServiceTest {
 
         assertThat(result.getTotalFeesPaid()).isEqualByComparingTo(new BigDecimal("150000"));
     }
+
+    @Test
+    @DisplayName("Close engagement sets COMPLETED status and completion date")
+    void closeEngagementSetsCompletedStatusAndDate() {
+        CorporateFinanceEngagement engagement = new CorporateFinanceEngagement();
+        engagement.setId(1L);
+        engagement.setEngagementCode("CF-TEST00004");
+        engagement.setStatus("FINAL_DELIVERED");
+
+        when(repository.findById(1L)).thenReturn(Optional.of(engagement));
+        when(repository.save(any(CorporateFinanceEngagement.class))).thenAnswer(i -> i.getArgument(0));
+
+        CorporateFinanceEngagement result = service.closeEngagement(1L);
+
+        assertThat(result.getStatus()).isEqualTo("COMPLETED");
+        assertThat(result.getCompletionDate()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Finalize delivery sets FINAL_DELIVERED status and date")
+    void finalizeDeliverySetsStatusAndDate() {
+        CorporateFinanceEngagement engagement = new CorporateFinanceEngagement();
+        engagement.setId(1L);
+        engagement.setEngagementCode("CF-TEST00005");
+        engagement.setStatus("DRAFT_DELIVERED");
+
+        when(repository.findById(1L)).thenReturn(Optional.of(engagement));
+        when(repository.save(any(CorporateFinanceEngagement.class))).thenAnswer(i -> i.getArgument(0));
+
+        CorporateFinanceEngagement result = service.finalizeDelivery(1L);
+
+        assertThat(result.getStatus()).isEqualTo("FINAL_DELIVERED");
+        assertThat(result.getFinalDeliveryDate()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("Create engagement generates code and initializes fees")
+    void createEngagementGeneratesCodeAndInitializesFees() {
+        when(repository.save(any(CorporateFinanceEngagement.class))).thenAnswer(i -> i.getArgument(0));
+
+        CorporateFinanceEngagement input = new CorporateFinanceEngagement();
+        input.setEngagementName("Test Valuation");
+        input.setEngagementType("BUSINESS_VALUATION");
+        input.setClientName("Test Corp");
+        input.setOurRole("SOLE_ADVISER");
+
+        CorporateFinanceEngagement result = service.createEngagement(input);
+
+        assertThat(result.getEngagementCode()).startsWith("CF-");
+        assertThat(result.getStatus()).isEqualTo("PROPOSAL");
+        assertThat(result.getTotalFeesInvoiced()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.getTotalFeesPaid()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
 }

@@ -67,8 +67,9 @@ export function activateAgreement(agreementNumber: string) {
   return apiPost<CustomerAgreement>(`/api/v1/agreements/${agreementNumber}/activate`);
 }
 
-export function terminateAgreement(agreementNumber: string) {
-  return apiPost<CustomerAgreement>(`/api/v1/agreements/${agreementNumber}/terminate`);
+export function terminateAgreement(agreementNumber: string, reason?: string) {
+  const qs = reason ? `?reason=${encodeURIComponent(reason)}` : '';
+  return apiPost<CustomerAgreement>(`/api/v1/agreements/${agreementNumber}/terminate${qs}`);
 }
 
 export function getCustomerAgreements(customerId: number) {
@@ -121,14 +122,14 @@ export function getMaturityLadder(agreementId: number) {
 }
 
 export function getRolloverForecast(agreementId: number) {
-  return apiGet<Record<string, unknown>>(
+  return apiGet<{ totalPrincipal: number; expectedRolloverPct: number; expectedRolloverAmount: number }>(
     `/api/v1/td-framework-summary/${agreementId}/rollover-forecast`,
   );
 }
 
 export function getLargeDeposits(threshold?: number) {
   const qs = threshold != null ? `?threshold=${threshold}` : '';
-  return apiGet<Record<string, unknown>[]>(
+  return apiGet<TdFrameworkSummary[]>(
     `/api/v1/td-framework-summary/large-deposits${qs}`,
   );
 }
@@ -201,17 +202,17 @@ export function evaluateDiscount(
   feeCode: string,
   amount: number,
 ) {
-  return apiPost<Record<string, unknown>>(
+  return apiPost<{ schemeName: string; schemeCode: string; schemeType: string; discountBasis: string; discountValue: number }>(
     `/api/v1/pricing/discounts/evaluate?customerId=${customerId}&feeCode=${encodeURIComponent(feeCode)}&amount=${amount}`,
   );
 }
 
 export function getDiscountEvaluation() {
-  return apiGet<Record<string, unknown>[]>('/api/v1/pricing/discounts/evaluate');
+  return apiGet<DiscountScheme[]>('/api/v1/pricing/discounts/evaluate');
 }
 
 export function getDiscountUtilization() {
-  return apiGet<Record<string, unknown>[]>('/api/v1/pricing/discounts/utilization');
+  return apiGet<DiscountScheme[]>('/api/v1/pricing/discounts/utilization');
 }
 
 // ── Pricing — Special Pricing (4 endpoints) ──────────────────────────────────

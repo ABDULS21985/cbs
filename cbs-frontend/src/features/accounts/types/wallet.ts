@@ -2,7 +2,7 @@
 
 export interface CurrencyWallet {
   id: number;
-  account: Account;
+  account: { id: number; accountNumber: string };
   currencyCode: string;
   bookBalance: number;
   availableBalance: number;

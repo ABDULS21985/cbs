@@ -31,18 +31,18 @@ export function ParameterEditForm({ parameter, open, onClose, onSuccess }: Param
   const queryClient = useQueryClient();
 
   const { data: history = [], isError: historyError } = useQuery({
-    queryKey: ['parameter-history', parameter?.paramKey],
-    queryFn: () => parameterApi.getParameterHistory(parameter!.paramKey),
-    enabled: !!parameter?.paramKey && open,
+    queryKey: ['parameter-history', parameter?.id],
+    queryFn: () => parameterApi.getParameterHistory(parameter!.id),
+    enabled: !!parameter?.id && open,
   });
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
-      parameterApi.updateParameter(parameter!.paramKey, values),
+      parameterApi.updateParameterById(parameter!.id, values),
     onSuccess: () => {
       toast.success('Parameter updated successfully');
       queryClient.invalidateQueries({ queryKey: ['parameters'] });
-      queryClient.invalidateQueries({ queryKey: ['parameter-history', parameter?.paramKey] });
+      queryClient.invalidateQueries({ queryKey: ['parameter-history', parameter?.id] });
       onSuccess();
     },
     onError: () => {

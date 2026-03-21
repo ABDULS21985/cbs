@@ -18,7 +18,7 @@ import {
   useCalculatePayout,
   useApprovePayout,
 } from '../hooks/useAgreementsExt';
-import type { CommissionAgreement, CommissionPayout } from '../types/agreementExt';
+import type { CommissionAgreement, CommissionPayout, CreateCommissionAgreementPayload } from '../types/agreementExt';
 
 // ── Create Agreement Dialog ──────────────────────────────────────────────────
 
@@ -26,10 +26,10 @@ function CreateAgreementDialog({ onClose }: { onClose: () => void }) {
   const createMut = useCreateCommissionAgreement();
   const [form, setForm] = useState({
     agreementName: '',
-    agreementType: 'SALES',
+    agreementType: 'SALES_OFFICER',
     partyId: '',
     partyName: '',
-    commissionBasis: 'FLAT_RATE',
+    commissionBasis: 'PERCENTAGE',
     baseRatePct: 5,
     applicableProducts: '',
     minPayout: 0,
@@ -59,8 +59,8 @@ function CreateAgreementDialog({ onClose }: { onClose: () => void }) {
         maxPayoutAnnual: form.maxPayoutAnnual,
         clawbackPeriodDays: form.clawbackPeriodDays,
         effectiveFrom: form.effectiveFrom,
-        effectiveTo: form.effectiveTo || undefined,
-      } as Partial<CommissionAgreement>,
+        effectiveTo: form.effectiveTo || '',
+      } as CreateCommissionAgreementPayload,
       {
         onSuccess: () => {
           toast.success('Commission agreement created');
@@ -93,18 +93,24 @@ function CreateAgreementDialog({ onClose }: { onClose: () => void }) {
             <div>
               <label className={labelCls}>Type</label>
               <select value={form.agreementType} onChange={(e) => setForm({ ...form, agreementType: e.target.value })} className={inputCls}>
-                <option value="SALES">Sales</option>
+                <option value="SALES_OFFICER">Sales Officer</option>
+                <option value="AGENT_BANKING">Agent Banking</option>
                 <option value="REFERRAL">Referral</option>
+                <option value="PARTNER">Partner</option>
                 <option value="BROKER">Broker</option>
-                <option value="AGENT">Agent</option>
+                <option value="INSURANCE_AGENT">Insurance Agent</option>
+                <option value="MERCHANT">Merchant</option>
               </select>
             </div>
             <div>
               <label className={labelCls}>Commission Basis</label>
               <select value={form.commissionBasis} onChange={(e) => setForm({ ...form, commissionBasis: e.target.value })} className={inputCls}>
-                <option value="FLAT_RATE">Flat Rate</option>
+                <option value="PERCENTAGE">Percentage</option>
+                <option value="FLAT_PER_UNIT">Flat Per Unit</option>
                 <option value="TIERED">Tiered</option>
-                <option value="PERFORMANCE">Performance</option>
+                <option value="MILESTONE">Milestone</option>
+                <option value="REVENUE_SHARE">Revenue Share</option>
+                <option value="HYBRID">Hybrid</option>
               </select>
             </div>
           </div>
@@ -176,7 +182,7 @@ function CalculatePayoutDialog({ agreement, onClose }: { agreement: CommissionAg
       return;
     }
     calcMut.mutate(
-      { code: agreement.agreementCode, grossSales, qualifyingSales, period },
+      { code: agreement.agreementCode, params: { grossSales, qualifyingSales, period } },
       {
         onSuccess: (payout) => {
           toast.success('Payout calculated');
@@ -425,6 +431,7 @@ export function CommissionAgreementsPage() {
                 <option value="DRAFT">Draft</option>
                 <option value="ACTIVE">Active</option>
                 <option value="SUSPENDED">Suspended</option>
+                <option value="TERMINATED">Terminated</option>
                 <option value="EXPIRED">Expired</option>
               </select>
             </div>

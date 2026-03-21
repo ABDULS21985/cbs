@@ -55,30 +55,25 @@ const maCols: ColumnDef<MaEngagement, any>[] = [
   },
 ];
 
-// Corporate Finance — backend not yet implemented
+// Corporate Finance — matches CorporateFinanceEngagement entity
 const cfCols: ColumnDef<CorporateFinanceEngagement, any>[] = [
   {
-    accessorKey: 'code',
+    accessorKey: 'engagementCode',
     header: 'Code',
-    cell: ({ row }) => <span className="font-mono text-xs text-primary">{row.original.code}</span>,
+    cell: ({ row }) => <span className="font-mono text-xs text-primary">{row.original.engagementCode}</span>,
   },
-  { accessorKey: 'client', header: 'Client' },
+  { accessorKey: 'clientName', header: 'Client' },
   {
-    accessorKey: 'type',
+    accessorKey: 'engagementType',
     header: 'Type',
-    cell: ({ row }) => <StatusBadge status={row.original.type} />,
+    cell: ({ row }) => <StatusBadge status={row.original.engagementType} />,
   },
   {
-    accessorKey: 'estimatedFee',
-    header: 'Est. Fee',
+    accessorKey: 'dealValueEstimate',
+    header: 'Deal Value',
     cell: ({ row }) => (
-      <span className="font-mono text-sm">{formatMoney(row.original.estimatedFee, row.original.currency)}</span>
+      <span className="font-mono text-sm">{row.original.dealValueEstimate ? formatMoney(row.original.dealValueEstimate, row.original.currency) : '—'}</span>
     ),
-  },
-  {
-    accessorKey: 'stage',
-    header: 'Stage',
-    cell: ({ row }) => <StatusBadge status={row.original.stage} />,
   },
   {
     accessorKey: 'status',
@@ -87,37 +82,21 @@ const cfCols: ColumnDef<CorporateFinanceEngagement, any>[] = [
   },
 ];
 
-// Project Finance — backend not yet implemented
+// Project Finance — matches ProjectFinanceFacility entity
 const pfCols: ColumnDef<ProjectFacility, any>[] = [
   {
-    accessorKey: 'code',
+    accessorKey: 'facilityCode',
     header: 'Code',
-    cell: ({ row }) => <span className="font-mono text-xs text-primary">{row.original.code}</span>,
+    cell: ({ row }) => <span className="font-mono text-xs text-primary">{row.original.facilityCode}</span>,
   },
   { accessorKey: 'projectName', header: 'Project' },
-  { accessorKey: 'sponsor', header: 'Sponsor' },
+  { accessorKey: 'borrowerName', header: 'Borrower' },
   {
-    accessorKey: 'totalCost',
+    accessorKey: 'totalProjectCost',
     header: 'Total Cost',
     cell: ({ row }) => (
-      <span className="font-mono text-sm">{formatMoney(row.original.totalCost, row.original.currency)}</span>
+      <span className="font-mono text-sm">{formatMoney(row.original.totalProjectCost, row.original.currency)}</span>
     ),
-  },
-  {
-    accessorKey: 'milestonesCompleted',
-    header: 'Milestones',
-    cell: ({ row }) => {
-      const { milestonesCompleted, milestonesTotal } = row.original;
-      const pct = milestonesTotal > 0 ? Math.round((milestonesCompleted / milestonesTotal) * 100) : 0;
-      return (
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-muted rounded-full h-1.5 w-20">
-            <div className="bg-primary h-1.5 rounded-full" style={{ width: `${pct}%` }} />
-          </div>
-          <span className="text-xs text-muted-foreground">{milestonesCompleted}/{milestonesTotal}</span>
-        </div>
-      );
-    },
   },
   {
     accessorKey: 'status',
@@ -188,8 +167,8 @@ export function AdvisoryDashboardPage() {
     retry: false,
   });
   const { data: pfFacilities = [], isLoading: pfLoading } = useQuery({
-    queryKey: QK.projectFacilities('ACTIVE'),
-    queryFn: () => advisoryApi.getProjectFacilities('ACTIVE'),
+    queryKey: QK.projectFacilitiesAll,
+    queryFn: () => advisoryApi.getAllProjectFacilities(),
     retry: false,
   });
   const { data: taxEngagements = [], isLoading: taxLoading } = useQuery({
@@ -199,7 +178,7 @@ export function AdvisoryDashboardPage() {
 
   const activeMandates = maMandates.length + cfMandates.length + taxEngagements.length;
   const maPipelineValue = maMandates.reduce((s, m) => s + (m.estimatedDealValue || 0), 0);
-  const cfPipelineValue = cfMandates.reduce((s, m) => s + (m.estimatedFee || 0), 0);
+  const cfPipelineValue = cfMandates.reduce((s, m) => s + (m.dealValueEstimate || 0), 0);
 
   // M&A pipeline chart: status → count from backend Map<String,Long>
   const pipelineChartData = Object.entries(maPipeline).map(([status, count]) => ({ status, count }));

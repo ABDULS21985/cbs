@@ -108,7 +108,7 @@ export function CommissionDetailPage() {
 
   const handleCalculate = () => {
     if (!grossSales || !qualifyingSales || !period) { toast.error('Please fill all fields'); return; }
-    calcMut.mutate({ code: agreement.agreementCode, grossSales, qualifyingSales, period }, {
+    calcMut.mutate({ code: agreement.agreementCode, params: { grossSales, qualifyingSales, period } }, {
       onSuccess: (payout) => { toast.success('Payout calculated'); setCalcResult(payout); },
       onError: () => toast.error('Calculation failed'),
     });

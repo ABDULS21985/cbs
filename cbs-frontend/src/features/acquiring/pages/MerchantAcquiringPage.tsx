@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Store,
   AlertTriangle,
@@ -13,6 +14,9 @@ import {
   RefreshCw,
   ChevronRight,
   Building2,
+  Monitor,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -26,25 +30,33 @@ import {
   useSuspendMerchant,
   useMerchantSettlements,
   useProcessSettlement,
-  useRecordChargeback,
+  useSubmitRepresentment,
   useSetupFacility,
   useActivateFacility,
-  useSubmitRepresentment,
-  useMerchantFacilities,
+  useAllTerminals,
+  useRegisterTerminal,
+  useUpdateTerminalStatus,
 } from '../hooks/useAcquiring';
 import { useAcquiringFacilities } from '../hooks/useAcquiringExt';
-import type { RiskCategory, ChargebackStatus, Merchant } from '../api/acquiringApi';
+import type {
+  RiskCategory,
+  ChargebackStatus,
+  SettlementStatus,
+  Merchant,
+  AcquiringFacility,
+  PosTerminal,
+} from '../api/acquiringApi';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-type Tab = 'merchants' | 'facilities' | 'settlements' | 'chargebacks' | 'pci';
+type Tab = 'merchants' | 'facilities' | 'settlements' | 'chargebacks' | 'pci' | 'terminals';
 
 function formatDate(iso?: string) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function formatAmount(n?: number, currency = 'USD') {
+function formatAmount(n?: number, currency = 'NGN') {
   if (n === undefined || n === null) return '—';
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2 }).format(n);
 }
@@ -56,11 +68,23 @@ const RISK_BADGE: Record<RiskCategory, string> = {
 };
 
 const CHARGEBACK_STATUS_BADGE: Record<ChargebackStatus, string> = {
-  OPEN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  REPRESENTMENT: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  RESOLVED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  LOST: 'bg-muted text-muted-foreground',
+  RECEIVED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  NOTIFIED: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  EVIDENCE_REQUESTED: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  REPRESENTMENT: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  ARBITRATION: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  CLOSED: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
 };
+
+const SETTLEMENT_STATUS_BADGE: Record<SettlementStatus, string> = {
+  CALCULATED: 'text-amber-600',
+  APPROVED: 'text-blue-600',
+  SETTLED: 'text-green-600',
+  DISPUTE: 'text-red-600',
+};
+
+const inputCls =
+  'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
 
 // ─── Onboard Merchant Dialog ──────────────────────────────────────────────────
 
@@ -68,11 +92,13 @@ interface OnboardDialogProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (payload: {
-    businessName: string;
+    merchantName: string;
     registrationNumber: string;
-    mcc: string;
+    merchantCategoryCode: string;
+    businessType: string;
     contactEmail: string;
-    bankAccountId: number;
+    settlementAccountId: number;
+    mdrRate: number;
     riskCategory: RiskCategory;
   }) => void;
   isPending: boolean;
@@ -80,11 +106,13 @@ interface OnboardDialogProps {
 
 function OnboardDialog({ open, onClose, onSubmit, isPending }: OnboardDialogProps) {
   const [form, setForm] = useState({
-    businessName: '',
+    merchantName: '',
     registrationNumber: '',
-    mcc: '',
+    merchantCategoryCode: '',
+    businessType: 'LIMITED_COMPANY',
     contactEmail: '',
-    bankAccountId: '',
+    settlementAccountId: '',
+    mdrRate: '1.50',
     riskCategory: 'LOW' as RiskCategory,
   });
 
@@ -94,12 +122,10 @@ function OnboardDialog({ open, onClose, onSubmit, isPending }: OnboardDialogProp
     e.preventDefault();
     onSubmit({
       ...form,
-      bankAccountId: parseInt(form.bankAccountId, 10),
+      settlementAccountId: parseInt(form.settlementAccountId, 10),
+      mdrRate: parseFloat(form.mdrRate),
     });
   };
-
-  const inputCls =
-    'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
 
   return (
     <>
@@ -114,19 +140,17 @@ function OnboardDialog({ open, onClose, onSubmit, isPending }: OnboardDialogProp
           </div>
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Business Name</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Merchant Name</label>
               <input
                 required
                 className={inputCls}
-                value={form.businessName}
-                onChange={(e) => setForm((f) => ({ ...f, businessName: e.target.value }))}
+                value={form.merchantName}
+                onChange={(e) => setForm((f) => ({ ...f, merchantName: e.target.value }))}
                 placeholder="Acme Retail Ltd"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Registration Number
-              </label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Registration Number</label>
               <input
                 required
                 className={inputCls}
@@ -142,8 +166,8 @@ function OnboardDialog({ open, onClose, onSubmit, isPending }: OnboardDialogProp
                   required
                   maxLength={4}
                   className={inputCls}
-                  value={form.mcc}
-                  onChange={(e) => setForm((f) => ({ ...f, mcc: e.target.value }))}
+                  value={form.merchantCategoryCode}
+                  onChange={(e) => setForm((f) => ({ ...f, merchantCategoryCode: e.target.value }))}
                   placeholder="5411"
                 />
               </div>
@@ -161,6 +185,23 @@ function OnboardDialog({ open, onClose, onSubmit, isPending }: OnboardDialogProp
               </div>
             </div>
             <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Business Type</label>
+              <select
+                className={inputCls}
+                value={form.businessType}
+                onChange={(e) => setForm((f) => ({ ...f, businessType: e.target.value }))}
+              >
+                <option value="SOLE_PROPRIETOR">Sole Proprietor</option>
+                <option value="PARTNERSHIP">Partnership</option>
+                <option value="LIMITED_COMPANY">Limited Company</option>
+                <option value="PLC">PLC</option>
+                <option value="GOVERNMENT">Government</option>
+                <option value="NGO">NGO</option>
+                <option value="COOPERATIVE">Cooperative</option>
+                <option value="FRANCHISE">Franchise</option>
+              </select>
+            </div>
+            <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Contact Email</label>
               <input
                 required
@@ -171,17 +212,33 @@ function OnboardDialog({ open, onClose, onSubmit, isPending }: OnboardDialogProp
                 placeholder="merchant@example.com"
               />
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Bank Account ID</label>
-              <input
-                required
-                type="number"
-                min={1}
-                className={inputCls}
-                value={form.bankAccountId}
-                onChange={(e) => setForm((f) => ({ ...f, bankAccountId: e.target.value }))}
-                placeholder="Account ID"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Settlement Account ID</label>
+                <input
+                  required
+                  type="number"
+                  min={1}
+                  className={inputCls}
+                  value={form.settlementAccountId}
+                  onChange={(e) => setForm((f) => ({ ...f, settlementAccountId: e.target.value }))}
+                  placeholder="Account ID"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">MDR Rate (%)</label>
+                <input
+                  required
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  max={100}
+                  className={inputCls}
+                  value={form.mdrRate}
+                  onChange={(e) => setForm((f) => ({ ...f, mdrRate: e.target.value }))}
+                  placeholder="1.50"
+                />
+              </div>
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <button
@@ -213,7 +270,7 @@ interface SuspendDialogProps {
   open: boolean;
   merchant: Merchant | null;
   onClose: () => void;
-  onSuspend: (id: number, reason: string) => void;
+  onSuspend: (merchantId: string, reason: string) => void;
   isPending: boolean;
 }
 
@@ -233,7 +290,7 @@ function SuspendDialog({ open, merchant, onClose, onSuspend, isPending }: Suspen
               <div>
                 <h3 className="text-sm font-semibold">Suspend Merchant</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Suspending <strong>{merchant.businessName}</strong>. Provide a reason.
+                  Suspending <strong>{merchant.merchantName}</strong>. Provide a reason.
                 </p>
               </div>
             </div>
@@ -254,7 +311,7 @@ function SuspendDialog({ open, merchant, onClose, onSuspend, isPending }: Suspen
               </button>
               <button
                 disabled={!reason.trim() || isPending}
-                onClick={() => onSuspend(merchant.id, reason)}
+                onClick={() => onSuspend(merchant.merchantId, reason)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors disabled:opacity-50"
               >
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
@@ -311,7 +368,7 @@ function MerchantsTab() {
                   <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Risk</th>
                   <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Status</th>
                   <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Terminals</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Last Settlement</th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">MDR Rate</th>
                   <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
@@ -325,11 +382,11 @@ function MerchantsTab() {
                     )}
                   >
                     <td className="px-5 py-3">
-                      <div className="font-medium">{m.businessName}</div>
-                      <div className="text-xs text-muted-foreground">{m.registrationNumber}</div>
+                      <div className="font-medium">{m.merchantName}</div>
+                      <div className="text-xs text-muted-foreground">{m.registrationNumber ?? m.merchantId}</div>
                     </td>
                     <td className="px-5 py-3">
-                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{m.mcc}</span>
+                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{m.merchantCategoryCode}</span>
                     </td>
                     <td className="px-5 py-3">
                       <span
@@ -359,16 +416,16 @@ function MerchantsTab() {
                       </span>
                     </td>
                     <td className="px-5 py-3 tabular-nums text-muted-foreground text-xs">
-                      {m.terminalCount ?? '—'}
+                      {m.terminalCount ?? 0}
                     </td>
-                    <td className="px-5 py-3 text-xs text-muted-foreground">
-                      {formatDate(m.lastSettlementDate)}
+                    <td className="px-5 py-3 tabular-nums text-muted-foreground text-xs">
+                      {m.mdrRate != null ? `${m.mdrRate}%` : '—'}
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
                         {m.status !== 'ACTIVE' && (
                           <button
-                            onClick={() => activate(m.id)}
+                            onClick={() => activate(m.merchantId)}
                             disabled={activating}
                             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-green-300 text-green-600 text-xs font-medium hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors disabled:opacity-50"
                           >
@@ -412,8 +469,8 @@ function MerchantsTab() {
         open={!!suspendTarget}
         merchant={suspendTarget}
         onClose={() => setSuspendTarget(null)}
-        onSuspend={(id, reason) =>
-          suspend({ id, reason }, { onSuccess: () => setSuspendTarget(null) })
+        onSuspend={(merchantId, reason) =>
+          suspend({ merchantId, reason }, { onSuccess: () => setSuspendTarget(null) })
         }
         isPending={suspending}
       />
@@ -429,14 +486,14 @@ function SettlementsTab() {
   const { data: settlements = [], isLoading } = useMerchantSettlements(selectedMerchantId ?? 0);
   const { mutate: processSettlement, isPending: processing } = useProcessSettlement();
   const [showProcessForm, setShowProcessForm] = useState(false);
-  const [processForm, setProcessForm] = useState({ fromDate: '', toDate: '' });
+  const [processDate, setProcessDate] = useState('');
 
   const handleProcess = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedMerchantId) return;
+    if (!selectedMerchantId || !processDate) return;
     processSettlement(
-      { merchantId: selectedMerchantId, fromDate: processForm.fromDate, toDate: processForm.toDate },
-      { onSuccess: () => setShowProcessForm(false) },
+      { merchantId: selectedMerchantId, date: processDate },
+      { onSuccess: () => { setShowProcessForm(false); setProcessDate(''); } },
     );
   };
 
@@ -451,7 +508,7 @@ function SettlementsTab() {
           <option value="">Select Merchant</option>
           {merchants.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.businessName}
+              {m.merchantName}
             </option>
           ))}
         </select>
@@ -472,23 +529,13 @@ function SettlementsTab() {
           className="rounded-xl border bg-card p-4 flex flex-wrap items-end gap-3"
         >
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">From Date</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Settlement Date</label>
             <input
               required
               type="date"
               className="rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              value={processForm.fromDate}
-              onChange={(e) => setProcessForm((f) => ({ ...f, fromDate: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">To Date</label>
-            <input
-              required
-              type="date"
-              className="rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              value={processForm.toDate}
-              onChange={(e) => setProcessForm((f) => ({ ...f, toDate: e.target.value }))}
+              value={processDate}
+              onChange={(e) => setProcessDate(e.target.value)}
             />
           </div>
           <button
@@ -527,51 +574,51 @@ function SettlementsTab() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Period</th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Date</th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Gross</th>
+                  <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">MDR</th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Fees</th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Net</th>
                   <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Processed</th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Settled</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {settlements.map((s) => (
                   <tr key={s.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-3 text-xs text-muted-foreground">
-                      {formatDate(s.fromDate)} – {formatDate(s.toDate)}
+                      {formatDate(s.settlementDate)}
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums font-medium">
-                      {formatAmount(s.grossAmount, s.currency)}
+                      {formatAmount(s.grossTransactionAmount)}
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums text-muted-foreground text-xs">
-                      {formatAmount(s.fees, s.currency)}
+                      {formatAmount(s.mdrDeducted)}
+                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums text-muted-foreground text-xs">
+                      {formatAmount(s.otherFeesDeducted)}
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums font-semibold text-green-600">
-                      {formatAmount(s.netAmount, s.currency)}
+                      {formatAmount(s.netSettlementAmount)}
                     </td>
                     <td className="px-5 py-3">
                       <span
                         className={cn(
                           'inline-flex items-center gap-1 text-xs font-medium',
-                          s.status === 'COMPLETED'
-                            ? 'text-green-600'
-                            : s.status === 'FAILED'
-                              ? 'text-red-500'
-                              : 'text-amber-600',
+                          SETTLEMENT_STATUS_BADGE[s.status] ?? 'text-muted-foreground',
                         )}
                       >
                         {s.status}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-xs text-muted-foreground">
-                      {formatDate(s.processedAt)}
+                      {formatDate(s.settledAt)}
                     </td>
                   </tr>
                 ))}
                 {settlements.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={7} className="px-5 py-10 text-center text-sm text-muted-foreground">
                       No settlement records found.
                     </td>
                   </tr>
@@ -585,19 +632,19 @@ function SettlementsTab() {
   );
 }
 
-// ─── Chargebacks Tab ──────────────────────────────────────────────────────────
+// ─── Representment Dialog ─────────────────────────────────────────────────────
 
 interface RepresentmentDialogProps {
   open: boolean;
   chargebackId: number | null;
   onClose: () => void;
-  onSubmit: (id: number, evidence: string, amount: number) => void;
+  onSubmit: (id: number, responseRef: string, evidence: Record<string, unknown>) => void;
   isPending: boolean;
 }
 
 function RepresentmentDialog({ open, chargebackId, onClose, onSubmit, isPending }: RepresentmentDialogProps) {
   const [evidence, setEvidence] = useState('');
-  const [amount, setAmount] = useState('');
+  const [responseRef, setResponseRef] = useState('');
   if (!open || chargebackId === null) return null;
   return (
     <>
@@ -613,10 +660,20 @@ function RepresentmentDialog({ open, chargebackId, onClose, onSubmit, isPending 
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              onSubmit(chargebackId, evidence, parseFloat(amount));
+              onSubmit(chargebackId, responseRef, { description: evidence });
             }}
             className="p-6 space-y-4"
           >
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Response Reference</label>
+              <input
+                required
+                className={inputCls}
+                value={responseRef}
+                onChange={(e) => setResponseRef(e.target.value)}
+                placeholder="REP-2026-001"
+              />
+            </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Evidence</label>
               <textarea
@@ -626,19 +683,6 @@ function RepresentmentDialog({ open, chargebackId, onClose, onSubmit, isPending 
                 value={evidence}
                 onChange={(e) => setEvidence(e.target.value)}
                 placeholder="Provide transaction evidence, receipt references, etc."
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Representment Amount</label>
-              <input
-                required
-                type="number"
-                min={0}
-                step="0.01"
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
               />
             </div>
             <div className="flex justify-end gap-3">
@@ -661,21 +705,26 @@ function RepresentmentDialog({ open, chargebackId, onClose, onSubmit, isPending 
   );
 }
 
+// ─── Chargebacks Tab ──────────────────────────────────────────────────────────
+
 function ChargebacksTab() {
   const { data: chargebacks = [], isLoading } = useChargebacks();
-  const { mutate: submitRepresentment, isPending: submitting } = useRecordChargeback();
+  const { mutate: submitRepresentment, isPending: submitting } = useSubmitRepresentment();
   const [representmentTarget, setRepresentmentTarget] = useState<number | null>(null);
 
-  const openCount = chargebacks.filter((c) => c.status === 'OPEN').length;
+  // Count chargebacks that need attention (not yet closed or in arbitration)
+  const pendingCount = chargebacks.filter(
+    (c) => c.status === 'RECEIVED' || c.status === 'NOTIFIED' || c.status === 'EVIDENCE_REQUESTED',
+  ).length;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        {openCount > 0 && (
+        {pendingCount > 0 && (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
             <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
             <span className="text-xs font-medium text-red-700 dark:text-red-400">
-              {openCount} open chargeback{openCount !== 1 ? 's' : ''} require attention
+              {pendingCount} chargeback{pendingCount !== 1 ? 's' : ''} require attention
             </span>
           </div>
         )}
@@ -692,7 +741,7 @@ function ChargebacksTab() {
               <thead className="bg-muted/50">
                 <tr>
                   <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Transaction Ref</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Merchant</th>
+                  <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Network</th>
                   <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Amount</th>
                   <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Reason</th>
                   <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Status</th>
@@ -705,21 +754,21 @@ function ChargebacksTab() {
                   <tr key={cb.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-5 py-3">
                       <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                        {cb.transactionRef}
+                        {cb.originalTransactionRef ?? '—'}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-sm">{cb.merchantName ?? `Merchant #${cb.merchantId}`}</td>
+                    <td className="px-5 py-3 text-sm">{cb.cardNetwork ?? '—'}</td>
                     <td className="px-5 py-3 text-right tabular-nums font-medium">
-                      {formatAmount(cb.amount, cb.currency)}
+                      {formatAmount(cb.chargebackAmount, cb.currency)}
                     </td>
                     <td className="px-5 py-3 text-xs text-muted-foreground max-w-[180px] truncate">
-                      {cb.reason}
+                      {cb.reasonDescription ?? cb.reasonCode ?? '—'}
                     </td>
                     <td className="px-5 py-3">
                       <span
                         className={cn(
                           'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                          CHARGEBACK_STATUS_BADGE[cb.status],
+                          CHARGEBACK_STATUS_BADGE[cb.status] ?? 'bg-muted text-muted-foreground',
                         )}
                       >
                         {cb.status}
@@ -727,7 +776,7 @@ function ChargebacksTab() {
                     </td>
                     <td className="px-5 py-3 text-xs text-muted-foreground">{formatDate(cb.createdAt)}</td>
                     <td className="px-5 py-3">
-                      {(cb.status === 'OPEN' || cb.status === 'REPRESENTMENT') && (
+                      {(cb.status === 'RECEIVED' || cb.status === 'NOTIFIED' || cb.status === 'EVIDENCE_REQUESTED') && (
                         <button
                           onClick={() => setRepresentmentTarget(cb.id)}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
@@ -756,9 +805,9 @@ function ChargebacksTab() {
         open={representmentTarget !== null}
         chargebackId={representmentTarget}
         onClose={() => setRepresentmentTarget(null)}
-        onSubmit={(_id, evidence, amount) =>
+        onSubmit={(id, responseRef, evidence) =>
           submitRepresentment(
-            { merchantId: 0, transactionRef: '', amount, reason: evidence },
+            { id, responseRef, evidence },
             { onSuccess: () => setRepresentmentTarget(null) },
           )
         }
@@ -781,24 +830,35 @@ function PciComplianceTab() {
     );
   }
 
-  if (!report) {
+  if (!report || Object.keys(report).length === 0) {
     return (
       <div className="rounded-xl border border-dashed py-20 text-center text-muted-foreground">
         <Shield className="w-10 h-10 mx-auto mb-3 opacity-20" />
-        <p className="text-sm">No PCI compliance report available.</p>
+        <p className="text-sm">No PCI compliance data available. Set up acquiring facilities first.</p>
       </div>
     );
   }
 
-  const isCompliant = report.overallStatus === 'COMPLIANT';
-  const isInProgress = report.overallStatus === 'IN_PROGRESS';
+  // Derive compliance summary from the grouped facilities map
+  const compliantFacilities = report['COMPLIANT'] ?? [];
+  const nonCompliantFacilities = report['NON_COMPLIANT'] ?? [];
+  const pendingSaqFacilities = report['PENDING_SAQ'] ?? [];
+  const pendingAsvFacilities = report['PENDING_ASV'] ?? [];
+  const unknownFacilities = report['UNKNOWN'] ?? [];
 
-  const findingGroups = [
-    { label: 'Critical', count: report.criticalFindings, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/20' },
-    { label: 'High', count: report.highFindings, color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-900/20' },
-    { label: 'Medium', count: report.mediumFindings, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/20' },
-    { label: 'Low', count: report.lowFindings, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/20' },
+  const totalFacilities =
+    compliantFacilities.length + nonCompliantFacilities.length +
+    pendingSaqFacilities.length + pendingAsvFacilities.length + unknownFacilities.length;
+
+  const complianceGroups = [
+    { label: 'Compliant', count: compliantFacilities.length, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/20' },
+    { label: 'Non-Compliant', count: nonCompliantFacilities.length, color: 'text-red-600', bg: 'bg-red-100 dark:bg-red-900/20' },
+    { label: 'Pending SAQ', count: pendingSaqFacilities.length, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/20' },
+    { label: 'Pending ASV', count: pendingAsvFacilities.length, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/20' },
   ];
+
+  const isFullyCompliant = nonCompliantFacilities.length === 0 && pendingSaqFacilities.length === 0 && pendingAsvFacilities.length === 0;
+  const hasNonCompliant = nonCompliantFacilities.length > 0;
 
   return (
     <div className="space-y-6">
@@ -806,100 +866,110 @@ function PciComplianceTab() {
       <div
         className={cn(
           'rounded-xl border p-5 flex items-center gap-4',
-          isCompliant
+          isFullyCompliant
             ? 'border-green-200 bg-green-50 dark:bg-green-900/10 dark:border-green-800'
-            : isInProgress
-              ? 'border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800'
-              : 'border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-800',
+            : hasNonCompliant
+              ? 'border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-800'
+              : 'border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800',
         )}
       >
         <div
           className={cn(
             'w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0',
-            isCompliant
+            isFullyCompliant
               ? 'bg-green-100 dark:bg-green-900/30'
-              : isInProgress
-                ? 'bg-amber-100 dark:bg-amber-900/30'
-                : 'bg-red-100 dark:bg-red-900/30',
+              : hasNonCompliant
+                ? 'bg-red-100 dark:bg-red-900/30'
+                : 'bg-amber-100 dark:bg-amber-900/30',
           )}
         >
-          {isCompliant ? (
+          {isFullyCompliant ? (
             <CheckCircle2 className="w-6 h-6 text-green-600" />
-          ) : isInProgress ? (
-            <RefreshCw className="w-6 h-6 text-amber-600" />
-          ) : (
+          ) : hasNonCompliant ? (
             <AlertTriangle className="w-6 h-6 text-red-600" />
+          ) : (
+            <RefreshCw className="w-6 h-6 text-amber-600" />
           )}
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-sm">
-            PCI DSS {report.complianceLevel} —{' '}
+            PCI DSS Compliance —{' '}
             <span
               className={cn(
-                isCompliant ? 'text-green-700' : isInProgress ? 'text-amber-700' : 'text-red-700',
+                isFullyCompliant ? 'text-green-700' : hasNonCompliant ? 'text-red-700' : 'text-amber-700',
               )}
             >
-              {report.overallStatus.replace('_', ' ')}
+              {isFullyCompliant ? 'COMPLIANT' : hasNonCompliant ? 'NON COMPLIANT' : 'IN PROGRESS'}
             </span>
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Last audit: {formatDate(report.lastAuditDate)} · Next audit: {formatDate(report.nextAuditDate)}
-            {report.assessorName && ` · Assessor: ${report.assessorName}`}
-            {report.reportRef && ` · Ref: ${report.reportRef}`}
+            {compliantFacilities.length} of {totalFacilities} facilities are fully PCI compliant
           </p>
         </div>
         <div className="text-right">
-          <p className="text-2xl font-bold tabular-nums">{report.totalFindings}</p>
-          <p className="text-xs text-muted-foreground">Total Findings</p>
+          <p className="text-2xl font-bold tabular-nums">{totalFacilities}</p>
+          <p className="text-xs text-muted-foreground">Total Facilities</p>
         </div>
       </div>
 
-      {/* Findings Breakdown */}
+      {/* Status Breakdown Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {findingGroups.map(({ label, count, color, bg }) => (
+        {complianceGroups.map(({ label, count, color, bg }) => (
           <div key={label} className={cn('rounded-xl border p-4', bg)}>
-            <p className="text-xs font-medium text-muted-foreground">{label} Severity</p>
+            <p className="text-xs font-medium text-muted-foreground">{label}</p>
             <p className={cn('text-3xl font-bold mt-1 tabular-nums', color)}>{count}</p>
           </div>
         ))}
       </div>
 
-      {/* Info */}
-      <div className="rounded-xl border bg-card p-5">
-        <h4 className="text-sm font-semibold mb-3">Compliance Details</h4>
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
-          <div>
-            <dt className="text-xs text-muted-foreground">Compliance Level</dt>
-            <dd className="font-medium mt-0.5">{report.complianceLevel}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">Overall Status</dt>
-            <dd className="font-medium mt-0.5">{report.overallStatus.replace('_', ' ')}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">Last Audit</dt>
-            <dd className="font-medium mt-0.5">{formatDate(report.lastAuditDate)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">Next Audit</dt>
-            <dd className="font-medium mt-0.5">{formatDate(report.nextAuditDate)}</dd>
-          </div>
-          {report.assessorName && (
-            <div>
-              <dt className="text-xs text-muted-foreground">Assessor</dt>
-              <dd className="font-medium mt-0.5">{report.assessorName}</dd>
+      {/* Facility Details by Status */}
+      {Object.entries(report).map(([status, facilities]) => (
+        facilities.length > 0 && (
+          <div key={status} className="rounded-xl border bg-card overflow-hidden">
+            <div className="px-5 py-3 border-b bg-muted/30">
+              <h4 className="text-sm font-semibold">{status.replace(/_/g, ' ')} ({facilities.length})</h4>
             </div>
-          )}
-          {report.reportRef && (
-            <div>
-              <dt className="text-xs text-muted-foreground">Report Reference</dt>
-              <dd className="font-mono text-xs mt-0.5 bg-muted px-1.5 py-0.5 rounded inline-block">
-                {report.reportRef}
-              </dd>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left px-5 py-2 text-xs font-medium text-muted-foreground">Merchant</th>
+                    <th className="text-left px-5 py-2 text-xs font-medium text-muted-foreground">Type</th>
+                    <th className="text-left px-5 py-2 text-xs font-medium text-muted-foreground">Processor</th>
+                    <th className="text-left px-5 py-2 text-xs font-medium text-muted-foreground">3DS</th>
+                    <th className="text-left px-5 py-2 text-xs font-medium text-muted-foreground">Fraud Screening</th>
+                    <th className="text-left px-5 py-2 text-xs font-medium text-muted-foreground">Compliance Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {facilities.map((f: AcquiringFacility) => (
+                    <tr key={f.id} className="hover:bg-muted/20">
+                      <td className="px-5 py-2 text-xs">Merchant #{f.merchantId}</td>
+                      <td className="px-5 py-2 text-xs">{f.facilityType ?? '—'}</td>
+                      <td className="px-5 py-2 text-xs">{f.processorConnection ?? '—'}</td>
+                      <td className="px-5 py-2 text-xs">
+                        {f.threeDSecureEnabled ? (
+                          <span className="text-green-600">Enabled</span>
+                        ) : (
+                          <span className="text-muted-foreground">Disabled</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-2 text-xs">
+                        {f.fraudScreeningEnabled ? (
+                          <span className="text-green-600">Enabled</span>
+                        ) : (
+                          <span className="text-red-600">Disabled</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-2 text-xs">{formatDate(f.pciComplianceDate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </dl>
-      </div>
+          </div>
+        )
+      ))}
     </div>
   );
 }
@@ -912,9 +982,15 @@ function FacilitiesTab() {
   const setupFacility = useSetupFacility();
   const activateFacility = useActivateFacility();
   const [showSetup, setShowSetup] = useState(false);
-  const [setupForm, setSetupForm] = useState({ merchantId: 0, settlementCycle: 'DAILY', mdrRatePct: 1.5 });
+  const [setupForm, setSetupForm] = useState({
+    merchantId: 0,
+    settlementCycle: 'T1',
+    mdrRatePct: 1.5,
+    facilityType: 'CARD_PRESENT',
+    processorConnection: 'VISA',
+  });
 
-  const activeCount = facilities.filter((f: Record<string, unknown>) => f.status === 'ACTIVE').length;
+  const activeCount = facilities.filter((f: AcquiringFacility) => f.status === 'ACTIVE').length;
 
   return (
     <div className="space-y-4">
@@ -934,28 +1010,30 @@ function FacilitiesTab() {
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b"><tr>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Merchant</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Type</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Processor</th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Settlement</th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">MDR %</th>
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Type</th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Status</th>
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Actions</th>
             </tr></thead>
             <tbody className="divide-y">
-              {facilities.map((f: Record<string, unknown>) => (
-                <tr key={Number(f.id)} className="hover:bg-muted/20">
-                  <td className="px-4 py-2.5 font-medium">Merchant #{String(f.merchantId)}</td>
-                  <td className="px-4 py-2.5 text-xs">{String(f.settlementCycle ?? '—')}</td>
-                  <td className="px-4 py-2.5 font-mono text-xs">{Number(f.mdrRatePct ?? 0).toFixed(2)}%</td>
-                  <td className="px-4 py-2.5 text-xs">{String(f.facilityType ?? '—')}</td>
+              {facilities.map((f: AcquiringFacility) => (
+                <tr key={f.id} className="hover:bg-muted/20">
+                  <td className="px-4 py-2.5 font-medium">Merchant #{f.merchantId}</td>
+                  <td className="px-4 py-2.5 text-xs">{f.facilityType ?? '—'}</td>
+                  <td className="px-4 py-2.5 text-xs">{f.processorConnection ?? '—'}</td>
+                  <td className="px-4 py-2.5 text-xs">{f.settlementCycle ?? '—'}</td>
+                  <td className="px-4 py-2.5 font-mono text-xs">{f.mdrRatePct != null ? `${Number(f.mdrRatePct).toFixed(2)}%` : '—'}</td>
                   <td className="px-4 py-2.5">
                     <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold',
                       f.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>
-                      {String(f.status)}
+                      {f.status}
                     </span>
                   </td>
                   <td className="px-4 py-2.5">
                     {f.status !== 'ACTIVE' && (
-                      <button onClick={() => activateFacility.mutate(Number(f.id))}
+                      <button onClick={() => activateFacility.mutate(f.id)}
                         disabled={activateFacility.isPending}
                         className="text-xs text-primary hover:underline font-medium">
                         Activate
@@ -982,15 +1060,39 @@ function FacilitiesTab() {
                   <select value={setupForm.merchantId} onChange={(e) => setSetupForm((f) => ({ ...f, merchantId: Number(e.target.value) }))}
                     className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
                     <option value={0}>Select merchant...</option>
-                    {merchants.map((m: Merchant) => <option key={m.id} value={m.id}>{m.merchantName ?? m.businessName}</option>)}
+                    {merchants.map((m: Merchant) => <option key={m.id} value={m.id}>{m.merchantName}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground">Settlement Frequency</label>
+                  <label className="text-xs font-medium text-muted-foreground">Facility Type</label>
+                  <select value={setupForm.facilityType} onChange={(e) => setSetupForm((f) => ({ ...f, facilityType: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
+                    <option value="CARD_PRESENT">Card Present</option>
+                    <option value="CARD_NOT_PRESENT">Card Not Present</option>
+                    <option value="ECOMMERCE">E-Commerce</option>
+                    <option value="MPOS">mPOS</option>
+                    <option value="QR">QR</option>
+                    <option value="RECURRING">Recurring</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Processor Connection</label>
+                  <select value={setupForm.processorConnection} onChange={(e) => setSetupForm((f) => ({ ...f, processorConnection: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
+                    <option value="VISA">Visa</option>
+                    <option value="MASTERCARD">Mastercard</option>
+                    <option value="VERVE">Verve</option>
+                    <option value="AMEX">Amex</option>
+                    <option value="UNION_PAY">Union Pay</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Settlement Cycle</label>
                   <select value={setupForm.settlementCycle} onChange={(e) => setSetupForm((f) => ({ ...f, settlementCycle: e.target.value }))}
                     className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
-                    <option value="DAILY">Daily</option>
-                    <option value="WEEKLY">Weekly</option>
+                    <option value="T0">T+0 (Same Day)</option>
+                    <option value="T1">T+1 (Next Day)</option>
+                    <option value="T2">T+2 (Two Days)</option>
                   </select>
                 </div>
                 <div>
@@ -1017,6 +1119,195 @@ function FacilitiesTab() {
   );
 }
 
+// ─── POS Terminals Tab ───────────────────────────────────────────────────────
+
+function TerminalsTab() {
+  const { data: terminals = [], isLoading } = useAllTerminals();
+  const registerTerminal = useRegisterTerminal();
+  const updateStatus = useUpdateTerminalStatus();
+  const [showRegister, setShowRegister] = useState(false);
+  const [regForm, setRegForm] = useState({
+    terminalId: '',
+    terminalType: 'COUNTERTOP',
+    merchantId: '',
+    merchantName: '',
+    locationAddress: '',
+  });
+
+  const activeCount = terminals.filter((t) => t.operationalStatus === 'ACTIVE').length;
+
+  const statusColor = (s: string) => {
+    switch (s) {
+      case 'ACTIVE': return 'bg-green-100 text-green-700';
+      case 'INACTIVE': return 'bg-gray-100 text-gray-600';
+      case 'SUSPENDED': return 'bg-amber-100 text-amber-700';
+      case 'TAMPERED': return 'bg-red-100 text-red-700';
+      case 'DECOMMISSIONED': return 'bg-gray-200 text-gray-500';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">{terminals.length} terminals · {activeCount} active</div>
+        <button onClick={() => setShowRegister(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+          <Plus className="w-4 h-4" /> Register Terminal
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-16 rounded-lg bg-muted animate-pulse" />)}</div>
+      ) : terminals.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground text-sm">No POS terminals registered</div>
+      ) : (
+        <div className="rounded-lg border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 border-b"><tr>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Terminal ID</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Type</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Merchant</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Location</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Capabilities</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Heartbeat</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Status</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Actions</th>
+            </tr></thead>
+            <tbody className="divide-y">
+              {terminals.map((t: PosTerminal) => (
+                <tr key={t.id} className="hover:bg-muted/20">
+                  <td className="px-4 py-2.5">
+                    <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{t.terminalId}</span>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs">{t.terminalType}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="text-xs font-medium">{t.merchantName}</div>
+                    <div className="text-[10px] text-muted-foreground">{t.merchantId}</div>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs max-w-[150px] truncate">{t.locationAddress ?? '—'}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex gap-1 flex-wrap">
+                      {t.supportsContactless && <span className="text-[10px] bg-blue-100 text-blue-700 px-1 py-0.5 rounded">NFC</span>}
+                      {t.supportsChip && <span className="text-[10px] bg-green-100 text-green-700 px-1 py-0.5 rounded">Chip</span>}
+                      {t.supportsPin && <span className="text-[10px] bg-purple-100 text-purple-700 px-1 py-0.5 rounded">PIN</span>}
+                      {t.supportsQr && <span className="text-[10px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded">QR</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-xs">
+                    {t.lastHeartbeatAt ? (
+                      <div className="flex items-center gap-1 text-green-600">
+                        <Wifi className="w-3 h-3" />
+                        {formatDate(t.lastHeartbeatAt)}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 text-muted-foreground">
+                        <WifiOff className="w-3 h-3" />
+                        Never
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold', statusColor(t.operationalStatus))}>
+                      {t.operationalStatus}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-1">
+                      {t.operationalStatus === 'ACTIVE' && (
+                        <button
+                          onClick={() => updateStatus.mutate({ terminalId: t.terminalId, status: 'SUSPENDED' })}
+                          disabled={updateStatus.isPending}
+                          className="text-xs text-amber-600 hover:underline font-medium"
+                        >
+                          Suspend
+                        </button>
+                      )}
+                      {t.operationalStatus === 'SUSPENDED' && (
+                        <button
+                          onClick={() => updateStatus.mutate({ terminalId: t.terminalId, status: 'ACTIVE' })}
+                          disabled={updateStatus.isPending}
+                          className="text-xs text-green-600 hover:underline font-medium"
+                        >
+                          Activate
+                        </button>
+                      )}
+                      {t.operationalStatus !== 'DECOMMISSIONED' && (
+                        <button
+                          onClick={() => updateStatus.mutate({ terminalId: t.terminalId, status: 'DECOMMISSIONED' })}
+                          disabled={updateStatus.isPending}
+                          className="text-xs text-red-500 hover:underline font-medium ml-2"
+                        >
+                          Decommission
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Register Terminal Dialog */}
+      {showRegister && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowRegister(false)} />
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-xl shadow-2xl border w-full max-w-sm p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-semibold">Register POS Terminal</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Terminal ID</label>
+                  <input value={regForm.terminalId} onChange={(e) => setRegForm((f) => ({ ...f, terminalId: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" placeholder="POS-001" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Terminal Type</label>
+                  <select value={regForm.terminalType} onChange={(e) => setRegForm((f) => ({ ...f, terminalType: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
+                    <option value="COUNTERTOP">Countertop</option>
+                    <option value="MOBILE">Mobile</option>
+                    <option value="VIRTUAL">Virtual</option>
+                    <option value="UNATTENDED">Unattended</option>
+                    <option value="SOFTPOS">SoftPOS</option>
+                    <option value="PIN_PAD">PIN Pad</option>
+                    <option value="INTEGRATED">Integrated</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Merchant ID</label>
+                  <input value={regForm.merchantId} onChange={(e) => setRegForm((f) => ({ ...f, merchantId: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" placeholder="MCH-ABCDEF1234" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Merchant Name</label>
+                  <input value={regForm.merchantName} onChange={(e) => setRegForm((f) => ({ ...f, merchantName: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" placeholder="Acme Retail" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Location Address</label>
+                  <input value={regForm.locationAddress} onChange={(e) => setRegForm((f) => ({ ...f, locationAddress: e.target.value }))}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" placeholder="123 Main St" />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button onClick={() => setShowRegister(false)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+                <button onClick={() => {
+                  registerTerminal.mutate(regForm, { onSuccess: () => setShowRegister(false) });
+                }} disabled={!regForm.terminalId || !regForm.merchantId || !regForm.merchantName || registerTerminal.isPending}
+                  className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  {registerTerminal.isPending ? 'Registering...' : 'Register'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof Store }> = [
@@ -1024,14 +1315,46 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof Store }> = [
   { id: 'facilities', label: 'Facilities', icon: Building2 },
   { id: 'settlements', label: 'Settlements', icon: DollarSign },
   { id: 'chargebacks', label: 'Chargebacks', icon: FileWarning },
+  { id: 'terminals', label: 'Terminals', icon: Monitor },
   { id: 'pci', label: 'PCI Compliance', icon: Shield },
 ];
 
+const VALID_TABS = new Set<string>(TABS.map((t) => t.id));
+
 export function MerchantAcquiringPage() {
-  const [tab, setTab] = useState<Tab>('merchants');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [tab, setTab] = useState<Tab>(
+    tabParam && VALID_TABS.has(tabParam) ? (tabParam as Tab) : 'merchants',
+  );
+
+  // Sync URL when tab changes
+  useEffect(() => {
+    const current = searchParams.get('tab');
+    if (tab === 'merchants' && !current) return;
+    if (current !== tab) {
+      setSearchParams(tab === 'merchants' ? {} : { tab }, { replace: true });
+    }
+  }, [tab, searchParams, setSearchParams]);
+
+  // Sync tab when URL changes externally (e.g. sidebar nav)
+  useEffect(() => {
+    const urlTab = searchParams.get('tab');
+    if (urlTab && VALID_TABS.has(urlTab) && urlTab !== tab) {
+      setTab(urlTab as Tab);
+    } else if (!urlTab && tab !== 'merchants') {
+      setTab('merchants');
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const { data: active = [] } = useActiveMerchants();
   const { data: highRisk = [] } = useHighRiskMerchants();
   const { data: chargebacks = [] } = useChargebacks();
+  const { data: terminals = [] } = useAllTerminals();
+
+  const pendingChargebacks = chargebacks.filter(
+    (c) => c.status === 'RECEIVED' || c.status === 'NOTIFIED' || c.status === 'EVIDENCE_REQUESTED',
+  ).length;
 
   const kpis = [
     {
@@ -1049,15 +1372,15 @@ export function MerchantAcquiringPage() {
       bg: 'bg-red-50 dark:bg-red-900/10',
     },
     {
-      label: 'Settlements Today',
-      value: '—',
-      icon: DollarSign,
+      label: 'Active Terminals',
+      value: terminals.filter((t) => t.operationalStatus === 'ACTIVE').length,
+      icon: Monitor,
       color: 'text-green-600',
       bg: 'bg-green-50 dark:bg-green-900/10',
     },
     {
       label: 'Chargebacks Pending',
-      value: chargebacks.filter((c) => c.status === 'OPEN').length,
+      value: pendingChargebacks,
       icon: FileWarning,
       color: 'text-amber-600',
       bg: 'bg-amber-50 dark:bg-amber-900/10',
@@ -1085,16 +1408,16 @@ export function MerchantAcquiringPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 border-b">
+        <div className="flex items-center gap-1 border-b overflow-x-auto">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
+                'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap',
                 tab === id
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
               <Icon className="w-4 h-4" />
@@ -1103,10 +1426,12 @@ export function MerchantAcquiringPage() {
           ))}
         </div>
 
+        {/* Tab Content */}
         {tab === 'merchants' && <MerchantsTab />}
         {tab === 'facilities' && <FacilitiesTab />}
         {tab === 'settlements' && <SettlementsTab />}
         {tab === 'chargebacks' && <ChargebacksTab />}
+        {tab === 'terminals' && <TerminalsTab />}
         {tab === 'pci' && <PciComplianceTab />}
       </div>
     </>

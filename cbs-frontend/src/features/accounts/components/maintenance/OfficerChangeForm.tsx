@@ -54,8 +54,8 @@ export function OfficerChangeForm({ accountId, currentOfficer, onSuccess }: Offi
       toast.success('Account officer updated successfully');
       setConfirmOpen(false);
       onSuccess();
-    } catch {
-      toast.error('Failed to update account officer');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to update account officer');
     } finally {
       setSubmitting(false);
     }

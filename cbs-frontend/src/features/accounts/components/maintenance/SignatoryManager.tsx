@@ -4,16 +4,18 @@ import { Trash2, UserPlus, Loader2, Users } from 'lucide-react';
 import { accountMaintenanceApi, type Signatory } from '../../api/accountMaintenanceApi';
 
 const SIGNING_RULES = [
-  { value: 'ANY_ONE', label: 'Any One — any single signatory can authorise' },
+  { value: 'ANY', label: 'Any — any single signatory can authorise' },
+  { value: 'ANY_ONE', label: 'Any One — any one signatory can authorise' },
   { value: 'ANY_TWO', label: 'Any Two — any two signatories must authorise' },
   { value: 'ALL', label: 'All — all signatories must authorise' },
+  { value: 'SEQUENTIAL', label: 'Sequential — signatories must authorise in sequence' },
 ];
 
 const SIGNATORY_ROLES = [
   { value: 'PRIMARY', label: 'Primary' },
-  { value: 'SECONDARY', label: 'Secondary' },
   { value: 'JOINT', label: 'Joint' },
-  { value: 'AUTHORIZED', label: 'Authorised Signatory' },
+  { value: 'MANDATE', label: 'Mandate' },
+  { value: 'AUTHORISED', label: 'Authorised' },
 ];
 
 interface SignatoryManagerProps {
@@ -28,7 +30,7 @@ export function SignatoryManager({ accountId, signatories: initialSignatories, c
   const [signingRule, setSigningRule] = useState(currentSigningRule);
   const [addName, setAddName] = useState('');
   const [addCustomerId, setAddCustomerId] = useState('');
-  const [addRole, setAddRole] = useState('SECONDARY');
+  const [addRole, setAddRole] = useState('AUTHORISED');
   const [addReason, setAddReason] = useState('');
   const [addErrors, setAddErrors] = useState<Record<string, string>>({});
 
@@ -67,8 +69,8 @@ export function SignatoryManager({ accountId, signatories: initialSignatories, c
       setAddReason('');
       toast.success('Signatory added successfully');
       onSuccess();
-    } catch {
-      toast.error('Failed to add signatory');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to add signatory');
     } finally {
       setSubmittingAdd(false);
     }
@@ -86,8 +88,8 @@ export function SignatoryManager({ accountId, signatories: initialSignatories, c
       setRemoveReason('');
       toast.success('Signatory removed successfully');
       onSuccess();
-    } catch {
-      toast.error('Failed to remove signatory');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to remove signatory');
     } finally {
       setSubmittingRemove(false);
     }
@@ -103,8 +105,8 @@ export function SignatoryManager({ accountId, signatories: initialSignatories, c
       await accountMaintenanceApi.updateSigningRule(accountId, signingRule);
       toast.success('Signing rule updated successfully');
       onSuccess();
-    } catch {
-      toast.error('Failed to update signing rule');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to update signing rule');
     } finally {
       setSubmittingRule(false);
     }

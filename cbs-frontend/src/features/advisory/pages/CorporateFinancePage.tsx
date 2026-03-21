@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { Plus, ChevronRight, DollarSign, Briefcase, CheckCircle, BarChart2 } from 'lucide-react';
+import { Plus, DollarSign, Briefcase, CheckCircle2, BarChart2, MoreHorizontal, FileText, CreditCard, CheckCircle, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
 import {
-  useCorporateFinanceMandates,
-  useCreateEngagement,
-  useCloseEngagement,
+  useAllCorporateFinanceEngagements,
+  useCreateCFEngagement,
+  useCloseCFEngagement,
   useDeliverDraft,
   useFinalizeDelivery,
   useRecordFeeInvoice,
@@ -16,32 +17,87 @@ import {
 import type {
   CorporateFinanceEngagement,
   CorporateFinanceType,
-  CorporateFinanceStage,
+  CorporateFinanceRole,
+  CorporateFinanceStatus,
+  CreateCFEngagementPayload,
 } from '../api/advisoryApi';
 
-const CF_TYPES: CorporateFinanceType[] = [
-  'M_AND_A', 'IPO', 'RESTRUCTURING', 'BOND_ISSUANCE', 'PRIVATE_EQUITY',
+const CF_TYPES: { value: CorporateFinanceType; label: string }[] = [
+  { value: 'DEBT_RESTRUCTURING', label: 'Debt Restructuring' },
+  { value: 'EQUITY_RESTRUCTURING', label: 'Equity Restructuring' },
+  { value: 'CAPITAL_RAISE_ADVISORY', label: 'Capital Raise Advisory' },
+  { value: 'BUSINESS_VALUATION', label: 'Business Valuation' },
+  { value: 'FINANCIAL_MODELLING', label: 'Financial Modelling' },
+  { value: 'FEASIBILITY_STUDY', label: 'Feasibility Study' },
+  { value: 'STRATEGIC_REVIEW', label: 'Strategic Review' },
+  { value: 'TURNAROUND_ADVISORY', label: 'Turnaround Advisory' },
+  { value: 'REFINANCING', label: 'Refinancing' },
+  { value: 'RECAPITALIZATION', label: 'Recapitalization' },
 ];
 
-const STAGES: CorporateFinanceStage[] = [
-  'ORIGINATION', 'DUE_DILIGENCE', 'STRUCTURING', 'NEGOTIATION', 'EXECUTION', 'CLOSED',
+const CF_ROLES: { value: CorporateFinanceRole; label: string }[] = [
+  { value: 'SOLE_ADVISER', label: 'Sole Adviser' },
+  { value: 'LEAD_ADVISER', label: 'Lead Adviser' },
+  { value: 'JOINT_ADVISER', label: 'Joint Adviser' },
+  { value: 'INDEPENDENT_ADVISER', label: 'Independent Adviser' },
 ];
 
-const STAGE_IDX: Record<CorporateFinanceStage, number> = {
-  ORIGINATION: 0, DUE_DILIGENCE: 1, STRUCTURING: 2,
-  NEGOTIATION: 3, EXECUTION: 4, CLOSED: 5,
+const STATUS_FLOW: CorporateFinanceStatus[] = [
+  'PROPOSAL', 'MANDATED', 'ANALYSIS', 'DRAFT_DELIVERED', 'FINAL_DELIVERED', 'EXECUTION', 'COMPLETED',
+];
+
+const STATUS_LABELS: Record<string, string> = {
+  PROPOSAL: 'Proposal',
+  MANDATED: 'Mandated',
+  ANALYSIS: 'Analysis',
+  DRAFT_DELIVERED: 'Draft Delivered',
+  FINAL_DELIVERED: 'Final Delivered',
+  EXECUTION: 'Execution',
+  COMPLETED: 'Completed',
+  TERMINATED: 'Terminated',
 };
+
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'NGN', 'JPY', 'CHF'];
+
+// ─── Dialog helpers ──────────────────────────────────────────────────────────
+
+function DialogBackdrop({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto p-6">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DialogTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="text-base font-semibold mb-4">{children}</h2>;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const inputCls = 'w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
+const selectCls = `${inputCls} cursor-pointer`;
 
 // ─── Stage progress steps ─────────────────────────────────────────────────────
 
-function StageProgress({ stage }: { stage: CorporateFinanceStage }) {
-  const current = STAGE_IDX[stage] ?? 0;
+function StageProgress({ status }: { status: string }) {
+  const idx = STATUS_FLOW.indexOf(status as CorporateFinanceStatus);
+  const current = idx >= 0 ? idx : 0;
   return (
     <div className="flex items-center gap-0.5">
-      {STAGES.map((s, i) => (
+      {STATUS_FLOW.map((s, i) => (
         <div
           key={s}
-          title={s}
+          title={STATUS_LABELS[s] ?? s}
           className={`h-2 w-4 rounded-sm ${i <= current ? 'bg-primary' : 'bg-muted'}`}
         />
       ))}
@@ -53,147 +109,136 @@ function StageProgress({ stage }: { stage: CorporateFinanceStage }) {
 
 function RowActions({ row }: { row: CorporateFinanceEngagement }) {
   const [open, setOpen] = useState(false);
-  const [modal, setModal] = useState<
-    'draft' | 'invoice' | 'payment' | null
-  >(null);
-  const [form, setForm] = useState<Record<string, string>>({});
+  const [modal, setModal] = useState<'invoice' | 'payment' | null>(null);
+  const [amount, setAmount] = useState('');
 
   const deliverDraft = useDeliverDraft();
   const finalize = useFinalizeDelivery();
   const invoice = useRecordFeeInvoice();
   const payment = useRecordPayment();
-  const close = useCloseEngagement();
+  const close = useCloseCFEngagement();
+
+  const isClosed = row.status === 'COMPLETED' || row.status === 'TERMINATED';
 
   function handleAction(action: string) {
     setOpen(false);
-    if (action === 'draft') setModal('draft');
-    else if (action === 'finalize') finalize.mutate(row.code);
-    else if (action === 'invoice') setModal('invoice');
-    else if (action === 'payment') setModal('payment');
-    else if (action === 'close') close.mutate(row.code);
+    if (action === 'draft') {
+      deliverDraft.mutate(row.engagementCode, {
+        onSuccess: () => toast.success('Draft delivered'),
+        onError: () => toast.error('Failed to deliver draft'),
+      });
+    } else if (action === 'finalize') {
+      finalize.mutate(row.engagementCode, {
+        onSuccess: () => toast.success('Delivery finalized'),
+        onError: () => toast.error('Failed to finalize'),
+      });
+    } else if (action === 'invoice') {
+      setModal('invoice');
+    } else if (action === 'payment') {
+      setModal('payment');
+    } else if (action === 'close') {
+      close.mutate(row.engagementCode, {
+        onSuccess: () => toast.success('Engagement completed'),
+        onError: () => toast.error('Failed to close engagement'),
+      });
+    }
   }
 
   function submitModal() {
-    if (modal === 'draft') {
-      deliverDraft.mutate({ code: row.code, payload: { reportRef: form.reportRef, draftUrl: form.draftUrl } });
-    } else if (modal === 'invoice') {
-      invoice.mutate({ code: row.code, payload: { invoiceAmount: Number(form.invoiceAmount), invoiceRef: form.invoiceRef } });
+    const amt = Number(amount);
+    if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return; }
+    if (modal === 'invoice') {
+      invoice.mutate({ code: row.engagementCode, amount: amt }, {
+        onSuccess: () => toast.success('Invoice recorded'),
+        onError: () => toast.error('Failed to record invoice'),
+      });
     } else if (modal === 'payment') {
-      payment.mutate({ code: row.code, payload: { amount: Number(form.amount), paymentRef: form.paymentRef } });
+      payment.mutate({ code: row.engagementCode, amount: amt }, {
+        onSuccess: () => toast.success('Payment recorded'),
+        onError: () => toast.error('Failed to record payment'),
+      });
     }
     setModal(null);
-    setForm({});
+    setAmount('');
   }
 
   return (
     <>
       <div className="relative">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-muted hover:bg-muted/80"
-        >
-          Actions <ChevronRight className="w-3 h-3" />
+        <button onClick={() => setOpen(v => !v)} className="p-1 rounded hover:bg-muted" title="Actions">
+          <MoreHorizontal className="w-4 h-4" />
         </button>
         {open && (
-          <div className="absolute right-0 top-7 z-50 w-44 rounded-lg border bg-popover shadow-md py-1 text-xs">
-            {(['draft', 'finalize', 'invoice', 'payment', 'close'] as const).map((a) => (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+            <div className="absolute right-0 z-20 mt-1 w-48 bg-popover border border-border rounded-lg shadow-lg py-1 text-sm">
               <button
-                key={a}
-                onClick={() => handleAction(a)}
-                className="w-full text-left px-3 py-2 hover:bg-muted capitalize"
+                disabled={isClosed}
+                className="w-full px-3 py-1.5 text-left hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                onClick={() => handleAction('draft')}
               >
-                {a === 'draft' ? 'Deliver Draft' : a === 'finalize' ? 'Finalize' : a === 'invoice' ? 'Invoice' : a === 'payment' ? 'Record Payment' : 'Close'}
+                <FileText className="w-3.5 h-3.5" /> Deliver Draft
               </button>
-            ))}
-          </div>
+              <button
+                disabled={isClosed}
+                className="w-full px-3 py-1.5 text-left hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                onClick={() => handleAction('finalize')}
+              >
+                <CheckCircle className="w-3.5 h-3.5" /> Finalize
+              </button>
+              <div className="border-t border-border my-1" />
+              <button
+                disabled={isClosed}
+                className="w-full px-3 py-1.5 text-left hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                onClick={() => handleAction('invoice')}
+              >
+                <CreditCard className="w-3.5 h-3.5" /> Record Invoice
+              </button>
+              <button
+                disabled={isClosed}
+                className="w-full px-3 py-1.5 text-left hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                onClick={() => handleAction('payment')}
+              >
+                <DollarSign className="w-3.5 h-3.5" /> Record Payment
+              </button>
+              <div className="border-t border-border my-1" />
+              <button
+                disabled={isClosed}
+                className="w-full px-3 py-1.5 text-left hover:bg-muted text-green-700 dark:text-green-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                onClick={() => handleAction('close')}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Complete
+              </button>
+            </div>
+          </>
         )}
       </div>
 
-      {/* Simple modal */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-card rounded-xl border shadow-xl p-6 w-full max-w-sm space-y-4">
-            <h3 className="font-semibold text-sm capitalize">
-              {modal === 'draft' ? 'Deliver Draft' : modal === 'invoice' ? 'Record Invoice' : 'Record Payment'}
-            </h3>
-            {modal === 'draft' && (
-              <>
-                <label className="block text-xs font-medium">
-                  Report Ref
-                  <input
-                    className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background"
-                    value={form.reportRef || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, reportRef: e.target.value }))}
-                  />
-                </label>
-                <label className="block text-xs font-medium">
-                  Draft URL
-                  <input
-                    className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background"
-                    value={form.draftUrl || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, draftUrl: e.target.value }))}
-                  />
-                </label>
-              </>
-            )}
-            {modal === 'invoice' && (
-              <>
-                <label className="block text-xs font-medium">
-                  Invoice Amount
-                  <input
-                    type="number"
-                    className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background"
-                    value={form.invoiceAmount || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, invoiceAmount: e.target.value }))}
-                  />
-                </label>
-                <label className="block text-xs font-medium">
-                  Invoice Ref
-                  <input
-                    className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background"
-                    value={form.invoiceRef || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, invoiceRef: e.target.value }))}
-                  />
-                </label>
-              </>
-            )}
-            {modal === 'payment' && (
-              <>
-                <label className="block text-xs font-medium">
-                  Amount
-                  <input
-                    type="number"
-                    className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background"
-                    value={form.amount || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                  />
-                </label>
-                <label className="block text-xs font-medium">
-                  Payment Ref
-                  <input
-                    className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background"
-                    value={form.paymentRef || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, paymentRef: e.target.value }))}
-                  />
-                </label>
-              </>
-            )}
-            <div className="flex gap-2 justify-end pt-2">
-              <button
-                onClick={() => { setModal(null); setForm({}); }}
-                className="px-3 py-1.5 rounded border text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={submitModal}
-                className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm font-medium"
-              >
-                Submit
-              </button>
-            </div>
+        <DialogBackdrop>
+          <DialogTitle>{modal === 'invoice' ? 'Record Invoice' : 'Record Payment'}</DialogTitle>
+          <p className="text-xs text-muted-foreground mb-4">
+            Engagement: <strong>{row.engagementCode}</strong> · Client: <strong>{row.clientName}</strong>
+            {modal === 'invoice' && <><br />Total invoiced: <strong>{formatMoney(row.totalFeesInvoiced, row.currency)}</strong></>}
+            {modal === 'payment' && <><br />Total paid: <strong>{formatMoney(row.totalFeesPaid, row.currency)}</strong></>}
+          </p>
+          <Field label={`Amount (${row.currency}) *`}>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              className={inputCls}
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="0.00"
+              autoFocus
+            />
+          </Field>
+          <div className="flex gap-2 justify-end pt-4">
+            <button onClick={() => { setModal(null); setAmount(''); }} className="px-4 py-2 text-sm rounded-md border hover:bg-muted">Cancel</button>
+            <button onClick={submitModal} className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90">Submit</button>
           </div>
-        </div>
+        </DialogBackdrop>
       )}
     </>
   );
@@ -202,168 +247,158 @@ function RowActions({ row }: { row: CorporateFinanceEngagement }) {
 // ─── New Mandate Dialog ───────────────────────────────────────────────────────
 
 function NewMandateDialog({ onClose }: { onClose: () => void }) {
-  const create = useCreateEngagement();
-  const [form, setForm] = useState({
-    client: '',
-    type: 'M_AND_A' as CorporateFinanceType,
-    description: '',
-    estimatedFee: '',
+  const create = useCreateCFEngagement();
+  const [form, setForm] = useState<Partial<CreateCFEngagementPayload>>({
     currency: 'USD',
   });
 
+  const set = (k: keyof CreateCFEngagementPayload, v: unknown) =>
+    setForm(prev => ({ ...prev, [k]: v }));
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    create.mutate(
-      {
-        client: form.client,
-        type: form.type,
-        description: form.description,
-        estimatedFee: Number(form.estimatedFee),
-        currency: form.currency,
+    if (!form.engagementName || !form.engagementType || !form.clientName || !form.ourRole) {
+      toast.error('Fill in all required fields');
+      return;
+    }
+    create.mutate(form as CreateCFEngagementPayload, {
+      onSuccess: (eng) => {
+        toast.success(`Engagement ${eng.engagementCode} created`);
+        onClose();
       },
-      { onSuccess: onClose },
-    );
+      onError: () => toast.error('Failed to create engagement'),
+    });
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-card rounded-xl border shadow-xl p-6 w-full max-w-md space-y-4">
-        <h2 className="font-semibold">New Corporate Finance Mandate</h2>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <label className="block text-xs font-medium">
-            Client
-            <input
-              required
-              className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background"
-              value={form.client}
-              onChange={(e) => setForm((f) => ({ ...f, client: e.target.value }))}
-            />
-          </label>
-          <label className="block text-xs font-medium">
-            Type
-            <select
-              className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background"
-              value={form.type}
-              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as CorporateFinanceType }))}
-            >
-              {CF_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+    <DialogBackdrop>
+      <DialogTitle>New Corporate Finance Mandate</DialogTitle>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field label="Engagement Name *">
+          <input className={inputCls} value={form.engagementName || ''} onChange={e => set('engagementName', e.target.value)} placeholder="Debt Restructuring — ABC Corp" />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Type *">
+            <select className={selectCls} value={form.engagementType || ''} onChange={e => set('engagementType', e.target.value as CorporateFinanceType)}>
+              <option value="">Select type...</option>
+              {CF_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
-          </label>
-          <label className="block text-xs font-medium">
-            Description
-            <textarea
-              className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background resize-none"
-              rows={3}
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-xs font-medium">
-              Estimated Fee
-              <input
-                type="number"
-                required
-                className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background"
-                value={form.estimatedFee}
-                onChange={(e) => setForm((f) => ({ ...f, estimatedFee: e.target.value }))}
-              />
-            </label>
-            <label className="block text-xs font-medium">
-              Currency
-              <input
-                className="mt-1 w-full rounded border px-2 py-1.5 text-sm bg-background"
-                value={form.currency}
-                onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
-              />
-            </label>
-          </div>
-          <div className="flex gap-2 justify-end pt-2">
-            <button type="button" onClick={onClose} className="px-4 py-1.5 rounded border text-sm">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={create.isPending}
-              className="px-4 py-1.5 rounded bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60"
-            >
-              {create.isPending ? 'Creating…' : 'Create'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+          </Field>
+          <Field label="Our Role *">
+            <select className={selectCls} value={form.ourRole || ''} onChange={e => set('ourRole', e.target.value as CorporateFinanceRole)}>
+              <option value="">Select role...</option>
+              {CF_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Client Name *">
+            <input className={inputCls} value={form.clientName || ''} onChange={e => set('clientName', e.target.value)} placeholder="ABC Corporation" />
+          </Field>
+          <Field label="Client Sector">
+            <input className={inputCls} value={form.clientSector || ''} onChange={e => set('clientSector', e.target.value)} placeholder="Financial Services" />
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Deal Value Estimate">
+            <input type="number" min="0" step="0.01" className={inputCls} value={form.dealValueEstimate ?? ''} onChange={e => set('dealValueEstimate', e.target.value ? Number(e.target.value) : undefined)} placeholder="0.00" />
+          </Field>
+          <Field label="Currency">
+            <select className={selectCls} value={form.currency || 'USD'} onChange={e => set('currency', e.target.value)}>
+              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Lead Banker">
+            <input className={inputCls} value={form.leadBanker || ''} onChange={e => set('leadBanker', e.target.value)} placeholder="Jane Smith" />
+          </Field>
+          <Field label="Retainer Fee">
+            <input type="number" min="0" step="0.01" className={inputCls} value={form.retainerFee ?? ''} onChange={e => set('retainerFee', e.target.value ? Number(e.target.value) : undefined)} placeholder="0.00" />
+          </Field>
+        </div>
+        <Field label="Scope of Work">
+          <textarea className={`${inputCls} resize-none`} rows={3} value={form.scopeOfWork || ''} onChange={e => set('scopeOfWork', e.target.value)} placeholder="Describe the scope of work..." />
+        </Field>
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-md border hover:bg-muted">Cancel</button>
+          <button type="submit" disabled={create.isPending} className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+            {create.isPending ? 'Creating...' : 'Create Engagement'}
+          </button>
+        </div>
+      </form>
+    </DialogBackdrop>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function CorporateFinancePage() {
-  const { data: mandates = [], isLoading } = useCorporateFinanceMandates();
-  const [filterType, setFilterType] = useState<CorporateFinanceType | ''>('');
+  const { data: engagements = [], isLoading } = useAllCorporateFinanceEngagements();
+  const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [showNew, setShowNew] = useState(false);
 
-  const filtered = mandates.filter((m) => {
-    if (filterType && m.type !== filterType) return false;
-    if (filterStatus && m.status !== filterStatus) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    let result = engagements;
+    if (filterType) result = result.filter(e => e.engagementType === filterType);
+    if (filterStatus) result = result.filter(e => e.status === filterStatus);
+    return result;
+  }, [engagements, filterType, filterStatus]);
 
-  const statuses = [...new Set(mandates.map((m) => m.status))];
-
-  const totalFees = mandates.reduce((s, m) => s + (m.estimatedFee || 0), 0);
-  const closedThisYear = mandates.filter((m) => {
-    if (m.stage !== 'CLOSED') return false;
-    const year = new Date(m.updatedAt).getFullYear();
-    return year === new Date().getFullYear();
+  const statuses = [...new Set(engagements.map(e => e.status))];
+  const activeCount = engagements.filter(e => !['COMPLETED', 'TERMINATED'].includes(e.status)).length;
+  const totalFees = engagements.reduce((s, e) => s + (e.totalFeesInvoiced || 0), 0);
+  const completedThisYear = engagements.filter(e => {
+    if (e.status !== 'COMPLETED' || !e.completionDate) return false;
+    return new Date(e.completionDate).getFullYear() === new Date().getFullYear();
   }).length;
-  const avgDealSize = mandates.length > 0 ? totalFees / mandates.length : 0;
+  const avgDealSize = engagements.length > 0
+    ? engagements.reduce((s, e) => s + (e.dealValueEstimate || 0), 0) / engagements.length
+    : 0;
 
-  const columns: ColumnDef<CorporateFinanceEngagement, any>[] = [
+  const columns: ColumnDef<CorporateFinanceEngagement, unknown>[] = [
     {
-      accessorKey: 'code',
+      accessorKey: 'engagementCode',
       header: 'Code',
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-primary">{row.original.code}</span>
+        <span className="font-mono text-xs text-primary">{row.original.engagementCode}</span>
       ),
     },
-    { accessorKey: 'client', header: 'Client' },
+    { accessorKey: 'engagementName', header: 'Engagement', size: 200 },
+    { accessorKey: 'clientName', header: 'Client' },
     {
-      accessorKey: 'type',
+      accessorKey: 'engagementType',
       header: 'Type',
-      cell: ({ row }) => <StatusBadge status={row.original.type} />,
+      cell: ({ row }) => <StatusBadge status={row.original.engagementType} />,
     },
     {
-      accessorKey: 'description',
-      header: 'Description',
+      accessorKey: 'dealValueEstimate',
+      header: 'Deal Value',
       cell: ({ row }) => (
-        <span className="text-xs text-muted-foreground truncate max-w-[200px] block">
-          {row.original.description}
+        <span className="font-mono text-sm">
+          {row.original.dealValueEstimate ? formatMoney(row.original.dealValueEstimate, row.original.currency) : '-'}
         </span>
       ),
     },
     {
-      accessorKey: 'estimatedFee',
-      header: 'Est. Fee',
+      accessorKey: 'totalFeesInvoiced',
+      header: 'Invoiced',
       cell: ({ row }) => (
-        <span className="font-mono text-sm">{formatMoney(row.original.estimatedFee, row.original.currency)}</span>
-      ),
-    },
-    {
-      accessorKey: 'stage',
-      header: 'Stage',
-      cell: ({ row }) => (
-        <div className="space-y-1">
-          <span className="text-xs text-muted-foreground">{row.original.stage.replace(/_/g, ' ')}</span>
-          <StageProgress stage={row.original.stage} />
-        </div>
+        <span className="font-mono text-sm text-green-700 dark:text-green-400">
+          {formatMoney(row.original.totalFeesInvoiced || 0, row.original.currency)}
+        </span>
       ),
     },
     {
       accessorKey: 'status',
       header: 'Status',
-      cell: ({ row }) => <StatusBadge status={row.original.status} dot />,
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <StatusBadge status={row.original.status} dot />
+          <StageProgress status={row.original.status} />
+        </div>
+      ),
     },
     {
       id: 'actions',
@@ -376,43 +411,48 @@ export function CorporateFinancePage() {
     <>
       <PageHeader
         title="Corporate Finance"
-        subtitle="Mandates: M&A, IPO, Restructuring, Bond Issuance, Private Equity"
+        subtitle="Restructuring, valuation, feasibility, and capital advisory mandates"
+        actions={
+          <button
+            onClick={() => setShowNew(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+          >
+            <Plus className="w-4 h-4" /> New Mandate
+          </button>
+        }
       />
       <div className="page-container space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Active Mandates" value={mandates.length} format="number" icon={Briefcase} loading={isLoading} />
-          <StatCard label="Total Est. Fees" value={totalFees} format="money" compact icon={DollarSign} loading={isLoading} />
-          <StatCard label="Closed This Year" value={closedThisYear} format="number" icon={CheckCircle} loading={isLoading} />
+          <StatCard label="Active Mandates" value={activeCount} format="number" icon={Briefcase} loading={isLoading} />
+          <StatCard label="Total Invoiced" value={totalFees} format="money" compact icon={DollarSign} loading={isLoading} />
+          <StatCard label="Completed This Year" value={completedThisYear} format="number" icon={CheckCircle2} loading={isLoading} />
           <StatCard label="Avg Deal Size" value={avgDealSize} format="money" compact icon={BarChart2} loading={isLoading} />
         </div>
 
-        {/* Filters + New */}
+        {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <select
-            className="rounded-lg border px-3 py-1.5 text-sm bg-background"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
             value={filterType}
-            onChange={(e) => setFilterType(e.target.value as CorporateFinanceType | '')}
+            onChange={e => setFilterType(e.target.value)}
           >
             <option value="">All Types</option>
-            {CF_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            {CF_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
           <select
-            className="rounded-lg border px-3 py-1.5 text-sm bg-background"
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm"
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            onChange={e => setFilterStatus(e.target.value)}
           >
             <option value="">All Statuses</option>
-            {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
+            {statuses.map(s => <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>)}
           </select>
-          <div className="ml-auto">
-            <button
-              onClick={() => setShowNew(true)}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
-            >
-              <Plus className="w-4 h-4" /> New Mandate
+          {(filterType || filterStatus) && (
+            <button onClick={() => { setFilterType(''); setFilterStatus(''); }} className="text-xs text-muted-foreground hover:text-foreground underline">
+              Clear filters
             </button>
-          </div>
+          )}
         </div>
 
         <DataTable
@@ -422,7 +462,7 @@ export function CorporateFinancePage() {
           enableGlobalFilter
           enableExport
           exportFilename="corporate-finance-mandates"
-          emptyMessage="No mandates match the selected filters"
+          emptyMessage="No corporate finance mandates found"
         />
       </div>
 

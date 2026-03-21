@@ -334,16 +334,18 @@ export const accountDetailApi = {
   },
 
   // ── Transaction Posting ─────────────────────────────────────────────────
-  postDebit: (data: { accountNumber: string; amount: number; narration: string; channel?: string; externalRef?: string }) =>
+  postDebit: (data: { accountNumber: string; amount: number; narration: string; channel?: string; externalRef?: string; contraAccountNumber?: string; contraGlCode?: string }) =>
     apiPost<Record<string, unknown>>('/api/v1/accounts/transactions/debit', {
       accountNumber: data.accountNumber, transactionType: 'DEBIT', amount: data.amount,
       narration: data.narration, channel: data.channel || 'BRANCH', externalRef: data.externalRef,
+      contraAccountNumber: data.contraAccountNumber, contraGlCode: data.contraGlCode,
     }),
 
-  postCredit: (data: { accountNumber: string; amount: number; narration: string; channel?: string; externalRef?: string }) =>
+  postCredit: (data: { accountNumber: string; amount: number; narration: string; channel?: string; externalRef?: string; contraAccountNumber?: string; contraGlCode?: string }) =>
     apiPost<Record<string, unknown>>('/api/v1/accounts/transactions/credit', {
       accountNumber: data.accountNumber, transactionType: 'CREDIT', amount: data.amount,
       narration: data.narration, channel: data.channel || 'BRANCH', externalRef: data.externalRef,
+      contraAccountNumber: data.contraAccountNumber, contraGlCode: data.contraGlCode,
     }),
 
   postTransfer: (data: { fromAccountNumber: string; toAccountNumber: string; amount: number; narration: string; channel?: string }) =>

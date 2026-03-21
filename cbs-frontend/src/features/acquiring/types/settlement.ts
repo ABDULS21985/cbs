@@ -13,7 +13,7 @@ export interface SettlementBatch {
   totalCreditAmount: number;
   netAmount: number;
   currency: string;
-  cutoffTime: LocalTime;
+  cutoffTime: string;
   submittedAt: string;
   completedAt?: string;
   status: string;

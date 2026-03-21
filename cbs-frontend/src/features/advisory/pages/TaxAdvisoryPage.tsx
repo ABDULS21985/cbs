@@ -30,8 +30,13 @@ const ENGAGEMENT_TYPES: { value: TaxEngagementType; label: string }[] = [
   { value: 'TAX_DUE_DILIGENCE', label: 'Tax Due Diligence' },
   { value: 'TAX_COMPLIANCE_REVIEW', label: 'Tax Compliance Review' },
   { value: 'WITHHOLDING_TAX_ADVISORY', label: 'Withholding Tax Advisory' },
-  { value: 'VAT_ADVISORY', label: 'VAT Advisory' },
+  { value: 'DOUBLE_TAX_TREATY', label: 'Double Tax Treaty' },
+  { value: 'TAX_OPINION', label: 'Tax Opinion' },
   { value: 'TAX_DISPUTE', label: 'Tax Dispute' },
+  { value: 'VAT_ADVISORY', label: 'VAT Advisory' },
+  { value: 'CUSTOM_DUTY', label: 'Custom Duty' },
+  { value: 'EXCISE_TAX', label: 'Excise Tax' },
+  { value: 'INTERNATIONAL_TAX', label: 'International Tax' },
 ];
 
 const FEE_BASES: { value: TaxFeeBasis; label: string }[] = [

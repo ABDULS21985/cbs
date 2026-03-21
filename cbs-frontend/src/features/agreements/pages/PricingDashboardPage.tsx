@@ -68,7 +68,7 @@ export function PricingDashboardPage() {
 
   // Special pricing create form
   const [spForm, setSpForm] = useState<Partial<CreateSpecialPricingPayload>>({
-    agreementType: 'RELATIONSHIP', reviewFrequency: 'QUARTERLY',
+    agreementType: 'RELATIONSHIP_PRICING', reviewFrequency: 'QUARTERLY',
   });
 
   // Stats
@@ -433,7 +433,7 @@ export function PricingDashboardPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Agreement Type</label>
                   <select value={spForm.agreementType} onChange={e => setSpForm(p => ({ ...p, agreementType: e.target.value }))} className={fc}>
-                    {['RELATIONSHIP', 'VOLUME', 'STRATEGIC', 'STAFF'].map(t => <option key={t} value={t}>{t}</option>)}
+                    {['RELATIONSHIP_PRICING', 'CORPORATE_PACKAGE', 'HIGH_NET_WORTH', 'GOVERNMENT', 'NGO', 'STAFF', 'NEGOTIATED'].map(t => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
                   </select></div>
                 <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Negotiated By</label>
                   <input value={spForm.negotiatedBy ?? ''} onChange={e => setSpForm(p => ({ ...p, negotiatedBy: e.target.value }))} className={fc} /></div>
@@ -453,7 +453,7 @@ export function PricingDashboardPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Review Frequency</label>
                   <select value={spForm.reviewFrequency ?? ''} onChange={e => setSpForm(p => ({ ...p, reviewFrequency: e.target.value }))} className={fc}>
-                    {['MONTHLY', 'QUARTERLY', 'SEMI_ANNUAL', 'ANNUAL'].map(f => <option key={f} value={f}>{f}</option>)}
+                    {['QUARTERLY', 'SEMI_ANNUAL', 'ANNUAL'].map(f => <option key={f} value={f}>{f.replace(/_/g, ' ')}</option>)}
                   </select></div>
                 <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Next Review Date</label>
                   <input type="date" value={spForm.nextReviewDate ?? ''} onChange={e => setSpForm(p => ({ ...p, nextReviewDate: e.target.value }))} className={fc} /></div>

@@ -91,14 +91,14 @@ dependencies {
     testAnnotationProcessor("org.projectlombok:lombok:$lombokVersion")
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     maxHeapSize = "2g"
     forkEvery = 100
     jvmArgs("--add-opens", "java.base/java.lang.reflect=ALL-UNNAMED")
 }
 
-tasks.withType<JavaCompile> {
+tasks.withType<JavaCompile>().configureEach {
     options.release.set(25)
     options.compilerArgs.addAll(listOf(
         "-Amapstruct.defaultComponentModel=spring",

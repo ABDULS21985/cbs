@@ -68,7 +68,7 @@ export function ScheduleCreator({ templates, onClose, onSuccess }: ScheduleCreat
         channel,
         cronExpression: cron,
         frequency,
-        recipientCriteria,
+        recipientCriteria: { criteria: recipientCriteria },
       });
       toast.success('Scheduled notification created');
       onSuccess();

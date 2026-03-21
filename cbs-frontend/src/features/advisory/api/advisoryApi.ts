@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPut } from '@/lib/api';
 import api from '@/lib/api';
 import type { MaEngagement } from '../types/maAdvisory';
 
@@ -7,25 +7,28 @@ export type { MaEngagement };
 
 // ─── M&A Advisory ─────────────────────────────────────────────────────────────
 // Real backend entity: com.cbs.maadvisory.entity.MaEngagement
-// All field names exactly match Jackson serialization of the JPA entity.
+// CHECK constraints from V41 migration
 
 export type MaEngagementType =
   | 'BUY_SIDE'
   | 'SELL_SIDE'
   | 'MERGER'
   | 'DIVESTITURE'
-  | 'MBO'
-  | 'JOINT_VENTURE'
-  | 'SPIN_OFF';
+  | 'MANAGEMENT_BUYOUT'
+  | 'LEVERAGED_BUYOUT'
+  | 'RESTRUCTURING'
+  | 'FAIRNESS_OPINION'
+  | 'VALUATION_ONLY';
 
 export type MaRole =
   | 'SOLE_ADVISER'
   | 'JOINT_ADVISER'
   | 'BUY_SIDE_ADVISER'
   | 'SELL_SIDE_ADVISER'
-  | 'FAIRNESS_OPINION';
+  | 'FAIRNESS_OPINION_PROVIDER'
+  | 'VALUATION_ADVISER';
 
-export type MaDealStructure = 'CASH' | 'STOCK' | 'MIXED' | 'DEBT_ASSUMPTION' | 'EARNOUT';
+export type MaDealStructure = 'CASH' | 'STOCK' | 'MIXED' | 'ASSET_PURCHASE' | 'SHARE_PURCHASE';
 
 export interface CreateMaEngagementPayload {
   engagementName: string;
@@ -60,6 +63,7 @@ export type MaRevenue = number;
 
 // ─── Tax Advisory ─────────────────────────────────────────────────────────────
 // Real backend entity: com.cbs.taxadvisory.entity.TaxAdvisoryEngagement
+// CHECK constraints from V41 migration
 
 export type TaxEngagementType =
   | 'TAX_STRUCTURING'
@@ -67,8 +71,13 @@ export type TaxEngagementType =
   | 'TAX_DUE_DILIGENCE'
   | 'TAX_COMPLIANCE_REVIEW'
   | 'WITHHOLDING_TAX_ADVISORY'
+  | 'DOUBLE_TAX_TREATY'
+  | 'TAX_OPINION'
+  | 'TAX_DISPUTE'
   | 'VAT_ADVISORY'
-  | 'TAX_DISPUTE';
+  | 'CUSTOM_DUTY'
+  | 'EXCISE_TAX'
+  | 'INTERNATIONAL_TAX';
 
 export type TaxFeeBasis = 'FIXED' | 'HOURLY' | 'SUCCESS_FEE' | 'RETAINER';
 export type TaxRiskRating = 'LOW' | 'MEDIUM' | 'HIGH' | 'AGGRESSIVE';
@@ -77,7 +86,7 @@ export interface TaxAdvisoryEngagement {
   id: number;
   engagementCode: string;
   engagementName: string;
-  engagementType: TaxEngagementType;
+  engagementType: string;
   clientName: string;
   clientCustomerId?: number;
   jurisdictions?: Record<string, unknown>;
@@ -121,322 +130,491 @@ export interface CreateTaxEngagementPayload {
 export type TaxRevenue = number;
 
 // ─── Corporate Finance ────────────────────────────────────────────────────────
-// NOTE: Backend entity/controller not yet implemented (only SQL schema V41 exists).
-// These types and calls are kept for when the backend is implemented, but will
-// return 404 / connection error until then — pages handle this gracefully.
+// Real backend entity: com.cbs.corpfinance.entity.CorporateFinanceEngagement
+// CHECK constraints from V41 migration
 
 export type CorporateFinanceType =
-  | 'M_AND_A'
-  | 'IPO'
-  | 'RESTRUCTURING'
-  | 'BOND_ISSUANCE'
-  | 'PRIVATE_EQUITY';
+  | 'DEBT_RESTRUCTURING'
+  | 'EQUITY_RESTRUCTURING'
+  | 'CAPITAL_RAISE_ADVISORY'
+  | 'BUSINESS_VALUATION'
+  | 'FINANCIAL_MODELLING'
+  | 'FEASIBILITY_STUDY'
+  | 'STRATEGIC_REVIEW'
+  | 'TURNAROUND_ADVISORY'
+  | 'REFINANCING'
+  | 'RECAPITALIZATION';
 
-export type CorporateFinanceStage =
-  | 'ORIGINATION'
-  | 'DUE_DILIGENCE'
-  | 'STRUCTURING'
-  | 'NEGOTIATION'
+export type CorporateFinanceStatus =
+  | 'PROPOSAL'
+  | 'MANDATED'
+  | 'ANALYSIS'
+  | 'DRAFT_DELIVERED'
+  | 'FINAL_DELIVERED'
   | 'EXECUTION'
-  | 'CLOSED';
+  | 'COMPLETED'
+  | 'TERMINATED';
+
+export type CorporateFinanceRole =
+  | 'SOLE_ADVISER'
+  | 'LEAD_ADVISER'
+  | 'JOINT_ADVISER'
+  | 'INDEPENDENT_ADVISER';
 
 export interface CorporateFinanceEngagement {
   id: number;
-  code: string;
-  client: string;
-  type: CorporateFinanceType;
-  description: string;
-  estimatedFee: number;
+  engagementCode: string;
+  engagementName: string;
+  engagementType: string;
+  clientName: string;
+  clientCustomerId?: number;
+  clientSector?: string;
   currency: string;
-  stage: CorporateFinanceStage;
+  dealValueEstimate?: number;
+  ourRole: string;
+  leadBanker?: string;
+  teamMembers?: Record<string, unknown>;
+  scopeOfWork?: string;
+  keyAssumptions?: Record<string, unknown>;
+  deliverables?: Record<string, unknown>;
+  financialModel?: Record<string, unknown>;
+  valuationRange?: Record<string, unknown>;
+  recommendations?: string;
+  retainerFee?: number;
+  successFee?: number;
+  totalFeesInvoiced: number;
+  totalFeesPaid: number;
+  mandateDate?: string;
+  kickoffDate?: string;
+  draftDeliveryDate?: string;
+  finalDeliveryDate?: string;
+  completionDate?: string;
+  linkedDeals?: Record<string, unknown>;
   status: string;
-  createdAt: string;
-  updatedAt: string;
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface CorporateFinancePipelineItem {
-  type: CorporateFinanceType;
-  count: number;
-  totalEstimatedFee: number;
-}
+// Backend returns Map<String, Long> for pipeline and capacity
+export type CorporateFinancePipeline = Record<string, number>;
+export type CorporateFinanceCapacity = Record<string, number>;
 
-export interface CorporateFinanceCapacity {
-  teamMember: string;
-  activeEngagements: number;
-  capacity: number;
-  utilizationPct: number;
-}
-
-export interface CreateEngagementPayload {
-  client: string;
-  type: CorporateFinanceType;
-  description: string;
-  estimatedFee: number;
-  currency: string;
-}
-
-export interface DeliverDraftPayload {
-  reportRef: string;
-  draftUrl: string;
-}
-
-export interface InvoicePayload {
-  invoiceAmount: number;
-  invoiceRef: string;
-}
-
-export interface RecordPaymentPayload {
-  amount: number;
-  paymentRef: string;
+export interface CreateCFEngagementPayload {
+  engagementName: string;
+  engagementType: CorporateFinanceType;
+  clientName: string;
+  clientSector?: string;
+  currency?: string;
+  dealValueEstimate?: number;
+  ourRole: CorporateFinanceRole;
+  leadBanker?: string;
+  scopeOfWork?: string;
+  retainerFee?: number;
+  successFee?: number;
 }
 
 // ─── Project Finance ──────────────────────────────────────────────────────────
-// NOTE: Backend not yet implemented.
+// Real backend entity: com.cbs.projectfinance.entity.ProjectFinanceFacility
 
 export type ProjectFinanceStatus =
-  | 'PIPELINE'
-  | 'ACTIVE'
-  | 'MONITORING'
-  | 'COMPLETED'
-  | 'DISTRESSED';
+  | 'APPRAISAL'
+  | 'APPROVED'
+  | 'SIGNED'
+  | 'DISBURSING'
+  | 'CONSTRUCTION'
+  | 'OPERATING'
+  | 'AMORTIZING'
+  | 'MATURED'
+  | 'RESTRUCTURED'
+  | 'DEFAULTED';
+
+export type ProjectType =
+  | 'INFRASTRUCTURE'
+  | 'POWER_GENERATION'
+  | 'RENEWABLE_ENERGY'
+  | 'REAL_ESTATE'
+  | 'MINING'
+  | 'TELECOM'
+  | 'TRANSPORTATION'
+  | 'WATER'
+  | 'OIL_GAS'
+  | 'AGRICULTURE';
+
+export type MilestoneType =
+  | 'CONDITION_PRECEDENT'
+  | 'DISBURSEMENT_CONDITION'
+  | 'CONSTRUCTION'
+  | 'COMPLETION_TEST'
+  | 'COVENANT_TEST'
+  | 'INSURANCE'
+  | 'REGULATORY'
+  | 'ENVIRONMENTAL';
 
 export interface ProjectFacility {
   id: number;
-  code: string;
+  facilityCode: string;
   projectName: string;
-  sponsor: string;
-  sector: string;
-  totalCost: number;
+  projectType: string;
+  borrowerName: string;
+  spvName?: string;
+  country: string;
   currency: string;
+  totalProjectCost: number;
   debtAmount: number;
-  equityAmount: number;
-  status: ProjectFinanceStatus;
-  milestonesCompleted: number;
-  milestonesTotal: number;
-  createdAt: string;
+  equityAmount?: number;
+  ourShare?: number;
+  disbursedAmount: number;
+  tenorMonths: number;
+  gracePeriodMonths: number;
+  baseRate: string;
+  marginBps: number;
+  creditRating?: string;
+  countryRisk?: string;
+  environmentalCategory?: string;
+  financialCovenants?: Record<string, unknown>;
+  securityPackage?: Record<string, unknown>;
+  status: string;
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
+
+export type ProjectMilestoneStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'WAIVED' | 'FAILED' | 'OVERDUE';
 
 export interface ProjectMilestone {
   id: number;
-  code: string;
-  facilityCode: string;
-  name: string;
-  plannedDate: string;
-  completionDate: string | null;
-  completionCriteria: string;
-  status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
+  milestoneCode: string;
+  facilityId: number;
+  milestoneName: string;
+  milestoneType: string;
+  description?: string;
+  dueDate: string;
+  completedDate: string | null;
+  disbursementLinked: boolean;
+  disbursementAmount?: number;
+  evidenceRef?: string;
+  status: string;
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreateProjectFacilityPayload {
   projectName: string;
-  sponsor: string;
-  sector: string;
-  totalCost: number;
-  currency: string;
+  projectType: ProjectType;
+  borrowerName: string;
+  spvName?: string;
+  country: string;
+  currency?: string;
+  totalProjectCost: number;
   debtAmount: number;
-  equityAmount: number;
+  equityAmount?: number;
+  ourShare?: number;
+  tenorMonths: number;
+  gracePeriodMonths?: number;
+  baseRate?: string;
+  marginBps: number;
+  creditRating?: string;
+  countryRisk?: string;
+  environmentalCategory?: string;
 }
 
 export interface AddMilestonePayload {
-  name: string;
-  plannedDate: string;
-  completionCriteria: string;
-}
-
-export interface CompleteMilestonePayload {
-  completionDate: string;
-  notes: string;
+  milestoneName: string;
+  milestoneType: MilestoneType;
+  description?: string;
+  dueDate: string;
+  disbursementLinked?: boolean;
+  disbursementAmount?: number;
 }
 
 // ─── Suitability ─────────────────────────────────────────────────────────────
-// NOTE: Backend not yet implemented.
+// Real backend entities: com.cbs.suitability.entity.ClientRiskProfile, SuitabilityCheck
 
-export type RiskTolerance = 'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE';
-export type SuitabilityResult = 'SUITABLE' | 'UNSUITABLE' | 'OVERRIDE';
+export type RiskTolerance = 'CONSERVATIVE' | 'MODERATE' | 'BALANCED' | 'AGGRESSIVE' | 'VERY_AGGRESSIVE';
+export type InvestmentObjective = 'CAPITAL_PRESERVATION' | 'INCOME' | 'BALANCED' | 'GROWTH' | 'AGGRESSIVE_GROWTH' | 'SPECULATION';
+export type InvestmentHorizon = 'SHORT_TERM' | 'MEDIUM_TERM' | 'LONG_TERM' | 'VERY_LONG_TERM';
+export type InvestmentExperience = 'NONE' | 'LIMITED' | 'MODERATE' | 'EXTENSIVE' | 'PROFESSIONAL';
+export type SuitabilityResult = 'SUITABLE' | 'UNSUITABLE' | 'SUITABLE_WITH_WARNING';
+export type CheckType = 'PRE_TRADE' | 'PERIODIC_REVIEW' | 'PRODUCT_CHANGE' | 'PORTFOLIO_REBALANCE' | 'ADVISORY';
+export type InstrumentRiskRating = 'LOW_RISK' | 'MEDIUM_RISK' | 'HIGH_RISK' | 'VERY_HIGH_RISK' | 'SPECULATIVE';
 
 export interface SuitabilityProfile {
   id: number;
-  code: string;
+  profileCode: string;
   customerId: number;
-  customerName: string;
-  riskTolerance: RiskTolerance;
+  profileDate: string;
+  investmentObjective: string;
+  riskTolerance: string;
   investmentHorizon: string;
-  liquidityNeeds: string;
-  lastReviewDate: string;
-  expiryDate: string;
+  annualIncome?: number;
+  netWorth?: number;
+  liquidNetWorth?: number;
+  investmentExperience?: string;
+  instrumentExperience?: string;
+  knowledgeAssessmentScore?: number;
+  concentrationLimits?: string;
+  maxSingleInvestmentPct?: number;
+  derivativesApproved: boolean;
+  leverageApproved: boolean;
+  maxLeverageRatio?: number;
+  assessedBy?: string;
+  nextReviewDate?: string;
+  regulatoryBasis?: string;
   status: string;
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SuitabilityCheck {
-  ref: string;
+  id: number;
+  checkRef: string;
   customerId: number;
-  customerName: string;
-  productCode: string;
-  productName: string;
-  riskTolerance: RiskTolerance;
-  result: SuitabilityResult;
-  notes: string;
+  profileId: number;
+  checkType: string;
+  instrumentType: string;
+  instrumentCode?: string;
+  instrumentRiskRating?: string;
+  proposedAmount?: number;
+  proposedPctOfPortfolio?: number;
+  proposedPctOfNetWorth?: number;
+  riskToleranceMatch?: boolean;
+  experienceMatch?: boolean;
+  concentrationCheck?: boolean;
+  liquidityCheck?: boolean;
+  knowledgeCheck?: boolean;
+  leverageCheck?: boolean;
+  overallResult: string;
+  warningMessages?: string;
+  rejectionReasons?: string;
+  overrideApplied: boolean;
+  overrideJustification?: string;
+  overrideApprovedBy?: string;
+  regulatoryDisclosure?: string;
+  clientAcknowledged: boolean;
+  clientAcknowledgedAt?: string;
   checkedAt: string;
+  createdBy?: string;
+  createdAt?: string;
 }
 
 export interface CreateSuitabilityProfilePayload {
   customerId: number;
+  investmentObjective: InvestmentObjective;
   riskTolerance: RiskTolerance;
-  investmentHorizon: string;
-  liquidityNeeds: string;
+  investmentHorizon: InvestmentHorizon;
+  annualIncome?: number;
+  netWorth?: number;
+  liquidNetWorth?: number;
+  investmentExperience?: InvestmentExperience;
+  knowledgeAssessmentScore?: number;
+  maxSingleInvestmentPct?: number;
+  derivativesApproved?: boolean;
+  leverageApproved?: boolean;
+  nextReviewDate?: string;
+  regulatoryBasis?: string;
+  assessedBy?: string;
 }
 
-export interface UpdateSuitabilityProfilePayload {
-  riskTolerance: RiskTolerance;
-  investmentHorizon: string;
-  liquidityNeeds: string;
-}
+export interface UpdateSuitabilityProfilePayload extends Omit<CreateSuitabilityProfilePayload, 'customerId'> {}
 
 export interface PerformSuitabilityCheckPayload {
-  customerId: number;
-  productCode: string;
-  recommendedAmount: number;
-}
-
-export interface AcknowledgeDisclosurePayload {
-  customerId: number;
+  profileId: number;
+  checkType: CheckType;
+  instrumentType: string;
+  instrumentCode?: string;
+  instrumentRiskRating?: InstrumentRiskRating;
+  proposedAmount?: number;
+  proposedPctOfPortfolio?: number;
+  proposedPctOfNetWorth?: number;
 }
 
 // ─── API object ───────────────────────────────────────────────────────────────
 
 export const advisoryApi = {
   // ── M&A Advisory ──────────────────────────────────────────────────────────
-  // GET /v1/ma-advisory → List<MaEngagement>
   getAllMaEngagements: () =>
     apiGet<MaEngagement[]>('/api/v1/ma-advisory'),
 
-  // GET /v1/ma-advisory/active → List<MaEngagement> (excludes CLOSED + TERMINATED)
   getMaAdvisoryActive: () =>
     apiGet<MaEngagement[]>('/api/v1/ma-advisory/active'),
 
-  // GET /v1/ma-advisory/pipeline → Map<String,Long> (status → count)
   getMaAdvisoryPipeline: () =>
     apiGet<MaPipeline>('/api/v1/ma-advisory/pipeline'),
 
-  // GET /v1/ma-advisory/revenue?from=&to= → BigDecimal (total fee revenue)
   getMaAdvisoryRevenue: (from: string, to: string) =>
     apiGet<MaRevenue>('/api/v1/ma-advisory/revenue', { from, to }),
 
-  // GET /v1/ma-advisory/workload → Map<String,Long> (leadBanker → active count)
   getMaAdvisoryWorkload: () =>
     apiGet<MaWorkload>('/api/v1/ma-advisory/workload'),
 
-  // POST /v1/ma-advisory @RequestBody MaEngagement → MaEngagement
   createMaEngagement: (payload: CreateMaEngagementPayload) =>
     apiPost<MaEngagement>('/api/v1/ma-advisory', payload),
 
-  // PATCH /v1/ma-advisory/{code}/milestone?field=&date= (query params, not body)
-  updateMaMilestone: (code: string, field: string, date: string) => {
+  // PATCH /v1/ma-advisory/{code}/milestone?field=&date= (query params)
+  updateMaMilestone: async (code: string, field: string, date: string): Promise<MaEngagement> => {
     const params = new URLSearchParams({ field, date });
-    return api.patch<{ data: MaEngagement }>(`/api/v1/ma-advisory/${code}/milestone?${params}`)
-      .then(r => r.data.data);
+    const r = await api.patch<{ data: MaEngagement }>(`/api/v1/ma-advisory/${code}/milestone?${params}`);
+    return r.data.data;
   },
 
-  // POST /v1/ma-advisory/{code}/fee?amount= (query param, not body)
-  recordMaFee: (code: string, amount: number) => {
+  // POST /v1/ma-advisory/{code}/fee?amount= (query param)
+  recordMaFee: async (code: string, amount: number): Promise<MaEngagement> => {
     const params = new URLSearchParams({ amount: String(amount) });
-    return api.post<{ data: MaEngagement }>(`/api/v1/ma-advisory/${code}/fee?${params}`)
-      .then(r => r.data.data);
+    const r = await api.post<{ data: MaEngagement }>(`/api/v1/ma-advisory/${code}/fee?${params}`);
+    return r.data.data;
   },
 
-  // POST /v1/ma-advisory/{code}/close?actualDealValue= (query param, not body)
-  closeMaEngagement: (code: string, actualDealValue: number) => {
+  // POST /v1/ma-advisory/{code}/close?actualDealValue= (query param)
+  closeMaEngagement: async (code: string, actualDealValue: number): Promise<MaEngagement> => {
     const params = new URLSearchParams({ actualDealValue: String(actualDealValue) });
-    return api.post<{ data: MaEngagement }>(`/api/v1/ma-advisory/${code}/close?${params}`)
-      .then(r => r.data.data);
+    const r = await api.post<{ data: MaEngagement }>(`/api/v1/ma-advisory/${code}/close?${params}`);
+    return r.data.data;
   },
 
   // POST /v1/ma-advisory/{code}/terminate?reason= (optional query param)
-  terminateMaEngagement: (code: string, reason?: string) => {
+  terminateMaEngagement: async (code: string, reason?: string): Promise<MaEngagement> => {
     const params = reason ? new URLSearchParams({ reason }) : new URLSearchParams();
     const qs = params.toString() ? `?${params}` : '';
-    return api.post<{ data: MaEngagement }>(`/api/v1/ma-advisory/${code}/terminate${qs}`)
-      .then(r => r.data.data);
+    const r = await api.post<{ data: MaEngagement }>(`/api/v1/ma-advisory/${code}/terminate${qs}`);
+    return r.data.data;
   },
 
   // ── Tax Advisory ──────────────────────────────────────────────────────────
-  // GET /v1/tax-advisory → List<TaxAdvisoryEngagement>
   getAllTaxEngagements: () =>
     apiGet<TaxAdvisoryEngagement[]>('/api/v1/tax-advisory'),
 
-  // GET /v1/tax-advisory/active → List<TaxAdvisoryEngagement> (ENGAGED + IN_PROGRESS)
   getTaxAdvisoryActive: () =>
     apiGet<TaxAdvisoryEngagement[]>('/api/v1/tax-advisory/active'),
 
-  // GET /v1/tax-advisory/jurisdiction/{country}
   getTaxAdvisoryByJurisdiction: (country: string) =>
     apiGet<TaxAdvisoryEngagement[]>(`/api/v1/tax-advisory/jurisdiction/${country}`),
 
-  // GET /v1/tax-advisory/revenue?from=&to= → BigDecimal (total advisory fee revenue)
   getTaxAdvisoryRevenue: (from: string, to: string) =>
     apiGet<TaxRevenue>('/api/v1/tax-advisory/revenue', { from, to }),
 
-  // POST /v1/tax-advisory @RequestBody TaxAdvisoryEngagement
   createTaxEngagement: (payload: CreateTaxEngagementPayload) =>
     apiPost<TaxAdvisoryEngagement>('/api/v1/tax-advisory', payload),
 
-  // POST /v1/tax-advisory/{code}/opinion @RequestBody String (raw string, not JSON)
-  deliverOpinion: (code: string, opinion: string) =>
-    api.post<{ data: TaxAdvisoryEngagement }>(
+  // POST /v1/tax-advisory/{code}/opinion @RequestBody String (text/plain)
+  deliverOpinion: async (code: string, opinion: string): Promise<TaxAdvisoryEngagement> => {
+    const r = await api.post<{ data: TaxAdvisoryEngagement }>(
       `/api/v1/tax-advisory/${code}/opinion`,
       opinion,
       { headers: { 'Content-Type': 'text/plain' } },
-    ).then(r => r.data.data),
+    );
+    return r.data.data;
+  },
 
-  // POST /v1/tax-advisory/{code}/close
   closeTaxEngagement: (code: string) =>
     apiPost<TaxAdvisoryEngagement>(`/api/v1/tax-advisory/${code}/close`),
 
-  // ── Corporate Finance (backend not yet implemented) ──────────────────────
+  // ── Corporate Finance ─────────────────────────────────────────────────────
+  // Backend: CorporateFinanceController - all endpoints implemented
+  getAllCorporateFinanceEngagements: () =>
+    apiGet<CorporateFinanceEngagement[]>('/api/v1/corporate-finance'),
+
   getCorporateFinanceActive: () =>
     apiGet<CorporateFinanceEngagement[]>('/api/v1/corporate-finance/active'),
+
   getCorporateFinancePipeline: () =>
-    apiGet<CorporateFinancePipelineItem[]>('/api/v1/corporate-finance/pipeline'),
+    apiGet<CorporateFinancePipeline>('/api/v1/corporate-finance/pipeline'),
+
   getCorporateFinanceRevenue: (from: string, to: string) =>
     apiGet<number>('/api/v1/corporate-finance/revenue', { from, to }),
+
   getCorporateFinanceCapacity: () =>
-    apiGet<CorporateFinanceCapacity[]>('/api/v1/corporate-finance/capacity'),
-  createCorporateFinanceEngagement: (payload: CreateEngagementPayload) =>
+    apiGet<CorporateFinanceCapacity>('/api/v1/corporate-finance/capacity'),
+
+  createCorporateFinanceEngagement: (payload: CreateCFEngagementPayload) =>
     apiPost<CorporateFinanceEngagement>('/api/v1/corporate-finance', payload),
-  deliverDraft: (code: string, payload: DeliverDraftPayload) =>
-    apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/draft`, payload),
+
+  // POST /{code}/draft — no body, backend just sets status + date
+  deliverDraft: (code: string) =>
+    apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/draft`),
+
   finalizeDelivery: (code: string) =>
     apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/finalize`),
-  recordFeeInvoice: (code: string, payload: InvoicePayload) =>
-    apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/invoice`, payload),
-  recordPayment: (code: string, payload: RecordPaymentPayload) =>
-    apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/payment`, payload),
+
+  // POST /{code}/invoice?amount= — query param, not body
+  recordFeeInvoice: async (code: string, amount: number): Promise<CorporateFinanceEngagement> => {
+    const params = new URLSearchParams({ amount: String(amount) });
+    const r = await api.post<{ data: CorporateFinanceEngagement }>(`/api/v1/corporate-finance/${code}/invoice?${params}`);
+    return r.data.data;
+  },
+
+  // POST /{code}/payment?amount= — query param, not body
+  recordPayment: async (code: string, amount: number): Promise<CorporateFinanceEngagement> => {
+    const params = new URLSearchParams({ amount: String(amount) });
+    const r = await api.post<{ data: CorporateFinanceEngagement }>(`/api/v1/corporate-finance/${code}/payment?${params}`);
+    return r.data.data;
+  },
+
   closeCorporateFinanceEngagement: (code: string) =>
     apiPost<CorporateFinanceEngagement>(`/api/v1/corporate-finance/${code}/close`),
 
-  // ── Project Finance (backend not yet implemented) ─────────────────────────
-  getProjectFacilities: (status?: ProjectFinanceStatus) =>
-    apiGet<ProjectFacility[]>(`/api/v1/project-finance/status/${status ?? 'ACTIVE'}`),
+  // ── Project Finance ───────────────────────────────────────────────────────
+  // Backend: ProjectFinanceController - all endpoints implemented
+  getAllProjectFacilities: () =>
+    apiGet<ProjectFacility[]>('/api/v1/project-finance'),
+
+  getProjectFacilitiesByStatus: (status: string) =>
+    apiGet<ProjectFacility[]>(`/api/v1/project-finance/status/${status}`),
+
   getFacilityMilestones: (code: string) =>
     apiGet<ProjectMilestone[]>(`/api/v1/project-finance/${code}/milestones`),
+
   createProjectFacility: (payload: CreateProjectFacilityPayload) =>
     apiPost<ProjectFacility>('/api/v1/project-finance', payload),
+
   addMilestone: (code: string, payload: AddMilestonePayload) =>
     apiPost<ProjectMilestone>(`/api/v1/project-finance/${code}/milestones`, payload),
-  completeMilestone: (milestoneCode: string, payload: CompleteMilestonePayload) =>
-    apiPost<ProjectMilestone>(`/api/v1/project-finance/milestones/${milestoneCode}/complete`, payload),
 
-  // ── Suitability (backend not yet implemented) ─────────────────────────────
+  // POST /milestones/{milestoneCode}/complete — no body, backend sets date=now()
+  completeMilestone: (milestoneCode: string) =>
+    apiPost<ProjectMilestone>(`/api/v1/project-finance/milestones/${milestoneCode}/complete`),
+
+  // ── Suitability ───────────────────────────────────────────────────────────
+  // Backend: SuitabilityController - all endpoints implemented
+  getAllProfiles: () =>
+    apiGet<SuitabilityProfile[]>('/api/v1/suitability/profiles'),
+
   getSuitabilityProfile: (customerId: number) =>
     apiGet<SuitabilityProfile>(`/api/v1/suitability/profiles/customer/${customerId}`),
+
   getExpiredProfiles: () =>
     apiGet<SuitabilityProfile[]>('/api/v1/suitability/profiles/expired'),
+
   createSuitabilityProfile: (payload: CreateSuitabilityProfilePayload) =>
     apiPost<SuitabilityProfile>('/api/v1/suitability/profiles', payload),
+
+  // PUT /profiles/{code} — backend uses PUT, not POST
   updateSuitabilityProfile: (code: string, payload: UpdateSuitabilityProfilePayload) =>
-    apiPost<SuitabilityProfile>(`/api/v1/suitability/profiles/${code}`, payload),
+    apiPut<SuitabilityProfile>(`/api/v1/suitability/profiles/${code}`, payload),
+
+  getAllChecks: () =>
+    apiGet<SuitabilityCheck[]>('/api/v1/suitability/checks'),
+
   performSuitabilityCheck: (payload: PerformSuitabilityCheckPayload) =>
     apiPost<SuitabilityCheck>('/api/v1/suitability/checks', payload),
-  acknowledgeDisclosure: (ref: string, payload: AcknowledgeDisclosurePayload) =>
-    apiPost<SuitabilityCheck>(`/api/v1/suitability/checks/${ref}/acknowledge`, payload),
+
+  // POST /checks/{ref}/override?justification=&approver= — query params
+  overrideCheck: async (ref: string, justification: string, approver: string): Promise<SuitabilityCheck> => {
+    const params = new URLSearchParams({ justification, approver });
+    const r = await api.post<{ data: SuitabilityCheck }>(`/api/v1/suitability/checks/${ref}/override?${params}`);
+    return r.data.data;
+  },
+
+  // POST /checks/{ref}/acknowledge — no body
+  acknowledgeDisclosure: (ref: string) =>
+    apiPost<SuitabilityCheck>(`/api/v1/suitability/checks/${ref}/acknowledge`),
+
+  getCheckHistory: (customerId: number) =>
+    apiGet<SuitabilityCheck[]>(`/api/v1/suitability/checks/customer/${customerId}`),
 };

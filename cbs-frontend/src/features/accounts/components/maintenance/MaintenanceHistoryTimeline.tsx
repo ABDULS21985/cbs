@@ -60,7 +60,7 @@ export function MaintenanceHistoryTimeline({ accountId }: MaintenanceHistoryTime
           >
             <span className="font-medium">{item.action}</span>
             <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground">{formatDateTime(item.date)}</span>
+            <span className="text-muted-foreground">{item.date ? formatDateTime(item.date) : '—'}</span>
             <StatusBadge status={item.status} size="sm" />
           </div>
         ))}

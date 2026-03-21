@@ -12,9 +12,9 @@ import {
   useTdFramework,
   useApproveTdFramework,
   useCheckTdRate,
-  useTdMaturityLadder,
-  useTdRolloverForecast,
-  useTdHistory,
+  useMaturityLadder,
+  useRolloverForecast,
+  useTdSummaryHistory,
   useLargeDeposits,
 } from '../hooks/useAgreementsExt';
 import type { RateCheckResult, TdFrameworkSummary } from '../types/agreementExt';
@@ -41,7 +41,7 @@ export function TdFrameworkDetailPage() {
   const { data: agreement, isLoading } = useTdFramework(number ?? '');
   const approveMutation = useApproveTdFramework();
   const checkRateMutation = useCheckTdRate();
-  const { data: history = [] } = useTdHistory(agreement?.id ?? 0);
+  const { data: history = [] } = useTdSummaryHistory(agreement?.id ?? 0);
   const { data: largeDeposits = [] } = useLargeDeposits();
 
   const latestSummary = history.length > 0 ? history[0] : null;
@@ -114,10 +114,10 @@ export function TdFrameworkDetailPage() {
                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Rate (%)</th>
                   </tr></thead>
                   <tbody className="divide-y">
-                    {(Array.isArray(agreement.rateTiers) ? agreement.rateTiers : []).map((tier: Record<string, unknown>, i: number) => (
-                      <tr key={i}><td className="px-4 py-2 font-mono text-xs">{formatMoney(Number(tier.min_amount ?? 0), agreement.currency)}</td>
-                        <td className="px-4 py-2 font-mono text-xs">{formatMoney(Number(tier.max_amount ?? 0), agreement.currency)}</td>
-                        <td className="px-4 py-2 font-mono text-xs font-semibold text-primary">{formatPercent(Number(tier.rate ?? 0))}</td></tr>
+                    {(Array.isArray(agreement.rateTiers) ? agreement.rateTiers : []).map((tier, i) => (
+                      <tr key={i}><td className="px-4 py-2 font-mono text-xs">{formatMoney(tier.minAmount ?? 0, agreement.currency)}</td>
+                        <td className="px-4 py-2 font-mono text-xs">{formatMoney(tier.maxAmount ?? 0, agreement.currency)}</td>
+                        <td className="px-4 py-2 font-mono text-xs font-semibold text-primary">{formatPercent(tier.rate ?? 0)}</td></tr>
                     ))}
                   </tbody>
                 </table>

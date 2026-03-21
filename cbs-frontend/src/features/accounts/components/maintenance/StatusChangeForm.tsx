@@ -8,8 +8,7 @@ import { accountMaintenanceApi, type StatusChangeRequest } from '../../api/accou
 
 const STATUS_TRANSITIONS: Record<string, { value: string; label: string }[]> = {
   PENDING_ACTIVATION: [
-    { value: 'ACTIVE', label: 'Active' },
-    { value: 'CLOSED', label: 'Closed' },
+    { value: 'ACTIVE', label: 'Activate' },
   ],
   ACTIVE: [
     { value: 'DORMANT', label: 'Dormant' },
@@ -19,26 +18,19 @@ const STATUS_TRANSITIONS: Record<string, { value: string; label: string }[]> = {
     { value: 'CLOSED', label: 'Closed' },
   ],
   DORMANT: [
-    { value: 'ACTIVE', label: 'Active' },
+    { value: 'ACTIVE', label: 'Reactivate' },
     { value: 'CLOSED', label: 'Closed' },
     { value: 'ESCHEAT', label: 'Escheat' },
   ],
   FROZEN: [
-    { value: 'ACTIVE', label: 'Active' },
+    { value: 'ACTIVE', label: 'Unfreeze' },
     { value: 'CLOSED', label: 'Closed' },
   ],
   PND_DEBIT: [
-    { value: 'ACTIVE', label: 'Active' },
-    { value: 'FROZEN', label: 'Frozen' },
-    { value: 'CLOSED', label: 'Closed' },
+    { value: 'ACTIVE', label: 'Remove Restriction' },
   ],
   PND_CREDIT: [
-    { value: 'ACTIVE', label: 'Active' },
-    { value: 'FROZEN', label: 'Frozen' },
-    { value: 'CLOSED', label: 'Closed' },
-  ],
-  ESCHEAT: [
-    { value: 'CLOSED', label: 'Closed' },
+    { value: 'ACTIVE', label: 'Remove Restriction' },
   ],
 };
 
@@ -91,8 +83,8 @@ export function StatusChangeForm({ accountId, currentStatus, onSuccess }: Status
       toast.success('Account status updated successfully');
       setConfirmOpen(false);
       onSuccess();
-    } catch {
-      toast.error('Failed to update account status');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to update account status');
     } finally {
       setSubmitting(false);
     }

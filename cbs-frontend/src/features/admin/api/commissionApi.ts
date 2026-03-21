@@ -1,5 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
-import api from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 import type { CommissionAgreement, CommissionPayout } from '../types/commission';
 
 export const commissionsApi = {
@@ -20,10 +19,9 @@ export const commissionsApi = {
     apiGet<CommissionAgreement>(`/api/v1/commissions/agreements/${code}`),
 
   /** POST /v1/commissions/agreements/{code}/calculate-payout (query params) */
-  calculatePayout: (code: string, params: { grossSales: number; qualifyingSales: number; period: string }) =>
-    api.post<{ data: CommissionPayout }>(`/api/v1/commissions/agreements/${code}/calculate-payout`, null, {
-      params: { grossSales: params.grossSales, qualifyingSales: params.qualifyingSales, period: params.period },
-    }).then(r => r.data.data),
+  calculatePayout: async (code: string, params: { grossSales: number; qualifyingSales: number; period: string }): Promise<CommissionPayout> => {
+    return apiPostParams<CommissionPayout>(`/api/v1/commissions/agreements/${code}/calculate-payout`, params as Record<string, unknown>);
+  },
 
   /** POST /v1/commissions/payouts/{code}/approve */
   approvePayout: (code: string) =>

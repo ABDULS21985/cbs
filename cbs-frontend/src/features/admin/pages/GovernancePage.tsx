@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters';
 import { governanceApi } from '../api/governanceApi';
-import type { SystemParameter, ParameterAudit } from '../types/governance';
+import type { SystemParameter, ParameterAudit } from '../api/parameterApi';
 import type { ColumnDef } from '@tanstack/react-table';
 
 export function GovernancePage() {

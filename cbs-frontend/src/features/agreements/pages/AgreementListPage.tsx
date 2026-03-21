@@ -173,10 +173,12 @@ export function AgreementListPage() {
           >
             <option value="">All Statuses</option>
             <option value="DRAFT">Draft</option>
-            <option value="ACTIVE">Active</option>
             <option value="PENDING_SIGNATURE">Pending Signature</option>
-            <option value="TERMINATED">Terminated</option>
+            <option value="ACTIVE">Active</option>
+            <option value="SUSPENDED">Suspended</option>
             <option value="EXPIRED">Expired</option>
+            <option value="TERMINATED">Terminated</option>
+            <option value="RENEWED">Renewed</option>
           </select>
           <input
             type="text"

@@ -45,7 +45,7 @@ export function AgreementDetailPage() {
 
   const handleTerminate = () => {
     if (!agreement || !terminateReason.trim()) return;
-    terminateMutation.mutate(agreement.agreementNumber, {
+    terminateMutation.mutate({ agreementNumber: agreement.agreementNumber, reason: terminateReason.trim() }, {
       onSuccess: () => {
         toast.success('Agreement terminated');
         queryClient.invalidateQueries({ queryKey: ['agreements'] });
@@ -80,7 +80,7 @@ export function AgreementDetailPage() {
         backTo="/agreements/list"
         actions={
           <div className="flex items-center gap-2">
-            {status === 'DRAFT' && (
+            {(status === 'DRAFT' || status === 'PENDING_SIGNATURE') && (
               <>
                 <button
                   onClick={() => setActivateOpen(true)}
@@ -88,15 +88,17 @@ export function AgreementDetailPage() {
                 >
                   <CheckCircle className="w-4 h-4" /> Activate
                 </button>
-                <button
-                  onClick={() => navigate(`/agreements/${id}/edit`)}
-                  className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-muted transition-colors"
-                >
-                  <Edit className="w-4 h-4" /> Edit
-                </button>
+                {status === 'DRAFT' && (
+                  <button
+                    onClick={() => navigate(`/agreements/${id}/edit`)}
+                    className="inline-flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+                  >
+                    <Edit className="w-4 h-4" /> Edit
+                  </button>
+                )}
               </>
             )}
-            {status === 'ACTIVE' && (
+            {(status === 'ACTIVE' || status === 'SUSPENDED') && (
               <button
                 onClick={() => setTerminateOpen(true)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
@@ -104,6 +106,7 @@ export function AgreementDetailPage() {
                 <XCircle className="w-4 h-4" /> Terminate
               </button>
             )}
+            <StatusBadge status={status} dot />
             <button
               onClick={() => navigate('/agreements/list')}
               className="inline-flex items-center gap-2 px-3 py-2 border rounded-lg text-sm hover:bg-muted transition-colors"
@@ -122,6 +125,23 @@ export function AgreementDetailPage() {
               {agreement.terminationReason && (
                 <p className="text-sm text-red-600 dark:text-red-500 mt-0.5">{agreement.terminationReason}</p>
               )}
+            </div>
+          </div>
+        )}
+        {status === 'EXPIRED' && (
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
+            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Agreement Expired</p>
+              <p className="text-sm text-amber-600 dark:text-amber-500 mt-0.5">This agreement has passed its effective end date.</p>
+            </div>
+          </div>
+        )}
+        {status === 'SUSPENDED' && (
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-orange-200 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-800">
+            <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-orange-700 dark:text-orange-400">Agreement Suspended</p>
             </div>
           </div>
         )}

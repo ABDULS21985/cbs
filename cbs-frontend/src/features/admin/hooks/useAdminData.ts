@@ -485,7 +485,7 @@ export function useRecordCampaignMetrics() {
 export function useCommissionAgreementsByParty(partyId: number) {
   return useQuery({
     queryKey: KEYS.commissions.agreementsByParty(partyId),
-    queryFn: () => commissionsApi.getAgreementsByParty(partyId),
+    queryFn: () => commissionsApi.getAgreementsByParty(String(partyId)),
     staleTime: 30_000,
     enabled: !!partyId,
   });
@@ -494,7 +494,7 @@ export function useCommissionAgreementsByParty(partyId: number) {
 export function useCommissionPayoutsByParty(partyId: number) {
   return useQuery({
     queryKey: KEYS.commissions.payoutsByParty(partyId),
-    queryFn: () => commissionsApi.getAgreementsByParty2(partyId),
+    queryFn: () => commissionsApi.getPayoutsByParty(String(partyId)),
     staleTime: 30_000,
     enabled: !!partyId,
   });
@@ -514,8 +514,8 @@ export function useCreateCommissionAgreement() {
 export function useActivateCommissionAgreement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, data }: { code: string; data: Parameters<typeof commissionsApi.createAgreement2>[1] }) =>
-      commissionsApi.createAgreement2(code, data),
+    mutationFn: (code: string) =>
+      commissionsApi.activateAgreement(code),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.commissions.all });
     },
@@ -525,7 +525,8 @@ export function useActivateCommissionAgreement() {
 export function useCalculateCommissionPayout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => commissionsApi.calculatePayout(code),
+    mutationFn: ({ code, params }: { code: string; params: { grossSales: number; qualifyingSales: number; period: string } }) =>
+      commissionsApi.calculatePayout(code, params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.commissions.all });
     },
@@ -535,7 +536,7 @@ export function useCalculateCommissionPayout() {
 export function useApproveCommissionPayout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => commissionsApi.calculatePayout2(code),
+    mutationFn: (code: string) => commissionsApi.approvePayout(code),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.commissions.all });
     },
@@ -609,7 +610,8 @@ export function useGovernanceParameterAudit(id: number) {
 export function useUpdateGovernanceParameter() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => governanceApi.update(id),
+    mutationFn: ({ id, newValue, reason }: { id: number; newValue: string; reason?: string }) =>
+      governanceApi.update(id, newValue, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.governance.all });
     },
@@ -856,12 +858,12 @@ export function useParameter(code: string) {
   });
 }
 
-export function useParameterHistory(code: string) {
+export function useParameterHistory(id: number | undefined) {
   return useQuery({
-    queryKey: KEYS.parameters.history(code),
-    queryFn: () => parameterApi.getParameterHistory(code),
+    queryKey: KEYS.parameters.history(id ? String(id) : ''),
+    queryFn: () => parameterApi.getParameterHistory(id!),
     staleTime: 30_000,
-    enabled: !!code,
+    enabled: !!id,
   });
 }
 
@@ -910,8 +912,8 @@ export function useSystemInfo() {
 export function useUpdateParameter() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, data }: { code: string; data: { value: string; reason: string } }) =>
-      parameterApi.updateParameter(code, data),
+    mutationFn: ({ id, data }: { id: number; data: { value: string; reason: string } }) =>
+      parameterApi.updateParameterById(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.parameters.all });
     },
@@ -964,7 +966,7 @@ export function useCreateLookupCode() {
 export function useUpdateLookupCode() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<SystemParameter & { code: string; status: string }> }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<{ code: string; description: string; status: string }> }) =>
       parameterApi.updateLookupCode(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.parameters.all });
@@ -1479,36 +1481,36 @@ export function useProvider(id: string) {
   });
 }
 
-export function useProviderHealthLogs(id: string, days?: number) {
+export function useProviderHealthLogs(id: string) {
   return useQuery({
-    queryKey: KEYS.providers.healthLogs(id, days),
-    queryFn: () => providerApi.getHealthLogs(id, days),
+    queryKey: KEYS.providers.healthLogs(id),
+    queryFn: () => providerApi.getHealthLogs(id),
     staleTime: 30_000,
     enabled: !!id,
   });
 }
 
-export function useProviderTransactionLogs(id: string, params?: Record<string, unknown>) {
+export function useProviderTransactionLogs(id: string) {
   return useQuery({
-    queryKey: KEYS.providers.transactions(id, params),
-    queryFn: () => providerApi.getTransactionLogs(id, params),
+    queryKey: KEYS.providers.transactions(id),
+    queryFn: () => providerApi.getTransactionLogs(id),
     staleTime: 30_000,
     enabled: !!id,
   });
 }
 
-export function useProviderSlaRecords(params?: Record<string, unknown>) {
+export function useProviderSlaRecords() {
   return useQuery({
-    queryKey: KEYS.providers.sla(params),
-    queryFn: () => providerApi.getSlaRecords(params),
+    queryKey: KEYS.providers.sla(),
+    queryFn: () => providerApi.getSlaRecords(),
     staleTime: 30_000,
   });
 }
 
-export function useProviderCostRecords(params?: Record<string, unknown>) {
+export function useProviderCostRecords() {
   return useQuery({
-    queryKey: KEYS.providers.costs(params),
-    queryFn: () => providerApi.getCostRecords(params),
+    queryKey: KEYS.providers.costs(),
+    queryFn: () => providerApi.getCostRecords(),
     staleTime: 30_000,
   });
 }

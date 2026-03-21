@@ -34,9 +34,9 @@ interface CreateDialogProps {
 
 function CreateDialog({ open, onClose }: CreateDialogProps) {
   const createMutation = useCreateTdFramework();
-  const [form, setForm] = useState<CreateTdFrameworkPayload>({
+  const [form, setForm] = useState<Partial<CreateTdFrameworkPayload>>({
     customerId: 0,
-    agreementType: 'INSTITUTIONAL',
+    agreementType: 'STANDARD',
     currency: 'USD',
     minDepositAmount: 100000,
     rateStructure: 'FIXED',
@@ -44,14 +44,14 @@ function CreateDialog({ open, onClose }: CreateDialogProps) {
   });
   const [tiers, setTiers] = useState<TierRow[]>([{ min_amount: 0, max_amount: 1000000, rate: 3.5 }]);
 
-  const set = <K extends keyof CreateTdFrameworkPayload>(k: K, v: CreateTdFrameworkPayload[K]) =>
+  const set = (k: keyof CreateTdFrameworkPayload, v: unknown) =>
     setForm((f) => ({ ...f, [k]: v }));
 
   const handleSubmit = () => {
-    const payload: CreateTdFrameworkPayload = {
+    const payload = {
       ...form,
-      rateTiers: form.rateStructure === 'TIERED' ? tiers : undefined,
-    };
+      rateTiers: form.rateStructure === 'TIERED' ? tiers : null,
+    } as CreateTdFrameworkPayload;
     createMutation.mutate(payload, {
       onSuccess: () => {
         toast.success('TD Framework created');
@@ -85,9 +85,14 @@ function CreateDialog({ open, onClose }: CreateDialogProps) {
                 <label className="text-xs font-medium uppercase tracking-wide">Agreement Type</label>
                 <select value={form.agreementType} onChange={(e) => set('agreementType', e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-                  <option value="INSTITUTIONAL">Institutional</option>
-                  <option value="RETAIL">Retail</option>
+                  <option value="STANDARD">Standard</option>
+                  <option value="PREMIUM">Premium</option>
                   <option value="CORPORATE">Corporate</option>
+                  <option value="INSTITUTIONAL">Institutional</option>
+                  <option value="GOVERNMENT">Government</option>
+                  <option value="AUTO_ROLLOVER">Auto Rollover</option>
+                  <option value="CALLABLE">Callable</option>
+                  <option value="STRUCTURED">Structured</option>
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -103,7 +108,8 @@ function CreateDialog({ open, onClose }: CreateDialogProps) {
                   className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
                   <option value="FIXED">Fixed</option>
                   <option value="TIERED">Tiered</option>
-                  <option value="BENCHMARK">Benchmark</option>
+                  <option value="NEGOTIATED">Negotiated</option>
+                  <option value="BENCHMARK_LINKED">Benchmark Linked</option>
                 </select>
               </div>
             </div>
@@ -139,7 +145,7 @@ function CreateDialog({ open, onClose }: CreateDialogProps) {
                 <input type="number" step="0.01" value={form.baseRate ?? ''} onChange={(e) => set('baseRate', Number(e.target.value) || undefined)}
                   className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
               </div>
-              {form.rateStructure === 'BENCHMARK' && (
+              {form.rateStructure === 'BENCHMARK_LINKED' && (
                 <>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium uppercase tracking-wide">Benchmark Ref</label>
@@ -197,7 +203,8 @@ function CreateDialog({ open, onClose }: CreateDialogProps) {
                 <select value={form.rolloverRateType ?? 'PREVAILING'} onChange={(e) => set('rolloverRateType', e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
                   <option value="PREVAILING">Prevailing</option>
-                  <option value="LOCKED">Locked</option>
+                  <option value="AGREED">Agreed</option>
+                  <option value="BENCHMARK_LINKED">Benchmark Linked</option>
                 </select>
               </div>
               <div className="space-y-1.5">
@@ -205,8 +212,9 @@ function CreateDialog({ open, onClose }: CreateDialogProps) {
                 <select value={form.maturityInstruction ?? 'CREDIT_ACCOUNT'} onChange={(e) => set('maturityInstruction', e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
                   <option value="CREDIT_ACCOUNT">Credit Account</option>
-                  <option value="ROLLOVER">Rollover</option>
-                  <option value="NOTIFY">Notify</option>
+                  <option value="ROLLOVER_PRINCIPAL">Rollover Principal</option>
+                  <option value="ROLLOVER_ALL">Rollover All</option>
+                  <option value="NOTIFY_ONLY">Notify Only</option>
                 </select>
               </div>
             </div>

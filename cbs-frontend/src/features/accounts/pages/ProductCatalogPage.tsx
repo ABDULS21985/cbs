@@ -96,10 +96,10 @@ export function ProductCatalogPage() {
                         <div><p className="text-xs text-muted-foreground">Overdraft</p><p>{p.overdraftAllowed ? 'Yes' : 'No'}</p></div>
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {p.chequeBookAllowed && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded dark:bg-green-900/30 dark:text-green-400">Cheque Book</span>}
-                        {p.debitCardAllowed && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded dark:bg-blue-900/30 dark:text-blue-400">Debit Card</span>}
-                        {p.mobileEnabled && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded dark:bg-purple-900/30 dark:text-purple-400">Mobile</span>}
-                        {p.internetEnabled && <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded dark:bg-cyan-900/30 dark:text-cyan-400">Internet</span>}
+                        {Boolean(p.chequeBookAllowed ?? p.allowsChequeBook) && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded dark:bg-green-900/30 dark:text-green-400">Cheque Book</span>}
+                        {Boolean(p.debitCardAllowed ?? p.allowsDebitCard) && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded dark:bg-blue-900/30 dark:text-blue-400">Debit Card</span>}
+                        {Boolean(p.mobileEnabled ?? p.allowsMobile) && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded dark:bg-purple-900/30 dark:text-purple-400">Mobile</span>}
+                        {Boolean(p.internetEnabled ?? p.allowsInternet) && <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded dark:bg-cyan-900/30 dark:text-cyan-400">Internet</span>}
                       </div>
                       <button onClick={() => navigate('/accounts/open')} className="mt-3 px-3 py-1.5 text-xs font-medium text-primary hover:underline">Open account with this product →</button>
                     </div>

@@ -69,8 +69,8 @@ export function InterestRateOverrideForm({ accountId, currentRate, onSuccess }: 
       toast.success('Interest rate override submitted for approval');
       setConfirmOpen(false);
       onSuccess();
-    } catch {
-      toast.error('Failed to submit interest rate override');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to submit interest rate override');
     } finally {
       setSubmitting(false);
     }

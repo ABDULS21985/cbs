@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams, apiPut, apiDelete } from '@/lib/api';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -176,7 +176,7 @@ export const securityAdminApi = {
   getSecurityEvents: (params?: { category?: string; page?: number; size?: number }) =>
     apiGet<SecurityEventPage>(`${BASE}/events`, params as Record<string, unknown>),
   acknowledgeEvent: (id: number, acknowledgedBy: string) =>
-    apiPost<SecurityEvent>(`${BASE}/events/${id}/acknowledge`, null, { params: { acknowledgedBy } } as never),
+    apiPostParams<SecurityEvent>(`${BASE}/events/${id}/acknowledge`, { acknowledgedBy }),
 
   // SIEM Rules
   getSiemRules: () => apiGet<SiemRule[]>(`${BASE}/siem-rules`),

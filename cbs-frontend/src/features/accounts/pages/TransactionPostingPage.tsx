@@ -19,11 +19,24 @@ export function TransactionPostingPage() {
   const [narration, setNarration] = useState('');
   const [channel, setChannel] = useState('BRANCH');
   const [externalRef, setExternalRef] = useState('');
+  const [contraGlCode, setContraGlCode] = useState('');
   const [success, setSuccess] = useState<Record<string, unknown> | null>(null);
 
-  const debitMut = useMutation({ mutationFn: () => accountDetailApi.postDebit({ accountNumber, amount, narration, channel, externalRef: externalRef || undefined }), onSuccess: (d) => { toast.success('Debit posted'); setSuccess(d); }, onError: () => toast.error('Debit failed') });
-  const creditMut = useMutation({ mutationFn: () => accountDetailApi.postCredit({ accountNumber, amount, narration, channel, externalRef: externalRef || undefined }), onSuccess: (d) => { toast.success('Credit posted'); setSuccess(d); }, onError: () => toast.error('Credit failed') });
-  const transferMut = useMutation({ mutationFn: () => accountDetailApi.postTransfer({ fromAccountNumber: accountNumber, toAccountNumber: contraAccount, amount, narration }), onSuccess: (d) => { toast.success('Transfer posted'); setSuccess(d); }, onError: () => toast.error('Transfer failed') });
+  const debitMut = useMutation({
+    mutationFn: () => accountDetailApi.postDebit({ accountNumber, amount, narration, channel, externalRef: externalRef || undefined, contraAccountNumber: contraAccount || undefined, contraGlCode: contraGlCode || undefined }),
+    onSuccess: (d) => { toast.success('Debit posted'); setSuccess(d); },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Debit failed'),
+  });
+  const creditMut = useMutation({
+    mutationFn: () => accountDetailApi.postCredit({ accountNumber, amount, narration, channel, externalRef: externalRef || undefined, contraAccountNumber: contraAccount || undefined, contraGlCode: contraGlCode || undefined }),
+    onSuccess: (d) => { toast.success('Credit posted'); setSuccess(d); },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Credit failed'),
+  });
+  const transferMut = useMutation({
+    mutationFn: () => accountDetailApi.postTransfer({ fromAccountNumber: accountNumber, toAccountNumber: contraAccount, amount, narration }),
+    onSuccess: (d) => { toast.success('Transfer posted'); setSuccess(d); },
+    onError: (err: any) => toast.error(err?.response?.data?.message || 'Transfer failed'),
+  });
 
   const isPending = debitMut.isPending || creditMut.isPending || transferMut.isPending;
 
@@ -33,7 +46,7 @@ export function TransactionPostingPage() {
     else transferMut.mutate();
   };
 
-  const reset = () => { setAccountNumber(''); setContraAccount(''); setAmount(0); setNarration(''); setExternalRef(''); setSuccess(null); };
+  const reset = () => { setAccountNumber(''); setContraAccount(''); setAmount(0); setNarration(''); setExternalRef(''); setContraGlCode(''); setSuccess(null); };
   const fc = 'w-full px-3 py-2 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
 
   if (success) {
@@ -42,7 +55,7 @@ export function TransactionPostingPage() {
         <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
         <h2 className="text-lg font-semibold">Transaction Posted</h2>
         <p className="text-sm text-muted-foreground">{type} of {formatMoney(amount)} on account {accountNumber}</p>
-        {success.transactionRef && <p className="text-xs font-mono text-muted-foreground">Ref: {success.transactionRef as string}</p>}
+        {typeof success.transactionRef === 'string' && <p className="text-xs font-mono text-muted-foreground">Ref: {success.transactionRef}</p>}
         <div className="flex gap-3 justify-center"><button onClick={reset} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90">Post Another</button></div>
       </div>
     );
@@ -84,14 +97,22 @@ export function TransactionPostingPage() {
               <input value={narration} onChange={e => setNarration(e.target.value)} placeholder="Transaction description" className={fc} /></div>
 
             {type !== 'TRANSFER' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Channel</label>
-                  <select value={channel} onChange={e => setChannel(e.target.value)} className={fc}>
-                    {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select></div>
-                <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">External Ref</label>
-                  <input value={externalRef} onChange={e => setExternalRef(e.target.value)} placeholder="Optional" className={cn(fc, 'font-mono')} /></div>
-              </div>
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Contra Account</label>
+                    <input value={contraAccount} onChange={e => setContraAccount(e.target.value)} placeholder="Contra account number (optional)" className={cn(fc, 'font-mono')} /></div>
+                  <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Contra GL Code</label>
+                    <input value={contraGlCode} onChange={e => setContraGlCode(e.target.value)} placeholder="GL code (if no contra account)" className={cn(fc, 'font-mono')} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Channel</label>
+                    <select value={channel} onChange={e => setChannel(e.target.value)} className={fc}>
+                      {CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select></div>
+                  <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">External Ref</label>
+                    <input value={externalRef} onChange={e => setExternalRef(e.target.value)} placeholder="Optional" className={cn(fc, 'font-mono')} /></div>
+                </div>
+              </>
             )}
 
             <button onClick={handlePost} disabled={!accountNumber || !amount || !narration || isPending || (type === 'TRANSFER' && !contraAccount)}
