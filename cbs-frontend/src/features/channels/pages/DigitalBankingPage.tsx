@@ -491,14 +491,33 @@ function UssdMenuTab() {
   const rootMenus = menus.filter((m) => !m.parentMenuCode);
   const subMenus = menus.filter((m) => !!m.parentMenuCode);
 
-  const handleCreate = (data: Parameters<typeof createMenu>[0]) => {
-    createMenu(data, {
-      onSuccess: () => {
-        toast.success('USSD menu created');
-        setShowCreate(false);
+  const handleCreate = (data: {
+    menuCode: string;
+    parentMenuCode?: string;
+    displayOrder: number;
+    title: string;
+    shortcode?: string;
+    actionType: string;
+    serviceCode?: string;
+    requiresPin: boolean;
+    isActive: boolean;
+  }) => {
+    createMenu(
+      {
+        ...data,
+        parentMenuCode: data.parentMenuCode ?? null,
+        shortcode: data.shortcode ?? null,
+        actionType: data.actionType,
+        serviceCode: data.serviceCode ?? null,
+      } as Parameters<typeof createMenu>[0],
+      {
+        onSuccess: () => {
+          toast.success('USSD menu created');
+          setShowCreate(false);
+        },
+        onError: () => toast.error('Failed to create USSD menu'),
       },
-      onError: () => toast.error('Failed to create USSD menu'),
-    });
+    );
   };
 
   const handleUpdate = (data: Partial<UssdMenu>) => {

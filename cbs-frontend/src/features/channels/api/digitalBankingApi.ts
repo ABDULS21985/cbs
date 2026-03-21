@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams, apiPut, apiDelete } from '@/lib/api';
 import api from '@/lib/api';
 import type { ApiResponse } from '@/types/common';
 
@@ -194,7 +194,8 @@ export const channelActivityExtApi = {
     periodType: string;
     periodDate: string;
   }) =>
-    api
-      .post<ApiResponse<ChannelActivitySummary>>('/api/v1/channel-activity/summarize', undefined, { params })
-      .then((r) => r.data.data),
+    apiPostParams<ChannelActivitySummary>(
+      '/api/v1/channel-activity/summarize',
+      params as Record<string, unknown>,
+    ),
 };

@@ -1,5 +1,12 @@
 // Auto-generated from backend entities
 
+export type GuaranteeType = 'PERFORMANCE' | 'BID_BOND' | 'ADVANCE_PAYMENT' | 'CUSTOMS' | 'FINANCIAL' | 'PAYMENT' | 'RETENTION' | 'WARRANTY' | 'SHIPPING' | 'OTHER';
+export type GuaranteeStatus = 'DRAFT' | 'ISSUED' | 'ACTIVE' | 'CLAIMED' | 'PARTIALLY_CLAIMED' | 'EXPIRED' | 'CANCELLED' | 'RELEASED';
+
+interface Customer { id: number; name?: string; [key: string]: unknown; }
+interface Account { id: number; accountNumber?: string; [key: string]: unknown; }
+interface Collateral { id: number; [key: string]: unknown; }
+
 export interface BankGuarantee {
   id: number;
   guaranteeNumber: string;
@@ -28,4 +35,3 @@ export interface BankGuarantee {
   claimedAmount: number;
   status: GuaranteeStatus;
 }
-

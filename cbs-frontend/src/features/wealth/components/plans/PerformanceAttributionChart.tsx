@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, ReferenceLine } from 'recharts';
+import { ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, Activity, Shield, BarChart2 } from 'lucide-react';
 import { formatPercent, formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -77,7 +77,7 @@ export function PerformanceAttributionChart({ planCode }: PerformanceAttribution
           <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">No monthly data</div>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={monthlyReturns} margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
+            <ComposedChart data={monthlyReturns} margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis dataKey="month" tick={{ fontSize: 10 }} />
               <YAxis tickFormatter={(v) => `${v.toFixed(1)}%`} tick={{ fontSize: 10 }} width={40} />
@@ -90,7 +90,7 @@ export function PerformanceAttributionChart({ planCode }: PerformanceAttribution
                 ))}
               </Bar>
               <Line type="monotone" dataKey="benchmark" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4 2" dot={false} name="Benchmark" />
-            </BarChart>
+            </ComposedChart>
           </ResponsiveContainer>
         )}
       </div>

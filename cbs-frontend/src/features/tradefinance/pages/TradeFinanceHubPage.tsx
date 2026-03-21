@@ -1134,7 +1134,7 @@ function ScfFactoringTab() {
 
 function NewCollectionDialog({ onClose }: { onClose: () => void }) {
   const createCollection = useCreateCollection();
-  const [form, setForm] = useState({ drawerCustomerId: 0, collectionType: 'DP' as 'DP' | 'DA', draweeName: '', amount: 0, currencyCode: 'NGN', documents: [] as string[], tenorDays: 0 });
+  const [form, setForm] = useState({ drawer: '', drawee: '', type: 'DP' as 'DP' | 'DA', amount: 0, currency: 'NGN', documents: [] as string[] });
   const handleSubmit = () => {
     createCollection.mutate(form, {
       onSuccess: () => { toast.success('Collection created'); onClose(); },
@@ -1149,31 +1149,28 @@ function NewCollectionDialog({ onClose }: { onClose: () => void }) {
         <h2 className="text-lg font-semibold mb-4">New Documentary Collection</h2>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs font-medium text-muted-foreground">Drawer Customer ID</label><input type="number" className={fc} value={form.drawerCustomerId || ''} onChange={(e) => setForm((f) => ({ ...f, drawerCustomerId: Number(e.target.value) }))} required /></div>
+            <div><label className="text-xs font-medium text-muted-foreground">Drawer (Exporter)</label><input className={fc} value={form.drawer} onChange={(e) => setForm((f) => ({ ...f, drawer: e.target.value }))} required /></div>
             <div><label className="text-xs font-medium text-muted-foreground">Collection Type</label>
-              <select className={fc} value={form.collectionType} onChange={(e) => setForm((f) => ({ ...f, collectionType: e.target.value as 'DP' | 'DA' }))}>
+              <select className={fc} value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as 'DP' | 'DA' }))}>
                 <option value="DP">D/P - Documents against Payment</option>
                 <option value="DA">D/A - Documents against Acceptance</option>
               </select>
             </div>
           </div>
-          <div><label className="text-xs font-medium text-muted-foreground">Drawee Name</label><input className={fc} value={form.draweeName} onChange={(e) => setForm((f) => ({ ...f, draweeName: e.target.value }))} required /></div>
+          <div><label className="text-xs font-medium text-muted-foreground">Drawee (Importer)</label><input className={fc} value={form.drawee} onChange={(e) => setForm((f) => ({ ...f, drawee: e.target.value }))} required /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="text-xs font-medium text-muted-foreground">Amount</label><input type="number" step="0.01" className={fc} value={form.amount || ''} onChange={(e) => setForm((f) => ({ ...f, amount: Number(e.target.value) }))} required /></div>
             <div><label className="text-xs font-medium text-muted-foreground">Currency</label>
-              <select className={fc} value={form.currencyCode} onChange={(e) => setForm((f) => ({ ...f, currencyCode: e.target.value }))}>
+              <select className={fc} value={form.currency} onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}>
                 {['NGN', 'USD', 'EUR', 'GBP'].map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
-          {form.collectionType === 'DA' && (
-            <div><label className="text-xs font-medium text-muted-foreground">Tenor (days)</label><input type="number" className={fc} value={form.tenorDays || ''} onChange={(e) => setForm((f) => ({ ...f, tenorDays: Number(e.target.value) }))} /></div>
-          )}
           <div className="flex justify-end gap-2 pt-3">
             <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-            <button onClick={handleSubmit} disabled={createCollection.isPending || !form.draweeName || !form.amount}
+            <button onClick={handleSubmit} disabled={createCollection.isPending || !form.drawee || !form.amount}
               className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
-              {createCollection.isPending ? 'Creating...' : 'Create'}
+              {createCollection.isPending ? 'Creating...' : 'Create Collection'}
             </button>
           </div>
         </div>
@@ -1337,7 +1334,7 @@ export function TradeFinanceHubPage() {
 
   // Factoring volume: sum of limit amounts across all factoring facilities
   const factoringVolume = factoringFacilities.reduce(
-    (s, f) => s + (f.limitAmount ?? 0),
+    (s, f) => s + (f.facilityLimit ?? 0),
     0,
   );
 

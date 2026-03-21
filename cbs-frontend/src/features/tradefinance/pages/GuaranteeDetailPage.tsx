@@ -52,7 +52,7 @@ export function GuaranteeDetailPage() {
 
   const { data: bg, isLoading, isError } = useQuery({
     queryKey: ['trade-finance', 'guarantee', bgId],
-    queryFn: () => guaranteesApi.getGuarantee(bgId) as Promise<GuaranteeDetail>,
+    queryFn: () => guaranteesApi.getGuarantee(bgId) as unknown as Promise<GuaranteeDetail>,
     enabled: !!bgId,
   });
 

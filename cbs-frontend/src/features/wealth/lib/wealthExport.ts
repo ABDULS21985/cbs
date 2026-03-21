@@ -216,20 +216,19 @@ function escapeCsvValue(value: unknown): string {
 export function exportWealthPlanPdf(plan: WealthPlan): void {
   const generatedDate = formatDate(new Date());
 
-  const goalsRows = (plan.goals ?? [])
+  const goalsRows = (plan.goals ?? plan.financialGoals ?? [])
     .map((g) => {
-      const progress =
-        g.targetAmount > 0
-          ? ((g.currentAmount / g.targetAmount) * 100).toFixed(1)
-          : '0.0';
+      const target = Number(g.targetAmount ?? g.target ?? 0);
+      const current = Number(g.currentAmount ?? g.current ?? 0);
+      const progress = target > 0 ? ((current / target) * 100).toFixed(1) : '0.0';
       return `<tr>
-        <td>${g.name}</td>
-        <td style="text-align:right">${formatMoney(g.targetAmount)}</td>
-        <td style="text-align:right">${formatMoney(g.currentAmount)}</td>
+        <td>${g.name ?? g.goalName ?? ''}</td>
+        <td style="text-align:right">${formatMoney(target)}</td>
+        <td style="text-align:right">${formatMoney(current)}</td>
         <td style="text-align:right">${progress}%</td>
-        <td>${formatDate(g.targetDate)}</td>
-        <td>${g.priority}</td>
-        <td>${g.status.replace(/_/g, ' ')}</td>
+        <td>${formatDate(String(g.targetDate ?? ''))}</td>
+        <td>${g.priority ?? 'MEDIUM'}</td>
+        <td>${String(g.status ?? 'ON_TRACK').replace(/_/g, ' ')}</td>
       </tr>`;
     })
     .join('');
@@ -237,10 +236,10 @@ export function exportWealthPlanPdf(plan: WealthPlan): void {
   const allocRows = (plan.allocations ?? [])
     .map(
       (a) => `<tr>
-        <td>${a.assetClass}</td>
-        <td style="text-align:right">${formatPercent(a.percentage)}</td>
-        <td style="text-align:right">${formatPercent(a.targetPercentage)}</td>
-        <td style="text-align:right">${formatMoney(a.currentValue)}</td>
+        <td>${a.assetClass ?? ''}</td>
+        <td style="text-align:right">${formatPercent(Number(a.percentage ?? 0))}</td>
+        <td style="text-align:right">${formatPercent(Number(a.targetPercentage ?? 0))}</td>
+        <td style="text-align:right">${formatMoney(Number(a.currentValue ?? 0))}</td>
       </tr>`
     )
     .join('');

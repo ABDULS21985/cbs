@@ -11,7 +11,55 @@ import { InfoGrid } from '@/components/shared/InfoGrid';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { lcApi } from '../api/lcApi';
 import { tradeFinanceExtApi } from '../api/tradeFinanceExtApi';
+
+// Flexible type that works with both full entity and simplified ext API responses
+interface LcDetail {
+  id: number;
+  lcNumber?: string;
+  lcRef?: string;
+  lcType?: string;
+  lcRole?: string;
+  applicant?: { id?: number; name?: string } | string;
+  beneficiaryName?: string;
+  beneficiary?: string;
+  beneficiaryAddress?: string;
+  beneficiaryBankCode?: string;
+  beneficiaryBankName?: string;
+  issuingBankCode?: string;
+  advisingBankCode?: string;
+  confirmingBankCode?: string;
+  amount: number;
+  currencyCode?: string;
+  currency?: string;
+  tolerancePositivePct?: number;
+  toleranceNegativePct?: number;
+  utilizedAmount?: number;
+  issueDate?: string;
+  issuedAt?: string;
+  expiryDate?: string;
+  latestShipmentDate?: string;
+  tenorDays?: number;
+  paymentTerms?: string;
+  incoterms?: string;
+  portOfLoading?: string;
+  portOfDischarge?: string;
+  goodsDescription?: string;
+  requiredDocuments?: string[];
+  specialConditions?: string[];
+  isIrrevocable?: boolean;
+  isConfirmed?: boolean;
+  isTransferable?: boolean;
+  ucpVersion?: string;
+  marginPercentage?: number;
+  marginAmount?: number;
+  commissionRate?: number;
+  commissionAmount?: number;
+  swiftCharges?: number;
+  status: string;
+  [key: string]: unknown;
+}
 
 // ─── Documents Tab ───────────────────────────────────────────────────────────
 
@@ -28,7 +76,7 @@ function DocumentsTab({ lcId }: { lcId: number }) {
 
   const handleUpload = () => {
     setUploading(true);
-    tradeFinanceExtApi.uploadDocument({ ...uploadForm, lcId }).then(() => {
+    tradeFinanceExtApi.uploadDocument({ documentType: uploadForm.category as any, lcId }).then(() => {
       toast.success('Document uploaded');
       qc.invalidateQueries({ queryKey: ['trade-finance', 'lc', lcId, 'documents'] });
       setShowUpload(false);
@@ -109,7 +157,7 @@ export function LcDetailPage() {
 
   const { data: lc, isLoading, isError } = useQuery({
     queryKey: ['trade-finance', 'lc', lcId],
-    queryFn: () => tradeFinanceExtApi.getLc(lcId),
+    queryFn: () => lcApi.getLC(lcId) as unknown as Promise<LcDetail>,
     enabled: !!lcId,
   });
 
@@ -120,7 +168,7 @@ export function LcDetailPage() {
 
   const handleSettle = () => {
     setSettling(true);
-    tradeFinanceExtApi.settleLc(lcId, settleAmount).then(() => {
+    lcApi.settleLC(lcId, settleAmount).then(() => {
       toast.success('LC presentation settled');
       qc.invalidateQueries({ queryKey: ['trade-finance', 'lc', lcId] });
       setShowSettle(false);
@@ -128,29 +176,36 @@ export function LcDetailPage() {
   };
 
   useEffect(() => {
-    document.title = lc ? `LC ${lc.lcNumber} | CBS` : 'Letter of Credit | CBS';
+    const ref = lc?.lcNumber ?? lc?.lcRef ?? '';
+    document.title = ref ? `LC ${ref} | CBS` : 'Letter of Credit | CBS';
   }, [lc]);
 
   if (isLoading) return <><PageHeader title="Loading..." backTo="/trade-finance" /><div className="page-container flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div></>;
   if (isError || !lc) return <><PageHeader title="LC Not Found" backTo="/trade-finance" /><div className="page-container text-center py-20 text-muted-foreground"><AlertTriangle className="w-8 h-8 mx-auto mb-2" /><p>Failed to load letter of credit</p></div></>;
 
-  const available = (lc.amount ?? 0) - (lc.utilizedAmount ?? 0);
-  const utilizationPct = lc.amount > 0 ? ((lc.utilizedAmount ?? 0) / lc.amount * 100) : 0;
+  const lcRef = lc.lcNumber ?? lc.lcRef ?? '';
+  const ccy = lc.currencyCode ?? lc.currency ?? 'NGN';
+  const utilized = lc.utilizedAmount ?? 0;
+  const available = (lc.amount ?? 0) - utilized;
+  const utilizationPct = lc.amount > 0 ? (utilized / lc.amount * 100) : 0;
+  const beneficiary = lc.beneficiaryName ?? lc.beneficiary ?? '';
+  const applicantName = typeof lc.applicant === 'object' && lc.applicant ? (lc.applicant.name ?? `#${lc.applicant.id}`) : String(lc.applicant ?? '—');
+  const issued = lc.issueDate ?? lc.issuedAt ?? '';
 
   const infoItems = [
-    { label: 'LC Number', value: lc.lcNumber, mono: true, copyable: true },
+    { label: 'LC Number', value: lcRef, mono: true, copyable: true },
     { label: 'Type', value: String(lc.lcType ?? '').replace(/_/g, ' ') },
-    { label: 'Role', value: lc.lcRole },
-    { label: 'Applicant', value: lc.applicant?.name ?? `#${lc.applicant?.id}` },
-    { label: 'Beneficiary', value: lc.beneficiaryName },
+    { label: 'Role', value: String(lc.lcRole ?? '—') },
+    { label: 'Applicant', value: applicantName },
+    { label: 'Beneficiary', value: beneficiary },
     { label: 'Amount', value: lc.amount, format: 'money' as const },
-    { label: 'Currency', value: lc.currencyCode },
-    { label: 'Utilized', value: lc.utilizedAmount ?? 0, format: 'money' as const },
-    { label: 'Issue Date', value: lc.issueDate ? formatDate(lc.issueDate) : '—' },
+    { label: 'Currency', value: ccy },
+    { label: 'Utilized', value: utilized, format: 'money' as const },
+    { label: 'Issue Date', value: issued ? formatDate(issued) : '—' },
     { label: 'Expiry Date', value: lc.expiryDate ? formatDate(lc.expiryDate) : '—' },
-    { label: 'Payment Terms', value: lc.paymentTerms ?? '—' },
+    { label: 'Payment Terms', value: String(lc.paymentTerms ?? '—') },
     { label: 'Tenor', value: lc.tenorDays ? `${lc.tenorDays} days` : '—' },
-    { label: 'UCP Version', value: lc.ucpVersion ?? 'UCP 600' },
+    { label: 'UCP Version', value: String(lc.ucpVersion ?? 'UCP 600') },
     { label: 'Irrevocable', value: lc.isIrrevocable ? 'Yes' : 'No' },
     { label: 'Confirmed', value: lc.isConfirmed ? 'Yes' : 'No' },
     { label: 'Transferable', value: lc.isTransferable ? 'Yes' : 'No' },
@@ -164,21 +219,21 @@ export function LcDetailPage() {
           <section>
             <h3 className="font-semibold mb-3">Parties</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-              <div><span className="text-xs text-muted-foreground">Beneficiary Bank</span><p className="font-medium">{lc.beneficiaryBankName || '—'}</p></div>
-              <div><span className="text-xs text-muted-foreground">Issuing Bank</span><p className="font-medium">{lc.issuingBankCode || '—'}</p></div>
-              <div><span className="text-xs text-muted-foreground">Advising Bank</span><p className="font-medium">{lc.advisingBankCode || '—'}</p></div>
-              <div><span className="text-xs text-muted-foreground">Confirming Bank</span><p className="font-medium">{lc.confirmingBankCode || '—'}</p></div>
-              <div><span className="text-xs text-muted-foreground">Beneficiary Address</span><p className="font-medium">{lc.beneficiaryAddress || '—'}</p></div>
+              <div><span className="text-xs text-muted-foreground">Beneficiary Bank</span><p className="font-medium">{String(lc.beneficiaryBankName ?? '—')}</p></div>
+              <div><span className="text-xs text-muted-foreground">Issuing Bank</span><p className="font-medium">{String(lc.issuingBankCode ?? '—')}</p></div>
+              <div><span className="text-xs text-muted-foreground">Advising Bank</span><p className="font-medium">{String(lc.advisingBankCode ?? '—')}</p></div>
+              <div><span className="text-xs text-muted-foreground">Confirming Bank</span><p className="font-medium">{String(lc.confirmingBankCode ?? '—')}</p></div>
+              <div><span className="text-xs text-muted-foreground">Beneficiary Address</span><p className="font-medium">{String(lc.beneficiaryAddress ?? '—')}</p></div>
             </div>
           </section>
           <section>
             <h3 className="font-semibold mb-3">Shipment & Goods</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-              <div><span className="text-xs text-muted-foreground">Port of Loading</span><p className="font-medium">{lc.portOfLoading || '—'}</p></div>
-              <div><span className="text-xs text-muted-foreground">Port of Discharge</span><p className="font-medium">{lc.portOfDischarge || '—'}</p></div>
-              <div><span className="text-xs text-muted-foreground">Incoterms</span><p className="font-medium">{lc.incoterms || '—'}</p></div>
-              <div><span className="text-xs text-muted-foreground">Latest Shipment Date</span><p className="font-medium">{lc.latestShipmentDate ? formatDate(lc.latestShipmentDate) : '—'}</p></div>
-              <div className="col-span-2"><span className="text-xs text-muted-foreground">Goods Description</span><p className="font-medium mt-1">{lc.goodsDescription || '—'}</p></div>
+              <div><span className="text-xs text-muted-foreground">Port of Loading</span><p className="font-medium">{String(lc.portOfLoading ?? '—')}</p></div>
+              <div><span className="text-xs text-muted-foreground">Port of Discharge</span><p className="font-medium">{String(lc.portOfDischarge ?? '—')}</p></div>
+              <div><span className="text-xs text-muted-foreground">Incoterms</span><p className="font-medium">{String(lc.incoterms ?? '—')}</p></div>
+              <div><span className="text-xs text-muted-foreground">Latest Shipment Date</span><p className="font-medium">{lc.latestShipmentDate ? formatDate(String(lc.latestShipmentDate)) : '—'}</p></div>
+              <div className="col-span-2"><span className="text-xs text-muted-foreground">Goods Description</span><p className="font-medium mt-1">{String(lc.goodsDescription ?? '—')}</p></div>
             </div>
           </section>
           <section>
@@ -214,8 +269,8 @@ export function LcDetailPage() {
   return (
     <>
       <PageHeader
-        title={`LC ${lc.lcNumber}`}
-        subtitle={`${String(lc.lcType ?? '').replace(/_/g, ' ')} • ${lc.beneficiaryName}`}
+        title={`LC ${lcRef}`}
+        subtitle={`${String(lc.lcType ?? '').replace(/_/g, ' ')} • ${beneficiary}`}
         backTo="/trade-finance"
         actions={
           <div className="flex items-center gap-2">
@@ -235,7 +290,7 @@ export function LcDetailPage() {
           <StatCard label="LC Amount" value={formatMoney(lc.amount)} icon={DollarSign} />
           <StatCard label="Available" value={formatMoney(available)} icon={CheckCircle2} />
           <StatCard label="Utilized" value={`${utilizationPct.toFixed(1)}%`} icon={Clock} />
-          <StatCard label="Currency" value={lc.currencyCode} icon={Globe} />
+          <StatCard label="Currency" value={ccy} icon={Globe} />
         </div>
 
         <div className="card p-6"><InfoGrid items={infoItems} columns={4} /></div>
@@ -249,7 +304,7 @@ export function LcDetailPage() {
             <button onClick={() => setShowSettle(false)} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
             <h3 className="text-lg font-semibold mb-4">Settle LC Presentation</h3>
             <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">Available: <span className="font-mono font-bold">{formatMoney(available)} {lc.currencyCode}</span></p>
+              <p className="text-xs text-muted-foreground">Available: <span className="font-mono font-bold">{formatMoney(available)} {ccy}</span></p>
               <div>
                 <label className="text-xs font-medium text-muted-foreground">Settlement Amount</label>
                 <input type="number" step="0.01" max={available}

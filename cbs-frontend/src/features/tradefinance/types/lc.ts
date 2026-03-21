@@ -1,5 +1,8 @@
 // Auto-generated from backend entities
 
+export type LcType = 'IMPORT_LC' | 'EXPORT_LC' | 'STANDBY_LC' | 'TRANSFERABLE_LC' | 'REVOLVING_LC' | 'RED_CLAUSE' | 'GREEN_CLAUSE' | 'BACK_TO_BACK';
+export type LcStatus = 'DRAFT' | 'ISSUED' | 'ADVISED' | 'CONFIRMED' | 'AMENDED' | 'PARTIALLY_UTILIZED' | 'FULLY_UTILIZED' | 'EXPIRED' | 'CANCELLED' | 'CLOSED';
+
 export interface LetterOfCredit {
   id: number;
   lcNumber: string;
