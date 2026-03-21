@@ -22,11 +22,13 @@ import {
   useCalculatePayout,
   useApprovePayout,
 } from '../hooks/useAgreementsExt';
+import { useHasRole } from '@/hooks/usePermission';
 import type { CommissionPayout } from '../types/agreementExt';
 
 export function CommissionDetailPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  const isAdmin = useHasRole('CBS_ADMIN');
   const { data: agreement, isLoading, error } = useCommissionAgreement(code ?? '');
   const { data: payouts = [] } = usePartyPayouts(agreement?.partyId ?? '');
   const activateMut = useActivateCommissionAgreement();

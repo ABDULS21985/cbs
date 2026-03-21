@@ -522,7 +522,8 @@ public class AlmService {
     }
 
     /**
-     * Generate executive summary from latest ALM data.
+     * Generate comprehensive executive summary from latest ALM data, liquidity metrics,
+     * action items, stress tests, and regulatory return status.
      */
     public Map<String, Object> generateExecutiveSummary(String month) {
         List<AlmGapReport> reports = gapReportRepository.findAll();
@@ -530,20 +531,162 @@ public class AlmService {
 
         StringBuilder sb = new StringBuilder();
         sb.append("ALCO Executive Summary — ").append(month).append("\n\n");
-        if (latest != null) {
-            sb.append("As at ").append(latest.getReportDate()).append(", the bank's interest rate risk position is as follows:\n\n");
-            sb.append("- Net Interest Income (NII) base: ").append(fmtBd(latest.getNiiBase())).append("\n");
-            sb.append("- NII sensitivity to +100bp: ").append(fmtBd(latest.getNiiSensitivity())).append("\n");
-            sb.append("- Economic Value of Equity (EVE) base: ").append(fmtBd(latest.getEveBase())).append("\n");
-            sb.append("- EVE sensitivity to +200bp: ").append(fmtBd(latest.getEveSensitivity())).append("\n");
-            sb.append("- Duration gap: ").append(latest.getDurationGap() != null ? latest.getDurationGap().toPlainString() + " years" : "N/A").append("\n");
-            sb.append("- Cumulative repricing gap: ").append(fmtBd(latest.getCumulativeGap())).append("\n\n");
-            sb.append("The gap ratio stands at ").append(latest.getGapRatio() != null ? latest.getGapRatio().toPlainString() : "N/A");
-            sb.append(", indicating the bank is ").append(latest.getCumulativeGap() != null && latest.getCumulativeGap().signum() > 0 ? "asset-sensitive" : "liability-sensitive");
-            sb.append(" in the current rate environment.\n\n");
-            sb.append("Key actions from the previous ALCO meeting are being tracked and updated.");
-        } else {
+
+        if (latest == null) {
             sb.append("No gap report data available for summary generation. Generate a gap report first.");
+            return Map.of("summary", sb.toString());
+        }
+
+        // ── Section 1: Interest Rate Risk Position ──
+        sb.append("1. INTEREST RATE RISK POSITION\n\n");
+        sb.append("As at ").append(latest.getReportDate()).append(", the bank's interest rate risk profile:\n\n");
+        sb.append("  Net Interest Income (NII)\n");
+        sb.append("  - Base NII: ").append(fmtBd(latest.getNiiBase())).append("\n");
+        sb.append("  - NII under +100bp shock: ").append(fmtBd(latest.getNiiUp100bp())).append("\n");
+        sb.append("  - NII under -100bp shock: ").append(fmtBd(latest.getNiiDown100bp())).append("\n");
+        sb.append("  - NII sensitivity (delta): ").append(fmtBd(latest.getNiiSensitivity()));
+
+        // Flag NII breach
+        if (latest.getNiiSensitivity() != null && latest.getNiiBase() != null && latest.getNiiBase().signum() != 0) {
+            BigDecimal niiPct = latest.getNiiSensitivity().abs()
+                    .divide(latest.getNiiBase().abs(), 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+            if (niiPct.compareTo(new BigDecimal("15")) > 0) {
+                sb.append(" [BREACH: ").append(niiPct.setScale(1, RoundingMode.HALF_UP)).append("% exceeds 15% limit]");
+            } else if (niiPct.compareTo(new BigDecimal("10")) > 0) {
+                sb.append(" [NEAR LIMIT: ").append(niiPct.setScale(1, RoundingMode.HALF_UP)).append("% approaching 15% threshold]");
+            }
+        }
+        sb.append("\n\n");
+
+        sb.append("  Economic Value of Equity (EVE)\n");
+        sb.append("  - EVE base: ").append(fmtBd(latest.getEveBase())).append("\n");
+        sb.append("  - EVE under +200bp shock: ").append(fmtBd(latest.getEveUp200bp())).append("\n");
+        sb.append("  - EVE under -200bp shock: ").append(fmtBd(latest.getEveDown200bp())).append("\n");
+        sb.append("  - EVE sensitivity: ").append(fmtBd(latest.getEveSensitivity())).append("\n\n");
+
+        sb.append("  Repricing Position\n");
+        sb.append("  - Total RSA: ").append(fmtBd(latest.getTotalRsa())).append("\n");
+        sb.append("  - Total RSL: ").append(fmtBd(latest.getTotalRsl())).append("\n");
+        sb.append("  - Cumulative gap: ").append(fmtBd(latest.getCumulativeGap())).append("\n");
+        sb.append("  - Gap ratio (RSA/RSL): ").append(latest.getGapRatio() != null ? latest.getGapRatio().toPlainString() : "N/A").append("\n");
+        sb.append("  - The bank is ").append(latest.getCumulativeGap() != null && latest.getCumulativeGap().signum() > 0 ? "ASSET-SENSITIVE" : "LIABILITY-SENSITIVE");
+        sb.append(" in the current rate environment.\n\n");
+
+        // ── Section 2: Duration Risk ──
+        sb.append("2. DURATION RISK\n\n");
+        if (latest.getDurationGap() != null) {
+            sb.append("  - Duration gap: ").append(latest.getDurationGap().toPlainString()).append(" years");
+            if (latest.getDurationGap().abs().compareTo(new BigDecimal("2.5")) > 0) {
+                sb.append(" [ELEVATED — exceeds 2.5Y internal limit]");
+            } else if (latest.getDurationGap().abs().compareTo(new BigDecimal("1.5")) > 0) {
+                sb.append(" [MODERATE — within limits but requires monitoring]");
+            } else {
+                sb.append(" [WITHIN TOLERANCE]");
+            }
+            sb.append("\n");
+        }
+        if (latest.getWeightedAvgDurationAssets() != null) {
+            sb.append("  - Weighted avg duration (assets): ").append(latest.getWeightedAvgDurationAssets().toPlainString()).append("Y\n");
+        }
+        if (latest.getWeightedAvgDurationLiabs() != null) {
+            sb.append("  - Weighted avg duration (liabilities): ").append(latest.getWeightedAvgDurationLiabs().toPlainString()).append("Y\n");
+        }
+        sb.append("\n");
+
+        // ── Section 3: Action Item Status ──
+        sb.append("3. ACTION ITEMS STATUS\n\n");
+        List<AlcoActionItem> allItems = actionItemRepository.findAllByOrderByCreatedAtDesc();
+        long openCount = allItems.stream().filter(i -> "OPEN".equals(i.getStatus())).count();
+        long inProgressCount = allItems.stream().filter(i -> "IN_PROGRESS".equals(i.getStatus())).count();
+        long closedCount = allItems.stream().filter(i -> "CLOSED".equals(i.getStatus())).count();
+        long overdueCount = allItems.stream()
+                .filter(i -> !"CLOSED".equals(i.getStatus()) && i.getDueDate().isBefore(LocalDate.now()))
+                .count();
+
+        sb.append("  - Total items: ").append(allItems.size()).append("\n");
+        sb.append("  - Open: ").append(openCount).append("\n");
+        sb.append("  - In Progress: ").append(inProgressCount).append("\n");
+        sb.append("  - Closed: ").append(closedCount).append("\n");
+        if (overdueCount > 0) {
+            sb.append("  - OVERDUE: ").append(overdueCount).append(" items past due date — immediate attention required\n");
+        }
+        if (!allItems.isEmpty()) {
+            sb.append("\n  Outstanding items:\n");
+            allItems.stream()
+                    .filter(i -> !"CLOSED".equals(i.getStatus()))
+                    .limit(5)
+                    .forEach(i -> sb.append("  • [").append(i.getItemNumber()).append("] ")
+                            .append(i.getDescription()).append(" (Owner: ").append(i.getOwner())
+                            .append(", Due: ").append(i.getDueDate()).append(")\n"));
+        }
+        sb.append("\n");
+
+        // ── Section 4: Regulatory Return Status ──
+        sb.append("4. REGULATORY SUBMISSIONS\n\n");
+        List<AlmRegulatoryReturn> returns = regulatoryReturnRepository.findAllByOrderByNextDueAsc();
+        if (returns.isEmpty()) {
+            sb.append("  No regulatory returns configured.\n");
+        } else {
+            for (AlmRegulatoryReturn ret : returns) {
+                sb.append("  - ").append(ret.getCode()).append(" (").append(ret.getFrequency()).append("): ");
+                sb.append("Status=").append(ret.getStatus());
+                sb.append(", Next due=").append(ret.getNextDue());
+                if ("SUBMITTED".equals(ret.getStatus()) && ret.getLastSubmissionDate() != null) {
+                    sb.append(", Last submitted=").append(ret.getLastSubmissionDate().toString().substring(0, 10));
+                }
+                if (ret.getNextDue().isBefore(LocalDate.now()) && !"SUBMITTED".equals(ret.getStatus())) {
+                    sb.append(" [OVERDUE]");
+                } else if (ret.getNextDue().isBefore(LocalDate.now().plusDays(7)) && !"SUBMITTED".equals(ret.getStatus())) {
+                    sb.append(" [DUE SOON]");
+                }
+                sb.append("\n");
+            }
+        }
+        sb.append("\n");
+
+        // ── Section 5: Scenario Landscape ──
+        sb.append("5. SCENARIO & STRESS TESTING\n\n");
+        List<AlmScenario> activeScenarios = scenarioRepository.findByIsActiveTrueOrderByScenarioNameAsc();
+        List<AlmScenario> regScenarios = scenarioRepository.findByIsRegulatoryTrueAndIsActiveTrue();
+        sb.append("  - Active scenarios: ").append(activeScenarios.size()).append("\n");
+        sb.append("  - Regulatory-required scenarios: ").append(regScenarios.size()).append("\n");
+        if (!regScenarios.isEmpty()) {
+            sb.append("  Regulatory scenarios: ");
+            sb.append(regScenarios.stream().map(AlmScenario::getScenarioName).reduce((a, b) -> a + ", " + b).orElse(""));
+            sb.append("\n");
+        }
+        sb.append("\n");
+
+        // ── Section 6: Recommendations ──
+        sb.append("6. RECOMMENDATIONS\n\n");
+        boolean anyBreach = false;
+        if (latest.getNiiSensitivity() != null && latest.getNiiBase() != null && latest.getNiiBase().signum() != 0) {
+            BigDecimal niiPct = latest.getNiiSensitivity().abs()
+                    .divide(latest.getNiiBase().abs(), 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+            if (niiPct.compareTo(new BigDecimal("10")) > 0) {
+                sb.append("  • Consider rebalancing the repricing gap through IRS or securities repositioning to reduce NII sensitivity.\n");
+                anyBreach = true;
+            }
+        }
+        if (latest.getDurationGap() != null && latest.getDurationGap().abs().compareTo(new BigDecimal("2")) > 0) {
+            sb.append("  • Duration gap is elevated — evaluate immunization strategies using FGN bonds or interest rate swaps.\n");
+            anyBreach = true;
+        }
+        if (overdueCount > 0) {
+            sb.append("  • ").append(overdueCount).append(" action items are overdue — escalate to responsible owners for resolution.\n");
+            anyBreach = true;
+        }
+        long overdueReturns = returns.stream()
+                .filter(r -> r.getNextDue().isBefore(LocalDate.now()) && !"SUBMITTED".equals(r.getStatus()))
+                .count();
+        if (overdueReturns > 0) {
+            sb.append("  • ").append(overdueReturns).append(" regulatory returns are overdue — prioritize validation and submission.\n");
+            anyBreach = true;
+        }
+        if (!anyBreach) {
+            sb.append("  • All metrics within tolerance. Continue routine monitoring.\n");
         }
 
         return Map.of("summary", sb.toString());
@@ -693,5 +836,68 @@ public class AlmService {
 
     public List<AlmRegulatorySubmission> getAllSubmissions() {
         return regulatorySubmissionRepository.findAllByOrderBySubmissionDateDesc();
+    }
+
+    /**
+     * Advances due dates for SUBMITTED regulatory returns to the next filing period
+     * and resets their status to DRAFT for the new cycle.
+     * Called by the scheduled job daily.
+     */
+    @Transactional
+    public int advanceSubmittedReturnDates() {
+        List<AlmRegulatoryReturn> submitted = regulatoryReturnRepository.findAllByOrderByNextDueAsc()
+                .stream()
+                .filter(r -> "SUBMITTED".equals(r.getStatus()))
+                .filter(r -> !r.getNextDue().isAfter(LocalDate.now()))
+                .toList();
+
+        int count = 0;
+        for (AlmRegulatoryReturn ret : submitted) {
+            LocalDate oldDue = ret.getNextDue();
+            LocalDate newDue;
+            LocalDate newNextDue;
+
+            switch (ret.getFrequency()) {
+                case "DAILY":
+                    newDue = advanceToNextBusinessDay(oldDue);
+                    newNextDue = advanceToNextBusinessDay(newDue);
+                    break;
+                case "MONTHLY":
+                    newDue = oldDue.plusMonths(1).withDayOfMonth(
+                            Math.min(oldDue.getDayOfMonth(), oldDue.plusMonths(1).lengthOfMonth()));
+                    newNextDue = newDue.plusMonths(1).withDayOfMonth(
+                            Math.min(newDue.getDayOfMonth(), newDue.plusMonths(1).lengthOfMonth()));
+                    break;
+                case "QUARTERLY":
+                    newDue = oldDue.plusMonths(3);
+                    newNextDue = newDue.plusMonths(3);
+                    break;
+                default:
+                    newDue = oldDue.plusMonths(1);
+                    newNextDue = newDue.plusMonths(1);
+                    break;
+            }
+
+            ret.setDueDate(newDue);
+            ret.setNextDue(newNextDue);
+            ret.setStatus("DRAFT");
+            ret.setData(new LinkedHashMap<>());
+            ret.setValidationErrors(new ArrayList<>());
+            ret.setValidationWarnings(new ArrayList<>());
+            ret.setUpdatedAt(Instant.now());
+            regulatoryReturnRepository.save(ret);
+
+            log.info("Regulatory return {} advanced: {} -> {}, next due {}", ret.getCode(), oldDue, newDue, newNextDue);
+            count++;
+        }
+        return count;
+    }
+
+    private LocalDate advanceToNextBusinessDay(LocalDate date) {
+        LocalDate next = date.plusDays(1);
+        while (next.getDayOfWeek().getValue() >= 6) {
+            next = next.plusDays(1);
+        }
+        return next;
     }
 }

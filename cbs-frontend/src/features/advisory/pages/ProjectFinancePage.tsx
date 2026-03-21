@@ -129,12 +129,14 @@ function MilestonePanel({ facilityCode }: { facilityCode: string }) {
     <div className="p-4 bg-muted/30 border-t">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Milestones</h4>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1 text-xs text-primary hover:underline"
-        >
-          <PlusCircle className="w-3.5 h-3.5" /> Add Milestone
-        </button>
+        <RoleGuard roles="CBS_ADMIN">
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <PlusCircle className="w-3.5 h-3.5" /> Add Milestone
+          </button>
+        </RoleGuard>
       </div>
       {milestones.length === 0 ? (
         <p className="text-sm text-muted-foreground">No milestones defined.</p>
@@ -157,13 +159,15 @@ function MilestonePanel({ facilityCode }: { facilityCode: string }) {
               </div>
               <StatusBadge status={m.status} dot />
               {m.status === 'PENDING' && (
-                <button
-                  onClick={() => handleComplete(m.milestoneCode)}
-                  disabled={complete.isPending}
-                  className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground disabled:opacity-50"
-                >
-                  Complete
-                </button>
+                <RoleGuard roles="CBS_ADMIN">
+                  <button
+                    onClick={() => handleComplete(m.milestoneCode)}
+                    disabled={complete.isPending}
+                    className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground disabled:opacity-50"
+                  >
+                    Complete
+                  </button>
+                </RoleGuard>
               )}
             </div>
           ))}
@@ -391,12 +395,14 @@ export function ProjectFinancePage() {
         title="Project Finance"
         subtitle="Infrastructure & project finance facilities with milestone-based disbursement"
         actions={
-          <button
-            onClick={() => setShowNew(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
-          >
-            <Plus className="w-4 h-4" /> New Project
-          </button>
+          <RoleGuard roles="CBS_ADMIN">
+            <button
+              onClick={() => setShowNew(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+            >
+              <Plus className="w-4 h-4" /> New Project
+            </button>
+          </RoleGuard>
         }
       />
       <div className="page-container space-y-6">

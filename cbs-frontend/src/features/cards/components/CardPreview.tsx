@@ -31,16 +31,20 @@ const TIER_OVERLAYS: Record<CardTier, string> = {
   INFINITE: 'bg-gradient-to-br from-gray-900/40 via-black/20 to-amber-500/15',
 };
 
-const SCHEME_LABELS: Record<CardScheme, { text: string; style: string }> = {
+const SCHEME_LABELS: Record<string, { text: string; style: string }> = {
   VISA: { text: 'VISA', style: 'text-xl font-bold italic tracking-wider' },
   MASTERCARD: { text: 'mastercard', style: 'text-base font-bold tracking-wide' },
   VERVE: { text: 'VERVE', style: 'text-lg font-bold tracking-widest' },
+  AMEX: { text: 'AMEX', style: 'text-lg font-bold tracking-wider' },
+  UNIONPAY: { text: 'UnionPay', style: 'text-base font-bold tracking-wide' },
+  LOCAL: { text: 'LOCAL', style: 'text-base font-bold tracking-wide' },
 };
 
-const TYPE_BADGES: Record<CardType, string> = {
+const TYPE_BADGES: Record<string, string> = {
   DEBIT: 'Debit',
   CREDIT: 'Credit',
   PREPAID: 'Prepaid',
+  VIRTUAL: 'Virtual',
 };
 
 // Chip SVG rendered inline
@@ -69,7 +73,7 @@ export function CardPreview({
   const displayNumber = maskedNumber || '\u2022\u2022\u2022\u2022  \u2022\u2022\u2022\u2022  \u2022\u2022\u2022\u2022  \u2022\u2022\u2022\u2022';
   const displayExpiry = expiry || 'MM/YY';
   const displayName = cardholderName || 'CARDHOLDER NAME';
-  const schemeLabel = SCHEME_LABELS[scheme];
+  const schemeLabel = SCHEME_LABELS[scheme] ?? { text: scheme, style: 'text-base font-bold' };
 
   return (
     <div
