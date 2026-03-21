@@ -16,6 +16,10 @@ public interface TransactionReversalRequestRepository extends JpaRepository<Tran
 
     Optional<TransactionReversalRequest> findTopByTransactionIdOrderByRequestedAtDesc(Long transactionId);
 
+    Page<TransactionReversalRequest> findByRequestedByOrderByRequestedAtDesc(String requestedBy, Pageable pageable);
+
+    Page<TransactionReversalRequest> findByRequestedByAndStatusOrderByRequestedAtDesc(String requestedBy, String status, Pageable pageable);
+
     Page<TransactionReversalRequest> findByStatusOrderByRequestedAtDesc(String status, Pageable pageable);
 
     Page<TransactionReversalRequest> findAllByOrderByRequestedAtDesc(Pageable pageable);

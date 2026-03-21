@@ -92,7 +92,7 @@ export function AccountCardHeader({ account }: AccountCardHeaderProps) {
           Statements
         </Link>
         <Link
-          to={`/accounts/${account.id}/maintenance`}
+          to={`/accounts/${account.accountNumber}/maintenance`}
           className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition-colors"
         >
           <Settings className="w-4 h-4" />

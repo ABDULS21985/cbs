@@ -10,11 +10,6 @@ import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { FormSection } from '@/components/shared/FormSection';
 import type { StatementFormat, StatementType } from '../api/statementApi';
 
-interface AccountOption {
-  id: string;
-  label: string;
-}
-
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
 const schema = z.object({

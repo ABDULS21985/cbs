@@ -19,7 +19,7 @@ import { DateRangePicker } from '@/components/shared/DateRangePicker';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { apiGet } from '@/lib/api';
 import { statementApi } from '../api/statementApi';
-import type { StatementData, StatementFormat } from '../api/statementApi';
+import type { StatementFormat } from '../api/statementApi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

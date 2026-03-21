@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   MapPin,
   Plus,
@@ -14,6 +15,7 @@ import {
   Radio,
   CheckCircle2,
   RefreshCw,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -312,6 +314,7 @@ function LiveSessionsTab() {
 // ─── Service Points Tab ───────────────────────────────────────────────────────
 
 function ServicePointsTab() {
+  const navigate = useNavigate();
   const { data: points = [], isLoading } = useAllServicePoints();
   const { data: statusMap } = useServicePointStatus();
   const { mutate: register, isPending: registering } = useRegisterServicePoint();
@@ -361,10 +364,10 @@ function ServicePointsTab() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  {['Code', 'Name', 'Type', 'Status', 'Capacity', 'Staff', 'Accessible'].map(
+                  {['Code', 'Name', 'Type', 'Status', 'Capacity', 'Staff', 'Accessible', ''].map(
                     (h) => (
                       <th
-                        key={h}
+                        key={h || '_action'}
                         className="text-left px-5 py-3 text-xs font-medium text-muted-foreground"
                       >
                         {h}
@@ -375,7 +378,11 @@ function ServicePointsTab() {
               </thead>
               <tbody className="divide-y divide-border">
                 {points.map((sp) => (
-                  <tr key={sp.id} className="hover:bg-muted/30 transition-colors">
+                  <tr
+                    key={sp.id}
+                    className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/channels/service-points/${sp.id}`)}
+                  >
                     <td className="px-5 py-3">
                       <span className="font-mono text-xs">{sp.servicePointCode}</span>
                     </td>
@@ -416,11 +423,14 @@ function ServicePointsTab() {
                         <XCircle className="w-4 h-4 text-muted-foreground" />
                       )}
                     </td>
+                    <td className="px-5 py-3">
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </td>
                   </tr>
                 ))}
                 {points.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-10 text-center text-sm text-muted-foreground">
+                    <td colSpan={8} className="px-5 py-10 text-center text-sm text-muted-foreground">
                       No service points registered.
                     </td>
                   </tr>

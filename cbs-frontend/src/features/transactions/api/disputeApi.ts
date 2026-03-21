@@ -47,6 +47,14 @@ export interface DisputeListResponse {
   totalElements?: number;
 }
 
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
 export const disputeApi = {
   raiseDispute: async (transactionId: string, payload: RaiseDisputeRequest): Promise<DisputeRecord> => {
     const formData = new FormData();
@@ -82,6 +90,14 @@ export const disputeApi = {
 
   close: async (id: number, response: 'RESOLVED' | 'REJECTED', notes: string): Promise<DisputeRecord> =>
     apiPost<DisputeRecord>(`/api/v1/transactions/disputes/${id}/close`, { response, notes }),
+
+  downloadSupportingDocument: async (documentId: number): Promise<void> => {
+    const response = await api.get(`/api/v1/documents/${documentId}/download`, { responseType: 'blob' });
+    const contentDisposition = String(response.headers['content-disposition'] ?? '');
+    const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/i);
+    const filename = filenameMatch?.[1] ?? `document-${documentId}`;
+    triggerBlobDownload(new Blob([response.data], { type: String(response.headers['content-type'] ?? 'application/octet-stream') }), filename);
+  },
 };
 
 export function toDisputeSummary(record: DisputeRecord): TransactionDisputeSummary {

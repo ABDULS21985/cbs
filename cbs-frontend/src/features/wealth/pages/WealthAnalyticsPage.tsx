@@ -379,7 +379,7 @@ export function WealthAnalyticsPage() {
                         fill={
                           entry.type === 'total'
                             ? 'hsl(var(--primary))'
-                            : entry.type === 'positive'
+                            : entry.type === 'increase'
                               ? '#10b981'
                               : '#ef4444'
                         }
@@ -398,12 +398,16 @@ export function WealthAnalyticsPage() {
               isError={segmentQuery.isError}
             >
               <ResponsiveContainer width="100%" height={260}>
-                <AreaChart
-                  data={segmentQuery.data ?? []}
+                <BarChart
+                  data={(segmentQuery.data ?? []).map((seg) => ({
+                    segment: seg.segment,
+                    totalAum: seg.totalAum,
+                    clientCount: seg.clientCount,
+                  }))}
                   margin={{ top: 4, right: 16, left: 8, bottom: 0 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="segment" tick={{ fontSize: 11 }} />
                   <YAxis
                     tickFormatter={(v: number) => formatMoneyCompact(v)}
                     tick={{ fontSize: 11 }}
@@ -414,11 +418,8 @@ export function WealthAnalyticsPage() {
                     formatter={(value: number, name: string) => [formatMoneyCompact(value), name]}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Area type="monotone" dataKey="uhnwi" name="UHNWI" stackId="1" stroke={SEGMENT_COLORS.uhnwi} fill={SEGMENT_COLORS.uhnwi} fillOpacity={0.7} />
-                  <Area type="monotone" dataKey="hnwi" name="HNWI" stackId="1" stroke={SEGMENT_COLORS.hnwi} fill={SEGMENT_COLORS.hnwi} fillOpacity={0.7} />
-                  <Area type="monotone" dataKey="massAffluent" name="Mass Affluent" stackId="1" stroke={SEGMENT_COLORS.massAffluent} fill={SEGMENT_COLORS.massAffluent} fillOpacity={0.7} />
-                  <Area type="monotone" dataKey="institutional" name="Institutional" stackId="1" stroke={SEGMENT_COLORS.institutional} fill={SEGMENT_COLORS.institutional} fillOpacity={0.7} />
-                </AreaChart>
+                  <Bar dataKey="totalAum" name="Total AUM" fill={SEGMENT_COLORS.uhnwi ?? '#3b82f6'} radius={[4, 4, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </SectionCard>
 
@@ -745,7 +746,7 @@ export function WealthAnalyticsPage() {
                     {(heatmapQuery.data ?? []).map((row) => (
                       <tr key={row.assetClass}>
                         <td className="py-1 pr-3 font-medium text-foreground whitespace-nowrap">{row.assetClass}</td>
-                        {(['market', 'credit', 'liquidity', 'fx'] as const).map((col) => (
+                        {(['marketRisk', 'creditRisk', 'liquidityRisk', 'fxRisk'] as const).map((col) => (
                           <td key={col} className="py-1 px-1 text-center">
                             <span
                               className={cn(
@@ -806,8 +807,8 @@ export function WealthAnalyticsPage() {
                     }}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="aumImpact" name="AUM Impact" fill="#ef4444" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="returnImpact" name="Return Impact %" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="portfolioImpact" name="AUM Impact" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="impactPct" name="Return Impact %" fill="#f59e0b" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </SectionCard>

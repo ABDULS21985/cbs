@@ -131,6 +131,9 @@ import {
   NotificationPreferencesPage,
   OperationalReportsPage,
   OperationalRiskPage,
+  BusinessRiskPage,
+  RiskContributionPage,
+  BusinessContributionPage,
   OrderManagementPage,
   PaymentAnalyticsPage,
   PortalAccountsPage,
@@ -163,6 +166,7 @@ import {
   RecurringDepositDetailPage,
   NewRecurringDepositPage,
   RecurringDepositListPage,
+  RegulatoryReportsPage,
   RegulatoryReturnsPage,
   ReportViewerPage,
   ReturnDetailPage,
@@ -183,6 +187,7 @@ import {
   TemplateManagementPage,
   TradeFinancePage,
   TradeOpsPage,
+  ReversalApprovalPage,
   TransactionAnalyticsPage,
   TransactionCompliancePage,
   TransactionDisputePage,
@@ -296,6 +301,8 @@ import {
   ChannelManagementPage,
   ChannelSessionConfigPage,
   DigitalBankingPage,
+  ServicePointDetailPage,
+  ChannelActivityLogsPage,
   OpenBankingPage,
   OBTppDetailPage,
   OBConsentMgmtPage,
@@ -319,6 +326,8 @@ import {
   FinancialInstrumentsPage,
   CompetitorAnalysisPage,
   TradeFinanceHubPage,
+  TfLcDetailPage,
+  TfGuaranteeDetailPage,
   AccountListPage,
   WalletPage,
   PaymentsDashboardPage,
@@ -333,6 +342,8 @@ import {
   CardTokenPage,
   TreasuryPositionsPage,
   FxRatesPage,
+  LiquidityRiskPage,
+  MarketRiskPage,
   ComplianceAssessmentsPage,
   ComplianceSanctionsPage,
   ScreeningDetailPage,
@@ -479,6 +490,7 @@ export function AppRouter() {
           <Route path="history" element={<TransactionSearchPage />} />
           <Route path="analytics" element={<TransactionAnalyticsPage />} />
           <Route path="disputes" element={<TransactionDisputePage />} />
+          <Route path="reversals" element={<ReversalApprovalPage />} />
           <Route path="compliance" element={<TransactionCompliancePage />} />
           <Route path="standing-orders" element={<StandingOrderListPage />} />
           <Route path="standing-orders/:id" element={<StandingOrderDetailPage />} />
@@ -528,6 +540,8 @@ export function AppRouter() {
           <Route path="orders" element={<OrderManagementPage />} />
           <Route path="trade-ops" element={<TradeOpsPage />} />
           <Route path="capital-markets" element={<CapitalMarketsPage />} />
+          <Route path="liquidity-risk" element={<LiquidityRiskPage />} />
+          <Route path="market-risk" element={<MarketRiskPage />} />
         </Route>
 
         {/* Capital Markets */}
@@ -618,6 +632,8 @@ export function AppRouter() {
           <Route index element={<ChannelManagementPage />} />
           <Route path="config" element={<ChannelSessionConfigPage />} />
           <Route path="digital" element={<DigitalBankingPage />} />
+          <Route path="service-points/:id" element={<ServicePointDetailPage />} />
+          <Route path="activity-logs" element={<ChannelActivityLogsPage />} />
         </Route>
 
         {/* Open Banking */}
@@ -665,6 +681,9 @@ export function AppRouter() {
           <Route path="credit" element={<CreditRiskPage />} />
           <Route path="market-liquidity" element={<MarketLiquidityRiskPage />} />
           <Route path="operational" element={<OperationalRiskPage />} />
+          <Route path="business-risk" element={<BusinessRiskPage />} />
+          <Route path="contribution" element={<RiskContributionPage />} />
+          <Route path="business-contribution" element={<BusinessContributionPage />} />
         </Route>
 
         {/* Compliance */}
@@ -735,6 +754,7 @@ export function AppRouter() {
           <Route path="treasury" element={<TreasuryAlmReportsPage />} />
           <Route path="marketing" element={<MarketingAnalyticsPage />} />
           <Route path="operations" element={<OperationalReportsPage />} />
+          <Route path="regulatory" element={<RegulatoryReportsPage />} />
           <Route path="compliance-downloads" element={<ComplianceDownloadsPage />} />
         </Route>
 
@@ -815,6 +835,8 @@ export function AppRouter() {
         {/* Trade Finance */}
         <Route path="/trade-finance" element={<Outlet />}>
           <Route index element={<TradeFinanceHubPage />} />
+          <Route path="lc/:id" element={<TfLcDetailPage />} />
+          <Route path="guarantee/:id" element={<TfGuaranteeDetailPage />} />
           <Route path="legacy" element={<TradeFinancePage />} />
         </Route>
 

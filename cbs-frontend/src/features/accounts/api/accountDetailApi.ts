@@ -1,27 +1,39 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 
 export interface Account {
   id: string;
   accountNumber: string;
   accountTitle: string;
+  productCode: string;
   productType: string;
   productName: string;
   currency: string;
+  accountType: string;
   status: string;
   availableBalance: number;
   ledgerBalance: number;
   holdAmount: number;
+  overdraftLimit: number;
   branchCode: string;
   openedDate: string;
+  activatedDate?: string;
+  lastTransactionDate?: string;
+  dormancyDate?: string;
+  closedDate?: string;
+  maturityDate?: string;
   relationshipManager: string;
   customerId: string;
+  customerCifNumber?: string;
   customerName: string;
   signatories?: { name: string; role: string }[];
   interestRate: number;
   accruedInterest: number;
   statementFrequency: string;
+  allowDebit: boolean;
+  allowCredit: boolean;
   lastInterestCalcDate?: string;
   lastInterestPostDate?: string;
+  createdAt?: string;
 }
 
 export interface Transaction {
@@ -87,24 +99,36 @@ interface BackendAccount {
   id: number;
   accountNumber: string;
   accountName?: string | null;
+  productCode?: string | null;
   productName?: string | null;
   productCategory?: string | null;
   currency?: string | null;
+  accountType?: string | null;
   branchCode?: string | null;
   relationshipManager?: string | null;
   customerId?: number | null;
+  customerCifNumber?: string | null;
   customerDisplayName?: string | null;
   status?: string | null;
   availableBalance?: number | null;
   ledgerBalance?: number | null;
   lienAmount?: number | null;
+  overdraftLimit?: number | null;
   openedDate?: string | null;
+  activatedDate?: string | null;
+  lastTransactionDate?: string | null;
+  dormancyDate?: string | null;
+  closedDate?: string | null;
+  maturityDate?: string | null;
+  allowDebit?: boolean | null;
+  allowCredit?: boolean | null;
   signatories?: BackendSignatory[] | null;
   applicableInterestRate?: number | null;
   accruedInterest?: number | null;
   statementFrequency?: string | null;
   lastInterestCalcDate?: string | null;
   lastInterestPostDate?: string | null;
+  createdAt?: string | null;
 }
 
 interface BackendTransaction {
@@ -142,17 +166,26 @@ function mapAccount(account: BackendAccount): Account {
     id: String(account.id),
     accountNumber: account.accountNumber,
     accountTitle: account.accountName ?? account.accountNumber,
+    productCode: account.productCode ?? '',
     productType: mapProductType(account.productCategory, account.currency),
     productName: account.productName ?? 'Account product',
     currency: account.currency ?? 'NGN',
+    accountType: account.accountType ?? 'INDIVIDUAL',
     status: account.status ?? 'ACTIVE',
     availableBalance: toNumber(account.availableBalance),
     ledgerBalance: toNumber(account.ledgerBalance),
     holdAmount: toNumber(account.lienAmount),
+    overdraftLimit: toNumber(account.overdraftLimit),
     branchCode: account.branchCode ?? 'N/A',
     openedDate: account.openedDate ?? '',
+    activatedDate: account.activatedDate ?? undefined,
+    lastTransactionDate: account.lastTransactionDate ?? undefined,
+    dormancyDate: account.dormancyDate ?? undefined,
+    closedDate: account.closedDate ?? undefined,
+    maturityDate: account.maturityDate ?? undefined,
     relationshipManager: account.relationshipManager ?? 'Unassigned',
     customerId: account.customerId ? String(account.customerId) : 'N/A',
+    customerCifNumber: account.customerCifNumber ?? undefined,
     customerName: account.customerDisplayName ?? 'Unknown customer',
     signatories: (account.signatories ?? []).map((signatory) => ({
       name: signatory.customerDisplayName ?? 'Unknown signatory',
@@ -161,8 +194,11 @@ function mapAccount(account: BackendAccount): Account {
     interestRate: toNumber(account.applicableInterestRate),
     accruedInterest: toNumber(account.accruedInterest),
     statementFrequency: account.statementFrequency ?? 'MONTHLY',
+    allowDebit: account.allowDebit !== false,
+    allowCredit: account.allowCredit !== false,
     lastInterestCalcDate: account.lastInterestCalcDate ?? undefined,
     lastInterestPostDate: account.lastInterestPostDate ?? undefined,
+    createdAt: account.createdAt ?? undefined,
   };
 }
 
@@ -275,10 +311,13 @@ export const accountDetailApi = {
       narration: data.narration, channel: data.channel || 'BRANCH', externalRef: data.externalRef,
     }),
 
-  postTransfer: (data: { fromAccountNumber: string; toAccountNumber: string; amount: number; narration: string }) =>
-    apiPost<Record<string, unknown>>('/api/v1/accounts/transactions/transfer', {
-      accountNumber: data.fromAccountNumber, contraAccountNumber: data.toAccountNumber,
-      transactionType: 'TRANSFER_OUT', amount: data.amount, narration: data.narration, channel: 'BRANCH',
+  postTransfer: (data: { fromAccountNumber: string; toAccountNumber: string; amount: number; narration: string; channel?: string }) =>
+    apiPostParams<Record<string, unknown>>('/api/v1/accounts/transactions/transfer', {
+      fromAccount: data.fromAccountNumber,
+      toAccount: data.toAccountNumber,
+      amount: data.amount,
+      narration: data.narration,
+      channel: data.channel || 'BRANCH',
     }),
 
   // ── Interest Operations ─────────────────────────────────────────────────

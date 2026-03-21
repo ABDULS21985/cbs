@@ -10,11 +10,14 @@ import com.cbs.account.entity.Account;
 import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.entity.TransactionType;
-import com.cbs.account.repository.TransactionDisputeRepository;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.repository.TransactionDisputeRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.common.audit.CurrentCustomerProvider;
+import com.cbs.common.exception.BusinessException;
 import com.cbs.aml.entity.AmlAlert;
 import com.cbs.aml.repository.AmlAlertRepository;
+import com.cbs.customer.entity.Customer;
 import com.cbs.gl.entity.JournalEntry;
 import com.cbs.gl.entity.JournalLine;
 import jakarta.persistence.EntityNotFoundException;
@@ -26,6 +29,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -45,11 +50,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.time.temporal.TemporalAdjusters;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.time.temporal.TemporalAdjusters;
 
 @Service
 @RequiredArgsConstructor
@@ -65,6 +71,7 @@ public class TransactionService {
     private final AmlAlertRepository amlAlertRepository;
     private final TransactionDisputeRepository transactionDisputeRepository;
     private final TransactionAuditService transactionAuditService;
+    private final CurrentCustomerProvider currentCustomerProvider;
 
     public Page<TransactionResponse> search(TransactionSearchCriteria criteria, Pageable pageable) {
         return transactionJournalRepository.findAll(buildSpecification(criteria), pageable)
@@ -105,6 +112,12 @@ public class TransactionService {
     public TransactionJournal getTransactionEntity(Long id) {
         return transactionJournalRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Transaction not found: " + id));
+    }
+
+    public TransactionJournal getReceiptTransaction(Long id) {
+        TransactionJournal transaction = getTransactionEntity(id);
+        enforcePortalOwnership(transaction);
+        return transaction;
     }
 
     public List<TransactionJournal> findTransactions(TransactionSearchCriteria criteria) {
@@ -524,13 +537,25 @@ public class TransactionService {
         return (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
             Join<TransactionJournal, Account> accountJoin = root.join("account", JoinType.INNER);
+            Join<Account, Customer> customerJoin = accountJoin.join("customer", JoinType.LEFT);
+            Join<TransactionJournal, Account> contraAccountJoin = root.join("contraAccount", JoinType.LEFT);
             query.distinct(true);
 
             if (StringUtils.hasText(criteria.getSearch())) {
                 String term = "%" + criteria.getSearch().trim().toLowerCase(Locale.ROOT) + "%";
                 predicates.add(builder.or(
                         builder.like(builder.lower(root.get("narration")), term),
-                        builder.like(builder.lower(root.get("transactionRef")), term)
+                        builder.like(builder.lower(root.get("transactionRef")), term),
+                        builder.like(builder.lower(builder.coalesce(root.get("externalRef"), "")), term),
+                        builder.like(builder.lower(accountJoin.get("accountNumber")), term),
+                        builder.like(builder.lower(builder.coalesce(accountJoin.get("accountName"), "")), term),
+                        builder.like(builder.lower(builder.coalesce(root.get("contraAccountNumber"), "")), term),
+                        builder.like(builder.lower(builder.coalesce(contraAccountJoin.get("accountName"), "")), term),
+                        builder.like(builder.lower(builder.coalesce(customerJoin.get("cifNumber"), "")), term),
+                        builder.like(builder.lower(builder.coalesce(customerJoin.get("firstName"), "")), term),
+                        builder.like(builder.lower(builder.coalesce(customerJoin.get("lastName"), "")), term),
+                        builder.like(builder.lower(builder.coalesce(customerJoin.get("registeredName"), "")), term),
+                        builder.like(builder.lower(builder.coalesce(customerJoin.get("tradingName"), "")), term)
                 ));
             }
 
@@ -539,11 +564,17 @@ public class TransactionService {
             }
 
             if (StringUtils.hasText(criteria.getCustomerId())) {
-                Optional<Long> customerId = parseLong(criteria.getCustomerId());
-                if (customerId.isEmpty()) {
-                    return builder.disjunction();
-                }
-                predicates.add(builder.equal(accountJoin.get("customer").get("id"), customerId.get()));
+                String customerTerm = criteria.getCustomerId().trim();
+                String loweredCustomerTerm = "%" + customerTerm.toLowerCase(Locale.ROOT) + "%";
+                List<Predicate> customerPredicates = new ArrayList<>();
+                parseLong(customerTerm)
+                        .ifPresent(customerId -> customerPredicates.add(builder.equal(customerJoin.get("id"), customerId)));
+                customerPredicates.add(builder.equal(builder.upper(customerJoin.get("cifNumber")), customerTerm.toUpperCase(Locale.ROOT)));
+                customerPredicates.add(builder.like(builder.lower(builder.coalesce(customerJoin.get("firstName"), "")), loweredCustomerTerm));
+                customerPredicates.add(builder.like(builder.lower(builder.coalesce(customerJoin.get("lastName"), "")), loweredCustomerTerm));
+                customerPredicates.add(builder.like(builder.lower(builder.coalesce(customerJoin.get("registeredName"), "")), loweredCustomerTerm));
+                customerPredicates.add(builder.like(builder.lower(builder.coalesce(customerJoin.get("tradingName"), "")), loweredCustomerTerm));
+                predicates.add(builder.or(customerPredicates.toArray(Predicate[]::new)));
             }
 
             if (criteria.getDateFrom() != null) {
@@ -1039,6 +1070,30 @@ public class TransactionService {
             case 7 -> "Sun";
             default -> "Day";
         };
+    }
+
+    private void enforcePortalOwnership(TransactionJournal transaction) {
+        if (!isPortalScopedPrincipal()) {
+            return;
+        }
+        Long currentCustomerId = currentCustomerProvider.getCurrentCustomer().getId();
+        if (!Objects.equals(transaction.getAccount().getCustomer().getId(), currentCustomerId)) {
+            throw new BusinessException("You do not have access to this transaction", "TRANSACTION_ACCESS_DENIED");
+        }
+    }
+
+    private boolean isPortalScopedPrincipal() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        boolean portalUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_PORTAL_USER".equals(authority.getAuthority()));
+        boolean staffUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_CBS_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_CBS_OFFICER".equals(authority.getAuthority())
+                        || "ROLE_CBS_VIEWER".equals(authority.getAuthority()));
+        return portalUser && !staffUser;
     }
 
     private record AnalyticsWindow(LocalDate from, LocalDate to) {

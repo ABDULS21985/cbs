@@ -4,6 +4,7 @@ import {
   BarChart2, PieChart, Landmark, CreditCard,
   ArrowRightLeft, Users, Building2, TrendingUp,
   Shield, FileText, Settings, Layers,
+  FolderOpen, Receipt,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 
@@ -91,6 +92,23 @@ const reportCategories = [
     icon: FileText,
     path: '/reports/custom',
     color: 'text-violet-600 bg-violet-50 dark:bg-violet-900/20 dark:text-violet-400',
+  },
+];
+
+const relatedTools = [
+  {
+    title: 'Document Management',
+    description: 'Upload, verify, and manage customer documents',
+    icon: FolderOpen,
+    path: '/operations/documents',
+    color: 'text-slate-600 bg-slate-100 dark:bg-slate-800/40 dark:text-slate-400',
+  },
+  {
+    title: 'Account Statements',
+    description: 'Generate, download, and email account statements',
+    icon: Receipt,
+    path: '/accounts/statements',
+    color: 'text-slate-600 bg-slate-100 dark:bg-slate-800/40 dark:text-slate-400',
   },
 ];
 

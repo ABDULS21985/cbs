@@ -16,6 +16,7 @@ import {
   useSubmitInvoice,
   useFundInvoice,
   useVerifyDocument,
+  useCreateCollection,
 } from '../hooks/useTradeFinanceExt';
 import type {
   LetterOfCredit,
@@ -31,6 +32,7 @@ import { formatMoney, formatDate } from '@/lib/formatters';
 import { FileText, Shield, Layers, DollarSign, Plus, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // ─── Badge Helpers ────────────────────────────────────────────────────────────
 
@@ -1125,6 +1127,56 @@ function ScfFactoringTab() {
           isLoading={facLoading}
           emptyMessage="No factored invoices"
         />
+      </div>
+    </div>
+  );
+}
+
+function NewCollectionDialog({ onClose }: { onClose: () => void }) {
+  const createCollection = useCreateCollection();
+  const [form, setForm] = useState({ drawerCustomerId: 0, collectionType: 'DP' as 'DP' | 'DA', draweeName: '', amount: 0, currencyCode: 'NGN', documents: [] as string[], tenorDays: 0 });
+  const handleSubmit = () => {
+    createCollection.mutate(form, {
+      onSuccess: () => { toast.success('Collection created'); onClose(); },
+      onError: () => toast.error('Failed to create collection'),
+    });
+  };
+  const fc = 'w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-background rounded-xl shadow-xl w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+        <h2 className="text-lg font-semibold mb-4">New Documentary Collection</h2>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs font-medium text-muted-foreground">Drawer Customer ID</label><input type="number" className={fc} value={form.drawerCustomerId || ''} onChange={(e) => setForm((f) => ({ ...f, drawerCustomerId: Number(e.target.value) }))} required /></div>
+            <div><label className="text-xs font-medium text-muted-foreground">Collection Type</label>
+              <select className={fc} value={form.collectionType} onChange={(e) => setForm((f) => ({ ...f, collectionType: e.target.value as 'DP' | 'DA' }))}>
+                <option value="DP">D/P - Documents against Payment</option>
+                <option value="DA">D/A - Documents against Acceptance</option>
+              </select>
+            </div>
+          </div>
+          <div><label className="text-xs font-medium text-muted-foreground">Drawee Name</label><input className={fc} value={form.draweeName} onChange={(e) => setForm((f) => ({ ...f, draweeName: e.target.value }))} required /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs font-medium text-muted-foreground">Amount</label><input type="number" step="0.01" className={fc} value={form.amount || ''} onChange={(e) => setForm((f) => ({ ...f, amount: Number(e.target.value) }))} required /></div>
+            <div><label className="text-xs font-medium text-muted-foreground">Currency</label>
+              <select className={fc} value={form.currencyCode} onChange={(e) => setForm((f) => ({ ...f, currencyCode: e.target.value }))}>
+                {['NGN', 'USD', 'EUR', 'GBP'].map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          {form.collectionType === 'DA' && (
+            <div><label className="text-xs font-medium text-muted-foreground">Tenor (days)</label><input type="number" className={fc} value={form.tenorDays || ''} onChange={(e) => setForm((f) => ({ ...f, tenorDays: Number(e.target.value) }))} /></div>
+          )}
+          <div className="flex justify-end gap-2 pt-3">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+            <button onClick={handleSubmit} disabled={createCollection.isPending || !form.draweeName || !form.amount}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+              {createCollection.isPending ? 'Creating...' : 'Create'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

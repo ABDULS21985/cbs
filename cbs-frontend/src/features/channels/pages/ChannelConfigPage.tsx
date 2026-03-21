@@ -22,6 +22,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useChannelConfigs, useSaveChannelConfig, useChannelSessionCounts, useCleanupSessions, useChannelSessions, useEndChannelSession } from '../hooks/useChannels';
+import { useHandoffSession } from '../hooks/useChannelsExt';
 import type { ChannelConfig, ChannelSession } from '../api/channelApi';
 
 // ─── Channel Icons ────────────────────────────────────────────────────────────
@@ -246,13 +247,119 @@ function EditConfigDialog({ config, open, onClose, onSave, isPending }: EditConf
   );
 }
 
+// ─── Handoff Dialog ──────────────────────────────────────────────────────────
+
+interface HandoffDialogProps {
+  session: ChannelSession;
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (params: { sessionId: string; targetChannel: string; deviceId?: string; ipAddress?: string }) => void;
+  isPending: boolean;
+}
+
+function HandoffDialog({ session, open, onClose, onSubmit, isPending }: HandoffDialogProps) {
+  const [targetChannel, setTargetChannel] = useState('WEB');
+  const [deviceId, setDeviceId] = useState('');
+  const [ipAddress, setIpAddress] = useState('');
+
+  if (!open) return null;
+
+  const channels = ['WEB', 'MOBILE', 'ATM', 'BRANCH', 'USSD', 'IVR', 'WHATSAPP', 'POS', 'AGENT', 'API'].filter(
+    (ch) => ch !== session.channel,
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      sessionId: session.sessionId,
+      targetChannel,
+      deviceId: deviceId || undefined,
+      ipAddress: ipAddress || undefined,
+    });
+  };
+
+  const inputCls =
+    'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-card rounded-xl shadow-2xl border w-full max-w-sm">
+          <div className="flex items-center justify-between px-6 py-4 border-b">
+            <h2 className="text-base font-semibold">Handoff Session</h2>
+            <button onClick={onClose} className="p-1.5 rounded-md hover:bg-muted transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div className="text-xs text-muted-foreground">
+              Transferring session <span className="font-mono font-medium">{session.sessionId}</span> from{' '}
+              <span className="font-semibold">{session.channel}</span>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Target Channel *</label>
+              <select
+                className={inputCls}
+                value={targetChannel}
+                onChange={(e) => setTargetChannel(e.target.value)}
+              >
+                {channels.map((ch) => (
+                  <option key={ch} value={ch}>{ch}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Device ID</label>
+              <input
+                className={inputCls}
+                value={deviceId}
+                onChange={(e) => setDeviceId(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">IP Address</label>
+              <input
+                className={inputCls}
+                value={ipAddress}
+                onChange={(e) => setIpAddress(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Handoff
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Live Sessions Panel ──────────────────────────────────────────────────────
 
 function LiveSessionsPanel() {
   const { data: counts, isLoading, refetch, isFetching, dataUpdatedAt } = useChannelSessionCounts();
-  const { data: sessions = [], isLoading: sessionsLoading } = useChannelSessions({ page: 0, size: 10 });
+  const { data: sessions = [], isLoading: sessionsLoading } = useChannelSessions({ page: 0, size: 20 });
   const { mutate: cleanup, isPending: cleaning } = useCleanupSessions();
   const { mutate: endSession } = useEndChannelSession();
+  const { mutate: handoffSession, isPending: handingOff } = useHandoffSession();
+  const [handoffTarget, setHandoffTarget] = useState<ChannelSession | null>(null);
 
   const total = counts ? Object.values(counts).reduce((a, b) => a + (b as number), 0) : 0;
 
@@ -267,6 +374,16 @@ function LiveSessionsPanel() {
     endSession(sessionId, {
       onSuccess: () => toast.success('Session ended'),
       onError: () => toast.error('Failed to end session'),
+    });
+  };
+
+  const handleHandoff = (params: { sessionId: string; targetChannel: string; deviceId?: string; ipAddress?: string }) => {
+    handoffSession(params, {
+      onSuccess: () => {
+        toast.success(`Session handed off to ${params.targetChannel}`);
+        setHandoffTarget(null);
+      },
+      onError: () => toast.error('Handoff failed'),
     });
   };
 
@@ -360,12 +477,20 @@ function LiveSessionsPanel() {
                     </td>
                     <td className="px-4 py-2.5">
                       {s.status === 'ACTIVE' && (
-                        <button
-                          onClick={() => handleEndSession(s.sessionId)}
-                          className="text-xs text-red-600 hover:text-red-700 font-medium"
-                        >
-                          End
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setHandoffTarget(s)}
+                            className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            Handoff
+                          </button>
+                          <button
+                            onClick={() => handleEndSession(s.sessionId)}
+                            className="text-xs text-red-600 hover:text-red-700 font-medium"
+                          >
+                            End
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -380,6 +505,16 @@ function LiveSessionsPanel() {
           </p>
         )}
       </div>
+
+      {handoffTarget && (
+        <HandoffDialog
+          session={handoffTarget}
+          open={!!handoffTarget}
+          onClose={() => setHandoffTarget(null)}
+          onSubmit={handleHandoff}
+          isPending={handingOff}
+        />
+      )}
     </div>
   );
 }

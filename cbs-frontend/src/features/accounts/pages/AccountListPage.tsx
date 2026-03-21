@@ -103,10 +103,10 @@ export function AccountListPage() {
   });
 
   const totalAccounts = (summary?.totalAccounts as number) ?? accounts.length;
-  const activeAccounts = (summary?.activeAccounts as number) ?? accounts.filter((a) => a.status === 'ACTIVE').length;
+  const activeAccounts = (summary?.count_ACTIVE as number) ?? accounts.filter((a) => a.status === 'ACTIVE').length;
   const totalBalance = (summary?.totalBalance as number) ?? accounts.reduce((sum, a) => sum + (a.availableBalance ?? 0), 0);
   const currencies = new Set(accounts.map((a) => a.currency ?? 'NGN'));
-  const dormantCount = (summary?.dormantAccounts as number) ?? accounts.filter(a => a.status === 'DORMANT').length;
+  const dormantCount = (summary?.count_DORMANT as number) ?? accounts.filter(a => a.status === 'DORMANT').length;
 
   if (isError) {
     return (
@@ -183,7 +183,7 @@ export function AccountListPage() {
           enableGlobalFilter
           enableExport
           exportFilename="accounts"
-          onRowClick={(row) => navigate(`/accounts/${row.id}`)}
+          onRowClick={(row) => navigate(`/accounts/${row.accountNumber}`)}
           emptyMessage="No accounts found"
           pageSize={15}
         />

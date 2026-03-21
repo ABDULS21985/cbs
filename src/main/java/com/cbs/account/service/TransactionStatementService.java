@@ -5,8 +5,11 @@ import com.cbs.account.entity.Account;
 import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.common.audit.CurrentCustomerProvider;
 import com.cbs.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -20,6 +23,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +32,7 @@ public class TransactionStatementService {
 
     private final AccountRepository accountRepository;
     private final TransactionJournalRepository transactionJournalRepository;
+    private final CurrentCustomerProvider currentCustomerProvider;
 
     public StatementDownload generateStatement(TransactionWorkflowDto.StatementRequest request) {
         if (request == null || !StringUtils.hasText(request.getAccountNumber())) {
@@ -41,6 +46,7 @@ public class TransactionStatementService {
 
         Account account = accountRepository.findByAccountNumberWithDetails(request.getAccountNumber().trim())
                 .orElseThrow(() -> new BusinessException("Account not found for statement generation", "STATEMENT_ACCOUNT_NOT_FOUND"));
+        enforcePortalOwnership(account);
 
         List<TransactionJournal> transactions = transactionJournalRepository.findByAccountIdAndDateRange(account.getId(), fromDate, toDate)
                 .stream()
@@ -70,6 +76,7 @@ public class TransactionStatementService {
         }
         Account account = accountRepository.findByAccountNumberWithDetails(request.getAccountNumber().trim())
                 .orElseThrow(() -> new BusinessException("Account not found for statement delivery", "STATEMENT_ACCOUNT_NOT_FOUND"));
+        enforcePortalOwnership(account);
         String email = StringUtils.hasText(request.getEmailAddress())
                 ? request.getEmailAddress().trim()
                 : account.getCustomer() != null ? account.getCustomer().getEmail() : null;
@@ -183,6 +190,29 @@ public class TransactionStatementService {
             case DEBIT, FEE_DEBIT, TRANSFER_OUT, LIEN_PLACEMENT -> true;
             default -> false;
         };
+    }
+
+    private void enforcePortalOwnership(Account account) {
+        if (!isPortalScopedPrincipal()) {
+            return;
+        }
+        Long currentCustomerId = currentCustomerProvider.getCurrentCustomer().getId();
+        if (!Objects.equals(account.getCustomer().getId(), currentCustomerId)) {
+            throw new BusinessException("You do not have access to this account statement", "STATEMENT_ACCESS_DENIED");
+        }
+    }
+
+    private boolean isPortalScopedPrincipal() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        boolean portalUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_PORTAL_USER".equals(authority.getAuthority()));
+        boolean staffUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_CBS_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_CBS_OFFICER".equals(authority.getAuthority()));
+        return portalUser && !staffUser;
     }
 
     public record StatementDownload(byte[] content, String filename, String contentType) {

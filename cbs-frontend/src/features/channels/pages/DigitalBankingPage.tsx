@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Globe,
   Shield,
@@ -12,6 +13,7 @@ import {
   AlertTriangle,
   Plus,
   X,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -531,6 +533,7 @@ const summaryColumns: ColumnDef<ChannelActivitySummary, unknown>[] = [
 ];
 
 function ActivitySummariesTab() {
+  const navigate = useNavigate();
   const { data: summaries = [], isLoading } = useChannelActivitySummaries();
   const { mutate: createSummary, isPending } = useCreateActivitySummary();
   const [showForm, setShowForm] = useState(false);
@@ -583,13 +586,22 @@ function ActivitySummariesTab() {
       <div className="rounded-xl border bg-card overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="text-sm font-semibold">Activity Summaries</h3>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
-          >
-            <Plus className="w-3 h-3" />
-            Generate Summary
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/channels/activity-logs')}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              View Raw Logs
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Generate Summary
+            </button>
+          </div>
         </div>
 
         {showForm && (

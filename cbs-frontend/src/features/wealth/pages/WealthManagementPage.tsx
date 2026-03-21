@@ -232,23 +232,21 @@ function CreatePlanModal({ advisors, onClose, onSuccess }: CreatePlanModalProps)
   const createPlan = useCreatePlan();
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<PlanCreateRequest>({
-    customerId: '',
+    customerId: 0,
     planType: 'COMPREHENSIVE',
     advisorId: '',
     riskProfile: 'MODERATE',
     investmentHorizon: 10,
-    netWorth: 0,
-    investableAssets: 0,
+    totalNetWorth: 0,
+    totalInvestableAssets: 0,
     annualIncome: 0,
-    goals: [],
-    allocations: [],
   });
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: ['investmentHorizon', 'netWorth', 'investableAssets', 'annualIncome'].includes(name)
+      [name]: ['investmentHorizon', 'totalNetWorth', 'totalInvestableAssets', 'annualIncome', 'customerId'].includes(name)
         ? Number(value)
         : value,
     }));
@@ -286,10 +284,11 @@ function CreatePlanModal({ advisors, onClose, onSuccess }: CreatePlanModalProps)
               <label className="block text-xs font-medium text-muted-foreground mb-1">Customer ID</label>
               <input
                 name="customerId"
-                value={form.customerId}
+                type="number"
+                value={form.customerId || ''}
                 onChange={handleChange}
                 required
-                placeholder="e.g. CUST-001234"
+                placeholder="e.g. 1234"
                 className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
@@ -353,24 +352,24 @@ function CreatePlanModal({ advisors, onClose, onSuccess }: CreatePlanModalProps)
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Net Worth (₦)</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Total Net Worth</label>
               <input
-                name="netWorth"
+                name="totalNetWorth"
                 type="number"
                 min={0}
-                value={form.netWorth}
+                value={form.totalNetWorth || ''}
                 onChange={handleChange}
                 className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Investable Assets (₦)</label>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Investable Assets</label>
               <input
-                name="investableAssets"
+                name="totalInvestableAssets"
                 type="number"
                 min={0}
-                value={form.investableAssets}
+                value={form.totalInvestableAssets || ''}
                 onChange={handleChange}
                 className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
@@ -432,8 +431,8 @@ export function WealthManagementPage() {
       ? advisors.reduce((s, a) => s + (a.avgReturn || 0), 0) / advisors.length
       : 0;
   const atRiskGoals = plans.reduce((count, p) => {
-    const goals = p.goals || [];
-    return count + goals.filter((g) => g.status === 'AT_RISK' || g.status === 'OFF_TRACK').length;
+    const goals = (p.goals || p.financialGoals || []) as Record<string, unknown>[];
+    return count + goals.filter((g) => g.status === 'AT_RISK' || g.status === 'OFF_TRACK' || g.onTrack === false).length;
   }, 0);
 
   const formatAum = (value: number) =>

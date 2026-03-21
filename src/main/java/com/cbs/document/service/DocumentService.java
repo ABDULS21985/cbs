@@ -1,5 +1,6 @@
 package com.cbs.document.service;
 
+import com.cbs.common.audit.CurrentCustomerProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.document.entity.*;
@@ -8,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,6 +26,7 @@ import java.time.LocalDate;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -32,6 +36,7 @@ import java.util.UUID;
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
+    private final CurrentCustomerProvider currentCustomerProvider;
 
     @Transactional
     public Document uploadDocument(Long customerId, DocumentType type, String fileName, String fileType,
@@ -54,6 +59,24 @@ public class DocumentService {
     public Document getDocument(Long id) {
         return documentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Document", "id", id));
+    }
+
+    public DownloadedDocument downloadDocument(Long id) {
+        Document document = getDocument(id);
+        enforcePortalOwnership(document);
+        try {
+            Path file = Path.of(document.getStoragePath());
+            if (!Files.exists(file)) {
+                throw new BusinessException("Document file is not available", "DOCUMENT_FILE_MISSING");
+            }
+            return new DownloadedDocument(
+                    Files.readAllBytes(file),
+                    document.getFileName(),
+                    resolveContentType(document)
+            );
+        } catch (IOException ex) {
+            throw new BusinessException("Failed to read document: " + ex.getMessage(), "DOCUMENT_READ_FAILED");
+        }
     }
 
     public Page<Document> getCustomerDocuments(Long customerId, Pageable pageable) {
@@ -151,5 +174,46 @@ public class DocumentService {
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("SHA-256 not available", ex);
         }
+    }
+
+    private void enforcePortalOwnership(Document document) {
+        if (!isPortalScopedPrincipal()) {
+            return;
+        }
+        Long currentCustomerId = currentCustomerProvider.getCurrentCustomer().getId();
+        if (!Objects.equals(document.getCustomerId(), currentCustomerId)) {
+            throw new BusinessException("You do not have access to this document", "DOCUMENT_ACCESS_DENIED");
+        }
+    }
+
+    private boolean isPortalScopedPrincipal() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        boolean portalUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_PORTAL_USER".equals(authority.getAuthority()));
+        boolean staffUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_CBS_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_CBS_OFFICER".equals(authority.getAuthority())
+                        || "ROLE_CBS_VIEWER".equals(authority.getAuthority()));
+        return portalUser && !staffUser;
+    }
+
+    private String resolveContentType(Document document) {
+        String type = document.getFileType();
+        if (type != null && type.contains("/")) {
+            return type;
+        }
+        String fileName = document.getFileName() == null ? "" : document.getFileName().toLowerCase(Locale.ROOT);
+        if (fileName.endsWith(".pdf")) return "application/pdf";
+        if (fileName.endsWith(".png")) return "image/png";
+        if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) return "image/jpeg";
+        if (fileName.endsWith(".csv")) return "text/csv";
+        if (fileName.endsWith(".txt")) return "text/plain";
+        return "application/octet-stream";
+    }
+
+    public record DownloadedDocument(byte[] content, String filename, String contentType) {
     }
 }

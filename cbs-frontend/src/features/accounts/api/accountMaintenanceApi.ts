@@ -37,6 +37,9 @@ export interface MaintenanceHistoryItem {
   id: string;
   date: string;
   action: string;
+  fieldChanged?: string;
+  oldValue?: string;
+  newValue?: string;
   performedBy: string;
   details: string;
   status: string;
@@ -71,13 +74,102 @@ export interface AccountBasicInfo {
   };
 }
 
+// Backend AccountResponse shape for mapping
+interface BackendAccountResponse {
+  id: number;
+  accountNumber: string;
+  accountName?: string | null;
+  productName?: string | null;
+  productCategory?: string | null;
+  currencyCode?: string | null;
+  currency?: string | null;
+  status?: string | null;
+  relationshipManager?: string | null;
+  applicableInterestRate?: number | null;
+  allowDebit?: boolean | null;
+  allowCredit?: boolean | null;
+  signatories?: {
+    id?: number | null;
+    customerId?: number | null;
+    customerDisplayName?: string | null;
+    signatoryType?: string | null;
+    signingRule?: string | null;
+    isActive?: boolean | null;
+    effectiveFrom?: string | null;
+  }[] | null;
+}
+
+// Backend MaintenanceHistoryResponse shape
+interface BackendMaintenanceHistory {
+  id: number;
+  action?: string | null;
+  fieldChanged?: string | null;
+  oldValue?: string | null;
+  newValue?: string | null;
+  details?: string | null;
+  performedBy?: string | null;
+  status?: string | null;
+  createdAt?: string | null;
+}
+
+function mapAccountBasicInfo(raw: BackendAccountResponse): AccountBasicInfo {
+  const signatories: Signatory[] = (raw.signatories ?? [])
+    .filter((s) => s.isActive !== false)
+    .map((s) => ({
+      id: String(s.id ?? 0),
+      customerId: String(s.customerId ?? ''),
+      name: s.customerDisplayName ?? 'Unknown',
+      role: s.signatoryType ?? 'AUTHORISED',
+      addedAt: s.effectiveFrom ?? '',
+    }));
+
+  const signingRule = raw.signatories?.find((s) => s.signingRule)?.signingRule ?? 'ANY';
+
+  return {
+    id: String(raw.id),
+    accountNumber: raw.accountNumber,
+    accountTitle: raw.accountName ?? raw.accountNumber,
+    status: raw.status ?? 'ACTIVE',
+    productName: raw.productName ?? 'Account product',
+    currency: raw.currency ?? raw.currencyCode ?? 'NGN',
+    currentOfficer: raw.relationshipManager ?? 'Unassigned',
+    currentOfficerId: '',
+    interestRate: raw.applicableInterestRate ?? 0,
+    signatories,
+    signingRule,
+    limits: {
+      dailyTransaction: 0,
+      perTransaction: 0,
+      withdrawal: 0,
+      posAtm: 0,
+      onlineTransaction: 0,
+    },
+  };
+}
+
+function mapMaintenanceHistory(raw: BackendMaintenanceHistory): MaintenanceHistoryItem {
+  return {
+    id: String(raw.id),
+    date: raw.createdAt ?? '',
+    action: raw.action ?? 'Unknown action',
+    fieldChanged: raw.fieldChanged ?? undefined,
+    oldValue: raw.oldValue ?? undefined,
+    newValue: raw.newValue ?? undefined,
+    performedBy: raw.performedBy ?? 'System',
+    details: raw.details ?? '',
+    status: raw.status ?? 'COMPLETED',
+  };
+}
+
 export const accountMaintenanceApi = {
   getAccountBasicInfo: async (accountId: string): Promise<AccountBasicInfo> => {
-    return apiGet<AccountBasicInfo>(`/api/v1/accounts/${accountId}`);
+    const raw = await apiGet<BackendAccountResponse>(`/api/v1/accounts/${accountId}`);
+    return mapAccountBasicInfo(raw);
   },
 
   getMaintenanceHistory: async (accountId: string): Promise<MaintenanceHistoryItem[]> => {
-    return apiGet<MaintenanceHistoryItem[]>(`/api/v1/accounts/${accountId}/maintenance-history`);
+    const raw = await apiGet<BackendMaintenanceHistory[]>(`/api/v1/accounts/${accountId}/maintenance-history`);
+    return raw.map(mapMaintenanceHistory);
   },
 
   changeStatus: async (accountId: string, data: StatusChangeRequest): Promise<void> => {
@@ -86,7 +178,11 @@ export const accountMaintenanceApi = {
   },
 
   addSignatory: async (accountId: string, data: AddSignatoryRequest): Promise<void> => {
-    return apiPost<void>(`/api/v1/accounts/${accountId}/signatories`, data);
+    return apiPost<void>(`/api/v1/accounts/${accountId}/signatories`, {
+      customerId: Number(data.customerId),
+      role: data.role,
+      signingRule: data.signingRule,
+    });
   },
 
   removeSignatory: async (accountId: string, signatoryId: string, reason: string): Promise<void> => {

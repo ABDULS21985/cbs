@@ -197,6 +197,10 @@ export const TransactionCompliancePage = lazyNamed(
   () => import('@/features/transactions/pages/TransactionCompliancePage'),
   'TransactionCompliancePage',
 );
+export const ReversalApprovalPage = lazyNamed(
+  () => import('@/features/transactions/pages/ReversalApprovalPage'),
+  'ReversalApprovalPage',
+);
 
 export const GoalListPage = lazyNamed(
   () => import('@/features/goals/pages/GoalListPage'),
@@ -587,6 +591,18 @@ export const OperationalRiskPage = lazyNamed(
   () => import('@/features/risk/pages/OperationalRiskPage'),
   'OperationalRiskPage',
 );
+export const BusinessRiskPage = lazyNamed(
+  () => import('@/features/risk/pages/BusinessRiskPage'),
+  'BusinessRiskPage',
+);
+export const RiskContributionPage = lazyNamed(
+  () => import('@/features/risk/pages/RiskContributionPage'),
+  'RiskContributionPage',
+);
+export const BusinessContributionPage = lazyNamed(
+  () => import('@/features/risk/pages/BusinessContributionPage'),
+  'BusinessContributionPage',
+);
 
 export const RegulatoryReturnsPage = lazyNamed(
   () => import('@/features/compliance/pages/RegulatoryReturnsPage'),
@@ -725,6 +741,10 @@ export const MarketingAnalyticsPage = lazyNamed(
 export const OperationalReportsPage = lazyNamed(
   () => import('@/features/reports/pages/OperationalReportsPage'),
   'OperationalReportsPage',
+);
+export const RegulatoryReportsPage = lazyNamed(
+  () => import('@/features/reports/pages/RegulatoryReportsPage'),
+  'RegulatoryReportsPage',
 );
 export const ComplianceDownloadsPage = lazyNamed(
   () => import('@/features/reports/pages/ComplianceDownloadsPage'),
@@ -1142,6 +1162,14 @@ export const DigitalBankingPage = lazyNamed(
   () => import('@/features/channels/pages/DigitalBankingPage'),
   'DigitalBankingPage',
 );
+export const ServicePointDetailPage = lazyNamed(
+  () => import('@/features/channels/pages/ServicePointDetailPage'),
+  'ServicePointDetailPage',
+);
+export const ChannelActivityLogsPage = lazyNamed(
+  () => import('@/features/channels/pages/ChannelActivityLogsPage'),
+  'ChannelActivityLogsPage',
+);
 
 export const OpenBankingPage = lazyNamed(
   () => import('@/features/openbanking/pages/OpenBankingPage'),
@@ -1242,6 +1270,14 @@ export const TradeFinanceHubPage = lazyNamed(
   () => import('@/features/tradefinance/pages/TradeFinanceHubPage'),
   'TradeFinanceHubPage',
 );
+export const TfLcDetailPage = lazyNamed(
+  () => import('@/features/tradefinance/pages/LcDetailPage'),
+  'LcDetailPage',
+);
+export const TfGuaranteeDetailPage = lazyNamed(
+  () => import('@/features/tradefinance/pages/GuaranteeDetailPage'),
+  'GuaranteeDetailPage',
+);
 
 export const AccountListPage = lazyNamed(
   () => import('@/features/accounts/pages/AccountListPage'),
@@ -1311,6 +1347,8 @@ export const FxRatesPage = lazyNamed(
   () => import('@/features/treasury/pages/FxRatesPage'),
   'FxRatesPage',
 );
+export const LiquidityRiskPage = lazy(() => import('@/features/treasury/pages/LiquidityRiskPage'));
+export const MarketRiskPage = lazy(() => import('@/features/treasury/pages/MarketRiskPage'));
 export const ComplianceAssessmentsPage = lazyNamed(
   () => import('@/features/compliance/pages/ComplianceAssessmentsPage'),
   'ComplianceAssessmentsPage',

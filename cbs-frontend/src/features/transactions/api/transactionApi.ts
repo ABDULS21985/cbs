@@ -108,6 +108,38 @@ export interface StatementDelivery {
   message: string;
 }
 
+export interface ReversalListItem {
+  id: number;
+  requestRef: string;
+  transactionId: number;
+  transactionRef: string;
+  accountNumber: string;
+  accountName: string;
+  amount: number;
+  currencyCode: string;
+  reasonCategory: string;
+  subReason?: string;
+  notes?: string;
+  requestedSettlement: string;
+  status: 'PENDING_APPROVAL' | 'COMPLETED' | 'REJECTED' | string;
+  requestedBy: string;
+  requestedAt: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedBy?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  reversalRef?: string;
+  approvalRequestCode?: string;
+  adviceDownloadUrl?: string;
+}
+
+export interface ReversalCounts {
+  pendingApproval: number;
+  completed: number;
+  rejected: number;
+}
+
 export interface Transaction {
   id: string;
   transactionRef?: string;
@@ -250,5 +282,23 @@ export const transactionApi = {
 
   emailStatement: async (request: StatementRequest): Promise<StatementDelivery> => {
     return apiPost<StatementDelivery>('/api/v1/transactions/statement/email', request);
+  },
+
+  listReversals: async (params?: { status?: string; mine?: boolean; page?: number; size?: number }): Promise<{ content: ReversalListItem[]; totalElements?: number }> => {
+    const { data } = await api.get('/api/v1/transactions/reversals', { params });
+    return {
+      content: data.data as ReversalListItem[],
+      totalElements: data.page?.totalElements as number | undefined,
+    };
+  },
+
+  getReversal: async (id: number): Promise<ReversalListItem> => {
+    const { data } = await api.get(`/api/v1/transactions/reversals/${id}`);
+    return data.data as ReversalListItem;
+  },
+
+  getReversalCounts: async (): Promise<ReversalCounts> => {
+    const { data } = await api.get('/api/v1/transactions/reversals/counts');
+    return data.data as ReversalCounts;
   },
 };

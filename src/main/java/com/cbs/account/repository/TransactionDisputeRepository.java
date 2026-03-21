@@ -15,11 +15,17 @@ public interface TransactionDisputeRepository extends JpaRepository<TransactionD
 
     Optional<TransactionDispute> findTopByTransactionIdOrderByFiledAtDesc(Long transactionId);
 
+    Page<TransactionDispute> findByCustomerIdOrderByLastUpdatedAtDesc(Long customerId, Pageable pageable);
+
+    Page<TransactionDispute> findByCustomerIdAndStatusOrderByLastUpdatedAtDesc(Long customerId, String status, Pageable pageable);
+
     Page<TransactionDispute> findByStatusOrderByLastUpdatedAtDesc(String status, Pageable pageable);
 
     Page<TransactionDispute> findAllByOrderByLastUpdatedAtDesc(Pageable pageable);
 
     long countByStatus(String status);
+
+    long countByCustomerIdAndStatus(Long customerId, String status);
 
     @Query(value = "SELECT nextval('cbs.transaction_dispute_ref_seq')", nativeQuery = true)
     Long nextDisputeSequence();

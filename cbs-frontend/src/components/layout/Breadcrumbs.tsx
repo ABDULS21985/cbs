@@ -45,6 +45,7 @@ const labelOverrides: Record<string, string> = {
   wallets: 'Wallets',
   statements: 'Statements',
   reconciliation: 'Reconciliation',
+  regulatory: 'Regulatory Reports',
   maintenance: 'Maintenance',
   merchants: 'Merchants',
   pos: 'POS Terminals',

@@ -5,6 +5,7 @@ import com.cbs.account.entity.TransactionDispute;
 import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.repository.TransactionDisputeRepository;
 import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.audit.CurrentCustomerProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.document.entity.Document;
@@ -13,6 +14,8 @@ import com.cbs.document.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -32,6 +35,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -44,6 +48,7 @@ public class TransactionDisputeService {
     private final TransactionService transactionService;
     private final TransactionDisputeRepository transactionDisputeRepository;
     private final CurrentActorProvider currentActorProvider;
+    private final CurrentCustomerProvider currentCustomerProvider;
     private final DocumentService documentService;
     private final TransactionAuditService transactionAuditService;
 
@@ -55,6 +60,7 @@ public class TransactionDisputeService {
                                                             String contactPhone,
                                                             List<MultipartFile> files) {
         TransactionJournal transaction = transactionService.getTransactionEntity(transactionId);
+        enforcePortalOwnership(transaction);
         validateDisputeWindow(transaction);
 
         String actor = currentActorProvider.getCurrentActor();
@@ -98,18 +104,27 @@ public class TransactionDisputeService {
     }
 
     public Page<TransactionWorkflowDto.DisputeRecord> listDisputes(String status, Pageable pageable) {
-        Page<TransactionDispute> page = StringUtils.hasText(status)
-                ? transactionDisputeRepository.findByStatusOrderByLastUpdatedAtDesc(status.trim().toUpperCase(Locale.ROOT), pageable)
-                : transactionDisputeRepository.findAllByOrderByLastUpdatedAtDesc(pageable);
+        Page<TransactionDispute> page;
+        if (isPortalScopedPrincipal()) {
+            Long customerId = currentCustomerProvider.getCurrentCustomer().getId();
+            page = StringUtils.hasText(status)
+                    ? transactionDisputeRepository.findByCustomerIdAndStatusOrderByLastUpdatedAtDesc(customerId, status.trim().toUpperCase(Locale.ROOT), pageable)
+                    : transactionDisputeRepository.findByCustomerIdOrderByLastUpdatedAtDesc(customerId, pageable);
+        } else {
+            page = StringUtils.hasText(status)
+                    ? transactionDisputeRepository.findByStatusOrderByLastUpdatedAtDesc(status.trim().toUpperCase(Locale.ROOT), pageable)
+                    : transactionDisputeRepository.findAllByOrderByLastUpdatedAtDesc(pageable);
+        }
         return page.map(this::toDto);
     }
 
     public TransactionWorkflowDto.DisputeDashboard getDashboard() {
-        long pending = transactionDisputeRepository.countByStatus("PENDING");
-        long underReview = transactionDisputeRepository.countByStatus("UNDER_REVIEW");
-        long resolved = transactionDisputeRepository.countByStatus("RESOLVED")
-                + transactionDisputeRepository.countByStatus("REJECTED");
-        long escalated = transactionDisputeRepository.countByStatus("ESCALATED");
+        Long customerId = isPortalScopedPrincipal() ? currentCustomerProvider.getCurrentCustomer().getId() : null;
+        long pending = countByStatus(customerId, "PENDING");
+        long underReview = countByStatus(customerId, "UNDER_REVIEW");
+        long resolved = countByStatus(customerId, "RESOLVED")
+                + countByStatus(customerId, "REJECTED");
+        long escalated = countByStatus(customerId, "ESCALATED");
         return TransactionWorkflowDto.DisputeDashboard.builder()
                 .total(pending + underReview + resolved + escalated)
                 .pendingResponse(pending)
@@ -191,8 +206,10 @@ public class TransactionDisputeService {
     }
 
     private TransactionDispute findDispute(Long id) {
-        return transactionDisputeRepository.findById(id)
+        TransactionDispute dispute = transactionDisputeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TransactionDispute", "id", id));
+        enforcePortalOwnership(dispute);
+        return dispute;
     }
 
     private void validateDisputeWindow(TransactionJournal transaction) {
@@ -293,5 +310,44 @@ public class TransactionDisputeService {
                 .escalationNotes(dispute.getEscalationNotes())
                 .supportingDocumentIds(dispute.getSupportingDocumentIds())
                 .build();
+    }
+
+    private long countByStatus(Long customerId, String status) {
+        return customerId == null
+                ? transactionDisputeRepository.countByStatus(status)
+                : transactionDisputeRepository.countByCustomerIdAndStatus(customerId, status);
+    }
+
+    private void enforcePortalOwnership(TransactionJournal transaction) {
+        if (!isPortalScopedPrincipal()) {
+            return;
+        }
+        Long currentCustomerId = currentCustomerProvider.getCurrentCustomer().getId();
+        if (!Objects.equals(transaction.getAccount().getCustomer().getId(), currentCustomerId)) {
+            throw new BusinessException("You do not have access to this transaction dispute", "DISPUTE_ACCESS_DENIED");
+        }
+    }
+
+    private void enforcePortalOwnership(TransactionDispute dispute) {
+        if (!isPortalScopedPrincipal()) {
+            return;
+        }
+        Long currentCustomerId = currentCustomerProvider.getCurrentCustomer().getId();
+        if (!Objects.equals(dispute.getCustomerId(), currentCustomerId)) {
+            throw new BusinessException("You do not have access to this dispute", "DISPUTE_ACCESS_DENIED");
+        }
+    }
+
+    private boolean isPortalScopedPrincipal() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        boolean portalUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_PORTAL_USER".equals(authority.getAuthority()));
+        boolean staffUser = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_CBS_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_CBS_OFFICER".equals(authority.getAuthority()));
+        return portalUser && !staffUser;
     }
 }

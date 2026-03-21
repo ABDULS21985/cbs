@@ -37,12 +37,16 @@ export interface DistributionRecord {
   approvedBy: string;
 }
 
+/** Maps to backend WealthPlanResponse DTO */
+export type WealthPlanStatus = 'DRAFT' | 'ACTIVE' | 'UNDER_REVIEW' | 'SUSPENDED' | 'CLOSED';
+export type WealthPlanType = 'COMPREHENSIVE' | 'RETIREMENT' | 'ESTATE' | 'TAX' | 'EDUCATION' | 'SUCCESSION' | 'PHILANTHROPY';
+
 export interface WealthPlan {
   id: number;
   planCode: string;
   customerId: string;
   customerName: string;
-  planType: string;
+  planType: WealthPlanType;
   advisorId: string;
   advisorName: string;
   totalNetWorth: number;
@@ -50,16 +54,16 @@ export interface WealthPlan {
   annualIncome: number;
   riskProfile: string;
   investmentHorizon: number;
-  targetAllocation: Record<string, number>;
-  currentAllocation: Record<string, number>;
-  allocations: AssetAllocation[];
-  goals: WealthGoal[];
-  financialGoals: { name: string; target: number; current: number; onTrack: boolean }[];
-  nextReviewDate: string;
-  createdDate: string;
-  activatedDate: string;
-  lastReviewDate: string;
-  status: string;
+  targetAllocation: Record<string, unknown>;
+  currentAllocation: Record<string, unknown>;
+  allocations: Record<string, unknown>[];
+  goals: Record<string, unknown>[];
+  financialGoals: Record<string, unknown>[];
+  nextReviewDate: string | null;
+  createdDate: string | null;
+  activatedDate: string | null;
+  lastReviewDate: string | null;
+  status: WealthPlanStatus;
   ytdReturn: number;
   absoluteGain: number;
   benchmarkDiff: number;
@@ -113,17 +117,27 @@ export interface PlanPerformance {
   monthlyReturns: { month: string; return: number }[];
 }
 
+/** Maps to backend WealthManagementPlan entity (POST body) */
 export interface PlanCreateRequest {
-  customerId: string;
-  planType: string;
-  advisorId: string;
-  riskProfile: string;
-  investmentHorizon: number;
-  netWorth: number;
-  investableAssets: number;
-  annualIncome: number;
-  goals: WealthGoal[];
-  allocations: AssetAllocation[];
+  customerId: number;
+  planType: WealthPlanType;
+  advisorId?: string;
+  customerName?: string;
+  advisorName?: string;
+  riskProfile?: string;
+  investmentHorizon?: number;
+  totalNetWorth?: number;
+  totalInvestableAssets?: number;
+  annualIncome?: number;
+  financialGoals?: Record<string, unknown>[];
+  allocations?: Record<string, unknown>[];
+  targetAllocation?: Record<string, unknown>;
+  taxBracketPct?: number;
+  retirementTargetAge?: number;
+  retirementIncomeGoal?: number;
+  estatePlanSummary?: string;
+  taxStrategy?: string;
+  nextReviewDate?: string;
 }
 
 export interface TrustCreateRequest {
@@ -234,22 +248,24 @@ export interface TrustDocument {
 export interface AumWaterfallPoint {
   category: string;
   amount: number;
-  type: 'positive' | 'negative' | 'total';
+  type: 'increase' | 'decrease' | 'total';
 }
 
+/** Backend returns per-segment objects with nested trend arrays */
 export interface AumSegmentPoint {
-  month: string;
-  hnwi: number;
-  uhnwi: number;
-  massAffluent: number;
-  institutional: number;
+  segment: string;
+  clientCount: number;
+  totalAum: number;
+  planCount: number;
+  trend: { month: string; aum: number }[];
 }
 
 export interface ConcentrationRisk {
+  customerId: number;
   clientName: string;
-  aum: number;
+  totalAum: number;
   percentOfTotal: number;
-  planCode: string;
+  planCount: number;
 }
 
 export interface FlowAnalysisPoint {
@@ -262,8 +278,12 @@ export interface FlowAnalysisPoint {
 export interface PerformanceAttribution {
   advisorId: string;
   advisorName: string;
-  excessReturn: number;
   aumManaged: number;
+  clientCount: number;
+  activePlans: number;
+  portfolioReturn: number;
+  benchmarkReturn: number;
+  excessReturn: number;
   sharpeRatio: number;
 }
 
@@ -276,19 +296,24 @@ export interface ClientSegment {
 
 export interface RiskHeatmapCell {
   assetClass: string;
-  market: number;
-  credit: number;
-  liquidity: number;
-  fx: number;
+  allocation: number;
+  allocationPct: number;
+  marketRisk: number;
+  creditRisk: number;
+  liquidityRisk: number;
+  fxRisk: number;
+  concentrationRisk: number;
+  overallRisk: number;
 }
 
 export interface StressScenario {
   scenario: string;
   description: string;
-  aumImpact: number;
-  returnImpact: number;
-  goalImpactPct: number;
-  assetImpacts: { assetClass: string; impact: number }[];
+  portfolioImpact: number;
+  impactPct: number;
+  affectedClients: number;
+  recoveryMonths: number;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 }
 
 export interface FeeRevenuePoint {

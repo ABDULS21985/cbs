@@ -158,6 +158,37 @@ public final class TransactionWorkflowDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    public static class ReversalRecord {
+        private Long id;
+        private String requestRef;
+        private Long transactionId;
+        private String transactionRef;
+        private String accountNumber;
+        private String accountName;
+        private BigDecimal amount;
+        private String currencyCode;
+        private String reasonCategory;
+        private String subReason;
+        private String notes;
+        private String requestedSettlement;
+        private String status;
+        private String requestedBy;
+        private Instant requestedAt;
+        private String approvedBy;
+        private Instant approvedAt;
+        private String rejectedBy;
+        private Instant rejectedAt;
+        private String rejectionReason;
+        private String reversalRef;
+        private String approvalRequestCode;
+        private String adviceDownloadUrl;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class StatementRequest {
         private String accountNumber;
         private LocalDate fromDate;

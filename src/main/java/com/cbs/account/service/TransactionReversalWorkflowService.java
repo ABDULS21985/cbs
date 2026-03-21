@@ -44,6 +44,10 @@ public class TransactionReversalWorkflowService {
     private final TransactionAuditService transactionAuditService;
     private final CbsProperties cbsProperties;
 
+    public TransactionReversalRequestRepository getRepository() {
+        return reversalRequestRepository;
+    }
+
     public TransactionWorkflowDto.ReversalPreview preview(Long transactionId, TransactionWorkflowDto.ReversalRequest request) {
         TransactionJournal transaction = transactionService.getTransactionEntity(transactionId);
         boolean originalDebit = isDebitLike(transaction);
@@ -190,6 +194,32 @@ public class TransactionReversalWorkflowService {
         }
     }
 
+    public org.springframework.data.domain.Page<TransactionWorkflowDto.ReversalRecord> listRequests(
+            String status,
+            boolean mine,
+            org.springframework.data.domain.Pageable pageable
+    ) {
+        String normalizedStatus = StringUtils.hasText(status) ? status.trim().toUpperCase() : null;
+        org.springframework.data.domain.Page<TransactionReversalRequest> page;
+        if (mine) {
+            String actor = currentActorProvider.getCurrentActor();
+            page = StringUtils.hasText(normalizedStatus)
+                    ? reversalRequestRepository.findByRequestedByAndStatusOrderByRequestedAtDesc(actor, normalizedStatus, pageable)
+                    : reversalRequestRepository.findByRequestedByOrderByRequestedAtDesc(actor, pageable);
+        } else {
+            page = StringUtils.hasText(normalizedStatus)
+                    ? reversalRequestRepository.findByStatusOrderByRequestedAtDesc(normalizedStatus, pageable)
+                    : reversalRequestRepository.findAllByOrderByRequestedAtDesc(pageable);
+        }
+        return page.map(this::toRecord);
+    }
+
+    public TransactionWorkflowDto.ReversalRecord getRequest(Long requestId) {
+        TransactionReversalRequest request = reversalRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("TransactionReversalRequest", "id", requestId));
+        return toRecord(request);
+    }
+
     private TransactionWorkflowDto.ReversalResult executeReversal(TransactionReversalRequest request, String actor) {
         AccountPostingService.ReversalResult result = accountPostingService.reverseTransaction(
                 request.getTransaction().getId(),
@@ -321,6 +351,35 @@ public class TransactionReversalWorkflowService {
 
     private String nonBlank(String value, String fallback) {
         return StringUtils.hasText(value) ? value.trim() : fallback;
+    }
+
+    private TransactionWorkflowDto.ReversalRecord toRecord(TransactionReversalRequest request) {
+        TransactionJournal transaction = request.getTransaction();
+        return TransactionWorkflowDto.ReversalRecord.builder()
+                .id(request.getId())
+                .requestRef(request.getRequestRef())
+                .transactionId(transaction.getId())
+                .transactionRef(request.getTransactionRef())
+                .accountNumber(transaction.getAccount().getAccountNumber())
+                .accountName(transaction.getAccount().getAccountName())
+                .amount(request.getAmount())
+                .currencyCode(request.getCurrencyCode())
+                .reasonCategory(request.getReasonCategory())
+                .subReason(request.getSubReason())
+                .notes(request.getNotes())
+                .requestedSettlement(request.getRequestedSettlement())
+                .status(request.getStatus())
+                .requestedBy(request.getRequestedBy())
+                .requestedAt(request.getRequestedAt())
+                .approvedBy(request.getApprovedBy())
+                .approvedAt(request.getApprovedAt())
+                .rejectedBy(request.getRejectedBy())
+                .rejectedAt(request.getRejectedAt())
+                .rejectionReason(request.getRejectionReason())
+                .reversalRef(request.getReversalRef())
+                .approvalRequestCode(request.getApprovalRequest() != null ? request.getApprovalRequest().getRequestCode() : null)
+                .adviceDownloadUrl(StringUtils.hasText(request.getAdvicePath()) ? "/api/v1/transactions/reversals/" + request.getId() + "/advice" : null)
+                .build();
     }
 
     public record AdviceDownload(byte[] content, String filename, String contentType) {
