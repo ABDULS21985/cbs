@@ -8,6 +8,11 @@ spring:
     password: ${CBS_TEST_DB_PASSWORD:cbs_password}
     driver-class-name: ${CBS_TEST_DB_DRIVER:org.postgresql.Driver}
 
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:test-data.sql
+
   jpa:
     hibernate:
       ddl-auto: validate
@@ -75,6 +80,8 @@ logging:
     org.hibernate.SQL: DEBUG
 
 cbs:
+  ledger:
+    opening-balance-contra-gl-code: 1100
   kyc:
     provider: INTERNAL
   simulation:

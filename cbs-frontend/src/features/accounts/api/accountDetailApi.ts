@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPostParams } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams, apiDownload } from '@/lib/api';
 
 export interface Account {
   id: string;
@@ -91,6 +91,38 @@ export interface TransactionQueryParams {
   search?: string;
   page?: number;
   size?: number;
+}
+
+export interface ReversalRequest {
+  reasonCategory: string;
+  subReason?: string;
+  notes?: string;
+  requestedSettlement?: string;
+}
+
+export interface ReversalPreview {
+  transactionId: number;
+  transactionRef: string;
+  originalAmount: number;
+  originalAccountNumber: string;
+  originalDirection: string;
+  reversalDirection: string;
+  customerAccountNumber: string;
+  counterpartyAccountNumber?: string;
+  glDebitAccount?: string;
+  glCreditAccount?: string;
+  settlementTiming?: string;
+  dualAuthorizationRequired: boolean;
+}
+
+export interface ReversalResult {
+  requestRef: string;
+  status: string;
+  reversalRef?: string;
+  approvalRequired: boolean;
+  approvalRequestCode?: string;
+  adviceDownloadUrl?: string;
+  message?: string;
 }
 
 interface BackendSignatory {
@@ -351,6 +383,18 @@ export const accountDetailApi = {
   searchTransactions: (params: Record<string, unknown>) =>
     apiGet<Record<string, unknown>[]>('/api/v1/transactions', params),
 
-  reverseTransaction: (transactionId: number) =>
-    apiPost<Record<string, unknown>>(`/api/v1/transactions/${transactionId}/reverse`),
+  // ── Transaction Reversals (proper workflow) ────────────────────────────
+  previewReversal: (transactionId: number, data: ReversalRequest) =>
+    apiPost<ReversalPreview>(`/api/v1/transactions/${transactionId}/reversal/preview`, data),
+
+  reverseTransaction: (transactionId: number, data?: ReversalRequest) =>
+    apiPost<ReversalResult>(`/api/v1/transactions/${transactionId}/reverse`, data),
+
+  // ── Transaction Receipt ────────────────────────────────────────────────
+  downloadReceipt: (transactionId: string) =>
+    apiDownload(`/api/v1/transactions/${transactionId}/receipt`, `receipt-${transactionId}.html`),
+
+  // ── Compliance Check ───────────────────────────────────────────────────
+  getComplianceOverview: () =>
+    apiGet<Record<string, unknown>>('/api/v1/accounts/compliance-check'),
 };

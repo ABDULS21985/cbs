@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { List, Info, Percent, ShieldCheck, Link2, Clock } from 'lucide-react';
+import { List, Info, Percent, ShieldCheck, Link2, Clock, Users, Gauge } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage } from '@/components/shared';
 import { useAccountDetail } from '../hooks/useAccountDetail';
@@ -10,6 +10,8 @@ import { AccountDetailsTab } from '../components/detail/AccountDetailsTab';
 import { InterestTab } from '../components/detail/InterestTab';
 import { HoldsTab } from '../components/detail/HoldsTab';
 import { LinkedProductsTab } from '../components/detail/LinkedProductsTab';
+import { SignatoriesTab } from '../components/detail/SignatoriesTab';
+import { LimitsTab } from '../components/detail/LimitsTab';
 import { MaintenanceHistoryTimeline } from '../components/maintenance/MaintenanceHistoryTimeline';
 
 export function AccountDetailPage() {
@@ -101,10 +103,22 @@ export function AccountDetailPage() {
       content: <InterestTab account={account} />,
     },
     {
+      id: 'signatories',
+      label: 'Signatories',
+      icon: Users,
+      content: <SignatoriesTab accountId={accountId} />,
+    },
+    {
       id: 'holds',
       label: 'Holds',
       icon: ShieldCheck,
       content: <HoldsTab accountId={accountId} />,
+    },
+    {
+      id: 'limits',
+      label: 'Limits',
+      icon: Gauge,
+      content: <LimitsTab accountId={accountId} currency={account.currency} />,
     },
     {
       id: 'linked',

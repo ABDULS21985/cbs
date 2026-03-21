@@ -16,6 +16,9 @@ module.exports = {
         CBS_CACHE_TYPE: 'redis',
         CBS_OAUTH2_ISSUER_URI: 'http://localhost:8180/realms/cbs',
         CBS_OAUTH2_ACCEPTED_AUDIENCES: 'cbs-app',
+        CBS_KYC_PROVIDER: 'INTERNAL',
+        CBS_ALLOW_INTERNAL_KYC: 'true',
+        CBS_ALLOW_SYNTHETIC_SERVICES: 'true',
         SPRING_PROFILES_ACTIVE: 'dev',
         JAVA_OPTS: '-Xmx512m -Xms256m',
       },
@@ -36,6 +39,7 @@ module.exports = {
       interpreter: 'none',
       env: {
         NODE_ENV: 'development',
+        VITE_API_PROXY_TARGET: 'http://localhost:8080',
       },
       watch: false,
       autorestart: true,

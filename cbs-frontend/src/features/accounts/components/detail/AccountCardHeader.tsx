@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
-  ArrowRightLeft, FileText, Settings,
+  ArrowRightLeft, FileText, Settings, Wallet,
 } from 'lucide-react';
 import { MoneyDisplay, StatusBadge } from '@/components/shared';
 import { formatAccountNumber, formatDate } from '@/lib/formatters';
@@ -45,7 +45,7 @@ export function AccountCardHeader({ account }: AccountCardHeaderProps) {
       </div>
 
       {/* Balance columns */}
-      <div className="grid grid-cols-3 gap-4 mb-6 bg-black/10 rounded-lg p-4">
+      <div className={cn('grid gap-4 mb-6 bg-black/10 rounded-lg p-4', account.overdraftLimit > 0 ? 'grid-cols-4' : 'grid-cols-3')}>
         <div className="text-center">
           <p className="text-xs text-primary-foreground/60 font-medium mb-1">Available Balance</p>
           <MoneyDisplay
@@ -73,6 +73,17 @@ export function AccountCardHeader({ account }: AccountCardHeaderProps) {
             className={cn('text-primary-foreground', account.holdAmount > 0 && 'text-amber-300')}
           />
         </div>
+        {account.overdraftLimit > 0 && (
+          <div className="text-center border-l border-primary-foreground/20">
+            <p className="text-xs text-primary-foreground/60 font-medium mb-1">Overdraft Limit</p>
+            <MoneyDisplay
+              amount={account.overdraftLimit}
+              currency={account.currency}
+              size="lg"
+              className="text-primary-foreground"
+            />
+          </div>
+        )}
       </div>
 
       {/* Action buttons */}
@@ -83,6 +94,13 @@ export function AccountCardHeader({ account }: AccountCardHeaderProps) {
         >
           <ArrowRightLeft className="w-4 h-4" />
           Initiate Transfer
+        </Link>
+        <Link
+          to={`/accounts/wallets?accountId=${account.id}`}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition-colors"
+        >
+          <Wallet className="w-4 h-4" />
+          Wallets
         </Link>
         <Link
           to="/accounts/statements"

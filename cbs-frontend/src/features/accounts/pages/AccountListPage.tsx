@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,11 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
 import { apiGet } from '@/lib/api';
+
+const ACCOUNT_STATUSES = [
+  'ALL', 'ACTIVE', 'PENDING_ACTIVATION', 'DORMANT', 'FROZEN',
+  'PND_DEBIT', 'PND_CREDIT', 'CLOSED', 'ESCHEAT',
+] as const;
 
 interface AccountRow {
   id: number;
@@ -75,6 +80,8 @@ const columns: ColumnDef<AccountRow, unknown>[] = [
 
 export function AccountListPage() {
   const navigate = useNavigate();
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [branchFilter, setBranchFilter] = useState<string>('ALL');
 
   useEffect(() => { document.title = 'All Accounts | CBS'; }, []);
 
@@ -90,9 +97,13 @@ export function AccountListPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate]);
 
+  const queryParams: Record<string, unknown> = {};
+  if (statusFilter !== 'ALL') queryParams.status = statusFilter;
+  if (branchFilter !== 'ALL') queryParams.branch = branchFilter;
+
   const { data: accounts = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['accounts', 'list'],
-    queryFn: () => apiGet<AccountRow[]>('/api/v1/accounts'),
+    queryKey: ['accounts', 'list', statusFilter, branchFilter],
+    queryFn: () => apiGet<AccountRow[]>('/api/v1/accounts', queryParams),
   });
 
   // Fetch real backend summary stats
@@ -172,6 +183,43 @@ export function AccountListPage() {
               format="number"
               loading={isLoading}
             />
+          )}
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              {ACCOUNT_STATUSES.map((s) => (
+                <option key={s} value={s}>{s === 'ALL' ? 'All Statuses' : s.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">Branch</label>
+            <select
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="ALL">All Branches</option>
+              {[...new Set(accounts.map((a) => a.branchCode).filter(Boolean))].sort().map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+          </div>
+          {(statusFilter !== 'ALL' || branchFilter !== 'ALL') && (
+            <button
+              onClick={() => { setStatusFilter('ALL'); setBranchFilter('ALL'); }}
+              className="text-xs text-primary hover:underline"
+            >
+              Clear filters
+            </button>
           )}
         </div>
 
