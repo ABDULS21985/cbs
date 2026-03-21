@@ -105,7 +105,7 @@ export function BiDashboardPage() {
             <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
           </div>
         ) : (
-          <DataTable columns={columns} data={dashboards} isLoading={isLoading} searchColumn="dashboardName" searchPlaceholder="Search dashboards..." />
+          <DataTable columns={columns} data={dashboards} isLoading={isLoading} enableGlobalFilter />
         )}
       </div>
 
@@ -187,7 +187,7 @@ function CreateDashboardDialog({ open, onClose, onSubmit, isSubmitting }: {
           </div>
           <div>
             <Label>Type</Label>
-            <Select value={form.dashboardType} onValueChange={(v) => setForm({ ...form, dashboardType: v })}>
+            <Select value={form.dashboardType} onValueChange={(v: string) => setForm({ ...form, dashboardType: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {DASHBOARD_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -263,7 +263,7 @@ function DashboardDetailDialog({ code, onClose, onAddWidget }: {
             {data.widgets && data.widgets.length > 0 ? (
               <DataTable columns={widgetColumns} data={data.widgets} />
             ) : (
-              <EmptyState title="No widgets" subtitle="Add widgets to populate this dashboard" />
+              <EmptyState title="No widgets" description="Add widgets to populate this dashboard" />
             )}
           </div>
         ) : (
@@ -325,7 +325,7 @@ function AddWidgetDialog({ dashboardId, open, onClose, onSubmit, isSubmitting }:
           </div>
           <div>
             <Label>Widget Type</Label>
-            <Select value={form.widgetType} onValueChange={(v) => setForm({ ...form, widgetType: v })}>
+            <Select value={form.widgetType} onValueChange={(v: string) => setForm({ ...form, widgetType: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {WIDGET_TYPES.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>)}

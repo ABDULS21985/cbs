@@ -19,14 +19,32 @@ export interface ProductRecommendation {
   createdAt: string;
 }
 
-/** Backend returns Map<String, Object> with snake_case keys */
+/** Normalized churn score — the API normalizer handles both snake_case Map keys and camelCase */
 export interface ChurnScoreResponse {
-  customer_id: number;
-  churn_score: number;
-  risk_level: 'LOW' | 'MEDIUM' | 'HIGH';
-  logins_30d: number;
-  transactions_30d: number;
-  complaints_90d: number;
+  customerId: number;
+  churnScore: number;
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  logins30d: number;
+  transactions30d: number;
+  complaints90d: number;
+}
+
+/**
+ * Normalizes churn score response.
+ * Backend service builds a Map<String,Object> with snake_case keys:
+ *   customer_id, churn_score, risk_level, logins_30d, transactions_30d, complaints_90d
+ * But if Jackson global naming strategy changes, keys could arrive as camelCase.
+ * This normalizer handles both conventions.
+ */
+function normalizeChurnScore(raw: Record<string, unknown>): ChurnScoreResponse {
+  return {
+    customerId:      Number(raw.customer_id ?? raw.customerId ?? 0),
+    churnScore:      Number(raw.churn_score ?? raw.churnScore ?? 0),
+    riskLevel:       String(raw.risk_level ?? raw.riskLevel ?? 'LOW') as ChurnScoreResponse['riskLevel'],
+    logins30d:       Number(raw.logins_30d ?? raw.logins30d ?? 0),
+    transactions30d: Number(raw.transactions_30d ?? raw.transactions30d ?? 0),
+    complaints90d:   Number(raw.complaints_90d ?? raw.complaints90d ?? 0),
+  };
 }
 
 export interface DocumentProcessingJob {
@@ -152,8 +170,10 @@ export const intelligenceApi = {
   },
 
   // ---- Behaviour: Churn ----
-  getChurnScore: (customerId: number) =>
-    apiGet<ChurnScoreResponse>(`/api/v1/intelligence/behaviour/churn-score/${customerId}`),
+  getChurnScore: async (customerId: number): Promise<ChurnScoreResponse> => {
+    const raw = await apiGet<Record<string, unknown>>(`/api/v1/intelligence/behaviour/churn-score/${customerId}`);
+    return normalizeChurnScore(raw);
+  },
 
   // ---- Cash Flow Forecasting ----
   listForecasts: () =>

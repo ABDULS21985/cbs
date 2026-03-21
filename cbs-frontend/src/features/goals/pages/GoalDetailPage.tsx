@@ -63,7 +63,7 @@ function ContributeSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
           {/* Mini progress */}
           <div className="flex items-center gap-4">
-            <GoalProgressCircle percentage={goal.progressPercentage} size={64} />
+            <GoalProgressCircle percentage={goal.progressPercentage} size="sm" />
             <div>
               <p className="text-sm font-semibold">{goal.goalName}</p>
               <p className="text-xs text-muted-foreground">{formatMoney(goal.currentAmount)} / {formatMoney(goal.targetAmount)}</p>
@@ -761,16 +761,12 @@ export function GoalDetailPage() {
 
       <PageHeader
         title={`${goal.goalIcon || '🎯'} ${goal.goalName}`}
-        subtitle={
-          <span className="flex items-center gap-2">
-            <StatusBadge status={goal.status} dot />
-            <span className="text-xs font-mono text-muted-foreground">{goal.goalNumber}</span>
-            {goal.autoDebitEnabled && goal.autoDebitAmount && (
-              <span className="text-xs">Auto-debit: {formatMoney(goal.autoDebitAmount)}/{(goal.autoDebitFrequency ?? 'MONTHLY').toLowerCase().replace('_', '-')}</span>
-            )}
-            <span className="text-xs text-muted-foreground">Created {formatDate(goal.createdAt)}</span>
-          </span>
-        }
+        subtitle={[
+          goal.status,
+          goal.goalNumber,
+          goal.autoDebitEnabled && goal.autoDebitAmount ? `Auto-debit: ${formatMoney(goal.autoDebitAmount)}/${(goal.autoDebitFrequency ?? 'MONTHLY').toLowerCase().replace('_', '-')}` : null,
+          `Created ${formatDate(goal.createdAt)}`,
+        ].filter(Boolean).join(' · ')}
         backTo="/accounts/goals"
         actions={
           canModify ? (
@@ -812,7 +808,7 @@ export function GoalDetailPage() {
         {/* Progress Hero */}
         <div className="rounded-xl border bg-card p-6">
           <div className="flex flex-col lg:flex-row gap-6 items-center">
-            <GoalProgressCircle percentage={pct} size={180} />
+            <GoalProgressCircle percentage={pct} size="lg" />
             <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div><p className="text-xs text-muted-foreground">Target</p><p className="text-lg font-bold font-mono">{formatMoney(goal.targetAmount)}</p></div>
               <div><p className="text-xs text-muted-foreground">Saved</p><p className="text-lg font-bold font-mono text-green-600">{formatMoney(goal.currentAmount)}</p></div>

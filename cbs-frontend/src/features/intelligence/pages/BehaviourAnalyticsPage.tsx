@@ -76,21 +76,21 @@ function ChurnDetails({ customerId }: { customerId: number }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <ChurnGauge score={churn.churn_score} riskLevel={churn.risk_level} />
+      <ChurnGauge score={churn.churnScore} riskLevel={churn.riskLevel} />
       <div className="rounded-xl border bg-card p-6">
         <p className="text-sm font-medium mb-4">Activity Metrics (last 30/90 days)</p>
         <div className="space-y-4">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Logins (30d)</span>
-            <span className="font-medium tabular-nums">{churn.logins_30d}</span>
+            <span className="font-medium tabular-nums">{churn.logins30d}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Transactions (30d)</span>
-            <span className="font-medium tabular-nums">{churn.transactions_30d}</span>
+            <span className="font-medium tabular-nums">{churn.transactions30d}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Complaints (90d)</span>
-            <span className="font-medium tabular-nums">{churn.complaints_90d}</span>
+            <span className="font-medium tabular-nums">{churn.complaints90d}</span>
           </div>
         </div>
         <div className="mt-6 pt-4 border-t">
@@ -151,7 +151,7 @@ function RecommendationsTab({ customerId }: { customerId: number }) {
         <EmptyState
           title="No Pending Recommendations"
           description="Click Generate to produce new AI-driven product recommendations based on customer behaviour."
-          icon={<Brain className="w-10 h-10" />}
+          icon={Brain}
         />
       ) : (
         <div className="space-y-3">
@@ -279,7 +279,7 @@ function EventsTab() {
         columns={eventColumns}
         data={events}
         isLoading={isLoading}
-        searchPlaceholder="Search events..."
+        enableGlobalFilter
       />
     </div>
   );

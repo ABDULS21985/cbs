@@ -57,12 +57,20 @@ function SubmitDocumentDialog({
   onClose: () => void;
 }) {
   const submit = useSubmitDocument();
-  const [documentType, setDocumentType] = useState(DOCUMENT_TYPES[0]);
-  const [processingType, setProcessingType] = useState(PROCESSING_TYPES[0]);
+  const [documentType, setDocumentType] = useState<string>(DOCUMENT_TYPES[0]);
+  const [processingType, setProcessingType] = useState<string>(PROCESSING_TYPES[0]);
   const [inputFormat, setInputFormat] = useState<string>(INPUT_FORMATS[0]);
   const [documentId, setDocumentId] = useState('');
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleSubmit = () => {
+    // Validate required fields (these match @Column(nullable = false) in the entity)
+    if (!documentType) { setError('Document type is required'); return; }
+    if (!processingType) { setError('Processing type is required'); return; }
+    if (!inputFormat) { setError('Input format is required'); return; }
+    setError(null);
+
     submit.mutate(
       {
         documentType,
@@ -74,6 +82,11 @@ function SubmitDocumentDialog({
         onSuccess: () => {
           onClose();
           setDocumentId('');
+          setError(null);
+        },
+        onError: (err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Submission failed';
+          setError(msg);
         },
       },
     );
@@ -85,6 +98,17 @@ function SubmitDocumentDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-background border rounded-xl shadow-lg w-full max-w-md p-6 space-y-4">
         <h3 className="text-lg font-semibold">Submit Document for Processing</h3>
+        <p className="text-xs text-muted-foreground">
+          The document will be processed through the AI extraction pipeline. A unique Job ID
+          will be assigned automatically. Documents with low confidence scores are routed to
+          manual review.
+        </p>
+
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/10 px-3 py-2 text-xs text-red-600">
+            {error}
+          </div>
+        )}
 
         <div className="space-y-3">
           <div>
@@ -460,7 +484,7 @@ export function DocumentIntelligencePage() {
                   columns={pendingColumns}
                   data={pendingJobs}
                   isLoading={loadingPending}
-                  searchPlaceholder="Search pending documents..."
+                  enableGlobalFilter
                 />
               ),
             },
@@ -472,7 +496,7 @@ export function DocumentIntelligencePage() {
                   columns={allColumns}
                   data={allJobs}
                   isLoading={loadingAll}
-                  searchPlaceholder="Search all document jobs..."
+                  enableGlobalFilter
                 />
               ),
             },

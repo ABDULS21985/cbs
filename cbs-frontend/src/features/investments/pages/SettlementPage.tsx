@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge, TabsPage } from '@/components/shared';
-import { formatDate, formatCurrency } from '@/lib/formatters';
+import { formatDate, formatMoney as formatCurrency } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {

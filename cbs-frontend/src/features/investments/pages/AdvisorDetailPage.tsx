@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, TabsPage } from '@/components/shared';
-import { formatCurrency, formatDate } from '@/lib/formatters';
+import { formatMoney as formatCurrency, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { wealthApi } from '../api/wealthApi';
@@ -72,9 +72,9 @@ function ClientsTab({ advisorId }: { advisorId: string }) {
                   <p className="text-xs text-muted-foreground">{String(c.planType ?? '')}</p>
                 </div>
               </div>
-              {c.totalAum != null && <p className="text-xs">AUM: <span className="font-mono font-medium">{formatCurrency(Number(c.totalAum), 'NGN')}</span></p>}
-              {c.status && <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold',
-                c.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600')}>{String(c.status)}</span>}
+              {c.totalAum != null && <p className="text-xs">AUM: <span className="font-mono font-medium">{formatCurrency(Number(c.totalAum))}</span></p>}
+              {c.status ? <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold',
+                String(c.status) === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600')}>{String(c.status)}</span> : null}
             </div>
           ))}
         </div>
@@ -129,9 +129,9 @@ function ReviewsTab({ advisorId }: { advisorId: string }) {
                     <Star key={s} className={cn('w-3.5 h-3.5', Number(r.rating ?? 0) >= s ? 'text-amber-500 fill-amber-500' : 'text-gray-300')} />
                   ))}
                 </div>
-                {r.reviewDate && <span className="text-xs text-muted-foreground">{formatDate(String(r.reviewDate))}</span>}
+                {r.reviewDate ? <span className="text-xs text-muted-foreground">{formatDate(String(r.reviewDate))}</span> : null}
               </div>
-              {r.comment && <p className="text-sm">{String(r.comment)}</p>}
+              {r.comment ? <p className="text-sm">{String(r.comment)}</p> : null}
             </div>
           ))}
         </div>
@@ -194,10 +194,10 @@ function CertificationsTab({ advisorId }: { advisorId: string }) {
               <Award className="w-5 h-5 text-primary mt-0.5" />
               <div>
                 <p className="text-sm font-medium">{String(c.certificationName ?? c.name ?? `Certification ${i + 1}`)}</p>
-                {c.issuingBody && <p className="text-xs text-muted-foreground">{String(c.issuingBody)}</p>}
-                {c.expiryDate && <p className="text-xs text-muted-foreground">Expires: {formatDate(String(c.expiryDate))}</p>}
-                {c.status && <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold mt-1',
-                  c.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>{String(c.status)}</span>}
+                {c.issuingBody ? <p className="text-xs text-muted-foreground">{String(c.issuingBody)}</p> : null}
+                {c.expiryDate ? <p className="text-xs text-muted-foreground">Expires: {formatDate(String(c.expiryDate))}</p> : null}
+                {c.status ? <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold mt-1',
+                  String(c.status) === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>{String(c.status)}</span> : null}
               </div>
             </div>
           ))}
@@ -252,7 +252,7 @@ export function AdvisorDetailPage() {
     <>
       <PageHeader
         title={String(advisor.name ?? advisorId)}
-        subtitle={<span className="flex items-center gap-2"><span className="font-mono text-xs">{advisorId}</span>{advisor.specialization && <span className="text-xs">• {String(advisor.specialization)}</span>}</span>}
+        subtitle={`${advisorId}${advisor.specialization ? ` • ${String(advisor.specialization)}` : ''}`}
         backTo="/investments/advisory"
       />
 

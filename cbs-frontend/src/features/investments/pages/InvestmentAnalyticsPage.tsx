@@ -72,7 +72,7 @@ function PortfolioAnalyticsTab() {
                 <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10 }} />
                 <Tooltip formatter={(v: number) => [`${v.toFixed(2)}%`, 'YTD Return']} />
                 <Bar dataKey="return" name="YTD Return" radius={[4, 4, 0, 0]}>
-                  {perfData.map((_, i) => <Cell key={i} fill={perfData[i].return >= 0 ? '#22c55e' : '#ef4444'} />)}
+                  {perfData.map((_entry: { name: string; return: number }, i: number) => <Cell key={i} fill={perfData[i].return >= 0 ? '#22c55e' : '#ef4444'} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>

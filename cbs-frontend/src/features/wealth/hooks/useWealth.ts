@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wealthApi } from '../api/wealthApi';
-import type { BeneficiaryCreateRequest, ClientMatchRequest, AdvisorReview, ScheduledDistribution, TrustDocument } from '../api/wealthApi';
+import type { BeneficiaryCreateRequest, ClientMatchRequest, AdvisorReview, ScheduledDistribution } from '../api/wealthApi';
 
 // ─── Query Keys ────────────────────────────────────────────────────────────
 

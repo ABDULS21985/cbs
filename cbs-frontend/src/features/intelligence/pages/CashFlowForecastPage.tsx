@@ -428,7 +428,7 @@ export function CashFlowForecastPage() {
           columns={columns}
           data={forecasts}
           isLoading={isLoading}
-          searchPlaceholder="Search forecasts..."
+          enableGlobalFilter
         />
       </div>
 

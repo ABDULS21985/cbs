@@ -17,12 +17,12 @@ export function PayInstallmentDialog({ depositId, installments, currency = 'NGN'
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
-  const payable = installments.filter((i) => i.status === 'OVERDUE' || i.status === 'DUE' || i.status === 'UPCOMING')
+  const payable = installments.filter((i) => i.status === 'PENDING' || i.status === 'MISSED')
     .sort((a, b) => a.installmentNumber - b.installmentNumber);
 
   // Auto-select overdue
   useState(() => {
-    const overdueNums = new Set(payable.filter((i) => i.overdue || i.status === 'OVERDUE').map((i) => i.installmentNumber));
+    const overdueNums = new Set(payable.filter((i) => i.overdue || i.status === 'MISSED').map((i) => i.installmentNumber));
     if (overdueNums.size > 0) setSelected(overdueNums);
     // Also select next upcoming if no overdue
     if (overdueNums.size === 0 && payable.length > 0) setSelected(new Set([payable[0].installmentNumber]));

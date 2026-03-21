@@ -6,10 +6,10 @@ import type { RDInstallment } from '../../api/goalApi';
 
 const STATUS_COLORS: Record<string, string> = {
   PAID: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  OVERDUE: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  DUE: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  UPCOMING: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  SCHEDULED: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  MISSED: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+  LATE_PAID: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  PENDING: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  WAIVED: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
 };
 
 interface InstallmentScheduleTableProps {
@@ -34,8 +34,8 @@ export function InstallmentScheduleTable({ installments, currency = 'NGN', onPay
     {
       accessorKey: 'status', header: 'Status',
       cell: ({ row }) => {
-        const status = row.original.overdue ? 'OVERDUE' : row.original.status;
-        return <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium', STATUS_COLORS[status] ?? STATUS_COLORS.UPCOMING)}>{status}</span>;
+        const status = row.original.overdue ? 'MISSED' : row.original.status;
+        return <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium', STATUS_COLORS[status] ?? STATUS_COLORS.PENDING)}>{status}</span>;
       },
     },
     ...(onPayInstallment ? [{
@@ -43,8 +43,7 @@ export function InstallmentScheduleTable({ installments, currency = 'NGN', onPay
       header: '' as const,
       cell: ({ row }: { row: { original: RDInstallment } }) => {
         const inst = row.original;
-        if (inst.status === 'PAID') return null;
-        if (!inst.overdue && inst.status !== 'DUE') return null;
+        if (inst.status === 'PAID' || inst.status === 'LATE_PAID' || inst.status === 'WAIVED') return null;
         const total = inst.amountDue + (inst.penaltyAmount ?? 0);
         return (
           <button onClick={() => onPayInstallment(inst.installmentNumber)}

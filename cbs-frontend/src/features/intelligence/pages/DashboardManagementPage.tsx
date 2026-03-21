@@ -229,7 +229,7 @@ export function DashboardManagementPage() {
           columns={columns}
           data={dashboards}
           isLoading={isLoading}
-          searchPlaceholder="Search dashboards..."
+          enableGlobalFilter
         />
       </div>
 
