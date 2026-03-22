@@ -80,6 +80,10 @@ function setupHandlers(merchantOverride?: Partial<typeof mockMerchant>) {
     http.get('/api/v1/card-switch/merchant/:merchantId', () => HttpResponse.json(wrap(mockTransactions))),
     http.get('/api/v1/pos-terminals/merchant/:merchantId', () => HttpResponse.json(wrap(mockTerminals))),
     http.get('/api/v1/cards/disputes/status/:status', () => HttpResponse.json(wrap(mockDisputes))),
+    // Acquiring endpoints (new tabs)
+    http.get('/api/v1/acquiring/facilities/merchant/:merchantId', () => HttpResponse.json(wrap([]))),
+    http.get('/api/v1/acquiring/settlements/merchant/:merchantId', () => HttpResponse.json(wrap([]))),
+    http.get('/api/v1/acquiring/chargebacks', () => HttpResponse.json(wrap([]))),
   );
 }
 
@@ -198,6 +202,9 @@ describe('MerchantDetailPage', () => {
       http.get('/api/v1/card-switch/merchant/:merchantId', () => HttpResponse.json(wrap(mockTransactions))),
       http.get('/api/v1/pos-terminals/merchant/:merchantId', () => HttpResponse.json(wrap(mockTerminals))),
       http.get('/api/v1/cards/disputes/status/:status', () => HttpResponse.json(wrap(mockDisputes))),
+      http.get('/api/v1/acquiring/facilities/merchant/:merchantId', () => HttpResponse.json(wrap([]))),
+      http.get('/api/v1/acquiring/settlements/merchant/:merchantId', () => HttpResponse.json(wrap([]))),
+      http.get('/api/v1/acquiring/chargebacks', () => HttpResponse.json(wrap([]))),
       http.post('/api/v1/merchants/:merchantId/suspend', async ({ params, request }) => {
         capturedMerchantId = params.merchantId as string;
         capturedBody = await request.json() as Record<string, unknown>;

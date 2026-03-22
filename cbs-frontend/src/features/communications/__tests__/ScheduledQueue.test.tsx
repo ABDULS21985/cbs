@@ -19,6 +19,11 @@ vi.mock('@/lib/api', () => ({
   apiDelete: mocks.apiDelete,
 }));
 
+vi.mock('@/stores/authStore', () => ({
+  useAuthStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({ user: { id: '1', username: 'admin', fullName: 'Admin', email: 'admin@test.com', roles: ['CBS_ADMIN'], permissions: [] } }),
+}));
+
 function createWrapper() {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },

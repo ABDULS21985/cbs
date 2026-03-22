@@ -21,6 +21,14 @@ vi.mock('@/lib/api', () => ({
   apiDelete: mocks.apiDelete,
 }));
 
+// Default: admin user sees all actions
+const mockUserRoles = vi.hoisted(() => ({ current: ['CBS_ADMIN'] }));
+
+vi.mock('@/stores/authStore', () => ({
+  useAuthStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({ user: { id: '1', username: 'admin', fullName: 'Admin', email: 'admin@test.com', roles: mockUserRoles.current, permissions: [] } }),
+}));
+
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 function createWrapper() {
@@ -88,6 +96,7 @@ const sampleStats = {
 describe('CommunicationCenterPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUserRoles.current = ['CBS_ADMIN'];
     // Default mocks
     mocks.apiGet.mockImplementation((url: string) => {
       if (url === '/api/v1/notifications/delivery-stats') return Promise.resolve(sampleStats);
@@ -210,5 +219,27 @@ describe('CommunicationCenterPage', () => {
     await waitFor(() => {
       expect(screen.queryByText('John Doe')).not.toBeInTheDocument();
     });
+  });
+
+  // ── RBAC Tests ─────────────────────────────────────────────────────
+
+  it('shows Bulk Send and Retry Failed buttons for CBS_ADMIN role', async () => {
+    mockUserRoles.current = ['CBS_ADMIN'];
+    render(<CommunicationCenterPage />, { wrapper: createWrapper() });
+
+    expect(screen.getByText('Compose')).toBeInTheDocument();
+    expect(screen.getByText('Bulk Send')).toBeInTheDocument();
+    expect(screen.getByText('Retry Failed')).toBeInTheDocument();
+  });
+
+  it('hides Bulk Send and Retry Failed buttons for CBS_OFFICER role (non-admin)', async () => {
+    mockUserRoles.current = ['CBS_OFFICER'];
+    render(<CommunicationCenterPage />, { wrapper: createWrapper() });
+
+    // Compose is available to all officers
+    expect(screen.getByText('Compose')).toBeInTheDocument();
+    // Bulk Send and Retry Failed are admin-only
+    expect(screen.queryByText('Bulk Send')).not.toBeInTheDocument();
+    expect(screen.queryByText('Retry Failed')).not.toBeInTheDocument();
   });
 });

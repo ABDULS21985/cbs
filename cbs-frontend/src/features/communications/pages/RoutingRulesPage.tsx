@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, X, Loader2, GripVertical, Play, Search, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -153,9 +154,11 @@ export function RoutingRulesPage() {
             <button onClick={() => { setShowTester(true); setTestResult(null); }} className="flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-muted">
               <Play className="w-4 h-4" /> Test Route
             </button>
-            <button onClick={() => { setShowCreate(true); setStep(1); }} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90">
-              <Plus className="w-4 h-4" /> New Rule
-            </button>
+            <RoleGuard roles={['CBS_ADMIN', 'CBS_OFFICER']}>
+              <button onClick={() => { setShowCreate(true); setStep(1); }} className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90">
+                <Plus className="w-4 h-4" /> New Rule
+              </button>
+            </RoleGuard>
           </div>
         }
       />

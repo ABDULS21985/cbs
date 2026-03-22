@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, DataTable, TabsPage } from '@/components/shared';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { Mail, Send, RefreshCw, AlertCircle, CheckCircle, Clock, Percent } from 'lucide-react';
 import { formatRelative } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -192,14 +193,18 @@ export function CommunicationCenterPage() {
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
               <Send className="w-4 h-4" /> Compose
             </button>
-            <button onClick={() => setShowBulk(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted">
-              <Mail className="w-4 h-4" /> Bulk Send
-            </button>
-            <button onClick={handleRetryAll} disabled={retryAll.isPending || failures.length === 0}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted disabled:opacity-50">
-              <RefreshCw className={cn('w-4 h-4', retryAll.isPending && 'animate-spin')} /> Retry Failed
-            </button>
+            <RoleGuard roles="CBS_ADMIN">
+              <button onClick={() => setShowBulk(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted">
+                <Mail className="w-4 h-4" /> Bulk Send
+              </button>
+            </RoleGuard>
+            <RoleGuard roles="CBS_ADMIN">
+              <button onClick={handleRetryAll} disabled={retryAll.isPending || failures.length === 0}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted disabled:opacity-50">
+                <RefreshCw className={cn('w-4 h-4', retryAll.isPending && 'animate-spin')} /> Retry Failed
+              </button>
+            </RoleGuard>
           </div>
         }
       />

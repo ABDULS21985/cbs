@@ -19,6 +19,13 @@ vi.mock('@/lib/api', () => ({
   apiDelete: mocks.apiDelete,
 }));
 
+const mockUserRoles = vi.hoisted(() => ({ current: ['CBS_ADMIN'] }));
+
+vi.mock('@/stores/authStore', () => ({
+  useAuthStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({ user: { id: '1', username: 'admin', fullName: 'Admin', email: 'admin@test.com', roles: mockUserRoles.current, permissions: [] } }),
+}));
+
 function createWrapper() {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
@@ -84,6 +91,7 @@ const sampleChannels = [
 describe('ChannelConfigPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUserRoles.current = ['CBS_ADMIN'];
     mocks.apiGet.mockImplementation((url: string) => {
       if (url === '/api/v1/notifications/channels') return Promise.resolve(sampleChannels);
       return Promise.resolve([]);
@@ -255,5 +263,32 @@ describe('ChannelConfigPage', () => {
         { recipient: 'admin@bank.com' },
       );
     });
+  });
+
+  // ── RBAC Tests ─────────────────────────────────────────────────────
+
+  it('shows Configure and Test Send buttons for CBS_ADMIN', async () => {
+    mockUserRoles.current = ['CBS_ADMIN'];
+    render(<ChannelConfigPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Email')).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText('Configure').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Test Send').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('hides Configure and Test Send buttons for CBS_OFFICER (non-admin)', async () => {
+    mockUserRoles.current = ['CBS_OFFICER'];
+    render(<ChannelConfigPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Email')).toBeInTheDocument();
+    });
+
+    // Channel cards are visible but action buttons are hidden
+    expect(screen.queryByText('Configure')).not.toBeInTheDocument();
+    expect(screen.queryByText('Test Send')).not.toBeInTheDocument();
   });
 });

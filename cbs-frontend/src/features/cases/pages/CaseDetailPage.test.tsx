@@ -343,7 +343,7 @@ describe('CaseDetailPage', () => {
     expect(screen.getByText('Set')).toBeInTheDocument();
   });
 
-  it('shows approve/reject buttons when compensation is pending', async () => {
+  it('shows approve/reject buttons when compensation is pending and user is CBS_ADMIN', async () => {
     setupHandlers({
       ...mockCase,
       compensationAmount: 50000,
@@ -353,8 +353,33 @@ describe('CaseDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('₦50,000')).toBeInTheDocument();
     });
+    // Default test user has CBS_ADMIN role
     expect(screen.getByText('Approve')).toBeInTheDocument();
     expect(screen.getByText('Reject')).toBeInTheDocument();
+  });
+
+  it('hides approve/reject buttons for CBS_OFFICER (non-admin) user', async () => {
+    setupHandlers({
+      ...mockCase,
+      compensationAmount: 50000,
+      compensationApproved: null,
+    });
+    renderWithProviders(
+      <Routes>
+        <Route path="/cases/:id" element={<CaseDetailPage />} />
+      </Routes>,
+      {
+        route: '/cases/CASE-000001',
+        user: { id: 'officer-1', username: 'officer', fullName: 'Officer User', email: 'officer@cbs.bank', roles: ['CBS_OFFICER'], permissions: [] } as any,
+      }
+    );
+    await waitFor(() => {
+      expect(screen.getByText('₦50,000')).toBeInTheDocument();
+    });
+    // CBS_OFFICER should not see approve/reject
+    expect(screen.queryByText('Approve')).not.toBeInTheDocument();
+    expect(screen.queryByText('Reject')).not.toBeInTheDocument();
+    expect(screen.getByText('Pending admin approval')).toBeInTheDocument();
   });
 
   it('shows APPROVED status when compensation is approved', async () => {
@@ -484,6 +509,24 @@ describe('CaseDetailPage', () => {
     server.use(http.get('/api/v1/cases/:id', () => HttpResponse.json({}, { status: 500 })));
     renderPage();
     expect(screen.getByText('Case Detail')).toBeInTheDocument();
+  });
+
+  // ── Role-Based Visibility ───────────────────────────────
+  it('CBS_OFFICER can still set compensation amount', async () => {
+    setupHandlers();
+    renderWithProviders(
+      <Routes>
+        <Route path="/cases/:id" element={<CaseDetailPage />} />
+      </Routes>,
+      {
+        route: '/cases/CASE-000001',
+        user: { id: 'officer-1', username: 'officer', fullName: 'Officer User', email: 'officer@cbs.bank', roles: ['CBS_OFFICER'], permissions: [] } as any,
+      }
+    );
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Amount')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Set')).toBeInTheDocument();
   });
 
   // ── Related Cases ─────────────────────────────────────────

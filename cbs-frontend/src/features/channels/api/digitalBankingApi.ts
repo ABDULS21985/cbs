@@ -148,7 +148,7 @@ export const ussdApi = {
   // POST /v1/ussd/request — @RequestParam
   processRequest: (params: { msisdn: string; sessionId?: string; input?: string }) =>
     api
-      .post<ApiResponse<{ message: string; continueSession: boolean }>>(
+      .post<ApiResponse<{ sessionId: string; text: string; continueSession: boolean }>>(
         '/api/v1/ussd/request',
         undefined,
         { params },

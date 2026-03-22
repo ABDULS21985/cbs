@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Mail, MessageSquare, Bell, MonitorSmartphone, Globe, Send, X, Loader2, Edit2, CheckCircle2, XCircle, Shield, Clock } from 'lucide-react';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -55,14 +56,16 @@ function ChannelCard({ config, onTest, onEdit }: { config: ChannelConfig; onTest
         )}
       </div>
 
-      <div className="flex gap-2">
-        <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium hover:bg-muted transition-colors">
-          <Edit2 className="w-3.5 h-3.5" /> Configure
-        </button>
-        <button onClick={onTest} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors">
-          <Send className="w-3.5 h-3.5" /> Test Send
-        </button>
-      </div>
+      <RoleGuard roles="CBS_ADMIN">
+        <div className="flex gap-2">
+          <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium hover:bg-muted transition-colors">
+            <Edit2 className="w-3.5 h-3.5" /> Configure
+          </button>
+          <button onClick={onTest} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors">
+            <Send className="w-3.5 h-3.5" /> Test Send
+          </button>
+        </div>
+      </RoleGuard>
     </div>
   );
 }

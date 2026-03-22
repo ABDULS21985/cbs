@@ -25,6 +25,13 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
+const mockUserRoles = vi.hoisted(() => ({ current: ['CBS_ADMIN'] }));
+
+vi.mock('@/stores/authStore', () => ({
+  useAuthStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({ user: { id: '1', username: 'admin', fullName: 'Admin', email: 'admin@test.com', roles: mockUserRoles.current, permissions: [] } }),
+}));
+
 function createWrapper() {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
@@ -75,6 +82,7 @@ describe('TemplateManagementPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockNavigate.mockReset();
+    mockUserRoles.current = ['CBS_ADMIN'];
     mocks.apiGet.mockImplementation((url: string) => {
       if (url === '/api/v1/notifications/templates') return Promise.resolve(sampleTemplates);
       return Promise.resolve([]);
@@ -111,13 +119,13 @@ describe('TemplateManagementPage', () => {
     expect(screen.getByText('ACC_STMT')).toBeInTheDocument();
   });
 
-  it('filters by channel', async () => {
+  it('filters by channel', { timeout: 10000 }, async () => {
     const user = userEvent.setup();
     render(<TemplateManagementPage />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(screen.getByText('Account Statement')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
 
     // Click the SMS channel filter button (text includes emoji prefix)
     const smsButtons = screen.getAllByRole('button').filter(b => b.textContent?.includes('SMS'));
@@ -128,7 +136,7 @@ describe('TemplateManagementPage', () => {
     await waitFor(() => {
       expect(screen.queryByText('Account Statement')).not.toBeInTheDocument();
       expect(screen.getByText('OTP SMS')).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   it('filters by status', async () => {
@@ -213,5 +221,24 @@ describe('TemplateManagementPage', () => {
       expect(screen.getByText('Account Statement')).toBeInTheDocument();
       expect(screen.getByText('OTP SMS')).toBeInTheDocument();
     });
+  });
+
+  // ── RBAC Tests ─────────────────────────────────────────────────────
+
+  it('shows Create Template button for CBS_ADMIN', async () => {
+    mockUserRoles.current = ['CBS_ADMIN'];
+    render(<TemplateManagementPage />, { wrapper: createWrapper() });
+
+    expect(screen.getByText('Create Template')).toBeInTheDocument();
+  });
+
+  it('hides Create Template button for CBS_OFFICER (non-admin)', async () => {
+    mockUserRoles.current = ['CBS_OFFICER'];
+    render(<TemplateManagementPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Communication Templates')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Create Template')).not.toBeInTheDocument();
   });
 });

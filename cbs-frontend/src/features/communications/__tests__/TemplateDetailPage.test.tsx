@@ -19,6 +19,13 @@ vi.mock('@/lib/api', () => ({
   apiDelete: mocks.apiDelete,
 }));
 
+const mockUserRoles = vi.hoisted(() => ({ current: ['CBS_ADMIN'] }));
+
+vi.mock('@/stores/authStore', () => ({
+  useAuthStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({ user: { id: '1', username: 'admin', fullName: 'Admin', email: 'admin@test.com', roles: mockUserRoles.current, permissions: [] } }),
+}));
+
 function createWrapper(initialRoute = '/communications/templates/1') {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
@@ -59,6 +66,7 @@ const sampleVersions = [
 describe('TemplateDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUserRoles.current = ['CBS_ADMIN'];
     mocks.apiGet.mockImplementation((url: string) => {
       if (url === '/api/v1/notifications/templates/1') return Promise.resolve(sampleTemplate);
       if (url === '/api/v1/notifications/templates/1/versions') return Promise.resolve(sampleVersions);
@@ -212,5 +220,30 @@ describe('TemplateDetailPage', () => {
       // TemplateTestSendDialog should appear
       expect(screen.getByText('Send Test', { selector: 'button' })).toBeInTheDocument();
     });
+  });
+
+  // ── RBAC Tests ─────────────────────────────────────────────────────
+
+  it('shows Archive button for CBS_ADMIN on active template', async () => {
+    mockUserRoles.current = ['CBS_ADMIN'];
+    render(<TemplateDetailPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Archive')).toBeInTheDocument();
+    });
+  });
+
+  it('hides Archive/Publish buttons for CBS_OFFICER (non-admin)', async () => {
+    mockUserRoles.current = ['CBS_OFFICER'];
+    render(<TemplateDetailPage />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Account Statement')).toBeInTheDocument();
+    });
+
+    // Test Send is still visible (officers can test), but Archive is admin-only
+    expect(screen.getByText('Test Send')).toBeInTheDocument();
+    expect(screen.queryByText('Archive')).not.toBeInTheDocument();
+    expect(screen.queryByText('Publish')).not.toBeInTheDocument();
   });
 });

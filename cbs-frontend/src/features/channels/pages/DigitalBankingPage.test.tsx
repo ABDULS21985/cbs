@@ -88,9 +88,13 @@ describe('DigitalBankingPage', () => {
       expect(screen.getByText('READY')).toBeInTheDocument();
     }, { timeout: 3000 });
     expect(screen.getByText('Auth Methods')).toBeInTheDocument();
-    expect(screen.getByText('PASSWORD')).toBeInTheDocument();
-    expect(screen.getByText('OTP')).toBeInTheDocument();
-    expect(screen.getByText('BIOMETRIC')).toBeInTheDocument();
+    // PASSWORD/OTP/BIOMETRIC appear in both auth methods badges and login form dropdown
+    const passwordEls = screen.getAllByText('PASSWORD');
+    expect(passwordEls.length).toBeGreaterThanOrEqual(1);
+    const otpEls = screen.getAllByText('OTP');
+    expect(otpEls.length).toBeGreaterThanOrEqual(1);
+    const bioEls = screen.getAllByText('BIOMETRIC');
+    expect(bioEls.length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Idle Sessions')).toBeInTheDocument();
     expect(screen.getByText('2 expired')).toBeInTheDocument();
   });

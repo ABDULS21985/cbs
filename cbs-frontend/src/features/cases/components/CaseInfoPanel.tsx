@@ -6,6 +6,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { CasePriorityBadge } from './CasePriorityBadge';
 import { SlaBadge } from './SlaBadge';
 import { caseApi, type CustomerCase } from '../api/caseApi';
+import { useHasRole } from '@/hooks/usePermission';
 
 interface Props {
   caseData: CustomerCase;
@@ -96,6 +97,7 @@ export function CaseInfoPanel({ caseData }: Props) {
     onError: () => toast.error('Failed to reject compensation'),
   });
 
+  const isAdmin = useHasRole('CBS_ADMIN');
   const isTerminal = caseData.status === 'RESOLVED' || caseData.status === 'CLOSED';
 
   return (
@@ -153,8 +155,8 @@ export function CaseInfoPanel({ caseData }: Props) {
             {caseData.compensationApproved === false && caseData.compensationRejectionReason && (
               <p className="text-xs text-red-600 dark:text-red-400">Rejected: {caseData.compensationRejectionReason}</p>
             )}
-            {caseData.compensationApproved == null && !isTerminal && (
-              <div className="flex gap-1.5 pt-1">
+            {caseData.compensationApproved == null && !isTerminal && isAdmin && (
+              <div className="flex gap-1.5 pt-1" data-testid="compensation-actions">
                 <button
                   onClick={() => approveCompMutation.mutate()}
                   disabled={approveCompMutation.isPending}
@@ -169,6 +171,9 @@ export function CaseInfoPanel({ caseData }: Props) {
                   Reject
                 </button>
               </div>
+            )}
+            {caseData.compensationApproved == null && !isTerminal && !isAdmin && (
+              <p className="text-xs text-muted-foreground pt-1">Pending admin approval</p>
             )}
           </div>
         ) : !isTerminal ? (

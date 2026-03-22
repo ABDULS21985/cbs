@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { AlertTriangle, Send, Archive, CheckCircle } from 'lucide-react';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { useMutation } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, TabsPage } from '@/components/shared';
@@ -126,23 +127,25 @@ export function TemplateDetailPage() {
             <button onClick={() => setShowTest(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium hover:bg-muted">
               <Send className="w-4 h-4" /> Test Send
             </button>
-            {template.isActive ? (
-              <button
-                onClick={() => archiveMut.mutate(templateId, { onSuccess: () => toast.success('Archived') })}
-                disabled={archiveMut.isPending}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-              >
-                <Archive className="w-4 h-4" /> Archive
-              </button>
-            ) : (
-              <button
-                onClick={() => publishMut.mutate(templateId, { onSuccess: () => toast.success('Published') })}
-                disabled={publishMut.isPending}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700"
-              >
-                <CheckCircle className="w-4 h-4" /> Publish
-              </button>
-            )}
+            <RoleGuard roles="CBS_ADMIN">
+              {template.isActive ? (
+                <button
+                  onClick={() => archiveMut.mutate(templateId, { onSuccess: () => toast.success('Archived') })}
+                  disabled={archiveMut.isPending}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                >
+                  <Archive className="w-4 h-4" /> Archive
+                </button>
+              ) : (
+                <button
+                  onClick={() => publishMut.mutate(templateId, { onSuccess: () => toast.success('Published') })}
+                  disabled={publishMut.isPending}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700"
+                >
+                  <CheckCircle className="w-4 h-4" /> Publish
+                </button>
+              )}
+            </RoleGuard>
           </div>
         }
       />

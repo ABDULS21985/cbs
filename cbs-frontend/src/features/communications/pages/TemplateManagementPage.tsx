@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, MoreHorizontal, Eye, Send, Archive, Copy, Pencil, Search, X } from 'lucide-react';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
@@ -121,9 +122,11 @@ export function TemplateManagementPage() {
         title="Communication Templates"
         subtitle="Manage notification templates for all channels"
         actions={
-          <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
-            <Plus className="w-4 h-4" /> Create Template
-          </button>
+          <RoleGuard roles="CBS_ADMIN">
+            <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+              <Plus className="w-4 h-4" /> Create Template
+            </button>
+          </RoleGuard>
         }
       />
 
