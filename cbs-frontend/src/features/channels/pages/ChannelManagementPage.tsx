@@ -16,6 +16,10 @@ import {
   CheckCircle2,
   RefreshCw,
   ChevronRight,
+  MessageCircle,
+  Store,
+  UserCheck,
+  Code,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -41,6 +45,10 @@ const CHANNEL_META: Record<string, { icon: typeof Globe; label: string; color: s
   BRANCH: { icon: Building2, label: 'Branch', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   USSD: { icon: Phone, label: 'USSD', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
   IVR: { icon: Radio, label: 'IVR', color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400' },
+  WHATSAPP: { icon: MessageCircle, label: 'WhatsApp', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  POS: { icon: Store, label: 'POS', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+  AGENT: { icon: UserCheck, label: 'Agent', color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  API: { icon: Code, label: 'API', color: 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400' },
 };
 
 const SP_TYPE_COLORS: Record<string, string> = {
@@ -272,7 +280,7 @@ function LiveSessionsTab() {
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {Object.entries(CHANNEL_META).map(([ch, { icon: Icon, label, color }]) => {
               const count = (counts as Record<string, number> | undefined)?.[ch] ?? 0;
               return (

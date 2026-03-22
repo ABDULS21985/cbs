@@ -407,6 +407,86 @@ export const adminHandlers = [
   ]))),
   http.get('/api/v1/notifications/scheduled', () => HttpResponse.json(wrap(mockScheduledNotifications))),
 
+  // Notification extended handlers
+  http.get('/api/v1/notifications', () => HttpResponse.json(wrap([]))),
+  http.post('/api/v1/notifications/send-direct', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(wrap({ id: 99, ...body, status: 'PENDING_DISPATCH', createdAt: new Date().toISOString() }), { status: 201 });
+  }),
+  http.post('/api/v1/notifications/send-bulk', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    const recipients = (body.recipients as unknown[]) ?? [];
+    return HttpResponse.json(wrap({ sent: recipients.length, failed: 0, total: recipients.length }));
+  }),
+  http.post('/api/v1/notifications/retry', () => HttpResponse.json(wrap({ retried: 3 }))),
+  http.get('/api/v1/notifications/failures', () => HttpResponse.json(wrap([]))),
+  http.post('/api/v1/notifications/mark-all-read', () => HttpResponse.json(wrap({ markedAsRead: 5 }))),
+  http.get('/api/v1/notifications/unread-count', () => HttpResponse.json(wrap({ unreadCount: 3 }))),
+  http.get('/api/v1/notifications/delivery-stats/failures', () => HttpResponse.json(wrap([]))),
+  http.put('/api/v1/notifications/channels/:channel', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(wrap({ channel: params.channel, ...body }));
+  }),
+  http.post('/api/v1/notifications/channels/:channel/test', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(wrap({ success: true, channel: params.channel, recipient: body.recipient, messageId: 'test-' + Date.now() }));
+  }),
+  http.get('/api/v1/notifications/templates/:id/versions', () => HttpResponse.json(wrap([
+    { id: 1, templateId: 1, versionNumber: 1, bodyTemplate: 'v1', subject: 'v1', changedBy: 'admin', changeSummary: 'Initial', createdAt: '2026-01-01T00:00:00Z' },
+  ]))),
+  http.get('/api/v1/notifications/templates/:id/preview', () => HttpResponse.json(wrap({
+    subject: 'Hello Adebayo', body: 'Dear Adebayo Ogundimu, your account...', channel: 'EMAIL', isHtml: true,
+  }))),
+  http.post('/api/v1/notifications/templates/:id/clone', ({ params }) =>
+    HttpResponse.json(wrap({ id: 99, templateCode: 'CLONE_' + params.id, templateName: 'Cloned Template', isActive: false }), { status: 201 })
+  ),
+  http.post('/api/v1/notifications/templates/:id/publish', ({ params }) =>
+    HttpResponse.json(wrap({ id: Number(params.id), isActive: true }))
+  ),
+  http.post('/api/v1/notifications/templates/:id/archive', ({ params }) =>
+    HttpResponse.json(wrap({ id: Number(params.id), isActive: false }))
+  ),
+  http.post('/api/v1/notifications/templates/:id/test', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(wrap({ success: true, recipient: body.recipient, subject: 'Test Subject', body: 'Test Body' }));
+  }),
+  http.post('/api/v1/notifications/send-by-template', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    const recipients = (body.recipients as unknown[]) ?? [];
+    return HttpResponse.json(wrap({ sent: recipients.length, failed: 0, total: recipients.length }));
+  }),
+  http.post('/api/v1/notifications/scheduled', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(wrap({ id: 99, ...body, status: 'ACTIVE', createdAt: new Date().toISOString() }), { status: 201 });
+  }),
+  http.delete('/api/v1/notifications/scheduled/:id', ({ params }) =>
+    HttpResponse.json(wrap({ id: String(params.id), deleted: 'true' }))
+  ),
+  http.put('/api/v1/notifications/scheduled/:id/toggle', ({ params }) =>
+    HttpResponse.json(wrap({ id: Number(params.id), status: 'PAUSED' }))
+  ),
+  http.get('/api/v1/notifications/preferences', () => HttpResponse.json(wrap([]))),
+  http.get('/api/v1/notifications/preferences/:customerId', () => HttpResponse.json(wrap([
+    { id: 1, customerId: 1, channel: 'EMAIL', eventType: 'ACCOUNT_ALERT', isEnabled: true },
+    { id: 2, customerId: 1, channel: 'SMS', eventType: 'MARKETING', isEnabled: false },
+  ]))),
+  http.put('/api/v1/notifications/preferences', () => HttpResponse.json(wrap({ id: 1, isEnabled: true }))),
+  http.get('/api/v1/notifications/customer/:customerId', () => HttpResponse.json(wrap([]))),
+  http.get('/api/v1/contact-routing/rules', () => HttpResponse.json(wrap([
+    { id: 1, ruleName: 'VIP Route', ruleType: 'VIP', priority: 1, isActive: true, targetQueue: 'VIP_QUEUE' },
+  ]))),
+  http.post('/api/v1/contact-routing/rules', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    return HttpResponse.json(wrap({ id: 99, ...body }), { status: 201 });
+  }),
+  http.post('/api/v1/contact-routing/route', () =>
+    HttpResponse.json(wrap({ queue: 'VIP_QUEUE', agent: 'AGENT-001', matchedRule: 'VIP Route' }))
+  ),
+  http.get('/api/v1/communications', () => HttpResponse.json(wrap([]))),
+  http.get('/api/v1/communications/stats', () => HttpResponse.json(wrap({ total: 100, sent: 30, delivered: 50, failed: 10, pending: 10 }))),
+  http.get('/api/v1/communications/schedule', () => HttpResponse.json(wrap([]))),
+  http.get('/api/v1/communications/templates', () => HttpResponse.json(wrap([]))),
+
   // ── Billers ─────────────────────────────────────────────────────────────────
   http.get('/api/v1/admin/billers', () => HttpResponse.json(wrap(mockBillers))),
   http.post('/api/v1/admin/billers', async ({ request }) => {

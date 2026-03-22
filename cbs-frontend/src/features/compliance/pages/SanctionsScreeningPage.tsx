@@ -97,8 +97,8 @@ function MatchInlineCard({ match, onConfirm, onFalsePositive }: {
       </div>
       {match.disposition === 'PENDING' ? (
         <div className="flex gap-1.5 flex-shrink-0">
-          <button onClick={() => onConfirm(match.id)} className="px-2 py-1 rounded text-[10px] font-bold bg-red-600 text-white hover:bg-red-700">Confirm</button>
-          <button onClick={() => onFalsePositive(match.id)} className="px-2 py-1 rounded text-[10px] font-bold bg-green-600 text-white hover:bg-green-700">False +</button>
+          <button onClick={() => onConfirm(match.screeningId)} className="px-2 py-1 rounded text-[10px] font-bold bg-red-600 text-white hover:bg-red-700">Confirm</button>
+          <button onClick={() => onFalsePositive(match.screeningId)} className="px-2 py-1 rounded text-[10px] font-bold bg-green-600 text-white hover:bg-green-700">False +</button>
         </div>
       ) : (
         <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold',

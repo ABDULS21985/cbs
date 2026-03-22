@@ -31,6 +31,8 @@ const ROOT_CAUSE_CATEGORIES: { value: CaseRootCauseAnalysis['rootCauseCategory']
   { value: 'SYSTEM', label: 'System / Technology' },
   { value: 'PEOPLE', label: 'People / Training' },
   { value: 'THIRD_PARTY', label: 'Third Party' },
+  { value: 'DATA', label: 'Data / Information' },
+  { value: 'INFRASTRUCTURE', label: 'Infrastructure' },
   { value: 'POLICY', label: 'Policy / Regulation' },
   { value: 'ENVIRONMENT', label: 'Environment' },
 ];

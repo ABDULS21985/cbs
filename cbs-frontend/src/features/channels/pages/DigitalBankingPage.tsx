@@ -16,6 +16,10 @@ import {
   ExternalLink,
   Pencil,
   Trash2,
+  LogIn,
+  LogOut,
+  Activity,
+  Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -27,7 +31,12 @@ import { cn } from '@/lib/utils';
 import {
   useIbLoginInfo,
   useIbIdleStatus,
+  useIbFeatures,
   useExpireIdleSessions,
+  useIbLogin,
+  useIbCompleteMfa,
+  useIbTouch,
+  useIbLogout,
   useUssdMenus,
   useCreateUssdMenu,
   useUpdateUssdMenu,
@@ -36,9 +45,357 @@ import {
   useCreateActivitySummary,
   useLogChannelActivity,
 } from '../hooks/useDigitalBanking';
-import type { UssdMenu, ChannelActivitySummary } from '../api/digitalBankingApi';
+import type { UssdMenu, ChannelActivitySummary, InternetBankingSession } from '../api/digitalBankingApi';
 
 // ─── Internet Banking Overview Tab ───────────────────────────────────────────
+
+function IbSessionTester() {
+  const { mutate: ibLogin, isPending: loginPending } = useIbLogin();
+  const { mutate: completeMfa, isPending: mfaPending } = useIbCompleteMfa();
+  const { mutate: touch, isPending: touchPending } = useIbTouch();
+  const { mutate: logout, isPending: logoutPending } = useIbLogout();
+  const [activeSession, setActiveSession] = useState<InternetBankingSession | null>(null);
+  const [showFeatures, setShowFeatures] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    customerId: '',
+    loginMethod: 'PASSWORD',
+    deviceFingerprint: '',
+    ipAddress: '',
+  });
+
+  const activeSessionId = activeSession?.sessionId ?? '';
+  const { data: features = [], isLoading: featuresLoading } = useIbFeatures(
+    showFeatures ? activeSessionId : '',
+  );
+
+  const inputCls =
+    'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSessionError(null);
+    ibLogin(
+      {
+        customerId: parseInt(form.customerId, 10),
+        loginMethod: form.loginMethod,
+        deviceFingerprint: form.deviceFingerprint || undefined,
+        ipAddress: form.ipAddress || undefined,
+      },
+      {
+        onSuccess: (session) => {
+          setActiveSession(session);
+          setShowFeatures(false);
+          toast.success(`IB session created: ${session.sessionId}`);
+        },
+        onError: (err: any) => {
+          const msg = err?.response?.data?.message ?? err?.message ?? 'Failed to create IB session';
+          setSessionError(msg);
+          toast.error(msg);
+        },
+      },
+    );
+  };
+
+  const handleCompleteMfa = () => {
+    if (!activeSession) return;
+    setSessionError(null);
+    completeMfa(activeSession.sessionId, {
+      onSuccess: (updated) => {
+        setActiveSession(updated);
+        toast.success('MFA completed successfully');
+      },
+      onError: (err: any) => {
+        const msg = err?.response?.data?.message ?? err?.message ?? 'Failed to complete MFA';
+        setSessionError(msg);
+        toast.error(msg);
+      },
+    });
+  };
+
+  const handleTouch = () => {
+    if (!activeSession) return;
+    setSessionError(null);
+    touch(activeSession.sessionId, {
+      onSuccess: (updated) => {
+        setActiveSession(updated);
+        toast.success('Session keepalive sent');
+      },
+      onError: (err: any) => {
+        const msg = err?.response?.data?.message ?? err?.message ?? 'Touch failed — session may be expired or idle';
+        setSessionError(msg);
+        toast.error(msg);
+      },
+    });
+  };
+
+  const handleLogout = () => {
+    if (!activeSession) return;
+    setSessionError(null);
+    logout(activeSession.sessionId, {
+      onSuccess: () => {
+        toast.success('Session logged out');
+        setActiveSession(null);
+        setShowFeatures(false);
+      },
+      onError: (err: any) => {
+        const msg = err?.response?.data?.message ?? err?.message ?? 'Logout failed — session may already be expired';
+        setSessionError(msg);
+        toast.error(msg);
+      },
+    });
+  };
+
+  const handleCheckFeatures = () => {
+    setShowFeatures(true);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Error Banner */}
+      {sessionError && (
+        <div className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+          <XCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{sessionError}</span>
+          <button
+            onClick={() => setSessionError(null)}
+            className="ml-auto p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Create Session Form */}
+      {!activeSession && (
+        <div className="rounded-xl border bg-card p-6">
+          <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
+            <LogIn className="w-4 h-4" />
+            Create IB Session
+          </h4>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Customer ID *</label>
+                <input
+                  required
+                  type="number"
+                  min={1}
+                  className={inputCls}
+                  value={form.customerId}
+                  onChange={(e) => setForm((f) => ({ ...f, customerId: e.target.value }))}
+                  placeholder="e.g. 1001"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Login Method *</label>
+                <select
+                  className={inputCls}
+                  value={form.loginMethod}
+                  onChange={(e) => setForm((f) => ({ ...f, loginMethod: e.target.value }))}
+                >
+                  <option value="PASSWORD">PASSWORD</option>
+                  <option value="OTP">OTP</option>
+                  <option value="BIOMETRIC">BIOMETRIC</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Device Fingerprint</label>
+                <input
+                  className={inputCls}
+                  value={form.deviceFingerprint}
+                  onChange={(e) => setForm((f) => ({ ...f, deviceFingerprint: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">IP Address</label>
+                <input
+                  className={inputCls}
+                  value={form.ipAddress}
+                  onChange={(e) => setForm((f) => ({ ...f, ipAddress: e.target.value }))}
+                  placeholder="e.g. 192.168.1.10"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={loginPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {loginPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                Create Session
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Active Session Panel */}
+      {activeSession && (
+        <div className="rounded-xl border bg-card p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold flex items-center gap-2">
+              <Activity className="w-4 h-4 text-green-600" />
+              Active Session
+            </h4>
+            <span
+              className={cn(
+                'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                activeSession.sessionStatus === 'ACTIVE'
+                  ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+              )}
+            >
+              {activeSession.sessionStatus}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Session ID</p>
+              <p className="font-mono text-xs bg-muted/50 rounded px-2 py-1 break-all">{activeSession.sessionId}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Customer ID</p>
+              <p className="font-semibold">{activeSession.customerId}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Login Method</p>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                {activeSession.loginMethod}
+              </span>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">MFA Status</p>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 text-xs font-medium',
+                  activeSession.mfaCompleted ? 'text-green-600' : 'text-amber-600',
+                )}
+              >
+                {activeSession.mfaCompleted ? (
+                  <><CheckCircle2 className="w-3.5 h-3.5" /> Completed</>
+                ) : (
+                  <><AlertTriangle className="w-3.5 h-3.5" /> Pending</>
+                )}
+              </span>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Login At</p>
+              <p className="text-xs">{formatDateTime(activeSession.loginAt)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-0.5">Last Activity</p>
+              <p className="text-xs">{formatDateTime(activeSession.lastActivityAt)}</p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap gap-2 pt-2 border-t">
+            {!activeSession.mfaCompleted && (
+              <button
+                onClick={handleCompleteMfa}
+                disabled={mfaPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                {mfaPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3" />}
+                Complete MFA
+              </button>
+            )}
+            <button
+              onClick={handleTouch}
+              disabled={touchPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              {touchPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              Touch (Keepalive)
+            </button>
+            <button
+              onClick={handleCheckFeatures}
+              disabled={showFeatures && featuresLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              {showFeatures && featuresLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
+              Check Features
+            </button>
+            <button
+              onClick={handleLogout}
+              disabled={logoutPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-800 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 ml-auto"
+            >
+              {logoutPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <LogOut className="w-3 h-3" />}
+              Logout
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Features List */}
+      {activeSession && showFeatures && (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="px-5 py-4 border-b">
+            <h4 className="text-sm font-semibold">Session Features</h4>
+          </div>
+          {featuresLoading ? (
+            <div className="p-8 flex items-center justify-center">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : features.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">No features available for this session.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Feature Code</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Name</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Category</th>
+                    <th className="text-center px-4 py-2.5 text-xs font-medium text-muted-foreground">Requires MFA</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Daily Limit</th>
+                    <th className="text-center px-4 py-2.5 text-xs font-medium text-muted-foreground">Enabled</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {features.map((f) => (
+                    <tr key={f.id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-2.5 font-mono text-xs">{f.featureCode}</td>
+                      <td className="px-4 py-2.5 font-medium">{f.featureName}</td>
+                      <td className="px-4 py-2.5">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                          {f.featureCategory}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {f.requiresMfa ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-600 mx-auto" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-muted-foreground mx-auto" />
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">
+                        {f.dailyLimit != null ? formatMoney(f.dailyLimit) : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        {f.isEnabled ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-600 mx-auto" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-red-500 mx-auto" />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function InternetBankingTab() {
   const { data: loginInfo, isLoading: loginLoading } = useIbLoginInfo();
@@ -172,6 +529,17 @@ function InternetBankingTab() {
           ))}
         </div>
       </div>
+
+      {/* IB Session Tester */}
+      <RoleGuard roles={['CBS_ADMIN', 'CBS_OFFICER']}>
+        <div className="rounded-xl border bg-card p-6">
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+            <Activity className="w-4 h-4" />
+            IB Session Tester
+          </h3>
+          <IbSessionTester />
+        </div>
+      </RoleGuard>
     </div>
   );
 }
@@ -871,7 +1239,7 @@ function ActivitySummariesTab() {
                   value={form.channel}
                   onChange={(e) => setForm((f) => ({ ...f, channel: e.target.value }))}
                 >
-                  {['WEB', 'MOBILE', 'ATM', 'BRANCH', 'USSD', 'IVR'].map((ch) => (
+                  {['WEB', 'MOBILE', 'ATM', 'BRANCH', 'USSD', 'IVR', 'WHATSAPP', 'POS', 'AGENT', 'API'].map((ch) => (
                     <option key={ch} value={ch}>{ch}</option>
                   ))}
                 </select>

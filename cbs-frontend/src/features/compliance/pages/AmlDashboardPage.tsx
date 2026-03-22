@@ -299,13 +299,13 @@ export function AmlDashboardPage() {
                 </div>
               )}
               <DataTable columns={[
-                { accessorKey: 'strNumber', header: 'STR Ref', cell: ({ row }) => <span className="font-mono text-xs">{(row.original as Record<string, unknown>).strNumber as string ?? '—'}</span> },
+                { accessorKey: 'sarReference', header: 'STR Ref', cell: ({ row }) => <span className="font-mono text-xs">{(row.original as AmlAlert).sarReference ?? '—'}</span> },
                 { accessorKey: 'customerName', header: 'Customer' },
-                { accessorKey: 'suspiciousActivity', header: 'Activity', cell: ({ row }) => <span className="text-xs max-w-[200px] block truncate">{(row.original as Record<string, unknown>).suspiciousActivity as string ?? (row.original as Record<string, unknown>).description as string ?? '—'}</span> },
-                { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => <span className="font-mono">{formatMoney((row.original as Record<string, unknown>).amount as number ?? 0)}</span> },
-                { accessorKey: 'reportingOfficer', header: 'Officer', cell: ({ row }) => <span className="text-xs">{(row.original as Record<string, unknown>).reportingOfficer as string ?? (row.original as Record<string, unknown>).filingOfficer as string ?? '—'}</span> },
-                { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={(row.original as Record<string, unknown>).status as string ?? ''} /> },
-              ] as ColumnDef<Record<string, unknown>, unknown>[]} data={strs as unknown as Record<string, unknown>[]} enableGlobalFilter emptyMessage="No STRs filed" />
+                { accessorKey: 'description', header: 'Activity', cell: ({ row }) => <span className="text-xs max-w-[200px] block truncate">{(row.original as AmlAlert).description ?? '—'}</span> },
+                { accessorKey: 'triggerAmount', header: 'Amount', cell: ({ row }) => <span className="font-mono">{formatMoney((row.original as AmlAlert).triggerAmount ?? 0)}</span> },
+                { accessorKey: 'resolvedBy', header: 'Officer', cell: ({ row }) => <span className="text-xs">{(row.original as AmlAlert).resolvedBy ?? '—'}</span> },
+                { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={(row.original as AmlAlert).status ?? ''} /> },
+              ] as ColumnDef<AmlAlert, unknown>[]} data={strs} enableGlobalFilter emptyMessage="No STRs filed" />
             </div>
           )},
 
@@ -317,13 +317,13 @@ export function AmlDashboardPage() {
                 </div>
               )}
               <DataTable columns={[
-                { accessorKey: 'reportDate', header: 'Date', cell: ({ row }) => <span className="text-xs">{formatDate((row.original as Record<string, unknown>).reportDate as string ?? '')}</span> },
+                { accessorKey: 'createdAt', header: 'Date', cell: ({ row }) => <span className="text-xs">{formatDate((row.original as AmlAlert).createdAt ?? '')}</span> },
                 { accessorKey: 'customerName', header: 'Customer' },
-                { accessorKey: 'totalAmount', header: 'Amount', cell: ({ row }) => <span className="font-mono font-bold">{formatMoney((row.original as Record<string, unknown>).totalAmount as number ?? 0)}</span> },
-                { accessorKey: 'currency', header: 'Currency' },
-                { accessorKey: 'transactionCount', header: 'Txn Count' },
-                { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={(row.original as Record<string, unknown>).status as string ?? ''} /> },
-              ] as ColumnDef<Record<string, unknown>, unknown>[]} data={ctrs as unknown as Record<string, unknown>[]} enableGlobalFilter emptyMessage="No CTRs" />
+                { accessorKey: 'triggerAmount', header: 'Amount', cell: ({ row }) => <span className="font-mono font-bold">{formatMoney((row.original as AmlAlert).triggerAmount ?? 0)}</span> },
+                { accessorKey: 'alertRef', header: 'Alert Ref', cell: ({ row }) => <span className="font-mono text-xs">{(row.original as AmlAlert).alertRef}</span> },
+                { accessorKey: 'triggerCount', header: 'Txn Count' },
+                { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={(row.original as AmlAlert).status ?? ''} /> },
+              ] as ColumnDef<AmlAlert, unknown>[]} data={ctrs} enableGlobalFilter emptyMessage="No CTRs" />
             </div>
           )},
 

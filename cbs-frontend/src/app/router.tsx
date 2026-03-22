@@ -312,6 +312,7 @@ import {
   DigitalBankingPage,
   ServicePointDetailPage,
   ChannelActivityLogsPage,
+  UssdSimulatorPage,
   OpenBankingPage,
   OBTppDetailPage,
   OBConsentMgmtPage,
@@ -678,6 +679,7 @@ export function AppRouter() {
           <Route path="digital" element={<DigitalBankingPage />} />
           <Route path="service-points/:id" element={<ServicePointDetailPage />} />
           <Route path="activity-logs" element={<ChannelActivityLogsPage />} />
+          <Route path="ussd-simulator" element={<UssdSimulatorPage />} />
         </Route>
 
         {/* Open Banking */}

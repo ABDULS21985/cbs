@@ -27,13 +27,17 @@ export const cardKeys = {
   positions: (date: string, network: string) => ['card-clearing', 'positions', date, network] as const,
   cardSwitch: ['card-switch'] as const,
   switchByScheme: (scheme: string) => ['card-switch', 'scheme', scheme] as const,
-  switchByMerchant: (merchantId: number) => ['card-switch', 'merchant', merchantId] as const,
+  switchByMerchant: (merchantId: string) => ['card-switch', 'merchant', merchantId] as const,
   switchDeclines: ['card-switch', 'declines'] as const,
   switchStats: (scheme: string, date: string) => ['card-switch', 'scheme', scheme, 'stats', date] as const,
   networks: ['card-networks'] as const,
   network: (network: string) => ['card-networks', network] as const,
   posByMerchant: (merchantId: number) => ['pos-terminals', 'merchant', merchantId] as const,
   commissions: ['card-commissions'] as const,
+  acquiring: ['acquiring'] as const,
+  facilities: (merchantId: number) => ['acquiring', 'facilities', merchantId] as const,
+  settlements: (merchantId: number) => ['acquiring', 'settlements', merchantId] as const,
+  chargebacks: (merchantId: number) => ['acquiring', 'chargebacks', merchantId] as const,
 } as const;
 
 // ─── Query Defaults ─────────────────────────────────────────────────────────
@@ -196,11 +200,11 @@ export function useOnboardMerchant() {
   });
 }
 
-export function useMerchantDetail(id: number) {
+export function useMerchantDetail(merchantId: string) {
   return useQuery({
-    queryKey: cardKeys.merchantDetail(id),
-    queryFn: () => cardApi.getMerchant(id),
-    enabled: id > 0,
+    queryKey: cardKeys.merchantDetail(merchantId),
+    queryFn: () => cardApi.getMerchant(merchantId),
+    enabled: !!merchantId,
     ...CARD_QUERY_DEFAULTS,
   });
 }

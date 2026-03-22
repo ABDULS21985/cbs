@@ -15,6 +15,10 @@ import {
   Radio,
   Plus,
   X,
+  MessageCircle,
+  Store,
+  UserCheck,
+  Code,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -39,6 +43,10 @@ const CHANNEL_META: Record<string, { icon: typeof Globe; color: string }> = {
   BRANCH: { icon: Building2, color: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   USSD: { icon: Phone, color: 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
   IVR: { icon: Radio, color: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400' },
+  WHATSAPP: { icon: MessageCircle, color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  POS: { icon: Store, color: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+  AGENT: { icon: UserCheck, color: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  API: { icon: Code, color: 'bg-slate-50 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400' },
 };
 
 const RESULT_COLORS: Record<string, string> = {

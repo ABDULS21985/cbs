@@ -96,8 +96,19 @@ public class SanctionsController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<java.util.Map<String, Long>>> getStats() {
         long total = screeningRequestRepository.count();
-        long pending = screeningService.getPendingReview(PageRequest.of(0, 1)).getTotalElements();
-        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("total", total, "pending", pending)));
+        long clear = screeningRequestRepository.countByStatus("CLEAR");
+        long potentialMatch = screeningRequestRepository.countByStatus("POTENTIAL_MATCH");
+        long confirmedMatch = screeningRequestRepository.countByStatus("CONFIRMED_MATCH");
+        long pendingReview = screeningService.getPendingReview(PageRequest.of(0, 1)).getTotalElements();
+        long avgMs = screeningRequestRepository.avgScreeningTimeMs();
+        java.util.Map<String, Long> stats = new java.util.LinkedHashMap<>();
+        stats.put("totalScreenings", total);
+        stats.put("clear", clear);
+        stats.put("potentialMatch", potentialMatch);
+        stats.put("confirmedMatch", confirmedMatch);
+        stats.put("pendingReview", pendingReview);
+        stats.put("avgScreeningTimeMs", avgMs);
+        return ResponseEntity.ok(ApiResponse.ok(stats));
     }
 
     @GetMapping("/matches")

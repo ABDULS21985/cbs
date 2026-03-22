@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Bell, CheckCheck, Mail, MessageSquare, Smartphone, Filter } from 'lucide-react';
+import { Bell, CheckCheck, Mail, MessageSquare, Smartphone, Filter, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatRelative } from '@/lib/formatters';
 import { EmptyState } from '@/components/shared';
@@ -12,6 +12,7 @@ const CHANNEL_ICONS: Record<string, React.ReactNode> = {
   SMS: <MessageSquare className="w-4 h-4" />,
   PUSH: <Bell className="w-4 h-4" />,
   IN_APP: <Smartphone className="w-4 h-4" />,
+  WEBHOOK: <Globe className="w-4 h-4" />,
 };
 
 const CHANNEL_COLORS: Record<string, string> = {
@@ -19,6 +20,7 @@ const CHANNEL_COLORS: Record<string, string> = {
   SMS: 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400',
   PUSH: 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
   IN_APP: 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+  WEBHOOK: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400',
 };
 
 export function PortalNotificationsPage() {
@@ -101,7 +103,7 @@ export function PortalNotificationsPage() {
       {/* Filter */}
       <div className="flex gap-2">
         <Filter className="w-4 h-4 text-muted-foreground mt-1.5" />
-        {['ALL', 'EMAIL', 'SMS', 'PUSH', 'IN_APP'].map((ch) => (
+        {['ALL', 'EMAIL', 'SMS', 'PUSH', 'IN_APP', 'WEBHOOK'].map((ch) => (
           <button key={ch} onClick={() => setChannelFilter(ch)}
             className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${channelFilter === ch ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}>
             {ch === 'ALL' ? 'All' : ch.replace('_', ' ')}

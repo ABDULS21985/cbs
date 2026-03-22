@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -29,41 +30,45 @@ class MarketResearchServiceTest {
     private MarketResearchService service;
 
     @Test
-    @DisplayName("Project completion requires findings and recommendations")
-    void completionRequiresFindingsAndRecommendations() {
+    @DisplayName("Project completion stores findings, key insights, and action items")
+    void completionStoresAllFields() {
         MarketResearchProject project = new MarketResearchProject();
         project.setId(1L);
         project.setProjectCode("MRP-TEST00001");
         project.setStatus("IN_PROGRESS");
 
         when(repository.findByProjectCode("MRP-TEST00001")).thenReturn(Optional.of(project));
+        when(repository.save(any(MarketResearchProject.class))).thenAnswer(i -> i.getArgument(0));
 
-        // Missing findings
-        assertThatThrownBy(() -> service.completeProject("MRP-TEST00001", null, Map.of("action", "expand")))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("key findings");
+        MarketResearchProject result = service.complete(
+                "MRP-TEST00001",
+                "High demand for mobile banking in rural areas",
+                List.of("Mobile-first is critical", "Low internet penetration"),
+                List.of("Launch mobile lite app", "Partner with telcos"));
 
-        // Missing recommendations
-        assertThatThrownBy(() -> service.completeProject("MRP-TEST00001", Map.of("finding", "high demand"), null))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("recommendations");
+        assertThat(result.getStatus()).isEqualTo("COMPLETED");
+        assertThat(result.getFindings()).contains("High demand");
+        assertThat(result.getKeyInsights()).hasSize(2);
+        assertThat(result.getActionItems()).contains("Launch mobile lite app");
+        assertThat(result.getCompletedAt()).isNotNull();
     }
 
     @Test
-    @DisplayName("Action tracking updates actionsTaken JSON map")
+    @DisplayName("Action tracking updates actionItems JSON list")
     void actionTrackingUpdatesJson() {
         MarketResearchProject project = new MarketResearchProject();
         project.setId(1L);
         project.setProjectCode("MRP-TEST00002");
         project.setStatus("COMPLETED");
-        project.setActionsTaken(null);
+        project.setActionItems(null);
 
         when(repository.findByProjectCode("MRP-TEST00002")).thenReturn(Optional.of(project));
         when(repository.save(any(MarketResearchProject.class))).thenAnswer(i -> i.getArgument(0));
 
-        MarketResearchProject result = service.trackActions("MRP-TEST00002", Map.of("action1", "Launch new product"));
+        MarketResearchProject result = service.trackActions(
+                "MRP-TEST00002",
+                Map.of("actionItems", List.of("Launch new product", "Expand to new market")));
 
-        assertThat(result.getActionsTaken()).containsKey("action1");
-        assertThat(result.getActionsTaken().get("action1")).isEqualTo("Launch new product");
+        assertThat(result.getActionItems()).containsExactly("Launch new product", "Expand to new market");
     }
 }

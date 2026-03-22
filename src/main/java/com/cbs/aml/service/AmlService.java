@@ -147,6 +147,10 @@ public class AmlService {
         return ruleRepository.findByIsActiveTrueOrderByRuleNameAsc();
     }
 
+    public List<AmlRule> getAllRules() {
+        return ruleRepository.findAllByOrderByRuleNameAsc();
+    }
+
     // ========================================================================
     // DASHBOARD
     // ========================================================================

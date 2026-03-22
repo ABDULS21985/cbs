@@ -47,6 +47,9 @@ public class CardController {
                 request.getDailyPosLimit(), request.getDailyAtmLimit(),
                 request.getDailyOnlineLimit(), request.getSingleTxnLimit(),
                 request.getCreditLimit());
+        if (request.getBranchCode() != null) {
+            card.setBranchCode(request.getBranchCode());
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(CardMapper.toResponse(card)));
     }
 

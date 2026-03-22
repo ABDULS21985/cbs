@@ -85,6 +85,7 @@ function setupHandlers() {
 }
 
 describe('RcaDashboardPage', () => {
+  // ── Page Structure ────────────────────────────────────────
   it('renders page header', () => {
     setupHandlers();
     renderWithProviders(<RcaDashboardPage />);
@@ -103,17 +104,18 @@ describe('RcaDashboardPage', () => {
     expect(screen.getByText('← Case Management')).toBeInTheDocument();
   });
 
+  // ── Loading State ─────────────────────────────────────────
   it('shows loading skeletons initially', () => {
     server.use(
       http.get('/api/v1/root-cause-analysis/dashboard', () => new Promise(() => {})),
       http.get('/api/v1/root-cause-analysis/recurring', () => HttpResponse.json(wrap([]))),
     );
     renderWithProviders(<RcaDashboardPage />);
-    const pulses = document.querySelectorAll('.animate-pulse');
-    expect(pulses.length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
   });
 
-  it('shows KPI cards after loading', async () => {
+  // ── KPI Cards ─────────────────────────────────────────────
+  it('shows all 7 KPI cards after loading', async () => {
     setupHandlers();
     renderWithProviders(<RcaDashboardPage />);
     await waitFor(() => {
@@ -133,13 +135,29 @@ describe('RcaDashboardPage', () => {
     await waitFor(() => {
       expect(screen.getByText('42')).toBeInTheDocument();
     });
-    // "8" and "10" may appear in both KPI cards and recurring table; use getAllByText
     expect(screen.getAllByText('8').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('24').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('38')).toBeInTheDocument();
   });
 
+  it('displays financial impact formatted with currency', async () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    await waitFor(() => {
+      expect(screen.getByText('₦12,500,000')).toBeInTheDocument();
+    });
+  });
+
+  it('displays avg days to close', async () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    await waitFor(() => {
+      expect(screen.getByText('5.3d')).toBeInTheDocument();
+    });
+  });
+
+  // ── Category Breakdown ────────────────────────────────────
   it('shows Root Causes by Category section', async () => {
     setupHandlers();
     renderWithProviders(<RcaDashboardPage />);
@@ -148,39 +166,22 @@ describe('RcaDashboardPage', () => {
     });
   });
 
-  it('displays category breakdown', async () => {
+  it('displays category breakdown entries', async () => {
     setupHandlers();
     renderWithProviders(<RcaDashboardPage />);
     await waitFor(() => {
-      // PROCESS appears in both category breakdown and recurring table
       expect(screen.getAllByText('PROCESS').length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.getAllByText('SYSTEM').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('PEOPLE')).toBeInTheDocument();
   });
 
+  // ── Recurring Root Causes ─────────────────────────────────
   it('shows Recurring Root Causes section', async () => {
     setupHandlers();
     renderWithProviders(<RcaDashboardPage />);
     await waitFor(() => {
       expect(screen.getByText('Recurring Root Causes')).toBeInTheDocument();
-    });
-  });
-
-  it('displays recurring root causes table', async () => {
-    setupHandlers();
-    renderWithProviders(<RcaDashboardPage />);
-    await waitFor(() => {
-      expect(screen.getByText('Hardware Failure')).toBeInTheDocument();
-    });
-    expect(screen.getByText('Inadequate Validation')).toBeInTheDocument();
-  });
-
-  it('shows occurrence counts in recurring table', async () => {
-    setupHandlers();
-    renderWithProviders(<RcaDashboardPage />);
-    await waitFor(() => {
-      expect(screen.getByText('12')).toBeInTheDocument();
     });
   });
 
@@ -194,34 +195,34 @@ describe('RcaDashboardPage', () => {
     expect(screen.getByText('Occurrences')).toBeInTheDocument();
     expect(screen.getByText('Cases')).toBeInTheDocument();
     expect(screen.getByText('Trend')).toBeInTheDocument();
+    expect(screen.getByText('Last Seen')).toBeInTheDocument();
+    expect(screen.getByText('Avg Days')).toBeInTheDocument();
   });
 
-  it('shows Pattern Insights section', () => {
+  it('displays recurring root causes data', async () => {
     setupHandlers();
     renderWithProviders(<RcaDashboardPage />);
-    expect(screen.getByText('Pattern Insights')).toBeInTheDocument();
-  });
-
-  it('shows Generate button', () => {
-    setupHandlers();
-    renderWithProviders(<RcaDashboardPage />);
-    expect(screen.getByText('Generate')).toBeInTheDocument();
-  });
-
-  it('shows pattern instruction text before generation', () => {
-    setupHandlers();
-    renderWithProviders(<RcaDashboardPage />);
-    expect(screen.getByText(/Click "Generate" to analyse/)).toBeInTheDocument();
-  });
-
-  it('shows pattern insights after clicking Generate', async () => {
-    setupHandlers();
-    renderWithProviders(<RcaDashboardPage />);
-    fireEvent.click(screen.getByText('Generate'));
     await waitFor(() => {
-      expect(screen.getByText('RECURRING ROOT CAUSE')).toBeInTheDocument();
+      expect(screen.getByText('Hardware Failure')).toBeInTheDocument();
     });
-    expect(screen.getByText(/Upgrade ATM hardware fleet/)).toBeInTheDocument();
+    expect(screen.getByText('Inadequate Validation')).toBeInTheDocument();
+  });
+
+  it('shows occurrence counts', async () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    await waitFor(() => {
+      expect(screen.getByText('12')).toBeInTheDocument();
+    });
+  });
+
+  it('shows avg resolution days', async () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    await waitFor(() => {
+      expect(screen.getByText('3.5')).toBeInTheDocument();
+      expect(screen.getByText('5.2')).toBeInTheDocument();
+    });
   });
 
   it('shows empty state for recurring when none found', async () => {
@@ -242,7 +243,63 @@ describe('RcaDashboardPage', () => {
     expect(dateInputs.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('renders without crashing when dashboard returns no data', async () => {
+  // ── Pattern Insights ──────────────────────────────────────
+  it('shows Pattern Insights section', () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    expect(screen.getByText('Pattern Insights')).toBeInTheDocument();
+  });
+
+  it('shows Generate button', () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    expect(screen.getByText('Generate')).toBeInTheDocument();
+  });
+
+  it('shows instruction text before generation', () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    expect(screen.getByText(/Click "Generate" to analyse/)).toBeInTheDocument();
+  });
+
+  it('shows pattern insights after clicking Generate', async () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    fireEvent.click(screen.getByText('Generate'));
+    await waitFor(() => {
+      expect(screen.getByText('RECURRING ROOT CAUSE')).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Upgrade ATM hardware fleet/)).toBeInTheDocument();
+  });
+
+  it('shows pattern priority badge', async () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    fireEvent.click(screen.getByText('Generate'));
+    await waitFor(() => {
+      expect(screen.getByText('HIGH')).toBeInTheDocument();
+    });
+  });
+
+  it('shows pattern details (case count, category, trend, status)', async () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    fireEvent.click(screen.getByText('Generate'));
+    await waitFor(() => {
+      expect(screen.getByText('5')).toBeInTheDocument();
+    });
+  });
+
+  it('has date range filters for pattern insights', () => {
+    setupHandlers();
+    renderWithProviders(<RcaDashboardPage />);
+    // 4 date inputs total: 2 for recurring, 2 for patterns
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    expect(dateInputs.length).toBe(4);
+  });
+
+  // ── Zero Data ─────────────────────────────────────────────
+  it('renders without crashing when dashboard returns zeros', async () => {
     server.use(
       http.get('/api/v1/root-cause-analysis/dashboard', () =>
         HttpResponse.json(wrap({

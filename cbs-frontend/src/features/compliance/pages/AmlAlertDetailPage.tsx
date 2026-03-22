@@ -82,6 +82,23 @@ export function AmlAlertDetailPage() {
 
   const fc = 'w-full px-3 py-2 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
 
+  const status = (alert?.status ?? '') as AmlAlertStatus;
+  const severity = (alert?.severity ?? '') as AmlSeverity;
+  const isTerminal = status === 'CLOSED' || status === 'FALSE_POSITIVE' || status === 'ARCHIVED';
+  const relatedAlerts = customerAlerts.filter(a => a.id !== alert?.id).slice(0, 5);
+
+  // Build investigation timeline from available data (must be before early returns)
+  const timeline = useMemo(() => {
+    if (!alert) return [];
+    const events: { icon: React.ElementType; title: string; detail?: string; time: string; color: string }[] = [];
+    events.push({ icon: Shield, title: 'Alert Created', detail: `Rule: ${alert.ruleName}`, time: alert.createdAt, color: 'bg-red-100 text-red-600 dark:bg-red-900/30' });
+    if (alert.assignedTo) events.push({ icon: User, title: `Assigned to ${alert.assignedTo}`, time: alert.updatedAt, color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' });
+    if (status === 'ESCALATED' || status === 'SAR_FILED' || status === 'CLOSED') events.push({ icon: ArrowUpRight, title: 'Escalated', time: alert.updatedAt, color: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' });
+    if (alert.sarReference) events.push({ icon: FileWarning, title: 'SAR Filed', detail: `Ref: ${alert.sarReference}`, time: alert.sarFiledDate ?? alert.updatedAt, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30' });
+    if (alert.resolvedAt) events.push({ icon: CheckCircle, title: `Resolved: ${alert.resolutionNotes ?? ''}`, detail: `By: ${alert.resolvedBy}`, time: alert.resolvedAt, color: 'bg-green-100 text-green-600 dark:bg-green-900/30' });
+    return events;
+  }, [alert, status]);
+
   if (isLoading) return (
     <><PageHeader title="AML Alert" backTo="/compliance/aml" />
       <div className="page-container"><div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="h-32 rounded-xl bg-muted animate-pulse" />)}</div></div></>
@@ -91,22 +108,6 @@ export function AmlAlertDetailPage() {
     <><PageHeader title="Alert Not Found" backTo="/compliance/aml" />
       <div className="page-container"><div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 p-8 text-center"><ShieldAlert className="w-8 h-8 text-red-500 mx-auto mb-3" /><p className="text-sm text-red-700 dark:text-red-400 font-medium">AML alert not found.</p></div></div></>
   );
-
-  const status = alert.status as AmlAlertStatus;
-  const severity = alert.severity as AmlSeverity;
-  const isTerminal = status === 'CLOSED' || status === 'FALSE_POSITIVE' || status === 'ARCHIVED';
-  const relatedAlerts = customerAlerts.filter(a => a.id !== alert.id).slice(0, 5);
-
-  // Build investigation timeline from available data
-  const timeline = useMemo(() => {
-    const events: { icon: React.ElementType; title: string; detail?: string; time: string; color: string }[] = [];
-    events.push({ icon: Shield, title: 'Alert Created', detail: `Rule: ${alert.ruleName}`, time: alert.createdAt, color: 'bg-red-100 text-red-600 dark:bg-red-900/30' });
-    if (alert.assignedTo) events.push({ icon: User, title: `Assigned to ${alert.assignedTo}`, time: alert.updatedAt, color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' });
-    if (status === 'ESCALATED' || status === 'SAR_FILED' || status === 'CLOSED') events.push({ icon: ArrowUpRight, title: 'Escalated', time: alert.updatedAt, color: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30' });
-    if (alert.sarReference) events.push({ icon: FileWarning, title: 'SAR Filed', detail: `Ref: ${alert.sarReference}`, time: alert.sarFiledDate ?? alert.updatedAt, color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30' });
-    if (alert.resolvedAt) events.push({ icon: CheckCircle, title: `Resolved: ${alert.resolutionNotes ?? ''}`, detail: `By: ${alert.resolvedBy}`, time: alert.resolvedAt, color: 'bg-green-100 text-green-600 dark:bg-green-900/30' });
-    return events;
-  }, [alert]);
 
   return (
     <>

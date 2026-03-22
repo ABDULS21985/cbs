@@ -195,7 +195,7 @@ export function MerchantListPage() {
           enableGlobalFilter
           enableExport
           exportFilename="merchants"
-          onRowClick={(row) => navigate(`/cards/merchants/${row.id}`)}
+          onRowClick={(row) => navigate(`/cards/merchants/${row.merchantId}`)}
           emptyMessage="No merchants match your filters"
         />
       </div>

@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPatch } from '@/lib/api';
 import type { CardClearingBatch, CardSettlementPosition } from '../types/cardClearing';
 
 export const cardClearingApi = {
@@ -22,9 +22,21 @@ export const cardClearingApi = {
   createSettlement: (data: Partial<CardSettlementPosition>) =>
     apiPost<CardSettlementPosition>('/api/v1/card-clearing/settlement/create', data),
 
+  /** PATCH /v1/card-clearing/positions/{id}/status — update position status */
+  updatePositionStatus: (id: number, status: string, notes?: string) =>
+    apiPatch<CardSettlementPosition>(`/api/v1/card-clearing/positions/${id}/status`, { status, notes }),
+
+  /** POST /v1/card-clearing/positions/{id}/escalate — escalate position */
+  escalatePosition: (id: number, reason?: string) =>
+    apiPost<CardSettlementPosition>(`/api/v1/card-clearing/positions/${id}/escalate`, { reason }),
+
   /** GET /v1/card-clearing/batches — list all batches */
   getAllBatches: () =>
     apiGet<CardClearingBatch[]>('/api/v1/card-clearing/batches'),
+
+  /** GET /v1/card-clearing/batches/detail/{batchId} — single batch detail */
+  getBatchDetail: (batchId: string) =>
+    apiGet<CardClearingBatch>(`/api/v1/card-clearing/batches/detail/${batchId}`),
 
   /** GET /v1/card-clearing/batches/{network}/{date} — batches by network + date */
   getBatchesByNetwork: (network: string, date: string) =>

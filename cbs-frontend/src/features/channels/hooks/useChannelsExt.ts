@@ -101,6 +101,7 @@ export function useHandoffSession() {
     }) => channelsExtApi.handoff(sessionId, { targetChannel, deviceId, ipAddress }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.sessions.all });
+      qc.invalidateQueries({ queryKey: ['channels', 'session-counts'] });
     },
   });
 }
@@ -118,6 +119,7 @@ export function useCreateSession() {
     }) => channelsExtApi.createSession(params),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.sessions.all });
+      qc.invalidateQueries({ queryKey: ['channels', 'session-counts'] });
     },
   });
 }

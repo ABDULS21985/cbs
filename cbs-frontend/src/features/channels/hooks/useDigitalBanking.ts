@@ -60,6 +60,50 @@ export function useExpireIdleSessions() {
   });
 }
 
+export function useIbLogin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { customerId: number; loginMethod: string; deviceFingerprint?: string; ipAddress?: string; userAgent?: string }) =>
+      internetBankingApi.login(params),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.ibIdleStatus });
+    },
+  });
+}
+
+export function useIbCompleteMfa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => internetBankingApi.completeMfa(sessionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ib'] });
+    },
+  });
+}
+
+export function useIbTouch() {
+  return useMutation({
+    mutationFn: (sessionId: string) => internetBankingApi.touch(sessionId),
+  });
+}
+
+export function useIbLogout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => internetBankingApi.logout(sessionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.ibIdleStatus });
+    },
+  });
+}
+
+export function useIbCanAccess() {
+  return useMutation({
+    mutationFn: ({ sessionId, featureCode }: { sessionId: string; featureCode: string }) =>
+      internetBankingApi.canAccess(sessionId, featureCode),
+  });
+}
+
 // ─── USSD ─────────────────────────────────────────────────────────────────────
 
 export function useUssdMenus() {

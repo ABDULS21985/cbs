@@ -35,11 +35,14 @@ export const cardApi = {
   getTransactions: (filters?: Record<string, unknown>) => apiGet<CardTransaction[]>('/api/v1/card-switch', filters),
 
   getMerchants: (filters?: Record<string, unknown>) => apiGet<Merchant[]>('/api/v1/merchants', filters),
-  getMerchant: (id: number) => apiGet<Merchant>(`/api/v1/merchants/${id}`),
+  getMerchant: (merchantId: string) => apiGet<Merchant>(`/api/v1/merchants/${merchantId}`),
   onboardMerchant: (data: {
     merchantName: string;
     merchantCategoryCode: string;
     businessType: string;
+    registrationNumber?: string;
+    tradingName?: string;
+    taxId?: string;
     mdrRate: number;
     riskCategory: string;
     contactName?: string;

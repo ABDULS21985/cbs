@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { adminHandlers } from './adminHandlers';
 import { agreementHandlers } from './agreementHandlers';
+import { caseHandlers } from './caseHandlers';
 import { dspmHandlers } from './dspmHandlers';
 import { transactionHandlers } from './transactionHandlers';
 
@@ -82,6 +83,7 @@ export const handlers = [
     HttpResponse.json([{ id: 'acc-1', label: '0123456789 — Amara Okonkwo' }, { id: 'acc-2', label: '0234567890 — TechVentures Ltd' }])
   ),
   http.get('/api/v1/reports/custom/data-sources', () => HttpResponse.json([])),
+  ...caseHandlers,
   ...dspmHandlers,
   ...adminHandlers,
   ...agreementHandlers,

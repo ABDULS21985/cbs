@@ -23,8 +23,8 @@ const KEYS = {
 export function useAddCaseAttachment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseNumber, data }: { caseNumber: string; data: Record<string, unknown> }) =>
-      casesApi.addAttachment(caseNumber, data),
+    mutationFn: ({ caseNumber, file }: { caseNumber: string; file: File }) =>
+      casesApi.addAttachment(caseNumber, file),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.cases.all });
     },

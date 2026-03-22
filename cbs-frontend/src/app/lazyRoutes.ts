@@ -1198,6 +1198,10 @@ export const ChannelActivityLogsPage = lazyNamed(
   () => import('@/features/channels/pages/ChannelActivityLogsPage'),
   'ChannelActivityLogsPage',
 );
+export const UssdSimulatorPage = lazyNamed(
+  () => import('@/features/channels/pages/UssdSimulatorPage'),
+  'UssdSimulatorPage',
+);
 
 export const OpenBankingPage = lazyNamed(
   () => import('@/features/openbanking/pages/OpenBankingPage'),

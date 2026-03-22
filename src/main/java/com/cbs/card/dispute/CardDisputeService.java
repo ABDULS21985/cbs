@@ -169,9 +169,16 @@ public class CardDisputeService {
     @Transactional
     public CardDispute escalateToArbitration(Long disputeId, boolean preArbitration, String notes) {
         CardDispute dispute = findDisputeOrThrow(disputeId);
-        String performedBy = currentActorProvider.getCurrentActor();
-
         DisputeStatus prev = dispute.getStatus();
+
+        // Validate current status allows escalation
+        if (prev != DisputeStatus.REPRESENTMENT && prev != DisputeStatus.PRE_ARBITRATION
+                && prev != DisputeStatus.CHARGEBACK_FILED && prev != DisputeStatus.INVESTIGATION) {
+            throw new com.cbs.common.exception.BusinessException(
+                    "Cannot escalate dispute in status " + prev + "; must be in REPRESENTMENT or PRE_ARBITRATION");
+        }
+
+        String performedBy = currentActorProvider.getCurrentActor();
         DisputeStatus next = preArbitration ? DisputeStatus.PRE_ARBITRATION : DisputeStatus.ARBITRATION;
         dispute.setStatus(next);
         dispute.setUpdatedBy(performedBy);

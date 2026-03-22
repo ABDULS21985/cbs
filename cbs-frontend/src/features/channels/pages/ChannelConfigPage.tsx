@@ -14,13 +14,18 @@ import {
   Plus,
   X,
   RefreshCw,
+  MessageCircle,
+  Store,
+  UserCheck,
+  Code,
+  Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { RoleGuard } from '@/components/auth/RoleGuard';
 import { StatCard } from '@/components/shared';
 import { StatusBadge } from '@/components/shared/StatusBadge';
-import { formatMoney } from '@/lib/formatters';
+import { formatMoney, formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useChannelConfigs, useSaveChannelConfig, useChannelSessionCounts, useCleanupSessions, useChannelSessions, useEndChannelSession } from '../hooks/useChannels';
 import { useHandoffSession, useCreateSession } from '../hooks/useChannelsExt';
@@ -35,6 +40,10 @@ const CHANNEL_META: Record<string, { icon: typeof Globe; label: string; color: s
   BRANCH: { icon: Building2, label: 'Branch', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
   USSD: { icon: Phone, label: 'USSD', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' },
   IVR: { icon: Radio, label: 'IVR', color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400' },
+  WHATSAPP: { icon: MessageCircle, label: 'WhatsApp', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+  POS: { icon: Store, label: 'POS', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+  AGENT: { icon: UserCheck, label: 'Agent', color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' },
+  API: { icon: Code, label: 'API', color: 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400' },
 };
 
 // ─── Edit Config Dialog ───────────────────────────────────────────────────────
@@ -535,7 +544,7 @@ function LiveSessionsPanel() {
   return (
     <div className="space-y-5">
       {/* Summary Tiles */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {Object.entries(CHANNEL_META).map(([ch, { icon: Icon, label, color }]) => {
           const count = (counts as Record<string, number> | undefined)?.[ch] ?? 0;
           return (
@@ -605,7 +614,7 @@ function LiveSessionsPanel() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  {['Session ID', 'Customer', 'Channel', 'Device', 'IP Address', 'Status', 'Actions'].map(
+                  {['Session ID', 'Customer', 'Channel', 'Device', 'IP Address', 'Started', 'Last Activity', 'Status', 'Actions'].map(
                     (h) => (
                       <th key={h} className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">
                         {h}
@@ -628,6 +637,8 @@ function LiveSessionsPanel() {
                     </td>
                     <td className="px-4 py-2.5 text-xs text-muted-foreground">{s.deviceType || '—'}</td>
                     <td className="px-4 py-2.5 text-xs font-mono text-muted-foreground">{s.ipAddress || '—'}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{s.startedAt ? formatDateTime(s.startedAt) : '—'}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{s.lastActivityAt ? formatDateTime(s.lastActivityAt) : '—'}</td>
                     <td className="px-4 py-2.5">
                       <StatusBadge status={s.status} dot />
                     </td>

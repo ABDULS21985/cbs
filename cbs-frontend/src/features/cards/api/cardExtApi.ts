@@ -23,13 +23,13 @@ export const cardsApi = {
   dashboard: (params?: Record<string, unknown>) =>
     apiGet<Record<string, unknown>>('/api/v1/cards/disputes/dashboard', params),
 
-  /** POST /v1/cards/{id}/hotlist */
-  hotlist: (id: number) =>
-    apiPost<Card>(`/api/v1/cards/${id}/hotlist`),
+  /** POST /v1/cards/{id}/hotlist — backend uses @RequestBody with default "Hotlisted" */
+  hotlist: (id: number, reason = 'Hotlisted') =>
+    apiPost<Card>(`/api/v1/cards/${id}/hotlist`, { reason }),
 
   /** POST /v1/cards/transactions/{txnId}/dispute */
-  dispute: (txnId: number) =>
-    apiPost<CardTransaction>(`/api/v1/cards/transactions/${txnId}/dispute`),
+  dispute: (txnId: number, reason: string) =>
+    apiPost<CardTransaction>(`/api/v1/cards/transactions/${txnId}/dispute?reason=${encodeURIComponent(reason)}`),
 
   /** POST /v1/cards/disputes — initiate dispute with full params */
   initiateDispute: (params: {
@@ -57,9 +57,12 @@ export const cardsApi = {
   submitRepresentment: (id: number, merchantResponse: string) =>
     apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/representment?merchantResponse=${encodeURIComponent(merchantResponse)}`),
 
-  /** POST /v1/cards/disputes/{id}/arbitration */
-  escalateToArbitration: (id: number, notes?: string) =>
-    apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/arbitration${notes ? `?notes=${encodeURIComponent(notes)}` : ''}`),
+  /** POST /v1/cards/disputes/{id}/arbitration — preArbitration defaults to true on backend */
+  escalateToArbitration: (id: number, preArbitration: boolean, notes?: string) => {
+    const qs = new URLSearchParams({ preArbitration: String(preArbitration) });
+    if (notes) qs.set('notes', notes);
+    return apiPost<CardDispute>(`/api/v1/cards/disputes/${id}/arbitration?${qs}`);
+  },
 
   /** POST /v1/cards/disputes/{id}/resolve */
   resolveDispute: (id: number, resolutionType: string, resolutionAmount: number, notes?: string) =>
@@ -73,23 +76,33 @@ export const cardsApi = {
   getCustomerTokens: (customerId: number) =>
     apiGet<CardToken[]>(`/api/v1/cards/tokens/customer/${customerId}`),
 
-  /** POST /v1/cards/tokens/{tokenId}/suspend */
-  suspend: (tokenId: number) =>
-    apiPost<CardToken>(`/api/v1/cards/tokens/${tokenId}/suspend`),
+  /** POST /v1/cards/tokens/{tokenId}/suspend — reason is @RequestParam (required) */
+  suspend: (tokenId: number, reason: string) =>
+    apiPost<CardToken>(`/api/v1/cards/tokens/${tokenId}/suspend?reason=${encodeURIComponent(reason)}`),
 
   /** POST /v1/cards/tokens/{tokenId}/resume */
   resume: (tokenId: number) =>
     apiPost<CardToken>(`/api/v1/cards/tokens/${tokenId}/resume`),
 
-  /** POST /v1/cards/tokens/{tokenId}/deactivate */
-  deactivate: (tokenId: number) =>
-    apiPost<CardToken>(`/api/v1/cards/tokens/${tokenId}/deactivate`),
+  /** POST /v1/cards/tokens/{tokenId}/deactivate — reason is @RequestParam (required) */
+  deactivate: (tokenId: number, reason: string) =>
+    apiPost<CardToken>(`/api/v1/cards/tokens/${tokenId}/deactivate?reason=${encodeURIComponent(reason)}`),
 
-  /** POST /v1/cards/tokens/provision/{cardId} — provision new token for wallet */
-  provisionToken: (cardId: number, data: { walletProvider: string; deviceName: string; deviceType: string }) =>
-    apiPost<CardToken>(`/api/v1/cards/tokens/provision/${cardId}`, data),
+  /**
+   * POST /v1/cards/tokens/provision/{cardId}
+   * Backend uses @RequestParam (not @RequestBody) — must be sent as query params.
+   * walletProvider is a required enum; deviceName/deviceId/deviceType are optional.
+   */
+  provisionToken: (cardId: number, data: { walletProvider: string; deviceName?: string; deviceId?: string; deviceType?: string; tokenRequestorId?: string }) => {
+    const qs = new URLSearchParams({ walletProvider: data.walletProvider });
+    if (data.deviceName) qs.set('deviceName', data.deviceName);
+    if (data.deviceId) qs.set('deviceId', data.deviceId);
+    if (data.deviceType) qs.set('deviceType', data.deviceType);
+    if (data.tokenRequestorId) qs.set('tokenRequestorId', data.tokenRequestorId);
+    return apiPost<CardToken>(`/api/v1/cards/tokens/provision/${cardId}?${qs}`);
+  },
 
-  /** POST /v1/cards/tokens/deactivate-all/{cardId} — deactivate all tokens for a card */
-  deactivateAllTokens: (cardId: number) =>
-    apiPost<void>(`/api/v1/cards/tokens/deactivate-all/${cardId}`),
+  /** POST /v1/cards/tokens/deactivate-all/{cardId} — reason is @RequestParam (required) */
+  deactivateAllTokens: (cardId: number, reason: string) =>
+    apiPost<void>(`/api/v1/cards/tokens/deactivate-all/${cardId}?reason=${encodeURIComponent(reason)}`),
 };

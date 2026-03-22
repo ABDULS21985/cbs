@@ -280,7 +280,7 @@ export function CardDisputeDetailPage() {
               <textarea value={arbNotes} onChange={e => setArbNotes(e.target.value)} rows={3} className={fc} placeholder="Reason for escalation..." /></div>
             <div className="flex gap-2 pt-2 border-t">
               <button onClick={() => setShowArbitration(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-              <button onClick={() => escalateArbitration.mutate({ id: dispute.id, notes: arbNotes }, { onSuccess: () => { toast.success('Escalated to arbitration'); setShowArbitration(false); refetch(); }, onError: () => toast.error('Failed') })}
+              <button onClick={() => escalateArbitration.mutate({ id: dispute.id, preArbitration: status === 'REPRESENTMENT', notes: arbNotes }, { onSuccess: () => { toast.success(status === 'REPRESENTMENT' ? 'Escalated to pre-arbitration' : 'Escalated to arbitration'); setShowArbitration(false); refetch(); }, onError: () => toast.error('Failed') })}
                 disabled={escalateArbitration.isPending}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-60">
                 {escalateArbitration.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpRight className="w-4 h-4" />} Escalate

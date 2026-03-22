@@ -4,6 +4,8 @@ import { cardClearingApi } from '../api/cardClearingApi';
 import { cardSwitchApi } from '../api/cardSwitchApi';
 import { cardNetworksApi } from '../api/cardNetworkApi';
 import { posTerminalsApi } from '../api/posTerminalApi';
+import { cardApi } from '../api/cardApi';
+import { acquiringApi } from '../api/acquiringApi';
 import type { CardClearingBatch, CardSettlementPosition } from '../types/cardClearing';
 import type { CardSwitchTransaction } from '../types/cardSwitch';
 import { cardKeys, CARD_QUERY_DEFAULTS } from './useCardData';
@@ -72,7 +74,8 @@ export function useHotlistCard() {
 export function useFileDispute() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (txnId: number) => cardsApi.dispute(txnId),
+    mutationFn: ({ txnId, reason }: { txnId: number; reason: string }) =>
+      cardsApi.dispute(txnId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
     },
@@ -134,8 +137,8 @@ export function useSubmitRepresentment() {
 export function useEscalateToArbitration() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, notes }: { id: number; notes?: string }) =>
-      cardsApi.escalateToArbitration(id, notes),
+    mutationFn: ({ id, preArbitration = true, notes }: { id: number; preArbitration?: boolean; notes?: string }) =>
+      cardsApi.escalateToArbitration(id, preArbitration, notes),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: cardKeys.disputeDetail(id) });
       queryClient.invalidateQueries({ queryKey: cardKeys.disputes });
@@ -179,7 +182,8 @@ export function useCustomerTokens(customerId: number) {
 export function useSuspendToken() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (tokenId: number) => cardsApi.suspend(tokenId),
+    mutationFn: ({ tokenId, reason }: { tokenId: number; reason: string }) =>
+      cardsApi.suspend(tokenId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cardKeys.tokens });
     },
@@ -199,7 +203,8 @@ export function useResumeToken() {
 export function useDeactivateToken() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (tokenId: number) => cardsApi.deactivate(tokenId),
+    mutationFn: ({ tokenId, reason }: { tokenId: number; reason: string }) =>
+      cardsApi.deactivate(tokenId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cardKeys.tokens });
     },
@@ -309,6 +314,37 @@ export function useSettleBatchByCode() {
   });
 }
 
+export function useUpdatePositionStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status, notes }: { id: number; status: string; notes?: string }) =>
+      cardClearingApi.updatePositionStatus(id, status, notes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.clearing });
+    },
+  });
+}
+
+export function useEscalatePosition() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
+      cardClearingApi.escalatePosition(id, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.clearing });
+    },
+  });
+}
+
+export function useBatchDetail(batchId: string) {
+  return useQuery({
+    queryKey: [...cardKeys.clearing, 'detail', batchId] as const,
+    queryFn: () => cardClearingApi.getBatchDetail(batchId),
+    ...CARD_QUERY_DEFAULTS,
+    enabled: !!batchId,
+  });
+}
+
 // ─── Card Switch Hooks ──────────────────────────────────────────────────────
 
 export function useSwitchByScheme(scheme: string) {
@@ -320,12 +356,12 @@ export function useSwitchByScheme(scheme: string) {
   });
 }
 
-export function useSwitchByMerchant(merchantId: number) {
+export function useSwitchByMerchant(merchantId: string) {
   return useQuery({
     queryKey: cardKeys.switchByMerchant(merchantId),
     queryFn: () => cardSwitchApi.getByMerchant(merchantId),
     ...CARD_QUERY_DEFAULTS,
-    enabled: merchantId > 0,
+    enabled: !!merchantId,
   });
 }
 
@@ -400,10 +436,8 @@ export function useDeployTerminal() {
 export function useSuspendMerchant() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ merchantId, reason }: { merchantId: string; reason: string }) => {
-      const { apiPost } = require('@/lib/api');
-      return apiPost(`/api/v1/merchants/${merchantId}/suspend`, { reason });
-    },
+    mutationFn: ({ merchantId, reason }: { merchantId: string; reason: string }) =>
+      cardApi.suspendMerchant(merchantId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cardKeys.merchants });
     },
@@ -413,10 +447,8 @@ export function useSuspendMerchant() {
 export function useActivateMerchant() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (merchantId: string) => {
-      const { apiPost } = require('@/lib/api');
-      return apiPost(`/api/v1/merchants/${merchantId}/activate`);
-    },
+    mutationFn: (merchantId: string) =>
+      cardApi.activateMerchant(merchantId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cardKeys.merchants });
     },
@@ -466,6 +498,94 @@ export function useUpdatePosTerminalStatus() {
       posTerminalsApi.updateStatus(terminalId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cardKeys.terminals });
+    },
+  });
+}
+
+// ─── Acquiring Facility Hooks ──────────────────────────────────────────────
+
+export function useFacilitiesByMerchant(merchantId: number) {
+  return useQuery({
+    queryKey: cardKeys.facilities(merchantId),
+    queryFn: () => acquiringApi.getFacilitiesByMerchant(merchantId),
+    ...CARD_QUERY_DEFAULTS,
+    enabled: merchantId > 0,
+  });
+}
+
+export function useSetupFacility() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof acquiringApi.setupFacility>[0]) =>
+      acquiringApi.setupFacility(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.acquiring });
+    },
+  });
+}
+
+export function useActivateFacility() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (facilityId: number) => acquiringApi.activateFacility(facilityId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.acquiring });
+    },
+  });
+}
+
+// ─── Settlement Hooks ──────────────────────────────────────────────────────
+
+export function useSettlementHistory(merchantId: number) {
+  return useQuery({
+    queryKey: cardKeys.settlements(merchantId),
+    queryFn: () => acquiringApi.getSettlementHistory(merchantId),
+    ...CARD_QUERY_DEFAULTS,
+    enabled: merchantId > 0,
+  });
+}
+
+export function useProcessSettlement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ merchantId, date }: { merchantId: number; date: string }) =>
+      acquiringApi.processSettlement(merchantId, date),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.acquiring });
+    },
+  });
+}
+
+// ─── Merchant Chargeback Hooks ─────────────────────────────────────────────
+
+export function useMerchantChargebacks(merchantId: number) {
+  return useQuery({
+    queryKey: cardKeys.chargebacks(merchantId),
+    queryFn: () => acquiringApi.getAllChargebacks(),
+    ...CARD_QUERY_DEFAULTS,
+    enabled: merchantId > 0,
+    select: (data) => data.filter((cb) => cb.merchantId === merchantId),
+  });
+}
+
+export function useRecordChargeback() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof acquiringApi.recordChargeback>[0]) =>
+      acquiringApi.recordChargeback(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.acquiring });
+    },
+  });
+}
+
+export function useSubmitChargebackRepresentment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ chargebackId, data }: { chargebackId: number; data: Parameters<typeof acquiringApi.submitRepresentment>[1] }) =>
+      acquiringApi.submitRepresentment(chargebackId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: cardKeys.acquiring });
     },
   });
 }

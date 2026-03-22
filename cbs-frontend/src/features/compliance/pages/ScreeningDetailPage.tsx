@@ -129,8 +129,8 @@ function MatchCard({ match, screening, onConfirm, onFP }: {
 
   return (
     <>
-      {showConfirm && <ConfirmTrueMatchDialog matchId={match.id} onClose={() => setShowConfirm(false)} onConfirm={onConfirm} />}
-      {showFP && <FalsePositiveDialog matchId={match.id} onClose={() => setShowFP(false)} onFP={onFP} />}
+      {showConfirm && <ConfirmTrueMatchDialog matchId={match.screeningId} onClose={() => setShowConfirm(false)} onConfirm={onConfirm} />}
+      {showFP && <FalsePositiveDialog matchId={match.screeningId} onClose={() => setShowFP(false)} onFP={onFP} />}
 
       <div className={cn('rounded-xl border-2 overflow-hidden transition-colors', dispositionBg)}>
         {/* Header */}

@@ -1,15 +1,14 @@
-// Auto-generated from backend entities
+// Aligned with backend CardNetworkMembership entity
+
+export type NetworkMembershipType = 'PRINCIPAL' | 'ASSOCIATE' | 'AFFILIATE' | 'PROCESSOR' | 'AGENT' | 'SPONSOR';
 
 export interface CardNetworkMembership {
   id: number;
   network: string;
-  networkName?: string;
-  membershipType: string;
+  membershipType: NetworkMembershipType;
   memberId: string;
-  memberBankId?: string;
   institutionName: string;
   binRanges: Record<string, unknown[]>;
-  binPrefix?: string;
   issuingEnabled: boolean;
   acquiringEnabled: boolean;
   settlementBic: string;

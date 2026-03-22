@@ -43,6 +43,13 @@ public class MerchantController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(mapper.toResponse(saved)));
     }
 
+    @GetMapping("/{merchantId}")
+    @Operation(summary = "Get merchant by merchantId")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<MerchantResponse>> getById(@PathVariable String merchantId) {
+        return ResponseEntity.ok(ApiResponse.ok(mapper.toResponse(service.getMerchant(merchantId))));
+    }
+
     @PostMapping("/{merchantId}/activate")
     @Operation(summary = "Activate a merchant by merchantId")
     @PreAuthorize("hasRole('CBS_ADMIN')")

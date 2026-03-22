@@ -604,25 +604,6 @@ export function AgentWorkbenchPage() {
     return () => clearInterval(iv);
   }, [shiftStart]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'A') {
-        e.preventDefault();
-        // Toggle available/break
-        const current = agents?.[0]?.state;
-        const next = current === 'AVAILABLE' ? 'BREAK' : 'AVAILABLE';
-        handleStateChange(next);
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        // Focus KB search — handled by right panel
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [handleStateChange]);
-
   // Real-time data
   const { data: agents = [] } = useQuery({
     queryKey: ['contact-center', 'agents'],
@@ -691,6 +672,24 @@ export function AgentWorkbenchPage() {
       onError: () => toast.error('Failed to complete'),
     });
   }, [activeInteraction, currentAgent, completeMut, qc]);
+
+  // Keyboard shortcuts — placed after handleStateChange to satisfy TDZ
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        const current = agents?.[0]?.state;
+        const next = current === 'AVAILABLE' ? 'BREAK' : 'AVAILABLE';
+        handleStateChange(next);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        // Focus KB search — handled by right panel
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [handleStateChange, agents]);
 
   return (
     <>

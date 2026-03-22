@@ -22,7 +22,7 @@ public class PosTerminalService {
     }
     public List<PosTerminal> getByMerchant(String merchantId) { return terminalRepository.findByMerchantIdOrderByTerminalIdAsc(merchantId); }
     public List<PosTerminal> getByStatus(String status) { return terminalRepository.findByOperationalStatusOrderByTerminalIdAsc(status); }
-    private PosTerminal getTerminal(String id) { return terminalRepository.findByTerminalId(id).orElseThrow(() -> new ResourceNotFoundException("PosTerminal", "terminalId", id)); }
+    public PosTerminal getTerminal(String id) { return terminalRepository.findByTerminalId(id).orElseThrow(() -> new ResourceNotFoundException("PosTerminal", "terminalId", id)); }
 
     public java.util.List<PosTerminal> getAllTerminals() {
         return terminalRepository.findAll();

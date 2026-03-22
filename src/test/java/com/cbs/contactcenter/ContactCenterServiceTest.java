@@ -52,7 +52,7 @@ class ContactCenterServiceTest {
         when(interactionRepository.findByInteractionId("INT-DONE")).thenReturn(Optional.of(i));
         when(interactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        ContactInteraction result = service.completeInteraction("INT-DONE", "RESOLVED", "POSITIVE", true);
+        ContactInteraction result = service.completeInteraction("INT-DONE", "RESOLVED", "POSITIVE", "Issue resolved on first call", true);
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getFirstContactResolution()).isTrue();
         assertThat(result.getHandleTimeSec()).isGreaterThanOrEqualTo(179);

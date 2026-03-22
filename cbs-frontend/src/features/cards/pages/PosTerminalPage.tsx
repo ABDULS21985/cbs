@@ -57,6 +57,7 @@ function DeployTerminalForm({ onClose }: { onClose: () => void }) {
     supportsQr: false,
     maxTransactionAmount: 5000000,
     acquiringBankCode: '',
+    softwareVersion: '',
   });
 
   const update = (field: string, value: unknown) => setForm((f) => ({ ...f, [field]: value }));
@@ -99,9 +100,15 @@ function DeployTerminalForm({ onClose }: { onClose: () => void }) {
             <label className="text-sm font-medium text-muted-foreground">Location Address</label>
             <input className="w-full mt-1 input" placeholder="Address" value={form.locationAddress} onChange={(e) => update('locationAddress', e.target.value)} required />
           </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Acquiring Bank Code</label>
-            <input className="w-full mt-1 input" placeholder="e.g., 058" value={form.acquiringBankCode} onChange={(e) => update('acquiringBankCode', e.target.value)} required />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Acquiring Bank Code</label>
+              <input className="w-full mt-1 input" placeholder="e.g., 058" value={form.acquiringBankCode} onChange={(e) => update('acquiringBankCode', e.target.value)} required />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Software Version</label>
+              <input className="w-full mt-1 input" placeholder="e.g., v2.4.1" value={form.softwareVersion} onChange={(e) => update('softwareVersion', e.target.value)} />
+            </div>
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">Capabilities</p>

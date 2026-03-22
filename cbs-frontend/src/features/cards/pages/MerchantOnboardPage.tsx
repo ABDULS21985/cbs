@@ -66,6 +66,7 @@ export function MerchantOnboardPage() {
         merchantName: form.merchantName,
         merchantCategoryCode: form.merchantCategoryCode,
         businessType: form.businessType,
+        registrationNumber: form.registrationNumber || undefined,
         mdrRate: form.mdrRate,
         riskCategory: form.riskCategory,
         contactName: form.contactName,
@@ -77,7 +78,7 @@ export function MerchantOnboardPage() {
       {
         onSuccess: (data) => {
           toast.success('Merchant onboarded successfully');
-          navigate(`/cards/merchants/${data.id}`);
+          navigate(`/cards/merchants/${data.merchantId}`);
         },
       },
     );

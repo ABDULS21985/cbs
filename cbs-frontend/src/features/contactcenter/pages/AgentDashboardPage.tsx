@@ -40,7 +40,7 @@ function CompleteInteractionForm({ interaction, onClose }: { interaction: Contac
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    contactCenterApi.completeInteraction(interaction.interactionId, disposition, sentiment, fcr).then(() => {
+    contactCenterApi.completeInteraction(interaction.interactionId, disposition, sentiment, undefined, fcr).then(() => {
       toast.success('Interaction completed');
       qc.invalidateQueries({ queryKey: ['contact-center'] });
       onClose();

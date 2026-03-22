@@ -11,7 +11,7 @@ export const cardSwitchApi = {
     apiGet<CardSwitchTransaction[]>(`/api/v1/card-switch/scheme/${scheme}`),
 
   /** GET /v1/card-switch/merchant/{merchantId} */
-  getByMerchant: (merchantId: number) =>
+  getByMerchant: (merchantId: string) =>
     apiGet<CardSwitchTransaction[]>(`/api/v1/card-switch/merchant/${merchantId}`),
 
   /** GET /v1/card-switch/declines */

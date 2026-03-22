@@ -100,12 +100,12 @@ function AllMessagesTab() {
           <select value={channelFilter} onChange={(e) => setChannelFilter(e.target.value)}
             className="h-8 px-2 text-xs rounded-lg border bg-background">
             <option value="">All Channels</option>
-            {['EMAIL', 'SMS', 'PUSH', 'IN_APP'].map((c) => <option key={c} value={c}>{c}</option>)}
+            {['EMAIL', 'SMS', 'PUSH', 'IN_APP', 'WEBHOOK'].map((c) => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
           </select>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
             className="h-8 px-2 text-xs rounded-lg border bg-background">
             <option value="">All Statuses</option>
-            {['PENDING', 'PENDING_DISPATCH', 'SENT', 'DELIVERED', 'FAILED', 'BOUNCED', 'READ'].map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+            {['PENDING', 'PENDING_DISPATCH', 'SENT', 'DELIVERED', 'FAILED', 'BOUNCED', 'READ', 'SCHEDULED'].map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
           </select>
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search recipient or subject…"

@@ -130,6 +130,8 @@ export function useStartInteraction() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.servicePoints });
       queryClient.invalidateQueries({ queryKey: QK.servicePointStatus });
+      queryClient.invalidateQueries({ queryKey: ['channels', 'service-point-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['channels', 'service-point'] });
     },
   });
 }
@@ -149,6 +151,8 @@ export function useEndInteraction() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.servicePoints });
       queryClient.invalidateQueries({ queryKey: QK.servicePointStatus });
+      queryClient.invalidateQueries({ queryKey: ['channels', 'service-point-metrics'] });
+      queryClient.invalidateQueries({ queryKey: ['channels', 'service-point'] });
     },
   });
 }

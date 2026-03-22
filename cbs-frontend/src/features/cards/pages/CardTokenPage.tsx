@@ -25,9 +25,9 @@ export function CardTokenPage() {
     staleTime: 30_000,
   });
 
-  const suspendMut = useMutation({ mutationFn: (id: number) => cardsApi.suspend(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['card-tokens'] }); toast.success('Token suspended'); } });
+  const suspendMut = useMutation({ mutationFn: (id: number) => cardsApi.suspend(id, 'Suspended via token management'), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['card-tokens'] }); toast.success('Token suspended'); } });
   const resumeMut = useMutation({ mutationFn: (id: number) => cardsApi.resume(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['card-tokens'] }); toast.success('Token resumed'); } });
-  const deactivateMut = useMutation({ mutationFn: (id: number) => cardsApi.deactivate(id), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['card-tokens'] }); toast.success('Token deactivated'); } });
+  const deactivateMut = useMutation({ mutationFn: (id: number) => cardsApi.deactivate(id, 'Deactivated via token management'), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['card-tokens'] }); toast.success('Token deactivated'); } });
   const provisionMut = useMutation({
     mutationFn: () => cardsApi.provisionToken(provisionForm.cardId, { walletProvider: provisionForm.walletProvider, deviceName: provisionForm.deviceName, deviceType: provisionForm.deviceType }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['card-tokens'] }); toast.success('Token provisioned'); setShowProvision(false); },

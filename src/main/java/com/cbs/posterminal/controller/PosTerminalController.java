@@ -43,6 +43,13 @@ public class PosTerminalController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(mapper.toResponse(saved)));
     }
 
+    @GetMapping("/{terminalId}")
+    @Operation(summary = "Get terminal by terminalId")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<TerminalResponse>> getById(@PathVariable String terminalId) {
+        return ResponseEntity.ok(ApiResponse.ok(mapper.toResponse(service.getTerminal(terminalId))));
+    }
+
     @PostMapping("/{terminalId}/heartbeat")
     @Operation(summary = "Report terminal heartbeat")
     public ResponseEntity<ApiResponse<TerminalResponse>> heartbeat(@PathVariable String terminalId) {

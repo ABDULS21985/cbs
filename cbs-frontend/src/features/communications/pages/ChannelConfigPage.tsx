@@ -72,7 +72,7 @@ export function ChannelConfigPage() {
   const queryClient = useQueryClient();
 
   const { data: channels = [], isLoading } = useQuery({
-    queryKey: ['notification-channels'],
+    queryKey: ['notifications', 'channels'],
     queryFn: () => notificationApi.getChannels(),
   });
 
@@ -111,7 +111,7 @@ export function ChannelConfigPage() {
     mutationFn: ({ channel, data }: { channel: string; data: Record<string, unknown> }) =>
       notificationApi.updateChannel(channel, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notification-channels'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'channels'] });
       toast.success('Channel configuration saved');
       setEditingConfig(null);
     },

@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { InfoGrid, StatusBadge, TabsPage, DataTable, AuditTimeline } from '@/components/shared';
 import { formatMoney, formatDate, formatDateTime, formatRelative } from '@/lib/formatters';
 import { useCard, useCardTransactionsByCardId, useBlockCard, useActivateCard, useUpdateCardControls, useHotlistCard, useRequestCard } from '../hooks/useCardData';
-import { useCardTokens, useSuspendToken, useResumeToken, useDeactivateToken, useDisputeTransaction, useDisputesByStatus } from '../hooks/useCardsExt';
+import { useCardTokens, useSuspendToken, useResumeToken, useDeactivateToken, useDisputeTransaction, useCustomerDisputes } from '../hooks/useCardsExt';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -416,7 +416,7 @@ function TransactionsTab({ card }: { card: import('../types/card').Card }) {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            disputeTxn.mutate(row.original.id, { onSuccess: () => toast.success('Dispute filed'), onError: () => toast.error('Failed to file dispute') });
+            disputeTxn.mutate({ txnId: row.original.id, reason: 'Transaction not recognised' }, { onSuccess: () => toast.success('Dispute filed'), onError: () => toast.error('Failed to file dispute') });
           }}
           className="px-2 py-1 text-[10px] font-medium rounded border hover:bg-muted transition-colors"
         >
@@ -501,15 +501,15 @@ function TokenizationTab({ cardId }: { cardId: number }) {
           </div>
           <div className="flex gap-2 pt-1 border-t">
             {token.status === 'ACTIVE' && (
-              <button onClick={() => suspendToken.mutate(token.id, { onSuccess: () => toast.success('Token suspended') })}
+              <button onClick={() => suspendToken.mutate({ tokenId: token.id, reason: 'Suspended via card detail' }, { onSuccess: () => toast.success('Token suspended') })}
                 className="px-2 py-1 text-xs font-medium rounded bg-amber-100 text-amber-800 hover:bg-amber-200">Suspend</button>
             )}
-            {token.status === 'HOT_LISTED' && (
+            {token.status === 'SUSPENDED' && (
               <button onClick={() => resumeToken.mutate(token.id, { onSuccess: () => toast.success('Token resumed') })}
                 className="px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-800 hover:bg-green-200">Resume</button>
             )}
             {token.status !== 'DEACTIVATED' && (
-              <button onClick={() => deactivateToken.mutate(token.id, { onSuccess: () => toast.success('Token deactivated') })}
+              <button onClick={() => deactivateToken.mutate({ tokenId: token.id, reason: 'Deactivated via card detail' }, { onSuccess: () => toast.success('Token deactivated') })}
                 className="px-2 py-1 text-xs font-medium rounded bg-red-100 text-red-800 hover:bg-red-200">Deactivate</button>
             )}
           </div>
@@ -521,10 +521,10 @@ function TokenizationTab({ cardId }: { cardId: number }) {
 
 // ── Disputes Tab ─────────────────────────────────────────────────────────────
 
-function DisputesTab({ cardId }: { cardId: number }) {
-  const { data: disputes = [], isLoading } = useDisputesByStatus('INITIATED');
+function DisputesTab({ cardId, customerId }: { cardId: number; customerId: number }) {
+  const { data: disputes = [], isLoading } = useCustomerDisputes(customerId);
 
-  const cardDisputes = disputes.filter((d: CardDispute) => d.cardId === cardId);
+  const cardDisputes = (disputes as CardDispute[]).filter((d) => d.cardId === cardId);
 
   if (isLoading) return <div className="p-6"><Skeleton className="h-32" /></div>;
 
@@ -730,7 +730,7 @@ export function CardDetailPage() {
           { id: 'controls', label: 'Controls', content: <ControlsTab card={card} /> },
           { id: 'transactions', label: 'Transactions', content: <TransactionsTab card={card} /> },
           { id: 'tokens', label: 'Tokenization', content: <TokenizationTab cardId={card.id} /> },
-          { id: 'disputes', label: 'Disputes', content: <DisputesTab cardId={card.id} /> },
+          { id: 'disputes', label: 'Disputes', content: <DisputesTab cardId={card.id} customerId={card.customerId} /> },
           { id: 'audit', label: 'Audit', content: <AuditTab card={card} /> },
         ]} />
       </div>

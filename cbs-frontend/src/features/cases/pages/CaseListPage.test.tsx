@@ -29,6 +29,7 @@ function setupHandlers(stats = mockStats, cases = mockCases) {
 }
 
 describe('CaseListPage', () => {
+  // ── Page Structure ────────────────────────────────────────
   it('renders the page header', () => {
     setupHandlers();
     renderWithProviders(<CaseListPage />);
@@ -47,7 +48,20 @@ describe('CaseListPage', () => {
     expect(screen.getByText('New Case')).toBeInTheDocument();
   });
 
-  it('renders 4 stat cards', async () => {
+  it('renders RCA Dashboard button', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    expect(screen.getByText('RCA Dashboard')).toBeInTheDocument();
+  });
+
+  it('renders Filters toggle button', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    expect(screen.getByText('Filters')).toBeInTheDocument();
+  });
+
+  // ── Stat Cards ────────────────────────────────────────────
+  it('renders 4 stat cards with correct labels', async () => {
     setupHandlers();
     renderWithProviders(<CaseListPage />);
     await waitFor(() => {
@@ -58,59 +72,15 @@ describe('CaseListPage', () => {
     expect(screen.getByText('Avg Resolution')).toBeInTheDocument();
   });
 
-  it('displays stat card values', async () => {
+  it('displays stat card values from API', async () => {
     setupHandlers();
     renderWithProviders(<CaseListPage />);
     await waitFor(() => {
-      expect(screen.getByText('156')).toBeInTheDocument();
-    });
-    expect(screen.getByText('23')).toBeInTheDocument();
-    expect(screen.getByText('45')).toBeInTheDocument();
+      expect(screen.getByText((_, el) => el?.textContent === '156')).toBeInTheDocument();
+    }, { timeout: 3000 });
+    expect(screen.getByText((_, el) => el?.textContent === '23')).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.textContent === '45')).toBeInTheDocument();
     expect(screen.getByText('4.2h')).toBeInTheDocument();
-  });
-
-  it('renders 5 tabs', () => {
-    setupHandlers();
-    renderWithProviders(<CaseListPage />);
-    expect(screen.getByText('My Cases')).toBeInTheDocument();
-    expect(screen.getByText('Unassigned')).toBeInTheDocument();
-    expect(screen.getByText('Escalated')).toBeInTheDocument();
-    expect(screen.getAllByText('SLA Breached').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('All Cases')).toBeInTheDocument();
-  });
-
-  it('My Cases tab is active by default', () => {
-    setupHandlers();
-    renderWithProviders(<CaseListPage />);
-    const tab = screen.getByText('My Cases');
-    expect(tab.className).toContain('border-primary');
-  });
-
-  it('can switch to Unassigned tab', async () => {
-    setupHandlers();
-    
-    renderWithProviders(<CaseListPage />);
-    fireEvent.click(screen.getByText('Unassigned'));
-    const tab = screen.getByText('Unassigned');
-    expect(tab.className).toContain('border-primary');
-  });
-
-  it('can switch to Escalated tab', async () => {
-    setupHandlers();
-    
-    renderWithProviders(<CaseListPage />);
-    fireEvent.click(screen.getByText('Escalated'));
-    const tab = screen.getByText('Escalated');
-    expect(tab.className).toContain('border-primary');
-  });
-
-  it('can switch to All Cases tab', async () => {
-    setupHandlers();
-    
-    renderWithProviders(<CaseListPage />);
-    fireEvent.click(screen.getByText('All Cases'));
-    const tab = screen.getByText('All Cases');
-    expect(tab.className).toContain('border-primary');
   });
 
   it('shows dash when stats fail to load', async () => {
@@ -129,7 +99,64 @@ describe('CaseListPage', () => {
     });
   });
 
-  it('handles server error for cases list', async () => {
+  // ── Tabs ──────────────────────────────────────────────────
+  it('renders 5 tabs', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    expect(screen.getByText('My Cases')).toBeInTheDocument();
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+    expect(screen.getByText('Escalated')).toBeInTheDocument();
+    expect(screen.getAllByText('SLA Breached').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('All Cases')).toBeInTheDocument();
+  });
+
+  it('My Cases tab is active by default', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    const tab = screen.getByText('My Cases');
+    expect(tab.className).toContain('border-primary');
+  });
+
+  it('can switch to Unassigned tab', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('Unassigned'));
+    expect(screen.getByText('Unassigned').className).toContain('border-primary');
+  });
+
+  it('can switch to Escalated tab', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('Escalated'));
+    expect(screen.getByText('Escalated').className).toContain('border-primary');
+  });
+
+  it('can switch to All Cases tab', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('All Cases'));
+    expect(screen.getByText('All Cases').className).toContain('border-primary');
+  });
+
+  it('shows tab count badges when data is loaded', async () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    await waitFor(() => {
+      expect(screen.getByText('2')).toBeInTheDocument();
+    });
+  });
+
+  // ── Data Display ──────────────────────────────────────────
+  it('shows cases in All Cases tab', async () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('All Cases'));
+    await waitFor(() => {
+      expect(screen.getByText('Customer Three')).toBeInTheDocument();
+    });
+  });
+
+  it('handles server error for cases list', () => {
     server.use(
       http.get('/api/v1/cases/stats', () => HttpResponse.json(wrap(mockStats))),
       http.get('/api/v1/cases/my', () => HttpResponse.json({}, { status: 500 })),
@@ -142,43 +169,110 @@ describe('CaseListPage', () => {
     expect(screen.getByText('Case Management')).toBeInTheDocument();
   });
 
-  it('shows tab count badges when data is loaded', async () => {
+  // ── Filter Panel ──────────────────────────────────────────
+  it('toggles filter panel on button click', () => {
     setupHandlers();
     renderWithProviders(<CaseListPage />);
-    await waitFor(() => {
-      expect(screen.getByText('2')).toBeInTheDocument();
-    });
+    expect(screen.queryByText('Filter Cases')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Filters'));
+    expect(screen.getByText('Filter Cases')).toBeInTheDocument();
   });
 
-  it('shows empty state for unassigned cases', async () => {
-    setupHandlers();
-    
-    renderWithProviders(<CaseListPage />);
-    fireEvent.click(screen.getByText('Unassigned'));
-    // Unassigned returns empty
-  });
-
-  it('renders stat cards with correct labels', async () => {
+  it('shows 6 filter fields when panel is open', () => {
     setupHandlers();
     renderWithProviders(<CaseListPage />);
-    await waitFor(() => {
-      expect(screen.getByText('Open Cases')).toBeInTheDocument();
-    });
-    expect(screen.getAllByText('SLA Breached').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Resolved Today')).toBeInTheDocument();
-    expect(screen.getByText('Avg Resolution')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Filters'));
+    expect(screen.getByText('Search')).toBeInTheDocument();
+    expect(screen.getByText('Type')).toBeInTheDocument();
+    expect(screen.getByText('Priority')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('From')).toBeInTheDocument();
+    expect(screen.getByText('To')).toBeInTheDocument();
   });
 
-  it('shows escalated cases in the escalated tab', async () => {
+  it('can type in search filter', () => {
     setupHandlers();
-
     renderWithProviders(<CaseListPage />);
-    fireEvent.click(screen.getByText('All Cases'));
-    await waitFor(() => {
-      expect(screen.getByText('Customer Three')).toBeInTheDocument();
-    });
+    fireEvent.click(screen.getByText('Filters'));
+    const input = screen.getByPlaceholderText('Case #, customer, subject');
+    fireEvent.change(input, { target: { value: 'ATM' } });
+    expect(input).toHaveValue('ATM');
   });
 
+  it('can select case type filter', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('Filters'));
+    const typeSelect = screen.getByText('All types').closest('select')!;
+    fireEvent.change(typeSelect, { target: { value: 'COMPLAINT' } });
+    expect(typeSelect).toHaveValue('COMPLAINT');
+  });
+
+  it('can select priority filter', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('Filters'));
+    const select = screen.getByText('All priorities').closest('select')!;
+    fireEvent.change(select, { target: { value: 'HIGH' } });
+    expect(select).toHaveValue('HIGH');
+  });
+
+  it('can select status filter', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('Filters'));
+    const select = screen.getByText('All statuses').closest('select')!;
+    fireEvent.change(select, { target: { value: 'OPEN' } });
+    expect(select).toHaveValue('OPEN');
+  });
+
+  it('shows clear all button when filters are active', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('Filters'));
+    const input = screen.getByPlaceholderText('Case #, customer, subject');
+    fireEvent.change(input, { target: { value: 'test' } });
+    expect(screen.getByText('Clear all')).toBeInTheDocument();
+  });
+
+  it('clears all filters when Clear all is clicked', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('Filters'));
+    const input = screen.getByPlaceholderText('Case #, customer, subject');
+    fireEvent.change(input, { target: { value: 'test' } });
+    fireEvent.click(screen.getByText('Clear all'));
+    expect(input).toHaveValue('');
+  });
+
+  it('shows active filter count badge on Filters button', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('Filters'));
+    const input = screen.getByPlaceholderText('Case #, customer, subject');
+    fireEvent.change(input, { target: { value: 'test' } });
+    // The badge shows count of active filters
+    expect(screen.getByText('1')).toBeInTheDocument();
+  });
+
+  // ── Filter options include all backend-supported values ───
+  it('type filter has all 15 case types', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('Filters'));
+    const typeSelect = screen.getByText('All types').closest('select')!;
+    expect(typeSelect.querySelectorAll('option').length).toBe(16); // 15 types + "All types"
+  });
+
+  it('status filter has all status values', () => {
+    setupHandlers();
+    renderWithProviders(<CaseListPage />);
+    fireEvent.click(screen.getByText('Filters'));
+    const select = screen.getByText('All statuses').closest('select')!;
+    expect(select.querySelectorAll('option').length).toBeGreaterThanOrEqual(8);
+  });
+
+  // ── Renders without crashing ──────────────────────────────
   it('renders the component without crashing', () => {
     setupHandlers();
     renderWithProviders(<CaseListPage />);

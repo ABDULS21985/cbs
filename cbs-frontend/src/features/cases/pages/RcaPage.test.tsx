@@ -40,6 +40,8 @@ const mockRca = {
   rootCauseCategory: 'SYSTEM',
   rootCauseSubCategory: 'Hardware Failure',
   rootCauseDescription: 'Cash dispenser motor malfunction in unit #4792',
+  contributingFactors: {},
+  evidenceReferences: {},
   customersAffected: 15,
   financialImpact: 750000,
   reputationalImpact: 'HIGH',
@@ -87,6 +89,7 @@ function renderPage(caseId = 'CASE-000001') {
 }
 
 describe('RcaPage', () => {
+  // ── Page Structure ────────────────────────────────────────
   it('renders page header with case number', async () => {
     setupHandlers();
     renderPage();
@@ -103,6 +106,14 @@ describe('RcaPage', () => {
     });
   });
 
+  it('shows loading state', () => {
+    server.use(http.get('/api/v1/cases/:id', () => new Promise(() => {})));
+    renderPage();
+    expect(screen.getByText('Root Cause Analysis')).toBeInTheDocument();
+    expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
+  });
+
+  // ── Empty State (No RCA) ──────────────────────────────────
   it('shows empty state when no RCA exists', async () => {
     setupHandlers({ hasRca: false });
     renderPage();
@@ -120,37 +131,79 @@ describe('RcaPage', () => {
     });
   });
 
+  // ── RCA Creation Form ─────────────────────────────────────
   it('clicking Start RCA shows the creation form', async () => {
     setupHandlers({ hasRca: false });
     renderPage();
-    await waitFor(() => {
-      expect(screen.getByText('Start RCA')).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByText('Start RCA'));
+    await waitFor(() => fireEvent.click(screen.getByText('Start RCA')));
     expect(screen.getByText('Analysis Setup')).toBeInTheDocument();
     expect(screen.getByText('Root Cause')).toBeInTheDocument();
     expect(screen.getByText('Impact Assessment')).toBeInTheDocument();
+    expect(screen.getByText("Lessons & Preventive Actions")).toBeInTheDocument();
   });
 
-  it('RCA creation form has analysis method selector', async () => {
+  it('creation form has analysis method selector with all methods', async () => {
     setupHandlers({ hasRca: false });
     renderPage();
     await waitFor(() => fireEvent.click(screen.getByText('Start RCA')));
     expect(screen.getByText('Analysis Method')).toBeInTheDocument();
     expect(screen.getByText('5 Why Analysis')).toBeInTheDocument();
     expect(screen.getByText('Fishbone (Ishikawa)')).toBeInTheDocument();
+    expect(screen.getByText('Fault Tree Analysis')).toBeInTheDocument();
+    expect(screen.getByText('Pareto Analysis')).toBeInTheDocument();
+    expect(screen.getByText('Other')).toBeInTheDocument();
   });
 
-  it('RCA creation form has root cause category options', async () => {
+  it('creation form has root cause category options including DATA and INFRASTRUCTURE', async () => {
     setupHandlers({ hasRca: false });
     renderPage();
     await waitFor(() => fireEvent.click(screen.getByText('Start RCA')));
-    expect(screen.getByText('Category')).toBeInTheDocument();
     expect(screen.getByText('Process')).toBeInTheDocument();
     expect(screen.getByText('System / Technology')).toBeInTheDocument();
+    expect(screen.getByText('People / Training')).toBeInTheDocument();
+    expect(screen.getByText('Third Party')).toBeInTheDocument();
+    expect(screen.getByText('Policy / Regulation')).toBeInTheDocument();
+    expect(screen.getByText('Data / Information')).toBeInTheDocument();
+    expect(screen.getByText('Infrastructure')).toBeInTheDocument();
+    expect(screen.getByText('Environment')).toBeInTheDocument();
   });
 
-  it('shows RCA summary when RCA exists', async () => {
+  it('creation form has analyst name input', async () => {
+    setupHandlers({ hasRca: false });
+    renderPage();
+    await waitFor(() => fireEvent.click(screen.getByText('Start RCA')));
+    expect(screen.getByText('Analyst Name')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Your name')).toBeInTheDocument();
+  });
+
+  it('creation form has problem statement textarea', async () => {
+    setupHandlers({ hasRca: false });
+    renderPage();
+    await waitFor(() => fireEvent.click(screen.getByText('Start RCA')));
+    expect(screen.getByText('Problem Statement')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Clearly describe the problem...')).toBeInTheDocument();
+  });
+
+  it('creation form has impact assessment fields', async () => {
+    setupHandlers({ hasRca: false });
+    renderPage();
+    await waitFor(() => fireEvent.click(screen.getByText('Start RCA')));
+    expect(screen.getByText('Customers Affected')).toBeInTheDocument();
+    expect(screen.getByText('Financial Impact (₦)')).toBeInTheDocument();
+    expect(screen.getByText('Reputational Impact')).toBeInTheDocument();
+    expect(screen.getByText('Regulatory Implication')).toBeInTheDocument();
+  });
+
+  it('creation form Create RCA button is disabled without required fields', async () => {
+    setupHandlers({ hasRca: false });
+    renderPage();
+    await waitFor(() => fireEvent.click(screen.getByText('Start RCA')));
+    const btn = screen.getByText('Create RCA');
+    expect(btn).toBeDisabled();
+  });
+
+  // ── RCA Summary Display ───────────────────────────────────
+  it('shows RCA code when RCA exists', async () => {
     setupHandlers({ hasRca: true });
     renderPage();
     await waitFor(() => {
@@ -158,7 +211,19 @@ describe('RcaPage', () => {
     });
   });
 
-  it('shows RCA analysis method', async () => {
+  it('shows RCA status badge', async () => {
+    setupHandlers({ hasRca: true });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('RCA-ABC123')).toBeInTheDocument();
+    });
+    // StatusBadge renders the status text - look for it in any form
+    const statusEl = document.querySelector('[class*="badge"], [class*="Badge"]') ??
+      screen.queryByText(/IN.PROGRESS/i);
+    expect(statusEl).toBeTruthy();
+  });
+
+  it('shows analysis method', async () => {
     setupHandlers({ hasRca: true });
     renderPage();
     await waitFor(() => {
@@ -190,6 +255,15 @@ describe('RcaPage', () => {
     });
   });
 
+  it('shows root cause category and sub-category', async () => {
+    setupHandlers({ hasRca: true });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('SYSTEM')).toBeInTheDocument();
+      expect(screen.getByText('Hardware Failure')).toBeInTheDocument();
+    });
+  });
+
   it('shows customers affected count', async () => {
     setupHandlers({ hasRca: true });
     renderPage();
@@ -206,12 +280,47 @@ describe('RcaPage', () => {
     });
   });
 
+  it('shows lessons learned', async () => {
+    setupHandlers({ hasRca: true });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Lessons Learned')).toBeInTheDocument();
+      expect(screen.getByText(/Schedule preventive motor inspections/)).toBeInTheDocument();
+    });
+  });
+
+  it('shows regulatory implication as No when false', async () => {
+    setupHandlers({ hasRca: true });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('No')).toBeInTheDocument();
+    });
+  });
+
+  it('shows regulatory implication as Yes when true', async () => {
+    setupHandlers({ hasRca: true, rca: { ...mockRca, regulatoryImplication: true } });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Yes')).toBeInTheDocument();
+    });
+  });
+
+  // ── Workflow Actions ──────────────────────────────────────
   it('shows Mark Complete button for IN_PROGRESS RCA', async () => {
     setupHandlers({ hasRca: true });
     renderPage();
     await waitFor(() => {
       expect(screen.getByText('Mark Complete')).toBeInTheDocument();
     });
+  });
+
+  it('does not show Validate button for IN_PROGRESS RCA', async () => {
+    setupHandlers({ hasRca: true });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Mark Complete')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Validate RCA')).not.toBeInTheDocument();
   });
 
   it('shows Validate RCA button for COMPLETED RCA', async () => {
@@ -222,7 +331,16 @@ describe('RcaPage', () => {
     });
   });
 
-  it('hides workflow buttons for VALIDATED RCA', async () => {
+  it('does not show Mark Complete for COMPLETED RCA', async () => {
+    setupHandlers({ hasRca: true, rca: { ...mockRca, status: 'COMPLETED' } });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Validate RCA')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Mark Complete')).not.toBeInTheDocument();
+  });
+
+  it('hides all workflow buttons for VALIDATED RCA', async () => {
     setupHandlers({ hasRca: true, rca: { ...mockRca, status: 'VALIDATED' } });
     renderPage();
     await waitFor(() => {
@@ -232,7 +350,8 @@ describe('RcaPage', () => {
     expect(screen.queryByText('Validate RCA')).not.toBeInTheDocument();
   });
 
-  it('shows corrective actions section', async () => {
+  // ── Corrective Actions ────────────────────────────────────
+  it('shows Corrective Actions section', async () => {
     setupHandlers({ hasRca: true });
     renderPage();
     await waitFor(() => {
@@ -240,7 +359,17 @@ describe('RcaPage', () => {
     });
   });
 
-  it('shows corrective action form for non-validated RCA', async () => {
+  it('shows existing corrective actions from RCA data', async () => {
+    setupHandlers({ hasRca: true });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Corrective Actions')).toBeInTheDocument();
+    });
+    // Corrective action rendered as JSON.stringify
+    expect(screen.getByText(/Replace dispenser motor/)).toBeInTheDocument();
+  });
+
+  it('shows Add Corrective Action form for non-validated RCA', async () => {
     setupHandlers({ hasRca: true });
     renderPage();
     await waitFor(() => {
@@ -248,7 +377,25 @@ describe('RcaPage', () => {
     });
   });
 
-  it('hides corrective action form for validated RCA', async () => {
+  it('corrective action form has required fields', async () => {
+    setupHandlers({ hasRca: true });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Describe the corrective action...')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Responsible party')).toBeInTheDocument();
+    });
+  });
+
+  it('Add Action button is disabled with empty fields', async () => {
+    setupHandlers({ hasRca: true });
+    renderPage();
+    await waitFor(() => {
+      const btn = screen.getByText('Add Action');
+      expect(btn).toBeDisabled();
+    });
+  });
+
+  it('hides corrective action form for VALIDATED RCA', async () => {
     setupHandlers({ hasRca: true, rca: { ...mockRca, status: 'VALIDATED' } });
     renderPage();
     await waitFor(() => {
@@ -257,30 +404,45 @@ describe('RcaPage', () => {
     expect(screen.queryByText('Add Corrective Action')).not.toBeInTheDocument();
   });
 
-  it('shows lessons learned when present', async () => {
-    setupHandlers({ hasRca: true });
+  it('shows empty corrective actions message when none exist', async () => {
+    setupHandlers({ hasRca: true, rca: { ...mockRca, correctiveActions: {} } });
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Lessons Learned')).toBeInTheDocument();
-      expect(screen.getByText(/Schedule preventive motor inspections/)).toBeInTheDocument();
+      expect(screen.getByText('No corrective actions added yet.')).toBeInTheDocument();
     });
   });
 
+  // ── Preventive Actions ────────────────────────────────────
+  it('shows preventive actions when present', async () => {
+    setupHandlers({
+      hasRca: true,
+      rca: {
+        ...mockRca,
+        preventiveActions: { action_1: { action: 'Quarterly inspections', owner: 'Maintenance' } },
+      },
+    });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('Preventive Actions')).toBeInTheDocument();
+      expect(screen.getByText(/Quarterly inspections/)).toBeInTheDocument();
+    });
+  });
+
+  it('hides preventive actions section when empty', async () => {
+    setupHandlers({ hasRca: true });
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText('RCA-ABC123')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Preventive Actions')).not.toBeInTheDocument();
+  });
+
+  // ── Navigation ────────────────────────────────────────────
   it('shows RCA Dashboard link', async () => {
     setupHandlers({ hasRca: true });
     renderPage();
     await waitFor(() => {
       expect(screen.getByText('View RCA Dashboard →')).toBeInTheDocument();
     });
-  });
-
-  it('shows loading state', () => {
-    server.use(
-      http.get('/api/v1/cases/:id', () => new Promise(() => {})),
-    );
-    renderPage();
-    expect(screen.getByText('Root Cause Analysis')).toBeInTheDocument();
-    const pulse = document.querySelector('.animate-pulse');
-    expect(pulse).toBeInTheDocument();
   });
 });

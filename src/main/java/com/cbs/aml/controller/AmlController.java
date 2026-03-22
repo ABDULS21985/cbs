@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,7 +37,7 @@ public class AmlController {
     @GetMapping("/rules")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<AmlRule>>> getRules() {
-        return ResponseEntity.ok(ApiResponse.ok(amlService.getAllActiveRules()));
+        return ResponseEntity.ok(ApiResponse.ok(amlService.getAllRules()));
     }
 
     // Alerts
@@ -158,19 +157,19 @@ public class AmlController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getStats() {
         long total = amlAlertRepository.count();
-        java.util.Map<String, Long> byStatus = java.util.Map.of(
-                "NEW", amlAlertRepository.countByStatus(AmlAlertStatus.NEW),
-                "UNDER_REVIEW", amlAlertRepository.countByStatus(AmlAlertStatus.UNDER_REVIEW),
-                "ESCALATED", amlAlertRepository.countByStatus(AmlAlertStatus.ESCALATED),
-                "SAR_FILED", amlAlertRepository.countByStatus(AmlAlertStatus.SAR_FILED),
-                "FALSE_POSITIVE", amlAlertRepository.countByStatus(AmlAlertStatus.FALSE_POSITIVE),
-                "CLOSED", amlAlertRepository.countByStatus(AmlAlertStatus.CLOSED)
-        );
-        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of(
-                "totalAlerts", total,
-                "byStatus", byStatus,
-                "bySeverity", java.util.Map.of()
-        )));
+        java.util.Map<String, Long> byStatus = new java.util.LinkedHashMap<>();
+        byStatus.put("NEW", amlAlertRepository.countByStatus(AmlAlertStatus.NEW));
+        byStatus.put("UNDER_REVIEW", amlAlertRepository.countByStatus(AmlAlertStatus.UNDER_REVIEW));
+        byStatus.put("ESCALATED", amlAlertRepository.countByStatus(AmlAlertStatus.ESCALATED));
+        byStatus.put("SAR_FILED", amlAlertRepository.countByStatus(AmlAlertStatus.SAR_FILED));
+        byStatus.put("FALSE_POSITIVE", amlAlertRepository.countByStatus(AmlAlertStatus.FALSE_POSITIVE));
+        byStatus.put("CLOSED", amlAlertRepository.countByStatus(AmlAlertStatus.CLOSED));
+        byStatus.put("ARCHIVED", amlAlertRepository.countByStatus(AmlAlertStatus.ARCHIVED));
+        java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("totalAlerts", total);
+        result.put("byStatus", byStatus);
+        result.put("bySeverity", java.util.Map.of());
+        return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
     @GetMapping("/strs")
@@ -185,13 +184,13 @@ public class AmlController {
     }
 
     @GetMapping("/ctrs")
-    @Operation(summary = "List Currency Transaction Reports (CTRs)")
+    @Operation(summary = "List Currency Transaction Reports (CTRs) — LARGE_CASH category alerts")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<AmlAlert>>> getCtrs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<AmlAlert> result = amlAlertRepository.findAll(pageable);
+        Page<AmlAlert> result = amlAlertRepository.findByRuleCategory(
+                com.cbs.aml.entity.AmlRuleCategory.LARGE_CASH, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 }

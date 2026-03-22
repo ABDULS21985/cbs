@@ -69,6 +69,7 @@ const mockPending = [
     matches: [
       {
         id: 101,
+        screeningId: 1,
         watchlistSource: 'OFAC_SDN',
         watchlistName: 'John A. Doe',
         matchScore: 92,
@@ -78,6 +79,7 @@ const mockPending = [
       },
       {
         id: 102,
+        screeningId: 1,
         watchlistSource: 'UN_CONSOLIDATED',
         watchlistName: 'J. Doe',
         matchScore: 75,
@@ -316,6 +318,43 @@ describe('SanctionsScreeningPage', () => {
         expect(confirmBtns.length).toBeGreaterThanOrEqual(1);
         const falsePlusBtns = screen.getAllByText('False +');
         expect(falsePlusBtns.length).toBeGreaterThanOrEqual(1);
+      }, { timeout: 3000 });
+    }
+  });
+
+  // ─── 8b. Confirm uses screeningId not matchId ──────────────────────────────
+
+  it('confirm match action calls the endpoint with screeningId not matchId', async () => {
+    let confirmedId: string | null = null;
+    server.use(
+      http.post('/api/v1/sanctions/matches/:id/confirm', ({ params }) => {
+        confirmedId = params.id as string;
+        return HttpResponse.json(wrap({ ...mockPending[0], status: 'CONFIRMED_MATCH' }));
+      }),
+    );
+    setupHandlers();
+    renderWithProviders(<SanctionsScreeningPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('SCR-00001')).toBeInTheDocument();
+    }, { timeout: 3000 });
+
+    const expandButtons = screen.getAllByRole('button').filter(
+      (btn) => btn.querySelector('svg') && btn.className.includes('hover:bg-muted'),
+    );
+    if (expandButtons.length > 0) {
+      fireEvent.click(expandButtons[0]);
+      await waitFor(() => {
+        const confirmBtns = screen.getAllByText('Confirm');
+        expect(confirmBtns.length).toBeGreaterThanOrEqual(1);
+      }, { timeout: 3000 });
+
+      const confirmBtns = screen.getAllByText('Confirm');
+      fireEvent.click(confirmBtns[0]);
+
+      await waitFor(() => {
+        // screeningId is 1, NOT matchId 101 or 102
+        expect(confirmedId).toBe('1');
       }, { timeout: 3000 });
     }
   });

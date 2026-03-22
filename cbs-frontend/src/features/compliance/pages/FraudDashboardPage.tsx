@@ -20,6 +20,7 @@ import {
   useFraudModelPerformance, useScoreTransaction, useCreateFraudRule,
   useToggleFraudRule, useBlockCardFromFraud, useBlockAccountFromFraud,
   useAllowTransaction, useDismissFraudAlert, useFileFraudCase, useAssignFraudAlert,
+  useResolveFraudAlert,
 } from '../hooks/useFraud';
 import { toast } from 'sonner';
 
@@ -385,6 +386,7 @@ function ActiveAlertsTab() {
   const allow = useAllowTransaction();
   const dismiss = useDismissFraudAlert();
   const fileCase = useFileFraudCase();
+  const resolve = useResolveFraudAlert();
 
   const [statusFilter, setStatusFilter] = useState('');
   const [channelFilter, setChannelFilter] = useState('');
@@ -486,6 +488,9 @@ function ActiveAlertsTab() {
             </button>
             <button onClick={() => fileCase.mutate(a.id, { onSuccess: () => toast.success('Case filed') })} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400" title="File Case">
               <FileText className="w-3 h-3" />
+            </button>
+            <button onClick={() => resolve.mutate({ id: a.id, resolution: 'RESOLVED', resolvedBy: 'OFFICER' }, { onSuccess: () => toast.success('Alert resolved') })} className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-400" title="Resolve">
+              <CheckCircle className="w-3 h-3" />
             </button>
             <button onClick={() => dismiss.mutate(a.id, { onSuccess: () => toast.success('Alert dismissed') })} className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80" title="Dismiss">
               <X className="w-3 h-3" />

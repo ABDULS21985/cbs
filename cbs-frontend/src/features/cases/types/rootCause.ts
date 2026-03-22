@@ -25,7 +25,7 @@ export interface CaseRootCauseAnalysis {
   analysisDate: string;
   analystName: string;
   problemStatement: string;
-  rootCauseCategory: 'PROCESS' | 'SYSTEM' | 'PEOPLE' | 'THIRD_PARTY' | 'POLICY' | 'ENVIRONMENT';
+  rootCauseCategory: 'PROCESS' | 'SYSTEM' | 'PEOPLE' | 'THIRD_PARTY' | 'POLICY' | 'DATA' | 'INFRASTRUCTURE' | 'ENVIRONMENT';
   rootCauseSubCategory: string;
   rootCauseDescription: string;
   contributingFactors: Record<string, unknown>;

@@ -5,7 +5,7 @@ import com.cbs.cardclearing.service.CardClearingService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*; import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*; import java.time.LocalDate; import java.util.List;
+import org.springframework.web.bind.annotation.*; import java.time.LocalDate; import java.util.List; import java.util.Map;
 @RestController @RequestMapping("/v1/card-clearing") @RequiredArgsConstructor
 @Tag(name = "Card Clearing & Settlement", description = "Card network clearing batches, interchange, settlement positions, reconciliation")
 public class CardClearingController {
@@ -15,6 +15,27 @@ public class CardClearingController {
     @PostMapping("/positions") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<CardSettlementPosition>> createPosition(@RequestBody CardSettlementPosition pos) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createPosition(pos))); }
     @PostMapping("/manual") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<CardClearingBatch>> manual(@RequestBody CardClearingBatch batch) { batch.setStatus("RECEIVED"); return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.ingestBatch(batch))); }
     @PostMapping("/settlement/create") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<CardSettlementPosition>> createSettlement(@RequestBody CardSettlementPosition pos) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createPosition(pos))); }
+
+    @PatchMapping("/positions/{id}/status") @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<CardSettlementPosition>> updatePositionStatus(
+            @PathVariable Long id, @RequestBody Map<String, String> body) {
+        String status = body.get("status");
+        String notes = body.getOrDefault("notes", null);
+        return ResponseEntity.ok(ApiResponse.ok(service.updatePositionStatus(id, status, notes)));
+    }
+
+    @PostMapping("/positions/{id}/escalate") @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<CardSettlementPosition>> escalatePosition(
+            @PathVariable Long id, @RequestBody Map<String, String> body) {
+        String reason = body.getOrDefault("reason", null);
+        return ResponseEntity.ok(ApiResponse.ok(service.escalatePosition(id, reason)));
+    }
+
+    @GetMapping("/batches/detail/{batchId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<CardClearingBatch>> getBatchDetail(@PathVariable String batchId) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getBatchByBatchId(batchId)));
+    }
+
     @GetMapping("/batches") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<CardClearingBatch>>> listBatches() { return ResponseEntity.ok(ApiResponse.ok(service.getAllBatches())); }
     @GetMapping("/positions") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<CardSettlementPosition>>> listPositions() { return ResponseEntity.ok(ApiResponse.ok(service.getAllPositions())); }
     @GetMapping("/batches/{network}/{date}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<CardClearingBatch>>> byNetwork(@PathVariable String network, @PathVariable LocalDate date) { return ResponseEntity.ok(ApiResponse.ok(service.getByNetwork(network, date))); }

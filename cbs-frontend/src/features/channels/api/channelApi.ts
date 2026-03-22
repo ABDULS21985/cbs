@@ -2,7 +2,7 @@ import { apiGet, apiPost, apiPostParams, apiPut, apiDelete } from '@/lib/api';
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
-export type ChannelType = 'WEB' | 'MOBILE' | 'ATM' | 'BRANCH' | 'USSD' | 'IVR';
+export type ChannelType = 'WEB' | 'MOBILE' | 'ATM' | 'BRANCH' | 'USSD' | 'IVR' | 'WHATSAPP' | 'POS' | 'AGENT' | 'API';
 
 // Matches com.cbs.channel.entity.ChannelConfig
 export interface ChannelConfig {
@@ -105,8 +105,8 @@ export interface ServicePointInteraction {
 }
 
 export type ServicePointType = 'BRANCH' | 'ATM' | 'KIOSK' | 'AGENT';
-export type SessionStatus = 'ACTIVE' | 'EXPIRED' | 'TERMINATED' | 'HANDED_OFF';
-export type AllChannelType = 'WEB' | 'MOBILE' | 'ATM' | 'BRANCH' | 'USSD' | 'IVR' | 'WHATSAPP' | 'POS' | 'AGENT' | 'API';
+export type SessionStatus = 'ACTIVE' | 'IDLE' | 'HANDED_OFF' | 'EXPIRED' | 'ENDED';
+export type AllChannelType = ChannelType;
 
 // ─── API Functions ────────────────────────────────────────────────────────────
 

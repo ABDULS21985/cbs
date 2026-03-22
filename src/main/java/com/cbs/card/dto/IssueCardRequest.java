@@ -36,4 +36,13 @@ public class IssueCardRequest {
     private BigDecimal dailyOnlineLimit;
     private BigDecimal singleTxnLimit;
     private BigDecimal creditLimit;
+
+    /** Optional — frontend sends for customer context; account already links to customer */
+    private Long customerId;
+
+    /** BRANCH_PICKUP or COURIER */
+    private String deliveryMethod;
+
+    /** Branch code for BRANCH_PICKUP delivery */
+    private String branchCode;
 }

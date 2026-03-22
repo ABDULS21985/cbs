@@ -6,17 +6,20 @@ import { StatCard, StatusBadge, InfoGrid, DataTable } from '@/components/shared'
 import { formatDate, formatRelative, formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
-  Wifi, WifiOff, Clock, Send, Monitor,
+  Wifi, WifiOff, Clock, Send, Monitor, Settings,
   Cpu, CreditCard, Smartphone, Fingerprint, QrCode, BarChart3, Check, X,
 } from 'lucide-react';
 import { posTerminalsApi } from '../api/posTerminalApi';
 import { cardSwitchApi } from '../api/cardSwitchApi';
 import { cardKeys } from '../hooks/useCardData';
+import { useUpdatePosTerminalStatus } from '../hooks/useCardsExt';
 import { getStatus } from '../components/TerminalHealthMonitor';
 import type { PosTerminal } from '../types/posTerminal';
 import type { CardSwitchTransaction } from '../types/cardSwitch';
 import type { ColumnDef } from '@tanstack/react-table';
 import { toast } from 'sonner';
+
+const TERMINAL_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'TAMPERED', 'DECOMMISSIONED'] as const;
 
 function CapBadge({ supported, label }: { supported: boolean; label: string }) {
   return (
@@ -46,6 +49,7 @@ const txnCols: ColumnDef<CardSwitchTransaction, any>[] = [
 export function TerminalDetailPage() {
   const { terminalId = '' } = useParams<{ terminalId: string }>();
   const qc = useQueryClient();
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
 
   const { data: terminal, isLoading } = useQuery({
     queryKey: ['pos-terminals', 'detail', terminalId],
@@ -54,13 +58,14 @@ export function TerminalDetailPage() {
     refetchInterval: 30_000,
   });
 
-  // Transaction history for this terminal
-  const { data: allTxns = [], isLoading: txnLoading } = useQuery({
-    queryKey: ['card-switch', 'terminal', terminalId],
-    queryFn: () => cardSwitchApi.getByScheme('ALL'),
-    enabled: !!terminalId,
+  // Transaction history for this terminal — filter by merchant to reduce payload
+  const merchantId = terminal?.merchantId;
+  const { data: merchantTxns = [], isLoading: txnLoading } = useQuery({
+    queryKey: ['card-switch', 'merchant', merchantId, 'terminal', terminalId],
+    queryFn: () => cardSwitchApi.getByMerchant(merchantId!),
+    enabled: !!merchantId,
   });
-  const terminalTxns = allTxns.filter((t) => t.terminalId === terminalId);
+  const terminalTxns = merchantTxns.filter((t) => t.terminalId === terminalId);
 
   const sendHeartbeat = useMutation({
     mutationFn: () =>
@@ -69,7 +74,24 @@ export function TerminalDetailPage() {
       qc.invalidateQueries({ queryKey: ['pos-terminals'] });
       toast.success('Heartbeat sent');
     },
+    onError: () => toast.error('Failed to send heartbeat'),
   });
+
+  const updateStatus = useUpdatePosTerminalStatus();
+
+  const handleStatusChange = (newStatus: string) => {
+    setShowStatusMenu(false);
+    updateStatus.mutate(
+      { terminalId, status: newStatus },
+      {
+        onSuccess: () => {
+          toast.success(`Terminal status updated to ${newStatus}`);
+          qc.invalidateQueries({ queryKey: ['pos-terminals'] });
+        },
+        onError: () => toast.error('Failed to update terminal status'),
+      },
+    );
+  };
 
   if (isLoading || !terminal) {
     return (
@@ -118,14 +140,43 @@ export function TerminalDetailPage() {
         subtitle={`${terminal.merchantName} — ${terminal.terminalType} — ${terminal.locationAddress}`}
         backTo="/cards/pos"
         actions={
-          <button
-            onClick={() => sendHeartbeat.mutate()}
-            disabled={sendHeartbeat.isPending}
-            className="flex items-center gap-2 btn-primary"
-          >
-            <Send className="w-4 h-4" />
-            {sendHeartbeat.isPending ? 'Sending...' : 'Send Heartbeat'}
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setShowStatusMenu((v) => !v)}
+                disabled={updateStatus.isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted disabled:opacity-50"
+              >
+                <Settings className="w-4 h-4" />
+                {updateStatus.isPending ? 'Updating...' : 'Change Status'}
+              </button>
+              {showStatusMenu && (
+                <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border bg-background shadow-lg py-1">
+                  {TERMINAL_STATUSES.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleStatusChange(s)}
+                      disabled={terminal.operationalStatus === s}
+                      className={cn(
+                        'w-full text-left px-3 py-2 text-sm hover:bg-muted disabled:opacity-30',
+                        terminal.operationalStatus === s && 'font-bold',
+                      )}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => sendHeartbeat.mutate()}
+              disabled={sendHeartbeat.isPending}
+              className="flex items-center gap-2 btn-primary"
+            >
+              <Send className="w-4 h-4" />
+              {sendHeartbeat.isPending ? 'Sending...' : 'Send Heartbeat'}
+            </button>
+          </div>
         }
       />
       <div className="page-container space-y-6">

@@ -94,23 +94,35 @@ const mockRules = [
 
 const mockStrs = [
   {
-    strNumber: 'STR-2026-001',
+    id: 10,
+    alertRef: 'AML000000000010',
+    sarReference: 'STR-2026-001',
     customerName: 'John Doe',
-    suspiciousActivity: 'Multiple structuring transactions',
-    amount: 150000,
-    reportingOfficer: 'Officer A',
-    status: 'FILED',
+    description: 'Multiple structuring transactions detected',
+    triggerAmount: 150000,
+    triggerCount: 5,
+    resolvedBy: 'Officer A',
+    status: 'SAR_FILED',
+    severity: 'HIGH',
+    ruleCategory: 'STRUCTURING',
+    createdAt: '2026-03-20T10:00:00Z',
   },
 ];
 
 const mockCtrs = [
   {
-    reportDate: '2026-03-20',
+    id: 11,
+    alertRef: 'AML000000000011',
+    sarReference: null,
     customerName: 'Jane Smith',
-    totalAmount: 120000,
-    currency: 'NGN',
-    transactionCount: 3,
-    status: 'SUBMITTED',
+    description: 'Large cash transaction exceeding threshold',
+    triggerAmount: 120000,
+    triggerCount: 3,
+    resolvedBy: null,
+    status: 'NEW',
+    severity: 'HIGH',
+    ruleCategory: 'LARGE_CASH',
+    createdAt: '2026-03-20T09:30:00Z',
   },
 ];
 
