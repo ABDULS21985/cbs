@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface CounterpartyRepository extends JpaRepository<Counterparty, Long> {
     Optional<Counterparty> findByCounterpartyCode(String code);
     Optional<Counterparty> findByLei(String lei);
+    List<Counterparty> findAllByOrderByCounterpartyNameAsc();
     List<Counterparty> findByCounterpartyTypeAndStatusOrderByCounterpartyNameAsc(String type, String status);
     List<Counterparty> findByKycStatusOrderByCounterpartyNameAsc(String kycStatus);
 }

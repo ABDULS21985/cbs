@@ -58,6 +58,10 @@ public class CounterpartyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Counterparty", "counterpartyCode", code));
     }
 
+    public List<Counterparty> getAll() {
+        return counterpartyRepository.findAllByOrderByCounterpartyNameAsc();
+    }
+
     public List<Counterparty> getByType(String type) {
         return counterpartyRepository.findByCounterpartyTypeAndStatusOrderByCounterpartyNameAsc(type, "ACTIVE");
     }

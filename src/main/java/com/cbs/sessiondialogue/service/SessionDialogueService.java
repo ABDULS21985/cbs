@@ -68,6 +68,11 @@ public class SessionDialogueService {
         return sessionRepository.findByAgentIdAndStatusOrderByStartedAtDesc(agentId, "ACTIVE");
     }
 
+    public List<DialogueMessage> getMessagesBySessionCode(String sessionCode) {
+        DialogueSession session = getByCode(sessionCode);
+        return messageRepository.findBySessionIdOrderByCreatedAtAsc(session.getId());
+    }
+
     private DialogueSession getByCode(String code) {
         return sessionRepository.findBySessionCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("DialogueSession", "sessionCode", code));

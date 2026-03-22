@@ -762,7 +762,7 @@ export function ContactCenterPage() {
                 { id: 'rank', header: '#', cell: ({ row }) => { const rank = sorted.indexOf(row.original); return rank < 3 ? <span className="text-lg">{medals[rank]}</span> : <span className="text-sm text-muted-foreground tabular-nums">{rank + 1}</span>; }},
                 ...agentPerfCols,
               ];
-              return <DataTable columns={leaderCols} data={sorted} enableGlobalFilter emptyMessage="No agents" onRowClick={(row) => navigate(`/contact-center/agents/${row.agentId}`)} />;
+              return <DataTable columns={leaderCols} data={sorted} enableGlobalFilter emptyMessage="No agents" onRowClick={(row) => navigate(`/contact-center/agent/${row.agentId}`)} />;
             })()}
           </div>
 

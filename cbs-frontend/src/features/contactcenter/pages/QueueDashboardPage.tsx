@@ -188,7 +188,7 @@ function AgentAllocationView({ agents }: { agents: AgentState[] }) {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {groups[state].map(agent => (
-                <button key={agent.agentId} onClick={() => navigate(`/communications/contact-center/agent`)}
+                <button key={agent.agentId} onClick={() => navigate(`/contact-center/agent/${agent.agentId}`)}
                   className={cn('text-left rounded-lg border p-3 transition-colors hover:shadow-sm', colors.bg)}>
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">

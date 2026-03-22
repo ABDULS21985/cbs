@@ -20,6 +20,18 @@ public class CounterpartyController {
 
     private final CounterpartyService service;
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Counterparty>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAll()));
+    }
+
+    @GetMapping("/{code}")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Counterparty>> getByCode(@PathVariable String code) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getByCode(code)));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Counterparty>> create(@RequestBody Counterparty cp) {

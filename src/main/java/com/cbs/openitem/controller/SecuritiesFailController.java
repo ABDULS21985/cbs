@@ -23,6 +23,11 @@ public class SecuritiesFailController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.recordFail(fail)));
     }
 
+    @GetMapping("/{ref}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<SecuritiesFail>> getByRef(@PathVariable String ref) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getByRef(ref)));
+    }
+
     @PostMapping("/{ref}/escalate") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<SecuritiesFail>> escalate(@PathVariable String ref) {
         SecuritiesFail fail = service.getByRef(ref);

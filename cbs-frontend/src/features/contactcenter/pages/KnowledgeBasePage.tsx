@@ -16,6 +16,7 @@ import {
   usePublishHelpArticle,
   useRecordArticleView,
   useRecordArticleHelpfulness,
+  useGuidedFlows,
   useCreateGuidedFlow,
   useActivateGuidedFlow,
   useStartGuidedFlow,
@@ -127,13 +128,13 @@ function ArticleSlideOver({ article, onClose }: { article: HelpArticle; onClose:
             <p className="text-sm font-medium mb-3">Was this article helpful?</p>
             <div className="flex gap-3">
               <button
-                onClick={() => { recordHelpfulness.mutate(article.articleCode); toast.success('Thanks for your feedback!'); }}
+                onClick={() => { recordHelpfulness.mutate({ code: article.articleCode, helpful: true }); toast.success('Thanks for your feedback!'); }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors"
               >
                 <ThumbsUp className="w-4 h-4 text-green-600" /> Yes
               </button>
               <button
-                onClick={() => toast.info('Thank you — we\'ll improve this article')}
+                onClick={() => { recordHelpfulness.mutate({ code: article.articleCode, helpful: false }); toast.info('Thank you — we\'ll improve this article'); }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
               >
                 <ThumbsDown className="w-4 h-4 text-red-600" /> No
@@ -315,8 +316,7 @@ export function KnowledgeBasePage() {
   const activateFlow = useActivateGuidedFlow();
   const startFlow = useStartGuidedFlow();
 
-  // Guided flows come from articles search with different params — use a separate query
-  const { data: flows = [] } = useSearchHelpArticles({ type: 'flows' });
+  const { data: flows = [] } = useGuidedFlows();
 
   const articleCols: ColumnDef<HelpArticle, unknown>[] = [
     { accessorKey: 'title', header: 'Title', cell: ({ row }) => <span className="font-medium text-sm">{row.original.title}</span> },
@@ -439,9 +439,9 @@ export function KnowledgeBasePage() {
       label: 'Guided Flows',
       content: (
         <div className="p-4">
-          {(flows as unknown as GuidedFlow[]).length > 0 ? (
+          {flows.length > 0 ? (
             <div className="space-y-3">
-              {(flows as unknown as GuidedFlow[]).map((flow: GuidedFlow) => (
+              {flows.map((flow) => (
                 <div key={flow.id} className="rounded-xl border bg-card p-5 flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold">{flow.flowName}</p>

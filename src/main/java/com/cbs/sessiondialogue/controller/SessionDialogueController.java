@@ -3,6 +3,7 @@ package com.cbs.sessiondialogue.controller;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.sessiondialogue.entity.DialogueMessage;
 import com.cbs.sessiondialogue.entity.DialogueSession;
+import com.cbs.sessiondialogue.repository.DialogueSessionRepository;
 import com.cbs.sessiondialogue.service.SessionDialogueService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import java.util.List;
 public class SessionDialogueController {
 
     private final SessionDialogueService service;
+    private final DialogueSessionRepository sessionRepository;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -49,5 +51,20 @@ public class SessionDialogueController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<DialogueSession>>> getCustomerSessions(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(service.getCustomerSessions(id)));
+    }
+
+    @GetMapping("/sessions")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<DialogueSession>>> listSessions(@RequestParam(required = false) String status) {
+        List<DialogueSession> sessions = (status != null && !status.isBlank())
+                ? sessionRepository.findByStatusOrderByStartedAtDesc(status)
+                : sessionRepository.findAll();
+        return ResponseEntity.ok(ApiResponse.ok(sessions));
+    }
+
+    @GetMapping("/{code}/messages")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<DialogueMessage>>> getMessages(@PathVariable String code) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getMessagesBySessionCode(code)));
     }
 }

@@ -12,7 +12,8 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { contactCenterApi } from '../api/contactCenterApi';
 import type { ContactInteraction } from '../types/contactCenterExt';
 import type { CallbackRequest } from '../types/contactRouting';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet } from '@/lib/api';
+import { contactRoutingApi } from '../api/contactRoutingApi';
 import { useAuthStore } from '@/stores/authStore';
 
 function fmtTime(sec: number): string {
@@ -39,9 +40,7 @@ function CompleteInteractionForm({ interaction, onClose }: { interaction: Contac
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    apiPost(`/api/v1/contact-center/interactions/${interaction.id}/complete`, {
-      disposition, sentiment, fcr, notes,
-    }).then(() => {
+    contactCenterApi.completeInteraction(interaction.interactionId, disposition, sentiment, fcr).then(() => {
       toast.success('Interaction completed');
       qc.invalidateQueries({ queryKey: ['contact-center'] });
       onClose();
@@ -267,7 +266,7 @@ export function AgentDashboardPage() {
                           {cb.status !== 'COMPLETED' && cb.status !== 'FAILED' && (
                             <button
                               onClick={() => {
-                                apiPost(`/api/v1/contact-routing/callbacks/${cb.id}/attempt`, { outcome: 'ANSWERED' })
+                                contactRoutingApi.attemptCallback(cb.id, 'ANSWERED')
                                   .then(() => { toast.success('Callback completed'); qc.invalidateQueries({ queryKey: ['contact-center'] }); })
                                   .catch(() => toast.error('Failed'));
                               }}

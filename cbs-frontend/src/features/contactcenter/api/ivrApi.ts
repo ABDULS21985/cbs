@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 import type { IvrMenu, IvrSession } from '../types/ivr';
 
 export const ivrApi = {
@@ -10,16 +10,22 @@ export const ivrApi = {
   listMenus: (params?: Record<string, unknown>) =>
     apiGet<IvrMenu[]>('/api/v1/ivr/menus', params),
 
-  /** POST /v1/ivr/sessions */
-  startSession: () =>
-    apiPost<IvrSession>('/api/v1/ivr/sessions'),
+  /** GET /v1/ivr/sessions — list all IVR sessions */
+  listSessions: () =>
+    apiGet<IvrSession[]>('/api/v1/ivr/sessions'),
 
-  /** POST /v1/ivr/sessions/{sessionId}/navigate */
-  navigateSession: (sessionId: number) =>
-    apiPost<IvrSession>(`/api/v1/ivr/sessions/${sessionId}/navigate`),
+  /** POST /v1/ivr/sessions?callerNumber=...&customerId=... */
+  startSession: (callerNumber: string, customerId?: number) =>
+    apiPostParams<IvrSession>('/api/v1/ivr/sessions', {
+      callerNumber,
+      ...(customerId != null ? { customerId } : {}),
+    }),
 
-  /** POST /v1/ivr/sessions/{sessionId}/transfer */
-  transfer: (sessionId: number) =>
-    apiPost<IvrSession>(`/api/v1/ivr/sessions/${sessionId}/transfer`),
+  /** POST /v1/ivr/sessions/{sessionId}/navigate?option=... */
+  navigateSession: (sessionId: string, option: string) =>
+    apiPostParams<IvrSession>(`/api/v1/ivr/sessions/${sessionId}/navigate`, { option }),
 
+  /** POST /v1/ivr/sessions/{sessionId}/transfer?reason=... */
+  transfer: (sessionId: string, reason: string) =>
+    apiPostParams<IvrSession>(`/api/v1/ivr/sessions/${sessionId}/transfer`, { reason }),
 };

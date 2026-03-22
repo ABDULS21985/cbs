@@ -7,7 +7,7 @@ import { dialogueApi } from '../api/dialogueApi';
 import type { RoutingRule, CallbackRequest } from '../types/contactRouting';
 import type { IvrMenu } from '../types/ivr';
 import type { HelpArticle, GuidedFlow } from '../types/help';
-import type { DialogueMessage } from '../types/dialogue';
+import type { DialogueMessage, DialogueSession } from '../types/dialogue';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
@@ -33,19 +33,34 @@ export const CONTACT_CENTER_KEYS = {
   // IVR
   ivr: ['contact-center', 'ivr'] as const,
   ivrMenus: () => [...CONTACT_CENTER_KEYS.ivr, 'menus'] as const,
+  ivrSessions: () => [...CONTACT_CENTER_KEYS.ivr, 'sessions'] as const,
 
   // Help
   help: ['contact-center', 'help'] as const,
+  helpArticles: () => [...CONTACT_CENTER_KEYS.help, 'articles'] as const,
   helpArticleSearch: (params?: Record<string, unknown>) =>
     [...CONTACT_CENTER_KEYS.help, 'articles', 'search', params] as const,
+  helpFlows: () => [...CONTACT_CENTER_KEYS.help, 'flows'] as const,
 
   // Dialogue
   dialogue: ['contact-center', 'dialogue'] as const,
+  dialogueSessions: (params?: Record<string, unknown>) =>
+    [...CONTACT_CENTER_KEYS.dialogue, 'sessions', params] as const,
+  dialogueMessages: (code: string) =>
+    [...CONTACT_CENTER_KEYS.dialogue, 'messages', code] as const,
   dialogueCustomerSessions: (customerId: number) =>
     [...CONTACT_CENTER_KEYS.dialogue, 'customer', customerId] as const,
 } as const;
 
 // ─── Interactions Hooks ───────────────────────────────────────────────────────
+
+export function useAllInteractions() {
+  return useQuery({
+    queryKey: CONTACT_CENTER_KEYS.interactions,
+    queryFn: () => contactCenterApi.getAllInteractions(),
+    refetchInterval: 10_000,
+  });
+}
 
 export function useCustomerInteractions(customerId: number) {
   return useQuery({
@@ -220,25 +235,52 @@ export function useCreateIvrMenu() {
   });
 }
 
+export function useIvrSessions() {
+  return useQuery({
+    queryKey: CONTACT_CENTER_KEYS.ivrSessions(),
+    queryFn: () => ivrApi.listSessions(),
+    staleTime: 15_000,
+  });
+}
+
 export function useStartIvrSession() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => ivrApi.startSession(),
+    mutationFn: ({ callerNumber, customerId }: { callerNumber: string; customerId?: number }) =>
+      ivrApi.startSession(callerNumber, customerId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.ivrSessions() });
+    },
   });
 }
 
 export function useNavigateIvrSession() {
   return useMutation({
-    mutationFn: (sessionId: number) => ivrApi.navigateSession(sessionId),
+    mutationFn: ({ sessionId, option }: { sessionId: string; option: string }) =>
+      ivrApi.navigateSession(sessionId, option),
   });
 }
 
 export function useTransferIvrSession() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (sessionId: number) => ivrApi.transfer(sessionId),
+    mutationFn: ({ sessionId, reason }: { sessionId: string; reason: string }) =>
+      ivrApi.transfer(sessionId, reason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.ivrSessions() });
+    },
   });
 }
 
 // ─── Help Hooks ───────────────────────────────────────────────────────────────
+
+export function useHelpArticles() {
+  return useQuery({
+    queryKey: CONTACT_CENTER_KEYS.helpArticles(),
+    queryFn: () => helpApi.listArticles(),
+    staleTime: 60_000,
+  });
+}
 
 export function useSearchHelpArticles(params?: Record<string, unknown>) {
   return useQuery({
@@ -275,8 +317,21 @@ export function useRecordArticleView() {
 }
 
 export function useRecordArticleHelpfulness() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => helpApi.recordHelpfulness(code),
+    mutationFn: ({ code, helpful }: { code: string; helpful: boolean }) =>
+      helpApi.recordHelpfulness(code, helpful),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.help });
+    },
+  });
+}
+
+export function useGuidedFlows() {
+  return useQuery({
+    queryKey: CONTACT_CENTER_KEYS.helpFlows(),
+    queryFn: () => helpApi.listFlows(),
+    staleTime: 60_000,
   });
 }
 
@@ -308,6 +363,23 @@ export function useStartGuidedFlow() {
 
 // ─── Dialogue Hooks ───────────────────────────────────────────────────────────
 
+export function useDialogueSessions(params?: Record<string, unknown>) {
+  return useQuery({
+    queryKey: CONTACT_CENTER_KEYS.dialogueSessions(params),
+    queryFn: () => dialogueApi.listSessions(params),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useDialogueMessages(code: string) {
+  return useQuery({
+    queryKey: CONTACT_CENTER_KEYS.dialogueMessages(code),
+    queryFn: () => dialogueApi.getMessages(code),
+    enabled: !!code,
+    refetchInterval: 5_000,
+  });
+}
+
 export function useDialogueCustomerSessions(customerId: number) {
   return useQuery({
     queryKey: CONTACT_CENTER_KEYS.dialogueCustomerSessions(customerId),
@@ -317,12 +389,23 @@ export function useDialogueCustomerSessions(customerId: number) {
   });
 }
 
+export function useStartDialogueSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<DialogueSession>) => dialogueApi.startSession(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.dialogue });
+    },
+  });
+}
+
 export function useAddDialogueMessage() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ code, data }: { code: string; data: Partial<DialogueMessage> }) =>
       dialogueApi.addMessage(code, data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.dialogueMessages(variables.code) });
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.dialogue });
     },
   });
@@ -331,7 +414,8 @@ export function useAddDialogueMessage() {
 export function useEscalateDialogue() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => dialogueApi.escalateToHuman(code),
+    mutationFn: ({ code, agentId }: { code: string; agentId: string }) =>
+      dialogueApi.escalateToHuman(code, agentId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.dialogue });
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.interactions });
@@ -342,7 +426,8 @@ export function useEscalateDialogue() {
 export function useEndDialogueSession() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => dialogueApi.endSession(code),
+    mutationFn: ({ code, resolutionStatus }: { code: string; resolutionStatus?: string }) =>
+      dialogueApi.endSession(code, resolutionStatus),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.dialogue });
     },

@@ -10,4 +10,5 @@ public interface DialogueSessionRepository extends JpaRepository<DialogueSession
     Optional<DialogueSession> findBySessionCode(String sessionCode);
     List<DialogueSession> findByCustomerIdOrderByStartedAtDesc(Long customerId);
     List<DialogueSession> findByAgentIdAndStatusOrderByStartedAtDesc(String agentId, String status);
+    List<DialogueSession> findByStatusOrderByStartedAtDesc(String status);
 }

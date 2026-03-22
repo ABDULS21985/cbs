@@ -544,7 +544,7 @@ function RightPanel({ customerId }: { customerId: number | null }) {
                 <p className="font-medium">{article.title}</p>
                 <p className="text-muted-foreground line-clamp-2">{article.summary}</p>
                 <div className="flex items-center gap-2 pt-1">
-                  <button onClick={() => recordHelpfulness.mutate(article.articleCode)} className="flex items-center gap-0.5 text-muted-foreground hover:text-green-600" title="Helpful">
+                  <button onClick={() => recordHelpfulness.mutate({ code: article.articleCode, helpful: true })} className="flex items-center gap-0.5 text-muted-foreground hover:text-green-600" title="Helpful">
                     <ThumbsUp className="w-3 h-3" />
                   </button>
                   <button className="flex items-center gap-0.5 text-muted-foreground hover:text-red-600" title="Not helpful">

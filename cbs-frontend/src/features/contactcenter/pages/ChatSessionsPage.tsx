@@ -10,14 +10,14 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import {
+  useDialogueSessions,
   useDialogueCustomerSessions,
+  useDialogueMessages,
   useAddDialogueMessage,
   useEscalateDialogue,
   useEndDialogueSession,
 } from '../hooks/useContactCenter';
 import type { DialogueSession, DialogueMessage } from '../types/dialogue';
-import { apiGet } from '@/lib/api';
-import { useQuery } from '@tanstack/react-query';
 
 // ─── Sentiment ──────────────────────────────────────────────────────────────
 
@@ -87,12 +87,7 @@ function SessionDetailPanel({ session, onClose }: { session: DialogueSession; on
   const escalate = useEscalateDialogue();
   const endSession = useEndDialogueSession();
 
-  const { data: messages = [] } = useQuery({
-    queryKey: ['dialogue', 'messages', session.sessionCode],
-    queryFn: () => apiGet<DialogueMessage[]>(`/api/v1/dialogue/${session.sessionCode}/messages`),
-    enabled: !!session.sessionCode,
-    refetchInterval: session.status === 'ACTIVE' ? 5_000 : undefined,
-  });
+  const { data: messages = [] } = useDialogueMessages(session.sessionCode);
 
   const { data: customerSessions = [] } = useDialogueCustomerSessions(session.customerId);
   const pastSessions = customerSessions.filter((s) => s.id !== session.id);
@@ -146,11 +141,11 @@ function SessionDetailPanel({ session, onClose }: { session: DialogueSession; on
             </div>
             <div className="flex gap-2">
               {!session.escalatedToHuman && (
-                <button onClick={() => escalate.mutate(session.sessionCode, { onSuccess: () => toast.success('Escalated'), onError: () => toast.error('Failed') })} disabled={escalate.isPending} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/10">
+                <button onClick={() => escalate.mutate({ code: session.sessionCode, agentId: 'SUPERVISOR' }, { onSuccess: () => toast.success('Escalated'), onError: () => toast.error('Failed') })} disabled={escalate.isPending} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/10">
                   <ArrowUpRight className="w-3.5 h-3.5" /> Escalate
                 </button>
               )}
-              <button onClick={() => endSession.mutate(session.sessionCode, { onSuccess: () => { toast.success('Session ended'); onClose(); }, onError: () => toast.error('Failed') })} disabled={endSession.isPending} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10">
+              <button onClick={() => endSession.mutate({ code: session.sessionCode, resolutionStatus: 'RESOLVED' }, { onSuccess: () => { toast.success('Session ended'); onClose(); }, onError: () => toast.error('Failed') })} disabled={endSession.isPending} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10">
                 <Square className="w-3.5 h-3.5" /> End Session
               </button>
             </div>
@@ -184,11 +179,9 @@ export function ChatSessionsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedSession, setSelectedSession] = useState<DialogueSession | null>(null);
 
-  const { data: sessions = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['dialogue', 'sessions', statusFilter],
-    queryFn: () => apiGet<DialogueSession[]>('/api/v1/dialogue/sessions', statusFilter ? { status: statusFilter } : undefined),
-    refetchInterval: 10_000,
-  });
+  const { data: sessions = [], isLoading, isError, refetch } = useDialogueSessions(
+    statusFilter ? { status: statusFilter } : undefined,
+  );
 
   const activeSessions = sessions.filter((s) => s.status === 'ACTIVE');
   const escalatedSessions = sessions.filter((s) => s.escalatedToHuman);
