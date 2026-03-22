@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface AmlRuleRepository extends JpaRepository<AmlRule, Long> {
     Optional<AmlRule> findByRuleCode(String ruleCode);
     List<AmlRule> findByIsActiveTrueOrderByRuleNameAsc();
+    List<AmlRule> findAllByOrderByRuleNameAsc();
 }

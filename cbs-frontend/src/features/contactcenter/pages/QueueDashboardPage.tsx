@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { contactCenterApi, type QueueStatus, type AgentState } from '../api/contactCenterApi';
 import { useQueueDashboard, useAgentsByCenter, useRequestCallback } from '../hooks/useContactCenter';
+import type { ContactInteraction } from '../types/contactCenterExt';
 
 const DEFAULT_CENTER_ID = 1;
 
@@ -49,9 +50,13 @@ function LiveClock() {
 
 // ── Queue Card (expanded version) ───────────────────────────────────────────
 
-function QueueCardExpanded({ queue }: { queue: QueueStatus }) {
+function QueueCardExpanded({ queue, interactions }: { queue: QueueStatus; interactions: ContactInteraction[] }) {
   const [expanded, setExpanded] = useState(false);
   const requestCallback = useRequestCallback();
+  const waitingInteractions = interactions
+    .filter((ix) => ix.status === 'QUEUED' && (!ix.queueName || ix.queueName === queue.queueName))
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .slice(0, 5);
 
   const capPct = queue.waiting / Math.max(1, (queue as unknown as { maxCapacity?: number }).maxCapacity ?? 20) * 100;
   const isHighWait = queue.longestWaitSec > (queue.slaTargetSec * 2);
@@ -119,30 +124,38 @@ function QueueCardExpanded({ queue }: { queue: QueueStatus }) {
       {expanded && (
         <div className="border-t px-5 py-4 bg-muted/20">
           <h5 className="text-xs font-semibold text-muted-foreground uppercase mb-3">Waiting Customers</h5>
-          {queue.waiting === 0 ? (
+          {waitingInteractions.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">No customers waiting.</p>
           ) : (
             <div className="space-y-2">
-              {Array.from({ length: Math.min(queue.waiting, 5) }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-card border">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-muted-foreground">#{i + 1}</span>
-                    <div>
-                      <p className="text-sm font-medium">Customer #{1000 + i}</p>
-                      <p className="text-xs text-muted-foreground">Phone · General Inquiry</p>
+              {waitingInteractions.map((ix, i) => {
+                const waitSec = ix.waitTimeSec ?? Math.round((Date.now() - new Date(ix.createdAt).getTime()) / 1000);
+                return (
+                  <div key={ix.interactionId} className="flex items-center justify-between p-2.5 rounded-lg bg-card border">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-muted-foreground">#{i + 1}</span>
+                      <div>
+                        <p className="text-sm font-medium">Customer #{ix.customerId ?? '—'}</p>
+                        <p className="text-xs text-muted-foreground">{ix.channel} · {ix.contactReason ?? 'General Inquiry'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={cn('text-xs font-mono', i === 0 ? 'text-red-600 font-semibold' : 'text-muted-foreground')}>
+                        {fmtTime(waitSec)}
+                      </span>
+                      <button
+                        onClick={() => requestCallback.mutate(
+                          { customerId: ix.customerId, callbackNumber: '', contactReason: ix.contactReason || 'GENERAL', urgency: 'MEDIUM' },
+                          { onSuccess: () => toast.success('Callback offered') },
+                        )}
+                        className="px-2 py-1 rounded text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                      >
+                        Offer Callback
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={cn('text-xs font-mono', i === 0 ? 'text-red-600 font-semibold' : 'text-muted-foreground')}>
-                      {fmtTime(queue.longestWaitSec - i * 30)}
-                    </span>
-                    <button onClick={() => requestCallback.mutate({ customerId: 1000 + i, callbackNumber: '+234...', contactReason: 'GENERAL', urgency: 'MEDIUM' }, { onSuccess: () => toast.success('Callback offered') })}
-                      className="px-2 py-1 rounded text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                      Offer Callback
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {queue.waiting > 5 && <p className="text-xs text-muted-foreground text-center">+{queue.waiting - 5} more waiting</p>}
             </div>
           )}
@@ -232,6 +245,13 @@ export function QueueDashboardPage() {
   // Also fetch from routing API for richer data
   const { data: routingQueues = [] } = useQueueDashboard(DEFAULT_CENTER_ID);
 
+  // Fetch interactions for real waiting-customer data
+  const { data: interactions = [] } = useQuery({
+    queryKey: ['contact-center', 'interactions'],
+    queryFn: () => contactCenterApi.getAllInteractions(),
+    refetchInterval: 10_000,
+  });
+
   // Fetch agents
   const { data: agents = [], isLoading: agentsLoading } = useQuery({
     queryKey: ['contact-center', 'agent-states'],
@@ -316,7 +336,7 @@ export function QueueDashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {queues.map(q => <QueueCardExpanded key={q.queueName} queue={q} />)}
+              {queues.map(q => <QueueCardExpanded key={q.queueName} queue={q} interactions={interactions} />)}
             </div>
           )
         )}

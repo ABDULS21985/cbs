@@ -160,6 +160,25 @@ export function useUpdateSegment() {
   });
 }
 
+export function useDeleteSegment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => customerApi.deleteSegment(code),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['customers', 'segments'] }); },
+  });
+}
+
+export function useEvaluateSegment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => customerApi.evaluateSegment(code),
+    onSuccess: (_data, code) => {
+      qc.invalidateQueries({ queryKey: ['customers', 'segments', code] });
+      qc.invalidateQueries({ queryKey: ['customers', 'segments'] });
+    },
+  });
+}
+
 export function useKycDecide() {
   const queryClient = useQueryClient();
   return useMutation({

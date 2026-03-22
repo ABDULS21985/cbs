@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, SlidersHorizontal, Plus, X, Users, UserCheck, UserMinus, UserPlus,
-  Download, MoreHorizontal, Eye, Mail, Phone, Building2, Calendar, Shield,
-  ChevronDown, Sparkles, ArrowUpDown,
+  Eye, Mail, Phone, Building2, Calendar,
 } from 'lucide-react';
+import { BulkActionBar } from '../components/bulk/BulkActionBar';
 import type { ColumnDef, SortingState } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared/DataTable';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -130,6 +130,7 @@ export default function CustomerListPage() {
   const navigate = useNavigate();
   const canCreate = usePermission('customers', 'create');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedCustomers, setSelectedCustomers] = useState<CustomerListItem[]>([]);
   const { filters, setFilters } = useCustomerFiltersFromUrl();
   const [searchInput, setSearchInput] = useState(filters.search || '');
   const debouncedSearch = useDebounce(searchInput, 300);
@@ -504,6 +505,15 @@ export default function CustomerListPage() {
             data={data?.items ?? []}
             isLoading={isLoading}
             enableRowSelection
+            onRowSelectionChange={setSelectedCustomers}
+            bulkActions={
+              selectedCustomers.length > 0 ? (
+                <BulkActionBar
+                  selectedIds={selectedCustomers.map((c) => c.id)}
+                  onClear={() => setSelectedCustomers([])}
+                />
+              ) : undefined
+            }
             enableExport
             exportFilename="customers"
             onRowClick={(row) => navigate(`/customers/${row.id}`)}

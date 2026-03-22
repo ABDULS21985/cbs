@@ -2,6 +2,7 @@ package com.cbs.aml.repository;
 
 import com.cbs.aml.entity.AmlAlert;
 import com.cbs.aml.entity.AmlAlertStatus;
+import com.cbs.aml.entity.AmlRuleCategory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -36,6 +37,11 @@ public interface AmlAlertRepository extends JpaRepository<AmlAlert, Long> {
     @Query(value = "SELECT a FROM AmlAlert a JOIN FETCH a.rule LEFT JOIN FETCH a.customer LEFT JOIN FETCH a.account ORDER BY a.createdAt DESC",
            countQuery = "SELECT count(a) FROM AmlAlert a")
     Page<AmlAlert> findAllWithDetails(Pageable pageable);
+
+    /** CTR / category-filtered list — used for the CTR tab (LARGE_CASH alerts). */
+    @Query(value = "SELECT a FROM AmlAlert a JOIN FETCH a.rule r LEFT JOIN FETCH a.customer LEFT JOIN FETCH a.account WHERE r.ruleCategory = :category ORDER BY a.createdAt DESC",
+           countQuery = "SELECT count(a) FROM AmlAlert a JOIN a.rule r WHERE r.ruleCategory = :category")
+    Page<AmlAlert> findByRuleCategory(@Param("category") AmlRuleCategory category, Pageable pageable);
     @Query(value = "SELECT nextval('cbs.aml_alert_seq')", nativeQuery = true)
     Long getNextAlertSequence();
 

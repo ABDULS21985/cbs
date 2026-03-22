@@ -45,7 +45,7 @@ const config: Config = {
         info: { 50: '#EFF6FF', 500: '#3B82F6', 700: '#1D4ED8' },
       },
       fontFamily: {
-        sans: ['var(--font-sans)'],
+        sans: ['Aptos', 'Avenir Next', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'sans-serif'],
         mono: ['var(--font-mono)'],
       },
       fontSize: {

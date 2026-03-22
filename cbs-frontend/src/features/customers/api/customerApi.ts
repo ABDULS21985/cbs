@@ -167,6 +167,16 @@ interface BackendAuditResponse {
   afterState?: Record<string, unknown> | null;
 }
 
+interface BackendSegmentRuleResponse {
+  id?: number | null;
+  fieldName: string;
+  operator: string;
+  fieldValue: string;
+  fieldValueTo?: string | null;
+  logicalGroup?: number | null;
+  isActive?: boolean | null;
+}
+
 interface BackendSegmentResponse {
   id: number;
   code: string;
@@ -177,6 +187,12 @@ interface BackendSegmentResponse {
   isActive: boolean;
   colorCode?: string | null;
   icon?: string | null;
+  customerCount?: number | null;
+  totalBalance?: number | null;
+  avgBalance?: number | null;
+  rules?: BackendSegmentRuleResponse[] | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 function normalizeCountryCode(value?: string): string {
@@ -440,6 +456,18 @@ function mapAuditEntry(item: BackendAuditResponse): CustomerAuditEntry {
   };
 }
 
+function mapSegmentRule(r: BackendSegmentRuleResponse): import('../types/customer').SegmentRule {
+  return {
+    id: r.id ?? null,
+    fieldName: r.fieldName,
+    operator: r.operator,
+    fieldValue: r.fieldValue,
+    fieldValueTo: r.fieldValueTo ?? null,
+    logicalGroup: r.logicalGroup ?? null,
+    isActive: r.isActive ?? null,
+  };
+}
+
 function mapSegment(item: BackendSegmentResponse): CustomerSegment {
   return {
     id: item.id,
@@ -451,6 +479,17 @@ function mapSegment(item: BackendSegmentResponse): CustomerSegment {
     isActive: item.isActive,
     colorCode: item.colorCode ?? null,
     icon: item.icon ?? null,
+    customerCount: item.customerCount ?? null,
+  };
+}
+
+function mapSegmentDetail(item: BackendSegmentResponse): import('../types/customer').SegmentDetail {
+  return {
+    ...mapSegment(item),
+    rules: (item.rules ?? []).map(mapSegmentRule),
+    customerCount: item.customerCount ?? 0,
+    totalBalance: item.totalBalance ?? 0,
+    avgBalance: item.avgBalance ?? 0,
   };
 }
 
@@ -681,31 +720,44 @@ export const customerApi = {
     await api.delete(`/api/v1/customers/${customerId}/identifications/${docId}`);
   },
 
-  // ── Segment Analytics ───────────────────────────────────────────────────
+  // ── Segment CRUD & Analytics ─────────────────────────────────────────────
 
-  getSegmentDetail(code: string) {
-    return apiGet<import('../types/customer').SegmentDetail>(`/api/v1/customers/segments/${code}`);
+  async getSegmentDetail(code: string): Promise<import('../types/customer').SegmentDetail> {
+    const raw = await apiGet<BackendSegmentResponse>(`/api/v1/customers/segments/${code}`);
+    return mapSegmentDetail(raw);
   },
 
-  getSegmentCustomers(code: string, params?: { page?: number; size?: number }) {
-    return apiGet<import('../types/customer').SegmentCustomer[]>(
+  async getSegmentCustomers(code: string, params?: { page?: number; size?: number }): Promise<import('../types/customer').SegmentCustomer[]> {
+    const raw = await apiGet<import('../types/customer').SegmentCustomer[]>(
       `/api/v1/customers/segments/${code}/customers`,
       params as Record<string, unknown>,
     );
+    return raw ?? [];
   },
 
-  getSegmentAnalytics() {
-    return apiGet<import('../types/customer').SegmentAnalytics[]>(
+  async getSegmentAnalytics(): Promise<import('../types/customer').SegmentAnalytics[]> {
+    const raw = await apiGet<import('../types/customer').SegmentAnalytics[]>(
       '/api/v1/customers/segments/analytics',
     );
+    return raw ?? [];
   },
 
-  createSegment(data: import('../types/customer').CreateSegmentPayload) {
-    return apiPost<CustomerSegment>('/api/v1/customers/segments', data);
+  async createSegment(data: import('../types/customer').CreateSegmentPayload): Promise<CustomerSegment> {
+    const raw = await apiPost<BackendSegmentResponse>('/api/v1/customers/segments', data);
+    return mapSegment(raw);
   },
 
-  updateSegment(code: string, data: Partial<import('../types/customer').CreateSegmentPayload>) {
-    return apiPut<CustomerSegment>(`/api/v1/customers/segments/${code}`, data);
+  async updateSegment(code: string, data: Partial<import('../types/customer').CreateSegmentPayload>): Promise<CustomerSegment> {
+    const raw = await apiPut<BackendSegmentResponse>(`/api/v1/customers/segments/${code}`, data);
+    return mapSegment(raw);
+  },
+
+  deleteSegment(code: string): Promise<void> {
+    return apiDelete<void>(`/api/v1/customers/segments/${code}`);
+  },
+
+  evaluateSegment(code: string): Promise<{ newAssignments: number }> {
+    return apiPost<{ newAssignments: number }>(`/api/v1/customers/segments/${code}/evaluate`, {});
   },
 
   // ── Customer 360 Intelligence ───────────────────────────────────────────

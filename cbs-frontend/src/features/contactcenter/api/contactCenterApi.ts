@@ -28,7 +28,7 @@ export interface CustomerMiniProfile {
 export interface CallDisposition {
   category: string; subCategory: string;
   disposition: string; notes: string;
-  fcr: boolean;
+  fcr: boolean; sentiment: string;
 }
 
 interface BackendAgentState {
@@ -102,8 +102,6 @@ export const contactCenterApi = {
 
   getCustomerProfile: (customerId: number) => apiGet<CustomerMiniProfile>(`/api/v1/customers/${customerId}/mini-profile`),
   getCustomerByPhone: (phone: string) => apiGet<CustomerMiniProfile>(`/api/v1/customers/lookup`, { phone }),
-  saveDisposition: (interactionId: string, data: CallDisposition) => apiPost<void>(`/api/v1/contact-center/interactions/${interactionId}/dispose`, data),
-  scheduleCallback: (data: { customerId: number; phone: string; preferredTime: string; reason: string }) => apiPost<void>('/api/v1/contact-center/callbacks', data),
 
   // ─── Interactions ────────────────────────────────────────────────────────────
   /** GET /v1/contact-center/interactions — all interactions */
@@ -115,10 +113,11 @@ export const contactCenterApi = {
   /** POST /v1/contact-center/interactions/{id}/assign?agentId=... */
   assignInteraction: (id: string, agentId: string) =>
     apiPost<ContactInteraction>(`/api/v1/contact-center/interactions/${id}/assign?agentId=${encodeURIComponent(agentId)}`),
-  /** POST /v1/contact-center/interactions/{id}/complete?disposition=...&sentiment=...&fcr=... */
-  completeInteraction: (id: string, disposition: string, sentiment?: string, fcr?: boolean) => {
+  /** POST /v1/contact-center/interactions/{id}/complete?disposition=...&sentiment=...&notes=...&fcr=... */
+  completeInteraction: (id: string, disposition: string, sentiment?: string, notes?: string, fcr?: boolean) => {
     const params = new URLSearchParams({ disposition });
     if (sentiment) params.set('sentiment', sentiment);
+    if (notes) params.set('notes', notes);
     if (fcr !== undefined) params.set('fcr', String(fcr));
     return apiPost<ContactInteraction>(`/api/v1/contact-center/interactions/${id}/complete?${params.toString()}`);
   },

@@ -218,7 +218,7 @@ function CallbackCard({ callback, onAttempt }: { callback: CallbackRequest; onAt
 
 function NewInteractionForm({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
-  const [form, setForm] = useState({ customerId: '', channel: 'PHONE', contactReason: '' });
+  const [form, setForm] = useState({ customerId: '', channel: 'PHONE', contactReason: '', direction: 'INBOUND' });
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -228,6 +228,7 @@ function NewInteractionForm({ onClose }: { onClose: () => void }) {
       customerId: parseInt(form.customerId, 10),
       channel: form.channel,
       contactReason: form.contactReason,
+      direction: form.direction,
     }).then(() => {
       toast.success('Interaction started');
       qc.invalidateQueries({ queryKey: ['contact-center'] });
@@ -252,6 +253,13 @@ function NewInteractionForm({ onClose }: { onClose: () => void }) {
               <option value="CHAT">Chat</option>
               <option value="EMAIL">Email</option>
               <option value="SMS">SMS</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Direction</label>
+            <select value={form.direction} onChange={(e) => setForm((f) => ({ ...f, direction: e.target.value }))} className="w-full mt-1 input">
+              <option value="INBOUND">Inbound</option>
+              <option value="OUTBOUND">Outbound</option>
             </select>
           </div>
           <div>
@@ -810,8 +818,20 @@ export function ContactCenterPage() {
           <div className="rounded-xl border bg-card p-5">
             <h3 className="text-sm font-semibold mb-4">SLA Trend — Last 7 Days</h3>
             {(() => {
-              const slaData = Array.from({ length: 7 }, (_, i) => ({ day: i, value: Math.max(60, Math.min(100, avgSla + (Math.random() - 0.5) * 15)) }));
-              slaData[6] = { day: 6, value: avgSla };
+              const avgSlaTargetSec = queues.length > 0 ? queues.reduce((s, q) => s + q.slaTargetSec, 0) / queues.length : 20;
+              const now = new Date();
+              const slaData = Array.from({ length: 7 }, (_, i) => {
+                const d = new Date(now);
+                d.setDate(d.getDate() - (6 - i));
+                const dayIx = interactions.filter((ix) => {
+                  if (!ix.startedAt) return false;
+                  const dt = new Date(ix.startedAt);
+                  return dt.getFullYear() === d.getFullYear() && dt.getMonth() === d.getMonth() && dt.getDate() === d.getDate();
+                });
+                const total = dayIx.length;
+                const withinSla = dayIx.filter((ix) => (ix.waitTimeSec ?? 0) <= avgSlaTargetSec).length;
+                return { day: i, value: total > 0 ? (withinSla / total) * 100 : avgSla };
+              });
               const w = 400, h = 80, pad = 10, maxV = 100, minV = 50, range = maxV - minV;
               const points = slaData.map((d, i) => `${pad + (i / 6) * (w - 2 * pad)},${pad + ((maxV - d.value) / range) * (h - 2 * pad)}`).join(' ');
               const targetY = pad + ((maxV - 80) / range) * (h - 2 * pad);

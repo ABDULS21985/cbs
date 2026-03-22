@@ -105,8 +105,8 @@ export function useAssignInteraction() {
 export function useCompleteInteraction() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, disposition, sentiment, fcr }: { id: string; disposition: string; sentiment?: string; fcr?: boolean }) =>
-      contactCenterApi.completeInteraction(id, disposition, sentiment, fcr),
+    mutationFn: ({ id, disposition, sentiment, notes, fcr }: { id: string; disposition: string; sentiment?: string; notes?: string; fcr?: boolean }) =>
+      contactCenterApi.completeInteraction(id, disposition, sentiment, notes, fcr),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.interactions });
       qc.invalidateQueries({ queryKey: CONTACT_CENTER_KEYS.routing });

@@ -24,8 +24,9 @@ export function useKycDecision() {
   return useMutation({
     mutationFn: ({ customerId, ...body }: { customerId: number; decision: string; notes?: string; riskRating?: string }) =>
       kycApi.decide(customerId, body),
-    onSuccess: () => {
+    onSuccess: (_, { customerId }) => {
       qc.invalidateQueries({ queryKey: ['kyc'] });
+      qc.invalidateQueries({ queryKey: ['customers', customerId] });
       toast.success('KYC decision recorded');
     },
     onError: () => toast.error('Failed to record decision'),
@@ -49,7 +50,9 @@ export function useKycRequestInfo() {
   return useMutation({
     mutationFn: ({ customerId, message }: { customerId: number; message: string }) =>
       kycApi.requestInfo(customerId, message),
-    onSuccess: () => {
+    onSuccess: (_, { customerId }) => {
+      qc.invalidateQueries({ queryKey: ['kyc'] });
+      qc.invalidateQueries({ queryKey: ['customers', customerId] });
       toast.success('Information request sent');
     },
   });
@@ -69,8 +72,10 @@ export function useInitiateEdd() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (customerId: number) => kycApi.initiateEdd(customerId),
-    onSuccess: () => {
+    onSuccess: (_, customerId) => {
       qc.invalidateQueries({ queryKey: ['kyc'] });
+      qc.invalidateQueries({ queryKey: ['customers', customerId] });
+      qc.invalidateQueries({ queryKey: KEYS.edd(customerId) });
       toast.success('EDD initiated');
     },
   });
@@ -90,10 +95,12 @@ export function useUpdateEddChecklist() {
 export function useApproveEdd() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ customerId, approvedBy }: { customerId: number; approvedBy: string }) =>
-      kycApi.approveEdd(customerId, approvedBy),
-    onSuccess: () => {
+    mutationFn: ({ customerId }: { customerId: number }) =>
+      kycApi.approveEdd(customerId),
+    onSuccess: (_, { customerId }) => {
       qc.invalidateQueries({ queryKey: ['kyc'] });
+      qc.invalidateQueries({ queryKey: ['customers', customerId] });
+      qc.invalidateQueries({ queryKey: KEYS.edd(customerId) });
       toast.success('EDD approved');
     },
   });

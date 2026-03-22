@@ -113,7 +113,7 @@ export function KycReviewPage() {
     customer.riskRating === 'HIGH' ||
     customer.riskRating === 'VERY_HIGH' ||
     customer.riskRating === 'PEP';
-  const eddInitiated = !!(eddData && typeof eddData === 'object' && (eddData as Record<string, unknown>).status);
+  const eddInitiated = !!(eddData && typeof eddData === 'object' && (eddData as Record<string, unknown>).initiated === true);
   const allEddComplete = EDD_CHECKLIST_ITEMS.every((item) => eddChecklist[item.key]);
 
   // Handlers
@@ -196,7 +196,7 @@ export function KycReviewPage() {
 
   const handleApproveEdd = () => {
     approveEddMut.mutate(
-      { customerId, approvedBy: 'CURRENT_USER' },
+      { customerId },
       { onError: () => toast.error('Failed to approve EDD') },
     );
   };

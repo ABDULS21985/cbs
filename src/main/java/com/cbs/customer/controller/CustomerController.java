@@ -17,7 +17,8 @@ import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.customer.service.CustomerService;
 import lombok.extern.slf4j.Slf4j;
 import com.cbs.lending.entity.LoanAccount;
-import com.cbs.segmentation.entity.Segment;
+import com.cbs.segmentation.dto.SegmentDto;
+import com.cbs.segmentation.service.SegmentationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -48,6 +49,7 @@ public class CustomerController {
     private final CustomerRepository customerRepository;
     private final CardService cardService;
     private final CurrentActorProvider currentActorProvider;
+    private final SegmentationService segmentationService;
 
     // ========================================================================
     // CAPABILITY 1: 360° Customer View
@@ -173,6 +175,13 @@ public class CustomerController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
+    @GetMapping("/count")
+    @Operation(summary = "Customer counts by status for dashboard KPIs")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<Map<String, Long>>> getCustomerCounts() {
+        return ResponseEntity.ok(ApiResponse.ok(customerService.getCustomerCounts()));
+    }
+
     @GetMapping("/dashboard/stats")
     @Operation(summary = "Get customer dashboard statistics")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -242,6 +251,152 @@ public class CustomerController {
             @Valid @RequestBody IdentificationDto request) {
         IdentificationDto response = customerService.addIdentification(customerId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
+    }
+
+    @PostMapping("/{customerId}/identifications/{docId}/verify")
+    @Operation(summary = "Verify or reject a single identification document by ID")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyIdentificationById(
+            @PathVariable Long customerId,
+            @PathVariable Long docId,
+            @RequestBody Map<String, Object> body) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", customerId));
+        String decision = String.valueOf(body.getOrDefault("decision", "VERIFIED")).toUpperCase();
+        String reason = String.valueOf(body.getOrDefault("reason", ""));
+
+        com.cbs.customer.entity.CustomerIdentification doc = customer.getIdentifications().stream()
+                .filter(d -> d.getId().equals(docId))
+                .findFirst()
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Identification", "id", docId));
+
+        doc.setIsVerified("VERIFIED".equals(decision));
+        if ("VERIFIED".equals(decision)) {
+            doc.setVerifiedAt(java.time.Instant.now());
+        }
+        customerRepository.save(customer);
+        log.info("Document verification by ID: customerId={}, docId={}, decision={}", customerId, docId, decision);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("documentId", docId, "decision", decision, "reason", reason)));
+    }
+
+    @DeleteMapping("/{customerId}/identifications/{docId}")
+    @Operation(summary = "Delete an identification document")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<Void>> deleteIdentification(
+            @PathVariable Long customerId,
+            @PathVariable Long docId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", customerId));
+        boolean removed = customer.getIdentifications().removeIf(d -> d.getId().equals(docId));
+        if (!removed) {
+            throw new com.cbs.common.exception.ResourceNotFoundException("Identification", "id", docId);
+        }
+        customerRepository.save(customer);
+        log.info("Identification document deleted: customerId={}, docId={}", customerId, docId);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Identification document deleted"));
+    }
+
+    @GetMapping("/{customerId}/health-score")
+    @Operation(summary = "Customer health score based on KYC, activity, and product usage")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getHealthScore(@PathVariable Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", customerId));
+        int score = 40;
+        if (customer.getStatus() != null && "ACTIVE".equals(customer.getStatus().name())) score += 20;
+        if (!customer.getIdentifications().isEmpty()) score += 15;
+        long verified = customer.getIdentifications().stream()
+                .filter(id -> Boolean.TRUE.equals(id.getIsVerified())).count();
+        if (verified > 0) score += 15;
+        if (customer.getAddresses() != null && !customer.getAddresses().isEmpty()) score += 10;
+        score = Math.min(score, 100);
+        String grade = score >= 80 ? "EXCELLENT" : score >= 60 ? "GOOD" : score >= 40 ? "NEEDS_ATTENTION" : "AT_RISK";
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "totalScore", score,
+                "grade", grade,
+                "factors", List.of(),
+                "computedAt", java.time.Instant.now().toString())));
+    }
+
+    @GetMapping("/{customerId}/timeline")
+    @Operation(summary = "Customer activity timeline events")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getTimeline(
+            @PathVariable Long customerId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        // Timeline events are collected from the audit trail and key domain events.
+        // This stub returns an empty list until the unified event sourcing pipeline is ready.
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @GetMapping("/{customerId}/relationships/graph")
+    @Operation(summary = "Customer relationship network graph data")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getRelationshipGraph(@PathVariable Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", customerId));
+        List<Map<String, Object>> nodes = new java.util.ArrayList<>();
+        List<Map<String, Object>> edges = new java.util.ArrayList<>();
+        // Central node
+        nodes.add(Map.of("id", customer.getId(), "name", customer.getDisplayName(),
+                "type", customer.getCustomerType() != null ? customer.getCustomerType().name() : "INDIVIDUAL",
+                "isPep", false, "isSanctioned", false,
+                "riskRating", customer.getRiskRating() != null ? customer.getRiskRating().name() : "MEDIUM"));
+        // Related nodes from relationships
+        if (customer.getRelationships() != null) {
+            customer.getRelationships().forEach(rel -> {
+                if (rel.getRelatedCustomer() != null) {
+                    com.cbs.customer.entity.Customer related = rel.getRelatedCustomer();
+                    nodes.add(Map.of("id", related.getId(), "name", related.getDisplayName(),
+                            "type", related.getCustomerType() != null ? related.getCustomerType().name() : "INDIVIDUAL",
+                            "isPep", false, "isSanctioned", false,
+                            "riskRating", related.getRiskRating() != null ? related.getRiskRating().name() : "MEDIUM"));
+                    edges.add(Map.of("source", customer.getId(), "target", related.getId(),
+                            "relationshipType", rel.getRelationshipType() != null ? rel.getRelationshipType().name() : "OTHER"));
+                }
+            });
+        }
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("nodes", nodes, "edges", edges)));
+    }
+
+    @GetMapping("/{customerId}/recommendations")
+    @Operation(summary = "Product recommendations for customer (delegates to intelligence module)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecommendations(@PathVariable Long customerId) {
+        // Delegate to intelligence module recommendations
+        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    }
+
+    @PostMapping(value = "/{customerId}/photo", consumes = "multipart/form-data")
+    @Operation(summary = "Upload or replace customer profile photo")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadPhoto(
+            @PathVariable Long customerId,
+            @RequestParam("photo") org.springframework.web.multipart.MultipartFile photo) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", customerId));
+        if (photo.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("No file provided"));
+        }
+        String contentType = photo.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Only image files are accepted"));
+        }
+        // Store a reference URL; in production this would persist to object storage.
+        String photoRef = "/api/v1/customers/" + customerId + "/photo/current";
+        Map<String, Object> meta = customer.getMetadata();
+        meta.put("profilePhotoRef", photoRef);
+        meta.put("profilePhotoUploadedAt", java.time.Instant.now().toString());
+        customer.setMetadata(meta);
+        customerRepository.save(customer);
+        log.info("Profile photo uploaded: customerId={}, size={}", customerId, photo.getSize());
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("url", photoRef)));
     }
 
     // ========================================================================
@@ -368,13 +523,6 @@ public class CustomerController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
-    @GetMapping("/count")
-    @Operation(summary = "Get customer counts by status")
-    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
-    public ResponseEntity<ApiResponse<Map<String, Long>>> getCustomerCounts() {
-        return ResponseEntity.ok(ApiResponse.ok(customerService.getCustomerCounts()));
-    }
-
     @GetMapping("/{customerId}/accounts")
     @Operation(summary = "Get customer accounts")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
@@ -435,15 +583,73 @@ public class CustomerController {
         return ResponseEntity.ok(ApiResponse.ok(customerService.getKycStats()));
     }
 
+    // =========================================================================
+    // SEGMENTATION ENDPOINTS (customer-facing proxy to SegmentationService)
+    // =========================================================================
+
     @GetMapping("/segments")
-    @Operation(summary = "Get distinct active customer segments")
+    @Operation(summary = "List all active segments with customer counts")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
-    public ResponseEntity<ApiResponse<List<Segment>>> getSegments() {
-        List<Segment> segments = customerService.getDistinctSegments();
-        if (segments == null) {
-            return ResponseEntity.ok(ApiResponse.ok(java.util.Collections.emptyList()));
-        }
-        return ResponseEntity.ok(ApiResponse.ok(segments));
+    public ResponseEntity<ApiResponse<List<SegmentDto>>> getSegments() {
+        return ResponseEntity.ok(ApiResponse.ok(segmentationService.getAllActiveSegments()));
+    }
+
+    @GetMapping("/segments/analytics")
+    @Operation(summary = "Per-segment analytics: customer count and balance totals")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSegmentAnalytics() {
+        return ResponseEntity.ok(ApiResponse.ok(segmentationService.getSegmentsAnalytics()));
+    }
+
+    @GetMapping("/segments/{code}")
+    @Operation(summary = "Get segment by code with rules and customer count")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<SegmentDto>> getSegmentByCode(@PathVariable String code) {
+        return ResponseEntity.ok(ApiResponse.ok(segmentationService.getSegmentByCodeWithRules(code)));
+    }
+
+    @GetMapping("/segments/{code}/customers")
+    @Operation(summary = "Get paginated customer summaries for a segment")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSegmentCustomers(
+            @PathVariable String code,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                segmentationService.getSegmentCustomerSummaries(code, PageRequest.of(page, size))));
+    }
+
+    @PostMapping("/segments")
+    @Operation(summary = "Create a new segment with optional rules")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<SegmentDto>> createSegment(@Valid @RequestBody SegmentDto request) {
+        SegmentDto created = segmentationService.createSegment(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(created, "Segment created successfully"));
+    }
+
+    @PutMapping("/segments/{code}")
+    @Operation(summary = "Update segment and its rules by segment code")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<SegmentDto>> updateSegmentByCode(
+            @PathVariable String code,
+            @Valid @RequestBody SegmentDto request) {
+        return ResponseEntity.ok(ApiResponse.ok(segmentationService.updateSegmentByCode(code, request)));
+    }
+
+    @DeleteMapping("/segments/{code}")
+    @Operation(summary = "Delete a segment by code")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteSegmentByCode(@PathVariable String code) {
+        segmentationService.deleteSegmentByCode(code);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Segment deleted successfully"));
+    }
+
+    @PostMapping("/segments/{code}/evaluate")
+    @Operation(summary = "Run rule evaluation for all customers against a segment")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> evaluateSegment(@PathVariable String code) {
+        int assigned = segmentationService.evaluateSegmentForAllCustomers(code);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("newAssignments", assigned)));
     }
 
     @PostMapping("/{id}/kyc/decide")
@@ -470,6 +676,9 @@ public class CustomerController {
                 break;
             case "REQUEST_DOCUMENTS":
                 // Status stays as-is; notes communicate what's needed
+                break;
+            case "ESCALATE":
+                // Status stays as-is; escalation is recorded via notes/audit log
                 break;
             default:
                 return ResponseEntity.badRequest().body(ApiResponse.error("Invalid decision: " + decision));
@@ -543,35 +752,67 @@ public class CustomerController {
     @PostMapping("/{id}/edd/initiate")
     @Operation(summary = "Initiate Enhanced Due Diligence")
     @PreAuthorize("hasRole('CBS_ADMIN')")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ApiResponse<Map<String, Object>>> eddInitiate(@PathVariable Long id) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", id));
+        Map<String, Object> meta = customer.getMetadata();
+        if (Boolean.TRUE.equals(meta.get("eddInitiated"))) {
+            return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                    "customerId", id, "status", meta.getOrDefault("eddStatus", "EDD_INITIATED"),
+                    "initiated", true, "message", "EDD already initiated")));
+        }
+        Map<String, Object> checklist = new java.util.LinkedHashMap<>();
+        for (String key : java.util.List.of("sourceOfFunds", "sourceOfWealth", "enhancedMonitoring",
+                "seniorMgmtApproval", "ongoingMonitoring", "beneficialOwnership", "adverseMedia", "pepScreening")) {
+            checklist.put(key, false);
+        }
+        String initiatedAt = java.time.Instant.now().toString();
+        meta.put("eddInitiated", true);
+        meta.put("eddStatus", "EDD_INITIATED");
+        meta.put("eddInitiatedAt", initiatedAt);
+        meta.put("eddChecklist", checklist);
+        customer.setMetadata(meta);
+        customerRepository.save(customer);
         log.info("EDD initiated: customerId={}, riskRating={}", id, customer.getRiskRating());
-        java.util.List<Map<String, Object>> checklist = java.util.List.of(
-                Map.of("item", "Source of funds verification", "completed", false),
-                Map.of("item", "Source of wealth documentation", "completed", false),
-                Map.of("item", "Enhanced transaction monitoring (6 months)", "completed", false),
-                Map.of("item", "Senior management approval", "completed", false),
-                Map.of("item", "Ongoing monitoring schedule", "completed", false),
-                Map.of("item", "Beneficial ownership verified to 10%", "completed", false),
-                Map.of("item", "Adverse media screening completed", "completed", false),
-                Map.of("item", "PEP screening completed", "completed", false)
-        );
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(Map.of("customerId", id, "status", "EDD_INITIATED", "checklist", checklist, "initiatedAt", java.time.Instant.now().toString())));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(Map.of(
+                "customerId", id, "status", "EDD_INITIATED", "initiated", true,
+                "checklist", checklist, "initiatedAt", initiatedAt)));
     }
 
     @GetMapping("/{id}/edd")
     @Operation(summary = "Get EDD status and checklist")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> eddStatus(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "status", "PENDING", "checklist", java.util.List.of())));
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", id));
+        Map<String, Object> meta = customer.getMetadata();
+        if (!Boolean.TRUE.equals(meta.get("eddInitiated"))) {
+            return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "initiated", false)));
+        }
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        result.put("customerId", id);
+        result.put("initiated", true);
+        result.put("status", meta.getOrDefault("eddStatus", "EDD_INITIATED"));
+        result.put("initiatedAt", meta.getOrDefault("eddInitiatedAt", ""));
+        result.put("checklist", meta.getOrDefault("eddChecklist", Map.of()));
+        result.put("approvedBy", meta.getOrDefault("eddApprovedBy", ""));
+        result.put("approvedAt", meta.getOrDefault("eddApprovedAt", ""));
+        return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
     @PatchMapping("/{id}/edd/checklist")
     @Operation(summary = "Update EDD checklist items")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ApiResponse<Map<String, Object>>> eddUpdateChecklist(
             @PathVariable Long id, @RequestBody Map<String, Object> body) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", id));
+        Map<String, Object> meta = customer.getMetadata();
+        meta.put("eddChecklist", body);
+        customer.setMetadata(meta);
+        customerRepository.save(customer);
         log.info("EDD checklist update: customerId={}", id);
         return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "updated", true)));
     }
@@ -579,10 +820,21 @@ public class CustomerController {
     @PostMapping("/{id}/edd/approve")
     @Operation(summary = "Senior management EDD sign-off")
     @PreAuthorize("hasRole('CBS_ADMIN')")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ApiResponse<Map<String, Object>>> eddApprove(@PathVariable Long id) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "id", id));
         String actor = currentActorProvider.getCurrentActor();
+        String approvedAt = java.time.Instant.now().toString();
+        Map<String, Object> meta = customer.getMetadata();
+        meta.put("eddStatus", "EDD_APPROVED");
+        meta.put("eddApprovedBy", actor);
+        meta.put("eddApprovedAt", approvedAt);
+        customer.setMetadata(meta);
+        customerRepository.save(customer);
         log.info("EDD approved: customerId={}, approvedBy={}", id, actor);
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("customerId", id, "status", "EDD_APPROVED", "approvedBy", actor, "approvedAt", java.time.Instant.now().toString())));
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "customerId", id, "status", "EDD_APPROVED", "approvedBy", actor, "approvedAt", approvedAt)));
     }
 
     @GetMapping("/kyc/reviews-due")

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { WizardStepper } from '../components/onboarding/WizardStepper';
 import { useOnboardingWizard } from '../hooks/useOnboardingWizard';
 import { customerApi } from '../api/customerApi';
+import { useUploadIdentification } from '../hooks/useCustomers';
 import type { OnboardingFormData } from '../types/customer';
 
 const STEP_LABELS = ['Type', 'Personal', 'Contact', 'ID/KYC', 'Verify', 'Employment', 'Account', 'Review'];
@@ -165,6 +166,17 @@ export default function OnboardingWizardPage() {
   const [bvnResult, setBvnResult] = useState<{ matched: boolean; status?: string; failureReason?: string | null } | null>(null);
   const [bvnVerifying, setBvnVerifying] = useState(false);
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
+  const [idDocFile, setIdDocFile] = useState<File | null>(null);
+  const [idDocError, setIdDocError] = useState<string | null>(null);
+  const uploadId = useUploadIdentification();
+
+  const handleIdDocFile = (f: File | null) => {
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { setIdDocError('File too large (max 5 MB)'); return; }
+    if (!['application/pdf', 'image/jpeg', 'image/png'].includes(f.type)) { setIdDocError('Only PDF, JPG, PNG allowed'); return; }
+    setIdDocError(null);
+    setIdDocFile(f);
+  };
 
   // Track controlled field values for real-time validation
   const [liveFields, setLiveFields] = useState<Record<string, string>>({});
@@ -205,6 +217,28 @@ export default function OnboardingWizardPage() {
       setBvnResult({ matched: false, status: 'FAILED', failureReason: e instanceof Error ? e.message : 'Verification failed' });
     } finally { setBvnVerifying(false); }
   };
+
+  // After customer creation: upload the ID document file if one was selected
+  useEffect(() => {
+    if (wizard.isSubmitSuccess && wizard.submittedCustomer && idDocFile) {
+      uploadId.mutate(
+        {
+          customerId: wizard.submittedCustomer.id,
+          data: {
+            idType: wizard.formData.idType ?? 'NIN',
+            idNumber: wizard.formData.idNumber ?? '',
+            expiryDate: wizard.formData.idExpiry,
+          },
+          file: idDocFile,
+        },
+        {
+          onSuccess: () => toast.success('ID document uploaded successfully'),
+          onError: () => toast.error('Customer created, but document upload failed. Please re-upload from Customer 360 → Documents.'),
+        },
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizard.isSubmitSuccess, wizard.submittedCustomer?.id]);
 
   // Success state
   if (wizard.isSubmitSuccess && wizard.submittedCustomer) {
@@ -309,11 +343,39 @@ export default function OnboardingWizardPage() {
               <ValidatedField name="idExpiry" label="Expiry Date" type="date" defaultValue={formData.idExpiry} min={new Date().toISOString().split('T')[0]} />
             </div>
 
-            {/* Document upload hint */}
-            <div className="rounded-lg border-2 border-dashed border-border p-6 text-center bg-muted/20">
-              <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Document uploads can be added after customer creation</p>
-              <p className="text-xs text-muted-foreground mt-1">Go to Customer 360 → Documents tab to upload ID images</p>
+            {/* Document upload */}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                ID Document <span className="text-muted-foreground font-normal">(optional — PDF, JPG, PNG, max 5 MB)</span>
+              </label>
+              <label
+                className={cn(
+                  'flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center cursor-pointer transition-colors hover:bg-muted/40',
+                  idDocFile ? 'border-primary/50 bg-primary/5' : 'border-border bg-muted/20',
+                  idDocError ? 'border-red-400' : '',
+                )}
+              >
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="sr-only"
+                  onChange={(e) => handleIdDocFile(e.target.files?.[0] ?? null)}
+                />
+                {idDocFile ? (
+                  <>
+                    <CheckCircle className="w-7 h-7 text-primary mb-2" />
+                    <p className="text-sm font-medium text-foreground">{idDocFile.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{(idDocFile.size / 1024).toFixed(0)} KB — click to change</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-7 h-7 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">Click to attach ID document</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Will be uploaded automatically after customer creation</p>
+                  </>
+                )}
+              </label>
+              {idDocError && <p className="text-xs text-red-500 mt-1">{idDocError}</p>}
             </div>
 
             <NavButtons onBack={prevStep} />

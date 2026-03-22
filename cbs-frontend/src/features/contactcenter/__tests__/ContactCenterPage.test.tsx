@@ -167,6 +167,54 @@ describe('ContactCenterPage', () => {
     });
   });
 
+  it('sends direction field in new interaction POST body (NOT NULL constraint)', async () => {
+    let capturedBody: Record<string, unknown> = {};
+    server.use(
+      http.get('/api/v1/contact-center/agents', () => HttpResponse.json(wrap(mockAgents))),
+      http.get('/api/v1/contact-center/queues', () => HttpResponse.json(wrap(mockQueues))),
+      http.get('/api/v1/contact-center/interactions', () => HttpResponse.json(wrap(mockInteractions))),
+      http.get('/api/v1/contact-center/callbacks', () => HttpResponse.json(wrap(mockCallbacks))),
+      http.post('/api/v1/contact-center/interactions', async ({ request }) => {
+        capturedBody = await request.json() as Record<string, unknown>;
+        return HttpResponse.json(wrap({ id: 3, interactionId: 'INT-NEW999', status: 'ACTIVE', channel: 'PHONE' }));
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<ContactCenterPage />);
+
+    // Navigate to Interactions tab and open New Interaction form
+    await user.click(screen.getByText('Interactions'));
+    await user.click(screen.getByText('New Interaction'));
+
+    // Wait for form to appear
+    await waitFor(() => {
+      expect(screen.getByText('Customer ID')).toBeInTheDocument();
+    });
+
+    // Fill customer ID (number input)
+    const customerIdInput = document.querySelector('input[type="number"]') as HTMLInputElement;
+    await user.clear(customerIdInput);
+    await user.type(customerIdInput, '1001');
+
+    // Fill contact reason (text input)
+    const textInputs = document.querySelectorAll('input:not([type="number"])');
+    const reasonInput = Array.from(textInputs).find(
+      (el) => (el as HTMLInputElement).required,
+    ) as HTMLInputElement | undefined;
+    if (reasonInput) {
+      await user.type(reasonInput, 'Balance inquiry');
+    }
+
+    await user.click(screen.getByText('Start'));
+
+    await waitFor(() => {
+      expect(capturedBody).toHaveProperty('direction');
+    });
+    // direction must be a non-empty string (NOT NULL column)
+    expect(typeof capturedBody.direction).toBe('string');
+    expect((capturedBody.direction as string).length).toBeGreaterThan(0);
+  });
+
   it('renders agent state filter buttons in agents tab', async () => {
     setupHandlers();
     const user = userEvent.setup();

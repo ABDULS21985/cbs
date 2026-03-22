@@ -1,5 +1,6 @@
 package com.cbs.segmentation.service;
 
+import com.cbs.account.repository.AccountRepository;
 import com.cbs.common.exception.DuplicateResourceException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
@@ -20,9 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +37,7 @@ public class SegmentationService {
     private final SegmentRepository segmentRepository;
     private final CustomerSegmentRepository customerSegmentRepository;
     private final CustomerRepository customerRepository;
+    private final AccountRepository accountRepository;
     private final SegmentMapper segmentMapper;
     private final SegmentRuleEvaluator ruleEvaluator;
 
@@ -52,7 +57,7 @@ public class SegmentationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Segment", "id", segmentId));
         SegmentDto dto = segmentMapper.toDto(segment);
         dto.setRules(segmentMapper.toRuleDtoList(segment.getRules()));
-        dto.setCustomerCount(customerSegmentRepository.countCustomersInSegment(segmentId));
+        enrichSegmentMetrics(dto, segmentId);
         return dto;
     }
 
@@ -109,6 +114,134 @@ public class SegmentationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Segment", "id", segmentId));
         segmentRepository.delete(segment);
         log.info("Segment deleted: code={}", segment.getCode());
+    }
+
+    /** Get segment by code, with rules and customer count populated. */
+    public SegmentDto getSegmentByCodeWithRules(String code) {
+        Segment segment = segmentRepository.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Segment", "code", code));
+        Segment withRules = segmentRepository.findByIdWithRules(segment.getId()).orElse(segment);
+        SegmentDto dto = segmentMapper.toDto(withRules);
+        dto.setRules(segmentMapper.toRuleDtoList(withRules.getRules()));
+        enrichSegmentMetrics(dto, withRules.getId());
+        return dto;
+    }
+
+    /** Update segment by code (convenience wrapper). */
+    @Transactional
+    public SegmentDto updateSegmentByCode(String code, SegmentDto request) {
+        Segment segment = segmentRepository.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Segment", "code", code));
+        return updateSegment(segment.getId(), request);
+    }
+
+    /** Delete segment by code. */
+    @Transactional
+    public void deleteSegmentByCode(String code) {
+        Segment segment = segmentRepository.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Segment", "code", code));
+        segmentRepository.delete(segment);
+        log.info("Segment deleted: code={}", segment.getCode());
+    }
+
+    /** Per-segment analytics: customer count, total and avg balance. */
+    public List<Map<String, Object>> getSegmentsAnalytics() {
+        List<Segment> segments = segmentRepository.findByIsActiveTrueOrderByPriorityAsc();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Segment s : segments) {
+            long count = customerSegmentRepository.countCustomersInSegment(s.getId());
+            BigDecimal total = accountRepository.sumAvailableBalanceForSegment(s.getId());
+            BigDecimal avg = count > 0
+                    ? total.divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("code", s.getCode());
+            row.put("name", s.getName());
+            row.put("colorCode", s.getColorCode());
+            row.put("customerCount", count);
+            row.put("totalBalance", total);
+            row.put("avgBalance", avg);
+            result.add(row);
+        }
+        return result;
+    }
+
+    /** Customer summaries for a segment (lightweight projection). */
+    public List<Map<String, Object>> getSegmentCustomerSummaries(String code, Pageable pageable) {
+        Segment segment = segmentRepository.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Segment", "code", code));
+        Page<CustomerSegment> page = customerSegmentRepository.findCustomersInSegment(segment.getId(), pageable);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (CustomerSegment cs : page.getContent()) {
+            Customer c = cs.getCustomer();
+            BigDecimal balance = accountRepository.sumAvailableBalanceByCustomerId(c.getId());
+            long productCount = accountRepository.countByCustomerId(c.getId());
+            String displayName = c.getDisplayName();
+            String firstName = c.isIndividual()
+                    ? (c.getFirstName() != null ? c.getFirstName() : displayName)
+                    : displayName;
+            String lastName = c.isIndividual()
+                    ? (c.getLastName() != null ? c.getLastName() : "")
+                    : "";
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", c.getId());
+            row.put("customerNumber", c.getCifNumber());
+            row.put("firstName", firstName != null ? firstName : "");
+            row.put("lastName", lastName);
+            row.put("customerType", c.getCustomerType() != null ? c.getCustomerType().name() : "INDIVIDUAL");
+            row.put("status", c.getStatus() != null ? c.getStatus().name() : "ACTIVE");
+            row.put("riskRating", c.getRiskRating() != null ? c.getRiskRating().name() : "MEDIUM");
+            row.put("totalBalance", balance != null ? balance : BigDecimal.ZERO);
+            row.put("productCount", productCount);
+            row.put("memberSince", c.getCreatedAt() != null ? c.getCreatedAt().toString() : null);
+            result.add(row);
+        }
+        return result;
+    }
+
+    /** Evaluate all customers against a single segment (by code) and assign matches. */
+    @Transactional
+    public int evaluateSegmentForAllCustomers(String code) {
+        Segment segment = segmentRepository.findByIdWithRules(
+                segmentRepository.findByCode(code)
+                        .orElseThrow(() -> new ResourceNotFoundException("Segment", "code", code))
+                        .getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Segment", "code", code));
+
+        if (segment.getSegmentType() != SegmentType.RULE_BASED || CollectionUtils.isEmpty(segment.getRules())) {
+            log.info("Segment {} is not RULE_BASED or has no rules — skipping evaluation", code);
+            return 0;
+        }
+
+        int assigned = 0;
+        int pageSize = 500;
+        Page<Customer> page = customerRepository.findAll(
+                org.springframework.data.domain.PageRequest.of(0, pageSize));
+        while (!page.isEmpty()) {
+            for (Customer customer : page.getContent()) {
+                boolean matches = ruleEvaluator.evaluate(customer, segment.getRules());
+                if (matches && !customerSegmentRepository.existsByCustomerIdAndSegmentId(
+                        customer.getId(), segment.getId())) {
+                    CustomerSegment assignment = CustomerSegment.builder()
+                            .customer(customer)
+                            .segment(segment)
+                            .assignmentType(AssignmentType.AUTO)
+                            .assignedAt(Instant.now())
+                            .confidenceScore(BigDecimal.ONE)
+                            .isActive(true)
+                            .build();
+                    customerSegmentRepository.save(assignment);
+                    assigned++;
+                }
+            }
+            if (page.hasNext()) {
+                page = customerRepository.findAll(page.nextPageable());
+            } else {
+                break;
+            }
+        }
+        log.info("Segment {} evaluation complete: {} new assignments", code, assigned);
+        return assigned;
     }
 
     // ========================================================================
@@ -256,5 +389,18 @@ public class SegmentationService {
 
         log.info("Bulk segment evaluation complete: {} total new assignments", totalAssignments);
         return totalAssignments;
+    }
+
+    private void enrichSegmentMetrics(SegmentDto dto, Long segmentId) {
+        long customerCount = customerSegmentRepository.countCustomersInSegment(segmentId);
+        BigDecimal totalBalance = accountRepository.sumAvailableBalanceForSegment(segmentId);
+        BigDecimal safeTotalBalance = totalBalance != null ? totalBalance : BigDecimal.ZERO;
+        BigDecimal avgBalance = customerCount > 0
+                ? safeTotalBalance.divide(BigDecimal.valueOf(customerCount), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        dto.setCustomerCount(customerCount);
+        dto.setTotalBalance(safeTotalBalance);
+        dto.setAvgBalance(avgBalance);
     }
 }

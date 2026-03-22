@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
@@ -30,7 +29,7 @@
     --sidebar-width: 260px;
     --sidebar-width-collapsed: 64px;
     --topbar-height: 56px;
-    --font-sans: 'Manrope', 'Avenir Next', 'Segoe UI', 'Helvetica Neue', system-ui, sans-serif;
+    --font-sans: Aptos, 'Avenir Next', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
     --font-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
     --surface-shadow: 0 10px 28px hsl(228 52% 4% / 0.14), inset 0 1px 0 hsl(0 0% 100% / 0.08);
     --surface-shadow-soft: 0 6px 18px hsl(228 52% 4% / 0.1), inset 0 1px 0 hsl(0 0% 100% / 0.05);
@@ -110,12 +109,26 @@
   body {
     @apply min-h-screen bg-background text-foreground antialiased text-base;
     font-family: var(--font-sans);
+    line-height: 1.6;
+    letter-spacing: -0.011em;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1;
     background-image:
       radial-gradient(circle at top left, hsl(var(--primary) / 0.18), transparent 28%),
       radial-gradient(circle at top right, hsl(var(--accent) / 0.12), transparent 26%),
       linear-gradient(180deg, hsl(var(--background)) 0%, hsl(228 36% 6%) 100%);
     background-attachment: fixed;
   }
+  /* Glossy dark-ink effect: subpixel rendering + tight tracking on all bold/heading text */
+  h1, h2, h3, h4, h5, h6,
+  [class*="font-semibold"],
+  [class*="font-bold"],
+  [class*="font-extrabold"] {
+    -webkit-font-smoothing: subpixel-antialiased;
+    -moz-osx-font-smoothing: auto;
+    letter-spacing: -0.02em;
+  }
+
   body::before {
     content: '';
     position: fixed;
@@ -318,6 +331,188 @@
   .ui-action-chip-cyan { @apply bg-cyan-100 text-cyan-700 hover:bg-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-400; }
   .chart-legend-dot {
     @apply inline-block h-2.5 w-2.5 rounded-full;
+  }
+  .landing-stage {
+    @apply relative min-h-screen overflow-x-hidden;
+    color: hsl(210 40% 98%);
+    background:
+      radial-gradient(circle at 12% 10%, hsl(var(--primary) / 0.2), transparent 22%),
+      radial-gradient(circle at 88% 9%, hsl(var(--accent) / 0.14), transparent 18%),
+      radial-gradient(circle at 58% 112%, hsl(231 70% 16% / 0.52), transparent 30%),
+      linear-gradient(180deg, hsl(226 40% 9%) 0%, hsl(227 44% 8%) 48%, hsl(231 48% 6%) 100%);
+  }
+  .landing-stage::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(hsl(0 0% 100% / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 100% / 0.04) 1px, transparent 1px);
+    background-size: 84px 84px;
+    mask-image: radial-gradient(circle at center, black, transparent 82%);
+    opacity: 0.42;
+  }
+  .landing-shell {
+    position: relative;
+    z-index: 1;
+    width: min(1680px, calc(100% - 2.5rem));
+    margin: 0 auto;
+  }
+  .landing-nav {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    border-bottom: 1px solid hsl(0 0% 100% / 0.08);
+    background: linear-gradient(180deg, hsl(225 28% 10% / 0.88), hsl(225 28% 10% / 0.62));
+    backdrop-filter: blur(18px);
+    box-shadow: 0 10px 30px hsl(228 52% 4% / 0.18);
+  }
+  .landing-nav .landing-shell {
+    min-height: 72px;
+    padding: 0.9rem 0;
+  }
+  .landing-nav-link {
+    @apply text-sm font-medium text-slate-300 transition-colors;
+  }
+  .landing-nav-link:hover {
+    color: white;
+  }
+  .landing-brand-mark {
+    @apply flex h-11 w-11 items-center justify-center rounded-2xl text-sm font-extrabold text-slate-950;
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.92), hsl(var(--accent) / 0.82));
+    box-shadow: 0 16px 34px hsl(var(--primary) / 0.22);
+  }
+  .landing-kicker {
+    @apply inline-flex items-center rounded-full border border-white/10 px-3 py-1 text-xs font-semibold uppercase text-cyan-100;
+    letter-spacing: 0.2em;
+    background: linear-gradient(180deg, hsl(221 24% 18% / 0.9), hsl(221 24% 14% / 0.7));
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.08);
+  }
+  .landing-panel {
+    @apply relative overflow-hidden border border-white/10 backdrop-blur-xl;
+    border-radius: 32px;
+    background:
+      linear-gradient(180deg, hsl(224 29% 14% / 0.92), hsl(225 29% 11% / 0.76));
+    box-shadow:
+      0 24px 64px hsl(228 52% 4% / 0.24),
+      inset 0 1px 0 hsl(0 0% 100% / 0.08);
+  }
+  .landing-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, hsl(0 0% 100% / 0.09), transparent 28%);
+    opacity: 0.9;
+  }
+  .landing-stat-card {
+    @apply landing-panel p-4;
+  }
+  .landing-stat-value {
+    @apply text-3xl font-semibold tracking-tight text-white;
+  }
+  .landing-stat-label {
+    @apply mt-1 text-xs uppercase tracking-[0.16em] text-slate-400;
+  }
+  .landing-pill {
+    @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase;
+    letter-spacing: 0.16em;
+  }
+  .landing-chip {
+    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium;
+  }
+  .landing-inline-proof {
+    @apply inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-sm text-slate-300;
+    background: hsl(0 0% 100% / 0.04);
+  }
+  .landing-inline-link {
+    @apply inline-flex items-center gap-2 text-sm font-medium text-cyan-200 transition-colors;
+  }
+  .landing-inline-link:hover {
+    color: white;
+  }
+  .landing-hero-visual {
+    @apply landing-panel;
+    min-height: 700px;
+  }
+  .landing-photo {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    object-position: center;
+    opacity: 0.32;
+    transform: scale(1.04);
+    filter: saturate(1.08) contrast(0.95) brightness(0.9);
+    z-index: 0;
+  }
+  .landing-hero-gradient {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background:
+      linear-gradient(135deg, hsl(226 42% 9% / 0.92) 0%, hsl(226 42% 9% / 0.8) 36%, hsl(226 42% 9% / 0.4) 68%, hsl(226 42% 9% / 0.74) 100%),
+      linear-gradient(180deg, hsl(226 42% 9% / 0.12), hsl(226 42% 9% / 0.38) 100%);
+  }
+  .landing-showcase-frame {
+    @apply relative overflow-hidden border border-white/10 p-3;
+    border-radius: 28px;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.1), hsl(0 0% 100% / 0.04));
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.1),
+      0 18px 40px hsl(228 52% 4% / 0.22);
+  }
+  .landing-hero-illustration {
+    width: 100%;
+    border-radius: 24px;
+    filter: drop-shadow(0 26px 30px hsl(228 52% 4% / 0.32));
+  }
+  .landing-mini-panel {
+    @apply flex items-center gap-3 border border-white/10 px-4 py-3;
+    border-radius: 24px;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.08), hsl(0 0% 100% / 0.04));
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.08);
+  }
+  .landing-mini-nav {
+    @apply flex items-center justify-between gap-3 border px-4 py-3 transition-colors;
+    border-radius: 22px;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.08), hsl(0 0% 100% / 0.04));
+  }
+  .landing-mini-nav:hover {
+    background: hsl(0 0% 100% / 0.1);
+  }
+  .landing-section-card {
+    @apply landing-panel p-6 sm:p-8;
+  }
+  .landing-module-card {
+    @apply landing-panel p-5;
+    border-radius: 26px;
+  }
+  .landing-module-icon {
+    @apply flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border;
+  }
+  .landing-trust-row {
+    @apply flex items-start gap-4 border border-white/10 px-5 py-5;
+    border-radius: 26px;
+    background: hsl(0 0% 100% / 0.04);
+  }
+  .landing-role-card {
+    @apply border border-white/10 px-5 py-5;
+    border-radius: 26px;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.06), hsl(0 0% 100% / 0.03));
+  }
+  .landing-cta-panel {
+    @apply landing-panel flex flex-col gap-6 p-7 sm:p-9 lg:flex-row lg:items-end lg:justify-between;
+    background:
+      radial-gradient(circle at 0% 0%, hsl(var(--primary) / 0.14), transparent 24%),
+      radial-gradient(circle at 100% 0%, hsl(var(--accent) / 0.12), transparent 18%),
+      linear-gradient(180deg, hsl(224 29% 14% / 0.96), hsl(225 29% 10% / 0.84));
   }
   .auth-stage {
     @apply relative min-h-screen overflow-hidden;

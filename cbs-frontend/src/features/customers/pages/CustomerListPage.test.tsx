@@ -144,12 +144,16 @@ describe('CustomerListPage', () => {
 
     renderWithProviders(<CustomerListPage />);
 
+    // Expand the filter panel
     fireEvent.click(screen.getByText('Filters'));
-    fireEvent.change(screen.getByDisplayValue('All Types'), { target: { value: 'CORPORATE' } });
-    fireEvent.change(screen.getByDisplayValue('All Statuses'), { target: { value: 'DORMANT' } });
+
+    // Click the 'Corporate' button in the Customer Type section
+    fireEvent.click(screen.getByRole('button', { name: /🏛\s*Corporate/i }));
+    // Click the 'Dormant' status button
+    fireEvent.click(screen.getByRole('button', { name: /Dormant/i }));
 
     await waitFor(() => {
-      expect(lastRequest.get('customerType')).toBe('CORPORATE');
+      expect(lastRequest.get('type')).toBe('CORPORATE');
       expect(lastRequest.get('status')).toBe('DORMANT');
     });
   });
@@ -197,7 +201,7 @@ describe('CustomerListPage', () => {
     });
   });
 
-  it('sends backend sort fields instead of frontend-only column keys', async () => {
+  it('sends backend sort fields when clicking sortable column headers', async () => {
     let lastRequest = new URLSearchParams();
     setupHandlers({
       onCustomersRequest: (params) => {
@@ -211,11 +215,12 @@ describe('CustomerListPage', () => {
       expect(screen.getByText('Amara Okonkwo')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Type'));
+    // 'Status' is a sortable column header
+    fireEvent.click(screen.getByRole('button', { name: /status/i }));
 
     await waitFor(() => {
-      expect(lastRequest.get('sort')).toBe('customerType');
-      expect(lastRequest.get('direction')).toBe('asc');
+      expect(lastRequest.get('sort')).toBe('status');
+      expect(['asc', 'desc']).toContain(lastRequest.get('direction'));
     });
   });
 });

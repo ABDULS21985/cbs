@@ -4,6 +4,7 @@ import com.cbs.sanctions.entity.ScreeningRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
@@ -12,4 +13,8 @@ public interface ScreeningRequestRepository extends JpaRepository<ScreeningReque
     Optional<ScreeningRequest> findByScreeningRef(String ref);
     Page<ScreeningRequest> findByCustomerIdOrderByCreatedAtDesc(Long customerId, Pageable pageable);
     Page<ScreeningRequest> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
+    long countByStatus(String status);
+
+    @Query("SELECT COALESCE(AVG(r.screeningTimeMs), 0) FROM ScreeningRequest r")
+    Long avgScreeningTimeMs();
 }

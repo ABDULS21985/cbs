@@ -40,11 +40,12 @@ public class ContactCenterService {
     }
 
     @Transactional
-    public ContactInteraction completeInteraction(String interactionId, String disposition, String sentiment, boolean fcr) {
+    public ContactInteraction completeInteraction(String interactionId, String disposition, String sentiment, String notes, boolean fcr) {
         ContactInteraction i = getInteraction(interactionId);
         i.setStatus("COMPLETED");
         i.setDisposition(disposition);
         i.setSentiment(sentiment);
+        i.setNotes(notes);
         i.setFirstContactResolution(fcr);
         i.setEndedAt(Instant.now());
         i.setHandleTimeSec((int) java.time.Duration.between(i.getStartedAt(), i.getEndedAt()).getSeconds());

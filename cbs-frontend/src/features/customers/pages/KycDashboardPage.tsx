@@ -72,6 +72,19 @@ export default function KycDashboardPage() {
     : 0;
   const reviewsDueCount = Array.isArray(reviewsDue) ? reviewsDue.length : 0;
 
+  // Risk rating breakdown - derived from currently loaded page items
+  const loadedItems = kycData?.items ?? [];
+  const riskCounts = loadedItems.reduce(
+    (acc, item) => {
+      const r = item.riskRating ?? 'MEDIUM';
+      if (r === 'LOW') acc.low += 1;
+      else if (r === 'HIGH' || r === 'VERY_HIGH' || r === 'PEP' || r === 'SANCTIONED') acc.high += 1;
+      else acc.medium += 1;
+      return acc;
+    },
+    { low: 0, medium: 0, high: 0 },
+  );
+
   const handleCompleteReview = (customerId: number) => {
     completeReviewMut.mutate(
       { customerId, reviewedBy: 'CURRENT_USER' },
@@ -113,9 +126,16 @@ export default function KycDashboardPage() {
       cell: ({ row }) => <span className="text-xs">{row.original.type}</span>,
     },
     {
-      accessorKey: 'status',
+      id: 'kycStatus',
       header: 'KYC Status',
-      cell: ({ row }) => <StatusBadge status={row.original.status} size="sm" dot />,
+      cell: () => {
+        // CustomerSummaryResponse doesn't carry kycStatus; infer from active tab
+        const inferredStatus =
+          activeStatus === 'UNVERIFIED' ? 'PENDING' :
+          activeStatus === 'VERIFIED' ? 'VERIFIED' :
+          activeStatus === 'EXPIRED' ? 'EXPIRED' : 'PENDING';
+        return <StatusBadge status={inferredStatus} size="sm" dot />;
+      },
     },
     {
       accessorKey: 'riskRating',
@@ -226,18 +246,20 @@ export default function KycDashboardPage() {
             </div>
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: 'Low', color: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-50 dark:bg-green-900/20' },
-                { label: 'Medium', color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-50 dark:bg-amber-900/20' },
-                { label: 'High / PEP', color: 'text-red-600 dark:text-red-400', bgColor: 'bg-red-50 dark:bg-red-900/20' },
+                { label: 'Low', color: 'text-green-600 dark:text-green-400', bgColor: 'bg-green-50 dark:bg-green-900/20', count: riskCounts.low },
+                { label: 'Medium', color: 'text-amber-600 dark:text-amber-400', bgColor: 'bg-amber-50 dark:bg-amber-900/20', count: riskCounts.medium },
+                { label: 'High / PEP', color: 'text-red-600 dark:text-red-400', bgColor: 'bg-red-50 dark:bg-red-900/20', count: riskCounts.high },
               ].map((item) => (
                 <div key={item.label} className={cn('rounded-lg p-3 text-center', item.bgColor)}>
-                  <p className={cn('text-lg font-bold font-mono', item.color)}>--</p>
+                  <p className={cn('text-lg font-bold font-mono', item.color)}>
+                    {isLoading ? '--' : item.count}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-0.5">{item.label}</p>
                 </div>
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Risk distribution data is derived from individual customer profiles.
+              Based on current page ({loadedItems.length} records).
             </p>
           </div>
         </div>
@@ -302,11 +324,13 @@ export default function KycDashboardPage() {
                 <tbody className="divide-y">
                   {(reviewsDue as Record<string, unknown>[]).map((review, idx) => {
                     const risk = (review.riskRating as string) ?? 'MEDIUM';
+                    // Backend returns { customerId, customerName, riskRating, lastReviewDate }
+                    const reviewCustomerId = (review.customerId as number) ?? (review.id as number);
+                    const reviewName = (review.customerName as string) ?? (review.fullName as string) ?? `Customer #${reviewCustomerId}`;
+                    const reviewDueDate = (review.lastReviewDate as string) ?? (review.dueDate as string) ?? null;
                     return (
-                      <tr key={(review.id as number) ?? idx} className="hover:bg-muted/30">
-                        <td className="py-2.5 pr-4 font-medium">
-                          {(review.fullName as string) ?? (review.customerName as string) ?? `Customer #${review.id}`}
-                        </td>
+                      <tr key={reviewCustomerId ?? idx} className="hover:bg-muted/30">
+                        <td className="py-2.5 pr-4 font-medium">{reviewName}</td>
                         <td className="py-2.5 pr-4">
                           <span
                             className={cn(
@@ -318,15 +342,11 @@ export default function KycDashboardPage() {
                           </span>
                         </td>
                         <td className="py-2.5 pr-4 text-xs text-muted-foreground">
-                          {(review.dueDate as string)
-                            ? formatDate(review.dueDate as string)
-                            : (review.kycExpiryDate as string)
-                              ? formatDate(review.kycExpiryDate as string)
-                              : '--'}
+                          {reviewDueDate ? formatDate(reviewDueDate) : '--'}
                         </td>
                         <td className="py-2.5 text-right">
                           <button
-                            onClick={() => handleCompleteReview(review.id as number)}
+                            onClick={() => handleCompleteReview(reviewCustomerId)}
                             disabled={completeReviewMut.isPending}
                             className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                           >
@@ -366,19 +386,18 @@ export default function KycDashboardPage() {
                 )
                 .map((customer, idx) => {
                   const risk = (customer.riskRating as string) ?? 'HIGH';
+                  // Backend returns { customerId, customerName, riskRating, lastReviewDate }
+                  const eddCustomerId = (customer.customerId as number) ?? (customer.id as number);
+                  const eddName = (customer.customerName as string) ?? (customer.fullName as string) ?? `Customer #${eddCustomerId}`;
                   return (
                     <div
-                      key={(customer.id as number) ?? idx}
+                      key={eddCustomerId ?? idx}
                       className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/30"
                     >
                       <div className="flex items-center gap-3">
                         <Shield className="w-4 h-4 text-red-500" />
                         <div>
-                          <p className="text-sm font-medium">
-                            {(customer.fullName as string) ??
-                              (customer.customerName as string) ??
-                              `Customer #${customer.id}`}
-                          </p>
+                          <p className="text-sm font-medium">{eddName}</p>
                           <span
                             className={cn(
                               'inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold mt-0.5',
@@ -390,7 +409,7 @@ export default function KycDashboardPage() {
                         </div>
                       </div>
                       <button
-                        onClick={() => handleInitiateEdd(customer.id as number)}
+                        onClick={() => handleInitiateEdd(eddCustomerId)}
                         disabled={initiateEddMut.isPending}
                         className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
                       >

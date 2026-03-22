@@ -5,6 +5,7 @@ import { AuthCallbackPage } from '@/features/auth/pages/AuthCallbackPage';
 import { MfaChallengePage } from '@/features/auth/pages/MfaChallengePage';
 import { ForgotPasswordPage } from '@/features/auth/pages/ForgotPasswordPage';
 import { ResetPasswordPage } from '@/features/auth/pages/ResetPasswordPage';
+import { DigiCoreLandingPage } from '@/features/public/pages/DigiCoreLandingPage';
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute';
 import { SessionTimeoutModal } from '@/features/auth/components/SessionTimeoutModal';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
@@ -402,6 +403,7 @@ export function AppRouter() {
     <>
       <SessionTimeoutModal />
       <Routes>
+        <Route path="/" element={<DigiCoreLandingPage />} />
         {/* Auth routes — no shell */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
@@ -411,7 +413,6 @@ export function AppRouter() {
 
         {/* Main app — with shell + auth protection */}
         <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/dashboard/bi" element={<BiDashboardPage />} />
         <Route path="/profile" element={<UserProfilePage />} />

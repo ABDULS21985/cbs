@@ -12,6 +12,8 @@ import java.util.List;
 public interface SegmentMapper {
 
     @Mapping(target = "customerCount", ignore = true)
+    @Mapping(target = "totalBalance", ignore = true)
+    @Mapping(target = "avgBalance", ignore = true)
     SegmentDto toDto(Segment entity);
 
     List<SegmentDto> toDtoList(List<Segment> entities);

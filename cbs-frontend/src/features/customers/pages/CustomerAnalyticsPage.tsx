@@ -88,7 +88,7 @@ export function CustomerAnalyticsPage() {
         backTo={`/customers/${id}`}
       />
       <div className="page-container">
-        <div className="card overflow-hidden">
+        <div className="gloss-panel rounded-2xl overflow-hidden">
           <TabsPage tabs={tabs} syncWithUrl />
         </div>
       </div>

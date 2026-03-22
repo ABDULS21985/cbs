@@ -46,26 +46,34 @@ public interface SavingsGoalRepository extends JpaRepository<SavingsGoal, Long> 
            countQuery = "SELECT COUNT(g) FROM SavingsGoal g WHERE g.status = :status")
     Page<Long> findIdsByStatus(@Param("status") GoalStatus status, Pageable pageable);
 
-    /** Goals matching a free-text search on name or customer display-name. */
+    /** Goals matching a free-text search on goal name or persisted customer-name fields. */
     @Query(value = "SELECT g.id FROM SavingsGoal g " +
                    "WHERE LOWER(g.goalName) LIKE LOWER(CONCAT('%', :search, '%')) " +
-                   "   OR LOWER(g.customer.displayName) LIKE LOWER(CONCAT('%', :search, '%')) " +
+                   "   OR LOWER(COALESCE(g.customer.registeredName, g.customer.tradingName, " +
+                   "       CONCAT(CONCAT(COALESCE(g.customer.firstName, ''), ' '), COALESCE(g.customer.lastName, '')))) " +
+                   "      LIKE LOWER(CONCAT('%', :search, '%')) " +
                    "ORDER BY g.createdAt DESC",
            countQuery = "SELECT COUNT(g) FROM SavingsGoal g " +
                         "WHERE LOWER(g.goalName) LIKE LOWER(CONCAT('%', :search, '%')) " +
-                        "   OR LOWER(g.customer.displayName) LIKE LOWER(CONCAT('%', :search, '%'))")
+                        "   OR LOWER(COALESCE(g.customer.registeredName, g.customer.tradingName, " +
+                        "       CONCAT(CONCAT(COALESCE(g.customer.firstName, ''), ' '), COALESCE(g.customer.lastName, '')))) " +
+                        "      LIKE LOWER(CONCAT('%', :search, '%'))")
     Page<Long> searchIds(@Param("search") String search, Pageable pageable);
 
     /** Goals matching both a status filter and a free-text search. */
     @Query(value = "SELECT g.id FROM SavingsGoal g " +
                    "WHERE g.status = :status " +
                    "  AND (LOWER(g.goalName) LIKE LOWER(CONCAT('%', :search, '%')) " +
-                   "    OR LOWER(g.customer.displayName) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+                   "    OR LOWER(COALESCE(g.customer.registeredName, g.customer.tradingName, " +
+                   "        CONCAT(CONCAT(COALESCE(g.customer.firstName, ''), ' '), COALESCE(g.customer.lastName, '')))) " +
+                   "       LIKE LOWER(CONCAT('%', :search, '%'))) " +
                    "ORDER BY g.createdAt DESC",
            countQuery = "SELECT COUNT(g) FROM SavingsGoal g " +
                         "WHERE g.status = :status " +
                         "  AND (LOWER(g.goalName) LIKE LOWER(CONCAT('%', :search, '%')) " +
-                        "    OR LOWER(g.customer.displayName) LIKE LOWER(CONCAT('%', :search, '%')))")
+                        "    OR LOWER(COALESCE(g.customer.registeredName, g.customer.tradingName, " +
+                        "        CONCAT(CONCAT(COALESCE(g.customer.firstName, ''), ' '), COALESCE(g.customer.lastName, '')))) " +
+                        "       LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Long> searchIdsByStatus(@Param("status") GoalStatus status, @Param("search") String search, Pageable pageable);
 
     /** Goals belonging to a specific customer, ordered newest-first. */

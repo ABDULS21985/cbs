@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { Route, Routes } from 'react-router-dom';
@@ -60,12 +60,36 @@ const mockCustomer = {
 
 function setupHandlers() {
   server.use(
+    // ── Core customer ──────────────────────────────────────────────────────
     http.get('/api/v1/customers/:id', ({ params }) => {
       if (params.id === '999') {
         return HttpResponse.json({ success: false, message: 'Not found' }, { status: 404 });
       }
       return HttpResponse.json(wrap(mockCustomer));
     }),
+
+    // ── Customer 360 intelligence sub-resources ────────────────────────────
+    http.get('/api/v1/customers/:id/health-score', () =>
+      HttpResponse.json(
+        wrap({
+          totalScore: 78,
+          grade: 'GOOD',
+          factors: [],
+          computedAt: new Date().toISOString(),
+        }),
+      ),
+    ),
+    http.get('/api/v1/customers/:id/relationships/graph', () =>
+      HttpResponse.json(wrap({ nodes: [], edges: [] })),
+    ),
+    http.get('/api/v1/customers/:id/recommendations', () =>
+      HttpResponse.json(wrap([])),
+    ),
+    http.get('/api/v1/customers/:id/timeline', () =>
+      HttpResponse.json(wrap([])),
+    ),
+
+    // ── Accounts, loans, cards, cases ─────────────────────────────────────
     http.get('/api/v1/accounts/customer/:id', () =>
       HttpResponse.json(
         wrap([
@@ -100,6 +124,8 @@ function setupHandlers() {
       ),
     ),
     http.get('/api/v1/cases/customer/:id', () => HttpResponse.json(wrap([]))),
+
+    // ── Documents (identifications) ────────────────────────────────────────
     http.get('/api/v1/customers/:id/identifications', () =>
       HttpResponse.json(
         wrap([
@@ -114,6 +140,8 @@ function setupHandlers() {
         ]),
       ),
     ),
+
+    // ── Transactions ───────────────────────────────────────────────────────
     http.get('/api/v1/customers/:id/transactions', () =>
       HttpResponse.json(
         wrap([
@@ -131,6 +159,8 @@ function setupHandlers() {
         ]),
       ),
     ),
+
+    // ── Notifications / communications ─────────────────────────────────────
     http.get('/api/v1/notifications/customer/:id', () =>
       HttpResponse.json(
         wrap([
@@ -145,6 +175,14 @@ function setupHandlers() {
         ]),
       ),
     ),
+    http.get('/api/v1/notifications/preferences/:id', () =>
+      HttpResponse.json(wrap([])),
+    ),
+    http.get('/api/v1/notifications/unread-count', () =>
+      HttpResponse.json(wrap({ unreadCount: 0 })),
+    ),
+
+    // ── Audit trail ────────────────────────────────────────────────────────
     http.get('/api/v1/audit/entity/CUSTOMER/:id', () =>
       HttpResponse.json(
         wrap([
@@ -171,9 +209,11 @@ function renderPage(customerId = '1') {
 }
 
 describe('Customer360Page', () => {
-  it('renders the live header and overview content', async () => {
+  beforeEach(() => {
     setupHandlers();
+  });
 
+  it('renders the live header and overview content', async () => {
     renderPage();
 
     await waitFor(() => {
@@ -182,32 +222,28 @@ describe('Customer360Page', () => {
 
     expect(screen.getByText('CIF0000001')).toBeInTheDocument();
     expect(screen.getByText('HQ01')).toBeInTheDocument();
-    expect(screen.getByText('Customer Information')).toBeInTheDocument();
+    expect(screen.getByText('Personal Information')).toBeInTheDocument();
     expect(screen.getByText('KYC Status')).toBeInTheDocument();
     expect(screen.getByText('Risk Profile')).toBeInTheDocument();
     expect(screen.queryByText('Issue Card')).not.toBeInTheDocument();
   });
 
   it('shows the error state when the customer cannot be loaded', async () => {
-    setupHandlers();
-
     renderPage('999');
 
     await waitFor(() => {
-      expect(screen.getByText(/customer not found or failed to load/i)).toBeInTheDocument();
+      expect(screen.getByText('Customer not found')).toBeInTheDocument();
     });
   });
 
   it('loads account data from the live customer accounts endpoint', async () => {
-    setupHandlers();
-
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText('Accounts')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /accounts/i })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Accounts'));
+    fireEvent.click(screen.getByRole('button', { name: /accounts/i }));
 
     await waitFor(() => {
       expect(screen.getByText('0123456789')).toBeInTheDocument();
@@ -215,47 +251,43 @@ describe('Customer360Page', () => {
     });
   });
 
-  it('loads customer documents and shows the unsupported upload notice', async () => {
-    setupHandlers();
-
+  it('loads customer documents tab and shows identification records', async () => {
     renderPage();
+
     await waitFor(() => {
-      expect(screen.getByText('Documents')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /documents/i })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Documents'));
+    fireEvent.click(screen.getByRole('button', { name: /documents/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/document upload is not exposed by the current backend contract/i)).toBeInTheDocument();
       expect(screen.getAllByText('BVN').length).toBeGreaterThan(0);
     });
+    expect(screen.getByRole('button', { name: /upload document/i })).toBeInTheDocument();
   });
 
-  it('loads communications and shows the unsupported outbound action notice', async () => {
-    setupHandlers();
-
+  it('loads communications history and shows sent messages', async () => {
     renderPage();
+
     await waitFor(() => {
-      expect(screen.getByText('Communications')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /communications/i })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Communications'));
+    fireEvent.click(screen.getByRole('button', { name: /communications/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/messaging actions are unavailable until the backend exposes an outbound communications endpoint/i)).toBeInTheDocument();
       expect(screen.getByText('Welcome to CBS')).toBeInTheDocument();
     });
   });
 
   it('loads transactions from the live customer transactions endpoint', async () => {
-    setupHandlers();
-
     renderPage();
+
     await waitFor(() => {
-      expect(screen.getByText('Transactions')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /transactions/i })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Transactions'));
+    fireEvent.click(screen.getByRole('button', { name: /transactions/i }));
 
     await waitFor(() => {
       expect(screen.getByText('TXN-001')).toBeInTheDocument();

@@ -515,10 +515,15 @@ public class CustomerService {
         Instant monthStart = currentMonth.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         long newMtdCount = customerRepository.countByCreatedAtAfter(monthStart);
 
+        long suspendedCount = customerRepository.countByStatus(CustomerStatus.SUSPENDED);
+        long closedCount = customerRepository.countByStatus(CustomerStatus.CLOSED);
+
         Map<String, Long> counts = new LinkedHashMap<>();
         counts.put("total", totalCount);
         counts.put("active", activeCount);
         counts.put("dormant", dormantCount);
+        counts.put("suspended", suspendedCount);
+        counts.put("closed", closedCount);
         counts.put("newMtd", newMtdCount);
         return counts;
     }

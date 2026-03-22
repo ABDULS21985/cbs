@@ -6,7 +6,16 @@ import {
 import { formatMoney, formatMoneyCompact } from '@/lib/formatters';
 import type { SegmentAnalytics } from '../../types/customer';
 
-const FALLBACK_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'];
+const FALLBACK_COLORS = ['#3B82F6', '#8B5CF6', '#F59E0B', '#22C55E', '#EF4444', '#06B6D4', '#F97316', '#EC4899'];
+
+const TOOLTIP_STYLE = {
+  backgroundColor: 'hsl(var(--card))',
+  border: '1px solid hsl(var(--border))',
+  borderRadius: 10,
+  fontSize: 12,
+  color: 'hsl(var(--foreground))',
+  boxShadow: '0 8px 32px hsl(224 58% 6% / 0.4)',
+};
 
 interface SegmentDistributionChartProps {
   data: SegmentAnalytics[];
@@ -19,16 +28,16 @@ export function SegmentDistributionChart({ data, isLoading }: SegmentDistributio
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="h-64 rounded-xl bg-muted animate-pulse" />
-        <div className="h-64 rounded-xl bg-muted animate-pulse" />
+        <div className="h-72 rounded-2xl bg-white/5 border border-white/10 animate-pulse" />
+        <div className="h-72 rounded-2xl bg-white/5 border border-white/10 animate-pulse" />
       </div>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed p-8 text-center text-muted-foreground text-sm">
-        No segment analytics available
+      <div className="gloss-panel rounded-2xl p-10 text-center text-muted-foreground text-sm">
+        No segment analytics available yet.
       </div>
     );
   }
@@ -54,8 +63,13 @@ export function SegmentDistributionChart({ data, isLoading }: SegmentDistributio
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Customer Count Pie */}
-      <div className="rounded-xl border bg-card p-4">
-        <p className="text-sm font-medium mb-3">Customer Distribution</p>
+      <div className="gloss-panel rounded-2xl p-5">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+          Customer Distribution
+        </p>
+        <p className="text-[10px] text-muted-foreground mb-3">
+          Share of segmented customers by segment
+        </p>
         <ResponsiveContainer width="100%" height={260}>
           <PieChart>
             <Pie
@@ -64,14 +78,16 @@ export function SegmentDistributionChart({ data, isLoading }: SegmentDistributio
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={55}
-              outerRadius={90}
+              innerRadius={58}
+              outerRadius={95}
               paddingAngle={2}
               onClick={(entry) => handleClick(entry.code)}
               cursor="pointer"
+              animationBegin={200}
+              animationDuration={700}
             >
               {pieData.map((entry, i) => (
-                <Cell key={i} fill={entry.fill} />
+                <Cell key={i} fill={entry.fill} strokeWidth={0} />
               ))}
             </Pie>
             <Tooltip
@@ -80,37 +96,61 @@ export function SegmentDistributionChart({ data, isLoading }: SegmentDistributio
                 const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
                 return [`${value.toLocaleString()} (${pct}%)`, name];
               }}
-              contentStyle={{ fontSize: 12 }}
+              contentStyle={TOOLTIP_STYLE}
             />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend
+              wrapperStyle={{ fontSize: 11, color: 'hsl(var(--muted-foreground))' }}
+              iconSize={8}
+            />
           </PieChart>
         </ResponsiveContainer>
       </div>
 
       {/* Balance Bar Chart */}
-      <div className="rounded-xl border bg-card p-4">
-        <p className="text-sm font-medium mb-3">Balance Distribution</p>
+      <div className="gloss-panel rounded-2xl p-5">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+          Balance Distribution
+        </p>
+        <p className="text-[10px] text-muted-foreground mb-3">
+          Total balance held per segment, sorted descending
+        </p>
         <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={barData} layout="vertical" margin={{ left: 80 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+          <BarChart data={barData} layout="vertical" margin={{ left: 80, right: 16, top: 4, bottom: 4 }}>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="hsl(var(--border))"
+              opacity={0.4}
+              horizontal={false}
+            />
             <XAxis
               type="number"
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
               tickFormatter={(v) => formatMoneyCompact(v)}
+              axisLine={false}
+              tickLine={false}
             />
-            <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={75} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              width={75}
+              axisLine={false}
+              tickLine={false}
+            />
             <Tooltip
               formatter={(v: number) => [formatMoney(v), 'Total Balance']}
-              contentStyle={{ fontSize: 12 }}
+              contentStyle={TOOLTIP_STYLE}
             />
             <Bar
               dataKey="balance"
               radius={[0, 4, 4, 0]}
               cursor="pointer"
               onClick={(entry) => handleClick(entry.code)}
+              animationBegin={200}
+              animationDuration={700}
             >
               {barData.map((entry, i) => (
-                <Cell key={i} fill={entry.fill} opacity={0.85} />
+                <Cell key={i} fill={entry.fill} opacity={0.9} />
               ))}
             </Bar>
           </BarChart>

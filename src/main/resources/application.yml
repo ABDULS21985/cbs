@@ -39,14 +39,6 @@ spring:
     default-schema: cbs
     table: flyway_schema_history
 
-  jackson:
-    serialization:
-      write-dates-as-timestamps: false
-      fail-on-empty-beans: false
-    deserialization:
-      fail-on-unknown-properties: false
-    default-property-inclusion: non_null
-
   mail:
     host: ${CBS_MAIL_HOST:localhost}
     port: ${CBS_MAIL_PORT:1025}

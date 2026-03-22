@@ -358,12 +358,18 @@ export interface CustomerSegment {
   isActive: boolean;
   colorCode?: string | null;
   icon?: string | null;
+  customerCount?: number | null;
 }
 
+/** Matches backend SegmentRuleDto exactly */
 export interface SegmentRule {
-  field: string;
+  id?: number | null;
+  fieldName: string;
   operator: string;
-  value: string;
+  fieldValue: string;
+  fieldValueTo?: string | null;
+  logicalGroup?: number | null;
+  isActive?: boolean | null;
 }
 
 export interface SegmentDetail extends CustomerSegment {
@@ -401,6 +407,7 @@ export interface CreateSegmentPayload {
   description?: string;
   segmentType: string;
   priority: number;
+  isActive?: boolean;
   colorCode?: string;
   rules?: SegmentRule[];
 }

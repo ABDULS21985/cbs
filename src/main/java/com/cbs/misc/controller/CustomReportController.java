@@ -14,7 +14,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-@RestController @RequestMapping("/v1/reports/custom") @RequiredArgsConstructor
+@RestController @RequestMapping("/v1/internal/reports/custom-legacy") @RequiredArgsConstructor
 @Tag(name = "Custom Reports", description = "Custom report builder")
 public class CustomReportController {
 

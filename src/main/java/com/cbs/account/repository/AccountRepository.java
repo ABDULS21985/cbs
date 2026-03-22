@@ -105,4 +105,25 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
     // Accounts by product for reporting
     @Query("SELECT a.product.code, COUNT(a), SUM(a.bookBalance) FROM Account a WHERE a.status = 'ACTIVE' GROUP BY a.product.code")
     List<Object[]> getAccountSummaryByProduct();
+
+    // Sum of available balances for all customers in a segment
+    @Query("""
+            SELECT COALESCE(SUM(a.availableBalance), 0)
+            FROM Account a
+            WHERE a.customer.id IN (
+                SELECT cs.customer.id FROM CustomerSegment cs
+                WHERE cs.segment.id = :segmentId AND cs.isActive = true
+            )
+            AND a.status <> 'CLOSED'
+            """)
+    BigDecimal sumAvailableBalanceForSegment(@Param("segmentId") Long segmentId);
+
+    // Sum of balances per customer (for segment customer list)
+    @Query("""
+            SELECT COALESCE(SUM(a.availableBalance), 0)
+            FROM Account a
+            WHERE a.customer.id = :customerId
+            AND a.status <> 'CLOSED'
+            """)
+    BigDecimal sumAvailableBalanceByCustomerId(@Param("customerId") Long customerId);
 }

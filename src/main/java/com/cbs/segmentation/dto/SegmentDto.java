@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
@@ -38,6 +39,8 @@ public class SegmentDto {
     private String colorCode;
     private String icon;
     private Long customerCount;
+    private BigDecimal totalBalance;
+    private BigDecimal avgBalance;
 
     @Valid
     private List<SegmentRuleDto> rules;

@@ -337,6 +337,7 @@ function DispositionForm({
   const [category, setCategory] = useState('Account Inquiry');
   const [subCategory, setSubCategory] = useState('');
   const [disposition, setDisposition] = useState('Resolved');
+  const [sentiment, setSentiment] = useState('NEUTRAL');
   const [fcr, setFcr] = useState(true);
   const [notes, setNotes] = useState(initialNotes);
 
@@ -375,6 +376,14 @@ function DispositionForm({
             <option value="Transferred">Transferred</option>
           </select>
         </div>
+        <div>
+          <label className="block text-xs font-medium mb-1">Customer Sentiment</label>
+          <select value={sentiment} onChange={(e) => setSentiment(e.target.value)} className={inputCls}>
+            <option value="POSITIVE">Positive</option>
+            <option value="NEUTRAL">Neutral</option>
+            <option value="NEGATIVE">Negative</option>
+          </select>
+        </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={fcr} onChange={(e) => setFcr(e.target.checked)} className="accent-primary" />
           Resolved on first contact?
@@ -386,7 +395,7 @@ function DispositionForm({
         <div className="flex gap-2 pt-2">
           <button onClick={onCancel} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Back to Call</button>
           <button
-            onClick={() => onSubmit({ category, subCategory, disposition, notes, fcr })}
+            onClick={() => onSubmit({ category, subCategory, disposition, notes, fcr, sentiment })}
             className="flex-1 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700"
           >
             Submit & Go Available
@@ -547,7 +556,7 @@ function RightPanel({ customerId }: { customerId: number | null }) {
                   <button onClick={() => recordHelpfulness.mutate({ code: article.articleCode, helpful: true })} className="flex items-center gap-0.5 text-muted-foreground hover:text-green-600" title="Helpful">
                     <ThumbsUp className="w-3 h-3" />
                   </button>
-                  <button className="flex items-center gap-0.5 text-muted-foreground hover:text-red-600" title="Not helpful">
+                  <button onClick={() => recordHelpfulness.mutate({ code: article.articleCode, helpful: false })} className="flex items-center gap-0.5 text-muted-foreground hover:text-red-600" title="Not helpful">
                     <ThumbsDown className="w-3 h-3" />
                   </button>
                 </div>
@@ -612,7 +621,7 @@ export function AgentWorkbenchPage() {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  });
+  }, [handleStateChange]);
 
   // Real-time data
   const { data: agents = [] } = useQuery({
@@ -669,7 +678,7 @@ export function AgentWorkbenchPage() {
 
   const handleCompleteInteraction = useCallback((disp: CallDisposition) => {
     if (!activeInteraction) return;
-    completeMut.mutate({ id: activeInteraction.interactionId, disposition: disp.disposition, fcr: disp.fcr }, {
+    completeMut.mutate({ id: activeInteraction.interactionId, disposition: disp.disposition, sentiment: disp.sentiment, notes: disp.notes, fcr: disp.fcr }, {
       onSuccess: () => {
         toast.success('Interaction completed');
         // Set agent to AVAILABLE

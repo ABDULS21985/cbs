@@ -22,8 +22,8 @@ export const kycApi = {
     apiGet(`/api/v1/customers/${customerId}/edd`),
   updateEddChecklist: (customerId: number, data: Record<string, unknown>) =>
     apiPatch(`/api/v1/customers/${customerId}/edd/checklist`, data),
-  approveEdd: (customerId: number, approvedBy: string) =>
-    apiPost(`/api/v1/customers/${customerId}/edd/approve`, { approvedBy }),
+  approveEdd: (customerId: number) =>
+    apiPost(`/api/v1/customers/${customerId}/edd/approve`),
 
   // Periodic Review
   getReviewsDue: () =>
