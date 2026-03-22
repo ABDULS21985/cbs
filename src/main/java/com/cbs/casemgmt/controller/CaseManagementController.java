@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
@@ -21,9 +22,10 @@ public class CaseManagementController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(caseService.createCase(caseEntity)));
     }
 
+    // Fix #1: GET /v1/cases now returns ALL cases, not just OPEN
     @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CustomerCase>>> listCases() {
-        return ResponseEntity.ok(ApiResponse.ok(caseService.getOpenCases()));
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getAllCases()));
     }
 
     @GetMapping("/{caseNumber}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -33,7 +35,7 @@ public class CaseManagementController {
 
     @GetMapping("/stats") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> stats() {
-        List<CustomerCase> all = caseService.getOpenCases();
+        List<CustomerCase> all = caseService.getAllCases();
         int slaBreached = caseService.checkSlaBreaches();
         Map<String, Object> stats = Map.of(
             "openCases", all.stream().filter(c -> !"RESOLVED".equals(c.getStatus()) && !"CLOSED".equals(c.getStatus())).count(),
@@ -44,9 +46,11 @@ public class CaseManagementController {
         return ResponseEntity.ok(ApiResponse.ok(stats));
     }
 
+    // Fix #2: GET /v1/cases/my now returns cases assigned to the authenticated user
     @GetMapping("/my") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CustomerCase>>> myCases() {
-        return ResponseEntity.ok(ApiResponse.ok(caseService.getOpenCases()));
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getMyCases(username)));
     }
 
     @GetMapping("/unassigned") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -57,22 +61,40 @@ public class CaseManagementController {
         return ResponseEntity.ok(ApiResponse.ok(unassigned));
     }
 
+    // Fix #6: POST /v1/cases/{caseNumber}/assign accepts both @RequestBody JSON and @RequestParam
     @PostMapping("/{caseNumber}/assign") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<CustomerCase>> assign(@PathVariable String caseNumber, @RequestParam String assignedTo, @RequestParam(required = false) String team) {
-        return ResponseEntity.ok(ApiResponse.ok(caseService.assignCase(caseNumber, assignedTo, team)));
+    public ResponseEntity<ApiResponse<CustomerCase>> assign(
+            @PathVariable String caseNumber,
+            @RequestBody(required = false) Map<String, String> body,
+            @RequestParam(required = false) String assignedTo,
+            @RequestParam(required = false) String team) {
+        String resolvedAssignedTo = assignedTo;
+        String resolvedTeam = team;
+        if (body != null) {
+            if (resolvedAssignedTo == null) resolvedAssignedTo = body.get("assignedTo");
+            if (resolvedTeam == null) resolvedTeam = body.get("team");
+        }
+        return ResponseEntity.ok(ApiResponse.ok(caseService.assignCase(caseNumber, resolvedAssignedTo, resolvedTeam)));
     }
+
+    // Fix #9: resolve - swap resolutionType and summary to match service signature (resolutionSummary, resolutionType)
     @PostMapping("/{caseNumber}/resolve") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CustomerCase>> resolve(@PathVariable String caseNumber, @RequestParam String resolutionType, @RequestParam(required = false) String summary) {
-        return ResponseEntity.ok(ApiResponse.ok(caseService.resolveCase(caseNumber, resolutionType, summary, null)));
+        return ResponseEntity.ok(ApiResponse.ok(caseService.resolveCase(caseNumber, summary, resolutionType, null)));
     }
+
+    // Fix #7: POST /v1/cases/{caseNumber}/escalate now accepts reason parameter
     @PostMapping("/{caseNumber}/escalate") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<CustomerCase>> escalate(@PathVariable String caseNumber, @RequestParam String escalateTo) {
-        return ResponseEntity.ok(ApiResponse.ok(caseService.escalateCase(caseNumber, escalateTo)));
+    public ResponseEntity<ApiResponse<CustomerCase>> escalate(@PathVariable String caseNumber, @RequestParam String escalateTo, @RequestParam(required = false) String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(caseService.escalateCase(caseNumber, escalateTo, reason)));
     }
+
     @PostMapping("/{caseNumber}/notes") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CaseNote>> addNote(@PathVariable String caseNumber, @RequestBody CaseNote note) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(caseService.addNote(caseNumber, note.getContent(), note.getNoteType(), note.getCreatedBy())));
     }
+
+    // Fix #4: PUT /v1/cases/{caseNumber} now saves the entity and handles status updates
     @PutMapping("/{caseNumber}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CustomerCase>> updateCase(@PathVariable String caseNumber, @RequestBody CustomerCase updates) {
         CustomerCase existing = caseService.getCase(caseNumber);
@@ -80,16 +102,19 @@ public class CaseManagementController {
         if (updates.getDescription() != null) existing.setDescription(updates.getDescription());
         if (updates.getPriority() != null) existing.setPriority(updates.getPriority());
         if (updates.getCaseCategory() != null) existing.setCaseCategory(updates.getCaseCategory());
-        return ResponseEntity.ok(ApiResponse.ok(existing));
+        if (updates.getStatus() != null) existing.setStatus(updates.getStatus());
+        existing.setUpdatedAt(java.time.Instant.now());
+        return ResponseEntity.ok(ApiResponse.ok(caseService.saveCase(existing)));
     }
 
+    // Fix #5: POST /v1/cases/{caseNumber}/close now saves the entity
     @PostMapping("/{caseNumber}/close") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CustomerCase>> closeCase(@PathVariable String caseNumber, @RequestParam(required = false) String reason) {
         CustomerCase c = caseService.getCase(caseNumber);
         c.setStatus("CLOSED");
         c.setClosedAt(java.time.Instant.now());
         if (reason != null) c.setResolutionSummary(reason);
-        return ResponseEntity.ok(ApiResponse.ok(c));
+        return ResponseEntity.ok(ApiResponse.ok(caseService.saveCase(c)));
     }
 
     @PostMapping("/{caseNumber}/attachments") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -105,8 +130,16 @@ public class CaseManagementController {
     public ResponseEntity<ApiResponse<List<CustomerCase>>> byCustomer(@PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(caseService.getByCustomer(customerId)));
     }
-    @GetMapping("/sla-breached") @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Integer>> slaBreached() {
-        return ResponseEntity.ok(ApiResponse.ok(caseService.checkSlaBreaches()));
+
+    // Fix #3: GET /v1/cases/sla-breached now returns List<CustomerCase> and allows CBS_OFFICER access
+    @GetMapping("/sla-breached") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CustomerCase>>> slaBreached() {
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getSlaBreachedCases()));
+    }
+
+    // Fix #8: New GET /v1/cases/escalated endpoint
+    @GetMapping("/escalated") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CustomerCase>>> escalatedCases() {
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getEscalatedCases()));
     }
 }

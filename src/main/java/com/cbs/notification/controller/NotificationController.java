@@ -320,15 +320,15 @@ public class NotificationController {
     }
 
     @GetMapping("/failures")
-    @Operation(summary = "Failed notifications")
+    @Operation(summary = "Failed notifications — filters by FAILED/BOUNCED status before pagination")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getFailures(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<NotificationLog> result = notificationLogRepository.findAll(pageable);
+        Page<NotificationLog> result = notificationLogRepository.findByStatusIn(
+                List.of("FAILED", "BOUNCED"), pageable);
         List<Map<String, Object>> failures = result.getContent().stream()
-                .filter(n -> "FAILED".equals(n.getStatus()))
                 .map(this::toFailureRecord)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok(failures, PageMeta.from(result)));
@@ -459,6 +459,28 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.ok(templateRepository.save(template)));
     }
 
+    @PostMapping("/templates/{id}/clone")
+    @Operation(summary = "Clone a template as a new DRAFT")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<NotificationTemplate>> cloneTemplate(@PathVariable Long id) {
+        NotificationTemplate source = templateRepository.findById(id)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException("Template not found: " + id));
+        NotificationTemplate clone = new NotificationTemplate();
+        clone.setTemplateCode(source.getTemplateCode() + "_COPY_" + System.currentTimeMillis());
+        clone.setTemplateName(source.getTemplateName() + " (Copy)");
+        clone.setChannel(source.getChannel());
+        clone.setEventType(source.getEventType());
+        clone.setSubject(source.getSubject());
+        clone.setBodyTemplate(source.getBodyTemplate());
+        clone.setIsHtml(source.getIsHtml());
+        clone.setLocale(source.getLocale());
+        clone.setIsActive(false); // New clone starts as draft/inactive
+        clone.setCreatedAt(Instant.now());
+        clone.setUpdatedAt(Instant.now());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(templateRepository.save(clone)));
+    }
+
     @PostMapping("/templates/{id}/test")
     @Operation(summary = "Send test notification")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -526,34 +548,51 @@ public class NotificationController {
     }
 
     @GetMapping("/delivery-stats/trend")
-    @Operation(summary = "30-day delivery trend")
+    @Operation(summary = "30-day delivery trend computed from actual notification logs")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDeliveryTrend() {
+        Instant since = Instant.now().minus(30, ChronoUnit.DAYS);
+        List<NotificationLog> logs = notificationLogRepository.findAll().stream()
+                .filter(n -> n.getCreatedAt() != null && n.getCreatedAt().isAfter(since))
+                .toList();
+
+        // Group by date string (YYYY-MM-DD)
+        Map<String, List<NotificationLog>> byDate = logs.stream()
+                .collect(Collectors.groupingBy(n -> n.getCreatedAt().truncatedTo(ChronoUnit.DAYS).toString()));
+
         List<Map<String, Object>> trend = new ArrayList<>();
         Instant now = Instant.now();
         for (int i = 29; i >= 0; i--) {
-            Instant day = now.minus(i, ChronoUnit.DAYS);
+            String dayKey = now.minus(i, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS).toString();
+            List<NotificationLog> dayLogs = byDate.getOrDefault(dayKey, List.of());
             Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("date", day.truncatedTo(ChronoUnit.DAYS).toString());
-            entry.put("delivered", 0);
-            entry.put("failed", 0);
-            entry.put("pending", 0);
+            entry.put("date", dayKey);
+            entry.put("delivered", dayLogs.stream().filter(n -> "DELIVERED".equals(n.getStatus()) || "SENT".equals(n.getStatus())).count());
+            entry.put("failed", dayLogs.stream().filter(n -> "FAILED".equals(n.getStatus()) || "BOUNCED".equals(n.getStatus())).count());
+            entry.put("pending", dayLogs.stream().filter(n -> "PENDING".equals(n.getStatus())).count());
             trend.add(entry);
         }
         return ResponseEntity.ok(ApiResponse.ok(trend));
     }
 
     @GetMapping("/delivery-stats/by-channel")
-    @Operation(summary = "Delivery stats by channel")
+    @Operation(summary = "Delivery stats by channel computed from actual notification logs")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDeliveryByChannel() {
+        List<NotificationLog> all = notificationLogRepository.findAll();
+
+        Map<NotificationChannel, List<NotificationLog>> grouped = all.stream()
+                .filter(n -> n.getChannel() != null)
+                .collect(Collectors.groupingBy(NotificationLog::getChannel));
+
         List<Map<String, Object>> byChannel = new ArrayList<>();
         for (NotificationChannel ch : NotificationChannel.values()) {
+            List<NotificationLog> chLogs = grouped.getOrDefault(ch, List.of());
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("channel", ch.name());
-            entry.put("sent", 0);
-            entry.put("delivered", 0);
-            entry.put("failed", 0);
+            entry.put("sent", chLogs.stream().filter(n -> "SENT".equals(n.getStatus())).count());
+            entry.put("delivered", chLogs.stream().filter(n -> "DELIVERED".equals(n.getStatus())).count());
+            entry.put("failed", chLogs.stream().filter(n -> "FAILED".equals(n.getStatus()) || "BOUNCED".equals(n.getStatus())).count());
             byChannel.add(entry);
         }
         return ResponseEntity.ok(ApiResponse.ok(byChannel));

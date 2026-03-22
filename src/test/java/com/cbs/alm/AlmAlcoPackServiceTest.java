@@ -426,10 +426,11 @@ class AlmAlcoPackServiceTest {
         @Test
         @DisplayName("Advance submitted monthly return to next month")
         void advanceSubmittedReturn_monthly() {
-            LocalDate marchEnd = LocalDate.of(2026, 3, 31);
+            // Use a past date so the filter passes (nextDue must be <= today)
+            LocalDate febEnd = LocalDate.of(2026, 2, 28);
             AlmRegulatoryReturn monthlyReturn = AlmRegulatoryReturn.builder()
                     .id(2L).code("NSFR").name("NSFR Return").frequency("MONTHLY")
-                    .dueDate(marchEnd).nextDue(marchEnd).status("SUBMITTED").build();
+                    .dueDate(febEnd).nextDue(febEnd).status("SUBMITTED").build();
             when(regulatoryReturnRepository.findAllByOrderByNextDueAsc()).thenReturn(List.of(monthlyReturn));
             when(regulatoryReturnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -437,17 +438,18 @@ class AlmAlcoPackServiceTest {
 
             assertThat(count).isEqualTo(1);
             assertThat(monthlyReturn.getStatus()).isEqualTo("DRAFT");
-            assertThat(monthlyReturn.getDueDate().getMonthValue()).isEqualTo(4); // April
-            assertThat(monthlyReturn.getNextDue().getMonthValue()).isEqualTo(5); // May
+            assertThat(monthlyReturn.getDueDate().getMonthValue()).isEqualTo(3); // March
+            assertThat(monthlyReturn.getNextDue().getMonthValue()).isEqualTo(4); // April
         }
 
         @Test
         @DisplayName("Advance submitted quarterly return to next quarter")
         void advanceSubmittedReturn_quarterly() {
-            LocalDate q1End = LocalDate.of(2026, 3, 31);
+            // Use a past quarter-end date so the filter passes
+            LocalDate q4End = LocalDate.of(2025, 12, 31);
             AlmRegulatoryReturn quarterlyReturn = AlmRegulatoryReturn.builder()
                     .id(3L).code("IRRBB").name("IRRBB Report").frequency("QUARTERLY")
-                    .dueDate(q1End).nextDue(q1End).status("SUBMITTED").build();
+                    .dueDate(q4End).nextDue(q4End).status("SUBMITTED").build();
             when(regulatoryReturnRepository.findAllByOrderByNextDueAsc()).thenReturn(List.of(quarterlyReturn));
             when(regulatoryReturnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -455,8 +457,8 @@ class AlmAlcoPackServiceTest {
 
             assertThat(count).isEqualTo(1);
             assertThat(quarterlyReturn.getStatus()).isEqualTo("DRAFT");
-            assertThat(quarterlyReturn.getDueDate().getMonthValue()).isEqualTo(6); // June
-            assertThat(quarterlyReturn.getNextDue().getMonthValue()).isEqualTo(9); // September
+            assertThat(quarterlyReturn.getDueDate().getMonthValue()).isEqualTo(3); // March
+            assertThat(quarterlyReturn.getNextDue().getMonthValue()).isEqualTo(6); // June
         }
 
         @Test

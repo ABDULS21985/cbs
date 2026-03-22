@@ -32,11 +32,11 @@ export function CustomerCasesTab({ customerId, active }: { customerId: number; a
     },
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} size="sm" dot /> },
     {
-      accessorKey: 'slaDeadline',
+      accessorKey: 'slaDueAt',
       header: 'SLA',
       cell: ({ row }) =>
-        row.original.slaDeadline ? (
-          <span className="text-xs">{formatDate(row.original.slaDeadline)}</span>
+        row.original.slaDueAt ? (
+          <span className="text-xs">{formatDate(row.original.slaDueAt)}</span>
         ) : (
           <span className="text-gray-400 text-xs">—</span>
         ),

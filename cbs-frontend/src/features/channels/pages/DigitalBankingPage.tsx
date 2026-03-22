@@ -20,6 +20,7 @@ import {
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { TabsPage, StatCard, DataTable, StatusBadge } from '@/components/shared';
 import { formatMoney, formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -116,14 +117,16 @@ function InternetBankingTab() {
               )}
             </div>
           </div>
-          <button
-            onClick={handleExpireIdle}
-            disabled={expiring}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50 w-full justify-center mt-2"
-          >
-            {expiring ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-            Expire Idle Sessions
-          </button>
+          <RoleGuard roles="CBS_ADMIN">
+            <button
+              onClick={handleExpireIdle}
+              disabled={expiring}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50 w-full justify-center mt-2"
+            >
+              {expiring ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+              Expire Idle Sessions
+            </button>
+          </RoleGuard>
         </div>
       </div>
 
@@ -595,28 +598,30 @@ function UssdMenuTab() {
         id: 'actions',
         header: '',
         cell: ({ row }) => (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingMenu(row.original);
-              }}
-              className="p-1.5 rounded-md hover:bg-muted transition-colors"
-              title="Edit"
-            >
-              <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setDeletingMenu(row.original);
-              }}
-              className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              title="Delete"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-red-500" />
-            </button>
-          </div>
+          <RoleGuard roles="CBS_ADMIN">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingMenu(row.original);
+                }}
+                className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                title="Edit"
+              >
+                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeletingMenu(row.original);
+                }}
+                className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                title="Delete"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+              </button>
+            </div>
+          </RoleGuard>
         ),
       },
     ],
@@ -634,13 +639,15 @@ function UssdMenuTab() {
       <div className="rounded-xl border bg-card overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="text-sm font-semibold">USSD Menu Tree</h3>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Menu
-          </button>
+          <RoleGuard roles="CBS_ADMIN">
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Menu
+            </button>
+          </RoleGuard>
         </div>
         <div className="p-4">
           <DataTable
@@ -831,13 +838,15 @@ function ActivitySummariesTab() {
               <ExternalLink className="w-3 h-3" />
               View Raw Logs
             </button>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-              Generate Summary
-            </button>
+            <RoleGuard roles="CBS_ADMIN">
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Generate Summary
+              </button>
+            </RoleGuard>
           </div>
         </div>
 

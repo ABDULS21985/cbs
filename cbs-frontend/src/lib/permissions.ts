@@ -15,6 +15,8 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     { module: 'payments', action: '*', scope: 'all' },
     { module: 'cases', action: '*', scope: 'all' },
     { module: 'advisory', action: '*', scope: 'all' },
+    { module: 'channels', action: 'view', scope: 'all' },
+    { module: 'channels', action: 'create', scope: 'all' },
     { module: 'communications', action: 'view', scope: 'all' },
     { module: 'audit', action: 'view', scope: 'all' },
     { module: 'cards', action: 'view', scope: 'all' },
@@ -109,6 +111,7 @@ export const PATH_MODULE_MAP: Record<string, string> = {
   '/cases': 'cases',
   '/communications': 'communications',
   '/advisory': 'advisory',
+  '/channels': 'channels',
 };
 
 export function canAccessPath(userRoles: string[], path: string): boolean {

@@ -1,6 +1,7 @@
 import { apiGet, apiPost, apiPut, apiUpload } from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
 
-export type CaseNoteType = 'INTERNAL' | 'CUSTOMER' | 'ESCALATION' | 'RESOLUTION';
+export type CaseNoteType = 'INTERNAL' | 'CUSTOMER_VISIBLE' | 'SYSTEM' | 'ESCALATION';
 
 export interface CustomerCase {
   id: number;
@@ -8,7 +9,10 @@ export interface CustomerCase {
   customerId: number;
   customerName: string;
   customerSegment?: string;
-  caseType: 'COMPLAINT' | 'SERVICE_REQUEST' | 'INQUIRY' | 'DISPUTE' | 'FRAUD_REPORT';
+  caseType: 'COMPLAINT' | 'SERVICE_REQUEST' | 'INQUIRY' | 'DISPUTE' | 'FRAUD_REPORT'
+    | 'ACCOUNT_ISSUE' | 'PAYMENT_ISSUE' | 'CARD_ISSUE' | 'LOAN_ISSUE' | 'FEE_REVERSAL'
+    | 'DOCUMENT_REQUEST' | 'PRODUCT_CHANGE' | 'CLOSURE' | 'REGULATORY' | 'ESCALATION';
+  caseCategory?: string;
   subCategory?: string;
   priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   status: 'OPEN' | 'IN_PROGRESS' | 'ESCALATED' | 'PENDING_CUSTOMER' | 'PENDING_INTERNAL' | 'RESOLVED' | 'CLOSED' | 'REOPENED';
@@ -22,8 +26,12 @@ export interface CustomerCase {
   resolution?: string;
   compensationAmount?: number;
   compensationApproved?: boolean;
-  slaDeadline: string;
+  slaDueAt: string;
   slaBreached: boolean;
+  channelOriginated?: string;
+  linkedCaseId?: number;
+  linkedTransactionId?: number;
+  resolutionType?: string;
   relatedCaseIds?: number[];
   attachments?: CaseAttachment[];
   activities?: CaseActivity[];
@@ -75,7 +83,7 @@ export const caseApi = {
   update: (caseNumber: string, data: Partial<CustomerCase>) =>
     apiPut<CustomerCase>(`/api/v1/cases/${caseNumber}`, data),
   assign: (caseNumber: string, assignedTo: string, team?: string) =>
-    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/assign`, { assignedTo, ...(team ? { team } : {}) }),
+    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/assign?assignedTo=${encodeURIComponent(assignedTo)}${team ? '&team=' + encodeURIComponent(team) : ''}`),
   escalate: (caseNumber: string, escalatedTo: string, reason: string) =>
     apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/escalate?escalateTo=${encodeURIComponent(escalatedTo)}&reason=${encodeURIComponent(reason)}`),
   resolve: (caseNumber: string, resolutionType: string, summary: string) =>
@@ -83,7 +91,11 @@ export const caseApi = {
   close: (caseNumber: string, reason?: string) =>
     apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/close${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`),
   addNote: (caseNumber: string, content: string, noteType: CaseNoteType = 'INTERNAL') =>
-    apiPost<CaseActivity>(`/api/v1/cases/${caseNumber}/notes`, { content, noteType }),
+    apiPost<CaseActivity>(`/api/v1/cases/${caseNumber}/notes`, {
+      content,
+      noteType,
+      createdBy: useAuthStore.getState().user?.username || 'unknown',
+    }),
   addAttachment: (caseNumber: string, file: File) =>
     apiUpload<CaseAttachment>(`/api/v1/cases/${caseNumber}/attachments`, file),
   getStats: () =>
@@ -94,6 +106,8 @@ export const caseApi = {
     apiGet<CustomerCase[]>('/api/v1/cases/unassigned'),
   getByCustomer: (customerId: number) =>
     apiGet<CustomerCase[]>(`/api/v1/cases/customer/${customerId}`),
+  getEscalated: () =>
+    apiGet<CustomerCase[]>('/api/v1/cases', { status: 'ESCALATED' }),
   getSlaBreached: () =>
     apiGet<CustomerCase[]>('/api/v1/cases/sla-breached'),
 };

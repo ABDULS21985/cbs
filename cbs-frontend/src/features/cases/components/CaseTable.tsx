@@ -12,7 +12,7 @@ const columns: ColumnDef<CustomerCase, any>[] = [
   { accessorKey: 'caseType', header: 'Type', cell: ({ row }) => <span className="text-xs">{row.original.caseType.replace(/_/g, ' ')}</span> },
   { accessorKey: 'priority', header: 'Priority', cell: ({ row }) => <CasePriorityBadge priority={row.original.priority} /> },
   { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} dot /> },
-  { accessorKey: 'slaDeadline', header: 'SLA', cell: ({ row }) => <SlaBadge deadline={row.original.slaDeadline} breached={row.original.slaBreached} /> },
+  { accessorKey: 'slaDueAt', header: 'SLA', cell: ({ row }) => <SlaBadge deadline={row.original.slaDueAt} breached={row.original.slaBreached} /> },
   { accessorKey: 'assignedToName', header: 'Assigned', cell: ({ row }) => row.original.assignedToName || <span className="text-muted-foreground text-xs">Unassigned</span> },
   { accessorKey: 'openedAt', header: 'Opened', cell: ({ row }) => formatDate(row.original.openedAt) },
   { accessorKey: 'age', header: 'Age', cell: ({ row }) => formatRelative(row.original.openedAt) },

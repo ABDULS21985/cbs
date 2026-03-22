@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 
 // ── Types matching backend NotificationLog entity ────────────────────────────
 
@@ -213,9 +213,13 @@ export const notificationApi = {
   retryFailed: () =>
     apiPost<{ retried: number }>('/api/v1/notifications/retry'),
 
-  // Scheduled
+  // Scheduled campaigns
   getScheduled: (page = 0, size = 20) =>
     apiGet<NotificationLog[]>('/api/v1/notifications/scheduled', { page, size } as Record<string, unknown>),
+  deleteScheduled: (id: number) =>
+    apiDelete<{ id: string; deleted: string }>(`/api/v1/notifications/scheduled/${id}`),
+  toggleScheduled: (id: number) =>
+    apiPut<Record<string, unknown>>(`/api/v1/notifications/scheduled/${id}/toggle`),
 
   // Unread
   getUnreadCount: (customerId?: number) =>
@@ -240,6 +244,16 @@ export const notificationApi = {
     apiPut<NotificationTemplate>(`/api/v1/notifications/templates/${id}`, data),
   previewTemplate: (id: number) =>
     apiGet<{ subject: string; body: string; channel: string; isHtml: boolean }>(`/api/v1/notifications/templates/${id}/preview`),
+  cloneTemplate: (id: number) =>
+    apiPost<NotificationTemplate>(`/api/v1/notifications/templates/${id}/clone`),
+  publishTemplate: (id: number) =>
+    apiPost<NotificationTemplate>(`/api/v1/notifications/templates/${id}/publish`),
+  archiveTemplate: (id: number) =>
+    apiPost<NotificationTemplate>(`/api/v1/notifications/templates/${id}/archive`),
+  testTemplate: (id: number, recipient: string) =>
+    apiPost<{ success: boolean; recipient: string; subject: string; body: string }>(`/api/v1/notifications/templates/${id}/test`, { recipient }),
+  getTemplateVersions: (id: number) =>
+    apiGet<Array<{ id: number; templateId: number; versionNumber: number; bodyTemplate: string; subject: string; changedBy: string; changeSummary: string; createdAt: string }>>(`/api/v1/notifications/templates/${id}/versions`),
 
   // Channel management
   updateChannel: (channel: string, data: Record<string, unknown>) =>

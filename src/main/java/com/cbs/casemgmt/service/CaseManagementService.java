@@ -60,15 +60,23 @@ public class CaseManagementService {
     }
 
     @Transactional
-    public CustomerCase escalateCase(String caseNumber, String escalatedTo) {
+    public CustomerCase escalateCase(String caseNumber, String escalatedTo, String reason) {
         CustomerCase c = getCase(caseNumber);
         c.setStatus("ESCALATED");
         c.setAssignedTo(escalatedTo);
         c.setPriority("HIGH".equals(c.getPriority()) ? "CRITICAL" : "HIGH");
         c.setSlaDueAt(Instant.now().plus(SLA_HOURS.get(c.getPriority()), ChronoUnit.HOURS));
         c.setUpdatedAt(Instant.now());
-        log.warn("Case escalated: number={}, to={}, newPriority={}", caseNumber, escalatedTo, c.getPriority());
+        if (reason != null && !reason.isBlank()) {
+            c.setDescription(c.getDescription() != null ? c.getDescription() + "\n[Escalation reason]: " + reason : "[Escalation reason]: " + reason);
+        }
+        log.warn("Case escalated: number={}, to={}, newPriority={}, reason={}", caseNumber, escalatedTo, c.getPriority(), reason);
         return caseRepository.save(c);
+    }
+
+    @Transactional
+    public CustomerCase escalateCase(String caseNumber, String escalatedTo) {
+        return escalateCase(caseNumber, escalatedTo, null);
     }
 
     @Transactional
@@ -84,6 +92,29 @@ public class CaseManagementService {
         for (CustomerCase c : breachCandidates) { c.setSlaBreached(true); caseRepository.save(c); }
         if (!breachCandidates.isEmpty()) log.warn("SLA breaches detected: count={}", breachCandidates.size());
         return breachCandidates.size();
+    }
+
+    public List<CustomerCase> getSlaBreachedCases() {
+        // First mark any new breaches
+        checkSlaBreaches();
+        return caseRepository.findSlaBreachedCases();
+    }
+
+    public List<CustomerCase> getAllCases() {
+        return caseRepository.findAll();
+    }
+
+    public List<CustomerCase> getEscalatedCases() {
+        return caseRepository.findByStatusOrderByCreatedAtDesc("ESCALATED");
+    }
+
+    public List<CustomerCase> getMyCases(String username) {
+        return caseRepository.findByAssignedToAndStatusNotInOrderBySlaDueAtAsc(username, List.of("CLOSED"));
+    }
+
+    @Transactional
+    public CustomerCase saveCase(CustomerCase customerCase) {
+        return caseRepository.save(customerCase);
     }
 
     public List<CustomerCase> getByCustomer(Long customerId) { return caseRepository.findByCustomerIdOrderByCreatedAtDesc(customerId); }

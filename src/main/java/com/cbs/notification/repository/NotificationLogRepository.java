@@ -17,4 +17,5 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
     long countByStatus(String status);
     long countByStatusNot(String status);
     List<NotificationLog> findByStatusIn(List<String> statuses);
+    Page<NotificationLog> findByStatusIn(List<String> statuses, Pageable pageable);
 }

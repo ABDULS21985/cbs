@@ -22,3 +22,10 @@ export function useUnassignedCases() {
     queryFn: () => caseApi.getUnassigned(),
   });
 }
+
+export function useEscalatedCases() {
+  return useQuery({
+    queryKey: ['cases', 'escalated'],
+    queryFn: () => caseApi.getEscalated(),
+  });
+}

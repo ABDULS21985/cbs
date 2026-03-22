@@ -103,7 +103,7 @@ export function CaseInfoPanel({ caseData }: Props) {
 
       <div>
         <label className="block text-xs font-medium text-muted-foreground mb-1">SLA</label>
-        <SlaBadge deadline={caseData.slaDeadline} breached={caseData.slaBreached} />
+        <SlaBadge deadline={caseData.slaDueAt} breached={caseData.slaBreached} />
       </div>
 
       <div>

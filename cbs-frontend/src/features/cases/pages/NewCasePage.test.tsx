@@ -76,9 +76,9 @@ describe('NewCasePage', () => {
     renderWithProviders(<NewCasePage />);
     expect(screen.getByText('Complaint')).toBeInTheDocument();
     expect(screen.getByText('Service Request')).toBeInTheDocument();
-    expect(screen.getByText('Enquiry')).toBeInTheDocument();
+    expect(screen.getByText('Inquiry')).toBeInTheDocument();
     expect(screen.getByText('Dispute')).toBeInTheDocument();
-    expect(screen.getByText('Fraud')).toBeInTheDocument();
+    expect(screen.getByText('Fraud Report')).toBeInTheDocument();
   });
 
   it('renders Sub-Category dropdown (disabled by default)', () => {
@@ -208,7 +208,7 @@ describe('NewCasePage', () => {
     fireEvent.change(typeSelect, { target: { value: 'COMPLAINT' } });
     const subSelect = screen.getAllByText('Select...')[0].closest('select')!;
     fireEvent.change(subSelect, { target: { value: 'Service Quality' } });
-    fireEvent.change(typeSelect, { target: { value: 'FRAUD' } });
+    fireEvent.change(typeSelect, { target: { value: 'FRAUD_REPORT' } });
     expect(screen.getByText('Unauthorized Transaction')).toBeInTheDocument();
   });
 

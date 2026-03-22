@@ -12,6 +12,16 @@ const subCategories: Record<string, string[]> = {
   INQUIRY: ['Product Information', 'Balance Inquiry', 'Rate Inquiry', 'General'],
   DISPUTE: ['Transaction Dispute', 'Charge Dispute', 'Interest Dispute'],
   FRAUD_REPORT: ['Unauthorized Transaction', 'Phishing', 'Card Fraud', 'Identity Theft'],
+  ACCOUNT_ISSUE: ['Account Lock', 'Account Update', 'Dormant Account', 'KYC Update'],
+  PAYMENT_ISSUE: ['Failed Transfer', 'Delayed Payment', 'Wrong Beneficiary', 'Reversal'],
+  CARD_ISSUE: ['Card Blocked', 'Card Replacement', 'PIN Reset', 'Card Activation'],
+  LOAN_ISSUE: ['Repayment Issue', 'Disbursement Delay', 'Interest Query', 'Early Settlement'],
+  FEE_REVERSAL: ['Maintenance Fee', 'SMS Fee', 'Transaction Fee', 'Penalty Fee'],
+  DOCUMENT_REQUEST: ['Statement', 'Reference Letter', 'Audit Confirmation', 'Tax Certificate'],
+  PRODUCT_CHANGE: ['Account Upgrade', 'Account Downgrade', 'Product Switch'],
+  CLOSURE: ['Account Closure', 'Card Closure', 'Loan Closure'],
+  REGULATORY: ['CBN Directive', 'Compliance Issue', 'AML/CFT'],
+  ESCALATION: ['Management Escalation', 'Regulatory Escalation', 'Ombudsman'],
 };
 
 export function NewCasePage() {
@@ -31,7 +41,7 @@ export function NewCasePage() {
     mutationFn: (data: Partial<CustomerCase>) => caseApi.create(data),
     onSuccess: (created) => {
       toast.success(`Case ${created.caseNumber} created`);
-      navigate(`/cases/${created.id}`);
+      navigate(`/cases/${created.caseNumber}`);
     },
     onError: () => toast.error('Failed to create case'),
   });
@@ -82,6 +92,16 @@ export function NewCasePage() {
                   <option value="INQUIRY">Inquiry</option>
                   <option value="DISPUTE">Dispute</option>
                   <option value="FRAUD_REPORT">Fraud Report</option>
+                  <option value="ACCOUNT_ISSUE">Account Issue</option>
+                  <option value="PAYMENT_ISSUE">Payment Issue</option>
+                  <option value="CARD_ISSUE">Card Issue</option>
+                  <option value="LOAN_ISSUE">Loan Issue</option>
+                  <option value="FEE_REVERSAL">Fee Reversal</option>
+                  <option value="DOCUMENT_REQUEST">Document Request</option>
+                  <option value="PRODUCT_CHANGE">Product Change</option>
+                  <option value="CLOSURE">Closure</option>
+                  <option value="REGULATORY">Regulatory</option>
+                  <option value="ESCALATION">Escalation</option>
                 </select>
               </div>
               <div>

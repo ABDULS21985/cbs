@@ -22,7 +22,7 @@ const mockCase = {
   description: 'Customer tried to withdraw 50,000 from ATM at Victoria Island but received debit without cash.',
   assignedTo: 'agent-1',
   assignedToName: 'Agent One',
-  slaDeadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+  slaDueAt: new Date(Date.now() + 4 * 3600000).toISOString(),
   slaBreached: false,
   activities: [
     { id: 1, type: 'NOTE', content: 'Case created by customer', createdBy: 'system', createdAt: '2026-03-18T10:00:00Z' },

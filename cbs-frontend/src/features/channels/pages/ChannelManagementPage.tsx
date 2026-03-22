@@ -20,6 +20,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { StatCard } from '@/components/shared';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import {
@@ -245,14 +246,16 @@ function LiveSessionsTab() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleCleanup}
-              disabled={cleaning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
-            >
-              {cleaning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-              Cleanup Expired
-            </button>
+            <RoleGuard roles="CBS_ADMIN">
+              <button
+                onClick={handleCleanup}
+                disabled={cleaning}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                {cleaning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                Cleanup Expired
+              </button>
+            </RoleGuard>
             <button
               onClick={() => refetch()}
               disabled={isFetching}
@@ -347,13 +350,15 @@ function ServicePointsTab() {
       <div className="rounded-xl border bg-card overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="text-sm font-semibold">Service Points</h3>
-          <button
-            onClick={() => setShowDialog(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Register Service Point
-          </button>
+          <RoleGuard roles="CBS_ADMIN">
+            <button
+              onClick={() => setShowDialog(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Register Service Point
+            </button>
+          </RoleGuard>
         </div>
         {isLoading ? (
           <div className="flex items-center justify-center h-40">

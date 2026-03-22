@@ -10,7 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -76,8 +79,18 @@ public class RootCauseAnalysisService {
 
     @Transactional
     public List<CasePatternInsight> generatePatternInsights(LocalDate from, LocalDate to) {
+        if (from == null) {
+            from = LocalDate.now().minusDays(90);
+        }
+        if (to == null) {
+            to = LocalDate.now();
+        }
+
+        final LocalDate effectiveFrom = from;
+        final LocalDate effectiveTo = to;
+
         List<CaseRootCauseAnalysis> rcas = rcaRepository.findAll().stream()
-                .filter(r -> r.getAnalysisDate() != null && !r.getAnalysisDate().isBefore(from) && !r.getAnalysisDate().isAfter(to))
+                .filter(r -> r.getAnalysisDate() != null && !r.getAnalysisDate().isBefore(effectiveFrom) && !r.getAnalysisDate().isAfter(effectiveTo))
                 .toList();
 
         Map<String, Long> categoryCounts = rcas.stream()
@@ -91,8 +104,8 @@ public class RootCauseAnalysisService {
                 insight.setPatternType("RECURRING_ROOT_CAUSE");
                 insight.setPatternDescription("Recurring root cause: " + category + " (" + count + " cases)");
                 insight.setCaseCount(count.intValue());
-                insight.setDateRangeStart(from);
-                insight.setDateRangeEnd(to);
+                insight.setDateRangeStart(effectiveFrom);
+                insight.setDateRangeEnd(effectiveTo);
                 insight.setRootCauseCategory(category);
                 insight.setTrendDirection(count >= 5 ? "INCREASING" : "STABLE");
                 insight.setPriority(count >= 5 ? "HIGH" : "MEDIUM");
@@ -100,32 +113,129 @@ public class RootCauseAnalysisService {
                 insights.add(patternRepository.save(insight));
             }
         });
-        log.info("Pattern insights generated: count={}, period={} to {}", insights.size(), from, to);
+        log.info("Pattern insights generated: count={}, period={} to {}", insights.size(), effectiveFrom, effectiveTo);
         return insights;
     }
 
     public List<CasePatternInsight> getAllPatterns() { return patternRepository.findAll(); }
 
-    public Map<String, Long> getRecurringRootCauses() {
-        return rcaRepository.findAll().stream()
+    public List<Map<String, Object>> getRecurringRootCauses() {
+        List<CaseRootCauseAnalysis> all = rcaRepository.findAll();
+
+        Map<String, List<CaseRootCauseAnalysis>> byCategory = all.stream()
                 .filter(r -> r.getRootCauseCategory() != null)
-                .collect(Collectors.groupingBy(CaseRootCauseAnalysis::getRootCauseCategory, Collectors.counting()));
+                .collect(Collectors.groupingBy(CaseRootCauseAnalysis::getRootCauseCategory));
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        byCategory.forEach((category, rcas) -> {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("category", category);
+
+            String subCategory = rcas.stream()
+                    .map(CaseRootCauseAnalysis::getRootCauseSubCategory)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .orElse(null);
+            entry.put("subCategory", subCategory);
+            entry.put("occurrenceCount", (long) rcas.size());
+            entry.put("affectedCases", rcas.stream().map(CaseRootCauseAnalysis::getCaseId).distinct().count());
+
+            long recentCount = rcas.stream()
+                    .filter(r -> r.getAnalysisDate() != null && r.getAnalysisDate().isAfter(LocalDate.now().minusDays(30)))
+                    .count();
+            long olderCount = rcas.size() - recentCount;
+            String trend = recentCount > olderCount ? "INCREASING" : recentCount == olderCount ? "STABLE" : "DECREASING";
+            entry.put("trend", trend);
+
+            Optional<LocalDate> firstSeen = rcas.stream()
+                    .map(CaseRootCauseAnalysis::getAnalysisDate)
+                    .filter(Objects::nonNull)
+                    .min(Comparator.naturalOrder());
+            Optional<LocalDate> lastSeen = rcas.stream()
+                    .map(CaseRootCauseAnalysis::getAnalysisDate)
+                    .filter(Objects::nonNull)
+                    .max(Comparator.naturalOrder());
+            entry.put("firstSeen", firstSeen.orElse(null));
+            entry.put("lastSeen", lastSeen.orElse(null));
+
+            double avgDays = 0.0;
+            List<CaseRootCauseAnalysis> completed = rcas.stream()
+                    .filter(r -> "COMPLETED".equals(r.getStatus()) || "VALIDATED".equals(r.getStatus()))
+                    .filter(r -> r.getAnalysisDate() != null && r.getUpdatedAt() != null)
+                    .toList();
+            if (!completed.isEmpty()) {
+                avgDays = completed.stream()
+                        .mapToLong(r -> ChronoUnit.DAYS.between(r.getAnalysisDate(), r.getUpdatedAt().atZone(ZoneId.systemDefault()).toLocalDate()))
+                        .average()
+                        .orElse(0.0);
+            }
+            entry.put("avgResolutionDays", Math.round(avgDays * 100.0) / 100.0);
+
+            result.add(entry);
+        });
+
+        return result;
     }
 
     public Map<String, Object> getRcaDashboard() {
         List<CaseRootCauseAnalysis> all = rcaRepository.findAll();
-        Map<String, Object> dashboard = new HashMap<>();
-        dashboard.put("totalRcas", all.size());
-        dashboard.put("inProgress", all.stream().filter(r -> "IN_PROGRESS".equals(r.getStatus())).count());
-        dashboard.put("completed", all.stream().filter(r -> "COMPLETED".equals(r.getStatus())).count());
-        dashboard.put("validated", all.stream().filter(r -> "VALIDATED".equals(r.getStatus())).count());
-        dashboard.put("topCategories", getRecurringRootCauses());
+        Map<String, Object> dashboard = new LinkedHashMap<>();
+
+        long pending = all.stream().filter(r -> "IN_PROGRESS".equals(r.getStatus())).count();
+        long completed = all.stream().filter(r -> "COMPLETED".equals(r.getStatus())).count();
+        long validated = all.stream().filter(r -> "VALIDATED".equals(r.getStatus())).count();
+
+        dashboard.put("totalAnalyses", (long) all.size());
+        dashboard.put("pendingAnalyses", pending);
+        dashboard.put("completedAnalyses", completed);
+        dashboard.put("validatedAnalyses", validated);
+
+        Map<String, Long> byCategory = all.stream()
+                .filter(r -> r.getRootCauseCategory() != null)
+                .collect(Collectors.groupingBy(CaseRootCauseAnalysis::getRootCauseCategory, Collectors.counting()));
+        dashboard.put("byCategory", byCategory);
+
+        Map<String, Long> byStatus = all.stream()
+                .filter(r -> r.getStatus() != null)
+                .collect(Collectors.groupingBy(CaseRootCauseAnalysis::getStatus, Collectors.counting()));
+        dashboard.put("byStatus", byStatus);
+
+        List<CaseRootCauseAnalysis> finishedRcas = all.stream()
+                .filter(r -> "COMPLETED".equals(r.getStatus()) || "VALIDATED".equals(r.getStatus()))
+                .filter(r -> r.getAnalysisDate() != null && r.getUpdatedAt() != null)
+                .toList();
+        double avgDaysToComplete = 0.0;
+        if (!finishedRcas.isEmpty()) {
+            avgDaysToComplete = finishedRcas.stream()
+                    .mapToLong(r -> ChronoUnit.DAYS.between(r.getAnalysisDate(), r.getUpdatedAt().atZone(ZoneId.systemDefault()).toLocalDate()))
+                    .average()
+                    .orElse(0.0);
+        }
+        dashboard.put("avgDaysToComplete", Math.round(avgDaysToComplete * 100.0) / 100.0);
+
+        long totalCasesWithRca = all.stream()
+                .map(CaseRootCauseAnalysis::getCaseId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+        dashboard.put("totalCasesWithRca", totalCasesWithRca);
+
+        BigDecimal financialImpactTotal = all.stream()
+                .map(CaseRootCauseAnalysis::getFinancialImpact)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        dashboard.put("financialImpactTotal", financialImpactTotal);
+
         return dashboard;
     }
 
     public CaseRootCauseAnalysis getByCode(String code) {
         return rcaRepository.findByRcaCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("CaseRootCauseAnalysis", "rcaCode", code));
+    }
+
+    public List<CaseRootCauseAnalysis> getByCaseId(Long caseId) {
+        return rcaRepository.findByCaseId(caseId);
     }
 
     private CaseRootCauseAnalysis getById(Long id) {

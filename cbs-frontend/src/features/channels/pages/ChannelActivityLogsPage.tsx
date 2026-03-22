@@ -19,6 +19,7 @@ import {
 import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { StatCard, DataTable, StatusBadge } from '@/components/shared';
 import { formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -393,13 +394,15 @@ export function ChannelActivityLogsPage() {
                 {channelFilter ? ` filtered by ${channelFilter}` : ''}
               </p>
             </div>
-            <button
-              onClick={() => setShowLogDialog(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Log Activity
-            </button>
+            <RoleGuard roles={['CBS_ADMIN', 'CBS_OFFICER']}>
+              <button
+                onClick={() => setShowLogDialog(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Log Activity
+              </button>
+            </RoleGuard>
           </div>
           <div className="p-4">
             <DataTable

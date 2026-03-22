@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   MapPin,
@@ -21,10 +21,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { StatCard, StatusBadge } from '@/components/shared';
 import { cn } from '@/lib/utils';
 import {
-  useAllServicePoints,
+  useServicePointById,
   useServicePointMetrics,
   useStartInteraction,
   useEndInteraction,
@@ -494,7 +495,7 @@ export function ServicePointDetailPage() {
   const navigate = useNavigate();
   const servicePointId = parseInt(id ?? '0', 10);
 
-  const { data: allPoints = [], isLoading: pointsLoading } = useAllServicePoints();
+  const { data: servicePoint, isLoading: pointLoading } = useServicePointById(servicePointId);
   const { data: metrics, isLoading: metricsLoading } = useServicePointMetrics(servicePointId || undefined);
   const { mutate: startInteraction, isPending: starting } = useStartInteraction();
   const { mutate: endInteraction, isPending: ending } = useEndInteraction();
@@ -505,11 +506,6 @@ export function ServicePointDetailPage() {
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
-  const servicePoint = useMemo(
-    () => allPoints.find((sp) => sp.id === servicePointId),
-    [allPoints, servicePointId],
-  );
 
   const handleStartInteraction = (data: Partial<ServicePointInteraction>) => {
     startInteraction(
@@ -560,7 +556,7 @@ export function ServicePointDetailPage() {
     });
   };
 
-  if (pointsLoading) {
+  if (pointLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -634,20 +630,22 @@ export function ServicePointDetailPage() {
                 <XCircle className="w-4 h-4" />
                 End Interaction
               </button>
-              <button
-                onClick={() => setShowEditDialog(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
-              >
-                <Pencil className="w-4 h-4" />
-                Edit
-              </button>
-              <button
-                onClick={() => setShowDeleteDialog(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </button>
+              <RoleGuard roles="CBS_ADMIN">
+                <button
+                  onClick={() => setShowEditDialog(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              </RoleGuard>
             </div>
           </div>
         </div>

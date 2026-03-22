@@ -10,9 +10,9 @@ interface Props {
 
 const NOTE_TYPES: { value: CaseNoteType; label: string }[] = [
   { value: 'INTERNAL', label: 'Internal' },
-  { value: 'CUSTOMER', label: 'Customer-visible' },
+  { value: 'CUSTOMER_VISIBLE', label: 'Customer-visible' },
   { value: 'ESCALATION', label: 'Escalation' },
-  { value: 'RESOLUTION', label: 'Resolution' },
+  { value: 'SYSTEM', label: 'System' },
 ];
 
 export function CaseNoteForm({ caseNumber }: Props) {
@@ -56,7 +56,7 @@ export function CaseNoteForm({ caseNumber }: Props) {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={2}
-          placeholder={noteType === 'CUSTOMER' ? 'Add a customer-visible note...' : 'Add an internal note...'}
+          placeholder={noteType === 'CUSTOMER_VISIBLE' ? 'Add a customer-visible note...' : 'Add an internal note...'}
           className="flex-1 px-3 py-2 border rounded-md text-sm resize-none"
         />
         <div className="flex flex-col gap-1">

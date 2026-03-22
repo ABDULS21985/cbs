@@ -424,6 +424,10 @@ export const navigationItems: NavSection[] = [
           { label: 'Channel Config', path: '/channels/config' },
           { label: 'Digital Banking', path: '/channels/digital' },
           { label: 'Activity Logs', path: '/channels/activity-logs' },
+          { label: 'Branch Network', path: '/operations/branch-network' },
+          { label: 'Branch Performance', path: '/operations/branch-performance' },
+          { label: 'ATM Management', path: '/operations/atm' },
+          { label: 'Agent Banking', path: '/operations/agent-banking' },
         ],
       },
       {

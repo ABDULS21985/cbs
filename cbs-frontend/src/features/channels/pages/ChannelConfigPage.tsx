@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { StatCard } from '@/components/shared';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatMoney } from '@/lib/formatters';
@@ -559,21 +560,25 @@ function LiveSessionsPanel() {
             <p className="text-xs text-muted-foreground mt-0.5">{total} total across all channels</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowCreateSession(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-              Create Session
-            </button>
-            <button
-              onClick={handleCleanup}
-              disabled={cleaning}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
-            >
-              {cleaning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-              Cleanup Expired
-            </button>
+            <RoleGuard roles={['CBS_ADMIN', 'CBS_OFFICER', 'PORTAL_USER']}>
+              <button
+                onClick={() => setShowCreateSession(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Create Session
+              </button>
+            </RoleGuard>
+            <RoleGuard roles="CBS_ADMIN">
+              <button
+                onClick={handleCleanup}
+                disabled={cleaning}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                {cleaning ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                Cleanup Expired
+              </button>
+            </RoleGuard>
             <button
               onClick={() => refetch()}
               disabled={isFetching}
@@ -776,13 +781,15 @@ function ChannelConfigTab() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => setEditingConfig(cfg)}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
-                        >
-                          <Settings className="w-3 h-3" />
-                          Edit
-                        </button>
+                        <RoleGuard roles="CBS_ADMIN">
+                          <button
+                            onClick={() => setEditingConfig(cfg)}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors"
+                          >
+                            <Settings className="w-3 h-3" />
+                            Edit
+                          </button>
+                        </RoleGuard>
                       </td>
                     </tr>
                   );

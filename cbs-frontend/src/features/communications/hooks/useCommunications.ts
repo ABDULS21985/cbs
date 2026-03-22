@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { notificationApi, communicationApi } from '../api/communicationApi';
+import { notificationApi, communicationApi, routingApi } from '../api/communicationApi';
 
 const KEYS = {
   notifications: ['notifications'] as const,
@@ -156,6 +156,147 @@ export function useSendBulk() {
       qc.invalidateQueries({ queryKey: KEYS.notifications });
       qc.invalidateQueries({ queryKey: KEYS.stats });
     },
+  });
+}
+
+// ── Template management mutations ───────────────────────────────────────────
+
+export function useCloneTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => notificationApi.cloneTemplate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.templates });
+    },
+  });
+}
+
+export function usePublishTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => notificationApi.publishTemplate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.templates });
+    },
+  });
+}
+
+export function useArchiveTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => notificationApi.archiveTemplate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.templates });
+    },
+  });
+}
+
+export function useTestTemplate() {
+  return useMutation({
+    mutationFn: ({ id, recipient }: { id: number; recipient: string }) =>
+      notificationApi.testTemplate(id, recipient),
+  });
+}
+
+export function useTemplateVersions(templateId: number) {
+  return useQuery({
+    queryKey: ['notifications', 'template-versions', templateId],
+    queryFn: () => notificationApi.getTemplateVersions(templateId),
+    enabled: templateId > 0,
+    staleTime: 60_000,
+  });
+}
+
+// ── Scheduled campaign mutations ────────────────────────────────────────────
+
+export function useDeleteScheduledNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => notificationApi.deleteScheduled(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.scheduled });
+    },
+  });
+}
+
+export function useToggleScheduledNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => notificationApi.toggleScheduled(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.scheduled });
+    },
+  });
+}
+
+// ── Notification preference hooks ───────────────────────────────────────────
+
+export function useNotificationPreferences(customerId: number) {
+  return useQuery({
+    queryKey: ['notification-preferences', customerId],
+    queryFn: () => notificationApi.getCustomerPreferences(customerId),
+    enabled: customerId > 0,
+    staleTime: 60_000,
+  });
+}
+
+export function useUpdateNotificationPreference() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, channel, eventType, enabled }: {
+      customerId: number; channel: string; eventType: string; enabled: boolean;
+    }) => notificationApi.updateNotificationPreference(customerId, channel, eventType, enabled),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['notification-preferences', variables.customerId] });
+    },
+  });
+}
+
+// ── Channel config mutations ────────────────────────────────────────────────
+
+export function useUpdateChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ channel, data }: { channel: string; data: Record<string, unknown> }) =>
+      notificationApi.updateChannel(channel, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.channels });
+    },
+  });
+}
+
+export function useTestChannel() {
+  return useMutation({
+    mutationFn: ({ channel, recipient }: { channel: string; recipient: string }) =>
+      notificationApi.testChannel(channel, recipient),
+  });
+}
+
+// ── Routing rules hooks ─────────────────────────────────────────────────────
+
+export function useRoutingRules() {
+  return useQuery({
+    queryKey: ['routing-rules'],
+    queryFn: () => routingApi.getRules(),
+    staleTime: 60_000,
+  });
+}
+
+export function useCreateRoutingRule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof routingApi.createRule>[0]) =>
+      routingApi.createRule(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['routing-rules'] });
+    },
+  });
+}
+
+export function useTestRoute() {
+  return useMutation({
+    mutationFn: ({ customerId, reason, channel }: { customerId: number; reason: string; channel: string }) =>
+      routingApi.routeContact(customerId, reason, channel),
   });
 }
 

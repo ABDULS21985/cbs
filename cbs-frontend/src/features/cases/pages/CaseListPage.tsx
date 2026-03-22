@@ -5,7 +5,7 @@ import { Plus, Filter, X, BarChart2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { CaseTable } from '../components/CaseTable';
 import { caseApi } from '../api/caseApi';
-import { useCaseStats, useMyCases, useUnassignedCases } from '../hooks/useCases';
+import { useCaseStats, useMyCases, useUnassignedCases, useEscalatedCases } from '../hooks/useCases';
 import type { CustomerCase } from '../api/caseApi';
 
 interface CaseFilters {
@@ -58,12 +58,11 @@ export function CaseListPage() {
     queryKey: ['cases', 'list'],
     queryFn: () => caseApi.getAll(),
   });
+  const { data: escalated = [], isLoading: escalatedLoading } = useEscalatedCases();
   const { data: slaBreached = [], isLoading: slaLoading } = useQuery({
     queryKey: ['cases', 'sla-breached'],
     queryFn: () => caseApi.getSlaBreached(),
   });
-
-  const escalated = allCases.filter((c) => c.status === 'ESCALATED');
 
   const rawData = {
     my: myCases,
@@ -76,7 +75,7 @@ export function CaseListPage() {
   const loading = {
     my: myLoading,
     unassigned: unassignedLoading,
-    escalated: allLoading,
+    escalated: escalatedLoading,
     sla_breached: slaLoading,
     all: allLoading,
   };
@@ -180,6 +179,16 @@ export function CaseListPage() {
                   <option value="INQUIRY">Inquiry</option>
                   <option value="DISPUTE">Dispute</option>
                   <option value="FRAUD_REPORT">Fraud Report</option>
+                  <option value="ACCOUNT_ISSUE">Account Issue</option>
+                  <option value="PAYMENT_ISSUE">Payment Issue</option>
+                  <option value="CARD_ISSUE">Card Issue</option>
+                  <option value="LOAN_ISSUE">Loan Issue</option>
+                  <option value="FEE_REVERSAL">Fee Reversal</option>
+                  <option value="DOCUMENT_REQUEST">Document Request</option>
+                  <option value="PRODUCT_CHANGE">Product Change</option>
+                  <option value="CLOSURE">Closure</option>
+                  <option value="REGULATORY">Regulatory</option>
+                  <option value="ESCALATION">Escalation</option>
                 </select>
               </div>
               <div>

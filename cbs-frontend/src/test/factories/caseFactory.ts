@@ -14,7 +14,7 @@ export function createMockCase(overrides: Record<string, unknown> = {}) {
     description: 'Test case description',
     assignedTo: 'agent-1',
     assignedToName: 'Agent One',
-    slaDeadline: new Date(Date.now() + 4 * 3600000).toISOString(),
+    slaDueAt: new Date(Date.now() + 4 * 3600000).toISOString(),
     slaBreached: false,
     activities: [],
     openedAt: '2026-03-18T10:00:00Z',

@@ -6,7 +6,6 @@ import com.cbs.casemgmt.service.RootCauseAnalysisService;
 import com.cbs.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +23,16 @@ public class RootCauseAnalysisController {
     @PostMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<CaseRootCauseAnalysis>> create(@RequestBody CaseRootCauseAnalysis rca) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.createRca(rca)));
+    }
+
+    @GetMapping("/{code}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<CaseRootCauseAnalysis>> getByCode(@PathVariable String code) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getByCode(code)));
+    }
+
+    @GetMapping("/case/{caseId}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<CaseRootCauseAnalysis>>> getByCaseId(@PathVariable Long caseId) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getByCaseId(caseId)));
     }
 
     @PostMapping("/{code}/corrective-action") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
@@ -52,13 +61,22 @@ public class RootCauseAnalysisController {
 
     @PostMapping("/patterns") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CasePatternInsight>>> generatePatterns(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestBody(required = false) Map<String, String> body) {
+        LocalDate from = null;
+        LocalDate to = null;
+        if (body != null) {
+            if (body.containsKey("from") && body.get("from") != null) {
+                from = LocalDate.parse(body.get("from"));
+            }
+            if (body.containsKey("to") && body.get("to") != null) {
+                to = LocalDate.parse(body.get("to"));
+            }
+        }
         return ResponseEntity.ok(ApiResponse.ok(service.generatePatternInsights(from, to)));
     }
 
     @GetMapping("/recurring") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, Long>>> recurring() {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> recurring() {
         return ResponseEntity.ok(ApiResponse.ok(service.getRecurringRootCauses()));
     }
 

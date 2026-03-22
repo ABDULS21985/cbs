@@ -12,9 +12,9 @@ const wrap = (data: unknown) => ({ success: true, data, timestamp: new Date().to
 const mockStats = { openCases: 156, slaBreached: 23, resolvedToday: 45, avgResolutionHours: 4.2 };
 
 const mockCases = [
-  { id: 1, caseNumber: 'CASE-000001', customerId: 1, customerName: 'Customer One', caseType: 'COMPLAINT', priority: 'HIGH', status: 'OPEN', subject: 'ATM Issue', assignedTo: 'agent-1', assignedToName: 'Agent One', slaDeadline: new Date(Date.now() + 4 * 3600000).toISOString(), slaBreached: false, activities: [], createdAt: '2026-03-18T10:00:00Z', openedAt: '2026-03-18T10:00:00Z' },
-  { id: 2, caseNumber: 'CASE-000002', customerId: 2, customerName: 'Customer Two', caseType: 'SERVICE_REQUEST', priority: 'MEDIUM', status: 'OPEN', subject: 'Card Request', assignedTo: 'agent-1', assignedToName: 'Agent One', slaDeadline: new Date(Date.now() + 8 * 3600000).toISOString(), slaBreached: false, activities: [], createdAt: '2026-03-18T11:00:00Z', openedAt: '2026-03-18T11:00:00Z' },
-  { id: 3, caseNumber: 'CASE-000003', customerId: 3, customerName: 'Customer Three', caseType: 'DISPUTE', priority: 'CRITICAL', status: 'ESCALATED', subject: 'Transaction Dispute', assignedTo: 'agent-2', assignedToName: 'Agent Two', slaDeadline: new Date(Date.now() - 3600000).toISOString(), slaBreached: true, activities: [], createdAt: '2026-03-18T09:00:00Z', openedAt: '2026-03-18T09:00:00Z' },
+  { id: 1, caseNumber: 'CASE-000001', customerId: 1, customerName: 'Customer One', caseType: 'COMPLAINT', priority: 'HIGH', status: 'OPEN', subject: 'ATM Issue', description: 'ATM did not dispense cash', assignedTo: 'agent-1', assignedToName: 'Agent One', slaDueAt: new Date(Date.now() + 4 * 3600000).toISOString(), slaBreached: false, activities: [], createdAt: '2026-03-18T10:00:00Z', updatedAt: '2026-03-18T10:00:00Z', openedAt: '2026-03-18T10:00:00Z' },
+  { id: 2, caseNumber: 'CASE-000002', customerId: 2, customerName: 'Customer Two', caseType: 'SERVICE_REQUEST', priority: 'MEDIUM', status: 'OPEN', subject: 'Card Request', description: 'Request for new debit card', assignedTo: 'agent-1', assignedToName: 'Agent One', slaDueAt: new Date(Date.now() + 8 * 3600000).toISOString(), slaBreached: false, activities: [], createdAt: '2026-03-18T11:00:00Z', updatedAt: '2026-03-18T11:00:00Z', openedAt: '2026-03-18T11:00:00Z' },
+  { id: 3, caseNumber: 'CASE-000003', customerId: 3, customerName: 'Customer Three', caseType: 'DISPUTE', priority: 'CRITICAL', status: 'ESCALATED', subject: 'Transaction Dispute', description: 'Unauthorized transaction on account', assignedTo: 'agent-2', assignedToName: 'Agent Two', slaDueAt: new Date(Date.now() - 3600000).toISOString(), slaBreached: true, activities: [], createdAt: '2026-03-18T09:00:00Z', updatedAt: '2026-03-18T09:00:00Z', openedAt: '2026-03-18T09:00:00Z' },
 ];
 
 function setupHandlers(stats = mockStats, cases = mockCases) {
@@ -22,6 +22,7 @@ function setupHandlers(stats = mockStats, cases = mockCases) {
     http.get('/api/v1/cases/stats', () => HttpResponse.json(wrap(stats))),
     http.get('/api/v1/cases/my', () => HttpResponse.json(wrap(cases.slice(0, 2)))),
     http.get('/api/v1/cases/unassigned', () => HttpResponse.json(wrap([]))),
+    http.get('/api/v1/cases/sla-breached', () => HttpResponse.json(wrap(cases.filter(c => c.slaBreached)))),
     http.get('/api/v1/cases', () => HttpResponse.json(wrap(cases))),
   );
 }
@@ -51,7 +52,7 @@ describe('CaseListPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Open Cases')).toBeInTheDocument();
     });
-    expect(screen.getByText('SLA Breached')).toBeInTheDocument();
+    expect(screen.getAllByText('SLA Breached').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Resolved Today')).toBeInTheDocument();
     expect(screen.getByText('Avg Resolution')).toBeInTheDocument();
   });
@@ -67,12 +68,13 @@ describe('CaseListPage', () => {
     expect(screen.getByText('4.2h')).toBeInTheDocument();
   });
 
-  it('renders 4 tabs', () => {
+  it('renders 5 tabs', () => {
     setupHandlers();
     renderWithProviders(<CaseListPage />);
     expect(screen.getByText('My Cases')).toBeInTheDocument();
     expect(screen.getByText('Unassigned')).toBeInTheDocument();
     expect(screen.getByText('Escalated')).toBeInTheDocument();
+    expect(screen.getAllByText('SLA Breached').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('All Cases')).toBeInTheDocument();
   });
 
@@ -115,6 +117,7 @@ describe('CaseListPage', () => {
       http.get('/api/v1/cases/stats', () => HttpResponse.json({}, { status: 500 })),
       http.get('/api/v1/cases/my', () => HttpResponse.json(wrap([]))),
       http.get('/api/v1/cases/unassigned', () => HttpResponse.json(wrap([]))),
+      http.get('/api/v1/cases/sla-breached', () => HttpResponse.json(wrap([]))),
       http.get('/api/v1/cases', () => HttpResponse.json(wrap([]))),
     );
     renderWithProviders(<CaseListPage />);
@@ -129,6 +132,7 @@ describe('CaseListPage', () => {
       http.get('/api/v1/cases/stats', () => HttpResponse.json(wrap(mockStats))),
       http.get('/api/v1/cases/my', () => HttpResponse.json({}, { status: 500 })),
       http.get('/api/v1/cases/unassigned', () => HttpResponse.json(wrap([]))),
+      http.get('/api/v1/cases/sla-breached', () => HttpResponse.json(wrap([]))),
       http.get('/api/v1/cases', () => HttpResponse.json({}, { status: 500 })),
     );
     renderWithProviders(<CaseListPage />);
@@ -151,13 +155,15 @@ describe('CaseListPage', () => {
     // Unassigned returns empty
   });
 
-  it('renders stat cards with correct structure', async () => {
+  it('renders stat cards with correct labels', async () => {
     setupHandlers();
     renderWithProviders(<CaseListPage />);
     await waitFor(() => {
-      const statCards = document.querySelectorAll('.stat-card');
-      expect(statCards.length).toBe(4);
+      expect(screen.getByText('Open Cases')).toBeInTheDocument();
     });
+    expect(screen.getAllByText('SLA Breached').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Resolved Today')).toBeInTheDocument();
+    expect(screen.getByText('Avg Resolution')).toBeInTheDocument();
   });
 
   it('shows escalated cases in the escalated tab', async () => {
