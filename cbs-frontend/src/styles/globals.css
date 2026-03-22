@@ -408,9 +408,14 @@
       0 28px 72px hsl(220 34% 26% / 0.1),
       inset 0 1px 0 hsl(0 0% 100% / 0.74);
   }
+  .auth-stage-light .auth-hero-photo {
+    opacity: 0.52;
+    filter: saturate(1.08) contrast(0.94) brightness(1.06);
+  }
   .auth-stage-light .auth-hero-backdrop {
     background:
-      linear-gradient(90deg, hsl(214 44% 97% / 0.98) 0%, hsl(214 44% 97% / 0.92) 36%, hsl(214 44% 97% / 0.46) 66%, hsl(214 44% 97% / 0.18) 100%),
+      linear-gradient(90deg, hsl(214 44% 97% / 0.97) 0%, hsl(214 44% 97% / 0.9) 32%, hsl(214 44% 97% / 0.55) 60%, hsl(214 44% 97% / 0.28) 100%),
+      linear-gradient(180deg, hsl(214 44% 97% / 0.16), hsl(214 44% 97% / 0.48) 100%),
       radial-gradient(circle at 16% 20%, hsl(203 89% 46% / 0.1), transparent 26%);
   }
   .auth-stage-light .auth-hero-artwork {
@@ -504,6 +509,18 @@
     box-shadow:
       0 30px 80px hsl(228 56% 4% / 0.34),
       inset 0 1px 0 hsl(0 0% 100% / 0.08);
+  }
+  .auth-hero-photo {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    object-position: center;
+    opacity: 0.38;
+    transform: scale(1.04);
+    filter: saturate(1.04) contrast(0.96) brightness(0.82);
+    z-index: 0;
   }
   .auth-hero-backdrop {
     position: absolute;

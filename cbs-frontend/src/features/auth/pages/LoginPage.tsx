@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
-import coreBankingHero from '@/assets/auth/core-banking-hero.svg';
+import coreBankingLoginPhoto from '@/assets/auth/core-banking-login-photo.jpg';
 import { AuthShell } from '../components/AuthShell';
 
 const heroMetrics = [
@@ -70,8 +70,7 @@ export function LoginPage() {
       title="Secure sign-in"
       description="Start a hardened hosted sign-in session for DigiCore CBS. Credentials, MFA, and recovery stay with the identity provider."
       icon={ShieldCheck}
-      heroArtworkSrc={coreBankingHero}
-      heroArtworkAlt="Illustration of a modern core banking control plane with analytics, payment, and ledger surfaces."
+      heroBackgroundSrc={coreBankingLoginPhoto}
       heroTitle="Operate every banking domain from a single hardened entry point."
       heroDescription="A cleaner hosted sign-in experience with zero local password handling, PKCE hand-off, and role-aware session recovery for production banking access."
       metrics={heroMetrics}

@@ -34,6 +34,7 @@ interface AuthShellProps {
   heroDescription?: string;
   metrics?: AuthMetric[];
   features?: AuthFeature[];
+  heroBackgroundSrc?: string;
   heroArtworkSrc?: string;
   heroArtworkAlt?: string;
   className?: string;
@@ -77,6 +78,7 @@ export function AuthShell({
   heroDescription = 'A single hardened access layer for staff, operations, treasury, compliance, and customer-facing banking journeys.',
   metrics = defaultMetrics,
   features = defaultFeatures,
+  heroBackgroundSrc,
   heroArtworkSrc,
   heroArtworkAlt = '',
   className,
@@ -86,6 +88,14 @@ export function AuthShell({
       <div className="page-container flex min-h-screen items-center py-8 sm:py-10 lg:py-14">
         <div className="mx-auto grid w-full max-w-7xl gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,520px)] lg:gap-12">
           <section className="auth-hero-panel hidden lg:flex lg:flex-col lg:justify-between lg:gap-8">
+            {heroBackgroundSrc ? (
+              <img
+                src={heroBackgroundSrc}
+                alt=""
+                aria-hidden="true"
+                className="auth-hero-photo"
+              />
+            ) : null}
             <div className="auth-hero-backdrop" aria-hidden="true" />
             {heroArtworkSrc ? (
               <img
