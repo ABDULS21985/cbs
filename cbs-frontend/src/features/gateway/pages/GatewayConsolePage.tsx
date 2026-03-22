@@ -150,11 +150,12 @@ function ExceptionsTab() {
 // ── Analytics Tab ────────────────────────────────────────────────────────────
 
 function AnalyticsTab() {
-  const { data: throughput = [], isLoading } = useQuery({
+  const { data: throughputData, isLoading } = useQuery({
     queryKey: ['gateway', 'throughput'],
     queryFn: () => gatewayApi.getThroughput(),
     staleTime: 30_000,
   });
+  const throughput = throughputData?.points ?? [];
   const { data: stats } = useQuery({
     queryKey: ['gateway', 'stats'],
     queryFn: () => gatewayApi.getLiveStats(),
@@ -166,8 +167,8 @@ function AnalyticsTab() {
     staleTime: 30_000,
   });
 
-  const totalMessages = throughput.reduce((s, t) => s + t.inbound + t.outbound, 0);
-  const totalErrors = throughput.reduce((s, t) => s + t.errors, 0);
+  const totalMessages = throughput.reduce((s: number, t: ThroughputPoint) => s + t.messages, 0);
+  const totalErrors = 0;
   const successRate = totalMessages > 0 ? ((totalMessages - totalErrors) / totalMessages) * 100 : 100;
 
   // Message type distribution
@@ -218,11 +219,10 @@ function AnalyticsTab() {
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={throughput.slice(-24)}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-            <XAxis dataKey="minute" tick={{ fontSize: 9 }} tickFormatter={(v) => v.slice(11, 16)} />
+            <XAxis dataKey="hour" tick={{ fontSize: 9 }} />
             <YAxis tick={{ fontSize: 10 }} />
             <Tooltip contentStyle={{ fontSize: 12 }} />
-            <Bar dataKey="inbound" name="Inbound" fill="#3b82f6" stackId="a" radius={[0, 0, 0, 0]} />
-            <Bar dataKey="outbound" name="Outbound" fill="#10b981" stackId="a" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="messages" name="Messages" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
           </BarChart>
         </ResponsiveContainer>

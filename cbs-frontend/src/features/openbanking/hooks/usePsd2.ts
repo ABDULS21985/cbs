@@ -19,7 +19,7 @@ export function useActivePsd2Tpps() {
 export function useRegisterPsd2Tpp() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: {
+    mutationFn: async (data: {
       tppName: string;
       tppType: string;
       nationalAuthority: string;
@@ -35,7 +35,7 @@ export function useRegisterPsd2Tpp() {
 export function useActivatePsd2Tpp() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (tppId: string) => psd2Api.activateTpp(tppId),
+    mutationFn: async (tppId: string) => psd2Api.activateTpp(tppId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.tpps }); },
   });
 }
@@ -43,7 +43,7 @@ export function useActivatePsd2Tpp() {
 export function useSuspendPsd2Tpp() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (tppId: string) => psd2Api.suspendTpp(tppId),
+    mutationFn: async (tppId: string) => psd2Api.suspendTpp(tppId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.tpps }); },
   });
 }
@@ -67,7 +67,7 @@ export function useRecentScaSessions() {
 
 export function useInitiateSca() {
   return useMutation({
-    mutationFn: (data: {
+    mutationFn: async (data: {
       tppId: string;
       customerId: number;
       scaMethod: string;
@@ -80,7 +80,7 @@ export function useInitiateSca() {
 
 export function useFinaliseSca() {
   return useMutation({
-    mutationFn: ({ sessionId, success }: { sessionId: string; success: boolean }) =>
+    mutationFn: async ({ sessionId, success }: { sessionId: string; success: boolean }) =>
       psd2Api.finaliseSca(sessionId, success),
   });
 }

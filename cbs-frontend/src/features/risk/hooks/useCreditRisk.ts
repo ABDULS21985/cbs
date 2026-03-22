@@ -4,7 +4,7 @@ import { creditRiskApi } from '../api/creditRiskApi';
 export function useCreditRiskStats() {
   return useQuery({
     queryKey: ['credit-risk', 'stats'],
-    queryFn: () => creditRiskApi.getStats().then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getStats()).data.data,
     staleTime: 60_000,
   });
 }
@@ -12,7 +12,7 @@ export function useCreditRiskStats() {
 export function useRatingDistribution() {
   return useQuery({
     queryKey: ['credit-risk', 'rating-distribution'],
-    queryFn: () => creditRiskApi.getRatingDistribution().then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getRatingDistribution()).data.data,
     staleTime: 60_000,
   });
 }
@@ -20,7 +20,7 @@ export function useRatingDistribution() {
 export function useNplTrend() {
   return useQuery({
     queryKey: ['credit-risk', 'npl-trend'],
-    queryFn: () => creditRiskApi.getNplTrend().then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getNplTrend()).data.data,
     staleTime: 60_000,
   });
 }
@@ -28,7 +28,7 @@ export function useNplTrend() {
 export function useSectorConcentration() {
   return useQuery({
     queryKey: ['credit-risk', 'concentration', 'sector'],
-    queryFn: () => creditRiskApi.getSectorConcentration().then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getSectorConcentration()).data.data,
     staleTime: 300_000,
   });
 }
@@ -36,7 +36,7 @@ export function useSectorConcentration() {
 export function useProductConcentration() {
   return useQuery({
     queryKey: ['credit-risk', 'concentration', 'product'],
-    queryFn: () => creditRiskApi.getProductConcentration().then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getProductConcentration()).data.data,
     staleTime: 300_000,
   });
 }
@@ -44,7 +44,7 @@ export function useProductConcentration() {
 export function useRatingConcentration() {
   return useQuery({
     queryKey: ['credit-risk', 'concentration', 'rating'],
-    queryFn: () => creditRiskApi.getRatingConcentration().then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getRatingConcentration()).data.data,
     staleTime: 300_000,
   });
 }
@@ -52,7 +52,7 @@ export function useRatingConcentration() {
 export function useSingleObligors() {
   return useQuery({
     queryKey: ['credit-risk', 'single-obligors'],
-    queryFn: () => creditRiskApi.getSingleObligors().then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getSingleObligors()).data.data,
     staleTime: 300_000,
   });
 }
@@ -60,7 +60,7 @@ export function useSingleObligors() {
 export function useRatingMigration(period?: 'QUARTERLY' | 'ANNUAL') {
   return useQuery({
     queryKey: ['credit-risk', 'migration', period],
-    queryFn: () => creditRiskApi.getRatingMigration(period).then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getRatingMigration(period)).data.data,
     staleTime: 300_000,
   });
 }
@@ -68,7 +68,7 @@ export function useRatingMigration(period?: 'QUARTERLY' | 'ANNUAL') {
 export function useScorecards() {
   return useQuery({
     queryKey: ['credit-risk', 'scorecards'],
-    queryFn: () => creditRiskApi.getScorecards().then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getScorecards()).data.data,
     staleTime: 300_000,
   });
 }
@@ -76,7 +76,7 @@ export function useScorecards() {
 export function useScorecardDetail(id: number, enabled: boolean) {
   return useQuery({
     queryKey: ['credit-risk', 'scorecard', id],
-    queryFn: () => creditRiskApi.getScorecardDetail(id).then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getScorecardDetail(id)).data.data,
     enabled,
     staleTime: 300_000,
   });
@@ -85,13 +85,13 @@ export function useScorecardDetail(id: number, enabled: boolean) {
 export function useCreditWatchList() {
   return useQuery({
     queryKey: ['credit-risk', 'watch-list'],
-    queryFn: () => creditRiskApi.getWatchList().then(r => r.data.data),
+    queryFn: async () => (await creditRiskApi.getWatchList()).data.data,
     staleTime: 60_000,
   });
 }
 
 export function useGenerateCommitteePack() {
   return useMutation({
-    mutationFn: () => creditRiskApi.generateCommitteePack().then(r => r.data.data),
+    mutationFn: async () => (await creditRiskApi.generateCommitteePack()).data.data,
   });
 }

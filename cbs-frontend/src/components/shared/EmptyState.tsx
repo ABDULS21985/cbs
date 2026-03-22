@@ -1,12 +1,14 @@
-import { Inbox, type LucideIcon } from 'lucide-react';
+import { type ComponentType } from 'react';
+import { Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+type IconComponent = ComponentType<{ className?: string }>;
 
 interface EmptyStateProps {
-  icon?: LucideIcon;
+  icon?: IconComponent;
   title: string;
   description?: string;
-  action?: { label: string; onClick: () => void; icon?: LucideIcon };
+  action?: { label: string; onClick: () => void; icon?: IconComponent };
   className?: string;
 }
 

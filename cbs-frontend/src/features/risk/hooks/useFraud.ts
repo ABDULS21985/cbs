@@ -46,7 +46,7 @@ export function useFraudAlertTransactions(alertId: number | null, enabled: boole
 export function useBlockCard() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (alertId: number) => fraudApi.blockCard(alertId),
+    mutationFn: async (alertId: number) => { const res = await fraudApi.blockCard(alertId); return res; },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fraud'] }),
   });
 }
@@ -54,7 +54,7 @@ export function useBlockCard() {
 export function useBlockAccount() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (alertId: number) => fraudApi.blockAccount(alertId),
+    mutationFn: async (alertId: number) => { const res = await fraudApi.blockAccount(alertId); return res; },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fraud'] }),
   });
 }
@@ -62,7 +62,7 @@ export function useBlockAccount() {
 export function useAllowTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (alertId: number) => fraudApi.allowTransaction(alertId),
+    mutationFn: async (alertId: number) => { const res = await fraudApi.allowTransaction(alertId); return res; },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fraud'] }),
   });
 }
@@ -70,8 +70,10 @@ export function useAllowTransaction() {
 export function useDismissAlert() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ alertId, reason }: { alertId: number; reason: string }) =>
-      fraudApi.dismissAlert(alertId, reason),
+    mutationFn: async ({ alertId, reason }: { alertId: number; reason: string }) => {
+      const res = await fraudApi.dismissAlert(alertId, reason);
+      return res;
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fraud'] }),
   });
 }
@@ -79,7 +81,7 @@ export function useDismissAlert() {
 export function useFileFraudCase() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (alertId: number) => fraudApi.fileFraudCase(alertId),
+    mutationFn: async (alertId: number) => { const res = await fraudApi.fileFraudCase(alertId); return res; },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fraud'] }),
   });
 }
@@ -103,7 +105,10 @@ export function useModelPerformance() {
 export function useToggleFraudRule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, active }: { id: number; active: boolean }) => fraudApi.toggleRule(id, active),
+    mutationFn: async ({ id, active }: { id: number; active: boolean }) => {
+      const res = await fraudApi.toggleRule(id, active);
+      return res;
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fraud', 'rules'] }),
   });
 }

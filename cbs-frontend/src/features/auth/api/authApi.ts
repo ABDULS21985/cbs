@@ -168,7 +168,7 @@ export const authApi = {
         redirect_uri: getRedirectUri(),
       });
 
-      const tokenData = res.data;
+      const tokenData = res.data as { access_token: string; refresh_token: string; expires_in: number };
       const user = await authApi.getMe(tokenData.access_token);
 
       return {
@@ -190,10 +190,11 @@ export const authApi = {
       client_id: KEYCLOAK_CLIENT,
       refresh_token: refreshToken,
     });
+    const refreshData = res.data as { access_token: string; refresh_token: string; expires_in: number };
     return {
-      accessToken: res.data.access_token,
-      refreshToken: res.data.refresh_token,
-      expiresIn: res.data.expires_in,
+      accessToken: refreshData.access_token,
+      refreshToken: refreshData.refresh_token,
+      expiresIn: refreshData.expires_in,
     };
   },
 
@@ -225,11 +226,12 @@ export const authApi = {
       (r: string) => r.startsWith('CBS_') || r.startsWith('BRANCH_') || CBS_ROLES.includes(r)
     ) || [];
 
+    const userInfo = res.data as { sub: string; preferred_username: string; name?: string; email?: string };
     return {
-      id: res.data.sub,
-      username: res.data.preferred_username,
-      fullName: res.data.name || res.data.preferred_username,
-      email: res.data.email || '',
+      id: userInfo.sub,
+      username: userInfo.preferred_username,
+      fullName: userInfo.name || userInfo.preferred_username,
+      email: userInfo.email || '',
       roles,
       permissions: roles.includes('CBS_ADMIN') ? ['*'] : [],
     };

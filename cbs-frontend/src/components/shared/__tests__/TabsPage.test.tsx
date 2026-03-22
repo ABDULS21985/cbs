@@ -1,22 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TabsPage } from '../TabsPage';
+import { TabsPage, type TabItem } from '../TabsPage';
 import { renderWithProviders } from '@/test/helpers';
-
-type Tab = {
-  id: string;
-  label: string;
-  icon?: React.ComponentType<{ className?: string }>;
-  badge?: number;
-  content: React.ReactNode;
-  disabled?: boolean;
-};
 
 const HomeIcon = ({ className }: { className?: string }) => <svg data-testid="home-icon" className={className} />;
 const SettingsIcon = ({ className }: { className?: string }) => <svg data-testid="settings-icon" className={className} />;
 
-const sampleTabs: Tab[] = [
+const sampleTabs: TabItem[] = [
   {
     id: 'overview',
     label: 'Overview',

@@ -1010,7 +1010,7 @@ function ScfFactoringTab() {
       header: 'Limit',
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          {formatMoney(row.original.limitAmount, row.original.currency)}
+          {formatMoney(row.original.limitAmount ?? 0, row.original.currency)}
         </span>
       ),
     },
@@ -1066,7 +1066,7 @@ function ScfFactoringTab() {
       accessorKey: 'amount',
       header: 'Amount',
       cell: ({ row }) => (
-        <span className="font-mono text-sm">{row.original.amount.toLocaleString()}</span>
+        <span className="font-mono text-sm">{(row.original.amount ?? 0).toLocaleString()}</span>
       ),
     },
     {
@@ -1419,7 +1419,7 @@ function DocumentsTab() {
     {
       accessorKey: 'documentType',
       header: 'Type',
-      cell: ({ row }) => <StatusBadge status={row.original.documentType} />,
+      cell: ({ row }) => <StatusBadge status={row.original.documentType ?? row.original.documentCategory ?? '—'} />,
     },
     {
       accessorKey: 'lcId',
@@ -1434,12 +1434,12 @@ function DocumentsTab() {
     {
       accessorKey: 'complianceStatus',
       header: 'Compliance',
-      cell: ({ row }) => <ComplianceBadge status={row.original.complianceStatus} />,
+      cell: ({ row }) => <ComplianceBadge status={row.original.complianceStatus ?? row.original.verificationStatus ?? '—'} />,
     },
     {
       accessorKey: 'uploadedAt',
       header: 'Uploaded',
-      cell: ({ row }) => formatDate(row.original.uploadedAt),
+      cell: ({ row }) => row.original.uploadedAt ? formatDate(row.original.uploadedAt) : '—',
     },
     {
       accessorKey: 'verifiedAt',

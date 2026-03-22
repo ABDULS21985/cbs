@@ -15,12 +15,41 @@ const defaultSteps: TimelineStep[] = [
   { label: 'Delivered to Beneficiary', status: 'pending' },
 ];
 
-interface Props {
-  steps?: TimelineStep[];
+interface TransferTimelineEntry {
+  status: string;
+  label: string;
+  timestamp?: string;
+  isComplete?: boolean;
+  isCurrent?: boolean;
+  description?: string;
 }
 
-export function TransferTracker({ steps }: Props) {
-  const timeline = steps && steps.length > 0 ? steps : defaultSteps;
+interface Props {
+  steps?: TimelineStep[];
+  timeline?: TransferTimelineEntry[];
+}
+
+function toTimelineStep(entry: TransferTimelineEntry): TimelineStep {
+  if (entry.isComplete !== undefined || entry.isCurrent !== undefined) {
+    return {
+      label: entry.label,
+      status: entry.isComplete ? 'completed' : entry.isCurrent ? 'in-progress' : 'pending',
+      timestamp: entry.timestamp,
+      description: entry.description,
+    };
+  }
+  return {
+    label: entry.label,
+    status: entry.status as TimelineStep['status'],
+    timestamp: entry.timestamp,
+    description: entry.description,
+  };
+}
+
+export function TransferTracker({ steps, timeline: timelineProp }: Props) {
+  const mapped = timelineProp?.map(toTimelineStep);
+  const source = steps ?? mapped;
+  const timeline = source && source.length > 0 ? source : defaultSteps;
 
   return (
     <div className="space-y-4">

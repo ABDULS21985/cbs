@@ -139,8 +139,8 @@ export default function KycDashboardPage() {
       header: 'Expiry',
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {(row.original as Record<string, unknown>).kycExpiryDate
-            ? formatDate((row.original as Record<string, unknown>).kycExpiryDate as string)
+          {(row.original as unknown as Record<string, unknown>).kycExpiryDate
+            ? formatDate((row.original as unknown as Record<string, unknown>).kycExpiryDate as string)
             : '--'}
         </span>
       ),

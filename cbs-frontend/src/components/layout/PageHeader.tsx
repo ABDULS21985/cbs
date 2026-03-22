@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 import { type ReactNode } from 'react';
 
 interface PageHeaderProps {
-  title: string;
-  subtitle?: string;
+  title: ReactNode;
+  subtitle?: ReactNode;
   backTo?: string;
   actions?: ReactNode;
   tabs?: ReactNode;

@@ -75,7 +75,7 @@ export async function uploadStatement(
 ): Promise<{ entriesReceived: number; status: string; message: string; isDuplicate: boolean; warnings: string[] }> {
   const formData = new FormData();
   formData.append('file', file);
-  const { data } = await api.post(
+  const { data } = await api.post<{ data: { entriesReceived: number; status: string; message: string; isDuplicate: boolean; warnings: string[] } }>(
     `/api/v1/reconciliation/upload-statement?positionId=${positionId}`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } },
@@ -150,7 +150,7 @@ export interface ImportRecord {
   entriesCount: number;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'PARTIAL' | 'REJECTED';
   importedBy: string;
-  errors?: string;
+  errors?: string[];
 }
 
 export interface AutoFetchConfig {
@@ -220,7 +220,7 @@ export interface ComplianceScorePoint {
 export async function parseStatement(file: File, positionId: string): Promise<ParsedStatement> {
   const formData = new FormData();
   formData.append('file', file);
-  const { data } = await api.post(
+  const { data } = await api.post<{ data: ParsedStatement }>(
     `/api/v1/reconciliation/statements/parse?positionId=${positionId}`,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } },
@@ -296,7 +296,7 @@ export async function generateReconciliationReport(
     params,
     { responseType: 'blob' },
   );
-  return new Blob([response.data], { type: 'text/csv' });
+  return new Blob([response.data as BlobPart], { type: 'text/csv' });
 }
 
 export function getComplianceChecklist(): Promise<ComplianceCheckItem[]> {

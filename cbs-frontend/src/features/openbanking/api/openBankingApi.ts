@@ -3,7 +3,7 @@ import type { ApiResponse } from '@/types/common';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type TppClientType = 'INTERNAL' | 'TPP_AISP' | 'TPP_PISP' | 'TPP_CBPII' | 'PARTNER' | 'SANDBOX';
+export type TppClientType = 'INTERNAL' | 'TPP_AISP' | 'TPP_PISP' | 'TPP_BOTH' | 'TPP_CBPII' | 'PARTNER' | 'SANDBOX';
 export type TppClientStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 export type ConsentStatus = 'PENDING' | 'AUTHORISED' | 'REJECTED' | 'REVOKED' | 'EXPIRED';
 

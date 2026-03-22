@@ -88,14 +88,14 @@ describe('OnboardingWizardPage', () => {
       phonePrimary: '+2348012345678',
       email: 'ada@example.com',
     });
-    expect(postedBody?.addresses).toEqual([
+    expect(postedBody!.addresses).toEqual([
       expect.objectContaining({
         addressType: 'RESIDENTIAL',
         addressLine1: '10 Marina Street',
         isPrimary: true,
       }),
     ]);
-    expect(postedBody?.contacts).toEqual([
+    expect(postedBody!.contacts).toEqual([
       expect.objectContaining({
         contactType: 'PHONE',
         contactValue: '+2348012345678',

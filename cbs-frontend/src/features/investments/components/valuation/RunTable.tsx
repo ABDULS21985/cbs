@@ -73,7 +73,7 @@ export function RunTable({ runs, isLoading, onRowClick }: Props) {
       isLoading={isLoading}
       enableGlobalFilter
       emptyMessage="No valuation runs found"
-      onRowClick={onRowClick ? (row) => onRowClick(row.original) : undefined}
+      onRowClick={onRowClick ? (row) => onRowClick(row) : undefined}
     />
   );
 }

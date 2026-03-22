@@ -74,7 +74,7 @@ const labelOverrides: Record<string, string> = {
   prices: 'Prices & Signals',
   research: 'Research',
   analysis: 'Analysis',
-  risk: 'Market Risk',
+  'market-risk': 'Market Risk',
   instruments: 'Financial Instruments',
   competitors: 'Competitor Intelligence',
   'financial-statements': 'Financial Statements',

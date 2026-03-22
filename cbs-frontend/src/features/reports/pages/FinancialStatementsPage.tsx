@@ -306,7 +306,7 @@ function RecordStatementDialog({
                     type="number"
                     step="0.01"
                     className="w-full mt-1 rounded-md border px-3 py-2 text-sm font-mono"
-                    value={(form as Record<string, unknown>)[f] ?? ''}
+                    value={((form as Record<string, unknown>)[f] as string | number) ?? ''}
                     onChange={(e) => setNum(f, e.target.value)}
                   />
                 </div>
@@ -326,7 +326,7 @@ function RecordStatementDialog({
                     type="number"
                     step="0.01"
                     className="w-full mt-1 rounded-md border px-3 py-2 text-sm font-mono"
-                    value={(form as Record<string, unknown>)[f] ?? ''}
+                    value={((form as Record<string, unknown>)[f] as string | number) ?? ''}
                     onChange={(e) => setNum(f, e.target.value)}
                   />
                 </div>
@@ -346,7 +346,7 @@ function RecordStatementDialog({
                     type="number"
                     step="0.01"
                     className="w-full mt-1 rounded-md border px-3 py-2 text-sm font-mono"
-                    value={(form as Record<string, unknown>)[f] ?? ''}
+                    value={((form as Record<string, unknown>)[f] as string | number) ?? ''}
                     onChange={(e) => setNum(f, e.target.value)}
                   />
                 </div>

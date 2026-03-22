@@ -33,13 +33,13 @@ export function TemplateVersionHistory({ templateId, currentVersion, createdAt, 
   }
 
   // Merge API versions if available
-  versions.forEach((v: Record<string, unknown>) => {
-    if (typeof v === 'object' && v.version) {
+  versions.forEach((v) => {
+    if (typeof v === 'object' && v.versionNumber) {
       events.push({
-        version: v.version as number,
-        action: String(v.action ?? 'Modified'),
+        version: v.versionNumber,
+        action: String(v.changeSummary ?? 'Modified'),
         actor: String(v.changedBy ?? 'System'),
-        timestamp: String(v.changedAt ?? ''),
+        timestamp: String(v.createdAt ?? ''),
       });
     }
   });

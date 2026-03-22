@@ -95,6 +95,9 @@ export interface GatewayStatus {
   todayMessages: number;
   valueToday: number;
   lastHeartbeatAt: string | null;
+  latencyMs?: number;
+  errors?: number;
+  lastMessageAt?: string;
 }
 
 function mapGatewayStatus(raw: GatewayStatusRaw): GatewayStatus {

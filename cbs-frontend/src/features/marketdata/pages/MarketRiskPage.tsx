@@ -66,7 +66,7 @@ const fetchPositionsByDate = (date: string) =>
   apiGet<MarketRiskPosition[]>(`/api/v1/market-risk/${date}`);
 
 const fetchPaginatedPositions = async (page: number, size: number): Promise<PaginatedPositions> => {
-  const { data } = await api.get('/api/v1/market-risk', { params: { page, size } });
+  const { data } = await api.get<{ data: MarketRiskPosition[]; page: PageMeta }>('/api/v1/market-risk', { params: { page, size } });
   return {
     data: data.data ?? [],
     page: data.page ?? { page: 0, size, totalElements: 0, totalPages: 0 },

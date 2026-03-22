@@ -51,6 +51,7 @@ export interface LiquidityRatios {
   nsfrMin: number;
   cashReserve: number;
   cashReserveReq: number;
+  netCashOutflows30d?: number;
 }
 
 export interface CashflowBucket {

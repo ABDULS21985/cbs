@@ -44,7 +44,7 @@ const columns: ColumnDef<Merchant, any>[] = [
   {
     accessorKey: 'monthlyVolumeLimit',
     header: 'Monthly Volume',
-    cell: ({ row }) => <span className="text-sm tabular-nums font-medium">{formatMoney(row.original.monthlyVolumeLimit)}</span>,
+    cell: ({ row }) => <span className="text-sm tabular-nums font-medium">{row.original.monthlyVolumeLimit != null ? formatMoney(row.original.monthlyVolumeLimit) : '—'}</span>,
   },
   {
     accessorKey: 'mdrRate',
@@ -77,7 +77,7 @@ const columns: ColumnDef<Merchant, any>[] = [
   {
     accessorKey: 'onboardedAt',
     header: 'Onboarded',
-    cell: ({ row }) => <span className="text-xs text-muted-foreground tabular-nums">{formatDate(row.original.onboardedAt)}</span>,
+    cell: ({ row }) => <span className="text-xs text-muted-foreground tabular-nums">{row.original.onboardedAt ? formatDate(row.original.onboardedAt) : '—'}</span>,
   },
 ];
 

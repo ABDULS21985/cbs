@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge, TabsPage } from '@/components/shared';
 import {

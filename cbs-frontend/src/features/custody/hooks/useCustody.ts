@@ -107,7 +107,7 @@ export function useCreateSettlementInstruction() {
 export function useMatchInstructions() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ refA, refB }: { refA: string; refB: string }) =>
+    mutationFn: async ({ refA, refB }: { refA: string; refB: string }) =>
       custodyApi.matchInstructions(refA, refB),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.instructions() });
@@ -130,7 +130,7 @@ export function useSubmitSettlement() {
 export function useRecordSettlementResult() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ ref, settled }: { ref: string; settled: boolean }) =>
+    mutationFn: async ({ ref, settled }: { ref: string; settled: boolean }) =>
       custodyApi.recordSettlementResult(ref, settled),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.failedSettlements() });

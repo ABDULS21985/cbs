@@ -29,7 +29,7 @@ export function CreditMarginPage() {
 
   const { data: cpCalls = [] } = useCounterpartyMarginCalls(searchedCp);
 
-  const [issueForm, setIssueForm] = useState({ callDirection: 'OUTGOING' as const, counterpartyCode: '', counterpartyName: '', callType: 'VARIATION', currency: 'NGN', callAmount: 0, portfolioMtm: 0, thresholdAmount: 0, minimumTransfer: 0, callDate: '', responseDeadline: '' });
+  const [issueForm, setIssueForm] = useState({ callDirection: 'OUTGOING' as 'OUTGOING' | 'INCOMING', counterpartyCode: '', counterpartyName: '', callType: 'VARIATION', currency: 'NGN', callAmount: 0, portfolioMtm: 0, thresholdAmount: 0, minimumTransfer: 0, callDate: '', responseDeadline: '' });
   const [collForm, setCollForm] = useState({ positionCode: '', counterpartyCode: '', counterpartyName: '', direction: 'LONG' as const, collateralType: 'CASH', currency: 'NGN', marketValue: 0, haircutPct: 0, maturityDate: '' });
 
   const filtered = useMemo(() => {

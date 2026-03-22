@@ -35,7 +35,7 @@ export function useCreateLease() {
 export function useActivateLease() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (leaseNumber: string) => leaseApi.activate(leaseNumber),
+    mutationFn: async (leaseNumber: string) => leaseApi.activate(leaseNumber),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leases'] }),
   });
 }
@@ -43,7 +43,7 @@ export function useActivateLease() {
 export function useDepreciateLease() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (leaseNumber: string) => leaseApi.depreciate(leaseNumber),
+    mutationFn: async (leaseNumber: string) => leaseApi.depreciate(leaseNumber),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leases'] }),
   });
 }
@@ -51,7 +51,7 @@ export function useDepreciateLease() {
 export function useExercisePurchaseOption() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (leaseNumber: string) => leaseApi.exercisePurchaseOption(leaseNumber),
+    mutationFn: async (leaseNumber: string) => leaseApi.exercisePurchaseOption(leaseNumber),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leases'] }),
   });
 }
@@ -59,7 +59,7 @@ export function useExercisePurchaseOption() {
 export function useEarlyTerminateLease() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (leaseNumber: string) => leaseApi.earlyTerminate(leaseNumber),
+    mutationFn: async (leaseNumber: string) => leaseApi.earlyTerminate(leaseNumber),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['leases'] }),
   });
 }

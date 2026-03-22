@@ -65,7 +65,7 @@ export function PortalBillPaymentPage() {
             <button key={b.id as number} onClick={() => { setSelectedBiller(b); setAmount(b.fixedAmount ? (b.amount as number) : 0); setStep(2); }}
               className="w-full flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 text-left">
               <span className="text-sm font-medium">{b.name as string}</span>
-              {b.fixedAmount && <span className="text-xs font-mono">{formatMoney(b.amount as number)}</span>}
+              {b.fixedAmount ? <span className="text-xs font-mono">{formatMoney(b.amount as number)}</span> : null}
             </button>
           ))}
         </div>
@@ -94,13 +94,13 @@ export function PortalBillPaymentPage() {
           <div className="rounded-lg border p-4 space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Biller</span><span className="font-medium">{selectedBiller?.name as string}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Reference</span><span className="font-mono">{customerRef}</span></div>
-            {validated?.customerName && <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span>{validated.customerName as string}</span></div>}
+            {validated?.customerName ? <div className="flex justify-between"><span className="text-muted-foreground">Customer</span><span>{validated.customerName as string}</span></div> : null}
             <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-mono font-bold text-lg">{formatMoney(amount)}</span></div>
           </div>
           <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Pay from</label>
             <select value={accountId} onChange={e => setAccountId(Number(e.target.value))} className={fc}>
               <option value={0}>Select account</option>
-              {(accounts as Record<string, unknown>[]).map(a => <option key={a.id as number} value={a.id as number}>{a.accountName as string} — {formatMoney(a.availableBalance as number)}</option>)}
+              {(accounts as unknown as Record<string, unknown>[]).map(a => <option key={a.id as number} value={a.id as number}>{a.accountName as string} — {formatMoney(a.availableBalance as number)}</option>)}
             </select></div>
           <button onClick={() => payMut.mutate()} disabled={!accountId || payMut.isPending}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">

@@ -1,4 +1,5 @@
-import axios, { type AxiosError, type AxiosResponse } from 'axios';
+import axios from 'axios';
+import type { AxiosError, AxiosResponse } from 'axios';
 import { useAuthStore } from '@/stores/authStore';
 import type { ApiResponse } from '@/types/common';
 
@@ -26,8 +27,9 @@ function normalizeApiUrl(url?: string): string | undefined {
 
 // Request: attach JWT + correlation ID
 api.interceptors.request.use((config) => {
-  config.url = normalizeApiUrl(config.url);
+  config.url = normalizeApiUrl(config.url) as string;
   const token = useAuthStore.getState().accessToken;
+  if (!config.headers) config.headers = new axios.AxiosHeaders();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   config.headers['X-Request-ID'] = crypto.randomUUID();
   return config;
@@ -106,7 +108,7 @@ export async function apiUpload<T>(url: string, file: File, fieldName = 'file'):
 
 export async function apiDownload(url: string, filename: string): Promise<void> {
   const response = await api.get(url, { responseType: 'blob' });
-  const blob = new Blob([response.data]);
+  const blob = new Blob([response.data as BlobPart]);
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   link.download = filename;

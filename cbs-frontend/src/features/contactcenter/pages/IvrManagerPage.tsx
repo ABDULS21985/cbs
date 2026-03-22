@@ -78,7 +78,7 @@ function MenuDetailPanel({ menu, allMenus, onClose }: { menu: IvrMenu; allMenus:
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium">{String(action)}</p>
-                        {target && <p className="text-xs text-muted-foreground">{String(target)}</p>}
+                        {target ? <p className="text-xs text-muted-foreground">{String(target)}</p> : null}
                       </div>
                     </div>
                   );

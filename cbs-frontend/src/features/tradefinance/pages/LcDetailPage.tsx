@@ -76,7 +76,7 @@ function DocumentsTab({ lcId }: { lcId: number }) {
 
   const handleUpload = () => {
     setUploading(true);
-    tradeFinanceExtApi.uploadDocument({ documentType: uploadForm.category as any, lcId }).then(() => {
+    tradeFinanceExtApi.uploadDocument({ category: uploadForm.category, lcId, fileName: uploadForm.fileName || 'document', fileType: uploadForm.fileType || 'PDF' }).then(() => {
       toast.success('Document uploaded');
       qc.invalidateQueries({ queryKey: ['trade-finance', 'lc', lcId, 'documents'] });
       setShowUpload(false);

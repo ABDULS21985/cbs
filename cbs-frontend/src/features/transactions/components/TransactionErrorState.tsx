@@ -5,8 +5,10 @@ import { cn } from '@/lib/utils';
 
 type ErrorKind = 'network' | 'server' | 'auth' | 'not-found' | 'unknown';
 
-interface TransactionErrorStateProps {
+export interface TransactionErrorStateProps {
   error?: unknown;
+  title?: string;
+  description?: string;
   onRetry?: () => void;
   className?: string;
   compact?: boolean;
@@ -50,6 +52,8 @@ function createErrorId(error: unknown): string {
 
 export function TransactionErrorState({
   error,
+  title: titleOverride,
+  description: descriptionOverride,
   onRetry,
   className,
   compact = false,
@@ -113,8 +117,8 @@ export function TransactionErrorState({
           <Icon className="h-4 w-4" />
         </div>
         <div className="space-y-1">
-          <p className="font-semibold">{config.title}</p>
-          <p className="max-w-2xl text-sm">{config.message}</p>
+          <p className="font-semibold">{titleOverride ?? config.title}</p>
+          <p className="max-w-2xl text-sm">{descriptionOverride ?? config.message}</p>
           <p className="text-xs opacity-80">Error ID: {errorId}</p>
         </div>
       </div>

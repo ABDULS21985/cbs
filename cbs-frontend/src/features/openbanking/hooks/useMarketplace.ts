@@ -39,7 +39,7 @@ export function useProductAnalytics(id: number) {
 export function useCreateApiProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<ApiProduct>) => marketplaceApi.createProduct(data),
+    mutationFn: async (data: Partial<ApiProduct>) => marketplaceApi.createProduct(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.products }); },
   });
 }
@@ -47,7 +47,7 @@ export function useCreateApiProduct() {
 export function usePublishProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => marketplaceApi.publishProduct(id),
+    mutationFn: async (id: number) => marketplaceApi.publishProduct(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.products }); },
   });
 }
@@ -55,7 +55,7 @@ export function usePublishProduct() {
 export function useDeprecateProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => marketplaceApi.deprecateProduct(id),
+    mutationFn: async (id: number) => marketplaceApi.deprecateProduct(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.products }); },
   });
 }
@@ -69,7 +69,7 @@ export function useApiSubscriptions(params?: Record<string, unknown>) {
 export function useSubscribeToApi() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { productId: number; subscriberName: string; subscriberEmail?: string; planTier?: string }) =>
+    mutationFn: async (data: { productId: number; subscriberName: string; subscriberEmail?: string; planTier?: string }) =>
       marketplaceApi.subscribe(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.subscriptions }); },
   });
@@ -78,7 +78,7 @@ export function useSubscribeToApi() {
 export function useApproveSubscription() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (subscriptionId: string) => marketplaceApi.approveSubscription(subscriptionId),
+    mutationFn: async (subscriptionId: string) => marketplaceApi.approveSubscription(subscriptionId),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.subscriptions }); },
   });
 }
@@ -102,7 +102,7 @@ export function useWebhooks(tppClientId?: number) {
 export function useCreateWebhook() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Pick<Webhook, 'url' | 'events' | 'authType'> & { secretKey?: string; tppClientId?: number }) =>
+    mutationFn: async (data: Pick<Webhook, 'url' | 'events' | 'authType'> & { secretKey?: string; tppClientId?: number }) =>
       marketplaceApi.createWebhook(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.webhooks }); },
   });
@@ -111,7 +111,7 @@ export function useCreateWebhook() {
 export function useUpdateWebhook() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Pick<Webhook, 'url' | 'events' | 'authType' | 'status'>> }) =>
+    mutationFn: async ({ id, data }: { id: number; data: Partial<Pick<Webhook, 'url' | 'events' | 'authType' | 'status'>> }) =>
       marketplaceApi.updateWebhook(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.webhooks }); },
   });
@@ -120,7 +120,7 @@ export function useUpdateWebhook() {
 export function useDeleteWebhook() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => marketplaceApi.deleteWebhook(id),
+    mutationFn: async (id: number) => marketplaceApi.deleteWebhook(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: QK.webhooks }); },
   });
 }
@@ -137,7 +137,7 @@ export function useWebhookDeliveries(webhookId: number) {
 export function useRetryDelivery() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ webhookId, deliveryId }: { webhookId: number; deliveryId: number }) =>
+    mutationFn: async ({ webhookId, deliveryId }: { webhookId: number; deliveryId: number }) =>
       marketplaceApi.retryDelivery(webhookId, deliveryId),
     onSuccess: (_, vars) => { qc.invalidateQueries({ queryKey: QK.webhookDeliveries(vars.webhookId) }); },
   });
@@ -145,7 +145,7 @@ export function useRetryDelivery() {
 
 export function useTestWebhook() {
   return useMutation({
-    mutationFn: ({ webhookId, event }: { webhookId: number; event: string }) =>
+    mutationFn: async ({ webhookId, event }: { webhookId: number; event: string }) =>
       marketplaceApi.testWebhook(webhookId, event),
   });
 }

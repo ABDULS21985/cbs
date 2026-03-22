@@ -4,7 +4,7 @@ import type { CallbackRequest } from '../types/contactRouting';
 
 export interface AgentState {
   agentId: string; agentName: string;
-  state: 'AVAILABLE' | 'ON_CALL' | 'WRAP_UP' | 'BREAK' | 'OFFLINE';
+  state: 'AVAILABLE' | 'ON_CALL' | 'BUSY' | 'WRAP_UP' | 'BREAK' | 'OFFLINE';
   currentInteractionId: string | null;
   callsToday: number; avgHandleTimeSec: number; fcrPct: number;
   qualityScore: number;

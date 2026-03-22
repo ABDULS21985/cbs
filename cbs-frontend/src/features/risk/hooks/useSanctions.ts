@@ -5,7 +5,7 @@ import type { MatchStatus } from '../types/sanctions';
 export function useSanctionsStats() {
   return useQuery({
     queryKey: ['sanctions', 'stats'],
-    queryFn: () => sanctionsApi.getStats().then((r) => r.data.data),
+    queryFn: async () => (await sanctionsApi.getStats()).data.data,
     staleTime: 30_000,
   });
 }
@@ -13,7 +13,7 @@ export function useSanctionsStats() {
 export function usePendingMatches(params?: { status?: MatchStatus; page?: number; size?: number }) {
   return useQuery({
     queryKey: ['sanctions', 'matches', params],
-    queryFn: () => sanctionsApi.listMatches(params).then((r) => r.data.data),
+    queryFn: async () => (await sanctionsApi.listMatches(params)).data.data,
     staleTime: 30_000,
   });
 }
@@ -21,7 +21,7 @@ export function usePendingMatches(params?: { status?: MatchStatus; page?: number
 export function useSanctionsMatch(id: number | null) {
   return useQuery({
     queryKey: ['sanctions', 'match', id],
-    queryFn: () => sanctionsApi.getMatch(id!).then((r) => r.data.data),
+    queryFn: async () => (await sanctionsApi.getMatch(id!)).data.data,
     enabled: id !== null,
     staleTime: 30_000,
   });
@@ -30,7 +30,7 @@ export function useSanctionsMatch(id: number | null) {
 export function useWatchlists() {
   return useQuery({
     queryKey: ['sanctions', 'watchlists'],
-    queryFn: () => sanctionsApi.listWatchlists().then((r) => r.data.data),
+    queryFn: async () => (await sanctionsApi.listWatchlists()).data.data,
     staleTime: 60_000,
   });
 }
@@ -38,7 +38,7 @@ export function useWatchlists() {
 export function useConfirmHit() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => sanctionsApi.confirmHit(id),
+    mutationFn: async (id: number) => { const res = await sanctionsApi.confirmHit(id); return res; },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sanctions'] });
     },
@@ -48,8 +48,10 @@ export function useConfirmHit() {
 export function useMarkFalsePositive() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, justification, documentId }: { id: number; justification: string; documentId?: number }) =>
-      sanctionsApi.markFalsePositive(id, justification, documentId),
+    mutationFn: async ({ id, justification, documentId }: { id: number; justification: string; documentId?: number }) => {
+      const res = await sanctionsApi.markFalsePositive(id, justification, documentId);
+      return res;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sanctions'] });
     },
@@ -59,7 +61,7 @@ export function useMarkFalsePositive() {
 export function useRunBatchScreen() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => sanctionsApi.runBatchScreen(),
+    mutationFn: async () => { const res = await sanctionsApi.runBatchScreen(); return res; },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sanctions'] });
     },
@@ -69,7 +71,7 @@ export function useRunBatchScreen() {
 export function useForceUpdateWatchlist() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => sanctionsApi.forceUpdateWatchlist(id),
+    mutationFn: async (id: number) => { const res = await sanctionsApi.forceUpdateWatchlist(id); return res; },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sanctions', 'watchlists'] });
     },

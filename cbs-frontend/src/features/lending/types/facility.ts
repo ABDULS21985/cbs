@@ -55,6 +55,10 @@ export interface DrawdownRequest {
   facilityId: number;
   amount: number;
   narration?: string;
+  type?: string;
+  rate?: number;
+  maturityDate?: string;
+  purpose?: string;
 }
 
 // Matches backend CreateFacilityRequest DTO

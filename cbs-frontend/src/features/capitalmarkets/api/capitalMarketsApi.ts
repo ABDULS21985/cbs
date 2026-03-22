@@ -215,6 +215,7 @@ export interface Fund {
   manager?: string;
   inceptionDate: string;
   lastNavDate?: string;
+  benchmark?: string;
   createdAt: string;
   updatedAt: string;
 }

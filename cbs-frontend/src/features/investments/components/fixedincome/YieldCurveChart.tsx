@@ -45,7 +45,7 @@ export function YieldCurveChart({ holdings }: YieldCurveChartProps) {
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis dataKey="tenor" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v.toFixed(1)}%`} domain={['auto', 'auto']} />
-          <Tooltip formatter={(v: number | null) => v != null ? `${v.toFixed(2)}%` : '—'} contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
+          <Tooltip formatter={(v) => (v as number | null) != null ? `${(v as number).toFixed(2)}%` : '—'} contentStyle={{ fontSize: 11, borderRadius: 8, background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }} />
           <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
           <Line type="monotone" dataKey="government" name="Government" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} connectNulls />
           <Line type="monotone" dataKey="corporate" name="Corporate" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} connectNulls />

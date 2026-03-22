@@ -72,7 +72,7 @@ const FEE_TEMPLATES: FeeTemplate[] = [
     description: '1% · Min ₦5K · Max ₦50K',
     data: {
       name: 'Loan Processing Fee',
-      category: 'LOAN',
+      category: 'LOAN_PROCESSING',
       calcType: 'PERCENTAGE',
       percentage: 1,
       minFee: 5000,

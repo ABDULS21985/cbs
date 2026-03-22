@@ -35,7 +35,7 @@ export function useCreateMortgage() {
 export function useAdvanceMortgage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ mortgageNumber, status }: { mortgageNumber: string; status?: string }) =>
+    mutationFn: async ({ mortgageNumber, status }: { mortgageNumber: string; status?: string }) =>
       mortgageApi.advance(mortgageNumber, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mortgages'] }),
   });
@@ -44,7 +44,7 @@ export function useAdvanceMortgage() {
 export function useOverpayMortgage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ mortgageNumber, amount }: { mortgageNumber: string; amount: number }) =>
+    mutationFn: async ({ mortgageNumber, amount }: { mortgageNumber: string; amount: number }) =>
       mortgageApi.overpay(mortgageNumber, amount),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mortgages'] }),
   });

@@ -8,10 +8,12 @@ import { DataTable, StatusBadge, TabsPage } from '@/components/shared';
 import { formatDateTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useMutation } from '@tanstack/react-query';
 import {
   useEventSubscriptions, useCreateEventSubscription, usePublishEvent,
-  useProcessOutbox, useEventReplay,
+  useProcessOutbox,
 } from '../hooks/useGatewayData';
+import { eventsApi } from '../api/eventApi';
 import type { EventSubscription } from '../types/event';
 
 const EVENT_TYPES = [
@@ -27,7 +29,10 @@ export function DomainEventsPage() {
   const createSub = useCreateEventSubscription();
   const publishEvent = usePublishEvent();
   const processOutbox = useProcessOutbox();
-  const eventReplay = useEventReplay();
+  const eventReplay = useMutation({
+    mutationFn: (data: { eventType: string; fromDate: string; toDate: string }) =>
+      eventsApi.replay(data.eventType, 0),
+  });
 
   // Create subscription form
   const [subForm, setSubForm] = useState({ eventType: 'CUSTOMER_CREATED', subscriberName: '', webhookUrl: '', maxRetries: 3, backoffMs: 1000 });

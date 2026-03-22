@@ -556,20 +556,22 @@ export function SuitabilityPage() {
         </div>
 
         {/* Action buttons */}
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => setShowAssessment(true)}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
-          >
-            <Plus className="w-4 h-4" /> New Assessment
-          </button>
-          <button
-            onClick={() => setShowCheck(true)}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted"
-          >
-            <ShieldCheck className="w-4 h-4" /> Perform Check
-          </button>
-        </div>
+        <RoleGuard roles={['CBS_ADMIN', 'CBS_OFFICER']}>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setShowAssessment(true)}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+            >
+              <Plus className="w-4 h-4" /> New Assessment
+            </button>
+            <button
+              onClick={() => setShowCheck(true)}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted"
+            >
+              <ShieldCheck className="w-4 h-4" /> Perform Check
+            </button>
+          </div>
+        </RoleGuard>
 
         {/* Recent checks table */}
         <div className="rounded-xl border bg-card">

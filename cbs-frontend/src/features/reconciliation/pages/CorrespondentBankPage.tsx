@@ -13,7 +13,7 @@ interface RegisterBankModalProps {
   onClose: () => void;
 }
 
-const EMPTY_FORM = {
+const EMPTY_FORM: { bankCode: string; bankName: string; swiftBic: string; country: string; city: string; relationshipType: 'NOSTRO' | 'VOSTRO' | 'BOTH'; contactName: string; contactEmail: string; contactPhone: string } = {
   bankCode: '', bankName: '', swiftBic: '', country: '', city: '',
   relationshipType: 'NOSTRO', contactName: '', contactEmail: '', contactPhone: '',
 };

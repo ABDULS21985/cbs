@@ -10,7 +10,7 @@ import {
   useSwitchDashboard, useSubscriptionHealth, useFeedQualityMetrics,
   useRegisterSwitch, useStartSwitch, useStopSwitch, useAddSubscription,
 } from '../hooks/useMarketData';
-import type { SubscriptionHealth, FeedQualityMetric } from '../api/marketDataManagementApi';
+import type { SubscriptionHealth, FeedQualityMetric } from '../types';
 
 const LATENCY_COLOR = (ms: number) => ms < 100 ? 'text-green-600' : ms < 500 ? 'text-amber-600' : 'text-red-600';
 const STATUS_COLOR: Record<string, string> = { HEALTHY: 'bg-green-100 text-green-700', DEGRADED: 'bg-amber-100 text-amber-700', FAILED: 'bg-red-100 text-red-700', DOWN: 'bg-red-100 text-red-700' };

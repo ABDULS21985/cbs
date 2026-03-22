@@ -1,5 +1,7 @@
 // Auto-generated from backend entities
 
+import type { Customer } from '@/features/customers/types/customer';
+
 export interface DocumentaryCollection {
   id: number;
   collectionNumber: string;

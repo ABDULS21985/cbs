@@ -85,7 +85,16 @@ export function useIssueLc() {
       expiryDate: string;
       paymentTerms: LcPaymentTerms;
       tenor?: number;
-    }) => tradeFinanceExtApi.issueLc(input),
+    }) => tradeFinanceExtApi.issueLc({
+      applicantId: parseInt(input.applicant) || 0,
+      beneficiaryName: input.beneficiary,
+      amount: input.amount,
+      currencyCode: input.currency,
+      expiryDate: input.expiryDate,
+      goodsDescription: '',
+      paymentTerms: input.paymentTerms,
+      tenorDays: input.tenor,
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.lcs.all });
     },
@@ -100,8 +109,8 @@ export function useSettleLc() {
       input,
     }: {
       id: number;
-      input: { presentationDate: string; presentedDocuments: string[]; discrepancies?: string };
-    }) => tradeFinanceExtApi.settleLc(id, input),
+      input: { presentationDate: string; presentedDocuments: string[]; discrepancies?: string; amount?: number };
+    }) => tradeFinanceExtApi.settleLc(id, input.amount ?? 0),
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: KEYS.lcs.all });
       qc.invalidateQueries({ queryKey: KEYS.lcs.detail(id) });
@@ -172,7 +181,15 @@ export function useIssueGuarantee() {
       currency: string;
       amount: number;
       expiryDate: string;
-    }) => tradeFinanceExtApi.issueGuarantee(input),
+    }) => tradeFinanceExtApi.issueGuarantee({
+      applicantId: parseInt(input.applicant) || 0,
+      guaranteeType: input.guaranteeType,
+      beneficiaryName: input.beneficiary,
+      amount: input.amount,
+      currencyCode: input.currency,
+      expiryDate: input.expiryDate,
+      purpose: '',
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.guarantees.all });
     },
@@ -188,7 +205,7 @@ export function useClaimGuarantee() {
     }: {
       id: number;
       input: { claimAmount: number; claimRef: string; claimDate: string };
-    }) => tradeFinanceExtApi.claimGuarantee(id, input),
+    }) => tradeFinanceExtApi.claimGuarantee(id, input.claimAmount),
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: KEYS.guarantees.all });
       qc.invalidateQueries({ queryKey: KEYS.guarantees.detail(id) });
@@ -253,7 +270,15 @@ export function useCreateScfProgramme() {
       currency: string;
       discountRate: number;
       limitAmount: number;
-    }) => tradeFinanceExtApi.createScfProgramme(input),
+    }) => tradeFinanceExtApi.createScfProgramme({
+      anchorCustomerId: parseInt(input.buyer) || 0,
+      type: 'REVERSE_FACTORING',
+      programmeName: `SCF-${input.buyer}`,
+      limit: input.limitAmount,
+      currencyCode: input.currency,
+      expiryDate: new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10),
+      discountRate: input.discountRate,
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.scf.programmes });
     },
@@ -270,7 +295,14 @@ export function useFinanceInvoice() {
       amount: number;
       invoiceDate: string;
       maturityDate: string;
-    }) => tradeFinanceExtApi.financeInvoice(input),
+    }) => tradeFinanceExtApi.financeInvoice({
+      programmeId: input.programmeId,
+      invoiceNumber: input.invoiceRef,
+      invoiceAmount: input.amount,
+      currencyCode: 'NGN',
+      invoiceDate: input.invoiceDate,
+      dueDate: input.maturityDate,
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.scf.programmes });
     },
@@ -296,7 +328,11 @@ export function useVerifyDocument() {
     }: {
       id: number;
       input: { status: DocumentComplianceStatus; discrepancies?: string[] };
-    }) => tradeFinanceExtApi.verifyDocument(id, input),
+    }) => tradeFinanceExtApi.verifyDocument(id, {
+      verifiedBy: 'SYSTEM',
+      compliant: input.status === 'COMPLIANT',
+      notes: input.discrepancies?.join('; '),
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trade', 'documents'] });
     },
@@ -306,8 +342,13 @@ export function useVerifyDocument() {
 export function useUploadDocument() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { documentType: DocumentType; lcId?: number }) =>
-      tradeFinanceExtApi.uploadDocument(input),
+    mutationFn: (input: { documentType: DocumentType; lcId?: number; fileName?: string; fileType?: string }) =>
+      tradeFinanceExtApi.uploadDocument({
+        category: input.documentType,
+        lcId: input.lcId,
+        fileName: input.fileName ?? 'document',
+        fileType: input.fileType ?? 'PDF',
+      }),
     onSuccess: (_data, variables) => {
       if (variables.lcId) {
         qc.invalidateQueries({ queryKey: KEYS.lcs.documents(variables.lcId) });
@@ -461,7 +502,7 @@ export function useSubmitTradeConfirmation() {
 export function useMatchConfirmations() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => tradeOpsApi.matchConfirmation(),
+    mutationFn: () => tradeOpsApi.matchConfirmations(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.tradeOps.all });
     },

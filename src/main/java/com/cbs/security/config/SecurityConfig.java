@@ -18,7 +18,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.util.StringUtils;
@@ -77,7 +76,11 @@ public class SecurityConfig {
             throw new IllegalStateException("cbs.security.jwt.accepted-audiences must include at least one audience or client ID");
         }
 
-        JwtDecoder jwtDecoder = JwtDecoders.fromIssuerLocation(issuerUri);
+        String jwkSetUri = StringUtils.hasText(properties.getJwt().getJwkSetUri())
+                ? properties.getJwt().getJwkSetUri()
+                : issuerUri.replaceAll("/+$", "") + "/protocol/openid-connect/certs";
+
+        JwtDecoder jwtDecoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
         OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer(issuerUri),
                 new AcceptedAudienceValidator(acceptedAudiences)

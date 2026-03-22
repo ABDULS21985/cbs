@@ -589,7 +589,7 @@ function RunsTab({ regulator }: { regulator: RegulatorTab }) {
       <ConfirmDialog
         open={submitRun !== null}
         onClose={() => setSubmitRun(null)}
-        onConfirm={() => submitRun && submitMutation.mutate(submitRun.id)}
+        onConfirm={() => { if (submitRun) submitMutation.mutate(submitRun.id); }}
         title="Submit to Regulator"
         description={`Are you sure you want to submit this report run (${submitRun?.reportCode}, ${submitRun ? formatDate(submitRun.reportingPeriodStart) : ''} - ${submitRun ? formatDate(submitRun.reportingPeriodEnd) : ''}) to the regulator? This action cannot be undone.`}
         confirmLabel="Submit"

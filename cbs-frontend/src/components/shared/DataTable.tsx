@@ -24,6 +24,7 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   bulkActions?: ReactNode;
   emptyMessage?: string;
+  searchPlaceholder?: string;
   pageSize?: number;
   getRowClassName?: (row: T) => string | undefined;
   manualPagination?: {

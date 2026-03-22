@@ -61,7 +61,7 @@ export function usePortfolios() {
     queryKey: ['investment-portfolios', 'all'],
     queryFn: async () => {
       const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
-      return capitalMarketsApi.getPortfolios();
+      return capitalMarketsApi.getPortfoliosByCustomer(0);
     },
     staleTime: 30_000,
   });
@@ -72,7 +72,7 @@ export function usePortfolioDetail(code: string) {
     queryKey: ['investment-portfolios', code],
     queryFn: async () => {
       const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
-      return capitalMarketsApi.getPortfolioDetail(code);
+      return capitalMarketsApi.getPortfolio(code);
     },
     enabled: !!code,
     staleTime: 30_000,
@@ -96,7 +96,7 @@ export function useCustomerPortfolios(customerId: number) {
     queryKey: ['investment-portfolios', 'customer', customerId],
     queryFn: async () => {
       const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
-      return capitalMarketsApi.getPortfolios(customerId);
+      return capitalMarketsApi.getPortfoliosByCustomer(customerId);
     },
     enabled: customerId > 0,
     staleTime: 30_000,
@@ -130,7 +130,7 @@ export function useValuatePortfolio() {
   return useMutation({
     mutationFn: async (code: string) => {
       const { capitalMarketsApi } = await import('../../capitalmarkets/api/capitalMarketsApi');
-      return capitalMarketsApi.valuatePortfolio(code);
+      return capitalMarketsApi.valuate(code);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['investment-portfolios'] }); },
   });

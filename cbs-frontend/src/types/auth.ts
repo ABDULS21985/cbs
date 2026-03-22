@@ -10,6 +10,8 @@ export interface User {
   customerId?: number;
   lastLogin?: string;
   avatarUrl?: string;
+  preferred_username?: string;
+  displayName?: string;
 }
 
 export interface LoginRequest {

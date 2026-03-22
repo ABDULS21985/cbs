@@ -23,7 +23,7 @@ const issuedChequeColumns: ColumnDef<ChequeLeaf>[] = [
   {
     accessorKey: 'accountId',
     header: 'Account',
-    cell: ({ row }) => <span className="font-mono text-sm">{(row.original as Record<string, unknown>).accountId ?? '—'}</span>,
+    cell: ({ row }) => <span className="font-mono text-sm">{row.original.accountId ?? '—'}</span>,
   },
   {
     accessorKey: 'payee',

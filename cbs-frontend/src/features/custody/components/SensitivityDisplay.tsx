@@ -45,16 +45,16 @@ function MetricCard({ label, value, format = 'number', precision = 4 }: MetricCa
 }
 
 export function SensitivityDisplay(props: SensitivityDisplayProps) {
-  const metrics: MetricCardProps[] = [
+  const metrics = ([
     { label: 'Delta (Δ)', value: props.delta, precision: 4 },
     { label: 'Gamma (Γ)', value: props.gamma, precision: 4 },
     { label: 'Vega (ν)', value: props.vega, precision: 4 },
-    { label: 'Duration', value: props.duration, format: 'years' },
-    { label: 'Mod. Duration', value: props.modifiedDuration, format: 'years' },
+    { label: 'Duration', value: props.duration, format: 'years' as const },
+    { label: 'Mod. Duration', value: props.modifiedDuration, format: 'years' as const },
     { label: 'Convexity', value: props.convexity, precision: 2 },
-    { label: 'YTM', value: props.yieldToMaturity, format: 'percent' },
-    { label: 'Spread', value: props.spreadToBenchmark, format: 'percent' },
-  ].filter((m) => m.value !== undefined && m.value !== null);
+    { label: 'YTM', value: props.yieldToMaturity, format: 'percent' as const },
+    { label: 'Spread', value: props.spreadToBenchmark, format: 'percent' as const },
+  ] satisfies MetricCardProps[]).filter((m) => m.value !== undefined && m.value !== null);
 
   if (metrics.length === 0) {
     return <p className="text-sm text-muted-foreground text-center py-4">No sensitivity data available</p>;

@@ -3,11 +3,14 @@ import type { Card, CardTransaction, Merchant } from '../types/card';
 import type { PosTerminal } from '../types/posTerminal';
 
 export interface IssueCardInput {
+  customerId?: number;
   accountId: number;
   cardType: Card['cardType'];
   cardScheme: Card['cardScheme'];
   cardholderName: string;
   cardTier?: string;
+  deliveryMethod?: string;
+  branchCode?: string;
   expiryDate?: string;
   dailyPosLimit?: number;
   dailyAtmLimit?: number;

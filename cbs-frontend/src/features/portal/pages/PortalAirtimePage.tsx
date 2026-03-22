@@ -103,7 +103,7 @@ export function PortalAirtimePage() {
         <label className="text-xs font-medium text-muted-foreground">Pay from</label>
         <select value={accountId} onChange={e => setAccountId(Number(e.target.value))} className={fc}>
           <option value={0}>Select account</option>
-          {(accounts as Record<string, unknown>[]).map(a => <option key={a.id as number} value={a.id as number}>{a.accountName as string} — {formatMoney(a.availableBalance as number)}</option>)}
+          {(accounts as unknown as Record<string, unknown>[]).map(a => <option key={a.id as number} value={a.id as number}>{a.accountName as string} — {formatMoney(a.availableBalance as number)}</option>)}
         </select>
       </div>
 

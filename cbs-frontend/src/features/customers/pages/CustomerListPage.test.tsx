@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { renderWithProviders } from '@/test/helpers/renderWithProviders';
+import { createMockUser } from '@/test/factories/userFactory';
 import { server } from '@/test/msw/server';
 import CustomerListPage from './CustomerListPage';
 
@@ -108,26 +109,22 @@ describe('CustomerListPage', () => {
   it('shows or hides the create action based on permissions', async () => {
     setupHandlers();
 
-    const admin = {
+    const admin = createMockUser({
       id: 'u1',
       username: 'admin',
       fullName: 'Admin User',
       email: 'admin@example.com',
       roles: ['CBS_ADMIN'],
       permissions: ['*'],
-      branchId: 1,
-      branchName: 'HQ',
-    };
-    const viewer = {
+    });
+    const viewer = createMockUser({
       id: 'u2',
       username: 'viewer',
       fullName: 'Viewer User',
       email: 'viewer@example.com',
       roles: ['CBS_VIEWER'],
       permissions: [],
-      branchId: 1,
-      branchName: 'HQ',
-    };
+    });
 
     const adminRender = renderWithProviders(<CustomerListPage />, { user: admin });
     expect(screen.getByText('New Customer')).toBeInTheDocument();

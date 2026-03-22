@@ -68,7 +68,6 @@ describe('formatMoney', () => {
   });
 
   it('accepts numeric string input', () => {
-    // @ts-expect-error testing runtime coercion
     const result = formatMoney('1500', 'NGN');
     expect(result).toContain('₦');
   });

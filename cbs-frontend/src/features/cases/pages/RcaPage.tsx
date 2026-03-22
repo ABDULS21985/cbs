@@ -453,7 +453,7 @@ export function RcaPage() {
               {/* Workflow actions */}
               {rca.status !== 'VALIDATED' && (
                 <div className="flex gap-2 pt-2 border-t">
-                  {rca.status !== 'COMPLETED' && rca.status !== 'VALIDATED' && (
+                  {rca.status !== 'COMPLETED' && (
                     <button
                       onClick={() => completeMutation.mutate()}
                       disabled={completeMutation.isPending}

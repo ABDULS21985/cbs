@@ -1,15 +1,16 @@
+import { type ComponentType } from 'react';
 import { cn } from '@/lib/utils';
 import { formatMoney, formatMoneyCompact } from '@/lib/formatters';
-import { TrendingUp, TrendingDown, Minus, Info, type LucideIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
 
 interface StatCardProps {
   label: string;
-  value: string | number;
+  value: string | number | undefined;
   format?: 'money' | 'number' | 'percent';
   currency?: string;
   change?: number;
   changePeriod?: string;
-  icon?: LucideIcon;
+  icon?: ComponentType<{ className?: string }>;
   iconColor?: string;
   iconBg?: string;
   trend?: 'up' | 'down' | 'flat';
@@ -24,6 +25,7 @@ export function StatCard({
   icon: Icon, iconColor, iconBg, trend, loading, compact, subtitle, tooltip,
 }: StatCardProps) {
   const formattedValue = (() => {
+    if (value == null) return '—';
     if (typeof value === 'string') return value;
     if (format === 'money') return compact ? formatMoneyCompact(value, currency) : formatMoney(value, currency);
     if (format === 'percent') return `${value.toFixed(2)}%`;

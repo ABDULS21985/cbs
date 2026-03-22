@@ -3,6 +3,7 @@ import { apiGet, apiPost } from '@/lib/api';
 export interface ChequeLeaf {
   leafNumber: number;
   status: 'AVAILABLE' | 'ISSUED' | 'PRESENTED' | 'CLEARED' | 'STOPPED' | 'RETURNED' | 'VOID';
+  accountId?: string;
   issuedDate?: string;
   presentedDate?: string;
   clearedDate?: string;

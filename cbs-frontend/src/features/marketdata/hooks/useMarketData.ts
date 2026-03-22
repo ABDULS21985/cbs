@@ -358,7 +358,7 @@ export function useAddSubscription() {
   return useMutation({
     mutationFn: (input: { switchId: string; provider: string; instrument: string; priority: number }) =>
       infraApi.addSubscription(input),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: marketDataKeys.subscriptions }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: marketDataKeys.subscriptions() }); },
   });
 }
 

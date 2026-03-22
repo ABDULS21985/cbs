@@ -24,6 +24,16 @@ export interface ScreeningRequest {
   createdAt: string;
   updatedAt?: string;
   version: number;
-  matches: ScreeningMatch[];
+  matches: ScreeningMatchExt[];
+}
+
+export interface ScreeningMatchExt {
+  id: number;
+  matchRef?: string;
+  listName?: string;
+  entityName?: string;
+  matchScore?: number;
+  matchType?: string;
+  status?: string;
 }
 

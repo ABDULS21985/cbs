@@ -140,9 +140,9 @@ export const mortgageApi = {
     if (input.description?.trim()) {
       formData.append('description', input.description.trim());
     }
-    const { data } = await api.post(`/api/v1/mortgages/${id}/documents`, formData, {
+    const { data } = await api.post<{ data: MortgageDocument }>(`/api/v1/mortgages/${id}/documents`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return data.data as MortgageDocument;
+    return data.data;
   },
 };

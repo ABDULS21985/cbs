@@ -21,7 +21,7 @@ import { authApi } from '@/features/auth/api/authApi';
 // ---------------------------------------------------------------------------
 // Typed mocks
 // ---------------------------------------------------------------------------
-const mockAuthApi = authApi as {
+const mockAuthApi = authApi as unknown as {
   login: ReturnType<typeof vi.fn>;
   exchangeAuthorizationCode: ReturnType<typeof vi.fn>;
   verifyMfa: ReturnType<typeof vi.fn>;
@@ -34,12 +34,12 @@ const mockAuthApi = authApi as {
 // Shared test data
 // ---------------------------------------------------------------------------
 const MOCK_USER = {
-  id: 1,
+  id: 'user-1',
   username: 'jane.doe',
   fullName: 'Jane Doe',
   email: 'jane.doe@cbs.bank',
   roles: ['CBS_OFFICER'],
-  permissions: [],
+  permissions: [] as string[],
   branchId: 2,
   branchName: 'Lagos Branch',
   lastLogin: '2024-01-20T08:00:00Z',
@@ -321,7 +321,7 @@ describe('authStore', () => {
         accessToken: 'access-abc123',
         refreshTokenValue: 'refresh-xyz789',
         user: MOCK_USER,
-        tokenExpiresAt: '2099-01-01T00:00:00Z',
+        tokenExpiresAt: Date.now() + 86400000,
       });
     });
 
@@ -407,7 +407,7 @@ describe('authStore', () => {
       useAuthStore.setState({ user: MOCK_USER });
 
       act(() => {
-        getState().setUser(null);
+        getState().setUser(null as unknown as import('@/types/auth').User);
       });
 
       expect(getState().user).toBeNull();

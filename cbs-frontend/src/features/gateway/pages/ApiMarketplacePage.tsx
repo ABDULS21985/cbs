@@ -284,7 +284,7 @@ export function ApiMarketplacePage() {
     {
       id: 'actions', header: '',
       cell: ({ row }) => row.original.status === 'PENDING' ? (
-        <button onClick={() => approveSubscription.mutate(row.original.id, { onSuccess: () => toast.success('Approved') })}
+        <button onClick={() => approveSubscription.mutate(String(row.original.id), { onSuccess: () => toast.success('Approved') })}
           className="text-xs text-green-600 hover:underline font-medium">Approve</button>
       ) : null,
     },

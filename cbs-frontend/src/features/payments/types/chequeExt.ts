@@ -1,5 +1,19 @@
 // Auto-generated from backend entities
 
+interface Account {
+  id: number;
+  accountNumber: string;
+  accountName?: string;
+}
+
+interface Customer {
+  id: number;
+  name?: string;
+  customerNumber?: string;
+}
+
+type ChequeStatus = 'ISSUED' | 'PRESENTED' | 'CLEARED' | 'STOPPED' | 'RETURNED' | 'SPOILED' | string;
+
 export interface ChequeBook {
   id: number;
   account: Account;

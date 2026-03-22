@@ -1,6 +1,13 @@
 import { apiGet, apiPost } from '@/lib/api';
 import type { AmlAlert, AmlRule } from '../types/amlExt';
 
+interface AmlDashboard {
+  totalAlerts?: number;
+  openAlerts?: number;
+  closedAlerts?: number;
+  [key: string]: unknown;
+}
+
 export const amlApi = {
   /** POST /v1/aml/rules */
   createRule: (data: Partial<AmlRule>) =>
@@ -32,6 +39,6 @@ export const amlApi = {
 
   /** GET /v1/aml/dashboard */
   getDashboard: (params?: Record<string, unknown>) =>
-    apiGet<AmlService.AmlDashboard>('/api/v1/aml/dashboard', params),
+    apiGet<AmlDashboard>('/api/v1/aml/dashboard', params),
 
 };

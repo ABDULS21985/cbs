@@ -45,7 +45,7 @@ async function downloadBlob(
   const filename =
     contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] || defaultFilename;
 
-  const blobUrl = URL.createObjectURL(new Blob([response.data]));
+  const blobUrl = URL.createObjectURL(new Blob([response.data as BlobPart]));
   const a = document.createElement('a');
   a.href = blobUrl;
   a.download = filename;

@@ -76,7 +76,7 @@ export function useBatchCreateCases() {
 export function useAssignCase() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, assignedTo, team }: { caseId: number; assignedTo: string; team?: string }) =>
+    mutationFn: async ({ caseId, assignedTo, team }: { caseId: number; assignedTo: string; team?: string }) =>
       collectionsApi.assignCase(caseId, assignedTo, team),
     onSuccess: (_data, { caseId }) => {
       queryClient.invalidateQueries({ queryKey: ['collections', 'case', caseId] });
@@ -100,7 +100,7 @@ export function useLogCollectionAction() {
 export function useCloseCase() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ caseId, resolutionType, resolutionAmount }: { caseId: number; resolutionType: string; resolutionAmount?: number }) =>
+    mutationFn: async ({ caseId, resolutionType, resolutionAmount }: { caseId: number; resolutionType: string; resolutionAmount?: number }) =>
       collectionsApi.closeCase(caseId, resolutionType, resolutionAmount),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collections'] });

@@ -145,7 +145,7 @@ export function FeeDefinitionDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: fee, isLoading, isError } = useQuery({
+  const { data: fee, isLoading, isError, error } = useQuery({
     queryKey: ['fee-definition', id],
     queryFn: () => getFeeById(id!),
     enabled: !!id,

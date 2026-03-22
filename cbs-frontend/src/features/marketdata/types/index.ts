@@ -150,7 +150,7 @@ export interface SubscriptionHealth {
   provider: string;
   instrument: string;
   priority: number;
-  status: 'HEALTHY' | 'DEGRADED' | 'FAILED';
+  status: 'HEALTHY' | 'DEGRADED' | 'FAILED' | 'DOWN';
   latencyMs: number;
   lastHeartbeatAt: string;
 }

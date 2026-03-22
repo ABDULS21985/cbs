@@ -23,17 +23,17 @@ export function ReportExportMenu({ reportName, data, columns }: ReportExportMenu
   }, []);
 
   const handleCsv = () => {
-    exportToCsv(reportName, columns, data);
+    exportToCsv(data, columns.map(c => ({ key: c.accessor, label: c.header, format: c.format as 'money' | 'percent' | 'date' | 'text' | undefined })), reportName);
     setOpen(false);
   };
 
   const handleExcel = () => {
-    exportToExcel(reportName, [{ name: reportName, columns, data }]);
+    exportToExcel(data, columns.map(c => ({ key: c.accessor, label: c.header, format: c.format })), reportName);
     setOpen(false);
   };
 
   const handlePrint = () => {
-    exportToPdf(reportName);
+    exportToPdf(reportName, data, columns.map(c => ({ key: c.accessor, label: c.header })));
     setOpen(false);
   };
 

@@ -48,7 +48,7 @@ type FeeFormValues = z.infer<typeof feeSchema>;
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface FeeCalculationEditorProps {
-  initialData?: FeeDefinition;
+  initialData?: Partial<FeeDefinition>;
   mode: 'create' | 'edit' | 'view';
   onSubmit: (data: Partial<FeeDefinition>) => void;
   isSubmitting?: boolean;

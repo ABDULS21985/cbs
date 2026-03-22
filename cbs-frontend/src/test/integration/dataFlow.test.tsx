@@ -14,10 +14,8 @@ import type { ReactNode } from 'react';
 import { useNotificationStore } from '@/stores/notificationStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useUiStore } from '@/stores/uiStore';
-import { NotificationBell } from '@/features/notifications/components/NotificationBell';
 import { RoleGuard } from '@/components/auth/RoleGuard';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useNotifications } from '@/features/notifications/hooks/useNotifications';
 import { useSidebarState } from '@/hooks/useSidebarState';
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────
@@ -60,7 +58,7 @@ beforeEach(() => {
     mfaSessionToken: null,
     tokenExpiresAt: null,
   });
-  useNotificationStore.setState({ notifications: [], unreadCount: 0 });
+  useNotificationStore.setState({ activeToasts: [] });
   // Bypass persist middleware by directly touching internal state
   useUiStore.setState({
     sidebarCollapsed: false,
@@ -71,109 +69,47 @@ beforeEach(() => {
   localStorage.removeItem('cbs-ui');
 });
 
-// ─── NotificationBell → notificationStore data flow ──────────────────────────
+// ─── Toast store data flow ─────────────────────────────────────────────────────
 
-describe('NotificationBell ↔ notificationStore', () => {
-  it('shows no badge when there are no unread notifications', () => {
-    const qc = createTestQueryClient();
-    render(
-      <AllProviders qc={qc}>
-        <NotificationBell />
-      </AllProviders>
-    );
-
-    // Badge span should not be in the DOM when unreadCount is 0
-    const badge = screen.queryByText(/^\d+$/);
-    expect(badge).toBeNull();
+describe('Toast store — addToast / dismissToast', () => {
+  it('starts with no active toasts', () => {
+    expect(useNotificationStore.getState().activeToasts).toHaveLength(0);
   });
 
-  it('shows unread count badge when notifications are added', () => {
-    const qc = createTestQueryClient();
-
+  it('adds a toast to the store', () => {
     act(() => {
-      useNotificationStore.getState().addNotification({
+      useNotificationStore.getState().addToast({
         type: 'info',
         title: 'New Transfer',
         message: 'Transfer initiated',
       });
     });
 
-    render(
-      <AllProviders qc={qc}>
-        <NotificationBell />
-      </AllProviders>
-    );
-
-    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(useNotificationStore.getState().activeToasts).toHaveLength(1);
+    expect(useNotificationStore.getState().activeToasts[0].title).toBe('New Transfer');
   });
 
-  it('updates badge count in real time as notifications are added', () => {
-    const qc = createTestQueryClient();
-
-    render(
-      <AllProviders qc={qc}>
-        <NotificationBell />
-      </AllProviders>
-    );
-
-    // Start with no badge
-    expect(screen.queryByText('1')).toBeNull();
-
-    // Add notifications
+  it('adds multiple toasts', () => {
     act(() => {
-      useNotificationStore.getState().addNotification({ type: 'success', title: 'Done', message: 'OK' });
+      useNotificationStore.getState().addToast({ type: 'success', title: 'Done', message: 'OK' });
+      useNotificationStore.getState().addToast({ type: 'warning', title: 'Warning', message: 'Check' });
     });
-    expect(screen.getByText('1')).toBeInTheDocument();
 
-    act(() => {
-      useNotificationStore.getState().addNotification({ type: 'warning', title: 'Warning', message: 'Check' });
-    });
-    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(useNotificationStore.getState().activeToasts).toHaveLength(2);
   });
 
-  it('shows "99+" badge when unreadCount exceeds 99', () => {
-    const qc = createTestQueryClient();
-
-    // Set unreadCount directly
+  it('dismisses a toast by id', () => {
     act(() => {
-      for (let i = 0; i < 100; i++) {
-        useNotificationStore.getState().addNotification({
-          type: 'info',
-          title: `Notification ${i}`,
-          message: `Message ${i}`,
-        });
-      }
+      useNotificationStore.getState().addToast({ type: 'info', title: 'Test', message: 'Msg' });
     });
 
-    render(
-      <AllProviders qc={qc}>
-        <NotificationBell />
-      </AllProviders>
-    );
-
-    expect(screen.getByText('99+')).toBeInTheDocument();
-  });
-
-  it('badge disappears after markAllAsRead', () => {
-    const qc = createTestQueryClient();
+    const toastId = useNotificationStore.getState().activeToasts[0].id;
 
     act(() => {
-      useNotificationStore.getState().addNotification({ type: 'info', title: 'Test', message: 'Msg' });
+      useNotificationStore.getState().dismissToast(toastId);
     });
 
-    render(
-      <AllProviders qc={qc}>
-        <NotificationBell />
-      </AllProviders>
-    );
-
-    expect(screen.getByText('1')).toBeInTheDocument();
-
-    act(() => {
-      useNotificationStore.getState().markAllAsRead();
-    });
-
-    expect(screen.queryByText('1')).toBeNull();
+    expect(useNotificationStore.getState().activeToasts).toHaveLength(0);
   });
 });
 
@@ -310,96 +246,6 @@ describe('useAuth — derived role flags', () => {
   });
 });
 
-// ─── useNotifications ↔ authStore ─────────────────────────────────────────────
-
-describe('useNotifications — store integration', () => {
-  it('exposes notifications and unreadCount from store', () => {
-    act(() => {
-      useNotificationStore.getState().addNotification({ type: 'info', title: 'A', message: 'B' });
-      useNotificationStore.getState().addNotification({ type: 'error', title: 'C', message: 'D' });
-    });
-
-    const qc = createTestQueryClient();
-    const { result } = renderHook(() => useNotifications(), {
-      wrapper: ({ children }) => <AllProviders qc={qc}>{children}</AllProviders>,
-    });
-
-    expect(result.current.notifications).toHaveLength(2);
-    expect(result.current.unreadCount).toBe(2);
-  });
-
-  it('notify helper adds a notification to the store', () => {
-    const qc = createTestQueryClient();
-    const { result } = renderHook(() => useNotifications(), {
-      wrapper: ({ children }) => <AllProviders qc={qc}>{children}</AllProviders>,
-    });
-
-    act(() => {
-      result.current.notify('success', 'Payment sent', 'Your payment was processed');
-    });
-
-    expect(useNotificationStore.getState().notifications).toHaveLength(1);
-    expect(useNotificationStore.getState().notifications[0].title).toBe('Payment sent');
-    expect(useNotificationStore.getState().notifications[0].type).toBe('success');
-  });
-
-  it('markAllAsRead clears the unread count in the store', () => {
-    act(() => {
-      useNotificationStore.getState().addNotification({ type: 'warning', title: 'W', message: 'M' });
-    });
-
-    const qc = createTestQueryClient();
-    const { result } = renderHook(() => useNotifications(), {
-      wrapper: ({ children }) => <AllProviders qc={qc}>{children}</AllProviders>,
-    });
-
-    expect(result.current.unreadCount).toBe(1);
-
-    act(() => {
-      result.current.markAllAsRead();
-    });
-
-    expect(result.current.unreadCount).toBe(0);
-    expect(useNotificationStore.getState().unreadCount).toBe(0);
-  });
-
-  it('does not start polling interval when unauthenticated', () => {
-    useAuthStore.setState({ isAuthenticated: false });
-
-    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
-
-    const qc = createTestQueryClient();
-    const { unmount } = renderHook(() => useNotifications(), {
-      wrapper: ({ children }) => <AllProviders qc={qc}>{children}</AllProviders>,
-    });
-
-    // The hook should call setInterval only when authenticated
-    expect(setIntervalSpy).not.toHaveBeenCalled();
-    unmount();
-    setIntervalSpy.mockRestore();
-  });
-
-  it('starts polling interval when authenticated', () => {
-    useAuthStore.setState({ isAuthenticated: true });
-
-    const setIntervalSpy = vi.spyOn(globalThis, 'setInterval');
-    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
-
-    const qc = createTestQueryClient();
-    const { unmount } = renderHook(() => useNotifications(), {
-      wrapper: ({ children }) => <AllProviders qc={qc}>{children}</AllProviders>,
-    });
-
-    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 30_000);
-
-    unmount();
-    expect(clearIntervalSpy).toHaveBeenCalled();
-
-    setIntervalSpy.mockRestore();
-    clearIntervalSpy.mockRestore();
-  });
-});
-
 // ─── useSidebarState — localStorage persistence ────────────────────────────────
 
 describe('useSidebarState — localStorage persistence', () => {
@@ -456,26 +302,31 @@ describe('Multi-store interactions', () => {
     expect(useUiStore.getState().activeModal).toBe('confirm-action');
   });
 
-  it('notification store is independent of uiStore', () => {
+  it('toast store is independent of uiStore', () => {
     act(() => {
-      useNotificationStore.getState().addNotification({ type: 'info', title: 'Test', message: 'Msg' });
+      useNotificationStore.getState().addToast({ type: 'info', title: 'Test', message: 'Msg' });
     });
 
     useUiStore.getState().toggleSidebar();
 
-    // Notification should still be there
-    expect(useNotificationStore.getState().notifications).toHaveLength(1);
+    // Toast should still be there
+    expect(useNotificationStore.getState().activeToasts).toHaveLength(1);
     // Sidebar should be toggled
     expect(useUiStore.getState().sidebarCollapsed).toBe(true);
   });
 
-  it('clearing notifications does not affect auth or ui state', () => {
+  it('dismissing toasts does not affect auth or ui state', () => {
     useAuthStore.setState({ user: mockUser, isAuthenticated: true });
     useUiStore.getState().openModal('test-modal');
 
     act(() => {
-      useNotificationStore.getState().addNotification({ type: 'info', title: 'N', message: 'M' });
-      useNotificationStore.getState().clearAll();
+      useNotificationStore.getState().addToast({ type: 'info', title: 'N', message: 'M' });
+    });
+
+    const toastId = useNotificationStore.getState().activeToasts[0].id;
+
+    act(() => {
+      useNotificationStore.getState().dismissToast(toastId);
     });
 
     expect(useAuthStore.getState().isAuthenticated).toBe(true);

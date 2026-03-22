@@ -163,7 +163,7 @@ function mapTransaction(entry: Record<string, unknown>): FraudTransaction | null
     timestamp,
     amount,
     currency: typeof entry.currency === 'string' ? entry.currency : 'NGN',
-    channel: typeof entry.channel === 'string' ? entry.channel : 'TRANSFER',
+    channel: (typeof entry.channel === 'string' ? entry.channel : 'TRANSFER') as FraudTransaction['channel'],
     merchantName: typeof entry.merchantName === 'string' ? entry.merchantName : undefined,
     location: typeof entry.location === 'string' ? entry.location : undefined,
     suspicious: Boolean(entry.suspicious),

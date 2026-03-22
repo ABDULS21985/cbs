@@ -1,12 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, type ComponentType } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import type { LucideIcon } from 'lucide-react';
 
-interface TabItem {
+export interface TabItem {
   id: string;
   label: string;
-  icon?: LucideIcon;
+  icon?: ComponentType<{ className?: string }>;
   badge?: number;
   content: ReactNode;
   disabled?: boolean;

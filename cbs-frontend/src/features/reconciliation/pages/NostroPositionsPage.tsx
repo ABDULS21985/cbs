@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useNostroPositions, useCreatePosition, useCorrespondentBanks } from '../hooks/useReconciliation';
 import { PositionCard } from '../components/PositionCard';
-import type { NostroPosition, ReconciliationStatus, CreatePositionRequest } from '../types/nostro';
+import type { NostroPosition, ReconciliationStatus, CreatePositionRequest, PositionType } from '../types/nostro';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,11 +50,11 @@ interface NewPositionModalProps {
 function NewPositionModal({ open, onClose }: NewPositionModalProps) {
   const { data: banks = [] } = useCorrespondentBanks();
   const createPosition = useCreatePosition();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{ correspondentBankId: string; accountId: string; currencyCode: string; positionType: PositionType }>({
     correspondentBankId: '',
     accountId: '',
     currencyCode: 'USD',
-    positionType: 'NOSTRO' as const,
+    positionType: 'NOSTRO',
   });
 
   if (!open) return null;

@@ -26,6 +26,10 @@ export const financialGatewayApi = {
   getQueuedMessages: (gatewayId: number) =>
     apiGet<GatewayMessage[]>(`/api/v1/financial-gateway/messages/queued/${gatewayId}`),
 
+  /** Alias for getQueuedMessages */
+  queued: (gatewayId: number) =>
+    apiGet<GatewayMessage[]>(`/api/v1/financial-gateway/messages/queued/${gatewayId}`),
+
   /** GET /v1/financial-gateway/type/{type} — list gateways by type */
   getByType: (type: string) =>
     apiGet<FinancialGateway[]>(`/api/v1/financial-gateway/type/${type}`),

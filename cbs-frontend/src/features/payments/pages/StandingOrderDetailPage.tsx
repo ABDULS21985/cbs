@@ -44,10 +44,11 @@ export function StandingOrderDetailPage() {
   });
 
   const retryMutation = useMutation({
-    mutationFn: (executionId: number) =>
-      standingOrderApi.retryExecution
-        ? standingOrderApi.retryExecution(Number(id), executionId)
-        : Promise.resolve(),
+    mutationFn: async (executionId: number): Promise<void> => {
+      if (standingOrderApi.retryExecution) {
+        await standingOrderApi.retryExecution(Number(id), executionId);
+      }
+    },
     onSuccess: () => {
       toast.success('Retry requested');
       queryClient.invalidateQueries({ queryKey: ['standing-orders', Number(id), 'executions'] });

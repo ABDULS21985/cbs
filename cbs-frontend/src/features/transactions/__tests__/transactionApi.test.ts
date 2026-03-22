@@ -148,17 +148,13 @@ describe('transactionApi', () => {
 
   it('downloadReceipt triggers file download', async () => {
     const click = vi.fn();
-    const anchor = {
-      click,
-      set href(value: string) {
-        this._href = value;
-      },
-      get href() {
-        return this._href;
-      },
-      download: '',
-      _href: '',
-    } as unknown as HTMLAnchorElement;
+    const anchorData = { click, download: '', _href: '' };
+    const anchor = Object.defineProperty(anchorData, 'href', {
+      get() { return anchorData._href; },
+      set(value: string) { anchorData._href = value; },
+      enumerable: true,
+      configurable: true,
+    }) as unknown as HTMLAnchorElement;
 
     document.createElement = vi.fn((tagName: string) => {
       if (tagName === 'a') {

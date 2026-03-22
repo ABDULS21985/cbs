@@ -355,7 +355,7 @@ function ControlsTab({ card }: { card: import('../types/card').Card }) {
     { key: 'internationalEnabled' as const, label: 'International', desc: 'Allow transactions outside your country', icon: Globe },
   ];
 
-  const renderToggleGroup = (title: string, items: typeof channelControls) => (
+  const renderToggleGroup = (title: string, items: { key: keyof typeof controls; label: string; desc: string; icon: typeof CreditCard }[]) => (
     <div className="space-y-1">
       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{title}</h4>
       {items.map(({ key, label, desc, icon: Icon }) => (

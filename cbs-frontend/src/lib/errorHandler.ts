@@ -1,9 +1,9 @@
-import { AxiosError } from 'axios';
+import axios from 'axios';
 import { toast } from 'sonner';
 import type { ApiResponse } from '@/types/common';
 
 export function handleApiError(error: unknown): string {
-  if (error instanceof AxiosError) {
+  if (axios.isAxiosError(error)) {
     const data = error.response?.data as ApiResponse<unknown> | undefined;
 
     if (data?.message) {
@@ -27,7 +27,7 @@ export function handleApiError(error: unknown): string {
       503: 'Service temporarily unavailable. Please try again later.',
     };
 
-    const status = error.response?.status;
+    const status = error.response?.status as number | undefined;
     const msg = (status && statusMessages[status]) || 'An unexpected error occurred.';
     toast.error(msg);
     return msg;

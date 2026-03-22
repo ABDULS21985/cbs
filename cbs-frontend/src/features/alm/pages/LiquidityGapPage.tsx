@@ -265,7 +265,7 @@ export function LiquidityGapPage() {
               />
               <KriCard
                 label="Deposit Runoff"
-                value={ratios ? (ratios.netCashOutflows30d > 0 ? 3.2 : 2.5) : 2.5}
+                value={ratios ? ((ratios.netCashOutflows30d ?? 0) > 0 ? 3.2 : 2.5) : 2.5}
                 target={5}
                 icon={<ArrowDown className="w-4 h-4" />}
                 inverse

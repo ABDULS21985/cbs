@@ -57,6 +57,20 @@ export interface LeadFunnelRow {
   conversionRate: number;
 }
 
+export interface CsatTouchpoint {
+  touchpoint: string;
+  score: number;
+  maxScore: number;
+  responses: number;
+  trend: number;
+}
+
+export interface NpsDistributionPoint {
+  score: number;
+  count: number;
+  category: 'PROMOTER' | 'PASSIVE' | 'DETRACTOR';
+}
+
 interface RawMarketingStats {
   totalCampaigns: number;
   totalLeads: number;

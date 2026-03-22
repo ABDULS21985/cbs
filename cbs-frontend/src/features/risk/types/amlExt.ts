@@ -1,5 +1,39 @@
 // Auto-generated from backend entities
 
+export type AmlAlertStatus =
+  | 'OPEN'
+  | 'ASSIGNED'
+  | 'INVESTIGATING'
+  | 'ESCALATED'
+  | 'DISMISSED'
+  | 'FILED_STR'
+  | 'CLOSED';
+
+export type AmlRuleCategory =
+  | 'STRUCTURING'
+  | 'VELOCITY'
+  | 'THRESHOLD'
+  | 'BEHAVIORAL'
+  | 'GEOGRAPHIC'
+  | 'PEP'
+  | 'OTHER';
+
+export interface Customer {
+  id: number;
+  customerNumber?: string;
+  name?: string;
+  segment?: string;
+  riskRating?: string;
+}
+
+export interface Account {
+  id: number;
+  accountNumber?: string;
+  type?: string;
+  currency?: string;
+  balance?: number;
+}
+
 export interface AmlAlert {
   id: number;
   alertRef: string;

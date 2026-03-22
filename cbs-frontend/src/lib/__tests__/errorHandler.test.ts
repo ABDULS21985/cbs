@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { AxiosError } from 'axios';
+import axios from 'axios';
 
 // Mock sonner before importing the module under test
 vi.mock('sonner', () => ({
@@ -17,15 +17,15 @@ import { handleApiError } from '@/lib/errorHandler';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-function makeAxiosError(status: number, data: unknown): AxiosError {
-  const error = new AxiosError('Request failed');
+function makeAxiosError(status: number, data: unknown) {
+  const error = new axios.AxiosError('Request failed');
   error.response = {
     status,
     data,
     headers: {},
-    config: {} as AxiosError['config'],
+    config: {} as typeof error.config,
     statusText: String(status),
-  } as AxiosError['response'];
+  } as typeof error.response;
   return error;
 }
 
@@ -196,7 +196,7 @@ describe('handleApiError', () => {
   // AxiosError with no response (network error)
   // -------------------------------------------------------------------------
   it('handles AxiosError with no response (network timeout)', () => {
-    const error = new AxiosError('Network Error');
+    const error = new axios.AxiosError('Network Error');
     // no response set — simulates network failure
     const result = handleApiError(error);
 

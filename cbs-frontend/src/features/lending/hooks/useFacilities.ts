@@ -61,7 +61,7 @@ export function useFacilityCovenants(id: number) {
 export function useSubmitDrawdown() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: DrawdownRequest) =>
+    mutationFn: async (data: DrawdownRequest) =>
       facilityApi.submitDrawdown(data.facilityId, data.amount, data.narration),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: KEYS.drawdowns(variables.facilityId) });
@@ -83,7 +83,7 @@ export function useCreateFacility() {
 export function useRepayFacility() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ facilityId, amount, narration }: { facilityId: number; amount: number; narration?: string }) =>
+    mutationFn: async ({ facilityId, amount, narration }: { facilityId: number; amount: number; narration?: string }) =>
       facilityApi.repay(facilityId, amount, narration),
     onSuccess: (_data, { facilityId }) => {
       queryClient.invalidateQueries({ queryKey: KEYS.facility(facilityId) });

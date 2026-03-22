@@ -58,7 +58,7 @@ export function useAddValuation() {
 export function useLinkCollateralToLoan() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ collateralId, loanAccountId, allocatedValue }: { collateralId: number; loanAccountId: number; allocatedValue: number }) =>
+    mutationFn: async ({ collateralId, loanAccountId, allocatedValue }: { collateralId: number; loanAccountId: number; allocatedValue: number }) =>
       collateralApi.linkToLoan(collateralId, loanAccountId, allocatedValue),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: KEYS.item(variables.collateralId) });

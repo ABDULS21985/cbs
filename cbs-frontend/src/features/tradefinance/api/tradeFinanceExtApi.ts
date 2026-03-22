@@ -299,7 +299,7 @@ export const tradeFinanceExtApi = {
     marginAccountId?: number;
     marginPercentage?: number;
     commissionRate?: number;
-  }) => apiPost<LetterOfCredit>('/api/v1/trade-finance/lc', null, input as Record<string, unknown>),
+  }) => apiPost<LetterOfCredit>('/api/v1/trade-finance/lc', input as Record<string, unknown>),
 
   getLc: (id: number) =>
     apiGet<LetterOfCredit>(`/api/v1/trade-finance/lc/${id}`),
@@ -347,7 +347,7 @@ export const tradeFinanceExtApi = {
     marginAccountId?: number;
     marginPercentage?: number;
     commissionRate?: number;
-  }) => apiPost<BankGuarantee>('/api/v1/trade-finance/guarantees', null, input as Record<string, unknown>),
+  }) => apiPost<BankGuarantee>('/api/v1/trade-finance/guarantees', input as Record<string, unknown>),
 
   getGuarantee: (id: number) =>
     apiGet<BankGuarantee>(`/api/v1/trade-finance/guarantees/${id}`),
@@ -383,7 +383,7 @@ export const tradeFinanceExtApi = {
     currencyCode: string;
     expiryDate: string;
     discountRate?: number;
-  }) => apiPost<ScfProgramme>('/api/v1/trade-finance/scf/programmes', null, input as Record<string, unknown>),
+  }) => apiPost<ScfProgramme>('/api/v1/trade-finance/scf/programmes', input as Record<string, unknown>),
 
   listScfInvoices: (params?: Record<string, unknown>) =>
     apiGet<FactoredInvoice[]>('/api/v1/trade-finance/scf/invoices', params),
@@ -397,7 +397,7 @@ export const tradeFinanceExtApi = {
     currencyCode: string;
     invoiceDate: string;
     dueDate: string;
-  }) => apiPost<FactoredInvoice>('/api/v1/trade-finance/scf/invoices', null, input as Record<string, unknown>),
+  }) => apiPost<FactoredInvoice>('/api/v1/trade-finance/scf/invoices', input as Record<string, unknown>),
 
   // ── Trade Documents ──────────────────────────────────────────────────────────
   listDocuments: () =>
@@ -412,13 +412,13 @@ export const tradeFinanceExtApi = {
     fileType: string;
     storagePath?: string;
     fileSizeBytes?: number;
-  }) => apiPost<TradeDocument>('/api/v1/trade-finance/documents', null, input as Record<string, unknown>),
+  }) => apiPost<TradeDocument>('/api/v1/trade-finance/documents', input as Record<string, unknown>),
 
   verifyDocument: (id: number, input: {
     verifiedBy: string;
     compliant: boolean;
     notes?: string;
-  }) => apiPost<TradeDocument>(`/api/v1/trade-finance/documents/${id}/verify`, null, input as Record<string, unknown>),
+  }) => apiPost<TradeDocument>(`/api/v1/trade-finance/documents/${id}/verify`, input as Record<string, unknown>),
 
   getLcDocuments: (lcId: number) =>
     apiGet<TradeDocument[]>(`/api/v1/trade-finance/documents/lc/${lcId}`),

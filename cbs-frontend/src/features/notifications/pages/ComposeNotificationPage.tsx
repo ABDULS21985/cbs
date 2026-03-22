@@ -59,7 +59,7 @@ export function ComposeNotificationPage() {
   // State
   const [selectedTemplate, setSelectedTemplate] = useState<NotificationTemplate | null>(null);
   const [useCustom, setUseCustom] = useState(false);
-  const [channel, setChannel] = useState('EMAIL');
+  const [channel, setChannel] = useState<NotificationChannel>('EMAIL');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [eventType, setEventType] = useState('CUSTOM_NOTIFICATION');
@@ -149,7 +149,7 @@ export function ComposeNotificationPage() {
           templateCode: selectedTemplate?.templateCode ?? undefined,
           channel,
           cronExpression: schedule.cronExpression,
-          frequency: schedule.frequency ?? 'ONCE',
+          frequency: (schedule.frequency ?? 'ONCE') as 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY',
           recipientCriteria: {
             mode: recipients.mode,
             customerIds: recipients.customerIds,

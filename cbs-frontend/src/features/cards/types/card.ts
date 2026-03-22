@@ -46,6 +46,7 @@ export interface Card {
   blockReason?: string;
   currencyCode?: string;
   branchCode?: string;
+  deliveryMethod?: string;
   createdAt?: string;
   updatedAt?: string;
 }

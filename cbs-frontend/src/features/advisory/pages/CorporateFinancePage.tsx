@@ -3,6 +3,7 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { Plus, DollarSign, Briefcase, CheckCircle2, BarChart2, MoreHorizontal, FileText, CreditCard, CheckCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { RoleGuard } from '@/components/auth/RoleGuard';
 import { DataTable, StatCard, StatusBadge } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
 import {
@@ -403,7 +404,11 @@ export function CorporateFinancePage() {
     {
       id: 'actions',
       header: '',
-      cell: ({ row }) => <RowActions row={row.original} />,
+      cell: ({ row }) => (
+        <RoleGuard roles={['CBS_ADMIN', 'CBS_OFFICER']}>
+          <RowActions row={row.original} />
+        </RoleGuard>
+      ),
     },
   ];
 
@@ -413,12 +418,14 @@ export function CorporateFinancePage() {
         title="Corporate Finance"
         subtitle="Restructuring, valuation, feasibility, and capital advisory mandates"
         actions={
-          <button
-            onClick={() => setShowNew(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
-          >
-            <Plus className="w-4 h-4" /> New Mandate
-          </button>
+          <RoleGuard roles={['CBS_ADMIN', 'CBS_OFFICER']}>
+            <button
+              onClick={() => setShowNew(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+            >
+              <Plus className="w-4 h-4" /> New Mandate
+            </button>
+          </RoleGuard>
         }
       />
       <div className="page-container space-y-6">

@@ -77,7 +77,7 @@ export function useApproveLoanApplication() {
 export function useDeclineLoanApplication() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+    mutationFn: async ({ id, reason }: { id: number; reason: string }) =>
       loanApi.declineApplication(id, reason),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.loans.all }),
     onError: handleApiError,

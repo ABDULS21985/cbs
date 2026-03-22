@@ -113,7 +113,7 @@ export function KycReviewPage() {
     customer.riskRating === 'HIGH' ||
     customer.riskRating === 'VERY_HIGH' ||
     customer.riskRating === 'PEP';
-  const eddInitiated = eddData && typeof eddData === 'object' && (eddData as Record<string, unknown>).status;
+  const eddInitiated = !!(eddData && typeof eddData === 'object' && (eddData as Record<string, unknown>).status);
   const allEddComplete = EDD_CHECKLIST_ITEMS.every((item) => eddChecklist[item.key]);
 
   // Handlers
@@ -516,7 +516,7 @@ export function KycReviewPage() {
             {/* Audit Trail */}
             <FormSection title="KYC Audit Trail" collapsible defaultOpen={false}>
               {auditTrail.length > 0 ? (
-                <AuditTimeline events={auditTrail} />
+                <AuditTimeline events={auditTrail.map(e => ({ ...e, details: e.details ?? undefined }))} />
               ) : (
                 <p className="text-sm text-muted-foreground">No audit events recorded</p>
               )}

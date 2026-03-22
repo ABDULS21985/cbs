@@ -126,7 +126,7 @@ export function useBuyInSecuritiesFail() {
 export function usePenaltySecuritiesFail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ ref, dailyRate }: { ref: string; dailyRate: number }) =>
+    mutationFn: async ({ ref, dailyRate }: { ref: string; dailyRate: number }) =>
       securitiesFailsApi.penalty(ref, dailyRate),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.fails.dashboard });
@@ -138,7 +138,7 @@ export function usePenaltySecuritiesFail() {
 export function useResolveSecuritiesFail() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ ref, action, notes }: { ref: string; action: string; notes?: string }) =>
+    mutationFn: async ({ ref, action, notes }: { ref: string; action: string; notes?: string }) =>
       securitiesFailsApi.resolve(ref, action, notes),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.fails.dashboard });
@@ -205,7 +205,7 @@ export function useDefineValuationModel() {
 export function useRunValuation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ modelId, date, runType }: { modelId: number; date: string; runType: string }) =>
+    mutationFn: async ({ modelId, date, runType }: { modelId: number; date: string; runType: string }) =>
       valuationsApi.runValuation(modelId, date, runType),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.valuations.runs });
@@ -268,7 +268,7 @@ export function useCreateCounterparty() {
 export function useUpdateCounterpartyExposure() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ code, exposure }: { code: string; exposure: number }) =>
+    mutationFn: async ({ code, exposure }: { code: string; exposure: number }) =>
       counterpartiesApi.updateExposure(code, exposure),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.counterparties.all });

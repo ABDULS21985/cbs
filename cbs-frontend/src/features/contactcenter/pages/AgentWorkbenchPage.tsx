@@ -666,7 +666,7 @@ export function AgentWorkbenchPage() {
     // Find oldest waiting interaction
     const waiting = interactions.filter((i) => i.status === 'QUEUED').sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     if (waiting.length === 0) { toast.info('No interactions waiting in queue'); return; }
-    assignMut.mutate(waiting[0].id, {
+    assignMut.mutate({ id: String(waiting[0].id), agentId: currentAgent.agentId }, {
       onSuccess: () => toast.success('Interaction assigned'),
       onError: () => toast.error('Failed to assign'),
     });
@@ -677,7 +677,7 @@ export function AgentWorkbenchPage() {
     // Save disposition first
     contactCenterApi.saveDisposition(String(activeInteraction.id), disp).then(() => {
       // Complete the interaction
-      completeMut.mutate(activeInteraction.id, {
+      completeMut.mutate({ id: String(activeInteraction.id), disposition: disp.disposition, fcr: disp.fcr }, {
         onSuccess: () => {
           toast.success('Interaction completed');
           // Set agent to AVAILABLE

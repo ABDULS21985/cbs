@@ -6,7 +6,10 @@ interface Props {
 }
 
 export function ConfusionMatrixViz({ model }: Props) {
-  const { truePositive: tp, falsePositive: fp, falseNegative: fn, trueNegative: tn } = model;
+  const tp = model.truePositive ?? 0;
+  const fp = model.falsePositive ?? 0;
+  const fn = model.falseNegative ?? 0;
+  const tn = model.trueNegative ?? 0;
   const total = tp + fp + fn + tn;
 
   const precision = tp + fp > 0 ? tp / (tp + fp) : 0;

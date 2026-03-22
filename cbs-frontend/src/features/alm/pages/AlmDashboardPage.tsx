@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, TabsPage } from '@/components/shared';
 import { cn } from '@/lib/utils';
-import { formatDate, formatDateTime } from '@/lib/formatters';
+import { formatDate } from '@/lib/formatters';
 import { RefreshCw, CheckCircle, Activity, TrendingUp, BookOpen, BarChart2, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import {

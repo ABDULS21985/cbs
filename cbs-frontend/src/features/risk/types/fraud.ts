@@ -64,6 +64,10 @@ export interface ModelPerformance {
   falsePositives: number;
   detectionRate: number;
   falsePositiveRate: number;
+  truePositive?: number;
+  falsePositive?: number;
+  falseNegative?: number;
+  trueNegative?: number;
 }
 
 export interface ScoreDistributionBucket {

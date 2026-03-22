@@ -143,7 +143,7 @@ function CollateralTab({ loanId, loan }: { loanId: number; loan: LoanAccount }) 
 
 function AuditTab({ loan, schedule }: { loan: LoanAccount; schedule: RepaymentScheduleItem[] }) {
   const events = useMemo(() => {
-    const items: { id: string; action: string; performedBy: string; performedAt: string; details: string | null }[] = [];
+    const items: { id: string; action: string; performedBy: string; performedAt: string; details?: string }[] = [];
     if (loan.disbursedDate) items.push({ id: '1', action: 'Loan Disbursed', performedBy: 'System', performedAt: loan.disbursedDate, details: `${formatMoney(loan.disbursedAmount)} at ${loan.interestRate}% for ${loan.tenorMonths}m` });
     schedule.filter((s) => s.paidDate).forEach((s, i) => { items.push({ id: `pay-${i}`, action: `Payment #${s.installmentNumber}`, performedBy: 'Customer', performedAt: s.paidDate!, details: `${formatMoney(s.totalPaid)} paid` }); });
     return items.sort((a, b) => new Date(b.performedAt).getTime() - new Date(a.performedAt).getTime());

@@ -344,13 +344,13 @@ export function MerchantDetailPage() {
     { label: 'Risk Category', value: merchant.riskCategory },
     { label: 'Status', value: merchant.status },
     { label: 'Chargeback Rate', value: formatPercent(merchant.chargebackRate) },
-    { label: 'Monthly Volume Limit', value: formatMoney(merchant.monthlyVolumeLimit) },
+    { label: 'Monthly Volume Limit', value: merchant.monthlyVolumeLimit != null ? formatMoney(merchant.monthlyVolumeLimit) : '--' },
     { label: 'Settlement', value: merchant.settlementFrequency ?? 'DAILY' },
     { label: 'Contact', value: merchant.contactName ?? '--' },
     { label: 'Email', value: merchant.contactEmail ?? '--' },
     { label: 'Phone', value: merchant.contactPhone ?? '--' },
     { label: 'Settlement Account', value: merchant.settlementAccountId != null ? String(merchant.settlementAccountId) : '--' },
-    { label: 'Onboarded', value: formatDate(merchant.onboardedAt) },
+    { label: 'Onboarded', value: merchant.onboardedAt ? formatDate(merchant.onboardedAt) : '--' },
   ];
 
   const disputeCols: ColumnDef<CardDispute, unknown>[] = [

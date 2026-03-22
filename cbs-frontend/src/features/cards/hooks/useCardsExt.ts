@@ -211,7 +211,7 @@ export function useDeactivateToken() {
 export function useClearingBatches(network: string, date: string) {
   return useQuery({
     queryKey: cardKeys.clearingBatches(network, date),
-    queryFn: () => cardClearingApi.createPosition2(network, date),
+    queryFn: () => cardClearingApi.getBatchesByNetwork(network, date),
     ...CARD_QUERY_DEFAULTS,
     enabled: !!network && !!date,
   });
@@ -436,10 +436,11 @@ export function useProvisionToken() {
 
 // ─── POS Terminal Hooks ─────────────────────────────────────────────────────
 
-export function usePosTerminalsByMerchant(merchantId: string) {
+export function usePosTerminalsByMerchant(merchantId: string | number) {
+  const id = String(merchantId);
   return useQuery({
     queryKey: cardKeys.posByMerchant(Number(merchantId) || 0),
-    queryFn: () => posTerminalsApi.byMerchant(merchantId),
+    queryFn: () => posTerminalsApi.byMerchant(id),
     ...CARD_QUERY_DEFAULTS,
     enabled: !!merchantId,
   });

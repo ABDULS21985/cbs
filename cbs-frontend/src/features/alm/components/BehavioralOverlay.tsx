@@ -160,8 +160,8 @@ export function BehavioralOverlay({ params, onParamsChange, topDepositors, fundi
                   <XAxis type="number" tickFormatter={(v) => `${v.toFixed(0)}%`} tick={{ fontSize: 10 }} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={100} />
                   <Tooltip
-                    formatter={(v: number, _name: string, props: { payload: TopDepositor }) => [
-                      `${v.toFixed(2)}% (${formatMoney(props.payload.amount, currency)})`,
+                    formatter={(v: number | string, _name: string, props) => [
+                      `${Number(v).toFixed(2)}% (${formatMoney((props.payload as TopDepositor)?.amount ?? 0, currency)})`,
                       'Share of Total',
                     ]}
                   />

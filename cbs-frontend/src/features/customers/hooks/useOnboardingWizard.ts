@@ -115,7 +115,7 @@ export function useOnboardingWizard() {
       toast.success('Customer created successfully');
     },
     onError: (error) => {
-      const msg = axios.isAxiosError(error) ? (error.response?.data?.message as string | undefined) : error instanceof Error ? error.message : undefined;
+      const msg = axios.isAxiosError(error) ? ((error.response?.data as Record<string, unknown>)?.message as string | undefined) : error instanceof Error ? error.message : undefined;
       toast.error(msg || 'Failed to submit application');
     },
   });

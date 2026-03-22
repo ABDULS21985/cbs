@@ -28,7 +28,7 @@ const DEFAULT_CONFIG: ReportConfig = {
 };
 
 export function useReportBuilder(editReport?: SavedReport) {
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [config, setConfig] = useState<ReportConfig>(editReport?.config ?? DEFAULT_CONFIG);
   const [previewData, setPreviewData] = useState<ReportResult | null>(null);
   const [isFetchingPreview, setIsFetchingPreview] = useState(false);
@@ -76,7 +76,7 @@ export function useReportBuilder(editReport?: SavedReport) {
     };
   }, [config, fetchPreview]);
 
-  const setStep = useCallback((step: 1 | 2 | 3 | 4) => {
+  const setStep = useCallback((step: 1 | 2 | 3 | 4 | 5 | 6) => {
     setCurrentStep(step);
   }, []);
 

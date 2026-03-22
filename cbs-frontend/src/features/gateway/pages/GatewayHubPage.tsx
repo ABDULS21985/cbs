@@ -22,7 +22,7 @@ function SystemHealthBanner() {
 
   const issues: { message: string; path: string; severity: 'warning' | 'error' }[] = [];
 
-  const downRoutes = Array.isArray(routes) ? routes.filter((r: Record<string, unknown>) => r.status === 'DOWN' || r.status === 'ERROR').length : 0;
+  const downRoutes = Array.isArray(routes) ? routes.filter((r) => (r as unknown as Record<string, unknown>).status === 'DOWN' || (r as unknown as Record<string, unknown>).status === 'ERROR').length : 0;
   if (downRoutes > 0) issues.push({ message: `${downRoutes} integration route(s) down`, path: '/operations/gateway/integration', severity: 'error' });
 
   const dlq = typeof dlqCount === 'number' ? dlqCount : (dlqCount as Record<string, unknown>)?.count as number ?? 0;
@@ -148,7 +148,7 @@ export function GatewayHubPage() {
           <SummaryCard icon={GitBranch} title="Integration Hub" color="text-purple-600 bg-purple-100 dark:bg-purple-900/30"
             metrics={[
               { label: 'Active Routes', value: routeList.length },
-              { label: 'Healthy', value: routeList.filter((r: Record<string, unknown>) => r.status === 'ACTIVE' || r.status === 'HEALTHY').length },
+              { label: 'Healthy', value: routeList.filter((r) => (r as unknown as Record<string, unknown>).status === 'ACTIVE' || (r as unknown as Record<string, unknown>).status === 'HEALTHY').length },
             ]}
             linkLabel="View Routes" linkPath="/operations/gateway/integration" />
 
@@ -161,8 +161,8 @@ export function GatewayHubPage() {
 
           <SummaryCard icon={Store} title="API Marketplace" color="text-amber-600 bg-amber-100 dark:bg-amber-900/30"
             metrics={[
-              { label: 'Published', value: productList.filter((p: Record<string, unknown>) => p.status === 'PUBLISHED').length },
-              { label: 'Active Subs', value: subList.filter((s: Record<string, unknown>) => s.status === 'ACTIVE').length },
+              { label: 'Published', value: productList.filter((p) => (p as unknown as Record<string, unknown>).status === 'PUBLISHED').length },
+              { label: 'Active Subs', value: subList.filter((s) => (s as unknown as Record<string, unknown>).status === 'ACTIVE').length },
             ]}
             linkLabel="View Marketplace" linkPath="/operations/gateway/marketplace" />
         </div>

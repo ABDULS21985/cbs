@@ -56,5 +56,5 @@ export const collectionsApi = {
     apiGet<WriteOffRequest[]>('/api/v1/collections/write-off-requests', params),
 
   listRecovery: () =>
-    apiGet<RecoveryRecord>('/api/v1/collections/recovery'),
+    apiGet<RecoveryRecord[]>('/api/v1/collections/recovery'),
 };
