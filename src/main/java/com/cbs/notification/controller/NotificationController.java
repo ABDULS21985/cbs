@@ -35,6 +35,7 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final NotificationLogRepository notificationLogRepository;
     private final com.cbs.notification.repository.NotificationTemplateRepository templateRepository;
+    private final com.cbs.notification.repository.ChannelConfigRepository channelConfigRepository;
     private final CustomerRepository customerRepository;
 
     @GetMapping("/send")
@@ -100,14 +101,24 @@ public class NotificationController {
     }
 
     @PostMapping("/send-bulk")
-    @Operation(summary = "Send message to multiple customers. Supports explicit recipients[], broadcast=true, or segmentCode.")
+    @Operation(summary = "Send message to multiple customers. Supports explicit recipients[], broadcast=true, or segmentCode. "
+            + "When templateCode is provided the body/subject are resolved per-recipient using the template's merge fields.")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> sendBulk(@RequestBody Map<String, Object> body) {
         String channel = String.valueOf(body.getOrDefault("channel", "EMAIL"));
-        String subject = String.valueOf(body.getOrDefault("subject", ""));
-        String msgBody = String.valueOf(body.getOrDefault("body", ""));
+        String fallbackSubject = String.valueOf(body.getOrDefault("subject", ""));
+        String fallbackBody = String.valueOf(body.getOrDefault("body", ""));
         String eventType = String.valueOf(body.getOrDefault("eventType", "BULK"));
         NotificationChannel notifChannel = NotificationChannel.valueOf(channel);
+
+        // Optional templateCode — when present, body/subject are resolved per-recipient
+        // so merge fields like {{customerName}} are substituted server-side rather than
+        // sent as literal text to every recipient.
+        String templateCode = body.get("templateCode") != null ? String.valueOf(body.get("templateCode")) : null;
+        NotificationTemplate bulkTemplate = null;
+        if (templateCode != null && !templateCode.isBlank()) {
+            bulkTemplate = templateRepository.findByTemplateCode(templateCode).orElse(null);
+        }
 
         // Build recipient list from: explicit recipients[], broadcast flag, or segmentCode
         List<Map<String, Object>> recipientList = new ArrayList<>();
@@ -148,12 +159,29 @@ public class NotificationController {
         }
 
         int sent = 0, failed = 0;
+        final NotificationTemplate resolvedTemplate = bulkTemplate;
         for (Map<String, Object> r : recipientList) {
             try {
                 String addr = String.valueOf(r.getOrDefault("address", ""));
                 String name = String.valueOf(r.getOrDefault("name", ""));
                 Long custId = r.get("customerId") instanceof Number ? ((Number) r.get("customerId")).longValue() : null;
-                notificationService.sendDirect(notifChannel, addr, name, subject, msgBody, custId, eventType);
+
+                String resolvedBody;
+                String resolvedSubject;
+                if (resolvedTemplate != null) {
+                    // Build per-recipient merge data from the recipient entry
+                    Map<String, String> mergeData = new java.util.HashMap<>();
+                    mergeData.put("customerName", name.isBlank() ? "Valued Customer" : name);
+                    if (custId != null) mergeData.put("customerId", custId.toString());
+                    mergeData.put("date", java.time.LocalDate.now().toString());
+                    resolvedBody = resolvedTemplate.resolveBody(mergeData);
+                    resolvedSubject = resolvedTemplate.resolveSubject(mergeData) != null
+                            ? resolvedTemplate.resolveSubject(mergeData) : fallbackSubject;
+                } else {
+                    resolvedBody = fallbackBody;
+                    resolvedSubject = fallbackSubject;
+                }
+                notificationService.sendDirect(notifChannel, addr, name, resolvedSubject, resolvedBody, custId, eventType);
                 sent++;
             } catch (Exception e) { failed++; }
         }
@@ -273,16 +301,10 @@ public class NotificationController {
     // ========================================================================
 
     @GetMapping("/channels")
-    @Operation(summary = "Notification channel configuration")
+    @Operation(summary = "Notification channel configuration — persisted in channel_config table")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getChannels() {
-        List<Map<String, Object>> channels = List.of(
-                Map.of("channel", "EMAIL", "enabled", true, "provider", "SMTP"),
-                Map.of("channel", "SMS", "enabled", true, "provider", "TWILIO"),
-                Map.of("channel", "PUSH", "enabled", true, "provider", "FIREBASE"),
-                Map.of("channel", "IN_APP", "enabled", true, "provider", "INTERNAL"),
-                Map.of("channel", "WEBHOOK", "enabled", true, "provider", "HTTP_CLIENT")
-        );
+    public ResponseEntity<ApiResponse<List<ChannelConfig>>> getChannels() {
+        List<ChannelConfig> channels = channelConfigRepository.findAll();
         return ResponseEntity.ok(ApiResponse.ok(channels));
     }
 
@@ -301,16 +323,15 @@ public class NotificationController {
             logs = notificationLogRepository.findAll();
         }
         long total = logs.size();
-        long sent = logs.stream().filter(n -> "SENT".equals(n.getStatus())).count();
-        long delivered = logs.stream().filter(n -> "DELIVERED".equals(n.getStatus())).count();
-        long failed = logs.stream().filter(n -> "FAILED".equals(n.getStatus())).count();
-        long pending = logs.stream().filter(n -> "PENDING".equals(n.getStatus())).count();
-        double deliveryRate = total > 0 ? (double) (sent + delivered) / total * 100.0 : 0.0;
+        long delivered = logs.stream().filter(n -> "DELIVERED".equals(n.getStatus()) || "READ".equals(n.getStatus()) || "SENT".equals(n.getStatus())).count();
+        long failed = logs.stream().filter(n -> "FAILED".equals(n.getStatus()) || "BOUNCED".equals(n.getStatus())).count();
+        long pending = logs.stream().filter(n -> "PENDING".equals(n.getStatus()) || "PENDING_DISPATCH".equals(n.getStatus())).count();
+        double deliveryRate = total > 0 ? (double) delivered / total * 100.0 : 0.0;
         double failureRate = total > 0 ? (double) failed / total * 100.0 : 0.0;
 
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "total", total,
-                "sent", sent,
+                "sent", total,
                 "delivered", delivered,
                 "failed", failed,
                 "pending", pending,
@@ -322,16 +343,13 @@ public class NotificationController {
     @GetMapping("/failures")
     @Operation(summary = "Failed notifications — filters by FAILED/BOUNCED status before pagination")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getFailures(
+    public ResponseEntity<ApiResponse<List<NotificationLog>>> getFailures(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<NotificationLog> result = notificationLogRepository.findByStatusIn(
                 List.of("FAILED", "BOUNCED"), pageable);
-        List<Map<String, Object>> failures = result.getContent().stream()
-                .map(this::toFailureRecord)
-                .toList();
-        return ResponseEntity.ok(ApiResponse.ok(failures, PageMeta.from(result)));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
     @GetMapping("/mark-all-read")
@@ -343,13 +361,19 @@ public class NotificationController {
     }
 
     @PostMapping("/mark-all-read")
-    @Operation(summary = "Mark all notifications as read for a customer")
+    @Operation(summary = "Mark all notifications as read for a customer. Only marks SENT/DELIVERED — "
+            + "PENDING and PENDING_DISPATCH are not yet delivered to the recipient and must not be moved to READ.")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> markAllRead(
             @RequestParam(required = false) Long customerId) {
+        // Only delivered messages (SENT or DELIVERED) count as "unread inbox items".
+        // PENDING / PENDING_DISPATCH notifications have not reached the recipient yet
+        // and must remain in their dispatch queue — marking them READ would hide them
+        // from the delivery pipeline without ever actually delivering them.
+        final List<String> readableStatuses = List.of("SENT", "DELIVERED");
         int marked = 0;
         if (customerId == null) {
-            List<NotificationLog> unread = notificationLogRepository.findByStatusIn(List.of("PENDING", "SENT", "DELIVERED"));
+            List<NotificationLog> unread = notificationLogRepository.findByStatusIn(readableStatuses);
             for (NotificationLog log : unread) {
                 log.setStatus("READ");
                 notificationLogRepository.save(log);
@@ -359,7 +383,7 @@ public class NotificationController {
             Page<NotificationLog> notifications = notificationService.getCustomerNotifications(customerId,
                     PageRequest.of(0, 1000));
             for (NotificationLog log : notifications.getContent()) {
-                if (!"READ".equals(log.getStatus()) && ("PENDING".equals(log.getStatus()) || "SENT".equals(log.getStatus()) || "DELIVERED".equals(log.getStatus()))) {
+                if (readableStatuses.contains(log.getStatus())) {
                     log.setStatus("READ");
                     notificationLogRepository.save(log);
                     marked++;
@@ -514,20 +538,55 @@ public class NotificationController {
     // ========================================================================
 
     @PutMapping("/channels/{channel}")
-    @Operation(summary = "Update channel configuration")
+    @Operation(summary = "Update channel configuration — persisted to channel_config table")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updateChannel(@PathVariable String channel, @RequestBody Map<String, Object> config) {
-        config.put("channel", channel);
-        config.put("updatedAt", Instant.now().toString());
-        return ResponseEntity.ok(ApiResponse.ok(config));
+    public ResponseEntity<ApiResponse<ChannelConfig>> updateChannel(
+            @PathVariable String channel, @RequestBody Map<String, Object> body) {
+        NotificationChannel ch = NotificationChannel.valueOf(channel);
+        ChannelConfig cfg = channelConfigRepository.findByChannel(ch)
+                .orElseThrow(() -> new ResourceNotFoundException("ChannelConfig", "channel", channel));
+
+        if (body.containsKey("enabled")) cfg.setEnabled(Boolean.TRUE.equals(body.get("enabled")));
+        if (body.containsKey("provider")) cfg.setProvider(String.valueOf(body.get("provider")));
+        if (body.containsKey("senderAddress")) cfg.setSenderAddress(String.valueOf(body.get("senderAddress")));
+        if (body.containsKey("apiKey")) cfg.setApiKey(String.valueOf(body.get("apiKey")));
+        if (body.containsKey("apiSecret")) cfg.setApiSecret(String.valueOf(body.get("apiSecret")));
+        if (body.containsKey("webhookUrl")) cfg.setWebhookUrl(String.valueOf(body.get("webhookUrl")));
+        if (body.containsKey("rateLimit") && body.get("rateLimit") instanceof Number n) cfg.setRateLimit(n.intValue());
+        if (body.containsKey("retryEnabled")) cfg.setRetryEnabled(Boolean.TRUE.equals(body.get("retryEnabled")));
+        if (body.containsKey("maxRetries") && body.get("maxRetries") instanceof Number n) cfg.setMaxRetries(n.intValue());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> extraConfig = body.containsKey("config") && body.get("config") instanceof Map
+                ? (Map<String, Object>) body.get("config") : null;
+        if (extraConfig != null) cfg.setConfig(extraConfig);
+
+        cfg.setUpdatedAt(Instant.now());
+        return ResponseEntity.ok(ApiResponse.ok(channelConfigRepository.save(cfg)));
     }
 
     @PostMapping("/channels/{channel}/test")
-    @Operation(summary = "Test channel delivery")
+    @Operation(summary = "Test channel delivery — sends a real test notification through the configured provider")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> testChannel(@PathVariable String channel, @RequestBody Map<String, String> body) {
+        NotificationChannel ch = NotificationChannel.valueOf(channel);
+        ChannelConfig cfg = channelConfigRepository.findByChannel(ch).orElse(null);
+        if (cfg == null || !Boolean.TRUE.equals(cfg.getEnabled())) {
+            return ResponseEntity.ok(ApiResponse.ok(Map.of("success", false, "error", "Channel " + channel + " is disabled or not configured")));
+        }
+
         String recipient = body.getOrDefault("recipient", "test@example.com");
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("success", true, "channel", channel, "recipient", recipient, "messageId", java.util.UUID.randomUUID().toString())));
+        try {
+            NotificationLog testLog = notificationService.sendDirect(ch, recipient, "Test Recipient",
+                    "DigiCore CBS Channel Test", "This is a test notification from DigiCore CBS to verify " + channel + " channel delivery.",
+                    null, "CHANNEL_TEST");
+            return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                    "success", true, "channel", channel, "recipient", recipient,
+                    "messageId", testLog.getProviderMessageId() != null ? testLog.getProviderMessageId() : "test-" + testLog.getId(),
+                    "status", testLog.getStatus()
+            )));
+        } catch (Exception e) {
+            return ResponseEntity.ok(ApiResponse.ok(Map.of("success", false, "channel", channel, "recipient", recipient, "error", e.getMessage())));
+        }
     }
 
     // ========================================================================
@@ -537,21 +596,20 @@ public class NotificationController {
     @GetMapping("/delivery-stats/failures")
     @Operation(summary = "Recent delivery failures")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDeliveryFailures() {
+    public ResponseEntity<ApiResponse<List<NotificationLog>>> getDeliveryFailures() {
         Pageable pageable = PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<NotificationLog> result = notificationLogRepository.findAll(pageable);
-        List<Map<String, Object>> failures = result.getContent().stream()
-                .filter(n -> "FAILED".equals(n.getStatus()) || "BOUNCED".equals(n.getStatus()))
-                .map(this::toFailureRecord)
-                .toList();
-        return ResponseEntity.ok(ApiResponse.ok(failures));
+        Page<NotificationLog> result = notificationLogRepository.findByStatusIn(
+                List.of("FAILED", "BOUNCED"), pageable);
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent()));
     }
 
     @GetMapping("/delivery-stats/trend")
-    @Operation(summary = "30-day delivery trend computed from actual notification logs")
+    @Operation(summary = "Delivery trend computed from actual notification logs")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDeliveryTrend() {
-        Instant since = Instant.now().minus(30, ChronoUnit.DAYS);
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDeliveryTrend(
+            @RequestParam(defaultValue = "30") int days) {
+        int trendDays = Math.min(Math.max(days, 1), 365);
+        Instant since = Instant.now().minus(trendDays, ChronoUnit.DAYS);
         List<NotificationLog> logs = notificationLogRepository.findAll().stream()
                 .filter(n -> n.getCreatedAt() != null && n.getCreatedAt().isAfter(since))
                 .toList();
@@ -562,7 +620,7 @@ public class NotificationController {
 
         List<Map<String, Object>> trend = new ArrayList<>();
         Instant now = Instant.now();
-        for (int i = 29; i >= 0; i--) {
+        for (int i = trendDays - 1; i >= 0; i--) {
             String dayKey = now.minus(i, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS).toString();
             List<NotificationLog> dayLogs = byDate.getOrDefault(dayKey, List.of());
             Map<String, Object> entry = new LinkedHashMap<>();
@@ -588,11 +646,14 @@ public class NotificationController {
         List<Map<String, Object>> byChannel = new ArrayList<>();
         for (NotificationChannel ch : NotificationChannel.values()) {
             List<NotificationLog> chLogs = grouped.getOrDefault(ch, List.of());
+            long sent = chLogs.size(); // total dispatched through this channel
+            long delivered = chLogs.stream().filter(n -> "DELIVERED".equals(n.getStatus()) || "READ".equals(n.getStatus()) || "SENT".equals(n.getStatus())).count();
+            long failed = chLogs.stream().filter(n -> "FAILED".equals(n.getStatus()) || "BOUNCED".equals(n.getStatus())).count();
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("channel", ch.name());
-            entry.put("sent", chLogs.stream().filter(n -> "SENT".equals(n.getStatus())).count());
-            entry.put("delivered", chLogs.stream().filter(n -> "DELIVERED".equals(n.getStatus())).count());
-            entry.put("failed", chLogs.stream().filter(n -> "FAILED".equals(n.getStatus()) || "BOUNCED".equals(n.getStatus())).count());
+            entry.put("sent", sent);
+            entry.put("delivered", delivered);
+            entry.put("failed", failed);
             byChannel.add(entry);
         }
         return ResponseEntity.ok(ApiResponse.ok(byChannel));

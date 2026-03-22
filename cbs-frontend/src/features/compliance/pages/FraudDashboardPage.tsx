@@ -588,15 +588,7 @@ function TrendTab() {
   const { data: trend, isLoading, isError: trendError } = useFraudTrend();
   const { data: stats, isError: statsError } = useFraudStats();
 
-  if (isLoading) return <div className="p-4"><div className="h-64 rounded-xl bg-muted animate-pulse" /></div>;
-  if (trendError || statsError) {
-    return (
-      <div className="p-4">
-        <LoadErrorPanel message="Fraud trend analytics could not be loaded from the backend." />
-      </div>
-    );
-  }
-
+  // useMemo must be called before any early returns to satisfy Rules of Hooks
   const dailyData = useMemo(() => {
     if (!trend?.recentAlerts) return [];
     const map = new Map<string, number>();
@@ -608,6 +600,15 @@ function TrendTab() {
       .map(([date, count]) => ({ date, count }))
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [trend]);
+
+  if (isLoading) return <div className="p-4"><div className="h-64 rounded-xl bg-muted animate-pulse" /></div>;
+  if (trendError || statsError) {
+    return (
+      <div className="p-4">
+        <LoadErrorPanel message="Fraud trend analytics could not be loaded from the backend." />
+      </div>
+    );
+  }
 
   const channelData = stats?.byChannel
     ? Object.entries(stats.byChannel).map(([channel, count]) => ({ channel, count }))

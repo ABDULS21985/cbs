@@ -106,6 +106,29 @@ export function ComposeNotificationPage() {
               });
             }
             toast.success(`Notification sent to ${recipients.customerIds.length} recipient(s)`);
+          } else if (recipients.mode === 'broadcast') {
+            // Broadcast template send — pass templateCode so backend resolves
+            // merge fields (e.g. {{customerName}}) per-recipient server-side.
+            await sendBulkMut.mutateAsync({
+              broadcast: true,
+              channel: selectedTemplate.channel,
+              subject: selectedTemplate.subject ?? subject,
+              body: body || selectedTemplate.bodyTemplate,
+              eventType,
+              templateCode: selectedTemplate.templateCode,
+            });
+            toast.success('Broadcast notification sent to all active customers');
+          } else if (recipients.mode === 'segment') {
+            // Segment template send — pass templateCode for per-recipient resolution.
+            await sendBulkMut.mutateAsync({
+              segmentCode: recipients.segmentCode,
+              channel: selectedTemplate.channel,
+              subject: selectedTemplate.subject ?? subject,
+              body: body || selectedTemplate.bodyTemplate,
+              eventType,
+              templateCode: selectedTemplate.templateCode,
+            });
+            toast.success(`Notification sent to segment: ${recipients.segmentName || recipients.segmentCode}`);
           }
         } else if (recipients.mode === 'individual' && recipients.customerIds) {
           // Direct (non-template) send to individual recipients

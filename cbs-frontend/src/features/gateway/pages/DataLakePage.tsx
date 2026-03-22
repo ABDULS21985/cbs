@@ -95,7 +95,7 @@ export function DataLakePage() {
       {/* Create Job Dialog */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowCreate(false)} />
           <div className="relative z-10 w-full max-w-lg mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">New Export Job</h3><button onClick={() => setShowCreate(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
             <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Job Name</label>

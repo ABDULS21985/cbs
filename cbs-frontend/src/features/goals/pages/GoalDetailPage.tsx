@@ -34,7 +34,10 @@ function ContributeSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => 
   const remaining = Math.max(goal.targetAmount - goal.currentAmount, 0);
 
   const mutation = useMutation({
-    mutationFn: (payload: GoalFundRequest) => goalApi.contribute(goal.id, payload),
+    // sourceAccountId is required by the backend fundGoal service; use the goal's
+    // linked account so funds are debited from the correct ledger account.
+    mutationFn: (payload: GoalFundRequest) =>
+      goalApi.contribute(goal.id, { ...payload, sourceAccountId: goal.accountId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: goalQueryKeys.detail(goal.id) });
       queryClient.invalidateQueries({ queryKey: goalQueryKeys.contributions(goal.id) });
@@ -42,6 +45,7 @@ function ContributeSheet({ goal, onClose }: { goal: SavingsGoal; onClose: () => 
       toast.success(`${formatMoney(Number(amount))} contributed!`);
       onClose();
     },
+    onError: () => toast.error('Contribution failed'),
   });
 
   const parsedAmount = parseFloat(amount) || 0;

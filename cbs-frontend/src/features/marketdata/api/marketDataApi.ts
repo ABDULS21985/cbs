@@ -149,10 +149,13 @@ interface BackendResearchPublication {
   title: string;
   publicationType: string;
   author: string;
+  instrumentCode: string;
   sector: string;
   region: string;
   summary: string;
   contentRef: string;
+  recommendation: string;
+  targetPrice: number;
   tags: string[];
   distributionList: string[];
   complianceReviewed: boolean;
@@ -162,13 +165,14 @@ interface BackendResearchPublication {
 }
 
 function mapResearchReport(raw: BackendResearchPublication): ResearchReport {
+  const rec = raw.recommendation?.toUpperCase();
   return {
     id: raw.id,
     title: raw.title,
-    instrumentCode: raw.sector ?? '',
+    instrumentCode: raw.instrumentCode ?? raw.sector ?? '',
     analyst: raw.author,
-    recommendation: 'HOLD',
-    targetPrice: 0,
+    recommendation: (rec === 'BUY' || rec === 'SELL' || rec === 'HOLD' ? rec : 'HOLD') as ResearchReport['recommendation'],
+    targetPrice: Number(raw.targetPrice) || 0,
     summary: raw.summary,
     reportUrl: raw.contentRef,
     publishedAt: raw.publishedAt ?? '',
@@ -187,12 +191,25 @@ export const listFeeds = async (params?: Record<string, unknown>) => {
   return raw.map(mapFeed);
 };
 
-export const registerFeed = (input: {
+export const registerFeed = async (input: {
   provider: string;
   assetClass: string;
   feedType: FeedType;
   instruments: string[];
-}) => apiPost<DataFeed>('/api/v1/market-data/feeds', input);
+}): Promise<DataFeed> => {
+  // Remap frontend field names to backend entity field names.
+  // feedName is required (nullable=false): derive from provider + feedType.
+  // dataCategory is the entity field for what the frontend calls assetClass.
+  // instrumentsCovered is the entity field for instruments.
+  const raw = await apiPost<MarketDataFeed>('/api/v1/market-data/feeds', {
+    feedName: `${input.provider} ${input.assetClass} ${input.feedType}`,
+    provider: input.provider,
+    feedType: input.feedType,
+    dataCategory: input.assetClass,
+    instrumentsCovered: input.instruments,
+  });
+  return mapFeed(raw);
+};
 
 export const getFeedQualityMetrics = async () => {
   const raw = await apiGet<BackendFeedQualityMetric[]>('/api/v1/market-data-switch/feed-quality');
@@ -211,21 +228,79 @@ export const getInstrumentPrices = async (instrumentCode: string) => {
   return mapSingleInstrumentPrices(raw);
 };
 
-export const recordPrice = (input: {
+/**
+ * Record current bid/ask/last prices for an instrument.
+ *
+ * The backend stores one row per priceType (BID, ASK, LAST). We post three
+ * concurrent requests and return the aggregated frontend MarketPrice.
+ */
+export const recordPrice = async (input: {
   instrumentCode: string;
   bid: number;
   ask: number;
   last: number;
   volume: number;
   source: string;
-}) => apiPost<MarketPrice>('/api/v1/market-data/prices', input);
+}): Promise<MarketPrice> => {
+  const today = new Date().toISOString().split('T')[0];
+  const base = { instrumentCode: input.instrumentCode, source: input.source, priceDate: today };
+  await Promise.all([
+    apiPost('/api/v1/market-data/prices', { ...base, priceType: 'BID',  price: input.bid }),
+    apiPost('/api/v1/market-data/prices', { ...base, priceType: 'ASK',  price: input.ask }),
+    apiPost('/api/v1/market-data/prices', { ...base, priceType: 'LAST', price: input.last }),
+  ]);
+  // Return a composed MarketPrice from the inputs for optimistic UI update
+  return {
+    instrumentCode: input.instrumentCode,
+    bid: input.bid,
+    ask: input.ask,
+    last: input.last,
+    volume: input.volume,
+    changePct: 0,
+    source: input.source,
+    recordedAt: new Date().toISOString(),
+  };
+};
 
 // ─── FX Rates & Money Market ────────────────────────────────────────────────
 
-/** GET /api/v1/market-data/fx-rates — returns List<MarketPrice> filtered to FX. */
+/**
+ * Backend FxRate entity (com.cbs.payments.entity.FxRate).
+ * The /fx-rates endpoint returns this type, NOT MarketPriceDto.
+ */
+interface BackendFxRate {
+  id: number;
+  sourceCurrency: string;
+  targetCurrency: string;
+  buyRate: number;
+  sellRate: number;
+  midRate: number;
+  rateDate: string;
+  rateSource: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+/** Map a BackendFxRate row to a frontend MarketPrice for display on FX rate boards. */
+function mapFxRateToPrice(raw: BackendFxRate): MarketPrice {
+  const code = `${raw.sourceCurrency}/${raw.targetCurrency}`;
+  return {
+    instrumentCode: code,
+    bid: Number(raw.buyRate) || 0,
+    ask: Number(raw.sellRate) || 0,
+    last: Number(raw.midRate) || 0,
+    volume: 0,
+    changePct: 0,
+    currency: raw.targetCurrency,
+    source: raw.rateSource ?? '',
+    recordedAt: raw.createdAt ?? raw.rateDate ?? '',
+  };
+}
+
+/** GET /api/v1/market-data/fx-rates — returns List<FxRate> from payments.entity.FxRate. */
 export const getFxRates = async () => {
-  const raw = await apiGet<BackendPrice[]>('/api/v1/market-data/fx-rates');
-  return aggregatePrices(raw);
+  const raw = await apiGet<BackendFxRate[]>('/api/v1/market-data/fx-rates');
+  return raw.map(mapFxRateToPrice);
 };
 
 /** GET /api/v1/market-data/money-market */
@@ -252,12 +327,12 @@ export const recordSignal = (data: Partial<MarketSignal>) =>
 
 // ─── Research Reports ────────────────────────────────────────────────────────
 
-export const getPublishedResearch = async () => {
+export const getPublishedResearch = async (): Promise<ResearchReport[]> => {
   const raw = await apiGet<BackendResearchPublication[]>('/api/v1/market-data/research/published');
   return raw.map(mapResearchReport);
 };
 
-export const publishResearch = (input: {
+export const publishResearch = async (input: {
   title: string;
   instrumentCode: string;
   analyst: string;
@@ -265,10 +340,24 @@ export const publishResearch = (input: {
   targetPrice: number;
   summary: string;
   reportUrl?: string;
-}) => apiPost<ResearchReport>('/api/v1/market-data/research', input);
+}): Promise<ResearchReport> => {
+  // Remap frontend field names to backend entity field names
+  const raw = await apiPost<BackendResearchPublication>('/api/v1/market-data/research', {
+    title: input.title,
+    author: input.analyst,
+    instrumentCode: input.instrumentCode,
+    recommendation: input.recommendation,
+    targetPrice: input.targetPrice,
+    summary: input.summary,
+    contentRef: input.reportUrl,
+  });
+  return mapResearchReport(raw);
+};
 
-export const getResearchData = (params?: Record<string, unknown>) =>
-  apiGet<MarketSignal>('/api/v1/market-data/research', params);
+export const getResearchData = async (params?: Record<string, unknown>): Promise<ResearchReport[]> => {
+  const raw = await apiGet<BackendResearchPublication[]>('/api/v1/market-data/research', params);
+  return raw.map(mapResearchReport);
+};
 
 // ─── Feed Operation Logs ────────────────────────────────────────────────────
 

@@ -611,6 +611,10 @@ export const TransactionLimitsPage = lazyNamed(
   () => import('@/features/risk/pages/TransactionLimitsPage'),
   'TransactionLimitsPage',
 );
+export const RiskCreditMarginPage = lazyNamed(
+  () => import('@/features/risk/pages/CreditMarginPage'),
+  'CreditMarginPage',
+);
 
 export const RegulatoryReturnsPage = lazyNamed(
   () => import('@/features/compliance/pages/RegulatoryReturnsPage'),
@@ -761,6 +765,10 @@ export const ComplianceDownloadsPage = lazyNamed(
 export const FinancialStatementsPage = lazyNamed(
   () => import('@/features/reports/pages/FinancialStatementsPage'),
   'FinancialStatementsPage',
+);
+export const ComplianceReportManagementPage = lazyNamed(
+  () => import('@/features/reports/pages/ComplianceReportManagementPage'),
+  'ComplianceReportManagementPage',
 );
 
 export const WealthManagementPage = lazyNamed(
@@ -1059,6 +1067,10 @@ export const ProjectFinancePage = lazyNamed(
 export const SuitabilityPage = lazyNamed(
   () => import('@/features/advisory/pages/SuitabilityPage'),
   'SuitabilityPage',
+);
+export const AdvisoryWealthManagementPage = lazyNamed(
+  () => import('@/features/advisory/pages/WealthManagementPage'),
+  'WealthManagementPage',
 );
 
 export const IntelligencePage = lazyNamed(
@@ -1450,4 +1462,39 @@ export const NotificationHistoryPage = lazyNamed(
 export const BiDashboardPage = lazyNamed(
   () => import('@/features/dashboard/pages/BiDashboardPage'),
   'BiDashboardPage',
+);
+
+export const PartyRoutingPage = lazyNamed(
+  () => import('@/features/contactcenter/pages/PartyRoutingPage'),
+  'PartyRoutingPage',
+);
+
+// ── DSPM ──────────────────────────────────────────────────────────────────
+export const DspmDashboardPage = lazyNamed(
+  () => import('@/features/dspm/pages/DspmDashboardPage'),
+  'DspmDashboardPage',
+);
+export const DspmScanPage = lazyNamed(
+  () => import('@/features/dspm/pages/DspmScanPage'),
+  'DspmScanPage',
+);
+export const DspmPolicyPage = lazyNamed(
+  () => import('@/features/dspm/pages/DspmPolicyPage'),
+  'DspmPolicyPage',
+);
+export const DspmExceptionListPage = lazyNamed(
+  () => import('@/features/dspm/pages/DspmExceptionListPage'),
+  'DspmExceptionListPage',
+);
+export const DspmIdentitiesPage = lazyNamed(
+  () => import('@/features/dspm/pages/DspmIdentitiesPage'),
+  'DspmIdentitiesPage',
+);
+export const DspmIdentityDetailPage = lazyNamed(
+  () => import('@/features/dspm/pages/DspmIdentityDetailPage'),
+  'DspmIdentityDetailPage',
+);
+export const DspmDataSourcePage = lazyNamed(
+  () => import('@/features/dspm/pages/DspmDataSourcePage'),
+  'DspmDataSourcePage',
 );

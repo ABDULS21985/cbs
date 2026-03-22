@@ -240,6 +240,38 @@ class OperationalServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("must be INACTIVE to activate");
         }
+
+        @Test
+        @DisplayName("unblock transitions BLOCKED device to ACTIVE")
+        void unblock_transitionsBlockedToActive() {
+            IssuedDevice blocked = IssuedDevice.builder()
+                    .id(3L).deviceCode("DEV-UNBLOCK01").customerId(200L)
+                    .deviceType("TOKEN").activationStatus("BLOCKED")
+                    .build();
+
+            when(repository.findByDeviceCode("DEV-UNBLOCK01")).thenReturn(Optional.of(blocked));
+            when(repository.save(any(IssuedDevice.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            IssuedDevice result = issuedDeviceService.unblock("DEV-UNBLOCK01");
+
+            assertThat(result.getActivationStatus()).isEqualTo("ACTIVE");
+            verify(repository).save(any(IssuedDevice.class));
+        }
+
+        @Test
+        @DisplayName("unblock rejects device that is not BLOCKED")
+        void unblock_rejectsNonBlockedDevice() {
+            IssuedDevice active = IssuedDevice.builder()
+                    .id(4L).deviceCode("DEV-ACTIVE01").customerId(200L)
+                    .deviceType("CARD").activationStatus("ACTIVE")
+                    .build();
+
+            when(repository.findByDeviceCode("DEV-ACTIVE01")).thenReturn(Optional.of(active));
+
+            assertThatThrownBy(() -> issuedDeviceService.unblock("DEV-ACTIVE01"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("must be BLOCKED to unblock");
+        }
     }
 
     // ========================================================================

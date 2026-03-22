@@ -26,7 +26,12 @@ public class FxRateController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<List<FxRate>>> getCurrentRates(
             @RequestParam(required = false) String sourceCurrency,
-            @RequestParam(required = false) String targetCurrency) {
+            @RequestParam(required = false) String targetCurrency,
+            @RequestParam(required = false) String fromCurrency,
+            @RequestParam(required = false) String toCurrency) {
+        // Accept both parameter naming conventions
+        if (sourceCurrency == null && fromCurrency != null) sourceCurrency = fromCurrency;
+        if (targetCurrency == null && toCurrency != null) targetCurrency = toCurrency;
         if (sourceCurrency != null && targetCurrency != null) {
             List<FxRate> rates = fxRateRepository.findLatestRate(sourceCurrency, targetCurrency);
             return ResponseEntity.ok(ApiResponse.ok(rates));

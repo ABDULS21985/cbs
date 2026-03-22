@@ -278,7 +278,7 @@ export function AmlAlertDetailPage() {
       {/* ── Assign Dialog ─────────────────────────────────────────────── */}
       {showAssign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAssign(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowAssign(false)} />
           <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">Assign Alert</h3><button onClick={() => setShowAssign(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
             <input value={assignTo} onChange={e => setAssignTo(e.target.value)} placeholder="Officer name or ID" className={fc} />
@@ -294,7 +294,7 @@ export function AmlAlertDetailPage() {
       {/* ── File SAR Dialog ───────────────────────────────────────────── */}
       {showSar && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowSar(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowSar(false)} />
           <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold text-purple-700">File SAR</h3><button onClick={() => setShowSar(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
             <input value={sarRef} onChange={e => setSarRef(e.target.value)} placeholder="SAR Reference (e.g. SAR-2026-0001)" className={fc} />
@@ -310,7 +310,7 @@ export function AmlAlertDetailPage() {
       {/* ── Resolve Dialog ────────────────────────────────────────────── */}
       {showResolve && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowResolve(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowResolve(false)} />
           <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">Resolve Alert</h3><button onClick={() => setShowResolve(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
             <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Resolution *</label>

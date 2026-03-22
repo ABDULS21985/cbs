@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 import type { FactoringFacility, FactoringTransaction } from '../types/factoring';
 
 export const factoringApi = {
@@ -11,8 +11,8 @@ export const factoringApi = {
     apiGet<FactoringTransaction[]>('/api/v1/factoring/invoice', params),
 
   /** POST /v1/factoring/invoice/{id}/recourse */
-  recourse: (id: number) =>
-    apiPost<FactoringTransaction>(`/api/v1/factoring/invoice/${id}/recourse`),
+  recourse: (id: number, amount: number) =>
+    apiPostParams<FactoringTransaction>(`/api/v1/factoring/invoice/${id}/recourse`, { amount }),
 
   /** GET /v1/factoring/facility/{code}/concentration */
   concentration: (code: string) =>

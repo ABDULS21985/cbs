@@ -365,6 +365,205 @@ public class AdminUserService {
         return "true".equalsIgnoreCase(value);
     }
 
+    // ── Keycloak User CRUD ─────────────────────────────────────────────────
+
+    /**
+     * Creates a user in Keycloak and returns the Keycloak UUID.
+     * When Keycloak is not configured, returns a synthetic ID.
+     */
+    @SuppressWarnings("unchecked")
+    public String createKeycloakUser(String username, String email, String firstName,
+                                     String lastName, String password, boolean enabled) {
+        if (!isKeycloakConfigured()) {
+            log.warn("Keycloak not configured — user {} created in CBS only", username);
+            return null;
+        }
+        try {
+            String adminToken = getAdminToken();
+            String url = properties.getServerUrl() + "/admin/realms/" + properties.getRealm() + "/users";
+
+            Map<String, Object> userRep = new LinkedHashMap<>();
+            userRep.put("username", username);
+            userRep.put("email", email);
+            userRep.put("firstName", firstName);
+            userRep.put("lastName", lastName);
+            userRep.put("enabled", enabled);
+            userRep.put("emailVerified", false);
+
+            if (password != null && !password.isEmpty()) {
+                userRep.put("credentials", List.of(Map.of(
+                        "type", "password",
+                        "value", password,
+                        "temporary", true
+                )));
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(adminToken);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            ResponseEntity<Void> response = restTemplate.exchange(
+                    url, HttpMethod.POST, new HttpEntity<>(userRep, headers), Void.class);
+
+            // Keycloak returns 201 with Location header containing the new user ID
+            if (response.getHeaders().getLocation() != null) {
+                String locationPath = response.getHeaders().getLocation().getPath();
+                String kcUserId = locationPath.substring(locationPath.lastIndexOf('/') + 1);
+                log.info("User created in Keycloak: username={}, kcId={}", username, kcUserId);
+
+                // Invalidate cache so next list fetch includes the new user
+                cachedUsers = null;
+                cacheTimestamp = 0L;
+
+                return kcUserId;
+            }
+            log.warn("Keycloak user creation returned no Location header for username={}", username);
+            return null;
+        } catch (Exception e) {
+            log.error("Failed to create user in Keycloak: username={}, error={}", username, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Updates a user's profile in Keycloak.
+     * When Keycloak is not configured, this is a no-op.
+     */
+    public boolean updateKeycloakUser(String keycloakUserId, String email, String firstName,
+                                       String lastName, Boolean enabled) {
+        if (!isKeycloakConfigured() || keycloakUserId == null) {
+            return false;
+        }
+        try {
+            String adminToken = getAdminToken();
+            String url = properties.getServerUrl() + "/admin/realms/" + properties.getRealm()
+                    + "/users/" + keycloakUserId;
+
+            Map<String, Object> updates = new LinkedHashMap<>();
+            if (email != null) updates.put("email", email);
+            if (firstName != null) updates.put("firstName", firstName);
+            if (lastName != null) updates.put("lastName", lastName);
+            if (enabled != null) updates.put("enabled", enabled);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(adminToken);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            restTemplate.exchange(url, HttpMethod.PUT, new HttpEntity<>(updates, headers), Void.class);
+            log.info("User updated in Keycloak: kcId={}", keycloakUserId);
+
+            // Invalidate caches
+            cachedUsers = null;
+            cacheTimestamp = 0L;
+            userByIdCache.remove(keycloakUserId);
+
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to update Keycloak user {}: {}", keycloakUserId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Disables a user in Keycloak (sets enabled=false).
+     */
+    public boolean disableKeycloakUser(String keycloakUserId) {
+        return updateKeycloakUser(keycloakUserId, null, null, null, false);
+    }
+
+    /**
+     * Enables a user in Keycloak (sets enabled=true).
+     */
+    public boolean enableKeycloakUser(String keycloakUserId) {
+        return updateKeycloakUser(keycloakUserId, null, null, null, true);
+    }
+
+    /**
+     * Resets a user's password in Keycloak via admin API.
+     */
+    public boolean resetKeycloakPassword(String keycloakUserId, boolean temporary) {
+        if (!isKeycloakConfigured() || keycloakUserId == null) {
+            return false;
+        }
+        try {
+            String adminToken = getAdminToken();
+            String url = properties.getServerUrl() + "/admin/realms/" + properties.getRealm()
+                    + "/users/" + keycloakUserId + "/execute-actions-email";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(adminToken);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            // Send UPDATE_PASSWORD action email to user
+            restTemplate.exchange(url, HttpMethod.PUT,
+                    new HttpEntity<>(List.of("UPDATE_PASSWORD"), headers), Void.class);
+            log.info("Password reset email sent via Keycloak for kcId={}", keycloakUserId);
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to send password reset for Keycloak user {}: {}", keycloakUserId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Terminates all sessions for a user in Keycloak.
+     */
+    public boolean logoutKeycloakUser(String keycloakUserId) {
+        if (!isKeycloakConfigured() || keycloakUserId == null) {
+            return false;
+        }
+        try {
+            String adminToken = getAdminToken();
+            String url = properties.getServerUrl() + "/admin/realms/" + properties.getRealm()
+                    + "/users/" + keycloakUserId + "/logout";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(adminToken);
+
+            restTemplate.exchange(url, HttpMethod.POST, new HttpEntity<>(headers), Void.class);
+            log.info("User logged out from Keycloak: kcId={}", keycloakUserId);
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to logout Keycloak user {}: {}", keycloakUserId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Terminates a specific Keycloak session by session ID.
+     */
+    public boolean terminateKeycloakSession(String sessionId) {
+        if (!isKeycloakConfigured() || sessionId == null) {
+            return false;
+        }
+        try {
+            String adminToken = getAdminToken();
+            String url = properties.getServerUrl() + "/admin/realms/" + properties.getRealm()
+                    + "/sessions/" + sessionId;
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(adminToken);
+
+            restTemplate.exchange(url, HttpMethod.DELETE, new HttpEntity<>(headers), Void.class);
+            log.info("Session terminated in Keycloak: sessionId={}", sessionId);
+            return true;
+        } catch (Exception e) {
+            log.warn("Failed to terminate Keycloak session {}: {}", sessionId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Invalidates the user cache (call after external modifications).
+     */
+    public void invalidateCache() {
+        cachedUsers = null;
+        cacheTimestamp = 0L;
+        userByIdCache.clear();
+    }
+
+    // ── Internal helpers ──────────────────────────────────────────────────
+
     /**
      * Obtains an admin access token using client credentials grant.
      * Follows the same pattern as {@link com.cbs.portal.service.KeycloakAdminService}.

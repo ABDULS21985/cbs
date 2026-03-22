@@ -8,6 +8,7 @@ import java.util.*;
 @Repository
 public interface ApiConsentRepository extends JpaRepository<ApiConsent, Long> {
     Optional<ApiConsent> findByConsentId(String consentId);
+    List<ApiConsent> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
     List<ApiConsent> findByCustomerIdAndStatus(Long customerId, String status);
     List<ApiConsent> findByClientIdAndStatus(String clientId, String status);
 }

@@ -379,7 +379,7 @@ export function VirtualAccountListPage() {
       {showDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 modal-scrim"
             onClick={() => setShowDialog(false)}
           />
 

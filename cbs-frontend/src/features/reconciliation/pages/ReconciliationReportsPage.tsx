@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import {
   FileText,
   AlertOctagon,
@@ -13,14 +13,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/formatters';
+import { useNotificationStore } from '@/stores/notificationStore';
 import { ReconciliationReport } from '../components/ReconciliationReport';
-import {
-  generateReconciliationReport,
-  getComplianceChecklist,
-  getComplianceScoreTrend,
-  type ComplianceCheckItem,
-  type ComplianceScorePoint,
-} from '../api/reconciliationApi';
+import { useComplianceChecklist, useComplianceScoreTrend } from '../hooks/useReconciliation';
+import { generateReconciliationReport } from '../api/reconciliationApi';
 
 const REPORTS = [
   {
@@ -64,65 +60,38 @@ const CBN_REQUIREMENTS: Array<{ id: string; requirement: string }> = [
 ];
 
 export function ReconciliationReportsPage() {
-  const [complianceChecklist, setComplianceChecklist] = useState<ComplianceCheckItem[]>([]);
-  const [complianceScore, setComplianceScore] = useState<ComplianceScorePoint[]>([]);
-  const [checklistLoading, setChecklistLoading] = useState(true);
-
-  // Load compliance data
-  useEffect(() => {
-    async function load() {
-      setChecklistLoading(true);
-      try {
-        const [checklist, score] = await Promise.all([
-          getComplianceChecklist(),
-          getComplianceScoreTrend(),
-        ]);
-        setComplianceChecklist(checklist);
-        setComplianceScore(score);
-      } catch {
-        // Use fallback data if API not yet available
-        setComplianceChecklist(
-          CBN_REQUIREMENTS.map((req, i) => ({
-            id: req.id,
-            requirement: req.requirement,
-            description: req.requirement,
-            met: i < 3,
-            lastChecked: new Date().toISOString(),
-          })),
-        );
-        setComplianceScore(
-          Array.from({ length: 12 }, (_, i) => {
-            const d = new Date();
-            d.setMonth(d.getMonth() - (11 - i));
-            return {
-              month: d.toISOString().slice(0, 7),
-              score: 60 + Math.floor(Math.random() * 35),
-              target: 100,
-            };
-          }),
-        );
-      } finally {
-        setChecklistLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const addToast = useNotificationStore((s) => s.addToast);
+  const { data: complianceChecklist = [], isLoading: checklistLoading } = useComplianceChecklist();
+  const { data: complianceScore = [] } = useComplianceScoreTrend();
 
   const handleGenerate = useCallback(async (reportType: string, dateFrom: string, dateTo: string) => {
-    await generateReconciliationReport(reportType, { dateFrom, dateTo });
-  }, []);
+    try {
+      const blob = await generateReconciliationReport(reportType, { dateFrom, dateTo });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `recon-report-${reportType}-${dateFrom}-to-${dateTo}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      addToast({ type: 'success', title: 'Report Generated', message: `${reportType} report downloaded successfully.` });
+    } catch {
+      addToast({ type: 'error', title: 'Report Failed', message: 'Failed to generate report. Please try again.' });
+    }
+  }, [addToast]);
 
-  const handlePreview = useCallback((_dateFrom: string, _dateTo: string) => {
-    // Open preview modal or navigate
-  }, []);
+  const handlePreview = useCallback((dateFrom: string, dateTo: string) => {
+    handleGenerate('daily-status', dateFrom, dateTo);
+  }, [handleGenerate]);
 
-  const handleDownload = useCallback((_dateFrom: string, _dateTo: string) => {
-    // Trigger file download
-  }, []);
+  const handleDownload = useCallback((dateFrom: string, dateTo: string) => {
+    handleGenerate('daily-status', dateFrom, dateTo);
+  }, [handleGenerate]);
 
   const handleEmail = useCallback((_dateFrom: string, _dateTo: string) => {
-    // Open email composer
-  }, []);
+    addToast({ type: 'info', title: 'Email', message: 'Email distribution will be available in a future release.' });
+  }, [addToast]);
 
   const metCount = complianceChecklist.filter((c) => c.met).length;
   const compliancePercent = complianceChecklist.length > 0 ? Math.round((metCount / complianceChecklist.length) * 100) : 0;

@@ -147,7 +147,7 @@ export function CreditMarginPage() {
 
       {/* Issue Margin Call Dialog */}
       {showIssue && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowIssue(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 modal-scrim" onClick={() => setShowIssue(false)} />
           <div className="relative z-10 w-full max-w-lg mx-4 rounded-xl bg-background border shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background z-10"><h2 className="text-base font-semibold">Issue Margin Call</h2><button onClick={() => setShowIssue(false)} className="p-1.5 rounded-md hover:bg-muted">&times;</button></div>
             <div className="px-6 py-5 space-y-4">
@@ -174,7 +174,7 @@ export function CreditMarginPage() {
 
       {/* Record Collateral Dialog */}
       {showRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowRecord(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 modal-scrim" onClick={() => setShowRecord(false)} />
           <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <h3 className="font-semibold">Record Collateral Position</h3>
             <input value={collForm.positionCode} onChange={(e) => setCollForm({ ...collForm, positionCode: e.target.value })} placeholder="Position Code" className={inputCls} />
@@ -193,7 +193,7 @@ export function CreditMarginPage() {
 
       {/* Settle Dialog */}
       {settleTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSettleTarget(null)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 modal-scrim" onClick={() => setSettleTarget(null)} />
           <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <h3 className="font-semibold">Settle Margin Call</h3>
             <p className="text-xs text-muted-foreground font-mono">{settleTarget.callRef}</p>

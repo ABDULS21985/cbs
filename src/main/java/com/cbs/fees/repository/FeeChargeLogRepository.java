@@ -6,10 +6,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
+
 @Repository
 public interface FeeChargeLogRepository extends JpaRepository<FeeChargeLog, Long> {
 
     Page<FeeChargeLog> findByAccountIdOrderByChargedAtDesc(Long accountId, Pageable pageable);
 
     Page<FeeChargeLog> findByFeeCodeOrderByChargedAtDesc(String feeCode, Pageable pageable);
+
+    /** Efficient single-status lookup — replaces findAll().stream().filter() */
+    List<FeeChargeLog> findByStatusOrderByChargedAtDesc(String status);
+
+    /** Multi-status lookup for waiver history (PENDING / WAIVED / REJECTED) */
+    List<FeeChargeLog> findByStatusInOrderByChargedAtDesc(Collection<String> statuses);
 }

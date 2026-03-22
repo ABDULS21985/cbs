@@ -25,7 +25,10 @@ export interface CustomerCase {
   rootCause?: string;
   resolution?: string;
   compensationAmount?: number;
-  compensationApproved?: boolean;
+  compensationApproved?: boolean | null;
+  compensationApprovedBy?: string;
+  compensationApprovedAt?: string;
+  compensationRejectionReason?: string;
   slaDueAt: string;
   slaBreached: boolean;
   channelOriginated?: string;
@@ -98,6 +101,12 @@ export const caseApi = {
     }),
   addAttachment: (caseNumber: string, file: File) =>
     apiUpload<CaseAttachment>(`/api/v1/cases/${caseNumber}/attachments`, file),
+  setCompensation: (caseNumber: string, amount: number) =>
+    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/compensation`, { amount }),
+  approveCompensation: (caseNumber: string) =>
+    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/compensation/approve`),
+  rejectCompensation: (caseNumber: string, reason?: string) =>
+    apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/compensation/reject${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`),
   getStats: () =>
     apiGet<CaseStats>('/api/v1/cases/stats'),
   getMyCases: () =>
@@ -107,7 +116,7 @@ export const caseApi = {
   getByCustomer: (customerId: number) =>
     apiGet<CustomerCase[]>(`/api/v1/cases/customer/${customerId}`),
   getEscalated: () =>
-    apiGet<CustomerCase[]>('/api/v1/cases', { status: 'ESCALATED' }),
+    apiGet<CustomerCase[]>('/api/v1/cases/escalated'),
   getSlaBreached: () =>
     apiGet<CustomerCase[]>('/api/v1/cases/sla-breached'),
 };

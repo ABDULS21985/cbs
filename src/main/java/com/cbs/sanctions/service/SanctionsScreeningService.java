@@ -119,6 +119,68 @@ public class SanctionsScreeningService {
         return screeningRepository.save(request);
     }
 
+    @Transactional
+    public ScreeningRequest confirmMatch(Long screeningId) {
+        ScreeningRequest request = screeningRepository.findById(screeningId)
+                .orElseThrow(() -> new ResourceNotFoundException("ScreeningRequest", "id", screeningId));
+        request.getMatches().stream()
+                .filter(m -> "PENDING".equals(m.getDisposition()))
+                .forEach(m -> {
+                    m.setDisposition("TRUE_MATCH");
+                    m.setDisposedBy("SYSTEM");
+                    m.setDisposedAt(Instant.now());
+                });
+        long trueCount = request.getMatches().stream().filter(m -> "TRUE_MATCH".equals(m.getDisposition())).count();
+        request.setTrueMatches((int) trueCount);
+        boolean allDisposed = request.getMatches().stream().noneMatch(m -> "PENDING".equals(m.getDisposition()));
+        if (allDisposed) {
+            request.setStatus("CONFIRMED_MATCH");
+            request.setReviewedBy("SYSTEM");
+            request.setReviewedAt(Instant.now());
+        }
+        log.info("Sanctions match confirmed: screeningId={}, trueMatches={}", screeningId, trueCount);
+        return screeningRepository.save(request);
+    }
+
+    @Transactional
+    public ScreeningRequest markFalsePositive(Long screeningId) {
+        ScreeningRequest request = screeningRepository.findById(screeningId)
+                .orElseThrow(() -> new ResourceNotFoundException("ScreeningRequest", "id", screeningId));
+        request.getMatches().stream()
+                .filter(m -> "PENDING".equals(m.getDisposition()))
+                .forEach(m -> {
+                    m.setDisposition("FALSE_POSITIVE");
+                    m.setDisposedBy("SYSTEM");
+                    m.setDisposedAt(Instant.now());
+                });
+        long fpCount = request.getMatches().stream().filter(m -> "FALSE_POSITIVE".equals(m.getDisposition())).count();
+        request.setFalsePositives((int) fpCount);
+        boolean allDisposed = request.getMatches().stream().noneMatch(m -> "PENDING".equals(m.getDisposition()));
+        if (allDisposed) {
+            long trueCount = request.getMatches().stream().filter(m -> "TRUE_MATCH".equals(m.getDisposition())).count();
+            request.setStatus(trueCount > 0 ? "CONFIRMED_MATCH" : "CLEAR");
+            request.setReviewedBy("SYSTEM");
+            request.setReviewedAt(Instant.now());
+        }
+        log.info("Sanctions match marked false positive: screeningId={}, fpCount={}", screeningId, fpCount);
+        return screeningRepository.save(request);
+    }
+
+    @Transactional
+    public Watchlist refreshWatchlist(Long watchlistId) {
+        Watchlist wl = watchlistRepository.findById(watchlistId)
+                .orElseThrow(() -> new ResourceNotFoundException("Watchlist", "id", watchlistId));
+        // Refresh the entry timestamp — in production this would trigger an external list sync
+        wl.setLastUpdated(Instant.now());
+        // Delist entries that have a delisted date in the past
+        if (wl.getDelistedDate() != null && wl.getDelistedDate().isBefore(java.time.LocalDate.now())) {
+            wl.setIsActive(false);
+            log.info("Watchlist entry delisted during refresh: listCode={}, entryId={}", wl.getListCode(), wl.getEntryId());
+        }
+        log.info("Watchlist refreshed: id={}, listCode={}, entryId={}", watchlistId, wl.getListCode(), wl.getEntryId());
+        return watchlistRepository.save(wl);
+    }
+
     public Page<ScreeningRequest> getPendingReview(Pageable pageable) {
         return screeningRepository.findByStatusOrderByCreatedAtDesc("POTENTIAL_MATCH", pageable);
     }

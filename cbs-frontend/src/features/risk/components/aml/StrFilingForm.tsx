@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { FileText, Upload, Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { FileText, Upload, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiUpload } from '@/lib/api';
 import { useCreateStr } from '../../hooks/useAmlAlerts';
 import type { AmlAlert, AmlTransaction, StrReport } from '../../types/aml';
 
@@ -16,6 +18,22 @@ export function StrFilingForm({ alert, transactions = [], onSuccess }: Props) {
   const [selectedTxIds, setSelectedTxIds] = useState<Set<number>>(new Set());
   const [reviewer, setReviewer] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<{ id: number; fileName: string }[]>([]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = await apiUpload<{ id: number; fileName: string }>(
+        '/api/v1/documents/upload', file, 'file'
+      );
+      setUploadedFiles(prev => [...prev, result]);
+      toast.success(`File "${file.name}" uploaded`);
+    } catch {
+      toast.error('File upload failed');
+    }
+    e.target.value = '';
+  };
 
   const toggleTx = (id: number) => {
     setSelectedTxIds((prev) => {
@@ -28,17 +46,19 @@ export function StrFilingForm({ alert, transactions = [], onSuccess }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const data: Partial<StrReport> = {
-      customerId: alert?.customerId,
-      customerName: alert?.customerName,
-      description,
-      filingOfficer: 'Current User',
-      status: 'DRAFT',
+    const data = {
+      alertId: alert?.id ?? 0,
+      reference: `STR-${alert?.id ?? 0}-${Date.now()}`,
+      filedBy: 'Current User',
     };
     createStr.mutate(data, {
       onSuccess: (str) => {
+        toast.success('STR submitted successfully');
         setSubmitted(true);
         onSuccess?.(str);
+      },
+      onError: () => {
+        toast.error('Failed to submit STR');
       },
     });
   };
@@ -146,11 +166,28 @@ export function StrFilingForm({ alert, transactions = [], onSuccess }: Props) {
             Drag & drop files or{' '}
             <label className="text-primary cursor-pointer underline">
               browse
-              <input type="file" multiple className="sr-only" />
+              <input type="file" multiple className="sr-only" onChange={handleFileUpload} />
             </label>
           </p>
           <p className="text-xs text-muted-foreground mt-1">PDF, PNG, JPG up to 10MB each</p>
         </div>
+        {uploadedFiles.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {uploadedFiles.map((f) => (
+              <div key={f.id} className="flex items-center gap-2 text-sm text-foreground bg-muted/50 rounded-md px-3 py-1.5">
+                <Check className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                <span className="truncate">{f.fileName}</span>
+                <button
+                  type="button"
+                  onClick={() => setUploadedFiles(prev => prev.filter(u => u.id !== f.id))}
+                  className="ml-auto text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">

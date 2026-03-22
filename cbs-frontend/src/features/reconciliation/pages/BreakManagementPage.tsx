@@ -1,25 +1,27 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { X, Users, ArrowUpCircle, Filter, ChevronRight } from 'lucide-react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable } from '@/components/shared/DataTable';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { cn } from '@/lib/utils';
-import { formatMoney, formatDate, formatDateTime } from '@/lib/formatters';
+import { formatMoney } from '@/lib/formatters';
+import { useNotificationStore } from '@/stores/notificationStore';
 import { BreakResolutionForm } from '../components/BreakResolutionForm';
 import { BreakTimeline } from '../components/BreakTimeline';
 import { EscalationPanel } from '../components/EscalationPanel';
 import {
-  getBreaks,
-  getBreakTimeline,
-  resolveBreak,
-  escalateBreak,
-  addBreakNote,
-  bulkAssignBreaks,
-  bulkEscalateBreaks,
+  useBreaks,
+  useBreakTimeline,
+  useResolveBreak,
+  useEscalateBreak,
+  useAddBreakNote,
+  useBulkAssignBreaks,
+  useBulkEscalateBreaks,
+} from '../hooks/useReconciliation';
+import {
   type BreakItem,
   type BreakStatus,
-  type BreakTimelineEvent,
   type ReconciliationEntry,
 } from '../api/reconciliationApi';
 
@@ -43,12 +45,9 @@ const AGING_BUCKETS = [
 ];
 
 export function BreakManagementPage() {
-  const [breaks, setBreaks] = useState<BreakItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const addToast = useNotificationStore((s) => s.addToast);
   const [selectedBreak, setSelectedBreak] = useState<BreakItem | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>('details');
-  const [timeline, setTimeline] = useState<BreakTimelineEvent[]>([]);
-  const [timelineLoading, setTimelineLoading] = useState(false);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<BreakStatus | ''>('');
@@ -62,26 +61,22 @@ export function BreakManagementPage() {
   const [bulkAssignee, setBulkAssignee] = useState('');
   const [showBulkAssign, setShowBulkAssign] = useState(false);
 
-  // Load breaks
-  const loadBreaks = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string> = {};
-      if (statusFilter) params.status = statusFilter;
-      if (currencyFilter) params.currency = currencyFilter;
-      if (assignedToFilter) params.assignedTo = assignedToFilter;
-      const data = await getBreaks(params as any);
-      setBreaks(data);
-    } catch {
-      // handled by global error handler
-    } finally {
-      setLoading(false);
-    }
+  // React Query hooks
+  const queryParams = useMemo(() => {
+    const p: { status?: BreakStatus; currency?: string; assignedTo?: string } = {};
+    if (statusFilter) p.status = statusFilter;
+    if (currencyFilter) p.currency = currencyFilter;
+    if (assignedToFilter) p.assignedTo = assignedToFilter;
+    return p;
   }, [statusFilter, currencyFilter, assignedToFilter]);
 
-  useEffect(() => {
-    loadBreaks();
-  }, [loadBreaks]);
+  const { data: breaks = [], isLoading: loading } = useBreaks(queryParams);
+  const { data: timeline = [], isLoading: timelineLoading } = useBreakTimeline(selectedBreak?.id ?? '');
+  const resolveMutation = useResolveBreak();
+  const escalateMutation = useEscalateBreak();
+  const addNoteMutation = useAddBreakNote();
+  const bulkAssignMutation = useBulkAssignBreaks();
+  const bulkEscalateMutation = useBulkEscalateBreaks();
 
   // Filtered breaks by aging
   const filteredBreaks = useMemo(() => {
@@ -95,75 +90,104 @@ export function BreakManagementPage() {
     });
   }, [breaks, agingFilter]);
 
-  // Load timeline when detail panel opens
-  const openDetail = useCallback(async (breakItem: BreakItem) => {
+  const openDetail = useCallback((breakItem: BreakItem) => {
     setSelectedBreak(breakItem);
     setDetailTab('details');
-    setTimelineLoading(true);
-    try {
-      const events = await getBreakTimeline(breakItem.id);
-      setTimeline(events);
-    } catch {
-      setTimeline([]);
-    } finally {
-      setTimelineLoading(false);
-    }
   }, []);
 
   const handleResolve = useCallback(
-    async (data: any) => {
+    (data: any) => {
       if (!selectedBreak) return;
-      await resolveBreak(selectedBreak.id, {
-        resolutionType: data.resolutionType === 'WRITE_OFF' ? 'WRITE_OFF' : data.resolutionType === 'JOURNAL_ENTRY' ? 'CORRECTION' : 'ESCALATE',
-        reason: data.reason,
-        glAccount: data.glAccount,
-      });
-      setSelectedBreak(null);
-      loadBreaks();
+      resolveMutation.mutate(
+        {
+          breakId: selectedBreak.id,
+          data: {
+            resolutionType: data.resolutionType === 'WRITE_OFF' ? 'WRITE_OFF' : data.resolutionType === 'JOURNAL_ENTRY' ? 'CORRECTION' : 'ESCALATE',
+            reason: data.reason,
+            glAccount: data.glAccount,
+          },
+        },
+        {
+          onSuccess: () => {
+            addToast({ type: 'success', title: 'Break Resolved', message: `Break for ${selectedBreak.accountNumber} resolved successfully.` });
+            setSelectedBreak(null);
+          },
+          onError: () => {
+            addToast({ type: 'error', title: 'Resolution Failed', message: 'Failed to resolve break. Please try again.' });
+          },
+        },
+      );
     },
-    [selectedBreak, loadBreaks],
+    [selectedBreak, resolveMutation, addToast],
   );
 
   const handleEscalate = useCallback(
-    async (notes: string) => {
+    (notes: string) => {
       if (!selectedBreak) return;
-      await escalateBreak(selectedBreak.id, notes);
-      setSelectedBreak(null);
-      loadBreaks();
+      escalateMutation.mutate(
+        { breakId: selectedBreak.id, notes },
+        {
+          onSuccess: () => {
+            addToast({ type: 'success', title: 'Break Escalated', message: `Break escalated to next level.` });
+            setSelectedBreak(null);
+          },
+          onError: () => {
+            addToast({ type: 'error', title: 'Escalation Failed', message: 'Failed to escalate break.' });
+          },
+        },
+      );
     },
-    [selectedBreak, loadBreaks],
+    [selectedBreak, escalateMutation, addToast],
   );
 
   const handleAddNote = useCallback(
-    async (notes: string) => {
+    (notes: string) => {
       if (!selectedBreak) return;
-      const event = await addBreakNote(selectedBreak.id, notes);
-      setTimeline((prev) => [...prev, event]);
+      addNoteMutation.mutate(
+        { breakId: selectedBreak.id, notes },
+        {
+          onSuccess: () => {
+            addToast({ type: 'success', title: 'Note Added', message: 'Timeline note added successfully.' });
+          },
+        },
+      );
     },
-    [selectedBreak],
+    [selectedBreak, addNoteMutation, addToast],
   );
 
-  const handleBulkAssign = useCallback(async () => {
+  const handleBulkAssign = useCallback(() => {
     if (!bulkAssignee.trim() || selectedRows.length === 0) return;
-    await bulkAssignBreaks(
-      selectedRows.map((r) => r.id),
-      bulkAssignee.trim(),
+    bulkAssignMutation.mutate(
+      { breakIds: selectedRows.map((r) => r.id), assignedTo: bulkAssignee.trim() },
+      {
+        onSuccess: () => {
+          addToast({ type: 'success', title: 'Breaks Assigned', message: `${selectedRows.length} breaks assigned to ${bulkAssignee}.` });
+          setBulkAssignee('');
+          setShowBulkAssign(false);
+          setSelectedRows([]);
+        },
+        onError: () => {
+          addToast({ type: 'error', title: 'Assignment Failed', message: 'Failed to assign breaks.' });
+        },
+      },
     );
-    setBulkAssignee('');
-    setShowBulkAssign(false);
-    setSelectedRows([]);
-    loadBreaks();
-  }, [bulkAssignee, selectedRows, loadBreaks]);
+  }, [bulkAssignee, selectedRows, bulkAssignMutation, addToast]);
 
-  const handleBulkEscalate = useCallback(async () => {
+  const handleBulkEscalate = useCallback(() => {
     if (selectedRows.length === 0) return;
-    await bulkEscalateBreaks(
-      selectedRows.map((r) => r.id),
-      'Bulk escalation from break management',
+    bulkEscalateMutation.mutate(
+      { breakIds: selectedRows.map((r) => r.id), notes: 'Bulk escalation from break management' },
+      {
+        onSuccess: () => {
+          addToast({ type: 'success', title: 'Breaks Escalated', message: `${selectedRows.length} breaks escalated.` });
+          setSelectedRows([]);
+        },
+        onError: () => {
+          addToast({ type: 'error', title: 'Escalation Failed', message: 'Failed to escalate breaks.' });
+        },
+      },
     );
-    setSelectedRows([]);
-    loadBreaks();
-  }, [selectedRows, loadBreaks]);
+  }, [selectedRows, bulkEscalateMutation, addToast]);
 
   // Build a synthetic ReconciliationEntry for the resolution form
   const buildResolutionEntry = (brk: BreakItem): ReconciliationEntry => ({

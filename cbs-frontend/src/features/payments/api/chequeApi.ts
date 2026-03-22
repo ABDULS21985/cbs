@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 
 export interface ChequeLeaf {
   leafNumber: number;
@@ -103,19 +103,22 @@ export const chequeApi = {
     leaves: number;
     collectionBranch: string;
   }): Promise<ChequeBook> =>
-    apiPost<ChequeBook>('/api/v1/cheques/books', data),
+    apiPost<ChequeBook>('/api/v1/cheques/books/request', data),
 
   getClearingQueue: (params?: Record<string, unknown>): Promise<ClearingCheque[]> =>
     apiGet<ClearingCheque[]>('/api/v1/cheques/clearing', params),
 
   clearCheque: (id: string): Promise<void> =>
-    apiPost<void>(`/api/v1/cheques/clearing/${id}/clear`),
+    apiPost<void>(`/api/v1/cheques/${id}/clear`),
 
   returnCheque: (id: string, data: { reasonCode: string; notes?: string }): Promise<void> =>
-    apiPost<void>(`/api/v1/cheques/clearing/${id}/return`, data),
+    apiPostParams<void>(`/api/v1/cheques/${id}/return`, {
+      reasonCode: data.reasonCode,
+      notes: data.notes,
+    }),
 
   holdCheque: (id: string, reason: string): Promise<void> =>
-    apiPost<void>(`/api/v1/cheques/clearing/${id}/hold`, { reason }),
+    apiPostParams<void>(`/api/v1/cheques/${id}/hold`, { reason }),
 
   getStopPayments: (params?: Record<string, unknown>): Promise<StopPayment[]> =>
     apiGet<StopPayment[]>('/api/v1/cheques/stop-payments', params),

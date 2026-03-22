@@ -117,6 +117,17 @@ public class MarketDataSwitchService {
         return qualityMetricRepository.findByFeedIdAndMetricDateBetweenOrderByMetricDateAsc(feedId, from, to);
     }
 
+    /** Return the most recent metric for every feed within the date window. */
+    public List<FeedQualityMetric> getAllFeedQualityMetrics(LocalDate from, LocalDate to) {
+        List<FeedQualityMetric> all = qualityMetricRepository.findByMetricDateBetweenOrderByFeedIdAscMetricDateDesc(from, to);
+        // Deduplicate: keep only the most recent entry per feedId
+        java.util.Map<Long, FeedQualityMetric> latest = new java.util.LinkedHashMap<>();
+        for (FeedQualityMetric m : all) {
+            latest.putIfAbsent(m.getFeedId(), m);
+        }
+        return new java.util.ArrayList<>(latest.values());
+    }
+
     public Map<String, Object> alertOnDegradation(Long feedId) {
         List<FeedQualityMetric> recent = qualityMetricRepository.findByFeedIdOrderByMetricDateDesc(feedId);
         if (!recent.isEmpty()) {

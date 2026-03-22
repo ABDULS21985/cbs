@@ -8,12 +8,12 @@ interface TopBarProps {
 
 export function TopBar({ onToggleSidebar }: TopBarProps) {
   return (
-    <header className="flex items-center justify-between h-14 px-4 border-b bg-card flex-shrink-0">
+    <header className="app-topbar">
       {/* Left */}
       <div className="flex items-center gap-3">
         <button
           onClick={onToggleSidebar}
-          className="lg:hidden p-2 rounded-md hover:bg-muted transition-colors"
+          className="gloss-pill rounded-xl p-2 text-muted-foreground transition-colors hover:text-foreground lg:hidden"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -21,18 +21,18 @@ export function TopBar({ onToggleSidebar }: TopBarProps) {
         {/* Search trigger */}
         <button
           onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors w-72"
+          className="gloss-pill hidden w-72 items-center gap-2 rounded-2xl px-3.5 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:flex"
         >
           <Search className="w-4 h-4" />
           <span>Search...</span>
-          <kbd className="ml-auto text-xs bg-background/80 px-1.5 py-0.5 rounded font-mono border">⌘K</kbd>
+          <kbd className="ml-auto rounded-lg border border-white/10 bg-black/20 px-1.5 py-0.5 font-mono text-xs text-slate-300">⌘K</kbd>
         </button>
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-1">
+      <div className="relative z-50 flex items-center gap-1">
         <NotificationBell />
-        <div className="ml-1 pl-2 border-l">
+        <div className="ml-1 border-l border-white/10 pl-2">
           <UserDropdown />
         </div>
       </div>

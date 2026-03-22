@@ -30,10 +30,11 @@ describe('ChequeManagementPage', () => {
   it('renders tabs', () => {
     setupHandlers();
     renderWithProviders(<ChequeManagementPage />);
-    expect(screen.getByText('Cheque Books')).toBeInTheDocument();
-    expect(screen.getByText('Clearing')).toBeInTheDocument();
-    expect(screen.getByText('Stop Payments')).toBeInTheDocument();
-    expect(screen.getByText('Returns')).toBeInTheDocument();
+    // Tab labels may appear multiple times (tab + stat card), use getAllByText
+    expect(screen.getAllByText('Cheque Books').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Clearing').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Stop Payments').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Returns').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders the subtitle', () => {

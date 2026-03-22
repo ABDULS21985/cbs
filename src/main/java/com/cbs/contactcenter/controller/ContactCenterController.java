@@ -45,6 +45,23 @@ public class ContactCenterController {
     // CONTACT CENTER EXTENDED ENDPOINTS
     // ========================================================================
 
+    @GetMapping("/agents/me")
+    @Operation(summary = "Get the agent record for the currently authenticated user")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<AgentState>> getMyAgentRecord(java.security.Principal principal) {
+        String username = principal != null ? principal.getName() : null;
+        if (username == null) {
+            return ResponseEntity.ok(ApiResponse.ok(null));
+        }
+        // Try exact match on agentId first, then agentName
+        return agentStateRepository.findByAgentId(username)
+                .or(() -> agentStateRepository.findAll().stream()
+                        .filter(a -> username.equalsIgnoreCase(a.getAgentId()) || username.equalsIgnoreCase(a.getAgentName()))
+                        .findFirst())
+                .map(agent -> ResponseEntity.ok(ApiResponse.ok(agent)))
+                .orElse(ResponseEntity.ok(ApiResponse.ok(null)));
+    }
+
     @GetMapping("/agents")
     @Operation(summary = "List all agents with current state")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")

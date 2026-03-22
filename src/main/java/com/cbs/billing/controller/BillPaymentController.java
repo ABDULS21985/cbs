@@ -1,11 +1,13 @@
 package com.cbs.billing.controller;
 
+import com.cbs.billing.dto.BillPaymentRequestDto;
 import com.cbs.billing.entity.*;
 import com.cbs.billing.service.BillPaymentService;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -52,13 +54,14 @@ public class BillPaymentController {
     @PostMapping("/pay")
     @Operation(summary = "Pay a bill")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<BillPayment>> payBill(
-            @RequestParam Long debitAccountId, @RequestParam String billerCode,
-            @RequestParam String billerCustomerId,
-            @RequestParam(required = false) String billerCustomerName,
-            @RequestParam BigDecimal amount) {
+    public ResponseEntity<ApiResponse<BillPayment>> payBill(@Valid @RequestBody BillPaymentRequestDto request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
-                billPaymentService.payBill(debitAccountId, billerCode, billerCustomerId, billerCustomerName, amount)));
+                billPaymentService.payBill(
+                        request.getDebitAccountId(),
+                        request.getBillerCode(),
+                        request.getBillerCustomerId(),
+                        request.getBillerCustomerName(),
+                        request.getAmount())));
     }
 
     // ========================================================================

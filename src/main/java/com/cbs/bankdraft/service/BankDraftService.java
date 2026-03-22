@@ -100,6 +100,8 @@ public class BankDraftService {
         return expired.size();
     }
 
+    public List<BankDraft> getAll() { return draftRepository.findAll(); }
+
     public List<BankDraft> getByCustomer(Long customerId) { return draftRepository.findByCustomerIdOrderByCreatedAtDesc(customerId); }
 
     private BankDraft getByNumber(String number) {

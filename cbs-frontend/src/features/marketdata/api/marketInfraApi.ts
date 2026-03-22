@@ -16,36 +16,30 @@ interface BackendMarketDataSwitch {
   id: number;
   switchName: string;
   switchType: string;
-  inputFeeds: Record<string, unknown>;
-  outputSubscribers: Record<string, unknown>;
-  transformationRules: Record<string, unknown>;
-  filterRules: Record<string, unknown>;
-  validationRules: Record<string, unknown>;
-  throughputPerSecond: number;
-  latencyMs: number;
-  lastProcessedAt: string;
-  totalProcessedToday: number;
-  totalRejectedToday: number;
-  totalErrorsToday: number;
   status: string;
+  lastProcessedAt: string;
+}
+
+/** Backend SwitchDashboardDto returned by GET /v1/market-data-switch/dashboard. */
+interface SwitchDashboardDto {
+  totalFeeds: number;
+  activeFeeds: number;
+  messagesPerSec: number;
+  errorRate: number;
+  uptimePct: number;
 }
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
 
-/** Derive a SwitchDashboard summary from a list of backend MarketDataSwitch entities. */
-function deriveSwitchDashboard(switches: BackendMarketDataSwitch[]): SwitchDashboard {
-  const totalFeeds = switches.length;
-  const activeFeeds = switches.filter(s => s.status === 'RUNNING' || s.status === 'ACTIVE').length;
-  const messagesPerSec = switches.reduce((sum, s) => sum + (s.throughputPerSecond ?? 0), 0);
-  const totalProcessed = switches.reduce((sum, s) => sum + (s.totalProcessedToday ?? 0), 0);
-  const totalErrors = switches.reduce((sum, s) => sum + (s.totalErrorsToday ?? 0), 0);
-  const errorRate = totalProcessed > 0 ? (totalErrors / totalProcessed) * 100 : 0;
-  const uptimePct = totalFeeds > 0 ? (activeFeeds / totalFeeds) * 100 : 0;
-  const latest = switches.reduce<string | undefined>(
-    (max, s) => (!max || (s.lastProcessedAt && s.lastProcessedAt > max) ? s.lastProcessedAt : max),
-    undefined,
-  );
-  return { totalFeeds, activeFeeds, messagesPerSec, errorRate, uptimePct, lastUpdated: latest };
+/** Map backend SwitchDashboardDto → frontend SwitchDashboard. */
+function mapSwitchDashboard(dto: SwitchDashboardDto): SwitchDashboard {
+  return {
+    totalFeeds: dto.totalFeeds,
+    activeFeeds: dto.activeFeeds,
+    messagesPerSec: dto.messagesPerSec,
+    errorRate: Number(dto.errorRate) || 0,
+    uptimePct: Number(dto.uptimePct) || 0,
+  };
 }
 
 /** Map backend MarketDataSwitch entity → frontend MarketDataSwitch. */
@@ -80,12 +74,11 @@ function mapSubscriptionHealth(raw: MarketDataSubscription): SubscriptionHealth 
 // ─── Market Data Switch ──────────────────────────────────────────────────────
 
 /**
- * The backend GET /dashboard returns List<MarketDataSwitch>, NOT a summary object.
- * We derive the SwitchDashboard from the list.
+ * GET /dashboard returns a SwitchDashboardDto (single aggregated object).
  */
 export const getSwitchDashboard = async (): Promise<SwitchDashboard> => {
-  const raw = await apiGet<BackendMarketDataSwitch[]>('/api/v1/market-data-switch/dashboard');
-  return deriveSwitchDashboard(raw);
+  const dto = await apiGet<SwitchDashboardDto>('/api/v1/market-data-switch/dashboard');
+  return mapSwitchDashboard(dto);
 };
 
 /**
@@ -101,7 +94,10 @@ export const listSubscriptions = (params?: Record<string, unknown>) =>
   apiGet<MarketDataSubscription[]>('/api/v1/market-data-switch/subscriptions', params);
 
 export const registerSwitch = async (input: { name: string; type: string }): Promise<MarketDataSwitch> => {
-  const raw = await apiPost<BackendMarketDataSwitch>('/api/v1/market-data-switch', input);
+  const raw = await apiPost<BackendMarketDataSwitch>('/api/v1/market-data-switch', {
+    switchName: input.name,
+    switchType: input.type,
+  });
   return mapSwitch(raw);
 };
 
@@ -142,6 +138,6 @@ export const getActiveMandates = () =>
 export const getMandatePerformance = (code: string) =>
   apiGet<MarketMakingActivity[]>(`/api/v1/market-making/${code}/performance`);
 
-/** GET /api/v1/market-making/obligation-compliance — compliance status for all mandates. */
+/** GET /api/v1/market-making/obligation-compliance — daily activity compliance records. */
 export const getObligationCompliance = () =>
-  apiGet<MarketMakingMandate[]>('/api/v1/market-making/obligation-compliance');
+  apiGet<MarketMakingActivity[]>('/api/v1/market-making/obligation-compliance');

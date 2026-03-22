@@ -13,6 +13,7 @@ import {
   useOverrideSuitabilityCheck,
 } from '../hooks/useCapitalMarketsExt';
 import type { ClientRiskProfile, SuitabilityCheck } from '../types/suitability';
+import { useAuthStore } from '@/stores/authStore';
 import { toast } from 'sonner';
 
 const RESULT_COLORS: Record<string, string> = {
@@ -71,6 +72,7 @@ function RiskProfilesTab() {
 function ChecksTab() {
   const { data: checks = [], isLoading } = useSuitabilityChecks();
   const override = useOverrideSuitabilityCheck();
+  const currentUser = useAuthStore((s) => s.user);
   const [overrideRef, setOverrideRef] = useState<string | null>(null);
   const [justification, setJustification] = useState('');
 
@@ -96,7 +98,7 @@ function ChecksTab() {
             <button onClick={() => setOverrideRef(null)} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
             <h2 className="text-lg font-semibold mb-4">Override Suitability Check</h2>
             <p className="text-sm text-muted-foreground mb-4">Ref: {overrideRef}</p>
-            <form onSubmit={(e) => { e.preventDefault(); override.mutate({ ref: overrideRef, justification, approver: 'current-user' }, { onSuccess: () => { toast.success('Override applied'); setOverrideRef(null); } }); }} className="space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); override.mutate({ ref: overrideRef, justification, approver: currentUser?.username ?? currentUser?.fullName ?? 'unknown' }, { onSuccess: () => { toast.success('Override applied'); setOverrideRef(null); } }); }} className="space-y-4">
               <div><label className="text-sm font-medium text-muted-foreground">Justification</label><textarea className="w-full mt-1 input min-h-[80px]" value={justification} onChange={(e) => setJustification(e.target.value)} required placeholder="Provide justification for override..." /></div>
               <div className="flex justify-end gap-2"><button type="button" onClick={() => setOverrideRef(null)} className="btn-secondary">Cancel</button><button type="submit" disabled={override.isPending} className="btn-primary">{override.isPending ? 'Applying...' : 'Apply Override'}</button></div>
             </form>

@@ -8,6 +8,7 @@ import java.util.List;
 
 @Repository
 public interface BranchServicePlanRepository extends JpaRepository<BranchServicePlan, Long> {
+    List<BranchServicePlan> findByBranchId(Long branchId);
     List<BranchServicePlan> findByBranchIdAndStatus(Long branchId, String status);
     List<BranchServicePlan> findByStatusOrderByPeriodStartDesc(String status);
 }

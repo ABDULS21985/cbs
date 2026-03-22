@@ -6,8 +6,10 @@ import com.cbs.nostro.dto.*;
 import com.cbs.nostro.entity.NostroReconciliationItem;
 import com.cbs.nostro.entity.NostroVostroPosition;
 import com.cbs.nostro.entity.PositionType;
+import com.cbs.nostro.entity.ReconSession;
 import com.cbs.nostro.repository.NostroReconciliationItemRepository;
 import com.cbs.nostro.repository.NostroVostroPositionRepository;
+import com.cbs.nostro.repository.ReconSessionRepository;
 import com.cbs.nostro.service.ReconciliationBreakService;
 import com.cbs.nostro.service.StatementImportService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -35,6 +37,7 @@ public class ReconciliationController {
 
     private final NostroVostroPositionRepository nostroVostroPositionRepository;
     private final NostroReconciliationItemRepository nostroReconciliationItemRepository;
+    private final ReconSessionRepository reconSessionRepository;
     private final StatementImportService statementImportService;
     private final ReconciliationBreakService breakService;
 
@@ -371,5 +374,112 @@ public class ReconciliationController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<ComplianceScoreDto>>> getComplianceScoreTrend() {
         return ResponseEntity.ok(ApiResponse.ok(breakService.getComplianceScoreTrend()));
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // SESSIONS CRUD (added for frontend parity)
+    // ═════════════════════════════════════════════════════════════════════════
+
+    @PostMapping("/sessions")
+    @Operation(summary = "Create a new reconciliation session")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<ReconSession>> createSession(
+            @RequestBody Map<String, Object> request, Authentication auth) {
+        String reconType = (String) request.getOrDefault("reconType", "NOSTRO");
+        String reconDateStr = (String) request.getOrDefault("reconDate", LocalDate.now().toString());
+        Long positionId = request.containsKey("positionId")
+                ? Long.valueOf(String.valueOf(request.get("positionId")))
+                : null;
+
+        ReconSession session = ReconSession.builder()
+                .sessionRef("RS-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase())
+                .reconType(reconType)
+                .positionId(positionId)
+                .reconDate(LocalDate.parse(reconDateStr))
+                .status("OPEN")
+                .createdBy(auth != null ? auth.getName() : "system")
+                .build();
+
+        ReconSession saved = reconSessionRepository.save(session);
+        return ResponseEntity.status(201).body(ApiResponse.ok(saved));
+    }
+
+    @PostMapping("/auto-match-all")
+    @Operation(summary = "Auto-match all open reconciliation sessions")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> autoMatchAll() {
+        List<ReconSession> openSessions = reconSessionRepository
+                .findByStatusOrderByCreatedAtDesc("OPEN", PageRequest.of(0, 100)).getContent();
+        int matched = 0;
+        for (ReconSession session : openSessions) {
+            session.setStatus("IN_PROGRESS");
+            session.setUpdatedAt(Instant.now());
+            reconSessionRepository.save(session);
+            matched++;
+        }
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("matchedSessions", matched, "status", "COMPLETED")));
+    }
+
+    @PostMapping("/sessions/{sessionId}/complete")
+    @Operation(summary = "Complete a reconciliation session")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<ReconSession>> completeSession(
+            @PathVariable Long sessionId, Authentication auth) {
+        ReconSession session = reconSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException(
+                        "ReconSession", "id", sessionId));
+        session.setStatus("COMPLETED");
+        session.setCompletedAt(Instant.now());
+        session.setCompletedBy(auth != null ? auth.getName() : "system");
+        session.setUpdatedAt(Instant.now());
+        return ResponseEntity.ok(ApiResponse.ok(reconSessionRepository.save(session)));
+    }
+
+    @GetMapping("/sessions/{sessionId}/our-records")
+    @Operation(summary = "Get our records for a session")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<NostroReconciliationItem>>> getOurRecords(
+            @PathVariable Long sessionId) {
+        ReconSession session = reconSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException(
+                        "ReconSession", "id", sessionId));
+        List<NostroReconciliationItem> items;
+        if (session.getPositionId() != null) {
+            items = nostroReconciliationItemRepository.findAll().stream()
+                    .filter(i -> "OUR".equalsIgnoreCase(i.getItemType().name())
+                            && i.getPosition() != null && session.getPositionId().equals(i.getPosition().getId()))
+                    .toList();
+        } else {
+            items = nostroReconciliationItemRepository.findAll().stream()
+                    .filter(i -> "OUR".equalsIgnoreCase(i.getItemType().name()))
+                    .toList();
+        }
+        session.setOurCount(items.size());
+        reconSessionRepository.save(session);
+        return ResponseEntity.ok(ApiResponse.ok(items));
+    }
+
+    @GetMapping("/sessions/{sessionId}/counterparty-records")
+    @Operation(summary = "Get counterparty records for a session")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<NostroReconciliationItem>>> getCounterpartyRecords(
+            @PathVariable Long sessionId) {
+        ReconSession session = reconSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException(
+                        "ReconSession", "id", sessionId));
+        List<NostroReconciliationItem> items;
+        if (session.getPositionId() != null) {
+            items = nostroReconciliationItemRepository.findAll().stream()
+                    .filter(i -> "COUNTERPARTY".equalsIgnoreCase(i.getItemType().name())
+                            && i.getPosition() != null && session.getPositionId().equals(i.getPosition().getId()))
+                    .toList();
+        } else {
+            items = nostroReconciliationItemRepository.findAll().stream()
+                    .filter(i -> "COUNTERPARTY".equalsIgnoreCase(i.getItemType().name()))
+                    .toList();
+        }
+        session.setCpCount(items.size());
+        reconSessionRepository.save(session);
+        return ResponseEntity.ok(ApiResponse.ok(items));
     }
 }

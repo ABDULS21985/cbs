@@ -356,7 +356,7 @@ export function PricingDashboardPage() {
       {/* ── Create Discount Dialog ──────────────────────────────────────────── */}
       {showCreateDiscount && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreateDiscount(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowCreateDiscount(false)} />
           <div className="relative z-10 w-full max-w-2xl mx-4 rounded-xl bg-background border shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background z-10">
               <h2 className="text-base font-semibold">New Discount Scheme</h2>
@@ -417,7 +417,7 @@ export function PricingDashboardPage() {
       {/* ── Create Special Pricing Dialog ───────────────────────────────────── */}
       {showCreatePricing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreatePricing(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowCreatePricing(false)} />
           <div className="relative z-10 w-full max-w-2xl mx-4 rounded-xl bg-background border shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background z-10">
               <h2 className="text-base font-semibold">New Special Pricing Agreement</h2>

@@ -382,11 +382,10 @@ export const statementApi = {
 
   /**
    * List subscriptions.
-   * GET /v1/statements/subscriptions with @RequestParam customerId (Long).
-   * Note: Backend uses customerId, frontend typically has accountId.
+   * GET /v1/statements/subscriptions with @RequestParam accountId (Long).
    */
   getSubscriptions: async (accountId: string): Promise<StatementSubscription[]> =>
-    apiGet<StatementSubscription[]>('/v1/statements/subscriptions', { customerId: accountId }),
+    apiGet<StatementSubscription[]>('/v1/statements/subscriptions', { accountId }),
 
   /** Create subscription. POST /v1/statements/subscriptions with @RequestBody. */
   createSubscription: (data: CreateSubscriptionData): Promise<StatementSubscription> =>

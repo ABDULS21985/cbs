@@ -13,7 +13,7 @@ export function NotificationDropdown({ onClose }: NotificationDropdownProps) {
   const recent = notifications.slice(0, 8);
 
   return (
-    <div className="absolute right-0 mt-1 w-96 rounded-xl border bg-popover shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className="absolute right-0 z-[80] mt-1 w-96 overflow-hidden rounded-xl border bg-popover shadow-[0_18px_40px_rgba(15,23,42,0.18)] animate-in fade-in slide-in-from-top-2 duration-200">
       <div className="flex items-center justify-between px-4 py-3 border-b">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold">Notifications</h3>

@@ -14,8 +14,15 @@ export function FxRateDisplay({ rate, sendingAmount, onRefresh, isRefreshing }: 
   const [secondsLeft, setSecondsLeft] = useState(30);
 
   useEffect(() => {
-    if (!rate) return;
+    if (!rate?.validUntil) {
+      setSecondsLeft(30);
+      return;
+    }
     const validUntil = new Date(rate.validUntil).getTime();
+    if (!Number.isFinite(validUntil)) {
+      setSecondsLeft(30);
+      return;
+    }
     const interval = setInterval(() => {
       const now = Date.now();
       const diff = Math.max(0, Math.round((validUntil - now) / 1000));
@@ -27,10 +34,13 @@ export function FxRateDisplay({ rate, sendingAmount, onRefresh, isRefreshing }: 
 
   if (!rate) return null;
 
-  const receivingAmount = sendingAmount * rate.inverseRate;
+  const directRate = Number.isFinite(rate.rate) ? rate.rate : 0;
+  const inverseRate = Number.isFinite(rate.inverseRate) ? rate.inverseRate : 0;
+  const receivingAmount = sendingAmount * inverseRate;
+  const hasUsableQuote = directRate > 0 && inverseRate > 0;
 
   return (
-    <div className="p-4 border rounded-md bg-muted/30 space-y-3" aria-live="polite">
+    <div className="space-y-3 rounded-md border bg-muted/30 p-4" aria-live="polite">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">FX Conversion</h4>
         <div className="flex items-center gap-2">
@@ -42,20 +52,28 @@ export function FxRateDisplay({ rate, sendingAmount, onRefresh, isRefreshing }: 
           </button>
         </div>
       </div>
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Exchange Rate</span>
-          <span className="font-mono">1 {rate.fromCurrency} = {rate.rate.toFixed(6)} {rate.toCurrency}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Inverse Rate</span>
-          <span className="font-mono">1 {rate.toCurrency} = {rate.inverseRate.toFixed(6)} {rate.fromCurrency}</span>
-        </div>
-      </div>
-      {sendingAmount > 0 && (
-        <div className="flex items-center justify-between text-sm font-semibold">
-          <span>Receiving Amount</span>
-          <span className="font-mono">{formatMoney(receivingAmount, rate.toCurrency)}</span>
+      {hasUsableQuote ? (
+        <>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Exchange Rate</span>
+              <span className="font-mono">1 {rate.sourceCurrency} = {directRate.toFixed(6)} {rate.targetCurrency}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Inverse Rate</span>
+              <span className="font-mono">1 {rate.targetCurrency} = {inverseRate.toFixed(6)} {rate.sourceCurrency}</span>
+            </div>
+          </div>
+          {sendingAmount > 0 && (
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span>Receiving Amount</span>
+              <span className="font-mono">{formatMoney(receivingAmount, rate.targetCurrency)}</span>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          FX quote is unavailable for this currency pair right now. Refresh to try again.
         </div>
       )}
       {rate.validUntil && (

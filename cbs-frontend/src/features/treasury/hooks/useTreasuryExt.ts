@@ -266,7 +266,9 @@ export function useUpdatePosition() {
   return useMutation({
     mutationFn: (data: Partial<TraderPosition>) => traderPositionsApi.updatePosition(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TREASURY_EXT_KEYS.marketOrders });
+      // Invalidate trader position caches, not market orders
+      queryClient.invalidateQueries({ queryKey: ['trader-positions'] });
+      queryClient.invalidateQueries({ queryKey: ['dealer-desks'] });
     },
   });
 }
@@ -276,7 +278,9 @@ export function useSetPositionLimit() {
   return useMutation({
     mutationFn: (data: Partial<TraderPositionLimit>) => traderPositionsApi.setLimit(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TREASURY_EXT_KEYS.marketOrders });
+      // Invalidate trader position caches so limit utilization percentages refresh
+      queryClient.invalidateQueries({ queryKey: ['trader-positions'] });
+      queryClient.invalidateQueries({ queryKey: ['dealer-desks'] });
     },
   });
 }

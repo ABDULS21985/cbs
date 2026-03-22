@@ -1,13 +1,5 @@
 import { apiGet, apiPost, apiUpload } from '@/lib/api';
-
-export interface FxRate {
-  fromCurrency: string;
-  toCurrency: string;
-  rate: number;
-  inverseRate: number;
-  validUntil: string;
-  source: string;
-}
+import { mapFxRate, type BackendFxRate, type FxRate } from './paymentApi';
 
 export interface InternationalCharges {
   transferFee: number;
@@ -70,10 +62,18 @@ export interface TransferTimelineEntry {
 }
 
 export const internationalPaymentApi = {
-  getFxRate: (fromCurrency: string, toCurrency: string) =>
-    apiGet<FxRate>('/api/v1/fx/rate', { fromCurrency, toCurrency }),
+  getFxRate: async (fromCurrency: string, toCurrency: string): Promise<FxRate | null> => {
+    const rates = await apiGet<BackendFxRate[] | BackendFxRate>('/api/v1/fx/rate', { fromCurrency, toCurrency });
+    const rawRate = Array.isArray(rates) ? rates[0] : rates;
+    return rawRate ? mapFxRate(rawRate) : null;
+  },
   previewCharges: (amount: number, currency: string, chargeType: string) =>
-    apiGet<InternationalCharges>('/api/v1/payments/international/charges', { amount, currency, chargeType }),
+    apiGet<InternationalCharges>('/api/v1/payments/international/charges', {
+      amount,
+      sourceCurrency: currency,
+      targetCurrency: 'USD',
+      chargeType,
+    }),
   runComplianceChecks: (data: Partial<InternationalTransferRequest>) =>
     apiPost<ComplianceCheck[]>('/api/v1/payments/international/compliance-check', data),
   initiateTransfer: (data: InternationalTransferRequest) =>
@@ -81,9 +81,11 @@ export const internationalPaymentApi = {
   getTransfer: (id: number) =>
     apiGet<InternationalTransferResponse>(`/api/v1/payments/international/${id}`),
   uploadDocument: (file: File) =>
-    apiUpload<{ id: number; filename: string }>('/api/v1/payments/international/documents', file),
+    apiUpload<{ id: number; filename: string }>('/api/v1/payments/international/upload-document', file),
   searchSwiftCodes: (query: string) =>
     apiGet<{ bic: string; bankName: string; country: string; city: string }[]>('/api/v1/banks/swift', { query }),
   getPurposes: () =>
     apiGet<{ code: string; label: string }[]>('/api/v1/payments/international/purposes'),
 };
+
+export type { FxRate };

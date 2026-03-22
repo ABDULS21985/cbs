@@ -66,6 +66,20 @@ public class IssuedDeviceService {
         return saved;
     }
 
+    @Transactional
+    public IssuedDevice unblock(String deviceCode) {
+        IssuedDevice device = getByCode(deviceCode);
+        if (!"BLOCKED".equals(device.getActivationStatus())) {
+            throw new BusinessException("Device " + deviceCode + " must be BLOCKED to unblock, current: " + device.getActivationStatus());
+        }
+        device.setActivationStatus("ACTIVE");
+        return repository.save(device);
+    }
+
+    public List<IssuedDevice> getAll() {
+        return repository.findAll();
+    }
+
     public List<IssuedDevice> getByCustomer(Long customerId) {
         return repository.findByCustomerIdAndActivationStatusOrderByIssuedAtDesc(customerId, "ACTIVE");
     }

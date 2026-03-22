@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import { X, RefreshCw, User, Server, Hash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -80,13 +81,19 @@ export function NotificationLogDetail({
             </div>
           )}
 
-          {/* Body */}
+          {/* Body — sanitized with DOMPurify before rendering as HTML */}
           {n.body && (
             <div>
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Body</label>
               <div
                 className="mt-1 text-sm rounded-md border p-3 bg-muted/30 max-h-60 overflow-y-auto prose prose-sm dark:prose-invert"
-                dangerouslySetInnerHTML={{ __html: n.body }}
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(n.body, {
+                    ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'pre', 'code'],
+                    ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style'],
+                    FORBID_SCRIPTS: true,
+                  }),
+                }}
               />
             </div>
           )}

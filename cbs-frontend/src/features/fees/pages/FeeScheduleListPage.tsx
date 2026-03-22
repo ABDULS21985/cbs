@@ -8,6 +8,7 @@ import { DataTable, StatCard } from '@/components/shared';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getFeeDefinitions, createFeeDefinition, type FeeDefinition, type FeeCategory, type FeeCalcType } from '../api/feeApi';
+import { feeKeys } from '../hooks/useFees';
 import { FeeComparisonPanel } from '../components/FeeComparisonPanel';
 
 // ─── Local badge helper ───────────────────────────────────────────────────────
@@ -275,7 +276,7 @@ export function FeeScheduleListPage() {
   const [showImport, setShowImport] = useState(false);
 
   const { data: fees = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['fee-definitions'],
+    queryKey: feeKeys.definitions(),
     queryFn: getFeeDefinitions,
   });
 
@@ -537,7 +538,7 @@ export function FeeScheduleListPage() {
       {showImport && (
         <ImportDialog
           onClose={() => setShowImport(false)}
-          onImported={() => queryClient.invalidateQueries({ queryKey: ['fee-definitions'] })}
+          onImported={() => queryClient.invalidateQueries({ queryKey: feeKeys.definitions() })}
         />
       )}
     </>

@@ -72,10 +72,15 @@ export function useCashflowForecasts(params?: Record<string, unknown>) {
 export function useAddDashboardWidget() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<DashboardWidget> }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<DashboardWidget>; dashboardCode?: string }) =>
       intelligenceApi.addWidget(id, data),
-    onSuccess: () => {
+    onSuccess: (_result, { dashboardCode }) => {
       qc.invalidateQueries({ queryKey: KEYS.dashboards.all });
+      // Invalidate the specific dashboard-with-widgets cache so the viewer
+      // reflects the new widget without a manual page refresh.
+      if (dashboardCode) {
+        qc.invalidateQueries({ queryKey: KEYS.dashboards.byCode(dashboardCode) });
+      }
     },
   });
 }

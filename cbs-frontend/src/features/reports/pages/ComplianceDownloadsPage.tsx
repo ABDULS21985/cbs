@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { format, startOfMonth } from 'date-fns';
 import {
   FileText,
@@ -455,7 +455,7 @@ function LargeValueReportCard() {
 /* ---------- main page ---------- */
 
 export function ComplianceDownloadsPage() {
-  document.title = 'Compliance Downloads | CBS';
+  useEffect(() => { document.title = 'Compliance Downloads | CBS'; }, []);
 
   return (
     <div className="space-y-6">

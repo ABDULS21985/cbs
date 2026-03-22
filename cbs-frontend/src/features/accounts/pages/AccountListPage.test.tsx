@@ -59,6 +59,16 @@ vi.mock('react-router-dom', async () => {
 describe('AccountListPage', () => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    // Default summary handler so stat cards always render
+    server.use(
+      http.get('/api/v1/accounts/summary', () =>
+        HttpResponse.json(wrap({ totalAccounts: 3, totalBalance: 6250000, count_ACTIVE: 2, count_DORMANT: 1 })),
+      ),
+    );
+  });
+
+  afterEach(() => {
+    server.resetHandlers();
   });
 
   it('renders the page header and stat cards after data loads', async () => {

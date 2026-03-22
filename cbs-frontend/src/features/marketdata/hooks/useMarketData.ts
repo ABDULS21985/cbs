@@ -170,7 +170,7 @@ export function useMarketResearchData(params?: Record<string, unknown>) {
 // ─── Analysis Hooks ──────────────────────────────────────────────────────────
 
 export function usePublishedAnalysis(params?: Record<string, unknown>) {
-  return useQuery({
+  return useQuery<import('../types').MarketAnalysis[]>({
     queryKey: [...marketDataKeys.analysis(), 'published', params] as const,
     queryFn: () => analysisApi.getPublished(params),
     staleTime: 30_000,
@@ -183,7 +183,7 @@ export function useMarketAnalysis(type?: AnalysisType) {
     queryFn: () =>
       type
         ? analysisApi.getAnalysisByType(type)
-        : analysisApi.getAnalysisByType('TECHNICAL'),
+        : analysisApi.getAll(),
     staleTime: 30_000,
   });
 }

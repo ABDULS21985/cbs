@@ -6,11 +6,11 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 import {
   useNotificationTemplates,
-  useCreateNotificationTemplate,
-  usePublishNotificationTemplate,
-  useArchiveNotificationTemplate,
-} from '../../admin/hooks/useAdminData';
-import type { NotificationTemplate } from '../../admin/api/notificationAdminApi';
+  useCreateTemplate,
+  usePublishTemplate,
+  useArchiveTemplate,
+} from '../hooks/useCommunications';
+import type { NotificationTemplate } from '../api/communicationApi';
 import { TemplateTable } from '../components/templates/TemplateTable';
 import { TemplateEditor } from '../components/templates/TemplateEditor';
 import { TemplateTestSendDialog } from '../components/templates/TemplateTestSendDialog';
@@ -67,9 +67,9 @@ function ActionsDropdown({ template, onEdit, onPreview, onTest, onPublish, onArc
 export function TemplateManagementPage() {
   const navigate = useNavigate();
   const { data: templates = [], isLoading } = useNotificationTemplates();
-  const createMut = useCreateNotificationTemplate();
-  const publishMut = usePublishNotificationTemplate();
-  const archiveMut = useArchiveNotificationTemplate();
+  const createMut = useCreateTemplate();
+  const publishMut = usePublishTemplate();
+  const archiveMut = useArchiveTemplate();
 
   const [showCreate, setShowCreate] = useState(false);
   const [testTarget, setTestTarget] = useState<NotificationTemplate | null>(null);
@@ -192,8 +192,8 @@ export function TemplateManagementPage() {
               onEdit={() => navigate(`/communications/templates/${t.id}`)}
               onPreview={() => navigate(`/communications/templates/${t.id}?tab=preview`)}
               onTest={() => setTestTarget(t)}
-              onPublish={() => publishMut.mutate(String(t.id), { onSuccess: () => toast.success('Published') })}
-              onArchive={() => archiveMut.mutate(String(t.id), { onSuccess: () => toast.success('Archived') })}
+              onPublish={() => publishMut.mutate(t.id, { onSuccess: () => toast.success('Published') })}
+              onArchive={() => archiveMut.mutate(t.id, { onSuccess: () => toast.success('Archived') })}
               onClone={() => handleClone(t)}
             />
           )}
@@ -203,7 +203,7 @@ export function TemplateManagementPage() {
       {/* Create Template Modal */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowCreate(false)} />
           <div className="relative z-10 w-full max-w-2xl mx-4 rounded-xl bg-background border shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background z-10">
               <h2 className="text-base font-semibold">Create Template</h2>

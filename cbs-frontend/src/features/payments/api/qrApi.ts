@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDelete } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams, apiDelete } from '@/lib/api';
 
 export interface QrCode {
   qrId: string;
@@ -55,8 +55,19 @@ export const qrApi = {
     accountName: string;
     amount?: number;
     currency?: string;
+    customerId?: number;
   }) =>
-    apiPost<{ qrId: string; qrData: string; expiresAt: string; qrImageUrl?: string }>('/api/v1/payments/qr/generate', data),
+    apiPostParams<{ qrId: string; qrData: string; expiresAt: string; qrImageUrl?: string }>(
+      '/api/v1/payments/qr/generate',
+      {
+        accountId: data.accountId,
+        customerId: data.customerId ?? 0,
+        qrType: 'DYNAMIC',
+        amount: data.amount,
+        currencyCode: data.currency ?? 'NGN',
+        merchantName: data.accountName,
+      },
+    ),
 
   getQrTransactions: (params?: Record<string, unknown>) =>
     apiGet<QrTransaction[]>('/api/v1/payments/qr/transactions', params),
@@ -71,7 +82,10 @@ export const qrApi = {
     apiDelete<void>(`/api/v1/payments/mobile-money/${id}`),
 
   verifyOtp: (id: string, otp: string) =>
-    apiPost<{ verified: boolean; message: string }>('/api/v1/payments/mobile-money/verify-otp', { id, otp }),
+    apiPostParams<{ verified: boolean; message: string }>('/api/v1/payments/mobile-money/verify-otp', {
+      linkId: id,
+      otp,
+    }),
 
   getMobileTransactions: (params?: Record<string, unknown>) =>
     apiGet<MobileTransaction[]>('/api/v1/payments/mobile-money/transactions', params),

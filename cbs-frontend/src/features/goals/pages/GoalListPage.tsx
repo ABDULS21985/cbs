@@ -59,7 +59,17 @@ export function GoalListPage() {
 
   const handleProcessAutoDebits = () => {
     processAutoDebits.mutate(undefined, {
-      onSuccess: (data) => toast.success(`Auto-debits processed: ${data?.processed ?? 0} goals`),
+      onSuccess: (data) => {
+        const { processed = 0, skipped = 0, failed = 0 } = data ?? {};
+        const parts = [`${processed} processed`];
+        if (skipped > 0) parts.push(`${skipped} skipped (low balance)`);
+        if (failed  > 0) parts.push(`${failed} failed`);
+        if (failed > 0) {
+          toast.error(`Auto-debits completed with errors: ${parts.join(', ')}`);
+        } else {
+          toast.success(`Auto-debits complete — ${parts.join(', ')}`);
+        }
+      },
       onError: () => toast.error('Failed to process auto-debits'),
     });
   };

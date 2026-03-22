@@ -110,9 +110,9 @@ function DealSummaryCard({ deal }: { deal: TreasuryDeal }) {
     ['Currency', deal.currency],
     ['Notional Amount', formatMoney(deal.amount, deal.currency)],
     ['Rate / Price', formatPercent(deal.rate)],
-    ['Value Date', formatDate(deal.bookedAt)],
+    ['Value Date', deal.valueDate ? formatDate(deal.valueDate) : deal.bookedAt ? formatDate(deal.bookedAt) : '—'],
     ['Maturity Date', deal.maturityDate ? formatDate(deal.maturityDate) : '—'],
-    ['Desk', deal.deskName || deal.deskId],
+    ['Desk', deal.deskName || deal.createdBy || '—'],
     ['Counterparty', deal.counterparty],
     ['Trader', deal.createdBy || '—'],
     ['Booked At', formatDateTime(deal.bookedAt)],
@@ -561,7 +561,8 @@ export function DealDetailPage() {
 
   const canConfirm = deal.status === 'BOOKED';
   const canSettle = deal.status === 'CONFIRMED';
-  const canAmend = deal.status !== 'SETTLED' && deal.status !== 'CANCELLED';
+  // Backend rejects amendments on SETTLED or MATURED deals (BusinessException DEAL_AMENDMENT_DENIED)
+  const canAmend = deal.status !== 'SETTLED' && deal.status !== 'MATURED' && deal.status !== 'CANCELLED' && deal.status !== 'DEFAULTED';
 
   return (
     <>

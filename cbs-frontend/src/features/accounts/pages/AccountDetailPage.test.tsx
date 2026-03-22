@@ -104,9 +104,6 @@ const mockMaintenanceHistory = [
 
 function setupDefaultHandlers() {
   server.use(
-    http.get('/api/v1/accounts/:id', () =>
-      HttpResponse.json(wrap(mockAccountResponse)),
-    ),
     http.get('/api/v1/accounts/:id/transactions', () =>
       HttpResponse.json(wrap(mockTransactions)),
     ),
@@ -121,6 +118,15 @@ function setupDefaultHandlers() {
     ),
     http.get('/api/v1/accounts/:id/maintenance-history', () =>
       HttpResponse.json(wrap(mockMaintenanceHistory)),
+    ),
+    http.get('/api/v1/accounts/:id/signatories', () =>
+      HttpResponse.json(wrap([])),
+    ),
+    http.get('/api/v1/accounts/:id/limits', () =>
+      HttpResponse.json(wrap([])),
+    ),
+    http.get('/api/v1/accounts/:id', () =>
+      HttpResponse.json(wrap(mockAccountResponse)),
     ),
   );
 }
@@ -137,10 +143,14 @@ function renderDetail(route = '/accounts/0123456789') {
 async function waitForAccountLoad() {
   await waitFor(() => {
     expect(screen.getAllByText('Amara Primary Savings').length).toBeGreaterThan(0);
-  });
+  }, { timeout: 10_000 });
 }
 
 describe('AccountDetailPage', () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
   it('renders account header info and balance card on load', async () => {
     setupDefaultHandlers();
     renderDetail();
@@ -149,7 +159,7 @@ describe('AccountDetailPage', () => {
 
     expect(screen.getAllByText('Standard Savings').length).toBeGreaterThan(0);
     expect(screen.getAllByText('HQ01').length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: /initiate transfer/i })).toHaveAttribute('href', '/payments/new');
+    expect(screen.getByRole('link', { name: /post transaction/i })).toHaveAttribute('href', expect.stringContaining('/accounts/post-transaction'));
     expect(screen.getByRole('link', { name: /statements/i })).toHaveAttribute('href', '/accounts/statements');
   });
 

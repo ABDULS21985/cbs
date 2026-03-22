@@ -1,4 +1,5 @@
 import { RefreshCw, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/formatters';
 import type { Watchlist } from '../../types/sanctions';
@@ -83,7 +84,12 @@ export function WatchlistManagementTable({ watchlists, isLoading }: Props) {
               </div>
               <div>
                 <button
-                  onClick={() => forceUpdate.mutate(wl.id)}
+                  onClick={() =>
+                    forceUpdate.mutate(wl.id, {
+                      onSuccess: () => toast.success(`Watchlist "${wl.name}" update triggered`),
+                      onError: () => toast.error(`Failed to update watchlist "${wl.name}"`),
+                    })
+                  }
                   disabled={isUpdating || wl.status === 'UPDATING'}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border hover:bg-muted disabled:opacity-50 transition-colors"
                 >

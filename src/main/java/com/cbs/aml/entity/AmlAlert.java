@@ -3,6 +3,7 @@ package com.cbs.aml.entity;
 import com.cbs.account.entity.Account;
 import com.cbs.common.audit.AuditableEntity;
 import com.cbs.customer.entity.Customer;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -85,4 +86,31 @@ public class AmlAlert extends AuditableEntity {
 
     @Column(name = "sar_filed_date")
     private LocalDate sarFiledDate;
+
+    // ── Virtual JSON fields — expose flat values the frontend expects ──────────
+
+    @JsonProperty("ruleId")
+    public Long getRuleId() { return rule != null ? rule.getId() : null; }
+
+    @JsonProperty("ruleName")
+    public String getRuleName() { return rule != null ? rule.getRuleName() : null; }
+
+    @JsonProperty("ruleCategory")
+    public String getRuleCategory() { return rule != null ? rule.getRuleCategory() != null ? rule.getRuleCategory().name() : null : null; }
+
+    @JsonProperty("customerId")
+    public Long getCustomerIdVirtual() { return customer != null ? customer.getId() : null; }
+
+    @JsonProperty("customerName")
+    public String getCustomerName() {
+        if (customer == null) return null;
+        String fn = customer.getFirstName();
+        String ln = customer.getLastName();
+        if (fn != null && ln != null) return fn + " " + ln;
+        if (fn != null) return fn;
+        return customer.getDisplayName();
+    }
+
+    @JsonProperty("accountId")
+    public Long getAccountIdVirtual() { return account != null ? account.getId() : null; }
 }

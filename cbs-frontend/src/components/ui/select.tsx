@@ -46,7 +46,7 @@ export function SelectTrigger({ children, className }: { children: ReactNode; cl
       type="button"
       onClick={() => setOpen(!open)}
       className={cn(
-        'flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+        'field-control justify-between',
         className,
       )}
     >
@@ -86,7 +86,7 @@ export function SelectContent({ children, className }: { children: ReactNode; cl
     <div
       ref={ref}
       className={cn(
-        'absolute z-50 mt-1 w-full min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 max-h-60 overflow-auto',
+        'dropdown-surface absolute z-50 mt-1 w-full min-w-[8rem] max-h-60 overflow-auto animate-in fade-in-0 zoom-in-95',
         className,
       )}
     >
@@ -115,7 +115,7 @@ export function SelectItem({ value: itemValue, children, className }: SelectItem
         setOpen(false);
       }}
       className={cn(
-        'relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground',
+        'relative flex w-full cursor-pointer select-none items-center rounded-lg py-2 pl-8 pr-2 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground',
         isSelected && 'bg-accent/50',
         className,
       )}

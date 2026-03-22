@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, EmptyState, TabsPage } from '@/components/shared';
+import { CHART_PALETTE_EXTENDED, SEMANTIC_CHART_COLORS } from '@/lib/chartPalette';
 import { formatMoney, formatPercent } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
@@ -16,10 +17,12 @@ import { usePortfolios } from '../hooks/useInvestments';
 import { wealthApi } from '../api/wealthApi';
 
 const PIE_COLORS: Record<string, string> = {
-  EQUITY: '#6366f1', FIXED_INCOME: '#0ea5e9', CASH: '#22c55e',
-  ALTERNATIVE: '#f59e0b', COMMODITY: '#ef4444',
+  EQUITY: SEMANTIC_CHART_COLORS.accent,
+  FIXED_INCOME: SEMANTIC_CHART_COLORS.teal,
+  CASH: SEMANTIC_CHART_COLORS.success,
+  ALTERNATIVE: SEMANTIC_CHART_COLORS.warning,
+  COMMODITY: SEMANTIC_CHART_COLORS.danger,
 };
-const CHART_COLORS = ['#6366f1', '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
 
 // ─── Portfolio Analytics Tab ─────────────────────────────────────────────────
 
@@ -72,7 +75,12 @@ function PortfolioAnalyticsTab() {
                 <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10 }} />
                 <Tooltip formatter={(v: number) => [`${v.toFixed(2)}%`, 'YTD Return']} />
                 <Bar dataKey="return" name="YTD Return" radius={[4, 4, 0, 0]}>
-                  {perfData.map((_entry: { name: string; return: number }, i: number) => <Cell key={i} fill={perfData[i].return >= 0 ? '#22c55e' : '#ef4444'} />)}
+                  {perfData.map((_entry: { name: string; return: number }, i: number) => (
+                    <Cell
+                      key={i}
+                      fill={perfData[i].return >= 0 ? SEMANTIC_CHART_COLORS.success : SEMANTIC_CHART_COLORS.danger}
+                    />
+                  ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -85,7 +93,12 @@ function PortfolioAnalyticsTab() {
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie data={allocationData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} dataKey="value" paddingAngle={2}>
-                  {allocationData.map((d) => <Cell key={d.name} fill={PIE_COLORS[d.name] ?? CHART_COLORS[allocationData.indexOf(d) % CHART_COLORS.length]} />)}
+                  {allocationData.map((d) => (
+                    <Cell
+                      key={d.name}
+                      fill={PIE_COLORS[d.name] ?? CHART_PALETTE_EXTENDED[allocationData.indexOf(d) % CHART_PALETTE_EXTENDED.length]}
+                    />
+                  ))}
                 </Pie>
                 <Tooltip formatter={(v: number) => formatMoney(v)} />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
@@ -151,7 +164,7 @@ function PortfolioAnalyticsTab() {
                     <td className="py-2.5 px-3 text-xs font-medium">{d.name.replace(/_/g, ' ')}</td>
                     <td className="py-2.5 px-3 text-right font-mono text-xs">{formatMoney(d.value)}</td>
                     <td className="py-2.5 px-3 text-right font-mono text-xs font-bold">{weight.toFixed(1)}%</td>
-                    <td className="py-2.5 px-3"><div className="w-32 h-2 bg-muted rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${weight}%`, backgroundColor: PIE_COLORS[d.name] ?? '#94a3b8' }} /></div></td>
+                    <td className="py-2.5 px-3"><div className="w-32 h-2 bg-muted rounded-full overflow-hidden"><div className="h-full rounded-full" style={{ width: `${weight}%`, backgroundColor: PIE_COLORS[d.name] ?? SEMANTIC_CHART_COLORS.neutral }} /></div></td>
                   </tr>
                 );
               })}
@@ -211,7 +224,14 @@ function WealthAnalyticsTab() {
               <XAxis dataKey="period" tick={{ fontSize: 9 }} />
               <YAxis tickFormatter={(v) => `${(v / 1e6).toFixed(0)}M`} tick={{ fontSize: 10 }} />
               <Tooltip formatter={(v: number) => [formatMoney(v), 'AUM']} />
-              <Area type="monotone" dataKey="totalAum" stroke="#6366f1" fill="#6366f1" fillOpacity={0.15} strokeWidth={2} />
+              <Area
+                type="monotone"
+                dataKey="totalAum"
+                stroke={SEMANTIC_CHART_COLORS.accent}
+                fill={SEMANTIC_CHART_COLORS.accent}
+                fillOpacity={0.15}
+                strokeWidth={2}
+              />
             </AreaChart>
           </ResponsiveContainer>
         ) : <p className="text-sm text-muted-foreground text-center py-8">No AUM trend data available</p>}
@@ -225,7 +245,7 @@ function WealthAnalyticsTab() {
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={segments} cx="50%" cy="50%" innerRadius={45} outerRadius={80} dataKey="clientCount" nameKey="segment" paddingAngle={2}>
-                  {segments.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                  {segments.map((_, i) => <Cell key={i} fill={CHART_PALETTE_EXTENDED[i % CHART_PALETTE_EXTENDED.length]} />)}
                 </Pie>
                 <Tooltip />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10 }} />
@@ -244,7 +264,7 @@ function WealthAnalyticsTab() {
                 <XAxis dataKey="period" tick={{ fontSize: 9 }} />
                 <YAxis tickFormatter={(v) => `${(v / 1e3).toFixed(0)}K`} tick={{ fontSize: 10 }} />
                 <Tooltip formatter={(v: number) => [formatMoney(v), 'Revenue']} />
-                <Bar dataKey="totalFees" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="totalFees" fill={SEMANTIC_CHART_COLORS.success} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : <p className="text-sm text-muted-foreground text-center py-8">No fee data</p>}
@@ -263,7 +283,11 @@ function WealthAnalyticsTab() {
                   <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all" style={{
                       width: `${Math.min(100, Number(c.percentage ?? c.weight ?? 0))}%`,
-                      backgroundColor: Number(c.percentage ?? c.weight ?? 0) > 30 ? '#ef4444' : Number(c.percentage ?? c.weight ?? 0) > 20 ? '#f59e0b' : '#22c55e',
+                      backgroundColor: Number(c.percentage ?? c.weight ?? 0) > 30
+                        ? SEMANTIC_CHART_COLORS.danger
+                        : Number(c.percentage ?? c.weight ?? 0) > 20
+                          ? SEMANTIC_CHART_COLORS.warning
+                          : SEMANTIC_CHART_COLORS.success,
                     }} />
                   </div>
                   <span className="text-xs font-mono font-bold w-12 text-right">{Number(c.percentage ?? c.weight ?? 0).toFixed(1)}%</span>

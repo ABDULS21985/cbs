@@ -29,7 +29,7 @@ export function useDisputes(options: UseDisputesOptions = {}) {
   };
 
   const raiseDisputeMutation = useMutation({
-    mutationFn: ({ transactionId, payload }: { transactionId: string; payload: RaiseDisputeRequest }) =>
+    mutationFn: ({ transactionId, payload }: { transactionId: number | string; payload: RaiseDisputeRequest }) =>
       disputeApi.raiseDispute(transactionId, payload),
     onSuccess: invalidate,
   });

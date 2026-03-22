@@ -36,12 +36,26 @@ public class SanctionsController {
 
     @PostMapping("/screen")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<ScreeningRequest>> screen(
-            @RequestParam String screeningType, @RequestParam String subjectName, @RequestParam String subjectType,
-            @RequestParam(required = false) LocalDate subjectDob, @RequestParam(required = false) String nationality,
-            @RequestParam(required = false) String idNumber, @RequestParam(required = false) Long customerId,
-            @RequestParam(required = false) String transactionRef,
-            @RequestParam(required = false) List<String> lists, @RequestParam(required = false) BigDecimal threshold) {
+    public ResponseEntity<ApiResponse<ScreeningRequest>> screen(@RequestBody java.util.Map<String, Object> body) {
+        String screeningType = (String) body.getOrDefault("screeningType", "ONBOARDING");
+        String subjectName = (String) body.getOrDefault("subjectName", "");
+        String subjectType = (String) body.getOrDefault("subjectType", "INDIVIDUAL");
+        LocalDate subjectDob = body.containsKey("subjectDob") ? LocalDate.parse((String) body.get("subjectDob")) : null;
+        // Accept both 'nationality' and 'subjectNationality' from frontend
+        String nationality = body.containsKey("subjectNationality") ? (String) body.get("subjectNationality")
+                : (String) body.get("nationality");
+        // Accept both 'idNumber' and 'subjectIdNumber' from frontend
+        String idNumber = body.containsKey("subjectIdNumber") ? (String) body.get("subjectIdNumber")
+                : (String) body.get("idNumber");
+        Long customerId = body.containsKey("customerId") ? Long.valueOf(body.get("customerId").toString()) : null;
+        String transactionRef = (String) body.get("transactionRef");
+        // Accept both 'lists' and 'listsToScreen' from frontend
+        @SuppressWarnings("unchecked")
+        List<String> lists = body.containsKey("listsToScreen") ? (List<String>) body.get("listsToScreen")
+                : body.containsKey("lists") ? (List<String>) body.get("lists") : null;
+        // Accept both 'threshold' and 'matchThreshold'
+        BigDecimal threshold = body.containsKey("matchThreshold") ? new BigDecimal(body.get("matchThreshold").toString())
+                : body.containsKey("threshold") ? new BigDecimal(body.get("threshold").toString()) : null;
         return ResponseEntity.ok(ApiResponse.ok(screeningService.screenName(
                 screeningType, subjectName, subjectType, subjectDob, nationality, idNumber, customerId, transactionRef, lists, threshold)));
     }
@@ -49,7 +63,10 @@ public class SanctionsController {
     @PostMapping("/matches/{screeningId}/dispose/{matchId}")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<ScreeningRequest>> dispose(@PathVariable Long screeningId, @PathVariable Long matchId,
-            @RequestParam String disposition, @RequestParam String disposedBy, @RequestParam(required = false) String notes) {
+            @RequestBody java.util.Map<String, String> body) {
+        String disposition = body.getOrDefault("disposition", "");
+        String disposedBy = body.getOrDefault("disposedBy", "SYSTEM");
+        String notes = body.get("notes");
         return ResponseEntity.ok(ApiResponse.ok(screeningService.disposeMatch(screeningId, matchId, disposition, disposedBy, notes)));
     }
 
@@ -126,22 +143,22 @@ public class SanctionsController {
     @PostMapping("/matches/{id}/confirm")
     @Operation(summary = "Confirm a sanctions match as true positive")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> confirmMatch(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("id", id, "disposition", "TRUE_POSITIVE", "message", "Match confirmed")));
+    public ResponseEntity<ApiResponse<ScreeningRequest>> confirmMatch(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(screeningService.confirmMatch(id)));
     }
 
     @PostMapping("/matches/{id}/false-positive")
     @Operation(summary = "Mark a sanctions match as false positive")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> falsePositive(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("id", id, "disposition", "FALSE_POSITIVE", "message", "Match dismissed")));
+    public ResponseEntity<ApiResponse<ScreeningRequest>> falsePositive(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(screeningService.markFalsePositive(id)));
     }
 
     @PostMapping("/watchlists/{id}/update")
-    @Operation(summary = "Trigger watchlist update")
+    @Operation(summary = "Trigger watchlist update — refreshes last-updated timestamp and re-validates active entries")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> updateWatchlist(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("id", id, "message", "Watchlist update initiated")));
+    public ResponseEntity<ApiResponse<Watchlist>> updateWatchlist(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(screeningService.refreshWatchlist(id)));
     }
 
     @GetMapping("/batch-screen/{jobId}")
@@ -152,17 +169,29 @@ public class SanctionsController {
     }
 
     @PostMapping("/batch-screen")
-    @Operation(summary = "Batch screen multiple names against watchlists")
+    @Operation(summary = "Batch screen multiple names — accepts {subjects:[...]} or {names:[...]} from frontend")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<ScreeningRequest>>> batchScreen(
-            @RequestBody List<java.util.Map<String, String>> subjects) {
+            @RequestBody java.util.Map<String, Object> payload) {
+        @SuppressWarnings("unchecked")
+        // Support both wrapper formats: {names:[...]} (frontend) and flat list encoding
+        List<java.util.Map<String, Object>> subjects = payload.containsKey("names")
+                ? (List<java.util.Map<String, Object>>) payload.get("names")
+                : payload.containsKey("subjects")
+                ? (List<java.util.Map<String, Object>>) payload.get("subjects")
+                : List.of();
         List<ScreeningRequest> results = new java.util.ArrayList<>();
-        for (java.util.Map<String, String> subject : subjects) {
+        for (java.util.Map<String, Object> subject : subjects) {
+            // Accept 'name' (frontend) or 'subjectName' (legacy)
+            String subjectName = subject.containsKey("name") ? (String) subject.get("name")
+                    : (String) subject.getOrDefault("subjectName", "");
+            // Accept 'type' (frontend) or 'subjectType' (legacy)
+            String subjectType = subject.containsKey("type") ? (String) subject.get("type")
+                    : (String) subject.getOrDefault("subjectType", "INDIVIDUAL");
+            LocalDate dob = subject.containsKey("dob") ? LocalDate.parse((String) subject.get("dob")) : null;
+            String nationality = subject.containsKey("nationality") ? (String) subject.get("nationality") : null;
             ScreeningRequest result = screeningService.screenName(
-                    subject.getOrDefault("screeningType", "ONBOARDING"),
-                    subject.get("subjectName"),
-                    subject.getOrDefault("subjectType", "INDIVIDUAL"),
-                    null, null, null, null, null, null, null);
+                    "ONBOARDING", subjectName, subjectType, dob, nationality, null, null, null, null, null);
             results.add(result);
         }
         return ResponseEntity.ok(ApiResponse.ok(results));

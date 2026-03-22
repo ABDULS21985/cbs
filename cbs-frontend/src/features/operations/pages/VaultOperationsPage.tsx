@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Vault as VaultIcon, ArrowRightLeft, Plus, X,
   Banknote, ArrowDownToLine, ArrowUpFromLine, Truck,
@@ -10,9 +10,10 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage, StatCard, DataTable } from '@/components/shared';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { formatMoney, formatDateTime } from '@/lib/formatters';
-import { apiGet } from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
 import type { Vault, VaultTransaction } from '../types/vault';
 import type { CashMovement } from '../types/cashVault';
+import { vaultsApi } from '../api/vaultApi';
 import {
   useVaultCashIn,
   useVaultCashOut,
@@ -35,6 +36,10 @@ const TXN_TYPE_COLORS: Record<string, string> = {
   CASH_OUT: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   TRANSFER: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
 };
+
+function formatOptionalMoney(amount: number | null | undefined, currency: string) {
+  return amount == null ? '-' : formatMoney(amount, currency);
+}
 
 // ─── Vault columns ──────────────────────────────────────────────────────────────
 
@@ -90,7 +95,7 @@ function makeVaultColumns(
       header: 'Min Balance',
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {formatMoney(row.original.minimumBalance, row.original.currencyCode)}
+          {formatOptionalMoney(row.original.minimumBalance, row.original.currencyCode)}
         </span>
       ),
     },
@@ -99,7 +104,7 @@ function makeVaultColumns(
       header: 'Max Balance',
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
-          {formatMoney(row.original.maximumBalance, row.original.currencyCode)}
+          {formatOptionalMoney(row.original.maximumBalance, row.original.currencyCode)}
         </span>
       ),
     },
@@ -107,7 +112,7 @@ function makeVaultColumns(
       accessorKey: 'insuranceLimit',
       header: 'Insurance Limit',
       cell: ({ row }) => (
-        <span className="text-sm">{formatMoney(row.original.insuranceLimit, row.original.currencyCode)}</span>
+        <span className="text-sm">{formatOptionalMoney(row.original.insuranceLimit, row.original.currencyCode)}</span>
       ),
     },
     {
@@ -311,7 +316,7 @@ function FormDialog({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 modal-scrim" onClick={onClose} />
       <div className="relative z-10 w-full max-w-lg mx-4 bg-card rounded-xl border border-border shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-base font-semibold">{title}</h2>
@@ -328,9 +333,25 @@ function FormDialog({
 function CreateVaultDialog({
   open,
   onClose,
+  onSubmit,
+  isLoading,
+  canCreate,
 }: {
   open: boolean;
   onClose: () => void;
+  onSubmit: (data: {
+    vaultCode: string;
+    vaultName: string;
+    branchCode: string;
+    vaultType: 'MAIN' | 'SUBSIDIARY' | 'ATM' | 'TELLER';
+    currencyCode: string;
+    minimumBalance?: number;
+    maximumBalance?: number;
+    insuranceLimit?: number;
+    custodian?: string;
+  }) => void;
+  isLoading: boolean;
+  canCreate: boolean;
 }) {
   const [vaultCode, setVaultCode] = useState('');
   const [vaultName, setVaultName] = useState('');
@@ -342,14 +363,27 @@ function CreateVaultDialog({
   const [insuranceLimit, setInsuranceLimit] = useState('');
   const [custodian, setCustodian] = useState('');
 
-  // No create vault API exists yet; just show toast
   const handleSubmit = () => {
-    toast.success(`Vault ${vaultCode} creation requested`);
-    onClose();
+    onSubmit({
+      vaultCode: vaultCode.trim(),
+      vaultName: vaultName.trim(),
+      branchCode: branchCode.trim(),
+      vaultType: vaultType as 'MAIN' | 'SUBSIDIARY' | 'ATM' | 'TELLER',
+      currencyCode: currencyCode.trim().toUpperCase(),
+      minimumBalance: minimumBalance ? parseFloat(minimumBalance) : undefined,
+      maximumBalance: maximumBalance ? parseFloat(maximumBalance) : undefined,
+      insuranceLimit: insuranceLimit ? parseFloat(insuranceLimit) : undefined,
+      custodian: custodian.trim() || undefined,
+    });
   };
 
   return (
     <FormDialog open={open} title="Create Vault" onClose={onClose}>
+      {!canCreate && (
+        <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          Vault creation requires the <span className="font-semibold">CBS_ADMIN</span> role.
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium mb-1">Vault Code</label>
@@ -399,8 +433,12 @@ function CreateVaultDialog({
       </div>
       <div className="flex justify-end gap-3 pt-2">
         <button onClick={onClose} className="btn-ghost">Cancel</button>
-        <button onClick={handleSubmit} disabled={!vaultCode.trim()} className="btn-primary">
-          Create Vault
+        <button
+          onClick={handleSubmit}
+          disabled={isLoading || !canCreate || !vaultCode.trim() || !vaultName.trim() || !branchCode.trim() || !currencyCode.trim()}
+          className="btn-primary"
+        >
+          {isLoading ? 'Creating...' : 'Create Vault'}
         </button>
       </div>
     </FormDialog>
@@ -421,7 +459,7 @@ function CashActionDialog({
   vault: Vault | null;
   action: 'in' | 'out';
   onClose: () => void;
-  onSubmit: (id: number) => void;
+  onSubmit: (id: number, data: { amount: number; reference?: string; narration?: string }) => void;
   isLoading: boolean;
 }) {
   const [amount, setAmount] = useState('');
@@ -432,6 +470,21 @@ function CashActionDialog({
   if (!vault) return null;
 
   const label = action === 'in' ? 'Cash In' : 'Cash Out';
+  const parsedAmount = parseFloat(amount) || 0;
+
+  const exceedsBalance = action === 'out' && parsedAmount > vault.currentBalance;
+  const exceedsMax = action === 'in' && vault.maximumBalance != null
+    && (vault.currentBalance + parsedAmount) > vault.maximumBalance;
+  const belowMin = action === 'out' && vault.minimumBalance != null
+    && (vault.currentBalance - parsedAmount) < vault.minimumBalance;
+
+  const validationError = exceedsBalance
+    ? `Amount exceeds vault balance (${formatMoney(vault.currentBalance, vault.currencyCode)})`
+    : exceedsMax
+      ? `Cash in would exceed maximum balance (${formatMoney(vault.maximumBalance!, vault.currencyCode)})`
+      : belowMin
+        ? `Cash out would breach minimum balance (${formatMoney(vault.minimumBalance!, vault.currencyCode)})`
+        : null;
 
   return (
     <FormDialog open={open} title={`${label} - ${vault.vaultCode}`} onClose={onClose}>
@@ -443,7 +496,10 @@ function CashActionDialog({
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Amount</label>
-        <input className="input w-full" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+        <input className="input w-full" type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+        {validationError && (
+          <p className="text-xs text-destructive mt-1">{validationError}</p>
+        )}
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Reference</label>
@@ -460,8 +516,12 @@ function CashActionDialog({
       <div className="flex justify-end gap-3 pt-2">
         <button onClick={onClose} className="btn-ghost">Cancel</button>
         <button
-          onClick={() => onSubmit(vault.id)}
-          disabled={isLoading}
+          onClick={() => onSubmit(vault.id, {
+            amount: parsedAmount,
+            reference: reference || undefined,
+            narration: narration || undefined,
+          })}
+          disabled={isLoading || !amount || parsedAmount <= 0 || !!validationError}
           className="btn-primary"
         >
           {isLoading ? 'Processing...' : label}
@@ -485,14 +545,31 @@ function TransferDialog({
   sourceVault: Vault | null;
   vaults: Vault[];
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: (data: { fromVaultId: number; toVaultId: number; amount: number }) => void;
   isLoading: boolean;
 }) {
-  const [toVault, setToVault] = useState('');
+  const [toVaultId, setToVaultId] = useState('');
   const [amount, setAmount] = useState('');
   const [performedBy, setPerformedBy] = useState('');
 
   if (!sourceVault) return null;
+
+  const parsedAmount = parseFloat(amount) || 0;
+  const destVault = vaults.find((v) => String(v.id) === toVaultId);
+
+  const exceedsBalance = parsedAmount > sourceVault.currentBalance;
+  const belowMinSource = sourceVault.minimumBalance != null
+    && (sourceVault.currentBalance - parsedAmount) < sourceVault.minimumBalance;
+  const exceedsMaxDest = destVault?.maximumBalance != null
+    && (destVault.currentBalance + parsedAmount) > destVault.maximumBalance;
+
+  const validationError = exceedsBalance
+    ? `Amount exceeds source vault balance (${formatMoney(sourceVault.currentBalance, sourceVault.currencyCode)})`
+    : belowMinSource
+      ? `Transfer would breach source minimum balance (${formatMoney(sourceVault.minimumBalance!, sourceVault.currencyCode)})`
+      : exceedsMaxDest
+        ? `Transfer would exceed destination maximum balance (${formatMoney(destVault!.maximumBalance!, destVault!.currencyCode)})`
+        : null;
 
   return (
     <FormDialog open={open} title={`Transfer from ${sourceVault.vaultCode}`} onClose={onClose}>
@@ -504,20 +581,23 @@ function TransferDialog({
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Destination Vault</label>
-        <select className="input w-full" value={toVault} onChange={(e) => setToVault(e.target.value)}>
+        <select className="input w-full" value={toVaultId} onChange={(e) => setToVaultId(e.target.value)}>
           <option value="">-- Select vault --</option>
           {vaults
             .filter((v) => v.id !== sourceVault.id)
             .map((v) => (
-              <option key={v.id} value={v.vaultCode}>
-                {v.vaultCode} - {v.vaultName}
+              <option key={v.id} value={v.id}>
+                {v.vaultCode} - {v.vaultName} ({formatMoney(v.currentBalance, v.currencyCode)})
               </option>
             ))}
         </select>
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Amount</label>
-        <input className="input w-full" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+        <input className="input w-full" type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+        {validationError && (
+          <p className="text-xs text-destructive mt-1">{validationError}</p>
+        )}
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Performed By</label>
@@ -525,7 +605,15 @@ function TransferDialog({
       </div>
       <div className="flex justify-end gap-3 pt-2">
         <button onClick={onClose} className="btn-ghost">Cancel</button>
-        <button onClick={onSubmit} disabled={isLoading || !toVault} className="btn-primary">
+        <button
+          onClick={() => onSubmit({
+            fromVaultId: sourceVault.id,
+            toVaultId: parseInt(toVaultId) || 0,
+            amount: parsedAmount,
+          })}
+          disabled={isLoading || !toVaultId || !amount || parsedAmount <= 0 || !!validationError}
+          className="btn-primary"
+        >
           {isLoading ? 'Transferring...' : 'Transfer'}
         </button>
       </div>
@@ -686,23 +774,24 @@ function CashMovementsTab({
 // ─── Main Page ──────────────────────────────────────────────────────────────────
 
 export function VaultOperationsPage() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
   const [showCreateVault, setShowCreateVault] = useState(false);
   const [showRecordMovement, setShowRecordMovement] = useState(false);
   const [cashInTarget, setCashInTarget] = useState<Vault | null>(null);
   const [cashOutTarget, setCashOutTarget] = useState<Vault | null>(null);
   const [transferTarget, setTransferTarget] = useState<Vault | null>(null);
+  const canCreateVault = user?.roles.includes('CBS_ADMIN') ?? false;
 
-  // Fetch all vaults
   const { data: vaults = [], isLoading: vaultsLoading } = useQuery<Vault[]>({
     queryKey: ['vaults', 'all'],
-    queryFn: () => apiGet<Vault[]>('/api/v1/vaults'),
+    queryFn: () => vaultsApi.getVaults(),
     staleTime: 30_000,
   });
 
-  // Fetch all vault transactions
   const { data: transactions = [], isLoading: txnLoading } = useQuery<VaultTransaction[]>({
     queryKey: ['vaults', 'all-transactions'],
-    queryFn: () => apiGet<VaultTransaction[]>('/api/v1/vaults/transactions'),
+    queryFn: () => vaultsApi.getTransactions(),
     staleTime: 30_000,
   });
 
@@ -718,6 +807,17 @@ export function VaultOperationsPage() {
   const transferMutation = useVaultTransfer();
   const registerMovementMutation = useRegisterCashMovement();
   const confirmMovementMutation = useConfirmCashMovement();
+  const createVaultMutation = useMutation({
+    mutationFn: (data: Parameters<typeof vaultsApi.create>[0]) => vaultsApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vaults'] });
+      toast.success('Vault created successfully');
+      setShowCreateVault(false);
+    },
+    onError: () => {
+      toast.error('Failed to create vault');
+    },
+  });
 
   // ─── Cash Position Overview ─────────────────────────────────────────────────
 
@@ -737,8 +837,8 @@ export function VaultOperationsPage() {
 
   // ─── Handlers ─────────────────────────────────────────────────────────────────
 
-  const handleCashIn = (id: number) => {
-    cashInMutation.mutate(id, {
+  const handleCashIn = (id: number, data: { amount: number; reference?: string; narration?: string }) => {
+    cashInMutation.mutate({ id, data }, {
       onSuccess: () => {
         toast.success('Cash in recorded');
         setCashInTarget(null);
@@ -747,8 +847,8 @@ export function VaultOperationsPage() {
     });
   };
 
-  const handleCashOut = (id: number) => {
-    cashOutMutation.mutate(id, {
+  const handleCashOut = (id: number, data: { amount: number; reference?: string; narration?: string }) => {
+    cashOutMutation.mutate({ id, data }, {
       onSuccess: () => {
         toast.success('Cash out recorded');
         setCashOutTarget(null);
@@ -757,8 +857,8 @@ export function VaultOperationsPage() {
     });
   };
 
-  const handleTransfer = () => {
-    transferMutation.mutate(undefined, {
+  const handleTransfer = (data: { fromVaultId: number; toVaultId: number; amount: number }) => {
+    transferMutation.mutate(data, {
       onSuccess: () => {
         toast.success('Transfer completed');
         setTransferTarget(null);
@@ -869,6 +969,9 @@ export function VaultOperationsPage() {
       <CreateVaultDialog
         open={showCreateVault}
         onClose={() => setShowCreateVault(false)}
+        onSubmit={(data) => createVaultMutation.mutate(data)}
+        isLoading={createVaultMutation.isPending}
+        canCreate={canCreateVault}
       />
       <CashActionDialog
         open={!!cashInTarget}

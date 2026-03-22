@@ -3,8 +3,14 @@ import type { ApiResponse } from '@/types/common';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type TppClientType = 'INTERNAL' | 'TPP_AISP' | 'TPP_PISP' | 'TPP_BOTH' | 'TPP_CBPII' | 'PARTNER' | 'SANDBOX';
-export type TppClientStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+export type TppClientType =
+  | 'INTERNAL'
+  | 'TPP_AISP'
+  | 'TPP_PISP'
+  | 'TPP_CBPII'
+  | 'PARTNER'
+  | 'SANDBOX';
+export type TppClientStatus = 'ACTIVE' | 'INACTIVE';
 export type ConsentStatus = 'PENDING' | 'AUTHORISED' | 'REJECTED' | 'REVOKED' | 'EXPIRED';
 
 export interface TppClient {
@@ -266,6 +272,13 @@ export const openBankingApi = {
     const clients = await apiGet<BackendApiClient[]>('/api/v1/openbanking/clients');
     const clientNameMap = buildClientNameMap(clients);
     return mapConsent(response.data.data, clientNameMap);
+  },
+
+  async deactivateClient(clientId: string): Promise<TppClient> {
+    const response = await api.post<ApiResponse<BackendApiClient>>(
+      `/api/v1/openbanking/clients/${clientId}/deactivate`,
+    );
+    return mapClient(response.data.data);
   },
 
   async revokeConsent(consentId: string | number): Promise<ApiConsent> {

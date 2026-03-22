@@ -102,7 +102,13 @@ export function NewGoalPage() {
   const selectedAccount = accounts.find(a => a.id === accountId);
 
   const handleCreate = () => {
+    if (!selectedAccount) {
+      toast.error('Please select an account first');
+      setStep(3);
+      return;
+    }
     createGoal.mutate({
+      customerId: selectedAccount.customerId,
       accountId,
       goalName,
       goalDescription: goalDescription || undefined,
@@ -117,7 +123,7 @@ export function NewGoalPage() {
       } : {}),
       isLocked,
       allowWithdrawalBeforeTarget,
-      currencyCode: selectedAccount?.currencyCode,
+      currencyCode: selectedAccount.currencyCode,
     }, {
       onSuccess: (goal) => { toast.success('Goal created!'); navigate(`/accounts/goals/${goal.id}`); },
       onError: () => toast.error('Failed to create goal'),

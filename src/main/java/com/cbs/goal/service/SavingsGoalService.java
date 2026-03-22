@@ -20,9 +20,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import org.springframework.data.domain.PageImpl;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -91,8 +95,60 @@ public class SavingsGoalService {
         return toResponse(goal);
     }
 
+    /**
+     * Paginated list of all goals with optional status / free-text search filtering.
+     *
+     * Uses a two-query pattern to avoid the Hibernate HHH90003004 warning:
+     *   1. Fetch a page of IDs only (SQL-level LIMIT/OFFSET, no JOIN FETCH).
+     *   2. Batch-load those exact entities with JOIN FETCH account + customer.
+     * The result is re-ordered to match the original ID page ordering.
+     */
+    public Page<GoalResponse> getGoals(GoalStatus status, String search, Pageable pageable) {
+        boolean hasStatus = status != null;
+        boolean hasSearch = StringUtils.hasText(search);
+
+        Page<Long> idPage;
+        if (hasStatus && hasSearch) {
+            idPage = goalRepository.searchIdsByStatus(status, search, pageable);
+        } else if (hasStatus) {
+            idPage = goalRepository.findIdsByStatus(status, pageable);
+        } else if (hasSearch) {
+            idPage = goalRepository.searchIds(search, pageable);
+        } else {
+            idPage = goalRepository.findAllIds(pageable);
+        }
+        return toGoalResponsePage(idPage, pageable);
+    }
+
     public Page<GoalResponse> getCustomerGoals(Long customerId, Pageable pageable) {
-        return goalRepository.findByCustomerId(customerId, pageable).map(this::toResponse);
+        Page<Long> idPage = goalRepository.findIdsByCustomerId(customerId, pageable);
+        return toGoalResponsePage(idPage, pageable);
+    }
+
+    /**
+     * Paginated contribution (transaction) history for a single goal.
+     *
+     * Two-query pattern mirrors the approach used for goals:
+     *   1. Fetch a page of transaction IDs at SQL level.
+     *   2. Batch-load those transactions with sourceAccount eagerly fetched,
+     *      eliminating any lazy-load risk in toTransactionResponse().
+     */
+    public Page<GoalTransactionResponse> getContributions(Long goalId, Pageable pageable) {
+        if (!goalRepository.existsById(goalId)) {
+            throw new ResourceNotFoundException("SavingsGoal", "id", goalId);
+        }
+        Page<Long> idPage = goalTxnRepository.findIdsByGoalId(goalId, pageable);
+        if (idPage.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        List<SavingsGoalTransaction> txns = goalTxnRepository.findByIdsWithSourceAccount(idPage.getContent());
+        Map<Long, SavingsGoalTransaction> byId = txns.stream()
+                .collect(Collectors.toMap(SavingsGoalTransaction::getId, t -> t));
+        List<GoalTransactionResponse> content = idPage.getContent().stream()
+                .filter(byId::containsKey)
+                .map(id -> toTransactionResponse(byId.get(id)))
+                .toList();
+        return new PageImpl<>(content, pageable, idPage.getTotalElements());
     }
 
     @Transactional
@@ -220,44 +276,76 @@ public class SavingsGoalService {
         return toResponse(goal);
     }
 
+    /**
+     * Processes all savings goals whose auto-debit is due today.
+     *
+     * Returns a result map with three counters:
+     * <ul>
+     *   <li><b>processed</b> — debit posted + goal balance updated + next date advanced</li>
+     *   <li><b>skipped</b>   — debit account had insufficient balance; next date NOT advanced
+     *                          so the goal is retried on the next scheduled run</li>
+     *   <li><b>failed</b>    — unexpected exception; goal left unchanged</li>
+     * </ul>
+     *
+     * Previously the counter was incremented regardless of the balance check, and
+     * nextAutoDebitDate was advanced even for insufficient-balance cases, silently
+     * pushing the goal to the next cycle without any credit being posted.
+     */
     @Transactional
-    public int processAutoDebits() {
+    public Map<String, Integer> processAutoDebits() {
         List<SavingsGoal> dueGoals = goalRepository.findDueForAutoDebit(LocalDate.now());
         int processed = 0;
+        int skipped   = 0;
+        int failed    = 0;
+
         for (SavingsGoal goal : dueGoals) {
             try {
-                Account debitAccount = goal.getAutoDebitAccount() != null ? goal.getAutoDebitAccount() : goal.getAccount();
+                Account debitAccount = goal.getAutoDebitAccount() != null
+                        ? goal.getAutoDebitAccount() : goal.getAccount();
                 BigDecimal amount = goal.getAutoDebitAmount();
-                if (debitAccount.getAvailableBalance().compareTo(amount) >= 0) {
-                    accountPostingService.postDebitAgainstGl(
-                            debitAccount,
-                            TransactionType.TRANSFER_OUT,
-                            amount,
-                            "Auto-debit for goal: " + goal.getGoalName(),
-                            TransactionChannel.SYSTEM,
-                            goal.getGoalNumber() + ":AUTO",
-                            resolveGoalControlGlCode(),
-                            "SAVINGS_GOAL",
-                            goal.getGoalNumber()
-                    );
-                    goal.deposit(amount);
 
-                    SavingsGoalTransaction txn = SavingsGoalTransaction.builder()
-                            .savingsGoal(goal).transactionType(GoalTransactionType.DEPOSIT)
-                            .amount(amount).runningBalance(goal.getCurrentAmount())
-                            .narration("Auto-debit for goal: " + goal.getGoalName())
-                            .sourceAccount(debitAccount).build();
-                    goalTxnRepository.save(txn);
+                if (debitAccount.getAvailableBalance().compareTo(amount) < 0) {
+                    // Insufficient balance — skip this cycle, do NOT advance the date
+                    log.warn("Goal auto-debit skipped (insufficient balance) for {}: required={}, available={}",
+                            goal.getGoalNumber(), amount, debitAccount.getAvailableBalance());
+                    skipped++;
+                    continue;
                 }
-                goal.setNextAutoDebitDate(calculateNextAutoDebitDate(goal.getNextAutoDebitDate(), goal.getAutoDebitFrequency()));
+
+                accountPostingService.postDebitAgainstGl(
+                        debitAccount,
+                        TransactionType.TRANSFER_OUT,
+                        amount,
+                        "Auto-debit for goal: " + goal.getGoalName(),
+                        TransactionChannel.SYSTEM,
+                        goal.getGoalNumber() + ":AUTO",
+                        resolveGoalControlGlCode(),
+                        "SAVINGS_GOAL",
+                        goal.getGoalNumber()
+                );
+                goal.deposit(amount);
+
+                SavingsGoalTransaction txn = SavingsGoalTransaction.builder()
+                        .savingsGoal(goal).transactionType(GoalTransactionType.DEPOSIT)
+                        .amount(amount).runningBalance(goal.getCurrentAmount())
+                        .narration("Auto-debit for goal: " + goal.getGoalName())
+                        .sourceAccount(debitAccount).build();
+                goalTxnRepository.save(txn);
+
+                // Only advance the next-debit date after a successful posting
+                goal.setNextAutoDebitDate(
+                        calculateNextAutoDebitDate(goal.getNextAutoDebitDate(), goal.getAutoDebitFrequency()));
                 goalRepository.save(goal);
                 processed++;
+
             } catch (Exception e) {
                 log.error("Goal auto-debit failed for {}: {}", goal.getGoalNumber(), e.getMessage());
+                failed++;
             }
         }
-        log.info("Goal auto-debit processing: {} goals processed", processed);
-        return processed;
+
+        log.info("Goal auto-debit batch: processed={}, skipped={}, failed={}", processed, skipped, failed);
+        return Map.of("processed", processed, "skipped", skipped, "failed", failed);
     }
 
     private LocalDate calculateNextAutoDebitDate(LocalDate from, String frequency) {
@@ -269,6 +357,64 @@ public class SavingsGoalService {
             case "MONTHLY" -> from.plusMonths(1);
             default -> from.plusMonths(1);
         };
+    }
+
+    /**
+     * Persists auto-debit configuration from a key-value map submitted by the frontend.
+     * Expected keys: autoDebitEnabled (boolean), autoDebitAmount (number),
+     * autoDebitFrequency (string), autoDebitAccountId (number).
+     */
+    @Transactional
+    public GoalResponse configureAutoDebit(Long goalId, java.util.Map<String, Object> config) {
+        SavingsGoal goal = goalRepository.findByIdWithDetails(goalId)
+                .orElseThrow(() -> new ResourceNotFoundException("SavingsGoal", "id", goalId));
+
+        if (config.containsKey("autoDebitEnabled")) {
+            goal.setAutoDebitEnabled(Boolean.TRUE.equals(config.get("autoDebitEnabled")));
+        }
+        if (config.containsKey("autoDebitAmount") && config.get("autoDebitAmount") != null) {
+            goal.setAutoDebitAmount(new BigDecimal(config.get("autoDebitAmount").toString()));
+        }
+        if (config.containsKey("autoDebitFrequency") && config.get("autoDebitFrequency") != null) {
+            goal.setAutoDebitFrequency(config.get("autoDebitFrequency").toString());
+        }
+        if (config.containsKey("autoDebitAccountId") && config.get("autoDebitAccountId") != null) {
+            Long debitAccountId = Long.valueOf(config.get("autoDebitAccountId").toString());
+            Account debitAccount = accountRepository.findById(debitAccountId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Account", "id", debitAccountId));
+            goal.setAutoDebitAccount(debitAccount);
+        }
+
+        // Recalculate next debit date when enabling or changing frequency
+        if (Boolean.TRUE.equals(goal.getAutoDebitEnabled())) {
+            if (goal.getNextAutoDebitDate() == null || goal.getNextAutoDebitDate().isBefore(LocalDate.now())) {
+                goal.setNextAutoDebitDate(calculateNextAutoDebitDate(LocalDate.now(), goal.getAutoDebitFrequency()));
+            }
+        }
+
+        SavingsGoal saved = goalRepository.save(goal);
+        log.info("Auto-debit configured for goal {}: enabled={}, frequency={}", goal.getGoalNumber(),
+                goal.getAutoDebitEnabled(), goal.getAutoDebitFrequency());
+        return toResponse(saved);
+    }
+
+    /**
+     * Shared helper for the two-query pagination pattern used by getGoals() and
+     * getCustomerGoals(). Converts a Page<Long> (IDs) into a Page<GoalResponse>
+     * by batch-loading the entities with JOIN FETCH and re-ordering by ID.
+     */
+    private Page<GoalResponse> toGoalResponsePage(Page<Long> idPage, Pageable pageable) {
+        if (idPage.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        List<SavingsGoal> goals = goalRepository.findByIdsWithDetails(idPage.getContent());
+        Map<Long, SavingsGoal> byId = goals.stream()
+                .collect(Collectors.toMap(SavingsGoal::getId, g -> g));
+        List<GoalResponse> content = idPage.getContent().stream()
+                .filter(byId::containsKey)
+                .map(id -> toResponse(byId.get(id)))
+                .toList();
+        return new PageImpl<>(content, pageable, idPage.getTotalElements());
     }
 
     private GoalResponse toResponse(SavingsGoal g) {
@@ -286,6 +432,20 @@ public class SavingsGoalService {
                 .status(g.getStatus()).completedDate(g.getCompletedDate())
                 .isLocked(g.getIsLocked()).allowWithdrawalBeforeTarget(g.getAllowWithdrawalBeforeTarget())
                 .currencyCode(g.getCurrencyCode()).metadata(g.getMetadata()).createdAt(g.getCreatedAt())
+                .build();
+    }
+
+    private GoalTransactionResponse toTransactionResponse(com.cbs.goal.entity.SavingsGoalTransaction t) {
+        return GoalTransactionResponse.builder()
+                .id(t.getId())
+                .transactionType(t.getTransactionType())
+                .amount(t.getAmount())
+                .runningBalance(t.getRunningBalance())
+                .narration(t.getNarration())
+                .sourceAccountId(t.getSourceAccount() != null ? t.getSourceAccount().getId() : null)
+                .transactionRef(t.getTransactionRef())
+                .createdAt(t.getCreatedAt())
+                .createdBy(t.getCreatedBy())
                 .build();
     }
 

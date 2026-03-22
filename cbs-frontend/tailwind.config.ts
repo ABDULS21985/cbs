@@ -45,8 +45,8 @@ const config: Config = {
         info: { 50: '#EFF6FF', 500: '#3B82F6', 700: '#1D4ED8' },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['var(--font-sans)'],
+        mono: ['var(--font-mono)'],
       },
       fontSize: {
         xs: ['0.75rem', { lineHeight: '1rem' }],

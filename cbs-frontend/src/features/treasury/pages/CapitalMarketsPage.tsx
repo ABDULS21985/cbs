@@ -26,6 +26,33 @@ interface CapitalMarketsDeal {
   yieldOrPrice?: string;
 }
 
+// ─── Backend → Frontend Mapping ───────────────────────────────────────────────
+
+/** Maps backend CapitalMarketDeal entity fields to the frontend CapitalMarketsDeal interface */
+const BACKEND_STATUS_TO_STAGE: Record<string, DealStage> = {
+  PIPELINE: 'PIPELINE',
+  MANDATE: 'MANDATED', MANDATED: 'MANDATED',
+  BOOKBUILD: 'BOOKBUILDING', BOOKBUILDING: 'BOOKBUILDING',
+  ALLOCATED: 'ALLOCATED',
+  CLOSED: 'CLOSED', SETTLED: 'CLOSED', CANCELLED: 'CLOSED',
+};
+
+function mapCapitalMarketsDeal(raw: Record<string, any>): CapitalMarketsDeal {
+  return {
+    id: raw.id ?? 0,
+    name: raw.dealCode ?? String(raw.dealType ?? 'Deal'),
+    type: (raw.dealType as DealType) ?? 'BOND',
+    issuer: raw.issuerName ?? '',
+    targetAmount: Number(raw.targetAmount ?? 0),
+    stage: BACKEND_STATUS_TO_STAGE[raw.status?.toUpperCase?.()] ?? 'PIPELINE',
+    leadManager: raw.ourRole ?? '',
+    pricingDate: raw.pricingDate,
+    currency: raw.currency ?? 'NGN',
+    bookrunner: undefined,
+    yieldOrPrice: raw.issuePrice != null ? String(raw.issuePrice) : undefined,
+  };
+}
+
 // ─── Stage Config ─────────────────────────────────────────────────────────────
 
 const STAGES: { id: DealStage; label: string; color: string; headerBg: string }[] = [
@@ -119,7 +146,10 @@ export function CapitalMarketsPage() {
   useEffect(() => { document.title = 'Capital Markets | CBS'; }, []);
   const { data: deals = [], isLoading, isError } = useQuery({
     queryKey: ['treasury', 'capital-markets', 'deals'],
-    queryFn: () => apiGet<CapitalMarketsDeal[]>('/api/v1/capital-markets/deals'),
+    queryFn: async () => {
+      const raw = await apiGet<any[]>('/api/v1/capital-markets/deals');
+      return (Array.isArray(raw) ? raw : []).map(mapCapitalMarketsDeal);
+    },
     staleTime: 30_000,
   });
 

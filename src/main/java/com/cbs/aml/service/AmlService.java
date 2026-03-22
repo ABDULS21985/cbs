@@ -1,12 +1,14 @@
 package com.cbs.aml.service;
 
 import com.cbs.account.entity.Account;
+import com.cbs.account.repository.AccountRepository;
 import com.cbs.aml.engine.AmlMonitoringEngine;
 import com.cbs.aml.entity.*;
 import com.cbs.aml.repository.*;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.customer.entity.Customer;
+import com.cbs.customer.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -28,6 +30,8 @@ public class AmlService {
     private final AmlRuleRepository ruleRepository;
     private final AmlAlertRepository alertRepository;
     private final AmlMonitoringEngine monitoringEngine;
+    private final CustomerRepository customerRepository;
+    private final AccountRepository accountRepository;
 
     @Transactional
     public List<AmlAlert> screenTransaction(AmlMonitoringEngine.TransactionContext ctx,
@@ -124,6 +128,15 @@ public class AmlService {
     // ========================================================================
 
     @Transactional
+    public AmlRule toggleRule(Long ruleId) {
+        AmlRule rule = ruleRepository.findById(ruleId)
+                .orElseThrow(() -> new ResourceNotFoundException("AmlRule", "id", ruleId));
+        rule.setIsActive(!rule.getIsActive());
+        log.info("AML rule toggled: code={}, active={}", rule.getRuleCode(), rule.getIsActive());
+        return ruleRepository.save(rule);
+    }
+
+    @Transactional
     public AmlRule createRule(AmlRule rule) {
         AmlRule saved = ruleRepository.save(rule);
         log.info("AML rule created: code={}, category={}, severity={}", rule.getRuleCode(), rule.getRuleCategory(), rule.getSeverity());
@@ -147,4 +160,58 @@ public class AmlService {
     }
 
     public record AmlDashboard(long newAlerts, long underReview, long escalated, long sarFiled) {}
+
+    /**
+     * Creates a new AML alert from an STR payload submitted by a compliance officer.
+     * Used when filing an STR without a pre-existing alert (frontend "File STR" workflow).
+     */
+    @Transactional
+    public AmlAlert createStrFromPayload(java.util.Map<String, Object> data, String sarRef, String filedBy) {
+        Long seq = alertRepository.getNextAlertSequence();
+        String alertRef = String.format("AML%012d", seq);
+
+        // Resolve a rule to attach — prefer the first SUSPICIOUS_ACTIVITY / CUSTOM rule
+        AmlRule rule = ruleRepository.findByIsActiveTrueOrderByRuleNameAsc().stream()
+                .filter(r -> r.getRuleCategory() == AmlRuleCategory.CUSTOM)
+                .findFirst()
+                .orElseGet(() -> ruleRepository.findByIsActiveTrueOrderByRuleNameAsc().stream()
+                        .findFirst()
+                        .orElseThrow(() -> new BusinessException("No active AML rule found to attach STR")));
+
+        BigDecimal triggerAmount = data.containsKey("amount")
+                ? new BigDecimal(data.get("amount").toString()) : BigDecimal.ZERO;
+
+        String description = data.containsKey("suspiciousActivity")
+                ? (String) data.get("suspiciousActivity") : "STR filed by compliance officer";
+
+        AmlAlert alert = AmlAlert.builder()
+                .alertRef(alertRef)
+                .rule(rule)
+                .alertType("CUSTOM")
+                .severity("HIGH")
+                .description(description)
+                .triggerAmount(triggerAmount)
+                .triggerCount(0)
+                .status(AmlAlertStatus.SAR_FILED)
+                .priority("HIGH")
+                .sarReference(sarRef)
+                .sarFiledDate(LocalDate.now())
+                .resolvedBy(filedBy)
+                .resolvedAt(Instant.now())
+                .build();
+
+        // Attach customer/account if provided (use getById reference for safe FK linking)
+        if (data.containsKey("customerId")) {
+            Long customerId = Long.valueOf(data.get("customerId").toString());
+            customerRepository.findById(customerId).ifPresent(alert::setCustomer);
+        }
+        if (data.containsKey("accountId")) {
+            Long accountId = Long.valueOf(data.get("accountId").toString());
+            accountRepository.findById(accountId).ifPresent(alert::setAccount);
+        }
+
+        AmlAlert saved = alertRepository.save(alert);
+        log.info("STR filed directly: ref={}, sarRef={}, by={}", alertRef, sarRef, filedBy);
+        return saved;
+    }
 }

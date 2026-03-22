@@ -62,11 +62,15 @@ export interface NotificationTemplate {
   version: number;
 }
 
+/** Aligned with backend /delivery-stats response shape */
 export interface DeliveryStats {
-  totalSent: number;
-  totalDelivered: number;
-  totalFailed: number;
-  deliveryRate: number;
+  total: number;
+  sent: number;
+  delivered: number;
+  failed: number;
+  pending: number;
+  deliveryRatePct: number;
+  failureRatePct: number;
   [key: string]: unknown;
 }
 
@@ -90,4 +94,6 @@ export interface SendBulkRequest {
   subject?: string;
   body: string;
   eventType?: string;
+  /** When provided the backend resolves this template per-recipient (merge fields). */
+  templateCode?: string;
 }

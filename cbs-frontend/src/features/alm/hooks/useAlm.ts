@@ -17,6 +17,7 @@ const KEYS = {
   regulatoryReturn: (id: number) => ['alm', 'regulatory-return', id],
   returnSubmissions: (returnId: number) => ['alm', 'return-submissions', returnId],
   allSubmissions: () => ['alm', 'submissions'],
+  stressRuns: () => ['alm', 'stress-runs'],
 };
 
 export function useAlmGapReportsByDate(date: string) {
@@ -160,6 +161,7 @@ export function useSubmitAlcoPackForReview() {
   return useMutation({
     mutationFn: (id: number) => almApi.submitAlcoPackForReview(id),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['alm', 'alco-pack'] });
       qc.invalidateQueries({ queryKey: KEYS.alcoPacks() });
     },
   });
@@ -170,6 +172,7 @@ export function useApproveAlcoPack() {
   return useMutation({
     mutationFn: (id: number) => almApi.approveAlcoPack(id),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['alm', 'alco-pack'] });
       qc.invalidateQueries({ queryKey: KEYS.alcoPacks() });
     },
   });
@@ -180,14 +183,20 @@ export function useDistributeAlcoPack() {
   return useMutation({
     mutationFn: (id: number) => almApi.distributeAlcoPack(id),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['alm', 'alco-pack'] });
       qc.invalidateQueries({ queryKey: KEYS.alcoPacks() });
     },
   });
 }
 
 export function useGenerateExecutiveSummary() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (month: string) => almApi.generateExecutiveSummary(month),
+    onSuccess: (_data, month) => {
+      qc.invalidateQueries({ queryKey: KEYS.alcoPackByMonth(month) });
+      qc.invalidateQueries({ queryKey: KEYS.alcoPacks() });
+    },
   });
 }
 
@@ -241,8 +250,13 @@ export function useRegulatoryReturn(id: number) {
 }
 
 export function useValidateReturn() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => almApi.validateReturn(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: KEYS.regulatoryReturn(id) });
+      qc.invalidateQueries({ queryKey: KEYS.regulatoryReturns() });
+    },
   });
 }
 
@@ -250,8 +264,10 @@ export function useSubmitReturn() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => almApi.submitReturn(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: KEYS.regulatoryReturns() });
+      qc.invalidateQueries({ queryKey: KEYS.regulatoryReturn(id) });
+      qc.invalidateQueries({ queryKey: KEYS.returnSubmissions(id) });
       qc.invalidateQueries({ queryKey: KEYS.allSubmissions() });
     },
   });
@@ -276,8 +292,12 @@ export function useAllSubmissions() {
 // ── Stress Testing Hooks ────────────────────────────────────────────────────
 
 export function useRunScenario() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (scenarioId: number) => almApi.runScenario(scenarioId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.stressRuns() });
+    },
   });
 }
 
@@ -290,5 +310,13 @@ export function useHistoricalReplay() {
 export function useCompareScenarios() {
   return useMutation({
     mutationFn: (scenarioIds: number[]) => almApi.compareScenarios(scenarioIds),
+  });
+}
+
+export function useStressTestRuns() {
+  return useQuery({
+    queryKey: KEYS.stressRuns(),
+    queryFn: () => almApi.getStressRuns(),
+    staleTime: 30_000,
   });
 }

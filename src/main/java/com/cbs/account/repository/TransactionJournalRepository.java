@@ -338,7 +338,7 @@ public interface TransactionJournalRepository extends JpaRepository<TransactionJ
             WHERE tj.posting_date BETWEEN :fromDate AND :toDate
             AND tj.transaction_type <> 'REVERSAL'
             """, nativeQuery = true)
-    Object[] aggregateAnalyticsSummary(
+    List<Object[]> aggregateAnalyticsSummary(
             @Param("fromDate") LocalDate fromDate,
             @Param("toDate") LocalDate toDate);
 

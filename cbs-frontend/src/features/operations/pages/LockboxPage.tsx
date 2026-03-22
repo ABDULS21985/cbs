@@ -134,8 +134,8 @@ function ItemsTab() {
     });
   };
 
-  const handleException = (item: LockboxItem) => {
-    exceptionMutation.mutate(item.id, {
+  const handleException = (item: LockboxItem, reason = 'Manual review required') => {
+    exceptionMutation.mutate({ itemId: item.id, reason }, {
       onSuccess: () => {
         toast.success(`Item ${item.itemReference} marked as exception`);
         qc.invalidateQueries({ queryKey: ['lockboxes'] });

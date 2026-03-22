@@ -53,6 +53,11 @@ const labelOverrides: Record<string, string> = {
   disputes: 'Disputes',
   transactions: 'Transactions',
   'contact-center': 'Contact Center',
+  dspm: 'Data Security',
+  scans: 'Scans',
+  policies: 'Policies',
+  exceptions: 'Exceptions',
+  identities: 'Identities',
   queues: 'Queue Dashboard',
   callbacks: 'Callbacks',
   ivr: 'IVR Manager',
@@ -96,7 +101,7 @@ export function Breadcrumbs() {
   if (segments.length <= 1) return null;
 
   return (
-    <nav className="flex items-center gap-1.5 text-sm text-muted-foreground px-6 pt-4 pb-1">
+    <nav className="mx-6 mt-4 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[linear-gradient(180deg,hsl(var(--card)/0.88),hsl(var(--card)/0.62))] px-4 py-2 text-sm text-muted-foreground shadow-[0_18px_45px_rgba(2,6,23,0.24),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl">
       <Link to="/dashboard" className="hover:text-foreground transition-colors">
         <Home className="w-3.5 h-3.5" />
       </Link>

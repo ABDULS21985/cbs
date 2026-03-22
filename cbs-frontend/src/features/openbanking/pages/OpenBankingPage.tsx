@@ -92,7 +92,7 @@ export function OpenBankingPage() {
   // Stats
   const registeredCount = clients.length;
   const activeCount = clients.filter((c) => c.status === 'ACTIVE').length;
-  const suspendedCount = clients.filter((c) => c.status === 'SUSPENDED').length;
+  const inactiveCount = clients.filter((c) => c.status === 'INACTIVE').length;
   const totalConsents = consents.length;
   const apiCallsToday = clients.reduce((sum, c) => sum + (c.apiCalls30d ?? 0), 0);
 
@@ -188,7 +188,6 @@ export function OpenBankingPage() {
             >
               <option value="">All Statuses</option>
               <option value="ACTIVE">Active</option>
-              <option value="SUSPENDED">Suspended</option>
               <option value="INACTIVE">Inactive</option>
             </select>
           </div>
@@ -484,7 +483,7 @@ export function OpenBankingPage() {
         <OpenBankingStatsRow
           registeredTpps={registeredCount}
           activeTpps={activeCount}
-          suspendedTpps={suspendedCount}
+          suspendedTpps={inactiveCount}
           totalConsents={totalConsents}
           apiCallsToday={apiCallsToday}
           loading={clientsLoading}

@@ -26,7 +26,7 @@ public class PricingController {
     @GetMapping("/discounts")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<DiscountScheme>>> listDiscounts() {
-        return ResponseEntity.ok(ApiResponse.ok(pricingService.getDiscountUtilization()));
+        return ResponseEntity.ok(ApiResponse.ok(pricingService.getAllDiscountSchemes()));
     }
 
     @GetMapping("/discounts/evaluate")
@@ -51,7 +51,7 @@ public class PricingController {
     @GetMapping("/discounts/active")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<DiscountScheme>>> getActiveDiscounts() {
-        return ResponseEntity.ok(ApiResponse.ok(pricingService.getDiscountUtilization()));
+        return ResponseEntity.ok(ApiResponse.ok(pricingService.getActiveDiscountSchemes()));
     }
 
     @PostMapping("/discounts/evaluate")

@@ -1,10 +1,13 @@
 package com.cbs.channel.controller;
 
-import com.cbs.common.dto.ApiResponse;
+import com.cbs.channel.dto.*;
 import com.cbs.channel.entity.ServicePoint;
 import com.cbs.channel.entity.ServicePointInteraction;
+import com.cbs.channel.mapper.ChannelMapper;
 import com.cbs.channel.service.ServicePointService;
+import com.cbs.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,29 +24,38 @@ import java.util.Map;
 public class ServicePointController {
 
     private final ServicePointService service;
+    private final ChannelMapper channelMapper;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<ServicePoint>>> listAll() {
-        return ResponseEntity.ok(ApiResponse.ok(service.getAllServicePoints()));
+    public ResponseEntity<ApiResponse<List<ServicePointResponse>>> listAll() {
+        return ResponseEntity.ok(ApiResponse.ok(channelMapper.toServicePointResponseList(service.getAllServicePoints())));
     }
 
     @PostMapping
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<ServicePoint>> register(@RequestBody ServicePoint servicePoint) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.registerServicePoint(servicePoint)));
+    public ResponseEntity<ApiResponse<ServicePointResponse>> register(@Valid @RequestBody RegisterServicePointRequest request) {
+        ServicePoint entity = channelMapper.toEntity(request);
+        ServicePoint saved = service.registerServicePoint(entity);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(channelMapper.toServicePointResponse(saved)));
     }
 
     @PostMapping("/{id}/interaction/start")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<ServicePointInteraction>> startInteraction(@PathVariable Long id, @RequestBody ServicePointInteraction interaction) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.startInteraction(id, interaction)));
+    public ResponseEntity<ApiResponse<InteractionResponse>> startInteraction(
+            @PathVariable Long id, @Valid @RequestBody StartInteractionRequest request) {
+        ServicePointInteraction entity = channelMapper.toEntity(request);
+        ServicePointInteraction saved = service.startInteraction(id, entity);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(channelMapper.toInteractionResponse(saved)));
     }
 
     @PostMapping("/{id}/interaction/end")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<ServicePointInteraction>> endInteraction(@PathVariable Long id, @RequestParam String outcome, @RequestParam(required = false) Integer satisfactionScore) {
-        return ResponseEntity.ok(ApiResponse.ok(service.endInteraction(id, outcome, satisfactionScore)));
+    public ResponseEntity<ApiResponse<InteractionResponse>> endInteraction(
+            @PathVariable Long id, @RequestParam String outcome,
+            @RequestParam(required = false) Integer satisfactionScore) {
+        ServicePointInteraction result = service.endInteraction(id, outcome, satisfactionScore);
+        return ResponseEntity.ok(ApiResponse.ok(channelMapper.toInteractionResponse(result)));
     }
 
     @GetMapping("/status")
@@ -54,26 +66,33 @@ public class ServicePointController {
 
     @GetMapping("/metrics")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getServicePointMetrics(@RequestParam(required = false) Long servicePointId) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getServicePointMetrics(
+            @RequestParam(required = false) Long servicePointId) {
         return ResponseEntity.ok(ApiResponse.ok(service.getServicePointMetrics(servicePointId)));
     }
 
     @GetMapping("/available")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<ServicePoint>>> getAvailableServicePoints(@RequestParam(required = false) String type) {
-        return ResponseEntity.ok(ApiResponse.ok(service.getAvailableServicePoints(type)));
+    public ResponseEntity<ApiResponse<List<ServicePointResponse>>> getAvailableServicePoints(
+            @RequestParam(required = false) String type) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                channelMapper.toServicePointResponseList(service.getAvailableServicePoints(type))));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<ServicePoint>> getById(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(service.getServicePointById(id)));
+    public ResponseEntity<ApiResponse<ServicePointResponse>> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(channelMapper.toServicePointResponse(service.getServicePointById(id))));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<ServicePoint>> update(@PathVariable Long id, @RequestBody ServicePoint servicePoint) {
-        return ResponseEntity.ok(ApiResponse.ok(service.updateServicePoint(id, servicePoint)));
+    public ResponseEntity<ApiResponse<ServicePointResponse>> update(
+            @PathVariable Long id, @Valid @RequestBody UpdateServicePointRequest request) {
+        ServicePoint existing = service.getServicePointById(id);
+        channelMapper.updateServicePointFromRequest(request, existing);
+        ServicePoint saved = service.saveServicePoint(existing);
+        return ResponseEntity.ok(ApiResponse.ok(channelMapper.toServicePointResponse(saved)));
     }
 
     @DeleteMapping("/{id}")

@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
-import { X, AlertTriangle, CheckCircle2, HelpCircle, Upload } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle2, HelpCircle, Upload, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { apiUpload } from '@/lib/api';
 import { formatDate } from '@/lib/formatters';
 import type { SanctionsMatch } from '../../types/sanctions';
 import { useConfirmHit, useMarkFalsePositive } from '../../hooks/useSanctions';
@@ -18,25 +20,46 @@ export function MatchReviewPanel({ match, onClose }: Props) {
   const [decision, setDecision] = useState<Decision>(null);
   const [justification, setJustification] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadedDocId, setUploadedDocId] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const confirmHit = useConfirmHit();
   const markFalsePositive = useMarkFalsePositive();
 
   const handleConfirmHit = async () => {
-    await confirmHit.mutateAsync(match.id);
-    onClose();
+    try {
+      await confirmHit.mutateAsync(match.id);
+      toast.success(`Match ${match.matchNumber} confirmed as a true hit`);
+      onClose();
+    } catch {
+      toast.error('Failed to confirm hit. Please try again.');
+    }
   };
 
   const handleFalsePositive = async () => {
     if (!justification.trim()) return;
-    await markFalsePositive.mutateAsync({ id: match.id, justification });
-    onClose();
+    try {
+      await markFalsePositive.mutateAsync(match.id);
+      toast.success(`Match ${match.matchNumber} marked as false positive`);
+      onClose();
+    } catch {
+      toast.error('Failed to mark as false positive. Please try again.');
+    }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setFileName(file.name);
+    if (!file) return;
+    try {
+      const result = await apiUpload<{ id: number; fileName: string }>(
+        '/api/v1/documents/upload', file, 'file'
+      );
+      setUploadedDocId(result.id);
+      setFileName(result.fileName);
+      toast.success(`File "${file.name}" uploaded`);
+    } catch {
+      toast.error('File upload failed');
+    }
   };
 
   const isPending = confirmHit.isPending || markFalsePositive.isPending;
@@ -160,9 +183,12 @@ export function MatchReviewPanel({ match, onClose }: Props) {
                   </label>
                   <div
                     onClick={() => fileRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed cursor-pointer hover:bg-muted/50 transition-colors text-sm text-muted-foreground"
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors text-sm',
+                      uploadedDocId ? 'border-green-300 bg-green-50 dark:bg-green-900/10 text-green-700 dark:text-green-400' : 'border-dashed text-muted-foreground'
+                    )}
                   >
-                    <Upload className="w-4 h-4" />
+                    {uploadedDocId ? <Check className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
                     {fileName ?? 'Click to upload document'}
                   </div>
                   <input ref={fileRef} type="file" className="hidden" onChange={handleFileChange} />

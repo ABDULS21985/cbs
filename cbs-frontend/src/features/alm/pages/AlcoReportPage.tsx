@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, StatusBadge, TabsPage } from '@/components/shared';
 import { cn } from '@/lib/utils';
@@ -45,42 +45,50 @@ function PrintPreview({
   onClose: () => void;
 }) {
   const printRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     const content = printRef.current;
     if (!content) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>ALCO Report Pack</title>
-        <style>
-          body { font-family: 'Inter', -apple-system, sans-serif; margin: 40px; color: #111; }
-          h1 { font-size: 24px; border-bottom: 3px solid #111; padding-bottom: 12px; }
-          h2 { font-size: 18px; border-bottom: 2px solid #333; padding-bottom: 8px; margin-top: 32px; }
-          .summary-text { line-height: 1.7; font-size: 14px; white-space: pre-wrap; }
-          .breach-red { color: #dc2626; font-weight: 600; }
-          .breach-amber { color: #d97706; font-weight: 600; }
-          .improvement-green { color: #16a34a; font-weight: 600; }
-          table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
-          th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
-          th { background: #f3f4f6; font-weight: 600; }
-          .page-break { page-break-before: always; }
-          .meta { color: #6b7280; font-size: 12px; margin-bottom: 24px; }
-          @media print {
-            body { margin: 20px; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>${content.innerHTML}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-  };
+
+    const printStyles = `
+      body { font-family: 'Inter', -apple-system, sans-serif; margin: 40px; color: #111; }
+      h1 { font-size: 24px; border-bottom: 3px solid #111; padding-bottom: 12px; }
+      h2 { font-size: 18px; border-bottom: 2px solid #333; padding-bottom: 8px; margin-top: 32px; }
+      .summary-text { line-height: 1.7; font-size: 14px; white-space: pre-wrap; }
+      .breach-red { color: #dc2626; font-weight: 600; }
+      .breach-amber { color: #d97706; font-weight: 600; }
+      .improvement-green { color: #16a34a; font-weight: 600; }
+      table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+      th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+      th { background: #f3f4f6; font-weight: 600; }
+      .page-break { page-break-before: always; }
+      .meta { color: #6b7280; font-size: 12px; margin-bottom: 24px; }
+      @media print { body { margin: 20px; } }
+    `;
+
+    const html = `<!DOCTYPE html><html><head><title>ALCO Report Pack</title><style>${printStyles}</style></head><body>${content.innerHTML}</body></html>`;
+
+    // Use a hidden iframe to avoid popup blockers
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+
+    const iframe = iframeRef.current;
+    if (iframe) {
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.print();
+        } catch {
+          // Fallback: open in new tab if iframe print fails
+          window.open(url, '_blank');
+        }
+      };
+      iframe.src = url;
+    }
+
+    // Clean up blob URL after a delay
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 overflow-auto">
@@ -101,6 +109,9 @@ function PrintPreview({
           </button>
         </div>
       </div>
+
+      {/* Hidden iframe for popup-blocker-safe printing */}
+      <iframe ref={iframeRef} className="hidden" title="ALCO Print" aria-hidden="true" />
 
       <div ref={printRef} className="max-w-4xl mx-auto py-10 px-8 bg-white text-gray-900 min-h-screen">
         <h1 className="text-2xl font-bold border-b-[3px] border-gray-800 pb-3 mb-2">

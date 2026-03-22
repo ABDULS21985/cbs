@@ -12,7 +12,7 @@ module.exports = {
         CBS_DB_PASSWORD: 'cbs_password',
         CBS_REDIS_HOST: 'localhost',
         CBS_REDIS_PORT: '6379',
-        CBS_SERVER_PORT: '8080',
+        CBS_SERVER_PORT: '8082',
         CBS_CACHE_TYPE: 'redis',
         CBS_OAUTH2_ISSUER_URI: 'http://localhost:8180/realms/cbs',
         CBS_OAUTH2_ACCEPTED_AUDIENCES: 'cbs-app',
@@ -43,7 +43,7 @@ module.exports = {
       interpreter: 'none',
       env: {
         NODE_ENV: 'development',
-        VITE_API_PROXY_TARGET: 'http://localhost:8080',
+        VITE_API_PROXY_TARGET: 'http://localhost:8082',
       },
       watch: false,
       autorestart: true,

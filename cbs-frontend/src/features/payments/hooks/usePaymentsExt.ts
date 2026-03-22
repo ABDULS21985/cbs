@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { paymentsApi } from '../api/paymentExtApi';
-import { achApi } from '../api/achExtApi';
+import { achExtApi } from '../api/achExtApi';
 import { chequesApi } from '../api/chequeExtApi';
 import { remittancesApi } from '../api/remittanceApi';
 import { payrollApi } from '../api/payrollApi';
@@ -85,7 +85,7 @@ export function useCreateRoutingRule() {
 export function useAchBatchesByOperatorStatus(operator: string, status: string) {
   return useQuery({
     queryKey: KEYS.ach.byOperatorStatus(operator, status),
-    queryFn: () => achApi.settle2(operator, status),
+    queryFn: () => achExtApi.getBatchesByOperator(operator, status),
     enabled: !!operator && !!status,
     staleTime: 30_000,
   });
@@ -94,7 +94,7 @@ export function useAchBatchesByOperatorStatus(operator: string, status: string) 
 export function useCreateAchBatch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<AchBatch>) => achApi.create(data),
+    mutationFn: (data: Partial<AchBatch>) => achExtApi.createBatch(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.ach.all });
     },
@@ -104,8 +104,7 @@ export function useCreateAchBatch() {
 export function useSubmitAchBatch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<AchBatch> }) =>
-      achApi.create2(id, data),
+    mutationFn: (id: number) => achExtApi.submitBatch(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.ach.all });
     },
@@ -115,7 +114,7 @@ export function useSubmitAchBatch() {
 export function useSettleAchBatch() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => achApi.settle(id),
+    mutationFn: (id: number) => achExtApi.settleBatch(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.ach.all });
     },
@@ -145,7 +144,13 @@ export function useAccountCheques(accountId: number) {
 export function usePresentCheque() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => chequesApi.present(),
+    mutationFn: (data: {
+      accountId: number;
+      chequeNumber: string;
+      amount: number;
+      payeeName: string;
+      presentingBankCode?: string;
+    }) => chequesApi.present(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.cheques.all });
     },
@@ -165,7 +170,8 @@ export function useClearCheque() {
 export function useStopCheque() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => chequesApi.stop(),
+    mutationFn: (data: { accountId: number; chequeNumber: string; reason: string }) =>
+      chequesApi.stop(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.cheques.all });
     },

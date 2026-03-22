@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard, DataTable, TabsPage } from '@/components/shared';
+import { CHART_PALETTE, REFERENCE_CHART_COLORS, SEMANTIC_CHART_COLORS } from '@/lib/chartPalette';
 import { formatMoney, formatPercent, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
@@ -13,8 +14,6 @@ import {
 } from 'recharts';
 import type { ColumnDef } from '@tanstack/react-table';
 import { liquidityRiskApi, type LiquidityMetric } from '../api/liquidityRiskApi';
-
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 function OverviewTab() {
   const { data: stats, isLoading } = useQuery({
@@ -53,8 +52,8 @@ function OverviewTab() {
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} />
               <Tooltip contentStyle={{ fontSize: 12 }} />
-              <ReferenceLine y={100} stroke="#ef4444" strokeDasharray="5 5" label="Min 100%" />
-              <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} name="LCR %" />
+              <ReferenceLine y={100} stroke={REFERENCE_CHART_COLORS.danger} strokeDasharray="5 5" label="Min 100%" />
+              <Line type="monotone" dataKey="value" stroke={SEMANTIC_CHART_COLORS.info} strokeWidth={2} name="LCR %" />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -66,7 +65,7 @@ function OverviewTab() {
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
                 <Pie data={hqla} dataKey="amount" nameKey="level" cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={2}>
-                  {hqla.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  {hqla.map((_, i) => <Cell key={i} fill={CHART_PALETTE[i % CHART_PALETTE.length]} />)}
                 </Pie>
                 <Tooltip formatter={(v: number) => [formatMoney(v), '']} contentStyle={{ fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -95,12 +94,12 @@ function MetricsTab() {
   });
 
   const cols: ColumnDef<LiquidityMetric, unknown>[] = useMemo(() => [
-    { accessorKey: 'reportDate', header: 'Date', cell: ({ row }) => formatDate(row.original.reportDate) },
+    { accessorKey: 'metricDate', header: 'Date', cell: ({ row }) => formatDate(row.original.metricDate) },
     { accessorKey: 'currency', header: 'CCY' },
-    { accessorKey: 'lcrRatio', header: 'LCR %', cell: ({ row }) => <span className={cn('font-mono text-sm font-semibold', row.original.lcrBreached ? 'text-red-600' : 'text-green-600')}>{row.original.lcrRatio.toFixed(1)}%</span> },
-    { accessorKey: 'nsfrRatio', header: 'NSFR %', cell: ({ row }) => <span className={cn('font-mono text-sm font-semibold', row.original.nsfrBreached ? 'text-red-600' : 'text-green-600')}>{row.original.nsfrRatio.toFixed(1)}%</span> },
+    { accessorKey: 'lcrRatio', header: 'LCR %', cell: ({ row }) => <span className={cn('font-mono text-sm font-semibold', row.original.lcrBreach ? 'text-red-600' : 'text-green-600')}>{(row.original.lcrRatio ?? 0).toFixed(1)}%</span> },
+    { accessorKey: 'nsfrRatio', header: 'NSFR %', cell: ({ row }) => <span className={cn('font-mono text-sm font-semibold', row.original.nsfrBreach ? 'text-red-600' : 'text-green-600')}>{(row.original.nsfrRatio ?? 0).toFixed(1)}%</span> },
     { accessorKey: 'totalHqla', header: 'Total HQLA', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.totalHqla)}</span> },
-    { accessorKey: 'totalNetCashOutflows', header: 'Net Outflows', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.totalNetCashOutflows)}</span> },
+    { accessorKey: 'netCashOutflows30d', header: 'Net Outflows (30d)', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.netCashOutflows30d)}</span> },
     { accessorKey: 'availableStableFunding', header: 'ASF', cell: ({ row }) => <span className="font-mono text-xs">{formatMoney(row.original.availableStableFunding)}</span> },
     { accessorKey: 'requiredStableFunding', header: 'RSF', cell: ({ row }) => <span className="font-mono text-xs">{formatMoney(row.original.requiredStableFunding)}</span> },
   ], []);

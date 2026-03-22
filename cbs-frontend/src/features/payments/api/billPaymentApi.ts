@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams, apiPut } from '@/lib/api';
 
 export interface BillerCategory {
   code: string;
@@ -37,10 +37,14 @@ export interface BillValidationResult {
   outstandingBalance?: number;
   meterToken?: string;
   referenceValid: boolean;
+  valid?: boolean;
+  billerCode?: string;
+  customerId?: string;
 }
 
 export interface BillPaymentRequest {
   billerId: number;
+  billerCode: string;
   sourceAccountId: number;
   amount: number;
   fields: Record<string, string>;
@@ -76,10 +80,16 @@ export const billPaymentApi = {
     apiGet<BillerCategory[]>('/api/v1/bills/categories'),
   getBillersByCategory: (categoryCode: string) =>
     apiGet<Biller[]>(`/api/v1/bills/categories/${categoryCode}/billers`),
-  validateReference: (billerId: number, fields: Record<string, string>) =>
-    apiPost<BillValidationResult>('/api/v1/bills/validate', { billerId, fields }),
+  validateReference: (billerCode: string, fields: Record<string, string>) =>
+    apiPost<BillValidationResult>('/api/v1/bills/validate', { billerCode, customerId: fields['customerId'] ?? '', ...fields }),
   payBill: (data: BillPaymentRequest) =>
-    apiPost<BillPaymentResponse>('/api/v1/bills/pay', data),
+    apiPost<BillPaymentResponse>('/api/v1/bills/pay', {
+      debitAccountId: data.sourceAccountId,
+      billerCode: data.billerCode,
+      billerCustomerId: data.fields['customerId'] ?? '',
+      billerCustomerName: data.fields['customerName'] ?? '',
+      amount: data.amount,
+    }),
   getFavorites: () =>
     apiGet<BillFavorite[]>('/api/v1/bills/favorites'),
   saveFavorite: (data: Partial<BillFavorite>) =>
@@ -88,9 +98,9 @@ export const billPaymentApi = {
     apiPost<void>(`/api/v1/bills/favorites/${id}/remove`, {}),
   // Admin
   getAllBillers: (filters?: Record<string, unknown>) =>
-    apiGet<Biller[]>('/api/v1/admin/billers', filters),
+    apiGet<Biller[]>('/api/v1/bills/admin/billers', filters),
   onboardBiller: (data: Partial<Biller>) =>
-    apiPost<Biller>('/api/v1/admin/billers', data),
+    apiPost<Biller>('/api/v1/bills/billers', data),
   updateBiller: (id: number, data: Partial<Biller>) =>
-    apiPut<Biller>(`/api/v1/admin/billers/${id}`, data),
+    apiPut<Biller>(`/api/v1/bills/billers/${id}`, data),
 };

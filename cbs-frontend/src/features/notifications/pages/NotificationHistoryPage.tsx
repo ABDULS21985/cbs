@@ -12,6 +12,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage, DataTable, StatusBadge, EmptyState, ExportMenu } from '@/components/shared';
 import { cn } from '@/lib/utils';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { notificationAnalyticsApi } from '../api/notificationAnalyticsApi';
 import {
   useDeliveryStats,
   useDeliveryTrend,
@@ -177,8 +180,20 @@ const ALL_CHANNELS: NotificationChannel[] = ['EMAIL', 'SMS', 'PUSH', 'IN_APP', '
 const ALL_STATUSES: NotificationStatus[] = ['PENDING', 'PENDING_DISPATCH', 'SENT', 'DELIVERED', 'READ', 'FAILED', 'BOUNCED', 'OPTED_OUT'];
 
 function DeliveryLogTab() {
+  const qc = useQueryClient();
   const { data: logs, isLoading } = useNotificationLog(0, 200);
   const retryMutation = useRetryAllFailed();
+
+  // Per-row retry: POST /notifications/retry (retries all failed) after marking context
+  const singleRetryMutation = useMutation({
+    mutationFn: (_id: number) => notificationAnalyticsApi.retryAllFailed(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notification-analytics'] });
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Notification queued for retry');
+    },
+    onError: () => toast.error('Failed to retry notification'),
+  });
 
   const [channelFilter, setChannelFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -324,6 +339,8 @@ function DeliveryLogTab() {
         notification={selectedLog}
         open={!!selectedLog}
         onClose={() => setSelectedLog(null)}
+        onRetry={(id) => singleRetryMutation.mutate(id)}
+        retrying={singleRetryMutation.isPending}
       />
     </div>
   );

@@ -16,22 +16,22 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters';
+import { useNotificationStore } from '@/stores/notificationStore';
 import { StatementUploader } from '../components/StatementUploader';
 import { StatementPreview } from '../components/StatementPreview';
 import { MappingConfigurator } from '../components/MappingConfigurator';
 import { ImportHistoryTable } from '../components/ImportHistoryTable';
 import {
+  useImportHistory,
+  useReImportStatement,
+  useDeleteImport,
+  useAutoFetchConfigs,
+} from '../hooks/useReconciliation';
+import {
   parseStatement,
   confirmImport,
   rejectImport,
-  getImportHistory,
-  reImportStatement,
-  deleteImport,
-  getAutoFetchConfigs,
-  uploadStatement,
   type ParsedStatement,
-  type ImportRecord,
-  type AutoFetchConfig,
 } from '../api/reconciliationApi';
 
 type TabId = 'upload' | 'preview' | 'mapping' | 'history' | 'auto-fetch';
@@ -45,6 +45,7 @@ const TABS: Array<{ id: TabId; label: string; icon: typeof Upload }> = [
 ];
 
 export function StatementImportPage() {
+  const addToast = useNotificationStore((s) => s.addToast);
   const [activeTab, setActiveTab] = useState<TabId>('upload');
   const [accountId, setAccountId] = useState('');
   const [parsedStatement, setParsedStatement] = useState<ParsedStatement | null>(null);
@@ -52,102 +53,91 @@ export function StatementImportPage() {
   const [csvPreviewRows, setCsvPreviewRows] = useState<string[][]>([]);
   const [bankName, setBankName] = useState('');
 
-  // History state
-  const [importRecords, setImportRecords] = useState<ImportRecord[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-
-  // Auto-fetch state
-  const [autoFetchConfigs, setAutoFetchConfigs] = useState<AutoFetchConfig[]>([]);
-  const [autoFetchLoading, setAutoFetchLoading] = useState(false);
+  // React Query hooks
+  const { data: importRecords = [], isLoading: historyLoading, refetch: refetchHistory } = useImportHistory();
+  const { data: autoFetchConfigs = [], isLoading: autoFetchLoading } = useAutoFetchConfigs();
+  const reImportMutation = useReImportStatement();
+  const deleteMutation = useDeleteImport();
 
   // Handle file upload from StatementUploader
   const handleUpload = useCallback(
     async (file: File) => {
-      const result = await parseStatement(file, accountId);
-      setParsedStatement(result);
+      try {
+        const result = await parseStatement(file, accountId);
+        setParsedStatement(result);
 
-      // If CSV, extract headers and preview rows for mapping tab
-      if (file.name.endsWith('.csv')) {
-        const text = await file.text();
-        const lines = text.split('\n').filter((l) => l.trim());
-        if (lines.length > 0) {
-          setCsvHeaders(lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, '')));
-          setCsvPreviewRows(
-            lines.slice(1, 6).map((line) =>
-              line.split(',').map((c) => c.trim().replace(/^"|"$/g, '')),
-            ),
-          );
+        // If CSV, extract headers and preview rows for mapping tab
+        if (file.name.endsWith('.csv')) {
+          const text = await file.text();
+          const lines = text.split('\n').filter((l) => l.trim());
+          if (lines.length > 0) {
+            setCsvHeaders(lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, '')));
+            setCsvPreviewRows(
+              lines.slice(1, 6).map((line) =>
+                line.split(',').map((c) => c.trim().replace(/^"|"$/g, '')),
+              ),
+            );
+          }
         }
-      }
 
-      setBankName(result.header.bankName);
-      setActiveTab('preview');
+        setBankName(result.header.bankName);
+        setActiveTab('preview');
+        addToast({ type: 'success', title: 'Statement Parsed', message: `Parsed ${result.entries.length} entries from ${file.name}.` });
+      } catch {
+        addToast({ type: 'error', title: 'Parse Failed', message: 'Failed to parse statement file. Check the file format.' });
+      }
     },
-    [accountId],
+    [accountId, addToast],
   );
 
   // Accept & import
   const handleAccept = useCallback(async () => {
     if (!parsedStatement) return;
-    await confirmImport(accountId, parsedStatement.header.statementDate);
-    setParsedStatement(null);
-    setActiveTab('history');
-    loadHistory();
-  }, [parsedStatement, accountId]);
+    try {
+      await confirmImport(accountId, parsedStatement.header.statementDate);
+      addToast({ type: 'success', title: 'Statement Imported', message: 'Statement confirmed and imported successfully.' });
+      setParsedStatement(null);
+      setActiveTab('history');
+      refetchHistory();
+    } catch {
+      addToast({ type: 'error', title: 'Import Failed', message: 'Failed to confirm import.' });
+    }
+  }, [parsedStatement, accountId, addToast, refetchHistory]);
 
   // Reject
-  const handleReject = useCallback(() => {
+  const handleReject = useCallback(async () => {
     if (!parsedStatement) return;
-    rejectImport(accountId, parsedStatement.header.statementDate);
+    try {
+      await rejectImport(accountId, parsedStatement.header.statementDate);
+      addToast({ type: 'info', title: 'Statement Rejected', message: 'Statement has been rejected.' });
+    } catch {
+      addToast({ type: 'error', title: 'Reject Failed', message: 'Failed to reject statement.' });
+    }
     setParsedStatement(null);
     setActiveTab('upload');
-  }, [parsedStatement, accountId]);
-
-  // Load import history
-  const loadHistory = useCallback(async () => {
-    setHistoryLoading(true);
-    try {
-      const records = await getImportHistory();
-      setImportRecords(records);
-    } catch {
-      // handled by global error handler
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, []);
-
-  // Load auto-fetch configs
-  const loadAutoFetch = useCallback(async () => {
-    setAutoFetchLoading(true);
-    try {
-      const configs = await getAutoFetchConfigs();
-      setAutoFetchConfigs(configs);
-    } catch {
-      // handled by global error handler
-    } finally {
-      setAutoFetchLoading(false);
-    }
-  }, []);
+  }, [parsedStatement, accountId, addToast]);
 
   // Tab change handler
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
-    if (tab === 'history' && importRecords.length === 0) loadHistory();
-    if (tab === 'auto-fetch' && autoFetchConfigs.length === 0) loadAutoFetch();
+    if (tab === 'history') refetchHistory();
   };
 
-  const handleReImport = useCallback(async (importId: string) => {
-    await reImportStatement(importId);
-    loadHistory();
-  }, [loadHistory]);
+  const handleReImport = useCallback((importId: string) => {
+    reImportMutation.mutate(importId, {
+      onSuccess: () => addToast({ type: 'success', title: 'Re-Import Started', message: 'Statement re-import initiated.' }),
+      onError: () => addToast({ type: 'error', title: 'Re-Import Failed', message: 'Failed to re-import statement.' }),
+    });
+  }, [reImportMutation, addToast]);
 
-  const handleDeleteImport = useCallback(async (importId: string) => {
-    await deleteImport(importId);
-    loadHistory();
-  }, [loadHistory]);
+  const handleDeleteImport = useCallback((importId: string) => {
+    deleteMutation.mutate(importId, {
+      onSuccess: () => addToast({ type: 'success', title: 'Import Deleted', message: 'Import record deleted.' }),
+      onError: () => addToast({ type: 'error', title: 'Delete Failed', message: 'Failed to delete import record.' }),
+    });
+  }, [deleteMutation, addToast]);
 
   const handleMappingApply = useCallback((_mappings: any[]) => {
-    // Mappings applied - trigger re-parse with mapping config
     setActiveTab('preview');
   }, []);
 

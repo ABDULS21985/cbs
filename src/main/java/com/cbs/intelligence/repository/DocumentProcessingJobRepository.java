@@ -8,5 +8,6 @@ import java.util.Optional;
 public interface DocumentProcessingJobRepository extends JpaRepository<DocumentProcessingJob, Long> {
     Optional<DocumentProcessingJob> findByJobId(String jobId);
     List<DocumentProcessingJob> findByVerificationStatusOrderByCreatedAtDesc(String status);
+    List<DocumentProcessingJob> findByVerificationStatusInOrderByCreatedAtDesc(List<String> statuses);
     List<DocumentProcessingJob> findByDocumentTypeAndVerificationStatusOrderByCreatedAtDesc(String docType, String status);
 }

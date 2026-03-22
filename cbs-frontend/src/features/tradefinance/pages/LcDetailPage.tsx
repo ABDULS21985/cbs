@@ -71,15 +71,19 @@ function DocumentsTab({ lcId }: { lcId: number }) {
   });
   const qc = useQueryClient();
   const [showUpload, setShowUpload] = useState(false);
-  const [uploadForm, setUploadForm] = useState({ category: 'INVOICE', fileName: '', fileType: 'PDF', storagePath: '' });
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadCategory, setUploadCategory] = useState('INVOICE');
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = () => {
+    if (!uploadFile) return;
     setUploading(true);
-    tradeFinanceExtApi.uploadDocument({ category: uploadForm.category, lcId, fileName: uploadForm.fileName || 'document', fileType: uploadForm.fileType || 'PDF' }).then(() => {
+    tradeFinanceExtApi.uploadDocumentWithFile({ file: uploadFile, category: uploadCategory, lcId }).then(() => {
       toast.success('Document uploaded');
       qc.invalidateQueries({ queryKey: ['trade-finance', 'lc', lcId, 'documents'] });
       setShowUpload(false);
+      setUploadFile(null);
+      setUploadCategory('INVOICE');
     }).catch(() => toast.error('Upload failed')).finally(() => setUploading(false));
   };
 
@@ -107,7 +111,7 @@ function DocumentsTab({ lcId }: { lcId: number }) {
               </div>
               <div className="flex items-center gap-2">
                 {d.verificationStatus ? (
-                  <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold',
+                  <span className={cn('ui-chip',
                     String(d.verificationStatus) === 'VERIFIED' ? 'bg-green-100 text-green-700' :
                     String(d.verificationStatus) === 'DISCREPANT' ? 'bg-red-100 text-red-700' :
                     'bg-amber-100 text-amber-700'
@@ -126,18 +130,20 @@ function DocumentsTab({ lcId }: { lcId: number }) {
             <h3 className="text-lg font-semibold mb-4">Upload Trade Document</h3>
             <div className="space-y-3">
               <div>
+                <label className="text-xs font-medium text-muted-foreground">File</label>
+                <input type="file" className={fc} onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-muted-foreground">Category</label>
-                <select className={fc} value={uploadForm.category} onChange={(e) => setUploadForm((f) => ({ ...f, category: e.target.value }))}>
+                <select className={fc} value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)}>
                   {['INVOICE', 'BILL_OF_LADING', 'PACKING_LIST', 'CERTIFICATE_OF_ORIGIN', 'INSURANCE_CERT', 'INSPECTION_CERT', 'WEIGHT_CERT', 'CUSTOMS_DECLARATION', 'DRAFT', 'OTHER'].map((c) => (
                     <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
                   ))}
                 </select>
               </div>
-              <div><label className="text-xs font-medium text-muted-foreground">File Name</label><input className={fc} value={uploadForm.fileName} onChange={(e) => setUploadForm((f) => ({ ...f, fileName: e.target.value }))} required /></div>
-              <div><label className="text-xs font-medium text-muted-foreground">File Type</label><input className={fc} value={uploadForm.fileType} onChange={(e) => setUploadForm((f) => ({ ...f, fileType: e.target.value }))} /></div>
               <div className="flex gap-2 pt-2">
                 <button onClick={() => setShowUpload(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-                <button onClick={handleUpload} disabled={uploading || !uploadForm.fileName} className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                <button onClick={handleUpload} disabled={uploading || !uploadFile} className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
                   {uploading ? 'Uploading...' : 'Upload'}
                 </button>
               </div>
@@ -217,8 +223,8 @@ function AmendmentsTab({ lcId }: { lcId: number }) {
               </div>
               {a.status === 'PENDING' && (
                 <div className="flex gap-2 pt-1">
-                  <button onClick={() => handleApprove(a.id)} className="px-2 py-1 text-[10px] font-medium rounded bg-green-100 text-green-700 hover:bg-green-200">Approve</button>
-                  <button onClick={() => handleReject(a.id)} className="px-2 py-1 text-[10px] font-medium rounded bg-red-100 text-red-700 hover:bg-red-200">Reject</button>
+                  <button onClick={() => handleApprove(a.id)} className="ui-action-chip ui-action-chip-success">Approve</button>
+                  <button onClick={() => handleReject(a.id)} className="ui-action-chip ui-action-chip-danger">Reject</button>
                 </div>
               )}
             </div>

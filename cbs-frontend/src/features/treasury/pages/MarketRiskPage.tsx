@@ -39,8 +39,8 @@ function OverviewTab() {
           <div className="space-y-2">
             {breaches.slice(0, 5).map((b) => (
               <div key={b.id} className="flex items-center justify-between text-sm border-b border-red-100 dark:border-red-800 pb-1">
-                <span>{b.deskName} — {b.currency}</span>
-                <span className="font-mono text-red-600 font-semibold">{b.limitUtilization.toFixed(1)}%</span>
+                <span>{b.portfolio} — {b.currency}</span>
+                <span className="font-mono text-red-600 font-semibold">{(b.varUtilizationPct ?? 0).toFixed(1)}%</span>
               </div>
             ))}
           </div>
@@ -57,16 +57,17 @@ function PositionsTab() {
   });
 
   const cols: ColumnDef<MarketRiskPosition, unknown>[] = useMemo(() => [
-    { accessorKey: 'reportDate', header: 'Date', cell: ({ row }) => formatDate(row.original.reportDate) },
-    { accessorKey: 'deskName', header: 'Desk' },
+    { accessorKey: 'positionDate', header: 'Date', cell: ({ row }) => formatDate(row.original.positionDate) },
+    { accessorKey: 'portfolio', header: 'Portfolio' },
+    { accessorKey: 'riskType', header: 'Type', cell: ({ row }) => <span className="text-xs font-mono">{row.original.riskType}</span> },
     { accessorKey: 'currency', header: 'CCY' },
-    { accessorKey: 'varHistorical', header: 'VaR (Hist)', cell: ({ row }) => <span className="font-mono text-xs">{formatMoney(row.original.varHistorical)}</span> },
-    { accessorKey: 'varParametric', header: 'VaR (Param)', cell: ({ row }) => <span className="font-mono text-xs">{formatMoney(row.original.varParametric)}</span> },
-    { accessorKey: 'varMonteCarlo', header: 'VaR (MC)', cell: ({ row }) => <span className="font-mono text-xs">{formatMoney(row.original.varMonteCarlo)}</span> },
-    { accessorKey: 'stressLoss', header: 'Stress Loss', cell: ({ row }) => <span className="font-mono text-xs text-red-600">{formatMoney(row.original.stressLoss)}</span> },
-    { accessorKey: 'limitUtilization', header: 'Limit %', cell: ({ row }) => <span className={cn('font-mono text-sm font-semibold', row.original.breached ? 'text-red-600' : row.original.limitUtilization > 80 ? 'text-amber-600' : 'text-green-600')}>{row.original.limitUtilization.toFixed(1)}%</span> },
-    { accessorKey: 'greeksDelta', header: 'Delta', cell: ({ row }) => <span className="font-mono text-xs">{row.original.greeksDelta.toFixed(4)}</span> },
-    { accessorKey: 'pnlAttribution', header: 'P&L Attr', cell: ({ row }) => <span className={cn('font-mono text-xs', row.original.pnlAttribution >= 0 ? 'text-green-600' : 'text-red-600')}>{formatMoney(row.original.pnlAttribution)}</span> },
+    { accessorKey: 'var1d95', header: 'VaR 1d 95%', cell: ({ row }) => <span className="font-mono text-xs">{formatMoney(row.original.var1d95)}</span> },
+    { accessorKey: 'var1d99', header: 'VaR 1d 99%', cell: ({ row }) => <span className="font-mono text-xs">{formatMoney(row.original.var1d99)}</span> },
+    { accessorKey: 'var10d99', header: 'VaR 10d 99%', cell: ({ row }) => <span className="font-mono text-xs">{formatMoney(row.original.var10d99)}</span> },
+    { accessorKey: 'stressLossSevere', header: 'Stress Loss', cell: ({ row }) => <span className="font-mono text-xs text-red-600">{formatMoney(row.original.stressLossSevere)}</span> },
+    { accessorKey: 'varUtilizationPct', header: 'Limit %', cell: ({ row }) => <span className={cn('font-mono text-sm font-semibold', row.original.limitBreach ? 'text-red-600' : row.original.varUtilizationPct > 80 ? 'text-amber-600' : 'text-green-600')}>{(row.original.varUtilizationPct ?? 0).toFixed(1)}%</span> },
+    { accessorKey: 'delta', header: 'Delta', cell: ({ row }) => <span className="font-mono text-xs">{(row.original.delta ?? 0).toFixed(4)}</span> },
+    { accessorKey: 'dailyPnl', header: 'Daily P&L', cell: ({ row }) => <span className={cn('font-mono text-xs', (row.original.dailyPnl ?? 0) >= 0 ? 'text-green-600' : 'text-red-600')}>{formatMoney(row.original.dailyPnl)}</span> },
   ], []);
 
   return (

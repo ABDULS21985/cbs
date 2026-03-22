@@ -13,7 +13,9 @@ export type WatchlistSource =
   | 'EU_CONSOLIDATED'
   | 'PEP'
   | 'UK_HMT'
-  | 'LOCAL';
+  | 'LOCAL_REGULATOR'
+  | 'INTERNAL'
+  | 'ADVERSE_MEDIA';
 
 export interface Watchlist {
   id: number;

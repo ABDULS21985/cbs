@@ -258,13 +258,38 @@ public class FeeService {
     public FeeDefinition updateFeeDefinition(FeeDefinition fee) {
         FeeDefinition existing = feeDefinitionRepository.findById(fee.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("FeeDefinition", "id", fee.getId()));
-        // Copy updatable fields
+        // Copy all updatable fields — calcType, tiers, GL codes, tax, applicability, status, dates
         if (fee.getFeeName() != null) existing.setFeeName(fee.getFeeName());
         if (fee.getFeeCategory() != null) existing.setFeeCategory(fee.getFeeCategory());
-        if (fee.getFlatAmount() != null) existing.setFlatAmount(fee.getFlatAmount());
-        if (fee.getPercentage() != null) existing.setPercentage(fee.getPercentage());
-        if (fee.getMinFee() != null) existing.setMinFee(fee.getMinFee());
-        if (fee.getMaxFee() != null) existing.setMaxFee(fee.getMaxFee());
+        if (fee.getTriggerEvent() != null) existing.setTriggerEvent(fee.getTriggerEvent());
+        if (fee.getCalculationType() != null) existing.setCalculationType(fee.getCalculationType());
+        // Calculation amounts — allow explicit null to clear optional fields
+        existing.setFlatAmount(fee.getFlatAmount());
+        existing.setPercentage(fee.getPercentage());
+        existing.setMinFee(fee.getMinFee());
+        existing.setMaxFee(fee.getMaxFee());
+        if (fee.getCurrencyCode() != null) existing.setCurrencyCode(fee.getCurrencyCode());
+        // Tier config (JSONB) — replace wholesale when provided
+        if (fee.getTierConfig() != null) existing.setTierConfig(fee.getTierConfig());
+        // Applicability
+        if (fee.getApplicableProducts() != null) existing.setApplicableProducts(fee.getApplicableProducts());
+        if (fee.getApplicableChannels() != null) existing.setApplicableChannels(fee.getApplicableChannels());
+        if (fee.getApplicableCustomerTypes() != null) existing.setApplicableCustomerTypes(fee.getApplicableCustomerTypes());
+        // Tax
+        if (fee.getTaxApplicable() != null) existing.setTaxApplicable(fee.getTaxApplicable());
+        if (fee.getTaxRate() != null) existing.setTaxRate(fee.getTaxRate());
+        if (fee.getTaxCode() != null) existing.setTaxCode(fee.getTaxCode());
+        // GL codes
+        if (fee.getFeeIncomeGlCode() != null) existing.setFeeIncomeGlCode(fee.getFeeIncomeGlCode());
+        if (fee.getTaxGlCode() != null) existing.setTaxGlCode(fee.getTaxGlCode());
+        // Waiver
+        if (fee.getWaivable() != null) existing.setWaivable(fee.getWaivable());
+        if (fee.getWaiverAuthorityLevel() != null) existing.setWaiverAuthorityLevel(fee.getWaiverAuthorityLevel());
+        // Status and validity
+        if (fee.getIsActive() != null) existing.setIsActive(fee.getIsActive());
+        if (fee.getEffectiveFrom() != null) existing.setEffectiveFrom(fee.getEffectiveFrom());
+        existing.setEffectiveTo(fee.getEffectiveTo()); // allow clearing end date
+        log.info("Fee definition updated: id={}, code={}", existing.getId(), existing.getFeeCode());
         return feeDefinitionRepository.save(existing);
     }
 
@@ -274,18 +299,33 @@ public class FeeService {
     }
 
     public List<FeeChargeLog> getPendingWaivers() {
-        // Return charge logs with PENDING status as waiver candidates
-        return feeChargeLogRepository.findAll().stream()
-                .filter(c -> "PENDING".equals(c.getStatus()))
-                .toList();
+        return feeChargeLogRepository.findByStatusOrderByChargedAtDesc("PENDING");
+    }
+
+    /** All waiver-related charge logs: PENDING, WAIVED, and REJECTED. */
+    public List<FeeChargeLog> getAllWaivers() {
+        return feeChargeLogRepository.findByStatusInOrderByChargedAtDesc(
+                java.util.List.of("PENDING", "WAIVED", "REJECTED"));
+    }
+
+    public Page<FeeChargeLog> getFeeChargeHistory(String feeCode, Pageable pageable) {
+        return feeChargeLogRepository.findByFeeCodeOrderByChargedAtDesc(feeCode, pageable);
     }
 
     @Transactional
     public FeeChargeLog rejectWaiver(Long chargeLogId, String reason) {
-        FeeChargeLog log = feeChargeLogRepository.findById(chargeLogId)
+        FeeChargeLog chargeLog = feeChargeLogRepository.findById(chargeLogId)
                 .orElseThrow(() -> new ResourceNotFoundException("FeeChargeLog", "id", chargeLogId));
-        log.setStatus("REJECTED");
-        return feeChargeLogRepository.save(log);
+        if (!"PENDING".equals(chargeLog.getStatus()) && !"CHARGED".equals(chargeLog.getStatus())) {
+            throw new BusinessException(
+                    "Waiver rejection requires PENDING or CHARGED status (current: " + chargeLog.getStatus() + ")",
+                    "FEE_WAIVER_NOT_REJECTABLE");
+        }
+        chargeLog.setStatus("REJECTED");
+        chargeLog.setWaiverReason(reason);
+        chargeLog.setWaivedBy(currentActorProvider.getCurrentActor());
+        log.info("Waiver rejected: chargeId={}, code={}, reason={}", chargeLogId, chargeLog.getFeeCode(), reason);
+        return feeChargeLogRepository.save(chargeLog);
     }
 
     public java.util.Map<String, Object> createBulkPostingJob(String feeId, String scheduledDate) {

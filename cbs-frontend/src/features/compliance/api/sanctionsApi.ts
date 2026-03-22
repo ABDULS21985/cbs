@@ -19,9 +19,9 @@ export const sanctionsApi = {
   getScreeningStatus: () =>
     apiGet<{ status: string }>('/api/v1/sanctions/screen'),
 
-  /** POST /v1/sanctions/matches/{screeningId}/dispose/{matchId} */
+  /** POST /v1/sanctions/matches/{screeningId}/dispose/{matchId} — returns updated ScreeningRequest */
   disposeMatch: (screeningId: number, matchId: number, data: { disposition: string; disposedBy: string; notes?: string }) =>
-    apiPost<ScreeningMatch>(`/api/v1/sanctions/matches/${screeningId}/dispose/${matchId}`, data),
+    apiPost<ScreeningRequest>(`/api/v1/sanctions/matches/${screeningId}/dispose/${matchId}`, data),
 
   /** GET /v1/sanctions/pending */
   getPendingReview: (params?: Record<string, unknown>) =>
@@ -47,17 +47,17 @@ export const sanctionsApi = {
 
   // ─── Match Actions ──────────────────────────────────────────────────────────
 
-  /** GET /v1/sanctions/matches/{id} */
+  /** GET /v1/sanctions/matches/{id} — returns ScreeningRequest (includes matches[]) */
   getMatchDetail: (id: number) =>
-    apiGet<ScreeningMatch>(`/api/v1/sanctions/matches/${id}`),
+    apiGet<ScreeningRequest>(`/api/v1/sanctions/matches/${id}`),
 
-  /** POST /v1/sanctions/matches/{id}/confirm */
+  /** POST /v1/sanctions/matches/{id}/confirm — returns updated ScreeningRequest */
   confirmMatch: (id: number) =>
-    apiPost<ScreeningMatch>(`/api/v1/sanctions/matches/${id}/confirm`),
+    apiPost<ScreeningRequest>(`/api/v1/sanctions/matches/${id}/confirm`),
 
-  /** POST /v1/sanctions/matches/{id}/false-positive */
+  /** POST /v1/sanctions/matches/{id}/false-positive — returns updated ScreeningRequest */
   falsePositiveMatch: (id: number) =>
-    apiPost<ScreeningMatch>(`/api/v1/sanctions/matches/${id}/false-positive`),
+    apiPost<ScreeningRequest>(`/api/v1/sanctions/matches/${id}/false-positive`),
 
   // ─── Watchlist Maintenance ──────────────────────────────────────────────────
 

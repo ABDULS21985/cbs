@@ -1,5 +1,6 @@
 package com.cbs.fees.service;
 
+import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.fees.entity.DiscountScheme;
 import com.cbs.fees.entity.SpecialPricingAgreement;
@@ -38,9 +39,9 @@ public class PricingService {
         List<DiscountScheme> activeSchemes = discountSchemeRepository.findByStatusOrderByPriorityOrderAsc("ACTIVE");
 
         List<DiscountScheme> applicable = activeSchemes.stream()
-                .filter(s -> s.getEffectiveFrom() != null && !s.getEffectiveFrom().isAfter(today))
-                .filter(s -> s.getEffectiveTo() != null && !s.getEffectiveTo().isBefore(today))
-                .filter(s -> s.getApplicableFeeIds() != null && s.getApplicableFeeIds().contains(feeCode))
+                .filter(s -> s.getEffectiveFrom() == null || !s.getEffectiveFrom().isAfter(today))
+                .filter(s -> s.getEffectiveTo() == null || !s.getEffectiveTo().isBefore(today))
+                .filter(s -> s.getApplicableFeeIds() == null || s.getApplicableFeeIds().isEmpty() || s.getApplicableFeeIds().contains(feeCode))
                 .toList();
 
         for (DiscountScheme scheme : applicable) {
@@ -56,7 +57,7 @@ public class PricingService {
             return scheme;
         }
 
-        return null;
+        throw new BusinessException("No applicable discount found for customer=" + customerId + ", feeCode=" + feeCode + ", amount=" + amount);
     }
 
     @Transactional
@@ -73,6 +74,14 @@ public class PricingService {
         agreement.setStatus("UNDER_REVIEW");
         log.info("Special pricing under review: code={}", agreement.getAgreementCode());
         return specialPricingAgreementRepository.save(agreement);
+    }
+
+    public List<DiscountScheme> getAllDiscountSchemes() {
+        return discountSchemeRepository.findAll();
+    }
+
+    public List<DiscountScheme> getActiveDiscountSchemes() {
+        return discountSchemeRepository.findByStatusOrderByPriorityOrderAsc("ACTIVE");
     }
 
     public List<DiscountScheme> getDiscountUtilization() {

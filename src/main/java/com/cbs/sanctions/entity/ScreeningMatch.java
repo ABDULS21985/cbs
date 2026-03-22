@@ -1,5 +1,7 @@
 package com.cbs.sanctions.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -12,7 +14,9 @@ import java.util.*;
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ScreeningMatch {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "screening_id", nullable = false) private ScreeningRequest screening;
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "watchlist_id", nullable = false) private Watchlist watchlist;
     @Column(name = "match_score", nullable = false, precision = 5, scale = 2) private BigDecimal matchScore;
     @JdbcTypeCode(SqlTypes.JSON) @Column(name = "matched_fields", columnDefinition = "jsonb") @Builder.Default private List<String> matchedFields = new ArrayList<>();
@@ -21,4 +25,18 @@ public class ScreeningMatch {
     @Column(name = "disposed_by", length = 100) private String disposedBy;
     @Column(name = "disposed_at") private Instant disposedAt;
     @Column(name = "created_at") @Builder.Default private Instant createdAt = Instant.now();
+
+    // ── Virtual JSON fields ───────────────────────────────────────────────────
+
+    @JsonProperty("screeningId")
+    public Long getScreeningId() { return screening != null ? screening.getId() : null; }
+
+    @JsonProperty("watchlistId")
+    public Long getWatchlistId() { return watchlist != null ? watchlist.getId() : null; }
+
+    @JsonProperty("watchlistName")
+    public String getWatchlistName() { return watchlist != null ? watchlist.getPrimaryName() : null; }
+
+    @JsonProperty("watchlistSource")
+    public String getWatchlistSourceValue() { return watchlist != null ? watchlist.getListSource() : null; }
 }

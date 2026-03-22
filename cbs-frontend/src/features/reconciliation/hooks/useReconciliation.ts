@@ -1,6 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { nostroApi } from '../api/nostroApi';
 import { glReconApi } from '../api/glReconApi';
+import {
+  getBreaks,
+  getBreakTimeline,
+  resolveBreak,
+  escalateBreak,
+  addBreakNote,
+  bulkAssignBreaks,
+  bulkEscalateBreaks,
+  getImportHistory,
+  reImportStatement,
+  deleteImport,
+  getAutoFetchConfigs,
+  getComplianceChecklist,
+  getComplianceScoreTrend,
+  type BreakStatus,
+  type BreakResolutionType,
+} from '../api/reconciliationApi';
 import type { CorrespondentBank, CreatePositionRequest, CreateReconItemRequest } from '../types/nostro';
 
 // ─── Query Key Factories ──────────────────────────────────────────────────────
@@ -20,6 +37,18 @@ const KEYS = {
   // GL sub-ledger
   glReconRuns: ['gl', 'reconciliation'] as const,
   glReconByDate: (date: string) => ['gl', 'reconciliation', date] as const,
+  // Break management
+  breaks: ['reconciliation', 'breaks'] as const,
+  breaksFiltered: (params: Record<string, string>) =>
+    ['reconciliation', 'breaks', params] as const,
+  breakTimeline: (breakId: string) =>
+    ['reconciliation', 'breaks', breakId, 'timeline'] as const,
+  // Statement import
+  importHistory: ['reconciliation', 'import-history'] as const,
+  autoFetchConfigs: ['reconciliation', 'auto-fetch-configs'] as const,
+  // Compliance
+  complianceChecklist: ['reconciliation', 'compliance', 'checklist'] as const,
+  complianceScoreTrend: ['reconciliation', 'compliance', 'score-trend'] as const,
 };
 
 // ─── Correspondent Bank Hooks ─────────────────────────────────────────────────
@@ -190,5 +219,141 @@ export function useRunGlReconciliation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: KEYS.glReconRuns });
     },
+  });
+}
+
+// ─── Break Management Hooks ──────────────────────────────────────────────────
+
+export function useBreaks(params?: { status?: BreakStatus; currency?: string; assignedTo?: string }) {
+  const filterParams: Record<string, string> = {};
+  if (params?.status) filterParams.status = params.status;
+  if (params?.currency) filterParams.currency = params.currency;
+  if (params?.assignedTo) filterParams.assignedTo = params.assignedTo;
+
+  return useQuery({
+    queryKey: Object.keys(filterParams).length > 0 ? KEYS.breaksFiltered(filterParams) : KEYS.breaks,
+    queryFn: () => getBreaks(params),
+    staleTime: 15_000,
+  });
+}
+
+export function useBreakTimeline(breakId: string) {
+  return useQuery({
+    queryKey: KEYS.breakTimeline(breakId),
+    queryFn: () => getBreakTimeline(breakId),
+    enabled: !!breakId,
+    staleTime: 10_000,
+  });
+}
+
+export function useResolveBreak() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ breakId, data }: { breakId: string; data: { resolutionType: BreakResolutionType; reason: string; glAccount?: string } }) =>
+      resolveBreak(breakId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.breaks });
+    },
+  });
+}
+
+export function useEscalateBreak() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ breakId, notes }: { breakId: string; notes: string }) =>
+      escalateBreak(breakId, notes),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: KEYS.breaks });
+      queryClient.invalidateQueries({ queryKey: KEYS.breakTimeline(vars.breakId) });
+    },
+  });
+}
+
+export function useAddBreakNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ breakId, notes }: { breakId: string; notes: string }) =>
+      addBreakNote(breakId, notes),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: KEYS.breakTimeline(vars.breakId) });
+    },
+  });
+}
+
+export function useBulkAssignBreaks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ breakIds, assignedTo }: { breakIds: string[]; assignedTo: string }) =>
+      bulkAssignBreaks(breakIds, assignedTo),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.breaks });
+    },
+  });
+}
+
+export function useBulkEscalateBreaks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ breakIds, notes }: { breakIds: string[]; notes: string }) =>
+      bulkEscalateBreaks(breakIds, notes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.breaks });
+    },
+  });
+}
+
+// ─── Statement Import Hooks ──────────────────────────────────────────────────
+
+export function useImportHistory() {
+  return useQuery({
+    queryKey: KEYS.importHistory,
+    queryFn: () => getImportHistory(),
+    staleTime: 30_000,
+  });
+}
+
+export function useReImportStatement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (importId: string) => reImportStatement(importId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.importHistory });
+    },
+  });
+}
+
+export function useDeleteImport() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (importId: string) => deleteImport(importId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.importHistory });
+    },
+  });
+}
+
+export function useAutoFetchConfigs() {
+  return useQuery({
+    queryKey: KEYS.autoFetchConfigs,
+    queryFn: () => getAutoFetchConfigs(),
+    staleTime: 60_000,
+  });
+}
+
+// ─── Compliance Hooks ────────────────────────────────────────────────────────
+
+export function useComplianceChecklist() {
+  return useQuery({
+    queryKey: KEYS.complianceChecklist,
+    queryFn: () => getComplianceChecklist(),
+    staleTime: 60_000,
+  });
+}
+
+export function useComplianceScoreTrend() {
+  return useQuery({
+    queryKey: KEYS.complianceScoreTrend,
+    queryFn: () => getComplianceScoreTrend(),
+    staleTime: 60_000,
   });
 }

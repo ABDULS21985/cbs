@@ -54,7 +54,7 @@ public class AmlController {
     public ResponseEntity<ApiResponse<List<AmlAlert>>> getAlertsByStatus(@RequestParam(required = false) AmlAlertStatus status,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         if (status == null) {
-            Page<AmlAlert> result = amlAlertRepository.findAll(PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+            Page<AmlAlert> result = amlAlertRepository.findAllWithDetails(PageRequest.of(page, size));
             return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
         }
         Page<AmlAlert> result = amlService.getAlertsByStatus(status, PageRequest.of(page, size));
@@ -71,7 +71,9 @@ public class AmlController {
 
     @PostMapping("/alerts/{id}/assign")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<AmlAlert>> assign(@PathVariable Long id, @RequestParam String assignedTo) {
+    public ResponseEntity<ApiResponse<AmlAlert>> assign(@PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body) {
+        String assignedTo = body.getOrDefault("assignedTo", "");
         return ResponseEntity.ok(ApiResponse.ok(amlService.assignAlert(id, assignedTo)));
     }
 
@@ -84,7 +86,9 @@ public class AmlController {
     @PostMapping("/alerts/{id}/resolve")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<AmlAlert>> resolve(@PathVariable Long id,
-            @RequestParam String resolution, @RequestParam String resolvedBy) {
+            @RequestBody java.util.Map<String, String> body) {
+        String resolution = body.getOrDefault("resolution", "");
+        String resolvedBy = body.getOrDefault("resolvedBy", "SYSTEM");
         return ResponseEntity.ok(ApiResponse.ok(amlService.resolveAlert(id, resolution, resolvedBy)));
     }
 
@@ -92,7 +96,9 @@ public class AmlController {
     @Operation(summary = "File a Suspicious Activity Report")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<AmlAlert>> fileSar(@PathVariable Long id,
-            @RequestParam String sarReference, @RequestParam String filedBy) {
+            @RequestBody java.util.Map<String, String> body) {
+        String sarReference = body.getOrDefault("sarReference", "");
+        String filedBy = body.getOrDefault("filedBy", "SYSTEM");
         return ResponseEntity.ok(ApiResponse.ok(amlService.fileSar(id, sarReference, filedBy)));
     }
 
@@ -104,21 +110,28 @@ public class AmlController {
     }
 
     @PostMapping("/strs")
-    @Operation(summary = "File a new STR")
+    @Operation(summary = "File a new STR — accepts either {alertId,reference,filedBy} or {customerId,suspiciousActivity,reportingOfficer}")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<AmlAlert>> fileStr(@RequestBody java.util.Map<String, Object> data) {
-        // Delegates to file-sar with data from body
-        Long alertId = Long.valueOf(data.getOrDefault("alertId", "0").toString());
-        String sarRef = (String) data.getOrDefault("reference", "STR-" + System.currentTimeMillis());
-        String filedBy = (String) data.getOrDefault("filedBy", "SYSTEM");
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(amlService.fileSar(alertId, sarRef, filedBy)));
+        // Support legacy alertId-based filing
+        if (data.containsKey("alertId")) {
+            Long alertId = Long.valueOf(data.getOrDefault("alertId", "0").toString());
+            String sarRef = (String) data.getOrDefault("reference", "STR-" + System.currentTimeMillis());
+            String filedBy = (String) data.getOrDefault("filedBy", "SYSTEM");
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(amlService.fileSar(alertId, sarRef, filedBy)));
+        }
+        // Support frontend payload: {customerId, suspiciousActivity, amount, reportingOfficer, transactionRef}
+        String sarRef = "STR-" + System.currentTimeMillis();
+        String filedBy = data.containsKey("reportingOfficer") ? (String) data.get("reportingOfficer") : "SYSTEM";
+        AmlAlert alert = amlService.createStrFromPayload(data, sarRef, filedBy);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(alert));
     }
 
     @PatchMapping("/rules/{id}/toggle")
     @Operation(summary = "Toggle an AML rule on/off")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> toggleRule(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of("id", id, "message", "Rule toggled")));
+    public ResponseEntity<ApiResponse<AmlRule>> toggleRule(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(amlService.toggleRule(id)));
     }
 
     // Dashboard
@@ -136,8 +149,7 @@ public class AmlController {
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<AmlAlert> result = amlAlertRepository.findAll(pageable);
+        Page<AmlAlert> result = amlAlertRepository.findAllWithDetails(PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -145,12 +157,19 @@ public class AmlController {
     @Operation(summary = "Get AML alert statistics")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getStats() {
+        long total = amlAlertRepository.count();
+        java.util.Map<String, Long> byStatus = java.util.Map.of(
+                "NEW", amlAlertRepository.countByStatus(AmlAlertStatus.NEW),
+                "UNDER_REVIEW", amlAlertRepository.countByStatus(AmlAlertStatus.UNDER_REVIEW),
+                "ESCALATED", amlAlertRepository.countByStatus(AmlAlertStatus.ESCALATED),
+                "SAR_FILED", amlAlertRepository.countByStatus(AmlAlertStatus.SAR_FILED),
+                "FALSE_POSITIVE", amlAlertRepository.countByStatus(AmlAlertStatus.FALSE_POSITIVE),
+                "CLOSED", amlAlertRepository.countByStatus(AmlAlertStatus.CLOSED)
+        );
         return ResponseEntity.ok(ApiResponse.ok(java.util.Map.of(
-                "total", amlAlertRepository.count(),
-                "new", amlAlertRepository.countByStatus(AmlAlertStatus.NEW),
-                "underReview", amlAlertRepository.countByStatus(AmlAlertStatus.UNDER_REVIEW),
-                "escalated", amlAlertRepository.countByStatus(AmlAlertStatus.ESCALATED),
-                "sarFiled", amlAlertRepository.countByStatus(AmlAlertStatus.SAR_FILED)
+                "totalAlerts", total,
+                "byStatus", byStatus,
+                "bySeverity", java.util.Map.of()
         )));
     }
 

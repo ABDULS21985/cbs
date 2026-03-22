@@ -92,6 +92,6 @@ export function useCreditWatchList() {
 
 export function useGenerateCommitteePack() {
   return useMutation({
-    mutationFn: async () => (await creditRiskApi.generateCommitteePack()).data.data,
+    mutationFn: async () => (await creditRiskApi.generateCommitteePack()).data.data as Record<string, unknown>,
   });
 }

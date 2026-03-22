@@ -111,6 +111,16 @@ export const settlementApi = {
   getFailedSettlements: () =>
     apiGet<FailedSettlement[]>('/api/v1/settlements/failed'),
 
+  // Failed settlement actions
+  resubmitSettlement: (ref: string) =>
+    apiPost<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/resubmit`),
+
+  cancelSettlement: (ref: string, reason?: string) =>
+    apiPostParams<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/cancel`, { reason: reason ?? '' }),
+
+  escalateSettlement: (ref: string) =>
+    apiPost<SettlementInstruction>(`/api/v1/settlements/instructions/${ref}/escalate`),
+
   // Dashboard
   getDashboard: () =>
     apiGet<SettlementDashboardData>('/api/v1/settlements/dashboard'),

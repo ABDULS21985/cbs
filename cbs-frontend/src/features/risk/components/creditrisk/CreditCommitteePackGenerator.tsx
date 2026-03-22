@@ -1,4 +1,4 @@
-import { FileText, Download, Loader2, CheckCircle2 } from 'lucide-react';
+import { FileText, Loader2, CheckCircle2 } from 'lucide-react';
 import { useGenerateCommitteePack } from '../../hooks/useCreditRisk';
 
 const PACK_SECTIONS = [
@@ -10,6 +10,40 @@ const PACK_SECTIONS = [
   'NPL movement',
   'Sector concentration',
 ];
+
+function formatCurrency(value: unknown): string {
+  const num = Number(value);
+  if (isNaN(num)) return String(value);
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(num);
+}
+
+function formatPct(value: unknown): string {
+  const num = Number(value);
+  if (isNaN(num)) return String(value);
+  return `${(num * 100).toFixed(2)}%`;
+}
+
+const METRIC_LABELS: { key: string; label: string; format?: 'currency' | 'pct' | 'number' }[] = [
+  { key: 'reportDate', label: 'Report Date' },
+  { key: 'totalActiveLoans', label: 'Total Active Loans', format: 'number' },
+  { key: 'totalExposure', label: 'Total Exposure', format: 'currency' },
+  { key: 'nplCount', label: 'NPL Count', format: 'number' },
+  { key: 'nplAmount', label: 'NPL Amount', format: 'currency' },
+  { key: 'nplRatio', label: 'NPL Ratio', format: 'pct' },
+  { key: 'totalProvisions', label: 'Total Provisions', format: 'currency' },
+  { key: 'coverageRatio', label: 'Coverage Ratio', format: 'pct' },
+  { key: 'watchListCount', label: 'Watch List Count', format: 'number' },
+  { key: 'totalEcl', label: 'Total ECL', format: 'currency' },
+  { key: 'activeScoringModels', label: 'Active Scoring Models', format: 'number' },
+];
+
+function formatMetric(value: unknown, format?: 'currency' | 'pct' | 'number'): string {
+  if (value == null) return '-';
+  if (format === 'currency') return formatCurrency(value);
+  if (format === 'pct') return formatPct(value);
+  if (format === 'number') return Number(value).toLocaleString();
+  return String(value);
+}
 
 export function CreditCommitteePackGenerator() {
   const { mutate: generate, isPending, data: result, isSuccess, isError } = useGenerateCommitteePack();
@@ -50,22 +84,40 @@ export function CreditCommitteePackGenerator() {
         </div>
       )}
 
-      {/* Success state */}
+      {/* Success state - show key metrics */}
       {isSuccess && result && (
-        <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-3 space-y-2">
+        <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-4 space-y-3">
           <p className="text-sm font-medium text-green-700 dark:text-green-400">
             Committee pack generated successfully!
           </p>
-          <p className="text-xs text-green-600 dark:text-green-500">Job ID: {result.jobId}</p>
-          <a
-            href={result.downloadUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Download Pack
-          </a>
+          <div className="grid grid-cols-2 gap-3">
+            {METRIC_LABELS.map(({ key, label, format }) => {
+              const value = (result as Record<string, unknown>)[key];
+              if (value == null) return null;
+              return (
+                <div key={key} className="text-sm">
+                  <span className="text-muted-foreground">{label}:</span>{' '}
+                  <span className="font-medium">{formatMetric(value, format)}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Stage distribution */}
+          {(result as Record<string, unknown>).stageDistribution && (
+            <div className="text-sm">
+              <span className="text-muted-foreground">Stage Distribution:</span>
+              <div className="grid grid-cols-3 gap-2 mt-1">
+                {Object.entries(
+                  (result as Record<string, unknown>).stageDistribution as Record<string, number>
+                ).map(([stage, count]) => (
+                  <div key={stage}>
+                    <span className="font-medium">{stage}:</span> {count.toLocaleString()}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

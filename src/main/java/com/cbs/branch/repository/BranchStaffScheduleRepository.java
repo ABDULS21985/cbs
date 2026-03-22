@@ -14,4 +14,5 @@ public interface BranchStaffScheduleRepository extends JpaRepository<BranchStaff
     List<BranchStaffSchedule> findByBranchIdAndScheduledDateBetweenOrderByEmployeeNameAscScheduledDateAsc(Long branchId, LocalDate start, LocalDate end);
     List<BranchStaffSchedule> findByEmployeeIdAndScheduledDateBetween(String employeeId, LocalDate start, LocalDate end);
     Optional<BranchStaffSchedule> findByBranchIdAndEmployeeIdAndScheduledDate(Long branchId, String employeeId, LocalDate scheduledDate);
+    long countByBranchIdAndScheduledDateAndShiftTypeNot(Long branchId, LocalDate scheduledDate, String shiftType);
 }

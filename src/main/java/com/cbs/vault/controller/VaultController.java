@@ -33,6 +33,13 @@ public class VaultController {
                 vaultCode, vaultName, branchCode, vaultType, currencyCode, minimumBalance, maximumBalance, insuranceLimit, custodian)));
     }
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Vault>>> getVaults(
+            @RequestParam(required = false) String branchCode) {
+        return ResponseEntity.ok(ApiResponse.ok(vaultService.getVaults(branchCode)));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Vault>> getVault(@PathVariable Long id) {
@@ -65,6 +72,18 @@ public class VaultController {
             @RequestParam BigDecimal amount) {
         vaultService.vaultTransfer(fromVaultId, toVaultId, amount);
         return ResponseEntity.ok(ApiResponse.ok(null, "Transfer completed"));
+    }
+
+    @GetMapping("/transactions")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<VaultTransaction>>> getAllTransactions(
+            @RequestParam(required = false) Long vaultId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<VaultTransaction> result = vaultId == null
+                ? vaultService.getTransactions(PageRequest.of(page, size))
+                : vaultService.getTransactions(vaultId, PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
     @GetMapping("/{id}/transactions")

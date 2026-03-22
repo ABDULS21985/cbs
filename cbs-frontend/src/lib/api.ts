@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { AxiosError, AxiosResponse } from 'axios';
 import { useAuthStore } from '@/stores/authStore';
-import type { ApiResponse } from '@/types/common';
+import type { ApiResponse, PageMeta } from '@/types/common';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
@@ -65,6 +65,19 @@ export async function apiGet<T>(url: string, params?: Record<string, unknown>): 
   return data.data;
 }
 
+/**
+ * Like apiGet but also returns the PageMeta from paginated backend responses.
+ * Use this for any endpoint that wraps its list response with ApiResponse + PageMeta
+ * so the caller can implement correct server-side pagination (totalPages, totalElements).
+ */
+export async function apiGetPaged<T>(
+  url: string,
+  params?: Record<string, unknown>,
+): Promise<{ data: T; page: PageMeta | undefined }> {
+  const { data } = await api.get<ApiResponse<T>>(url, { params });
+  return { data: data.data, page: data.page };
+}
+
 export async function apiPost<T>(url: string, body?: unknown): Promise<T> {
   const { data } = await api.post<ApiResponse<T>>(url, body);
   return data.data;
@@ -89,6 +102,12 @@ export async function apiPatchParams<T>(url: string, params: Record<string, unkn
 
 export async function apiPut<T>(url: string, body?: unknown): Promise<T> {
   const { data } = await api.put<ApiResponse<T>>(url, body);
+  return data.data;
+}
+
+/** PUT with query params (for Spring @RequestParam endpoints) */
+export async function apiPutParams<T>(url: string, params: Record<string, unknown>): Promise<T> {
+  const { data } = await api.put<ApiResponse<T>>(url, null, { params });
   return data.data;
 }
 

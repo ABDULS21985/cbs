@@ -99,8 +99,8 @@ export function SubLedgerReconciliation() {
     queryFn: () => glApi.getSubLedgerReconciliation(date),
   });
 
-  const matchedCount = rows.filter((r) => r.balanced).length;
-  const breakCount = rows.filter((r) => !r.balanced).length;
+  const matchedCount = rows.filter((r) => r.isBalanced).length;
+  const breakCount = rows.filter((r) => !r.isBalanced).length;
 
   return (
     <div className="space-y-4 p-6">
@@ -166,18 +166,18 @@ export function SubLedgerReconciliation() {
                   key={`${row.subledgerType}-${row.glCode}`}
                   className={cn(
                     'border-b border-border/40 transition-colors',
-                    !row.balanced && 'bg-red-50/30 dark:bg-red-900/10',
+                    !row.isBalanced && 'bg-red-50/30 dark:bg-red-900/10',
                   )}
                 >
                   <td className="px-4 py-3 font-medium">{row.subledgerType}</td>
                   <td className="px-4 py-3 font-mono text-xs">{row.glCode}</td>
                   <td className="px-4 py-3 text-right font-mono">{formatMoney(row.subledgerBalance)}</td>
                   <td className="px-4 py-3 text-right font-mono">{formatMoney(row.glBalance)}</td>
-                  <td className={cn('px-4 py-3 text-right font-mono font-medium', !row.balanced ? 'text-red-600' : 'text-green-600')}>
-                    {row.balanced ? formatMoney(0) : (row.difference > 0 ? '+' : '') + formatMoney(row.difference)}
+                  <td className={cn('px-4 py-3 text-right font-mono font-medium', !row.isBalanced ? 'text-red-600' : 'text-green-600')}>
+                    {row.isBalanced ? formatMoney(0) : (row.difference > 0 ? '+' : '') + formatMoney(row.difference)}
                   </td>
                   <td className="px-4 py-3">
-                    {row.balanced ? (
+                    {row.isBalanced ? (
                       <span className="flex items-center gap-1.5 text-green-600 text-xs font-medium">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Matched

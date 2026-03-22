@@ -17,22 +17,22 @@ import {
   useRunBatchCoupons,
 } from '../../capitalmarkets/hooks/useCapitalMarketsExt';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { SecurityHolding, CouponEvent } from '../types/treasury';
+import type { CouponEvent } from '../types/treasury';
+import type { SecurityHolding } from '../types/fixedIncome';
 
 // ─── Table Columns ──────────────────────────────────────────────────────────
 
 const holdingCols: ColumnDef<SecurityHolding, unknown>[] = [
-  { accessorKey: 'isin', header: 'ISIN', cell: ({ row }) => <span className="font-mono text-xs">{row.original.isin}</span> },
+  { accessorKey: 'isinCode', header: 'ISIN', cell: ({ row }) => <span className="font-mono text-xs">{row.original.isinCode}</span> },
   { accessorKey: 'securityName', header: 'Name' },
   { accessorKey: 'securityType', header: 'Type', cell: ({ row }) => <StatusBadge status={row.original.securityType} /> },
   { accessorKey: 'faceValue', header: 'Face Value', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.faceValue)}</span> },
-  { accessorKey: 'bookValue', header: 'Book Value', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.bookValue)}</span> },
-  { accessorKey: 'marketValue', header: 'Market Value', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.marketValue)}</span> },
+  { accessorKey: 'amortisedCost', header: 'Book Value', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.amortisedCost)}</span> },
+  { accessorKey: 'mtmValue', header: 'MTM Value', cell: ({ row }) => <span className="font-mono text-sm">{formatMoney(row.original.mtmValue)}</span> },
   { accessorKey: 'couponRate', header: 'Coupon', cell: ({ row }) => <span className="font-mono text-sm">{formatPercent(row.original.couponRate)}</span> },
-  { accessorKey: 'yieldToMaturity', header: 'YTM', cell: ({ row }) => <span className="font-mono text-sm">{formatPercent(row.original.yieldToMaturity)}</span> },
+  { accessorKey: 'purchaseYield', header: 'Purchase Yield', cell: ({ row }) => <span className="font-mono text-sm">{formatPercent(row.original.purchaseYield)}</span> },
   { accessorKey: 'maturityDate', header: 'Maturity', cell: ({ row }) => formatDate(row.original.maturityDate) },
-  { accessorKey: 'duration', header: 'Duration', cell: ({ row }) => <span className="font-mono text-sm">{row.original.duration.toFixed(1)}y</span> },
-  { accessorKey: 'unrealizedPnl', header: 'P&L', cell: ({ row }) => <span className={cn('font-mono text-sm font-medium', row.original.unrealizedPnl >= 0 ? 'text-green-600' : 'text-red-600')}>{formatMoney(row.original.unrealizedPnl)}</span> },
+  { accessorKey: 'unrealisedGainLoss', header: 'Unrealised P&L', cell: ({ row }) => <span className={cn('font-mono text-sm font-medium', (row.original.unrealisedGainLoss ?? 0) >= 0 ? 'text-green-600' : 'text-red-600')}>{formatMoney(row.original.unrealisedGainLoss)}</span> },
 ];
 
 const couponCols: ColumnDef<CouponEvent, unknown>[] = [
@@ -150,10 +150,10 @@ export function FixedIncomePage() {
   const batchMaturity = useRunBatchMaturity();
   const batchCoupons = useRunBatchCoupons();
 
-  const totalFace = holdings.reduce((s, h) => s + h.faceValue, 0);
-  const totalMarket = holdings.reduce((s, h) => s + h.marketValue, 0);
-  const avgYield = holdings.length > 0 ? holdings.reduce((s, h) => s + h.yieldToMaturity, 0) / holdings.length : 0;
-  const totalUnrealized = holdings.reduce((s, h) => s + h.unrealizedPnl, 0);
+  const totalFace = holdings.reduce((s, h) => s + (h.faceValue ?? 0), 0);
+  const totalMarket = holdings.reduce((s, h) => s + (h.mtmValue ?? 0), 0);
+  const avgYield = holdings.length > 0 ? holdings.reduce((s, h) => s + (h.purchaseYield ?? 0), 0) / holdings.length : 0;
+  const totalUnrealized = holdings.reduce((s, h) => s + (h.unrealisedGainLoss ?? 0), 0);
 
   const today = new Date();
   const maturingIn30 = holdings.filter((h) => {
@@ -179,10 +179,10 @@ export function FixedIncomePage() {
   // Yield curve data
   const yieldCurveData = useMemo(() => {
     const byTenor: Record<string, { yields: number[]; count: number }> = {};
-    holdings.filter((h) => h.status === 'ACTIVE' && h.yieldToMaturity > 0).forEach((h) => {
+    holdings.filter((h) => h.status === 'ACTIVE' && (h.purchaseYield ?? 0) > 0).forEach((h) => {
       const tenor = getTenorLabel(h.maturityDate);
       if (!byTenor[tenor]) byTenor[tenor] = { yields: [], count: 0 };
-      byTenor[tenor].yields.push(h.yieldToMaturity);
+      byTenor[tenor].yields.push(h.purchaseYield ?? 0);
       byTenor[tenor].count++;
     });
     return TENOR_ORDER
@@ -254,7 +254,7 @@ export function FixedIncomePage() {
                         <div key={h.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
                           <div>
                             <p className="text-sm font-medium">{h.securityName}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{h.isin} · {formatDate(h.maturityDate)}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{h.isinCode} · {formatDate(h.maturityDate)}</p>
                           </div>
                           <span className="font-mono text-sm font-semibold">{formatMoney(h.faceValue)}</span>
                         </div>
@@ -289,7 +289,7 @@ export function FixedIncomePage() {
                   <BatchOperationCard
                     title="Mark-to-Market"
                     description="Revalue all holdings at current market prices"
-                    extraInfo={`Unrealized P&L: ${formatMoney(totalUnrealized)}`}
+                    extraInfo={`Unrealised P&L: ${formatMoney(totalUnrealized)}`}
                     onRun={() => batchMtm.mutate(undefined, { onSuccess: () => toast.success('Mark-to-market completed'), onError: () => toast.error('Mark-to-market failed') })}
                     isPending={batchMtm.isPending}
                   />

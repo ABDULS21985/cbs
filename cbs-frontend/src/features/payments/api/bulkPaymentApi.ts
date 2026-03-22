@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiUpload } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams, apiUpload } from '@/lib/api';
 
 export interface BulkPaymentRow {
   rowNumber: number;
@@ -67,7 +67,7 @@ export const bulkPaymentApi = {
   approve: (id: number) =>
     apiPost<BulkPaymentBatch>(`/api/v1/payments/bulk/${id}/approve`, {}),
   reject: (id: number, reason: string) =>
-    apiPost<BulkPaymentBatch>(`/api/v1/payments/bulk/${id}/reject`, { reason }),
+    apiPostParams<BulkPaymentBatch>(`/api/v1/payments/bulk/${id}/reject`, { reason }),
   getProcessingStatus: (id: number) =>
     apiGet<BulkPaymentBatch>(`/api/v1/payments/bulk/${id}/status`),
   retryFailed: (id: number, rowNumbers: number[]) =>

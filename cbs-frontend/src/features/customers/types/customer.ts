@@ -262,6 +262,7 @@ export interface CustomerCase {
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   status: string;
   slaDeadline?: string | null;
+  slaDueAt?: string | null;
   assignedTo?: string | null;
   openedAt: string;
 }

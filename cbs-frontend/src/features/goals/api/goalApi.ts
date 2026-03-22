@@ -146,7 +146,7 @@ export const goalApi = {
     apiGet<GoalTransaction[]>(`/api/v1/goals/${goalId}/contributions`, params as Record<string, unknown>),
 
   processAutoDebits: () =>
-    apiPost<{ processed: number }>('/api/v1/goals/batch/auto-debit'),
+    apiPost<{ processed: number; skipped: number; failed: number }>('/api/v1/goals/batch/auto-debit'),
 
   // Recurring Deposits (proxy)
   getRecurringDeposits: () =>

@@ -1,0 +1,112 @@
+<svg width="920" height="760" viewBox="0 0 920 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGlow" x1="152" y1="92" x2="768" y2="668" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FCFF"/>
+      <stop offset="0.38" stop-color="#E5F2FF"/>
+      <stop offset="1" stop-color="#D8EAFF"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFFFFF" stop-opacity="0.98"/>
+      <stop offset="1" stop-color="#EAF4FF" stop-opacity="0.94"/>
+    </linearGradient>
+    <linearGradient id="cardBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#1D9BF0"/>
+      <stop offset="1" stop-color="#52C7FF"/>
+    </linearGradient>
+    <linearGradient id="cardAmber" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F7B034"/>
+      <stop offset="1" stop-color="#FFD67A"/>
+    </linearGradient>
+    <linearGradient id="cardMint" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#0FB981"/>
+      <stop offset="1" stop-color="#68E0B6"/>
+    </linearGradient>
+    <filter id="softShadow" x="-80" y="-80" width="1080" height="920" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="28" flood-color="#1B3B6B" flood-opacity="0.16"/>
+    </filter>
+    <filter id="cardShadow" x="-32" y="-32" width="300" height="250" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0B2C4F" flood-opacity="0.16"/>
+    </filter>
+    <filter id="nodeShadow" x="-20" y="-20" width="140" height="140" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#1B3B6B" flood-opacity="0.14"/>
+    </filter>
+  </defs>
+
+  <rect x="78" y="74" width="764" height="612" rx="44" fill="url(#bgGlow)"/>
+  <circle cx="196" cy="154" r="94" fill="#C9E7FF" fill-opacity="0.55"/>
+  <circle cx="742" cy="142" r="108" fill="#FFE5AE" fill-opacity="0.5"/>
+  <circle cx="772" cy="624" r="132" fill="#B8E8D9" fill-opacity="0.42"/>
+  <circle cx="186" cy="636" r="126" fill="#D3DFFF" fill-opacity="0.42"/>
+
+  <g filter="url(#softShadow)">
+    <rect x="212" y="166" width="496" height="376" rx="40" fill="url(#panel)"/>
+    <rect x="238" y="194" width="444" height="54" rx="18" fill="#F2F8FF"/>
+    <rect x="258" y="214" width="132" height="14" rx="7" fill="#C6DEF8"/>
+    <rect x="406" y="214" width="92" height="14" rx="7" fill="#DCEBFA"/>
+    <rect x="616" y="208" width="42" height="26" rx="13" fill="#E5F3FF"/>
+    <rect x="238" y="274" width="278" height="188" rx="28" fill="#F7FBFF"/>
+    <rect x="540" y="274" width="142" height="88" rx="24" fill="#F7FBFF"/>
+    <rect x="540" y="374" width="142" height="88" rx="24" fill="#F7FBFF"/>
+  </g>
+
+  <path d="M282 420C322 370 352 346 388 338C426 330 460 340 500 376" stroke="#1D9BF0" stroke-width="18" stroke-linecap="round"/>
+  <path d="M500 376L472 372L485 398" stroke="#1D9BF0" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="272" y="312" width="72" height="118" rx="24" fill="#DDEEFF"/>
+  <rect x="362" y="282" width="72" height="148" rx="24" fill="#BEE4FF"/>
+  <rect x="452" y="336" width="72" height="94" rx="24" fill="#94D5FF"/>
+
+  <g filter="url(#cardShadow)">
+    <rect x="116" y="198" width="196" height="128" rx="28" fill="url(#panel)"/>
+    <rect x="138" y="220" width="54" height="54" rx="18" fill="url(#cardBlue)"/>
+    <rect x="210" y="228" width="70" height="12" rx="6" fill="#39516B"/>
+    <rect x="210" y="250" width="52" height="10" rx="5" fill="#90A7BF"/>
+    <rect x="138" y="288" width="146" height="16" rx="8" fill="#E2EEF8"/>
+    <rect x="138" y="228" width="18" height="18" rx="5" fill="#EAF6FF"/>
+    <path d="M147 240H184" stroke="#EAF6FF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M165 228V258" stroke="#EAF6FF" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <g filter="url(#cardShadow)">
+    <rect x="642" y="116" width="178" height="118" rx="28" fill="url(#panel)"/>
+    <rect x="664" y="138" width="54" height="54" rx="18" fill="url(#cardAmber)"/>
+    <rect x="736" y="146" width="56" height="12" rx="6" fill="#6C4C16"/>
+    <rect x="736" y="168" width="42" height="10" rx="5" fill="#C39C57"/>
+    <rect x="664" y="206" width="128" height="10" rx="5" fill="#F2E3C5"/>
+    <circle cx="691" cy="165" r="14" stroke="#FFF7E2" stroke-width="4"/>
+    <path d="M691 151V179" stroke="#FFF7E2" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <g filter="url(#cardShadow)">
+    <rect x="622" y="498" width="202" height="130" rx="28" fill="url(#panel)"/>
+    <rect x="644" y="520" width="58" height="58" rx="18" fill="url(#cardMint)"/>
+    <rect x="722" y="528" width="66" height="12" rx="6" fill="#235E53"/>
+    <rect x="722" y="550" width="74" height="10" rx="5" fill="#6CA79B"/>
+    <rect x="644" y="592" width="150" height="10" rx="5" fill="#DDEFEA"/>
+    <path d="M659 562L674 546L684 556L698 539" stroke="#E8FFF7" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g filter="url(#nodeShadow)">
+    <circle cx="186" cy="468" r="34" fill="#FFFFFF"/>
+    <rect x="168" y="450" width="36" height="36" rx="12" fill="#F3F8FF"/>
+    <path d="M178 468H194" stroke="#1D9BF0" stroke-width="4" stroke-linecap="round"/>
+    <path d="M186 460V476" stroke="#1D9BF0" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <g filter="url(#nodeShadow)">
+    <circle cx="742" cy="350" r="34" fill="#FFFFFF"/>
+    <path d="M726 350C726 341.163 733.163 334 742 334C750.837 334 758 341.163 758 350C758 358.837 750.837 366 742 366C733.163 366 726 358.837 726 350Z" fill="#F6FBFF"/>
+    <path d="M734 350L740 356L751 344" stroke="#0FB981" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <path d="M220 462C246 430 292 402 340 394" stroke="#8CCFFF" stroke-width="6" stroke-linecap="round" stroke-dasharray="4 14"/>
+  <path d="M742 316C728 282 704 252 676 238" stroke="#FFD27A" stroke-width="6" stroke-linecap="round" stroke-dasharray="4 14"/>
+  <path d="M714 500C694 478 676 460 652 448" stroke="#71D5B0" stroke-width="6" stroke-linecap="round" stroke-dasharray="4 14"/>
+
+  <g opacity="0.86">
+    <rect x="300" y="568" width="248" height="66" rx="24" fill="#FFFFFF" fill-opacity="0.8"/>
+    <rect x="322" y="592" width="86" height="12" rx="6" fill="#CAE2F8"/>
+    <rect x="422" y="592" width="32" height="12" rx="6" fill="#8FCFFF"/>
+    <rect x="468" y="592" width="58" height="12" rx="6" fill="#FFD58C"/>
+  </g>
+</svg>

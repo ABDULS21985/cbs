@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
+import { toast } from 'sonner';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { FraudRule } from '../../types/fraud';
 import { useToggleFraudRule } from '../../hooks/useFraud';
 
@@ -11,6 +13,7 @@ interface Props {
 }
 
 export function FraudRuleTable({ rules, isLoading }: Props) {
+  const { isAdmin } = useAuth();
   const toggleRule = useToggleFraudRule();
 
   const columns = useMemo<ColumnDef<FraudRule>[]>(
@@ -76,13 +79,16 @@ export function FraudRuleTable({ rules, isLoading }: Props) {
           const isActive = row.original.active;
           const isPending = toggleRule.isPending && (toggleRule.variables as { id: number })?.id === row.original.id;
           return (
-            <label className="relative inline-flex items-center cursor-pointer">
+            <label className={cn('relative inline-flex items-center', isAdmin ? 'cursor-pointer' : 'cursor-not-allowed opacity-60')}>
               <input
                 type="checkbox"
                 checked={isActive}
-                disabled={isPending}
+                disabled={isPending || !isAdmin}
                 onChange={(e) =>
-                  toggleRule.mutate({ id: row.original.id, active: e.target.checked })
+                  toggleRule.mutate(row.original.id, {
+                    onSuccess: () => { toast.success(e.target.checked ? 'Rule enabled' : 'Rule disabled'); },
+                    onError: () => { toast.error('Failed to update rule'); },
+                  })
                 }
                 className="sr-only peer"
               />

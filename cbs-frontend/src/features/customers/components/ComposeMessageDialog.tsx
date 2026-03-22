@@ -96,7 +96,7 @@ export function ComposeMessageDialog({ customer, onClose }: ComposeMessageDialog
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 modal-scrim" onClick={onClose} />
       <div className="relative z-10 w-full max-w-2xl mx-4 rounded-xl bg-background border shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background z-10">
           <h2 className="text-base font-semibold">Contact Customer</h2>

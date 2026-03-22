@@ -213,6 +213,9 @@ export const intelligenceApi = {
   getPendingDocuments: () =>
     apiGet<DocumentProcessingJob[]>('/api/v1/intelligence/documents/pending-review'),
 
+  getOcrProviderStatus: () =>
+    apiGet<{ available: boolean; providerName: string }>('/api/v1/intelligence/documents/provider-status'),
+
   submitDocument: async (job: Partial<DocumentProcessingJob>) => {
     const { data } = await api.post<ApiResponse<DocumentProcessingJob>>(
       '/api/v1/intelligence/documents/process', job,

@@ -305,7 +305,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 modal-scrim" onClick={onClose} aria-hidden="true" />
       <div ref={panelRef} className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold">{title}</h3>

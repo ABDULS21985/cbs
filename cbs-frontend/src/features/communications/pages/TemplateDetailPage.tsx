@@ -7,17 +7,17 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge, TabsPage } from '@/components/shared';
 import {
   useNotificationTemplate,
-  useUpdateNotificationTemplate,
-  usePublishNotificationTemplate,
-  useArchiveNotificationTemplate,
-} from '../../admin/hooks/useAdminData';
-import { testSendTemplate } from '../../admin/api/notificationAdminApi';
+  useUpdateTemplate,
+  usePublishTemplate,
+  useArchiveTemplate,
+} from '../hooks/useCommunications';
+import { notificationApi } from '../api/communicationApi';
 import { TemplateEditor } from '../components/templates/TemplateEditor';
 import { TemplatePreview } from '../components/templates/TemplatePreview';
 import { TemplateTestSendDialog } from '../components/templates/TemplateTestSendDialog';
 import { TemplateVersionHistory } from '../components/templates/TemplateVersionHistory';
 import { ChannelBadge } from '../components/templates/ChannelBadge';
-import type { NotificationTemplate } from '../../admin/api/notificationAdminApi';
+import type { NotificationTemplate } from '../api/communicationApi';
 
 // ── Inline Test Form ─────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ function TestInlineForm({ templateId, channel }: { templateId: number; channel: 
   const [result, setResult] = useState<{ success: boolean; subject: string; body: string } | null>(null);
 
   const sendMut = useMutation({
-    mutationFn: () => testSendTemplate(templateId, recipient),
+    mutationFn: () => notificationApi.testTemplate(templateId, recipient),
     onSuccess: (data) => { toast.success(`Test sent to ${recipient}`); setResult(data); },
     onError: () => toast.error('Failed to send test'),
   });
@@ -62,12 +62,12 @@ function TestInlineForm({ templateId, channel }: { templateId: number; channel: 
 
 export function TemplateDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const templateId = id ?? '0';
+  const templateId = parseInt(id ?? '0', 10);
 
   const { data: template, isLoading, isError } = useNotificationTemplate(templateId);
-  const updateMut = useUpdateNotificationTemplate();
-  const publishMut = usePublishNotificationTemplate();
-  const archiveMut = useArchiveNotificationTemplate();
+  const updateMut = useUpdateTemplate();
+  const publishMut = usePublishTemplate();
+  const archiveMut = useArchiveTemplate();
 
   const [showTest, setShowTest] = useState(false);
 

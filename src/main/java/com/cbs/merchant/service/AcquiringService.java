@@ -1,12 +1,15 @@
 package com.cbs.merchant.service;
 
+import com.cbs.card.repository.CardTransactionRepository;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.merchant.entity.AcquiringFacility;
 import com.cbs.merchant.entity.MerchantChargeback;
+import com.cbs.merchant.entity.MerchantProfile;
 import com.cbs.merchant.entity.MerchantSettlement;
 import com.cbs.merchant.repository.AcquiringFacilityRepository;
 import com.cbs.merchant.repository.MerchantChargebackRepository;
+import com.cbs.merchant.repository.MerchantProfileRepository;
 import com.cbs.merchant.repository.MerchantSettlementRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +31,8 @@ public class AcquiringService {
     private final AcquiringFacilityRepository facilityRepository;
     private final MerchantSettlementRepository settlementRepository;
     private final MerchantChargebackRepository chargebackRepository;
+    private final MerchantProfileRepository merchantProfileRepository;
+    private final CardTransactionRepository cardTransactionRepository;
 
     // ── Facility operations ──────────────────────────────────────────────────────
 
@@ -65,12 +70,13 @@ public class AcquiringService {
      * Business logic:
      * 1. Find the merchant's active acquiring facility (for MDR rate, reserve hold %)
      * 2. Check for duplicate settlement on the same date
-     * 3. Aggregate chargeback deductions from chargebacks filed on/before the settlement date
-     * 4. Compute gross amount from existing settlement data or default to zero
-     *    (in a real system, this would aggregate from a transaction log)
-     * 5. Apply MDR rate, other fees, chargeback deductions, and reserve hold
-     * 6. Calculate net settlement amount
-     * 7. Persist with CALCULATED status
+     * 3. Aggregate gross transaction amount from the card_transaction ledger
+     *    (falls back to facility daily limit if no ledger transactions exist)
+     * 4. Aggregate refund amounts from the card_transaction ledger
+     * 5. Aggregate chargeback deductions from chargebacks filed on/before the settlement date
+     * 6. Apply MDR rate, interchange fees, chargeback deductions, refunds, and reserve hold
+     * 7. Calculate net settlement amount
+     * 8. Persist with CALCULATED status
      */
     @Transactional
     public MerchantSettlement processSettlement(Long merchantId, LocalDate date) {
@@ -90,6 +96,45 @@ public class AcquiringService {
                     + " on date " + date + ". Settlement ID: " + existing.get(0).getId());
         }
 
+        // Resolve merchant profile to get the merchantId string used in card_transaction
+        MerchantProfile merchantProfile = merchantProfileRepository.findById(merchantId).orElse(null);
+        String merchantIdStr = merchantProfile != null ? merchantProfile.getMerchantId() : null;
+
+        // Aggregate gross from the card_transaction ledger for this merchant and date
+        BigDecimal ledgerGross = BigDecimal.ZERO;
+        long ledgerTxCount = 0;
+        BigDecimal ledgerRefunds = BigDecimal.ZERO;
+
+        if (merchantIdStr != null) {
+            ledgerGross = cardTransactionRepository.sumGrossByMerchantAndDate(merchantIdStr, date);
+            ledgerTxCount = cardTransactionRepository.countByMerchantAndDate(merchantIdStr, date);
+            ledgerRefunds = cardTransactionRepository.sumRefundsByMerchantAndDate(merchantIdStr, date);
+        }
+
+        // Use ledger data if transactions exist, otherwise fall back to facility daily limit
+        BigDecimal gross;
+        int transactionCount;
+        BigDecimal refundDeductions;
+
+        if (ledgerGross.compareTo(BigDecimal.ZERO) > 0) {
+            gross = ledgerGross;
+            transactionCount = (int) ledgerTxCount;
+            refundDeductions = ledgerRefunds;
+            log.info("Settlement sourced from card transaction ledger: merchant={}, date={}, txCount={}, gross={}",
+                    merchantIdStr, date, transactionCount, gross);
+        } else {
+            // Fallback: use facility daily limit as approximation when no ledger data exists
+            gross = facility.getDailyTransactionLimit() != null
+                    ? facility.getDailyTransactionLimit()
+                    : new BigDecimal("50000.00");
+            transactionCount = gross.compareTo(BigDecimal.ZERO) > 0
+                    ? gross.divide(new BigDecimal("75.00"), 0, RoundingMode.CEILING).intValue()
+                    : 0;
+            refundDeductions = BigDecimal.ZERO;
+            log.info("Settlement using facility limit fallback (no ledger data): merchant={}, date={}, gross={}",
+                    merchantId, date, gross);
+        }
+
         // Aggregate chargeback deductions for chargebacks received up to the settlement date
         List<MerchantChargeback> merchantChargebacks = chargebackRepository
                 .findByMerchantIdOrderByTransactionDateDesc(merchantId);
@@ -98,14 +143,6 @@ public class AcquiringService {
                 .filter(cb -> !"CLOSED".equals(cb.getStatus()) || "MERCHANT_LOSS".equals(cb.getOutcome()) || "SPLIT".equals(cb.getOutcome()))
                 .map(cb -> cb.getChargebackAmount() != null ? cb.getChargebackAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // In a real system, gross would come from a transaction ledger.
-        // Here we derive a representative gross from the settlement count and facility limits.
-        // For now, start with the facility's daily transaction limit as an approximation,
-        // or a default if not configured.
-        BigDecimal gross = facility.getDailyTransactionLimit() != null
-                ? facility.getDailyTransactionLimit()
-                : new BigDecimal("50000.00");
 
         // Apply MDR rate from the facility
         BigDecimal mdrRate = facility.getMdrRatePct() != null
@@ -128,9 +165,6 @@ public class AcquiringService {
                 .multiply(reserveHoldPct)
                 .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
 
-        // No refund data source yet — default to zero
-        BigDecimal refundDeductions = BigDecimal.ZERO;
-
         // Calculate net settlement
         BigDecimal net = gross
                 .subtract(mdrDeducted)
@@ -139,10 +173,8 @@ public class AcquiringService {
                 .subtract(refundDeductions)
                 .subtract(reserveHeld);
 
-        // Determine transaction count (approximation based on average ticket size)
-        int transactionCount = gross.compareTo(BigDecimal.ZERO) > 0
-                ? gross.divide(new BigDecimal("75.00"), 0, RoundingMode.CEILING).intValue()
-                : 0;
+        // Resolve settlement account from merchant profile
+        Long settlementAccountId = merchantProfile != null ? merchantProfile.getSettlementAccountId() : null;
 
         MerchantSettlement settlement = MerchantSettlement.builder()
                 .merchantId(merchantId)
@@ -156,14 +188,14 @@ public class AcquiringService {
                 .refundDeductions(refundDeductions)
                 .reserveHeld(reserveHeld)
                 .netSettlementAmount(net)
-                .settlementAccountId(null)
+                .settlementAccountId(settlementAccountId)
                 .settlementReference("STL-" + merchantId + "-" + date)
                 .status("CALCULATED")
                 .build();
 
         MerchantSettlement saved = settlementRepository.save(settlement);
-        log.info("Settlement processed: merchant={}, date={}, gross={}, mdr={}, net={}, txCount={}",
-                merchantId, date, gross, mdrDeducted, net, transactionCount);
+        log.info("Settlement processed: merchant={}, date={}, gross={}, mdr={}, refunds={}, net={}, txCount={}",
+                merchantId, date, gross, mdrDeducted, refundDeductions, net, transactionCount);
         return saved;
     }
 

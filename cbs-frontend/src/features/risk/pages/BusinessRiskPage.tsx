@@ -4,7 +4,9 @@ import {
   Shield, Plus, CheckCircle2, AlertTriangle, Clock, Search, Filter, X,
   Loader2, ChevronRight, Target, TrendingUp,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { businessRiskApi } from '../api/businessRiskApi';
 import {
@@ -77,7 +79,10 @@ function CreateAssessmentModal({ open, onClose }: { open: boolean; onClose: () =
     createMutation.mutate({
       ...form,
       assessmentDate: new Date().toISOString().slice(0, 10),
-    }, { onSuccess: () => onClose() });
+    }, {
+      onSuccess: () => { toast.success('Assessment created'); onClose(); },
+      onError: () => { toast.error('Failed to create assessment'); },
+    });
   }
 
   return (
@@ -160,7 +165,7 @@ function CreateAssessmentModal({ open, onClose }: { open: boolean; onClose: () =
 
 // ─── Assessment Card ─────────────────────────────────────────────────────────
 
-function AssessmentCard({ assessment, onComplete }: { assessment: BusinessRiskAssessment; onComplete: (code: string) => void }) {
+function AssessmentCard({ assessment, onComplete, isAdmin }: { assessment: BusinessRiskAssessment; onComplete: (code: string) => void; isAdmin: boolean }) {
   const ratingStyle = RATING_COLORS[assessment.riskRating] || RATING_COLORS.MODERATE;
   const appetiteStyle = APPETITE_COLORS[assessment.riskAppetiteStatus] || '';
   const StatusIcon = STATUS_ICONS[assessment.status] || Clock;
@@ -202,7 +207,7 @@ function AssessmentCard({ assessment, onComplete }: { assessment: BusinessRiskAs
             </span>
           )}
         </div>
-        {assessment.status === 'DRAFT' && (
+        {isAdmin && assessment.status === 'DRAFT' && (
           <button type="button" onClick={() => onComplete(assessment.assessmentCode)}
             className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors">
             <CheckCircle2 className="w-3 h-3" /> Complete
@@ -217,6 +222,7 @@ function AssessmentCard({ assessment, onComplete }: { assessment: BusinessRiskAs
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export function BusinessRiskPage() {
+  const { isAdmin } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [viewMode, setViewMode] = useState<'domain' | 'rating'>('domain');
   const [selectedDomain, setSelectedDomain] = useState('STRATEGIC');
@@ -240,12 +246,12 @@ export function BusinessRiskPage() {
       <PageHeader
         title="Business Risk Assessments"
         subtitle="Strategic, reputational, and business model risk assessment management"
-        actions={
+        actions={isAdmin ? (
           <button type="button" onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
             <Plus className="w-4 h-4" /> New Assessment
           </button>
-        }
+        ) : undefined}
       />
 
       <div className="px-6 space-y-6 pb-8">
@@ -312,7 +318,10 @@ export function BusinessRiskPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {assessments.map((a) => (
-              <AssessmentCard key={a.id} assessment={a} onComplete={(code) => completeMutation.mutate(code)} />
+              <AssessmentCard key={a.id} assessment={a} isAdmin={isAdmin} onComplete={(code) => completeMutation.mutate(code, {
+                onSuccess: () => { toast.success('Assessment completed'); },
+                onError: () => { toast.error('Failed to complete assessment'); },
+              })} />
             ))}
           </div>
         )}

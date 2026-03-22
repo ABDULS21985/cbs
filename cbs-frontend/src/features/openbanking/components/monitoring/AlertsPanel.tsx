@@ -142,7 +142,7 @@ export function AlertsPanel({ alerts, onAcknowledge, onResolve, loading }: Alert
                     </span>
                     <span
                       className={cn(
-                        'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium uppercase',
+                        'ui-chip uppercase',
                         STATUS_STYLES[alert.status],
                       )}
                     >

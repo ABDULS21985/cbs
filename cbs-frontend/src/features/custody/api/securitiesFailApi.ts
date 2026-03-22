@@ -5,6 +5,10 @@ import type { SecuritiesFail } from '../types/securitiesFail';
 export type { SecuritiesFail };
 
 export const securitiesFailsApi = {
+  // GET /v1/securities-fails/{ref} — get fail by reference
+  getByRef: (ref: string) =>
+    apiGet<SecuritiesFail>(`/api/v1/securities-fails/${ref}`),
+
   // POST /v1/securities-fails — record a new fail (entity body)
   recordFail: (data: Partial<SecuritiesFail>) =>
     apiPost<SecuritiesFail>('/api/v1/securities-fails', data),

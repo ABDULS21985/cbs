@@ -106,6 +106,11 @@ describe('AccountOpeningPage', () => {
   beforeEach(() => {
     localStorage.removeItem('cbs:account-opening-draft');
   });
+
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
   it('maps the live account opening contract end to end', async () => {
     let complianceBody: Record<string, unknown> | null = null;
     let createBody: Record<string, unknown> | null = null;

@@ -40,9 +40,6 @@ spring:
     table: flyway_schema_history
 
   jackson:
-    use-jackson2-defaults: true
-
-  jackson2:
     serialization:
       write-dates-as-timestamps: false
       fail-on-empty-beans: false
@@ -181,6 +178,9 @@ cbs:
     interest-accrual-cron: ${CBS_INTEREST_CRON:0 30 23 * * *}
     dormancy-detection-cron: ${CBS_DORMANCY_CRON:0 0 0 * * *}
     escheatment-detection-cron: ${CBS_ESCHEATMENT_CRON:0 0 1 1 * *}
+
+  statements:
+    subscription-cron: ${CBS_STATEMENT_SUBSCRIPTION_CRON:0 0 6 * * *}
 
   simulation:
     allow-synthetic-services: ${CBS_ALLOW_SYNTHETIC_SERVICES:false}

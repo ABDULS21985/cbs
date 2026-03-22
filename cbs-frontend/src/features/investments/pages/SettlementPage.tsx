@@ -92,33 +92,33 @@ function InstructionsTab() {
     { accessorKey: 'settlementCycle', header: 'Cycle', cell: ({ row }) => <span className="text-xs font-mono">{row.original.settlementCycle}</span> },
     { accessorKey: 'intendedSettlementDate', header: 'Settle Date', cell: ({ row }) => <span className="text-xs">{row.original.intendedSettlementDate ? formatDate(row.original.intendedSettlementDate) : '—'}</span> },
     { accessorKey: 'matchStatus', header: 'Match', cell: ({ row }) => (
-      <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold',
+      <span className={cn('ui-chip',
         row.original.matchStatus === 'MATCHED' ? 'bg-green-100 text-green-700' :
         row.original.matchStatus === 'MISMATCHED' ? 'bg-red-100 text-red-700' :
         'bg-gray-100 text-gray-600'
       )}>{row.original.matchStatus}</span>
     )},
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => (
-      <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold', STATUS_COLORS[row.original.status] ?? '')}>{row.original.status}</span>
+      <span className={cn('ui-chip', STATUS_COLORS[row.original.status] ?? '')}>{row.original.status}</span>
     )},
     { id: 'actions', header: '', cell: ({ row }) => {
       const si = row.original;
       return (
         <div className="flex gap-1">
           {si.status === 'CREATED' && (
-            <button onClick={() => submitMut.mutate(si.instructionRef)} className="px-2 py-1 text-[10px] font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200">
+            <button onClick={() => submitMut.mutate(si.instructionRef)} className="ui-action-chip ui-action-chip-info">
               <Send className="w-3 h-3 inline mr-1" />Submit
             </button>
           )}
           {si.matchStatus === 'UNMATCHED' && (
-            <button onClick={() => { setMatchRefA(si.instructionRef); setShowMatch(true); }} className="px-2 py-1 text-[10px] font-medium rounded bg-cyan-100 text-cyan-700 hover:bg-cyan-200">
+            <button onClick={() => { setMatchRefA(si.instructionRef); setShowMatch(true); }} className="ui-action-chip ui-action-chip-cyan">
               <Link2 className="w-3 h-3 inline mr-1" />Match
             </button>
           )}
           {si.status === 'SUBMITTED' && (
             <>
-              <button onClick={() => resultMut.mutate({ ref: si.instructionRef, settled: true })} className="px-2 py-1 text-[10px] font-medium rounded bg-green-100 text-green-700 hover:bg-green-200">Settle</button>
-              <button onClick={() => resultMut.mutate({ ref: si.instructionRef, settled: false })} className="px-2 py-1 text-[10px] font-medium rounded bg-red-100 text-red-700 hover:bg-red-200">Fail</button>
+              <button onClick={() => resultMut.mutate({ ref: si.instructionRef, settled: true })} className="ui-action-chip ui-action-chip-success">Settle</button>
+              <button onClick={() => resultMut.mutate({ ref: si.instructionRef, settled: false })} className="ui-action-chip ui-action-chip-danger">Fail</button>
             </>
           )}
         </div>
@@ -306,7 +306,7 @@ function BatchesTab() {
     { accessorKey: 'failedCount', header: 'Failed', cell: ({ row }) => <span className={cn('font-mono', row.original.failedCount > 0 ? 'text-red-600' : '')}>{row.original.failedCount}</span> },
     { accessorKey: 'netAmount', header: 'Net', cell: ({ row }) => <span className="font-mono text-sm">{formatCurrency(row.original.netAmount, row.original.currency)}</span> },
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => (
-      <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold', STATUS_COLORS[row.original.status] ?? '')}>{row.original.status}</span>
+      <span className={cn('ui-chip', STATUS_COLORS[row.original.status] ?? '')}>{row.original.status}</span>
     )},
   ];
 

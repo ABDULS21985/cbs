@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { format, startOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 import { FileBarChart2, Loader2 } from 'lucide-react';
@@ -20,12 +20,15 @@ import {
   getIncomeStatement,
   getCashFlow,
   getCapitalAdequacy,
+  exportExcel,
+  exportPdf,
   type BalanceSheetData,
   type IncomeStatementData,
   type CashFlowData,
   type CapitalAdequacyData,
   type FinancialLineItem,
 } from '../api/financialReportApi';
+import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -207,12 +210,16 @@ export function FinancialReportsPage() {
           break;
         }
         case 'income_statement': {
-          const data = await getIncomeStatement(period, comparison);
+          const monthStart = `${period}-01`;
+          const monthEnd = format(endOfMonth(new Date(monthStart)), 'yyyy-MM-dd');
+          const data = await getIncomeStatement(monthStart, monthEnd);
           setReportData({ type: 'income_statement', data });
           break;
         }
         case 'cash_flow': {
-          const data = await getCashFlow(period);
+          const monthStart = `${period}-01`;
+          const monthEnd = format(endOfMonth(new Date(monthStart)), 'yyyy-MM-dd');
+          const data = await getCashFlow(monthStart, monthEnd);
           setReportData({ type: 'cash_flow', data });
           break;
         }
@@ -231,14 +238,21 @@ export function FinancialReportsPage() {
 
   // ─── Export handlers ───────────────────────────────────────────────────────
 
-  const handleExportPdf = () => {
-    showToast('PDF export triggered — connect to server-side PDF renderer.');
-    window.print();
-  };
+  const handleExportPdf = useCallback(async () => {
+    const params = reportType === 'balance_sheet'
+      ? { asOf: period }
+      : { from: `${period}-01`, to: format(endOfMonth(new Date(`${period}-01`)), 'yyyy-MM-dd') };
+    await exportPdf(reportType, params);
+    toast.success('PDF downloaded');
+  }, [reportType, period]);
 
-  const handleExportExcel = () => {
-    showToast('Excel export triggered — connect to xlsx library or API endpoint.');
-  };
+  const handleExportExcel = useCallback(async () => {
+    const params = reportType === 'balance_sheet'
+      ? { asOf: period }
+      : { from: `${period}-01`, to: format(endOfMonth(new Date(`${period}-01`)), 'yyyy-MM-dd') };
+    await exportExcel(reportType, params);
+    toast.success('Excel downloaded');
+  }, [reportType, period]);
 
   // ─── Report type change resets data ───────────────────────────────────────
 

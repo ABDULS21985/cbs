@@ -1,5 +1,9 @@
 package com.cbs.eod;
 
+import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.account.service.AccountService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.deposit.service.FixedDepositService;
 import com.cbs.deposit.service.RecurringDepositService;
@@ -35,6 +39,10 @@ class EndOfDayServiceTest {
     @Mock private OverdraftService overdraftService;
     @Mock private StandingOrderService standingOrderService;
     @Mock private TreasuryService treasuryService;
+    @Mock private AccountService accountService;
+    @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CbsProperties cbsProperties;
 
     @InjectMocks private EndOfDayService eodService;
 
@@ -44,6 +52,7 @@ class EndOfDayServiceTest {
         LocalDate date = LocalDate.of(2026, 3, 15); // mid-month = EOD
         when(runRepository.findByBusinessDateAndRunType(date, EodRunType.EOD)).thenReturn(Optional.empty());
         when(runRepository.save(any())).thenAnswer(inv -> { EodRun r = inv.getArgument(0); r.setId(1L); return r; });
+        when(accountService.batchAccrueInterest()).thenReturn(200);
         when(fdService.batchAccrueInterest()).thenReturn(50);
         when(fdService.processMaturedDeposits()).thenReturn(3);
         when(rdService.processAutoDebits()).thenReturn(20);
@@ -57,9 +66,10 @@ class EndOfDayServiceTest {
 
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getRunType()).isEqualTo(EodRunType.EOD);
-        assertThat(result.getTotalSteps()).isEqualTo(9); // 9 EOD steps (no monthly steps mid-month)
+        assertThat(result.getTotalSteps()).isEqualTo(9);
         assertThat(result.getCompletedSteps()).isEqualTo(9);
         assertThat(result.getFailedSteps()).isEqualTo(0);
+        verify(accountService).batchAccrueInterest();
     }
 
     @Test
@@ -68,6 +78,8 @@ class EndOfDayServiceTest {
         LocalDate date = LocalDate.of(2026, 3, 31); // March 31 = EOM (also EOQ)
         when(runRepository.findByBusinessDateAndRunType(date, EodRunType.EOQ)).thenReturn(Optional.empty());
         when(runRepository.save(any())).thenAnswer(inv -> { EodRun r = inv.getArgument(0); r.setId(2L); return r; });
+        when(accountService.batchAccrueInterest()).thenReturn(0);
+        when(accountRepository.findActiveInterestBearingAccounts()).thenReturn(java.util.List.of());
         when(fdService.batchAccrueInterest()).thenReturn(0);
         when(fdService.processMaturedDeposits()).thenReturn(0);
         when(rdService.processAutoDebits()).thenReturn(0);
@@ -100,6 +112,7 @@ class EndOfDayServiceTest {
         LocalDate date = LocalDate.of(2026, 3, 16);
         when(runRepository.findByBusinessDateAndRunType(date, EodRunType.EOD)).thenReturn(Optional.empty());
         when(runRepository.save(any())).thenAnswer(inv -> { EodRun r = inv.getArgument(0); r.setId(3L); return r; });
+        when(accountService.batchAccrueInterest()).thenReturn(200);
         when(fdService.batchAccrueInterest()).thenReturn(50);
         when(fdService.processMaturedDeposits()).thenThrow(new RuntimeException("DB connection lost"));
         when(rdService.processAutoDebits()).thenReturn(20);

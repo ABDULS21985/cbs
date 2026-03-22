@@ -124,7 +124,7 @@ export function KycReviewPanel({ counterparty, onClose }: KycReviewPanelProps) {
 
           {/* Review Form */}
           <div className="space-y-3">
-            <p className="text-sm font-medium">Review Decision</p>
+            <p className="text-sm font-medium">Verification</p>
             <div>
               <label className="text-xs text-muted-foreground">Reviewed By *</label>
               <input
@@ -135,29 +135,14 @@ export function KycReviewPanel({ counterparty, onClose }: KycReviewPanelProps) {
                 required
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground">KYC Status</label>
-                <select
-                  className="w-full mt-1 input"
-                  value={form.kycStatus}
-                  onChange={(e) => setForm((f) => ({ ...f, kycStatus: e.target.value }))}
-                >
-                  <option value="VERIFIED">Verified</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="REJECTED">Rejected</option>
-                  <option value="EXPIRED">Expired</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">Review Date</label>
-                <input
-                  type="date"
-                  className="w-full mt-1 input"
-                  value={form.reviewDate}
-                  onChange={(e) => setForm((f) => ({ ...f, reviewDate: e.target.value }))}
-                />
-              </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Review Date</label>
+              <input
+                type="date"
+                className="w-full mt-1 input"
+                value={form.reviewDate}
+                onChange={(e) => setForm((f) => ({ ...f, reviewDate: e.target.value }))}
+              />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Notes</label>
@@ -171,7 +156,7 @@ export function KycReviewPanel({ counterparty, onClose }: KycReviewPanelProps) {
             </div>
           </div>
 
-          {!allChecked && form.kycStatus === 'VERIFIED' && (
+          {!allChecked && (
             <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-700 dark:text-amber-400">
               Not all checklist items are completed. Ensure all documents are verified before approving.
             </div>
@@ -179,10 +164,10 @@ export function KycReviewPanel({ counterparty, onClose }: KycReviewPanelProps) {
 
           <button
             onClick={handleSubmit}
-            disabled={verifyKyc.isPending || !form.reviewedBy}
+            disabled={verifyKyc.isPending || !form.reviewedBy || !allChecked}
             className="w-full btn-primary"
           >
-            {verifyKyc.isPending ? 'Submitting...' : 'Submit KYC Review'}
+            {verifyKyc.isPending ? 'Verifying...' : 'Verify KYC'}
           </button>
         </div>
       </div>

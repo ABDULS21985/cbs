@@ -53,6 +53,7 @@ import {
   CreditRiskDashboardPage,
   ComplianceDashboardPage,
   ComplianceDownloadsPage,
+  ComplianceReportManagementPage,
   FinancialStatementsPage,
   AmlDashboardPage,
   AmlAlertDetailPage,
@@ -136,6 +137,7 @@ import {
   RiskContributionPage,
   BusinessContributionPage,
   TransactionLimitsPage,
+  RiskCreditMarginPage,
   OrderManagementPage,
   PaymentAnalyticsPage,
   PortalAccountsPage,
@@ -232,6 +234,7 @@ import {
   RoutingRulesPage,
   ChannelConfigPage,
   CommsPreferencesPage,
+  PortalNotificationsPage,
   CollateralRegisterPage,
   CollateralDetailPage,
   ComplianceReportsPage,
@@ -278,6 +281,7 @@ import {
   CorporateFinancePage,
   ProjectFinancePage,
   SuitabilityPage,
+  AdvisoryWealthManagementPage,
   IntelligencePage,
   BehaviourAnalyticsPage,
   DocumentIntelligencePage,
@@ -380,6 +384,14 @@ import {
   RemittancePage,
   PayrollPage,
   PaymentOrchestrationPage,
+  DspmDashboardPage,
+  DspmScanPage,
+  DspmPolicyPage,
+  DspmExceptionListPage,
+  DspmIdentitiesPage,
+  DspmIdentityDetailPage,
+  DspmDataSourcePage,
+  PartyRoutingPage,
 } from './lazyRoutes';
 
 
@@ -420,7 +432,14 @@ export function AppRouter() {
         <Route path="/accounts" element={<Outlet />}>
           <Route index element={<AccountListPage />} />
           <Route path="open" element={<AccountOpeningPage />} />
-          <Route path="post-transaction" element={<TransactionPostingPage />} />
+          <Route
+            path="post-transaction"
+            element={(
+              <ProtectedRoute requiredRoles={['CBS_ADMIN', 'CBS_OFFICER']}>
+                <TransactionPostingPage />
+              </ProtectedRoute>
+            )}
+          />
           <Route path="products" element={<ProductCatalogPage />} />
           <Route path="interest-ops" element={<InterestOperationsPage />} />
           <Route path="fixed-deposits" element={<FixedDepositListPage />} />
@@ -612,6 +631,7 @@ export function AppRouter() {
           <Route path="corporate-finance" element={<CorporateFinancePage />} />
           <Route path="project-finance" element={<ProjectFinancePage />} />
           <Route path="suitability" element={<SuitabilityPage />} />
+          <Route path="wealth-management" element={<AdvisoryWealthManagementPage />} />
         </Route>
 
         {/* Intelligence */}
@@ -708,6 +728,7 @@ export function AppRouter() {
           <Route path="contribution" element={<RiskContributionPage />} />
           <Route path="business-contribution" element={<BusinessContributionPage />} />
           <Route path="limits" element={<TransactionLimitsPage />} />
+          <Route path="credit-margin" element={<RiskCreditMarginPage />} />
         </Route>
 
         {/* Compliance */}
@@ -779,6 +800,7 @@ export function AppRouter() {
           <Route path="marketing" element={<MarketingAnalyticsPage />} />
           <Route path="operations" element={<OperationalReportsPage />} />
           <Route path="regulatory" element={<RegulatoryReportsPage />} />
+          <Route path="compliance" element={<ComplianceReportManagementPage />} />
           <Route path="compliance-downloads" element={<ComplianceDownloadsPage />} />
           <Route path="financial-statements" element={<FinancialStatementsPage />} />
         </Route>
@@ -836,6 +858,7 @@ export function AppRouter() {
           <Route path="routing" element={<RoutingRulesPage />} />
           <Route path="channels" element={<ChannelConfigPage />} />
           <Route path="preferences" element={<CommsPreferencesPage />} />
+          <Route path="portal" element={<PortalNotificationsPage />} />
         </Route>
 
         {/* Cases */}
@@ -878,16 +901,28 @@ export function AppRouter() {
           <Route path="admin" element={<ContactCenterAdminPage />} />
           <Route path="agent" element={<AgentDashboardPage />} />
           <Route path="agent-console" element={<AgentWorkbenchPage />} />
-          <Route path="agents/:agentId" element={<AgentDetailPage />} />
+          <Route path="agent/:agentId" element={<AgentDetailPage />} />
           <Route path="queues" element={<QueueDashboardPage />} />
           <Route path="callbacks" element={<CallbackPage />} />
           <Route path="ivr" element={<IvrManagerPage />} />
           <Route path="help" element={<KnowledgeBasePage />} />
           <Route path="chat" element={<ChatSessionsPage />} />
+          <Route path="routing" element={<PartyRoutingPage />} />
         </Route>
 
         {/* Contact Center legacy alias */}
         <Route path="/operations/contact-center" element={<ContactCenterPage />} />
+
+        {/* DSPM — Data Security & Privacy Management */}
+        <Route path="/dspm" element={<Outlet />}>
+          <Route index element={<DspmDashboardPage />} />
+          <Route path="sources" element={<DspmDataSourcePage />} />
+          <Route path="scans" element={<DspmScanPage />} />
+          <Route path="policies" element={<DspmPolicyPage />} />
+          <Route path="exceptions" element={<DspmExceptionListPage />} />
+          <Route path="identities" element={<DspmIdentitiesPage />} />
+          <Route path="identities/:identityCode" element={<DspmIdentityDetailPage />} />
+        </Route>
 
         {/* Notifications */}
         <Route path="/notifications" element={<NotificationCenterPage />} />

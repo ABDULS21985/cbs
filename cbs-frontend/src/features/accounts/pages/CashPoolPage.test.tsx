@@ -96,6 +96,10 @@ function setupDefaultHandlers() {
 }
 
 describe('CashPoolPage', () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
   it('renders page header and New Pool button', async () => {
     setupDefaultHandlers();
     renderWithProviders(<CashPoolPage />);

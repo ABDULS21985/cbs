@@ -8,6 +8,7 @@ import type {
   SendDirectRequest,
   SendBulkRequest,
 } from '../types/notificationExt';
+import type { ScheduledNotification } from '@/features/admin/api/notificationAdminApi';
 
 // ---------------------------------------------------------------------------
 // Map backend NotificationLog → frontend AppNotification
@@ -108,7 +109,7 @@ export const notificationApi = {
 
   /** GET /scheduled?page=&size= */
   getScheduled: (page = 0, size = 20) =>
-    apiGet<NotificationLog[]>('/api/v1/notifications/scheduled', { page, size }),
+    apiGet<ScheduledNotification[]>('/api/v1/notifications/scheduled', { page, size }),
 
   // ── Actions ────────────────────────────────────────────────────────────
 
@@ -127,9 +128,10 @@ export const notificationApi = {
       email,
       phone,
       name,
-      ...extraParams,
     });
-    return apiPost<unknown>(url);
+    // Backend @RequestBody Map<String,String> params is required — pass extra
+    // params as body (or empty object when none are supplied).
+    return apiPost<unknown>(url, extraParams ?? {});
   },
 
   /** POST /send-direct — send a direct (non-template) notification */
@@ -140,9 +142,9 @@ export const notificationApi = {
   sendBulk: (payload: SendBulkRequest) =>
     apiPost<{ sent: number; failed: number }>('/api/v1/notifications/send-bulk', payload),
 
-  /** GET /retry — get retry status (pending/failed counts) */
+  /** GET /retry — backend returns { retried: 0 } as a status stub */
   getRetryStatus: () =>
-    apiGet<{ pending: number; failed: number }>('/api/v1/notifications/retry'),
+    apiGet<{ retried: number }>('/api/v1/notifications/retry'),
 
   /** POST /retry */
   retry: () =>

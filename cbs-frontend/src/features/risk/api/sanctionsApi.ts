@@ -7,7 +7,7 @@ export const sanctionsApi = {
     api.get<ApiResponse<SanctionsStats>>('/api/v1/sanctions/stats'),
 
   listMatches: (params?: { status?: MatchStatus; page?: number; size?: number }) =>
-    api.get<ApiResponse<{ items: SanctionsMatch[]; page: object }>>('/api/v1/sanctions/matches', { params }),
+    api.get<ApiResponse<SanctionsMatch[]>>('/api/v1/sanctions/matches', { params }),
 
   getMatch: (id: number) =>
     api.get<ApiResponse<SanctionsMatch>>(`/api/v1/sanctions/matches/${id}`),
@@ -15,8 +15,8 @@ export const sanctionsApi = {
   confirmHit: (id: number) =>
     api.post(`/api/v1/sanctions/matches/${id}/confirm`),
 
-  markFalsePositive: (id: number, justification: string, documentId?: number) =>
-    api.post(`/api/v1/sanctions/matches/${id}/false-positive`, { justification, documentId }),
+  markFalsePositive: (id: number) =>
+    api.post(`/api/v1/sanctions/matches/${id}/false-positive`),
 
   listWatchlists: () =>
     api.get<ApiResponse<Watchlist[]>>('/api/v1/sanctions/watchlists'),

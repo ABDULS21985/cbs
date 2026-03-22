@@ -1,21 +1,175 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Search, Settings, BarChart2, FileText } from 'lucide-react';
+import { AlertTriangle, Search, Settings, BarChart2, FileText, Plus, X, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage, EmptyState } from '@/components/shared';
 import { useFraudStats, useFraudTrend, useFraudAlerts, useFraudRules } from '../hooks/useFraud';
+import { useCreateFraudRule } from '../hooks/useRiskExt';
 import { FraudStatsCards } from '../components/fraud/FraudStatsCards';
 import { FraudTrendChart } from '../components/fraud/FraudTrendChart';
 import { AlertTriageQueue } from '../components/fraud/AlertTriageQueue';
 import { FraudInvestigationView } from '../components/fraud/FraudInvestigationView';
 import { FraudRuleTable } from '../components/fraud/FraudRuleTable';
 import { ModelPerformancePanel } from '../components/fraud/ModelPerformancePanel';
+import type { FraudAlertSeverity } from '../types/fraud';
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const RULE_CATEGORIES = [
+  'TRANSACTION_AMOUNT',
+  'VELOCITY',
+  'GEOGRAPHIC',
+  'BEHAVIORAL',
+  'DEVICE',
+  'ACCOUNT_TAKEOVER',
+] as const;
+
+const SEVERITY_OPTIONS: FraudAlertSeverity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+
+// ─── Create Fraud Rule Modal ─────────────────────────────────────────────────
+
+function CreateFraudRuleModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const createMutation = useCreateFraudRule();
+  const [form, setForm] = useState({
+    ruleName: '',
+    description: '',
+    category: RULE_CATEGORIES[0] as string,
+    severity: 'MEDIUM' as FraudAlertSeverity,
+    scoreWeight: 50,
+    applicableChannels: 'ALL',
+  });
+
+  if (!open) return null;
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    createMutation.mutate(form, {
+      onSuccess: () => {
+        toast.success('Fraud rule created successfully');
+        setForm({
+          ruleName: '',
+          description: '',
+          category: RULE_CATEGORIES[0],
+          severity: 'MEDIUM',
+          scoreWeight: 50,
+          applicableChannels: 'ALL',
+        });
+        onClose();
+      },
+      onError: (err: unknown) => {
+        toast.error(err instanceof Error ? err.message : 'Failed to create fraud rule');
+      },
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-semibold">Create Fraud Rule</h2>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Rule Name</label>
+            <input
+              required
+              value={form.ruleName}
+              onChange={(e) => setForm({ ...form, ruleName: e.target.value })}
+              placeholder="e.g. High-value international transfer"
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Description</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Describe when this rule should trigger..."
+              rows={3}
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Category</label>
+              <select
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              >
+                {RULE_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Severity</label>
+              <select
+                value={form.severity}
+                onChange={(e) => setForm({ ...form, severity: e.target.value as FraudAlertSeverity })}
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              >
+                {SEVERITY_OPTIONS.map((sev) => (
+                  <option key={sev} value={sev}>{sev}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Score Weight (1-100)</label>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                required
+                value={form.scoreWeight}
+                onChange={(e) => setForm({ ...form, scoreWeight: Number(e.target.value) })}
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Applicable Channels</label>
+              <input
+                value={form.applicableChannels}
+                onChange={(e) => setForm({ ...form, applicableChannels: e.target.value })}
+                placeholder="ALL"
+                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm hover:bg-muted">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createMutation.isPending}
+              className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2"
+            >
+              {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Create Rule
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function pct(count: number, total: number) {
   return total > 0 ? ((count / total) * 100).toFixed(1) : '0.0';
 }
 
 export function FraudManagementPage() {
+  const { isAdmin } = useAuth();
   const [investigatingAlertId, setInvestigatingAlertId] = useState<number | null>(null);
+  const [createRuleOpen, setCreateRuleOpen] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useFraudStats();
   const { data: trendData, isLoading: trendLoading } = useFraudTrend(30);
@@ -64,6 +218,7 @@ export function FraudManagementPage() {
 
   const handleInvestigate = (alertId: number) => {
     setInvestigatingAlertId(alertId);
+    toast.success(`Alert #${alertId} opened for investigation`);
   };
 
   const tabs = [
@@ -118,10 +273,22 @@ export function FraudManagementPage() {
       content: (
         <div className="p-6 space-y-6">
           <div>
-            <h3 className="text-sm font-semibold mb-3">Fraud Detection Rules</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">Fraud Detection Rules</h3>
+              {isAdmin && (
+                <button
+                  onClick={() => setCreateRuleOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Rule
+                </button>
+              )}
+            </div>
             <FraudRuleTable rules={rules ?? []} isLoading={rulesLoading} />
           </div>
           <ModelPerformancePanel />
+          <CreateFraudRuleModal open={createRuleOpen} onClose={() => setCreateRuleOpen(false)} />
         </div>
       ),
     },

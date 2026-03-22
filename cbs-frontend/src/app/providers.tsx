@@ -7,9 +7,9 @@ interface ThemeProviderState {
   setTheme: (theme: Theme) => void;
 }
 
-const ThemeContext = createContext<ThemeProviderState>({ theme: 'light', setTheme: () => null });
+const ThemeContext = createContext<ThemeProviderState>({ theme: 'dark', setTheme: () => null });
 
-export function ThemeProvider({ children, defaultTheme = 'light', storageKey = 'cbs-theme' }: { children: ReactNode; defaultTheme?: Theme; storageKey?: string }) {
+export function ThemeProvider({ children, defaultTheme = 'dark', storageKey = 'cbs-theme' }: { children: ReactNode; defaultTheme?: Theme; storageKey?: string }) {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme) || defaultTheme);
 
   useEffect(() => {

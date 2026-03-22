@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 import type { ClearingSubmission, OrderAllocation, TradeConfirmation, TradeReport } from '../types/tradeOps';
 
 export const tradeOpsApi = {
@@ -12,8 +12,12 @@ export const tradeOpsApi = {
     apiPost<TradeConfirmation>('/api/v1/trade-ops/confirmations', data),
 
   /** POST /v1/trade-ops/confirmations/match */
-  matchConfirmations: () =>
-    apiPost<TradeConfirmation[]>('/api/v1/trade-ops/confirmations/match'),
+  matchConfirmations: (refA?: string, refB?: string) => {
+    if (refA && refB) {
+      return apiPostParams<TradeConfirmation[]>('/api/v1/trade-ops/confirmations/match', { refA, refB });
+    }
+    return apiPost<TradeConfirmation[]>('/api/v1/trade-ops/confirmations/match');
+  },
 
   /** GET /v1/trade-ops/confirmations/unmatched */
   getUnmatched: (params?: Record<string, unknown>) =>

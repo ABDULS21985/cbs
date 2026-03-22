@@ -105,6 +105,7 @@ function NewRunDialog({ models, onClose }: { models: ValuationModel[]; onClose: 
               <option value="END_OF_DAY">End of Day</option>
               <option value="INTRADAY">Intraday</option>
               <option value="AD_HOC">Ad-Hoc</option>
+              <option value="STRESS_TEST">Stress Test</option>
             </select>
           </div>
           <div className="flex justify-end gap-2 pt-2">

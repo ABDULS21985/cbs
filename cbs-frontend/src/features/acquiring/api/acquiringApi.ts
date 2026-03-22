@@ -2,7 +2,7 @@ import { apiGet, apiPost, apiPut } from '@/lib/api';
 
 // ─── Types aligned with Java backend entities ───────────────────────────────
 
-export type RiskCategory = 'LOW' | 'MEDIUM' | 'HIGH';
+export type RiskCategory = 'LOW' | 'MEDIUM' | 'HIGH' | 'PROHIBITED';
 export type MerchantStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'TERMINATED' | 'UNDER_REVIEW';
 
 /** Matches MerchantProfile.java entity */
@@ -80,6 +80,7 @@ export interface MerchantSettlement {
   settledAt?: string;
   status: SettlementStatus;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export type ChargebackStatus = 'RECEIVED' | 'NOTIFIED' | 'EVIDENCE_REQUESTED' | 'REPRESENTMENT' | 'ARBITRATION' | 'CLOSED';
@@ -105,10 +106,60 @@ export interface Chargeback {
   financialImpact?: number;
   status: ChargebackStatus;
   createdAt?: string;
+  updatedAt?: string;
 }
 
-/** PCI compliance — backend returns Map<String, List<AcquiringFacility>> grouped by pciComplianceStatus */
+/** PCI compliance — backend returns Map<String, List<FacilityResponse>> grouped by pciComplianceStatus */
 export type PciComplianceReport = Record<string, AcquiringFacility[]>;
+
+/** Matches RecordChargebackRequest.java DTO */
+export interface RecordChargebackPayload {
+  merchantId: number;
+  originalTransactionRef?: string;
+  transactionDate?: string;
+  transactionAmount?: number;
+  cardNetwork?: string;
+  reasonCode?: string;
+  reasonDescription?: string;
+  chargebackAmount: number;
+  currency?: string;
+  evidenceDeadline?: string;
+}
+
+/** Matches SetupFacilityRequest.java DTO */
+export interface SetupFacilityPayload {
+  merchantId: number;
+  facilityType?: string;
+  processorConnection?: string;
+  terminalIdPrefix?: string;
+  settlementCurrency?: string;
+  settlementCycle?: string;
+  mdrRatePct?: number;
+  dailyTransactionLimit?: number;
+  monthlyVolumeLimit?: number;
+  chargebackLimitPct?: number;
+  reserveHoldPct?: number;
+}
+
+/** Matches RegisterTerminalRequest.java DTO */
+export interface RegisterTerminalPayload {
+  terminalId: string;
+  terminalType: string;
+  merchantId: string;
+  merchantName: string;
+  merchantCategoryCode?: string;
+  locationAddress?: string;
+  supportsContactless?: boolean;
+  supportsChip?: boolean;
+  supportsMagstripe?: boolean;
+  supportsPin?: boolean;
+  supportsQr?: boolean;
+  maxTransactionAmount?: number;
+  acquiringBankCode?: string;
+  settlementAccountId?: number;
+  batchSettlementTime?: string;
+  softwareVersion?: string;
+}
 
 /** Matches PosTerminal.java entity */
 export interface PosTerminal {
@@ -171,8 +222,8 @@ export const acquiringApi = {
   getMerchantFacilities: (merchantId: number) =>
     apiGet<AcquiringFacility[]>(`/api/v1/acquiring/facilities/merchant/${merchantId}`),
 
-  /** Backend accepts @RequestBody AcquiringFacility entity */
-  setupFacility: (payload: Partial<AcquiringFacility>) =>
+  /** Backend accepts @RequestBody SetupFacilityRequest */
+  setupFacility: (payload: SetupFacilityPayload) =>
     apiPost<AcquiringFacility>('/api/v1/acquiring/facilities', payload),
 
   activateFacility: (id: number) =>
@@ -195,7 +246,7 @@ export const acquiringApi = {
   getChargebacks: () =>
     apiGet<Chargeback[]>('/api/v1/acquiring/chargebacks'),
 
-  recordChargeback: (payload: Partial<Chargeback>) =>
+  recordChargeback: (payload: RecordChargebackPayload) =>
     apiPost<Chargeback>('/api/v1/acquiring/chargebacks', payload),
 
   /** Backend: @PathVariable id + @RequestBody SubmitRepresentmentRequest { responseRef, evidence } */
@@ -212,7 +263,7 @@ export const acquiringApi = {
   getAllTerminals: () =>
     apiGet<PosTerminal[]>('/api/v1/pos-terminals'),
 
-  registerTerminal: (payload: Partial<PosTerminal>) =>
+  registerTerminal: (payload: RegisterTerminalPayload) =>
     apiPost<PosTerminal>('/api/v1/pos-terminals', payload),
 
   updateTerminalStatus: (terminalId: string, status: string) =>

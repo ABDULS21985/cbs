@@ -151,7 +151,7 @@ export function ChannelConfigPanel({ configs, onUpdate, onTest }: ChannelConfigP
       {/* Test dialog */}
       {showTestDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowTestDialog(null)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowTestDialog(null)} />
           <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-sm">Test {showTestDialog} Delivery</h3>

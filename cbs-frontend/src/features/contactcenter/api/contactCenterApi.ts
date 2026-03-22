@@ -95,6 +95,7 @@ export const contactCenterApi = {
     apiPost<ContactCenter>(`/api/v1/contact-center/${id}/deactivate`),
 
   // ─── Agents & Queues ─────────────────────────────────────────────────────────
+  getMyAgent: () => apiGet<BackendAgentState | null>('/api/v1/contact-center/agents/me').then((a) => a ? mapAgentState(a) : null),
   getAgentStates: () => apiGet<BackendAgentState[]>('/api/v1/contact-center/agents').then((agents) => agents.map(mapAgentState)),
   updateAgentState: (agentId: string, state: string) => apiPut<void>(`/api/v1/contact-routing/agents/${agentId}/state?newState=${encodeURIComponent(state)}`),
   getQueueStatus: () => apiGet<BackendQueueStatus[]>('/api/v1/contact-center/queues').then((queues) => queues.map(mapQueueStatus)),

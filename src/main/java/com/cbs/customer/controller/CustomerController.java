@@ -31,7 +31,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -57,6 +59,53 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<CustomerResponse>> getCustomer360(@PathVariable Long customerId) {
         CustomerResponse response = customerService.getCustomer360(customerId);
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @GetMapping("/{customerId}/mini-profile")
+    @Operation(summary = "Lightweight customer profile for contact center agent workbench")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getMiniProfile(@PathVariable Long customerId) {
+        CustomerResponse customer = customerService.getCustomer360(customerId);
+        List<Account> accounts = customerService.getCustomerAccounts(customerId);
+
+        Map<String, Object> mini = new LinkedHashMap<>();
+        mini.put("customerId", customer.getId());
+        mini.put("customerName", customer.getDisplayName());
+        mini.put("segment", customer.getCustomerType() != null ? customer.getCustomerType().name() : "RETAIL");
+        mini.put("riskRating", customer.getRiskRating() != null ? customer.getRiskRating().name() : "MEDIUM");
+        mini.put("memberSince", customer.getCreatedAt() != null ? customer.getCreatedAt().toString() : "");
+
+        // Accounts summary
+        List<Map<String, Object>> accountList = accounts.stream().map(acc -> {
+            Map<String, Object> a = new LinkedHashMap<>();
+            a.put("type", acc.getProduct() != null ? acc.getProduct().getName() : acc.getAccountType().name());
+            a.put("number", acc.getAccountNumber());
+            a.put("balance", acc.getAvailableBalance() != null ? acc.getAvailableBalance() : BigDecimal.ZERO);
+            a.put("status", acc.getStatus() != null ? acc.getStatus().name() : "UNKNOWN");
+            return a;
+        }).toList();
+        mini.put("accounts", accountList);
+
+        // Recent interactions (empty — populated by contact center module)
+        mini.put("recentInteractions", List.of());
+
+        // Alerts (derive from risk rating)
+        List<Map<String, Object>> alerts = new java.util.ArrayList<>();
+        if (customer.getRiskRating() != null && customer.getRiskRating().name().equals("HIGH")) {
+            alerts.add(Map.of("type", "RISK", "message", "Customer flagged as high risk", "severity", "HIGH"));
+        }
+        mini.put("alerts", alerts);
+
+        return ResponseEntity.ok(ApiResponse.ok(mini));
+    }
+
+    @GetMapping("/lookup")
+    @Operation(summary = "Lookup customer by phone number for contact center caller ID")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> lookupByPhone(@RequestParam String phone) {
+        Customer customer = customerRepository.findByPhonePrimary(phone)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Customer", "phone", phone));
+        return getMiniProfile(customer.getId());
     }
 
     @GetMapping("/cif/{cifNumber}")

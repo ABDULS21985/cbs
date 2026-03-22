@@ -4,6 +4,7 @@ import {
   Loader2, Plus, Shield, AlertTriangle, Search, X, Edit2,
   ArrowUpDown, DollarSign, Clock,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { transactionLimitApi } from '../api/transactionLimitApi';
@@ -40,7 +41,11 @@ function CreateLimitModal({ open, onClose }: { open: boolean; onClose: () => voi
     mutationFn: (data: Partial<TransactionLimit>) => transactionLimitApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactionLimits'] });
+      toast.success('Limit created');
       onClose();
+    },
+    onError: () => {
+      toast.error('Failed to create limit');
     },
   });
 
@@ -165,7 +170,11 @@ function UpdateLimitModal({ open, onClose, limit }: { open: boolean; onClose: ()
       transactionLimitApi.update(id, params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactionLimits'] });
+      toast.success('Limit updated');
       onClose();
+    },
+    onError: () => {
+      toast.error('Failed to update limit');
     },
   });
 

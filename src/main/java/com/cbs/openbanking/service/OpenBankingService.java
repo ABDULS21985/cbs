@@ -72,7 +72,7 @@ public class OpenBankingService {
     }
 
     public List<ApiConsent> getCustomerConsents(Long customerId) {
-        return consentRepository.findByCustomerIdAndStatus(customerId, "AUTHORISED");
+        return consentRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
     }
 
     public List<ApiClient> getAllClients() { return clientRepository.findByIsActiveTrueOrderByClientNameAsc(); }

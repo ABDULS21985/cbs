@@ -83,6 +83,24 @@ public class WealthManagementPlan extends AuditableEntity {
     private BigDecimal ytdReturn;
     private BigDecimal benchmarkReturn;
 
+    @Column(precision = 6, scale = 4)
+    private BigDecimal managementFeePct;
+
+    @Column(precision = 6, scale = 4)
+    private BigDecimal advisoryFeePct;
+
+    @Column(precision = 6, scale = 4)
+    private BigDecimal performanceFeePct;
+
+    @Builder.Default
+    private BigDecimal feesChargedYtd = BigDecimal.ZERO;
+
+    @Builder.Default
+    private BigDecimal contributionsYtd = BigDecimal.ZERO;
+
+    @Builder.Default
+    private BigDecimal withdrawalsYtd = BigDecimal.ZERO;
+
     @Column(nullable = false, length = 15)
     @Builder.Default
     private String status = "DRAFT";

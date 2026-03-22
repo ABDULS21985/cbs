@@ -13,9 +13,9 @@ const columns: ColumnDef<CustomerCase, any>[] = [
   { accessorKey: 'priority', header: 'Priority', cell: ({ row }) => <CasePriorityBadge priority={row.original.priority} /> },
   { accessorKey: 'status', header: 'Status', cell: ({ row }) => <StatusBadge status={row.original.status} dot /> },
   { accessorKey: 'slaDueAt', header: 'SLA', cell: ({ row }) => <SlaBadge deadline={row.original.slaDueAt} breached={row.original.slaBreached} /> },
-  { accessorKey: 'assignedToName', header: 'Assigned', cell: ({ row }) => row.original.assignedToName || <span className="text-muted-foreground text-xs">Unassigned</span> },
-  { accessorKey: 'openedAt', header: 'Opened', cell: ({ row }) => formatDate(row.original.openedAt) },
-  { accessorKey: 'age', header: 'Age', cell: ({ row }) => formatRelative(row.original.openedAt) },
+  { accessorKey: 'assignedToName', header: 'Assigned', cell: ({ row }) => row.original.assignedToName || row.original.assignedTo || <span className="text-muted-foreground text-xs">Unassigned</span> },
+  { accessorKey: 'openedAt', header: 'Opened', cell: ({ row }) => formatDate(row.original.openedAt || row.original.createdAt) },
+  { accessorKey: 'age', header: 'Age', cell: ({ row }) => formatRelative(row.original.openedAt || row.original.createdAt) },
 ];
 
 interface Props {

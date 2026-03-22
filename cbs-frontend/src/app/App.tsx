@@ -59,7 +59,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider defaultTheme="light" storageKey="cbs-theme">
+        <ThemeProvider defaultTheme="dark" storageKey="cbs-theme">
           <BrowserRouter>
             <AuthBootstrap>
               <OfflineBanner />

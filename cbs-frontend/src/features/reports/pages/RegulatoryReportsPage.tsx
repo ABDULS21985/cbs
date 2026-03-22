@@ -5,86 +5,21 @@ import { Plus, Play, Send, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, EmptyState, DataTableSkeleton, ConfirmDialog, TabsPage } from '@/components/shared';
-import { apiGet, apiPost, apiPostParams } from '@/lib/api';
 import { formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/authStore';
+import { hasRole } from '@/lib/permissions';
+import {
+  regulatoryReportApi,
+  type RegulatoryReportDefinition,
+  type RegulatoryReportRun,
+} from '../api/regulatoryReportApi';
 
-// ─── Types ──────────────────────────────────────────────────────────────────────
+// ─── Local UI Types ─────────────────────────────────────────────────────────────
 
 type ReportCategory =
   | 'PRUDENTIAL' | 'STATISTICAL' | 'AML_CFT' | 'RISK' | 'LIQUIDITY'
   | 'CAPITAL_ADEQUACY' | 'CREDIT' | 'MARKET_RISK' | 'OPERATIONAL' | 'OTHER';
-
-interface RegulatoryReportDefinition {
-  id: number;
-  reportCode: string;
-  reportName: string;
-  regulator: string;
-  frequency: string;
-  reportCategory: ReportCategory;
-  dataQuery: string;
-  templateConfig: Record<string, unknown>;
-  outputFormat: string;
-  isActive: boolean;
-}
-
-interface RegulatoryReportRun {
-  id: number;
-  reportCode: string;
-  reportingPeriodStart: string;
-  reportingPeriodEnd: string;
-  status: string;
-  recordCount: number | null;
-  filePath: string | null;
-  fileSizeBytes: number | null;
-  generationTimeMs: number | null;
-  errorMessage: string | null;
-  submittedBy: string | null;
-  submittedAt: string | null;
-  submissionRef: string | null;
-  regulatorAckRef: string | null;
-  generatedBy: string | null;
-  generatedAt: string | null;
-  createdAt: string;
-}
-
-interface PageMeta {
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-}
-
-interface PagedRuns {
-  content: RegulatoryReportRun[];
-  meta: PageMeta;
-}
-
-// ─── API ────────────────────────────────────────────────────────────────────────
-
-const regulatoryApi = {
-  getDefinitions: () =>
-    apiGet<RegulatoryReportDefinition[]>('/v1/regulatory/definitions'),
-
-  getDefinitionsByRegulator: (regulator: string) =>
-    apiGet<RegulatoryReportDefinition[]>(`/v1/regulatory/definitions/regulator/${regulator}`),
-
-  createDefinition: (body: Partial<RegulatoryReportDefinition>) =>
-    apiPost<RegulatoryReportDefinition>('/v1/regulatory/definitions', body),
-
-  generateReport: (reportCode: string, periodStart: string, periodEnd: string) =>
-    apiPostParams<RegulatoryReportRun>('/v1/regulatory/generate', {
-      reportCode,
-      periodStart,
-      periodEnd,
-    }),
-
-  submitRun: (runId: number) =>
-    apiPost<RegulatoryReportRun>(`/v1/regulatory/runs/${runId}/submit`),
-
-  getRuns: (reportCode: string, page: number, size: number) =>
-    apiGet<PagedRuns>(`/v1/regulatory/runs/${reportCode}`, { page, size }),
-};
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 
@@ -128,7 +63,7 @@ function GenerateDialog({
 
   const mutation = useMutation({
     mutationFn: () =>
-      regulatoryApi.generateReport(definition!.reportCode, periodStart, periodEnd),
+      regulatoryReportApi.generateReport({ reportCode: definition!.reportCode, periodStart, periodEnd }),
     onSuccess: () => {
       toast.success('Report generation started');
       queryClient.invalidateQueries({ queryKey: ['regulatory', 'runs'] });
@@ -200,13 +135,13 @@ function AddDefinitionDialog({ open, onClose }: { open: boolean; onClose: () => 
     reportName: '',
     regulator: '',
     frequency: 'MONTHLY',
-    reportCategory: 'PRUDENTIAL' as ReportCategory,
-    outputFormat: 'XLSX',
-    dataQuery: '',
+    category: 'PRUDENTIAL' as ReportCategory,
+    format: 'XLSX',
+    sqlQuery: '',
   });
 
   const mutation = useMutation({
-    mutationFn: () => regulatoryApi.createDefinition(form),
+    mutationFn: () => regulatoryReportApi.createDefinition(form),
     onSuccess: () => {
       toast.success('Definition created');
       queryClient.invalidateQueries({ queryKey: ['regulatory', 'definitions'] });
@@ -276,8 +211,8 @@ function AddDefinitionDialog({ open, onClose }: { open: boolean; onClose: () => 
             <div>
               <label className="text-sm font-medium block mb-1">Category</label>
               <select
-                value={form.reportCategory}
-                onChange={(e) => update('reportCategory', e.target.value)}
+                value={form.category}
+                onChange={(e) => update('category', e.target.value)}
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
               >
                 {REPORT_CATEGORIES.map((c) => (
@@ -288,8 +223,8 @@ function AddDefinitionDialog({ open, onClose }: { open: boolean; onClose: () => 
             <div>
               <label className="text-sm font-medium block mb-1">Format</label>
               <select
-                value={form.outputFormat}
-                onChange={(e) => update('outputFormat', e.target.value)}
+                value={form.format}
+                onChange={(e) => update('format', e.target.value)}
                 className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
               >
                 <option value="XLSX">XLSX</option>
@@ -303,8 +238,8 @@ function AddDefinitionDialog({ open, onClose }: { open: boolean; onClose: () => 
           <div>
             <label className="text-sm font-medium block mb-1">Data Query (SQL / HQL)</label>
             <textarea
-              value={form.dataQuery}
-              onChange={(e) => update('dataQuery', e.target.value)}
+              value={form.sqlQuery}
+              onChange={(e) => update('sqlQuery', e.target.value)}
               rows={3}
               className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono resize-y"
               placeholder="SELECT ..."
@@ -339,16 +274,18 @@ function AddDefinitionDialog({ open, onClose }: { open: boolean; onClose: () => 
 function DefinitionsTab({
   regulator,
   onGenerate,
+  isAdmin,
 }: {
   regulator: RegulatorTab;
   onGenerate: (def: RegulatoryReportDefinition) => void;
+  isAdmin: boolean;
 }) {
   const { data: definitions = [], isLoading } = useQuery({
     queryKey: ['regulatory', 'definitions', regulator],
     queryFn: () =>
       regulator === 'ALL'
-        ? regulatoryApi.getDefinitions()
-        : regulatoryApi.getDefinitionsByRegulator(regulator),
+        ? regulatoryReportApi.getDefinitions()
+        : regulatoryReportApi.getDefinitionsByRegulator(regulator),
   });
 
   const columns: ColumnDef<RegulatoryReportDefinition, unknown>[] = useMemo(
@@ -364,20 +301,20 @@ function DefinitionsTab({
       { accessorKey: 'regulator', header: 'Regulator' },
       { accessorKey: 'frequency', header: 'Frequency', cell: ({ getValue }) => getValue<string>().replace(/_/g, ' ') },
       {
-        accessorKey: 'reportCategory',
+        accessorKey: 'category',
         header: 'Category',
         cell: ({ getValue }) => {
-          const cat = getValue<ReportCategory>();
+          const cat = getValue<string>() as ReportCategory;
           return (
-            <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CATEGORY_COLORS[cat])}>
+            <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.OTHER)}>
               {cat.replace(/_/g, ' ')}
             </span>
           );
         },
       },
-      { accessorKey: 'outputFormat', header: 'Format' },
+      { accessorKey: 'format', header: 'Format' },
       {
-        accessorKey: 'isActive',
+        accessorKey: 'active',
         header: 'Active',
         cell: ({ getValue }) => (
           <span className={cn('inline-block w-2 h-2 rounded-full', getValue<boolean>() ? 'bg-green-500' : 'bg-gray-400')} />
@@ -386,7 +323,7 @@ function DefinitionsTab({
       {
         id: 'actions',
         header: '',
-        cell: ({ row }) => (
+        cell: ({ row }) => isAdmin ? (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -397,10 +334,10 @@ function DefinitionsTab({
             <Play className="w-3 h-3" />
             Generate
           </button>
-        ),
+        ) : null,
       },
     ],
-    [onGenerate],
+    [onGenerate, isAdmin],
   );
 
   if (isLoading) return <DataTableSkeleton columns={8} rows={6} />;
@@ -427,7 +364,7 @@ function DefinitionsTab({
 
 // ─── Runs Tab ───────────────────────────────────────────────────────────────────
 
-function RunsTab({ regulator }: { regulator: RegulatorTab }) {
+function RunsTab({ regulator, isAdmin }: { regulator: RegulatorTab; isAdmin: boolean }) {
   const queryClient = useQueryClient();
   const [selectedCode, setSelectedCode] = useState('');
   const [page, setPage] = useState(0);
@@ -437,20 +374,20 @@ function RunsTab({ regulator }: { regulator: RegulatorTab }) {
     queryKey: ['regulatory', 'definitions', regulator],
     queryFn: () =>
       regulator === 'ALL'
-        ? regulatoryApi.getDefinitions()
-        : regulatoryApi.getDefinitionsByRegulator(regulator),
+        ? regulatoryReportApi.getDefinitions()
+        : regulatoryReportApi.getDefinitionsByRegulator(regulator),
   });
 
-  const { data: runsData, isLoading: runsLoading } = useQuery({
+  const { data: runs = [], isLoading: runsLoading } = useQuery({
     queryKey: ['regulatory', 'runs', selectedCode, page, pageSize],
-    queryFn: () => regulatoryApi.getRuns(selectedCode, page, pageSize),
+    queryFn: () => regulatoryReportApi.getRuns(selectedCode, { page, size: pageSize }),
     enabled: !!selectedCode,
   });
 
   const [submitRun, setSubmitRun] = useState<RegulatoryReportRun | null>(null);
 
   const submitMutation = useMutation({
-    mutationFn: (runId: number) => regulatoryApi.submitRun(runId),
+    mutationFn: (runId: number) => regulatoryReportApi.submitRun(runId),
     onSuccess: () => {
       toast.success('Report submitted to regulator');
       queryClient.invalidateQueries({ queryKey: ['regulatory', 'runs'] });
@@ -466,7 +403,7 @@ function RunsTab({ regulator }: { regulator: RegulatorTab }) {
         header: 'Period',
         cell: ({ row }) => (
           <span className="text-sm">
-            {formatDate(row.original.reportingPeriodStart)} - {formatDate(row.original.reportingPeriodEnd)}
+            {formatDate(row.original.periodStart)} - {formatDate(row.original.periodEnd)}
           </span>
         ),
       },
@@ -476,40 +413,31 @@ function RunsTab({ regulator }: { regulator: RegulatorTab }) {
         cell: ({ getValue }) => <StatusBadge status={getValue<string>()} />,
       },
       {
-        accessorKey: 'recordCount',
+        accessorKey: 'rowCount',
         header: 'Records',
         cell: ({ getValue }) => {
-          const v = getValue<number | null>();
+          const v = getValue<number | undefined>();
           return v != null ? v.toLocaleString() : '-';
-        },
-      },
-      {
-        accessorKey: 'generationTimeMs',
-        header: 'Duration',
-        cell: ({ getValue }) => {
-          const ms = getValue<number | null>();
-          if (ms == null) return '-';
-          return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
         },
       },
       {
         accessorKey: 'generatedAt',
         header: 'Generated At',
         cell: ({ getValue }) => {
-          const v = getValue<string | null>();
+          const v = getValue<string | undefined>();
           return v ? formatDate(v) : '-';
         },
       },
       {
         accessorKey: 'submittedBy',
         header: 'Submitted By',
-        cell: ({ getValue }) => getValue<string | null>() ?? '-',
+        cell: ({ getValue }) => getValue<string | undefined>() ?? '-',
       },
       {
-        accessorKey: 'submissionRef',
-        header: 'Submission Ref',
+        accessorKey: 'acknowledgementRef',
+        header: 'Acknowledgement Ref',
         cell: ({ getValue }) => {
-          const v = getValue<string | null>();
+          const v = getValue<string | undefined>();
           return v ? <span className="font-mono text-xs">{v}</span> : '-';
         },
       },
@@ -517,7 +445,7 @@ function RunsTab({ regulator }: { regulator: RegulatorTab }) {
         id: 'actions',
         header: '',
         cell: ({ row }) =>
-          row.original.status === 'GENERATED' ? (
+          row.original.status === 'GENERATED' && isAdmin ? (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -561,9 +489,9 @@ function RunsTab({ regulator }: { regulator: RegulatorTab }) {
         />
       )}
 
-      {selectedCode && runsLoading && <DataTableSkeleton columns={8} rows={5} />}
+      {selectedCode && runsLoading && <DataTableSkeleton columns={7} rows={5} />}
 
-      {selectedCode && !runsLoading && runsData && runsData.content.length === 0 && (
+      {selectedCode && !runsLoading && runs.length === 0 && (
         <EmptyState
           icon={FileText}
           title="No runs found"
@@ -571,18 +499,11 @@ function RunsTab({ regulator }: { regulator: RegulatorTab }) {
         />
       )}
 
-      {selectedCode && !runsLoading && runsData && runsData.content.length > 0 && (
+      {selectedCode && !runsLoading && runs.length > 0 && (
         <DataTable
           columns={runColumns}
-          data={runsData.content}
+          data={runs}
           pageSize={pageSize}
-          manualPagination={{
-            pageIndex: page,
-            pageSize,
-            pageCount: runsData.meta.totalPages,
-            rowCount: runsData.meta.totalElements,
-            onPageChange: setPage,
-          }}
         />
       )}
 
@@ -591,7 +512,7 @@ function RunsTab({ regulator }: { regulator: RegulatorTab }) {
         onClose={() => setSubmitRun(null)}
         onConfirm={() => { if (submitRun) submitMutation.mutate(submitRun.id); }}
         title="Submit to Regulator"
-        description={`Are you sure you want to submit this report run (${submitRun?.reportCode}, ${submitRun ? formatDate(submitRun.reportingPeriodStart) : ''} - ${submitRun ? formatDate(submitRun.reportingPeriodEnd) : ''}) to the regulator? This action cannot be undone.`}
+        description={`Are you sure you want to submit this report run (${submitRun?.reportCode}, ${submitRun ? formatDate(submitRun.periodStart) : ''} - ${submitRun ? formatDate(submitRun.periodEnd) : ''}) to the regulator? This action cannot be undone.`}
         confirmLabel="Submit"
         isLoading={submitMutation.isPending}
       />
@@ -604,6 +525,9 @@ function RunsTab({ regulator }: { regulator: RegulatorTab }) {
 export function RegulatoryReportsPage() {
   useEffect(() => { document.title = 'Regulatory Reports | CBS'; }, []);
 
+  const userRoles = useAuthStore((s) => s.user?.roles ?? []);
+  const isAdmin = hasRole(userRoles, ['CBS_ADMIN']);
+
   const [regulator, setRegulator] = useState<RegulatorTab>('ALL');
   const [showAdd, setShowAdd] = useState(false);
   const [generateDef, setGenerateDef] = useState<RegulatoryReportDefinition | null>(null);
@@ -614,13 +538,15 @@ export function RegulatoryReportsPage() {
         title="Regulatory Reports"
         subtitle="Manage report definitions, generate returns, and submit to regulators"
         actions={
-          <button
-            onClick={() => setShowAdd(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Definition
-          </button>
+          isAdmin ? (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Definition
+            </button>
+          ) : undefined
         }
       />
 
@@ -651,7 +577,7 @@ export function RegulatoryReportsPage() {
               label: 'Definitions',
               content: (
                 <div className="p-4">
-                  <DefinitionsTab regulator={regulator} onGenerate={setGenerateDef} />
+                  <DefinitionsTab regulator={regulator} onGenerate={setGenerateDef} isAdmin={isAdmin} />
                 </div>
               ),
             },
@@ -660,7 +586,7 @@ export function RegulatoryReportsPage() {
               label: 'Run History',
               content: (
                 <div className="p-4">
-                  <RunsTab regulator={regulator} />
+                  <RunsTab regulator={regulator} isAdmin={isAdmin} />
                 </div>
               ),
             },

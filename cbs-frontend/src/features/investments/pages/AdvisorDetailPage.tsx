@@ -73,7 +73,7 @@ function ClientsTab({ advisorId }: { advisorId: string }) {
                 </div>
               </div>
               {c.totalAum != null && <p className="text-xs">AUM: <span className="font-mono font-medium">{formatCurrency(Number(c.totalAum))}</span></p>}
-              {c.status ? <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold',
+              {c.status ? <span className={cn('ui-chip',
                 String(c.status) === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600')}>{String(c.status)}</span> : null}
             </div>
           ))}
@@ -196,7 +196,7 @@ function CertificationsTab({ advisorId }: { advisorId: string }) {
                 <p className="text-sm font-medium">{String(c.certificationName ?? c.name ?? `Certification ${i + 1}`)}</p>
                 {c.issuingBody ? <p className="text-xs text-muted-foreground">{String(c.issuingBody)}</p> : null}
                 {c.expiryDate ? <p className="text-xs text-muted-foreground">Expires: {formatDate(String(c.expiryDate))}</p> : null}
-                {c.status ? <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold mt-1',
+                {c.status ? <span className={cn('ui-chip mt-1',
                   String(c.status) === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>{String(c.status)}</span> : null}
               </div>
             </div>

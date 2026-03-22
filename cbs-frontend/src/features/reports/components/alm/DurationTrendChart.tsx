@@ -28,9 +28,16 @@ function CustomTooltip({ active, payload, label }: any) {
 }
 
 export function DurationTrendChart({ months = 12 }: DurationTrendChartProps) {
+  const { from, to } = (() => {
+    const end = new Date();
+    const start = new Date();
+    start.setMonth(start.getMonth() - months);
+    return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
+  })();
+
   const { data: trend = [], isLoading } = useQuery({
-    queryKey: ['duration-trend', months],
-    queryFn: () => almReportApi.getDurationTrend(months),
+    queryKey: ['duration-trend', from, to],
+    queryFn: () => almReportApi.getDurationTrend(from, to),
   });
 
   if (isLoading) {

@@ -141,7 +141,7 @@ export interface ReversalCounts {
 }
 
 export interface Transaction {
-  id: string;
+  id: number;
   transactionRef?: string;
   reference: string;
   transactionType?: string;
@@ -217,16 +217,16 @@ export const transactionApi = {
     return result.data.data;
   },
 
-  getTransaction: async (id: string, options?: RequestOptions): Promise<Transaction> => {
+  getTransaction: async (id: number | string, options?: RequestOptions): Promise<Transaction> => {
     const { data } = await api.get(`/api/v1/transactions/${id}`, { signal: options?.signal });
     return data.data;
   },
 
-  previewReversal: async (id: string, body: ReversalRequest): Promise<ReversalPreview> => {
+  previewReversal: async (id: number | string, body: ReversalRequest): Promise<ReversalPreview> => {
     return apiPost<ReversalPreview>(`/api/v1/transactions/${id}/reversal/preview`, body);
   },
 
-  reverseTransaction: async (id: string, body: ReversalRequest): Promise<ReversalResult> => {
+  reverseTransaction: async (id: number | string, body: ReversalRequest): Promise<ReversalResult> => {
     return apiPost<ReversalResult>(`/api/v1/transactions/${id}/reverse`, body);
   },
 
@@ -238,7 +238,7 @@ export const transactionApi = {
     return apiPost<ReversalResult>(`/api/v1/transactions/reversals/${id}/reject`, { reason });
   },
 
-  downloadReceipt: async (id: string): Promise<void> => {
+  downloadReceipt: async (id: number | string): Promise<void> => {
     const response = await api.get(`/api/v1/transactions/${id}/receipt`, { responseType: 'blob' });
     const contentType = String(response.headers['content-type'] ?? 'application/octet-stream');
     const contentDisposition = String(response.headers['content-disposition'] ?? '');

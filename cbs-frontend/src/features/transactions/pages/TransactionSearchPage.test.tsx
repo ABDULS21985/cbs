@@ -146,7 +146,7 @@ describe('TransactionSearchPage', () => {
       elapsedMs: 84,
       transactions: [
         {
-          id: '1',
+          id: 1,
           reference: 'TXN-001',
           type: 'PAYMENT',
           channel: 'WEB',

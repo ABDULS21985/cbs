@@ -217,4 +217,19 @@ public class ApprovalController {
         stats.put("total", pendingCount + approvedCount + rejectedCount);
         return ResponseEntity.ok(ApiResponse.ok(stats));
     }
+
+    @GetMapping("/approvers")
+    @Operation(summary = "Get list of available approvers for delegation")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<Map<String, String>>>> getApprovers() {
+        List<Map<String, String>> approvers = systemParameterRepository.findAll().stream()
+                .filter(p -> "APPROVER_ROLE".equals(p.getParamCategory()))
+                .map(p -> Map.of("id", p.getParamKey(), "name", p.getParamValue(), "role", "CBS_OFFICER"))
+                .collect(Collectors.toList());
+        if (approvers.isEmpty()) {
+            approvers.add(Map.of("id", "admin", "name", "System Administrator", "role", "CBS_ADMIN"));
+            approvers.add(Map.of("id", "officer1", "name", "Operations Officer", "role", "CBS_OFFICER"));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(approvers));
+    }
 }

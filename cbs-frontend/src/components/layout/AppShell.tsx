@@ -12,17 +12,23 @@ export function AppShell() {
   const { collapsed, toggle, mobileOpen, setMobileOpen } = useSidebarState();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="relative flex h-screen overflow-hidden bg-background text-foreground">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-24 -top-28 h-80 w-80 rounded-full bg-sky-400/10 blur-3xl" />
+        <div className="absolute right-[-8rem] top-16 h-72 w-72 rounded-full bg-amber-300/10 blur-3xl" />
+        <div className="absolute bottom-[-10rem] left-1/3 h-96 w-96 rounded-full bg-cyan-500/6 blur-3xl" />
+      </div>
+
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="modal-scrim fixed inset-0 z-40 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Sidebar — desktop */}
-      <div className={cn('hidden lg:flex', collapsed ? 'w-16' : 'w-[260px]', 'transition-all duration-300')}>
+      <div className={cn('relative z-20 hidden lg:flex', collapsed ? 'w-16' : 'w-[260px]', 'transition-all duration-300')}>
         <Sidebar collapsed={collapsed} onToggle={toggle} />
       </div>
 
@@ -37,9 +43,9 @@ export function AppShell() {
       </div>
 
       {/* Main content */}
-      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
+      <div className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar onToggleSidebar={() => setMobileOpen(!mobileOpen)} />
-        <main className="flex-1 overflow-y-auto">
+        <main className="relative flex-1 overflow-y-auto">
           <Breadcrumbs />
           <Suspense fallback={<RouteContentLoader className="page-container" />}>
             <Outlet />

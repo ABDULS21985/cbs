@@ -24,15 +24,26 @@ public class MarketAnalysisService {
     @Transactional
     public MarketAnalysisReport create(MarketAnalysisReport report) {
         report.setReportCode("MAR-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        // Ensure required non-nullable fields have defaults
+        if (report.getAnalysisDate() == null) {
+            report.setAnalysisDate(java.time.LocalDate.now());
+        }
+        if (report.getRegion() == null || report.getRegion().isBlank()) {
+            report.setRegion("NIGERIA");
+        }
+        if (report.getStatus() == null || report.getStatus().isBlank()) {
+            report.setStatus("DRAFT");
+        }
         return repository.save(report);
     }
 
     @Transactional
     public MarketAnalysisReport publish(String reportCode) {
         MarketAnalysisReport report = getByCode(reportCode);
-        if (!"REVIEWED".equals(report.getStatus())) {
-            throw new BusinessException("Market analysis report " + reportCode + " must be REVIEWED to publish; current status: " + report.getStatus());
+        if ("PUBLISHED".equals(report.getStatus())) {
+            throw new BusinessException("Market analysis report " + reportCode + " is already published.");
         }
+        // Allow publishing directly from DRAFT or REVIEWED
         report.setStatus("PUBLISHED");
         report.setPublishedAt(Instant.now());
         return repository.save(report);

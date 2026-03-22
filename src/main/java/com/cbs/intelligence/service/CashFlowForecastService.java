@@ -26,15 +26,18 @@ public class CashFlowForecastService {
     private final TransactionJournalRepository transactionJournalRepository;
 
     /**
-     * Generate a cash-flow forecast for an entity (customer or account).
+     * Generate a cash-flow forecast for an entity.
      *
      * The forecast is derived from actual historical transaction data over the
      * past 6 months.  Where less history is available the confidence score is
      * reduced; where none exists the forecast falls back to the current account
      * balance as a flat baseline with the lowest confidence tier.
      *
-     * @param entityType "CUSTOMER" or "ACCOUNT"
-     * @param entityId   customerId (string) when entityType=CUSTOMER, accountId otherwise
+     * @param entityType One of BANK, BRANCH, CUSTOMER, PRODUCT, CURRENCY (matches DB CHECK constraint).
+     *                   When entityType=CUSTOMER the entityId must be a numeric customerId.
+     *                   For all other types the entityId is a free-form code (e.g. branch code) and
+     *                   account resolution falls back to an empty list (book-balance mode).
+     * @param entityId   The entity identifier string.
      */
     @Transactional
     public CashflowForecast generateForecast(String entityType, String entityId, String currency,
@@ -112,8 +115,8 @@ public class CashFlowForecastService {
         Map<String, Object> inflowBreakdown = buildInflowBreakdown(history, horizonMonths, monthsOfHistory);
         Map<String, Object> outflowBreakdown = buildOutflowBreakdown(history, horizonMonths, monthsOfHistory);
 
-        // Feature importance reflects what data was actually used
-        Map<String, Object> featureImportance = buildFeatureImportance(monthsOfHistory);
+        // Feature importance reflects what data was actually used and the entity scope
+        Map<String, Object> featureImportance = buildFeatureImportance(monthsOfHistory, entityType, accountIds.size());
 
         CashflowForecast forecast = CashflowForecast.builder()
                 .forecastId(forecastId).entityType(entityType).entityId(entityId)
@@ -145,25 +148,61 @@ public class CashFlowForecastService {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    /**
+     * Resolves the set of account IDs whose transaction history will drive the forecast.
+     *
+     * <ul>
+     *   <li><b>CUSTOMER</b> — looks up all accounts owned by the given numeric customer ID.
+     *       Highest confidence (real per-customer transaction history).</li>
+     *   <li><b>BRANCH</b> — looks up all accounts whose {@code branch_code} matches the
+     *       entityId string (e.g. {@code "LAG001"}).  Confidence is branch-level aggregate.</li>
+     *   <li><b>CURRENCY</b> — looks up all accounts in the given currency code
+     *       (e.g. {@code "USD"}).  Confidence is currency-level aggregate.</li>
+     *   <li><b>BANK</b> — aggregates all accounts across the institution.
+     *       Largest scope; transaction history is comprehensive but the model may
+     *       obscure branch-level variation.</li>
+     *   <li><b>PRODUCT</b> — product-level forecasting does not map to individual accounts;
+     *       falls back to book-balance mode with the lowest confidence tier.</li>
+     * </ul>
+     */
     private List<Long> resolveAccountIds(String entityType, String entityId) {
-        if ("CUSTOMER".equalsIgnoreCase(entityType)) {
-            try {
-                Long customerId = Long.parseLong(entityId);
-                return accountRepository.findByCustomerId(customerId)
+        return switch (entityType.toUpperCase()) {
+            case "CUSTOMER" -> {
+                try {
+                    Long customerId = Long.parseLong(entityId);
+                    List<Long> ids = accountRepository.findByCustomerId(customerId)
+                            .stream().map(Account::getId).collect(Collectors.toList());
+                    log.debug("CUSTOMER forecast: resolved {} accounts for customerId={}", ids.size(), customerId);
+                    yield ids;
+                } catch (NumberFormatException e) {
+                    log.warn("Cannot parse customerId '{}' for CUSTOMER forecast — using book-balance fallback", entityId);
+                    yield Collections.emptyList();
+                }
+            }
+            case "BRANCH" -> {
+                List<Long> ids = accountRepository.findByBranchCode(entityId)
                         .stream().map(Account::getId).collect(Collectors.toList());
-            } catch (NumberFormatException e) {
-                log.warn("Cannot parse customerId '{}' for forecast", entityId);
-                return Collections.emptyList();
+                log.debug("BRANCH forecast: resolved {} accounts for branchCode={}", ids.size(), entityId);
+                yield ids;
             }
-        } else {
-            // ACCOUNT entity type
-            try {
-                return List.of(Long.parseLong(entityId));
-            } catch (NumberFormatException e) {
-                log.warn("Cannot parse accountId '{}' for forecast", entityId);
-                return Collections.emptyList();
+            case "CURRENCY" -> {
+                List<Long> ids = accountRepository.findByCurrencyCode(entityId)
+                        .stream().map(Account::getId).collect(Collectors.toList());
+                log.debug("CURRENCY forecast: resolved {} accounts for currency={}", ids.size(), entityId);
+                yield ids;
             }
-        }
+            case "BANK" -> {
+                List<Long> ids = accountRepository.findAll()
+                        .stream().map(Account::getId).collect(Collectors.toList());
+                log.debug("BANK forecast: resolved {} accounts (all accounts)", ids.size());
+                yield ids;
+            }
+            default -> {
+                // PRODUCT and any future types: no account-level mapping available
+                log.warn("Entity type '{}' does not map to individual accounts — using book-balance fallback", entityType);
+                yield Collections.emptyList();
+            }
+        };
     }
 
     private BigDecimal resolveBookBalance(List<Long> accountIds) {
@@ -274,17 +313,21 @@ public class CashFlowForecastService {
     /**
      * Feature importance is honest about what was used.
      * With more history the model can weight trend and seasonality higher.
+     * The entity scope and account count are also included for transparency.
      */
-    private Map<String, Object> buildFeatureImportance(int monthsOfHistory) {
+    private Map<String, Object> buildFeatureImportance(int monthsOfHistory, String entityType, int accountCount) {
         Map<String, Object> map = new LinkedHashMap<>();
+        map.put("entity_scope", entityType.toUpperCase());
+        map.put("accounts_aggregated", accountCount);
         if (monthsOfHistory == 0) {
             map.put("book_balance_fallback", 1.0);
+            map.put("note", "No transaction history found for this entity scope — forecast uses book-balance baseline");
             return map;
         }
-        double histWeight = Math.min(0.70, 0.40 + monthsOfHistory * 0.05);
-        double trendWeight = monthsOfHistory >= 3 ? 0.20 : 0.10;
+        double histWeight   = Math.min(0.70, 0.40 + monthsOfHistory * 0.05);
+        double trendWeight  = monthsOfHistory >= 3 ? 0.20 : 0.10;
         double seasonWeight = monthsOfHistory >= 6 ? 0.10 : 0.05;
-        double other = Math.max(0.0, 1.0 - histWeight - trendWeight - seasonWeight);
+        double other        = Math.max(0.0, 1.0 - histWeight - trendWeight - seasonWeight);
         map.put("historical_average", histWeight);
         map.put("trend", trendWeight);
         map.put("seasonality", seasonWeight);

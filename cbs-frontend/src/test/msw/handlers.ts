@@ -1,4 +1,8 @@
 import { http, HttpResponse } from 'msw';
+import { adminHandlers } from './adminHandlers';
+import { agreementHandlers } from './agreementHandlers';
+import { dspmHandlers } from './dspmHandlers';
+import { transactionHandlers } from './transactionHandlers';
 
 export const mockUser = {
   id: 1, username: 'amara.officer', fullName: 'Amara Okonkwo',
@@ -78,6 +82,13 @@ export const handlers = [
     HttpResponse.json([{ id: 'acc-1', label: '0123456789 — Amara Okonkwo' }, { id: 'acc-2', label: '0234567890 — TechVentures Ltd' }])
   ),
   http.get('/api/v1/reports/custom/data-sources', () => HttpResponse.json([])),
+  ...dspmHandlers,
+  ...adminHandlers,
+  ...agreementHandlers,
+  ...transactionHandlers,
   http.get('/api/v1/*', () => HttpResponse.json({ success: true, data: [], timestamp: new Date().toISOString() })),
   http.post('/api/v1/*', () => HttpResponse.json({ success: true, data: {}, timestamp: new Date().toISOString() })),
+  http.put('/api/v1/*', () => HttpResponse.json({ success: true, data: {}, timestamp: new Date().toISOString() })),
+  http.patch('/api/v1/*', () => HttpResponse.json({ success: true, data: {}, timestamp: new Date().toISOString() })),
+  http.delete('/api/v1/*', () => HttpResponse.json({ success: true, data: null, timestamp: new Date().toISOString() })),
 ];

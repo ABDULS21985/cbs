@@ -18,7 +18,7 @@ interface RegisterTppSheetProps {
 const CLIENT_TYPES: { value: TppClientType; label: string; description: string }[] = [
   { value: 'TPP_AISP', label: 'AISP', description: 'Account Information Service Provider' },
   { value: 'TPP_PISP', label: 'PISP', description: 'Payment Initiation Service Provider' },
-  { value: 'TPP_BOTH', label: 'Both', description: 'AISP + PISP combined access' },
+  { value: 'TPP_CBPII', label: 'CBPII', description: 'Card-Based Payment Instrument Issuer' },
 ];
 
 export function RegisterTppSheet({ open, onClose, onSubmit, isPending }: RegisterTppSheetProps) {

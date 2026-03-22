@@ -57,7 +57,7 @@ function triggerBlobDownload(blob: Blob, filename: string) {
 }
 
 export const disputeApi = {
-  raiseDispute: async (transactionId: string, payload: RaiseDisputeRequest): Promise<DisputeRecord> => {
+  raiseDispute: async (transactionId: number | string, payload: RaiseDisputeRequest): Promise<DisputeRecord> => {
     const formData = new FormData();
     formData.append('reasonCode', payload.reasonCode);
     formData.append('description', payload.description);

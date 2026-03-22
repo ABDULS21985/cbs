@@ -205,7 +205,7 @@ export function RoutingRulesPage() {
       {/* ── Create Rule Dialog (multi-step) ──────────────────────────────── */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowCreate(false)} />
           <div className="relative z-10 w-full max-w-2xl mx-4 rounded-xl bg-background border shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background z-10">
               <h2 className="text-base font-semibold">New Routing Rule — Step {step}/4</h2>
@@ -273,7 +273,7 @@ export function RoutingRulesPage() {
       {/* ── Route Tester Dialog ───────────────────────────────────────── */}
       {showTester && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowTester(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowTester(false)} />
           <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">Test Route</h3><button onClick={() => setShowTester(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
             <div className="space-y-3">

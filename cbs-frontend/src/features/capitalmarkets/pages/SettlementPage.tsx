@@ -113,10 +113,38 @@ function BatchesTab() {
 // ── Failed Tab ───────────────────────────────────────────────────────────────
 
 function FailedTab() {
+  const qc = useQueryClient();
   const { data = [], isLoading, isError } = useQuery({
     queryKey: KEYS.failed(),
     queryFn: () => settlementApi.getFailedSettlements(),
     staleTime: 30_000,
+  });
+
+  const resubmit = useMutation({
+    mutationFn: (ref: string) => settlementApi.resubmitSettlement(ref),
+    onSuccess: (_data, ref) => {
+      qc.invalidateQueries({ queryKey: ['settlements'] });
+      toast.success(`Instruction ${ref} resubmitted for settlement`);
+    },
+    onError: () => toast.error('Failed to resubmit settlement'),
+  });
+
+  const cancel = useMutation({
+    mutationFn: (ref: string) => settlementApi.cancelSettlement(ref, 'Cancelled by operations'),
+    onSuccess: (_data, ref) => {
+      qc.invalidateQueries({ queryKey: ['settlements'] });
+      toast.success(`Instruction ${ref} cancelled`);
+    },
+    onError: () => toast.error('Failed to cancel settlement'),
+  });
+
+  const escalate = useMutation({
+    mutationFn: (ref: string) => settlementApi.escalateSettlement(ref),
+    onSuccess: (_data, ref) => {
+      qc.invalidateQueries({ queryKey: ['settlements'] });
+      toast.success(`Instruction ${ref} escalated for senior review`);
+    },
+    onError: () => toast.error('Failed to escalate settlement'),
   });
 
   return (
@@ -129,9 +157,9 @@ function FailedTab() {
       <FailedSettlementPanel
         data={data}
         isLoading={isLoading}
-        onResubmit={(item) => toast.info(`Resubmitting ${item.instructionRef}...`)}
-        onCancel={(item) => toast.info(`Cancelling ${item.instructionRef}...`)}
-        onEscalate={(item) => toast.info(`Escalating ${item.instructionRef}...`)}
+        onResubmit={(item) => resubmit.mutate(item.instructionRef)}
+        onCancel={(item) => cancel.mutate(item.instructionRef)}
+        onEscalate={(item) => escalate.mutate(item.instructionRef)}
       />
     </div>
   );

@@ -48,8 +48,8 @@ export function useConfirmHit() {
 export function useMarkFalsePositive() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, justification, documentId }: { id: number; justification: string; documentId?: number }) => {
-      const res = await sanctionsApi.markFalsePositive(id, justification, documentId);
+    mutationFn: async (id: number) => {
+      const res = await sanctionsApi.markFalsePositive(id);
       return res;
     },
     onSuccess: () => {

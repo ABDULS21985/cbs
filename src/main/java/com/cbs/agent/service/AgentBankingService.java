@@ -164,6 +164,13 @@ public class AgentBankingService {
         return agentRepository.findByStatusOrderByAgentNameAsc("ACTIVE", pageable);
     }
 
+    public Page<BankingAgent> getAgents(String status, Pageable pageable) {
+        if (StringUtils.hasText(status)) {
+            return agentRepository.findByStatusOrderByAgentNameAsc(status, pageable);
+        }
+        return agentRepository.findAll(pageable);
+    }
+
     public Page<AgentTransaction> getAgentTransactions(Long agentId, Pageable pageable) {
         return txnRepository.findByAgentIdOrderByCreatedAtDesc(agentId, pageable);
     }

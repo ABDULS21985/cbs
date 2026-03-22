@@ -17,6 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.cbs.common.audit.CurrentCustomerProvider;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -37,6 +39,7 @@ public class PaymentController {
     private final FxRateRepository fxRateRepository;
     private final BeneficiaryRepository beneficiaryRepository;
     private final BankDirectoryRepository bankDirectoryRepository;
+    private final CurrentCustomerProvider currentCustomerProvider;
 
     @PostMapping("/transfer")
     @Operation(summary = "Internal book transfer between accounts")
@@ -330,18 +333,32 @@ public class PaymentController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<QrCode>> generateQrCode(
             @RequestParam Long accountId,
-            @RequestParam Long customerId,
+            @RequestParam(required = false) Long customerId,
             @RequestParam(defaultValue = "DYNAMIC") QrType qrType,
             @RequestParam(required = false) BigDecimal amount,
             @RequestParam(defaultValue = "NGN") String currencyCode,
             @RequestParam(required = false) String merchantName) {
+
+        // Resolve customerId from JWT auth context if not explicitly provided or zero
+        Long resolvedCustomerId = customerId;
+        if (resolvedCustomerId == null || resolvedCustomerId == 0L) {
+            try {
+                resolvedCustomerId = currentCustomerProvider.getCurrentCustomer().getId();
+            } catch (Exception e) {
+                // Fallback: resolve from the account's customer
+                com.cbs.account.entity.Account account = accountRepository.findById(accountId)
+                        .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("Account", "id", accountId));
+                resolvedCustomerId = account.getCustomer().getId();
+            }
+        }
+
         String qrRef = "QR" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         String payload = String.format("{\"ref\":\"%s\",\"account\":%d,\"amount\":%s,\"currency\":\"%s\"}",
                 qrRef, accountId, amount != null ? amount.toPlainString() : "null", currencyCode);
         QrCode qrCode = QrCode.builder()
                 .qrReference(qrRef)
                 .account(com.cbs.account.entity.Account.builder().id(accountId).build())
-                .customer(com.cbs.customer.entity.Customer.builder().id(customerId).build())
+                .customer(com.cbs.customer.entity.Customer.builder().id(resolvedCustomerId).build())
                 .qrType(qrType)
                 .amount(amount)
                 .currencyCode(currencyCode)

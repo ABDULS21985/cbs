@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -17,19 +17,26 @@ import {
   useFundInvoice,
   useVerifyDocument,
   useCreateCollection,
+  useTradeDocuments,
+  useUploadDocumentWithFile,
+  useFactoringInvoicesExt,
+  useSettleCollection,
 } from '../hooks/useTradeFinanceExt';
-import type {
-  LetterOfCredit,
-  BankGuarantee,
-  ScfProgramme,
-  FactoredInvoice,
-  TradeDocument,
-  LcPaymentTerms,
-  GuaranteeType,
-  DocumentComplianceStatus,
+import {
+  tradeFinanceExtApi,
+  type LetterOfCredit,
+  type BankGuarantee,
+  type ScfProgramme,
+  type FactoredInvoice,
+  type TradeDocument,
+  type DocumentaryCollection,
+  type FactoringFacility,
+  type LcPaymentTerms,
+  type GuaranteeType,
+  type DocumentComplianceStatus,
 } from '../api/tradeFinanceExtApi';
 import { formatMoney, formatDate } from '@/lib/formatters';
-import { FileText, Shield, Layers, DollarSign, Plus, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileText, Shield, Layers, DollarSign, Plus, X, CheckCircle2, AlertCircle, Upload } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -38,29 +45,26 @@ import { toast } from 'sonner';
 
 function LcStatusBadge({ status }: { status: string }) {
   const cls =
-    status === 'ISSUED'
+    status === 'ISSUED' || status === 'ADVISED' || status === 'CONFIRMED'
       ? 'bg-blue-50 text-blue-700'
-      : status === 'SETTLED'
+      : status === 'SETTLED' || status === 'FULLY_UTILIZED' || status === 'CLOSED'
         ? 'bg-green-50 text-green-700'
-        : status === 'EXPIRED'
+        : status === 'EXPIRED' || status === 'CANCELLED'
           ? 'bg-gray-100 text-gray-600'
-          : 'bg-red-50 text-red-700';
+          : status === 'PARTIALLY_UTILIZED' || status === 'AMENDED'
+            ? 'bg-amber-50 text-amber-700'
+            : status === 'DRAFT'
+              ? 'bg-slate-50 text-slate-600'
+              : 'bg-red-50 text-red-700';
   return (
     <span className={cn('inline-flex px-2 py-0.5 rounded-full text-xs font-semibold', cls)}>
-      {status}
+      {status?.replace(/_/g, ' ')}
     </span>
   );
 }
 
 function GuaranteeTypeBadge({ type }: { type: string }) {
-  const label =
-    type === 'PERFORMANCE'
-      ? 'Performance'
-      : type === 'ADVANCE_PAYMENT'
-        ? 'Advance Payment'
-        : type === 'BID_BOND'
-          ? 'Bid Bond'
-          : 'Standby LC';
+  const label = (type ?? '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) || 'Unknown';
   return (
     <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
       {label}
@@ -112,7 +116,10 @@ function IssueLcDialog({ onClose }: { onClose: () => void }) {
         paymentTerms: form.paymentTerms,
         tenor: form.tenor ? parseInt(form.tenor, 10) : undefined,
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => { toast.success('Letter of Credit issued successfully'); onClose(); },
+        onError: () => toast.error('Failed to issue Letter of Credit'),
+      },
     );
   };
 
@@ -232,7 +239,8 @@ function IssueLcDialog({ onClose }: { onClose: () => void }) {
 
 function SettleLcDialog({ lc, onClose }: { lc: LetterOfCredit; onClose: () => void }) {
   const settleLc = useSettleLc();
-  const [form, setForm] = useState({ presentationDate: '', docsRaw: '', discrepancies: '' });
+  const available = lc.amount - (lc.utilizedAmount ?? 0);
+  const [form, setForm] = useState({ presentationDate: '', docsRaw: '', discrepancies: '', amount: String(available) });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,9 +252,13 @@ function SettleLcDialog({ lc, onClose }: { lc: LetterOfCredit; onClose: () => vo
           presentationDate: form.presentationDate,
           presentedDocuments,
           discrepancies: form.discrepancies || undefined,
+          amount: parseFloat(form.amount) || available,
         },
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => { toast.success('LC settled successfully'); onClose(); },
+        onError: () => toast.error('Failed to settle LC'),
+      },
     );
   };
 
@@ -258,7 +270,7 @@ function SettleLcDialog({ lc, onClose }: { lc: LetterOfCredit; onClose: () => vo
         </button>
         <h2 className="text-lg font-semibold mb-1">Settle LC</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Ref: <span className="font-mono">{lc.lcRef}</span>
+          Ref: <span className="font-mono">{lc.lcNumber ?? lc.lcRef}</span>
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -284,6 +296,20 @@ function SettleLcDialog({ lc, onClose }: { lc: LetterOfCredit; onClose: () => vo
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">
+              Settlement Amount
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              className="mt-1 w-full border rounded-lg px-3 py-2 text-sm bg-background font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+              value={form.amount}
+              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+              required
+            />
+            <p className="text-xs text-muted-foreground mt-1">Available: {formatMoney(available)}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
               Discrepancies (optional)
             </label>
             <input
@@ -302,7 +328,7 @@ function SettleLcDialog({ lc, onClose }: { lc: LetterOfCredit; onClose: () => vo
             </button>
             <button
               type="submit"
-              disabled={settleLc.isPending}
+              disabled={settleLc.isPending || !parseFloat(form.amount)}
               className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
             >
               {settleLc.isPending ? 'Settling…' : 'Settle'}
@@ -331,7 +357,10 @@ function IssueGuaranteeDialog({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     issueGuarantee.mutate(
       { ...form, amount: parseFloat(form.amount) || 0 },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => { toast.success('Bank Guarantee issued successfully'); onClose(); },
+        onError: () => toast.error('Failed to issue Bank Guarantee'),
+      },
     );
   };
 
@@ -373,9 +402,15 @@ function IssueGuaranteeDialog({ onClose }: { onClose: () => void }) {
               }
             >
               <option value="PERFORMANCE">Performance</option>
-              <option value="ADVANCE_PAYMENT">Advance Payment</option>
               <option value="BID_BOND">Bid Bond</option>
-              <option value="STANDBY_LC">Standby LC</option>
+              <option value="ADVANCE_PAYMENT">Advance Payment</option>
+              <option value="CUSTOMS">Customs</option>
+              <option value="FINANCIAL">Financial</option>
+              <option value="PAYMENT">Payment</option>
+              <option value="RETENTION">Retention</option>
+              <option value="WARRANTY">Warranty</option>
+              <option value="SHIPPING">Shipping</option>
+              <option value="OTHER">Other</option>
             </select>
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -454,7 +489,10 @@ function ClaimGuaranteeDialog({
         id: guarantee.id,
         input: { claimAmount: parseFloat(form.claimAmount) || 0, claimRef: form.claimRef, claimDate: form.claimDate },
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => { toast.success('Guarantee claim processed'); onClose(); },
+        onError: () => toast.error('Failed to process claim'),
+      },
     );
   };
 
@@ -466,7 +504,7 @@ function ClaimGuaranteeDialog({
         </button>
         <h2 className="text-lg font-semibold mb-1">Process Guarantee Claim</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Ref: <span className="font-mono">{guarantee.guaranteeRef}</span>
+          Ref: <span className="font-mono">{guarantee.guaranteeNumber ?? guarantee.guaranteeRef}</span>
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -536,7 +574,10 @@ function NewScfProgrammeDialog({ onClose }: { onClose: () => void }) {
         discountRate: parseFloat(form.discountRate) || 0,
         limitAmount: parseFloat(form.limitAmount) || 0,
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => { toast.success('SCF Programme created'); onClose(); },
+        onError: () => toast.error('Failed to create SCF Programme'),
+      },
     );
   };
 
@@ -622,7 +663,10 @@ function FinanceInvoiceDialog({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     financeInvoice.mutate(
       { ...form, amount: parseFloat(form.amount) || 0 },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => { toast.success('Invoice financed successfully'); onClose(); },
+        onError: () => toast.error('Failed to finance invoice'),
+      },
     );
   };
 
@@ -943,7 +987,7 @@ function GuaranteesTab() {
       header: 'Actions',
       cell: ({ row }) => (
         <div className="flex gap-2">
-          {(row.original.status === 'ISSUED' || row.original.status === 'ACTIVE') && (
+          {(row.original.status === 'ISSUED' || row.original.status === 'ACTIVE' || row.original.status === 'PARTIALLY_CLAIMED') && (
             <button
               onClick={(e) => { e.stopPropagation(); setClaimingBg(row.original); }}
               className="text-xs px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50 font-medium"
@@ -992,25 +1036,24 @@ function ScfFactoringTab() {
   const [showFinanceInv, setShowFinanceInv] = useState(false);
 
   const { data: programmes = [], isLoading: progLoading } = useScfProgrammes();
-  const { isLoading: facLoading } = useFactoringFacilities();
-  const invoices: FactoredInvoice[] = [];
+  const { data: invoices = [], isLoading: facLoading } = useFactoringInvoicesExt() as { data: FactoredInvoice[]; isLoading: boolean };
   const fundInvoice = useFundInvoice();
 
   const scfCols: ColumnDef<ScfProgramme, unknown>[] = [
     {
-      accessorKey: 'programmeRef',
+      accessorKey: 'programmeCode',
       header: 'Ref',
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-primary">{row.original.programmeRef}</span>
+        <span className="font-mono text-xs text-primary">{row.original.programmeCode ?? row.original.programmeRef ?? ''}</span>
       ),
     },
-    { accessorKey: 'buyer', header: 'Buyer' },
+    { accessorKey: 'programmeName', header: 'Programme', cell: ({ row }) => <span className="text-sm">{row.original.programmeName ?? row.original.buyer ?? '—'}</span> },
     {
-      accessorKey: 'limitAmount',
+      accessorKey: 'programmeLimit',
       header: 'Limit',
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          {formatMoney(row.original.limitAmount ?? 0, row.original.currency)}
+          {formatMoney(row.original.programmeLimit ?? row.original.limitAmount ?? 0, row.original.currencyCode ?? row.original.currency)}
         </span>
       ),
     },
@@ -1018,14 +1061,16 @@ function ScfFactoringTab() {
       accessorKey: 'discountRate',
       header: 'Discount Rate',
       cell: ({ row }) => (
-        <span className="font-mono text-sm">{row.original.discountRate}%</span>
+        <span className="font-mono text-sm">{row.original.discountRate ?? 0}%</span>
       ),
     },
     {
-      accessorKey: 'utilizationPct',
+      accessorKey: 'utilizedAmount',
       header: 'Utilization',
       cell: ({ row }) => {
-        const pct = row.original.utilizationPct ?? 0;
+        const limit = row.original.programmeLimit ?? row.original.limitAmount ?? 0;
+        const utilized = row.original.utilizedAmount ?? 0;
+        const pct = limit > 0 ? (utilized / limit) * 100 : (row.original.utilizationPct ?? 0);
         return (
           <div className="flex items-center gap-2 min-w-[100px]">
             <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1051,7 +1096,7 @@ function ScfFactoringTab() {
       accessorKey: 'facilityCode',
       header: 'Facility',
       cell: ({ row }) => (
-        <span className="font-mono text-xs">{row.original.facilityCode}</span>
+        <span className="font-mono text-xs">{row.original.facilityCode ?? row.original.facilityId ?? ''}</span>
       ),
     },
     { accessorKey: 'buyerName', header: 'Buyer' },
@@ -1063,10 +1108,17 @@ function ScfFactoringTab() {
       ),
     },
     {
-      accessorKey: 'amount',
+      accessorKey: 'invoiceAmount',
       header: 'Amount',
       cell: ({ row }) => (
-        <span className="font-mono text-sm">{(row.original.amount ?? 0).toLocaleString()}</span>
+        <span className="font-mono text-sm">{formatMoney(row.original.invoiceAmount ?? row.original.amount ?? 0)}</span>
+      ),
+    },
+    {
+      accessorKey: 'advanceAmount',
+      header: 'Advance',
+      cell: ({ row }) => (
+        <span className="font-mono text-sm">{row.original.advanceAmount ? formatMoney(row.original.advanceAmount) : '—'}</span>
       ),
     },
     {
@@ -1080,7 +1132,10 @@ function ScfFactoringTab() {
       cell: ({ row }) =>
         row.original.status === 'SUBMITTED' ? (
           <button
-            onClick={() => fundInvoice.mutate(row.original.id)}
+            onClick={() => fundInvoice.mutate(row.original.id, {
+              onSuccess: () => toast.success('Invoice funded'),
+              onError: () => toast.error('Failed to fund invoice'),
+            })}
             disabled={fundInvoice.isPending}
             className="text-xs px-2 py-1 rounded border hover:bg-muted font-medium disabled:opacity-50"
           >
@@ -1140,9 +1195,16 @@ function ScfFactoringTab() {
 
 function NewCollectionDialog({ onClose }: { onClose: () => void }) {
   const createCollection = useCreateCollection();
-  const [form, setForm] = useState({ drawer: '', drawee: '', type: 'DP' as 'DP' | 'DA', amount: 0, currency: 'NGN', documents: [] as string[] });
+  const [form, setForm] = useState({ drawerCustomerId: '', collectionType: 'DP', draweeName: '', amount: 0, currencyCode: 'NGN', tenorDays: '' });
   const handleSubmit = () => {
-    createCollection.mutate(form, {
+    createCollection.mutate({
+      drawerCustomerId: parseInt(form.drawerCustomerId) || 0,
+      collectionType: form.collectionType,
+      draweeName: form.draweeName,
+      amount: form.amount,
+      currencyCode: form.currencyCode,
+      tenorDays: form.tenorDays ? parseInt(form.tenorDays) : undefined,
+    }, {
       onSuccess: () => { toast.success('Collection created'); onClose(); },
       onError: () => toast.error('Failed to create collection'),
     });
@@ -1155,26 +1217,29 @@ function NewCollectionDialog({ onClose }: { onClose: () => void }) {
         <h2 className="text-lg font-semibold mb-4">New Documentary Collection</h2>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs font-medium text-muted-foreground">Drawer (Exporter)</label><input className={fc} value={form.drawer} onChange={(e) => setForm((f) => ({ ...f, drawer: e.target.value }))} required /></div>
+            <div><label className="text-xs font-medium text-muted-foreground">Drawer Customer ID</label><input className={fc} value={form.drawerCustomerId} onChange={(e) => setForm((f) => ({ ...f, drawerCustomerId: e.target.value }))} placeholder="Customer ID" required /></div>
             <div><label className="text-xs font-medium text-muted-foreground">Collection Type</label>
-              <select className={fc} value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as 'DP' | 'DA' }))}>
+              <select className={fc} value={form.collectionType} onChange={(e) => setForm((f) => ({ ...f, collectionType: e.target.value }))}>
                 <option value="DP">D/P - Documents against Payment</option>
                 <option value="DA">D/A - Documents against Acceptance</option>
               </select>
             </div>
           </div>
-          <div><label className="text-xs font-medium text-muted-foreground">Drawee (Importer)</label><input className={fc} value={form.drawee} onChange={(e) => setForm((f) => ({ ...f, drawee: e.target.value }))} required /></div>
+          <div><label className="text-xs font-medium text-muted-foreground">Drawee Name (Importer)</label><input className={fc} value={form.draweeName} onChange={(e) => setForm((f) => ({ ...f, draweeName: e.target.value }))} required /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="text-xs font-medium text-muted-foreground">Amount</label><input type="number" step="0.01" className={fc} value={form.amount || ''} onChange={(e) => setForm((f) => ({ ...f, amount: Number(e.target.value) }))} required /></div>
             <div><label className="text-xs font-medium text-muted-foreground">Currency</label>
-              <select className={fc} value={form.currency} onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}>
+              <select className={fc} value={form.currencyCode} onChange={(e) => setForm((f) => ({ ...f, currencyCode: e.target.value }))}>
                 {['NGN', 'USD', 'EUR', 'GBP'].map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
+          {form.collectionType === 'DA' && (
+            <div><label className="text-xs font-medium text-muted-foreground">Tenor (days)</label><input type="number" className={fc} value={form.tenorDays} onChange={(e) => setForm((f) => ({ ...f, tenorDays: e.target.value }))} placeholder="e.g. 90" /></div>
+          )}
           <div className="flex justify-end gap-2 pt-3">
             <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-            <button onClick={handleSubmit} disabled={createCollection.isPending || !form.drawee || !form.amount}
+            <button onClick={handleSubmit} disabled={createCollection.isPending || !form.draweeName || !form.amount}
               className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
               {createCollection.isPending ? 'Creating...' : 'Create Collection'}
             </button>
@@ -1187,46 +1252,73 @@ function NewCollectionDialog({ onClose }: { onClose: () => void }) {
 
 function CollectionsTab() {
   const [showCreate, setShowCreate] = useState(false);
+  const [settlingCollection, setSettlingCollection] = useState<DocumentaryCollection | null>(null);
+  const settleCollection = useSettleCollection();
+  const [settleAmount, setSettleAmount] = useState(0);
 
   const { data: collections = [], isLoading } = useQuery({
     queryKey: ['trade-finance', 'collections'],
-    queryFn: async () => {
-      const { tradeFinanceApi: tfApi } = await import('../api/tradeFinanceApi');
-      return tfApi.getCollections();
-    },
+    queryFn: () => tradeFinanceExtApi.listCollections(),
     staleTime: 30_000,
   });
 
-  interface CollectionRow { id: number; collectionRef?: string; collectionNumber?: string; drawer?: string; drawerName?: string; drawee?: string; draweeName?: string; amount: number; currency?: string; currencyCode?: string; type?: string; collectionType?: string; status: string; createdAt?: string; }
+  const handleSettle = () => {
+    if (!settlingCollection) return;
+    settleCollection.mutate(
+      { id: settlingCollection.id, amount: settleAmount },
+      {
+        onSuccess: () => { toast.success('Collection settled'); setSettlingCollection(null); },
+        onError: () => toast.error('Failed to settle collection'),
+      },
+    );
+  };
 
-  const collCols: ColumnDef<CollectionRow, unknown>[] = [
+  const collCols: ColumnDef<DocumentaryCollection, unknown>[] = [
     {
-      accessorKey: 'collectionRef',
+      accessorKey: 'collectionNumber',
       header: 'Ref',
       cell: ({ row }) => (
-        <span className="font-mono text-xs text-primary">{row.original.collectionRef ?? row.original.collectionNumber ?? '—'}</span>
+        <span className="font-mono text-xs text-primary">{row.original.collectionNumber ?? row.original.collectionRef ?? '—'}</span>
       ),
     },
-    { accessorKey: 'drawer', header: 'Drawer', cell: ({ row }) => <span className="text-sm">{String(row.original.drawer ?? row.original.drawerName ?? '—')}</span> },
-    { accessorKey: 'drawee', header: 'Drawee', cell: ({ row }) => <span className="text-sm">{String(row.original.drawee ?? row.original.draweeName ?? '—')}</span> },
+    { accessorKey: 'drawer', header: 'Drawer', cell: ({ row }) => {
+      const d = row.original.drawer;
+      return <span className="text-sm">{typeof d === 'object' && d ? String((d as any).name ?? `#${(d as any).id ?? ''}`) : String(d ?? '—')}</span>;
+    }},
+    { accessorKey: 'draweeName', header: 'Drawee', cell: ({ row }) => <span className="text-sm">{row.original.draweeName ?? row.original.drawee ?? '—'}</span> },
     {
       accessorKey: 'amount',
       header: 'Amount',
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          {formatMoney(row.original.amount, row.original.currency ?? row.original.currencyCode)}
+          {formatMoney(row.original.amount, row.original.currencyCode ?? row.original.currency)}
         </span>
       ),
     },
     {
-      accessorKey: 'type',
+      accessorKey: 'collectionType',
       header: 'Type',
-      cell: ({ row }) => <StatusBadge status={String(row.original.type ?? row.original.collectionType ?? '')} />,
+      cell: ({ row }) => <StatusBadge status={String(row.original.collectionType ?? row.original.type ?? '')} />,
     },
     {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => <StatusBadge status={row.original.status} dot />,
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => {
+        const s = row.original.status;
+        return (s === 'RECEIVED' || s === 'PRESENTED' || s === 'ACCEPTED' || s === 'PENDING') ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); setSettleAmount(row.original.amount); setSettlingCollection(row.original); }}
+            className="text-xs px-2 py-1 rounded border hover:bg-muted font-medium"
+          >
+            Settle
+          </button>
+        ) : null;
+      },
     },
   ];
 
@@ -1241,7 +1333,7 @@ function CollectionsTab() {
       </div>
       <DataTable
         columns={collCols}
-        data={collections as CollectionRow[]}
+        data={collections}
         isLoading={isLoading}
         enableGlobalFilter
         enableExport
@@ -1249,6 +1341,31 @@ function CollectionsTab() {
         emptyMessage="No documentary collections"
       />
       {showCreate && <NewCollectionDialog onClose={() => setShowCreate(false)} />}
+      {settlingCollection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+            <button onClick={() => setSettlingCollection(null)} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+            <h3 className="text-lg font-semibold mb-4">Settle Collection</h3>
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">Ref: <span className="font-mono font-bold">{settlingCollection.collectionNumber ?? settlingCollection.collectionRef}</span></p>
+              <p className="text-xs text-muted-foreground">Amount: <span className="font-mono font-bold">{formatMoney(settlingCollection.amount)}</span></p>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Settlement Amount</label>
+                <input type="number" step="0.01"
+                  className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  value={settleAmount || ''} onChange={(e) => setSettleAmount(Number(e.target.value))} />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setSettlingCollection(null)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+                <button onClick={handleSettle} disabled={settleCollection.isPending || !settleAmount}
+                  className="flex-1 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+                  {settleCollection.isPending ? 'Settling...' : 'Settle'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1405,8 +1522,32 @@ function TradeOpsTab() {
 
 function DocumentsTab() {
   const [verifyingDoc, setVerifyingDoc] = useState<TradeDocument | null>(null);
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadCategory, setUploadCategory] = useState('INVOICE');
+  const [uploadLcId, setUploadLcId] = useState('');
+  const uploadMut = useUploadDocumentWithFile();
 
-  const docPlaceholder: TradeDocument[] = [];
+  const { data: documents = [], isLoading: docsLoading } = useTradeDocuments();
+
+  const handleFileUpload = () => {
+    if (!uploadFile) return;
+    uploadMut.mutate(
+      { file: uploadFile, category: uploadCategory, lcId: uploadLcId ? Number(uploadLcId) : undefined },
+      {
+        onSuccess: () => {
+          toast.success('Document uploaded successfully');
+          setShowUpload(false);
+          setUploadFile(null);
+          setUploadCategory('INVOICE');
+          setUploadLcId('');
+        },
+        onError: () => toast.error('Upload failed'),
+      },
+    );
+  };
+
+  const fc = 'w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50';
 
   const docCols: ColumnDef<TradeDocument, unknown>[] = [
     {
@@ -1449,15 +1590,17 @@ function DocumentsTab() {
     {
       id: 'actions',
       header: 'Actions',
-      cell: ({ row }) =>
-        row.original.complianceStatus === 'PENDING' ? (
+      cell: ({ row }) => {
+        const vs = row.original.verificationStatus ?? row.original.complianceStatus;
+        return (vs === 'PENDING') ? (
           <button
             onClick={() => setVerifyingDoc(row.original)}
             className="text-xs px-2 py-1 rounded border hover:bg-muted font-medium"
           >
             Verify
           </button>
-        ) : null,
+        ) : null;
+      },
     },
   ];
 
@@ -1466,11 +1609,53 @@ function DocumentsTab() {
       {verifyingDoc && (
         <VerifyDocumentDialog doc={verifyingDoc} onClose={() => setVerifyingDoc(null)} />
       )}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setShowUpload(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90"
+        >
+          <Upload className="w-3.5 h-3.5" /> Upload Trade Document
+        </button>
+      </div>
+      {showUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+            <button onClick={() => setShowUpload(false)} className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"><X className="w-4 h-4" /></button>
+            <h3 className="text-lg font-semibold mb-4">Upload Trade Document</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">File</label>
+                <input type="file" className={fc} onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Category</label>
+                <select className={fc} value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)}>
+                  {['INVOICE', 'BILL_OF_LADING', 'PACKING_LIST', 'CERTIFICATE_OF_ORIGIN', 'INSURANCE_CERT', 'INSPECTION_CERT', 'WEIGHT_CERT', 'CUSTOMS_DECLARATION', 'DRAFT', 'OTHER'].map((c) => (
+                    <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">LC ID (optional)</label>
+                <input className={fc} value={uploadLcId} onChange={(e) => setUploadLcId(e.target.value)} placeholder="e.g. 123" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setShowUpload(false)} className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
+                <button onClick={handleFileUpload} disabled={uploadMut.isPending || !uploadFile} className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  {uploadMut.isPending ? 'Uploading...' : 'Upload'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <DataTable
         columns={docCols}
-        data={docPlaceholder}
-        isLoading={false}
+        data={documents}
+        isLoading={docsLoading}
         enableGlobalFilter
+        enableExport
+        exportFilename="trade-documents"
         emptyMessage="No trade documents"
       />
     </div>
@@ -1483,7 +1668,7 @@ export function TradeFinanceHubPage() {
   const { data: lcs = [], isLoading: lcsLoading } = useLettersOfCredit();
   const { data: guarantees = [], isLoading: bgsLoading } = useBankGuarantees();
   const { data: scfProgrammes = [], isLoading: scfLoading } = useScfProgrammes();
-  const { data: factoringFacilities = [], isLoading: facLoading } = useFactoringFacilities();
+  const { data: factoringFacilities = [], isLoading: facLoading } = useFactoringFacilities() as { data: FactoringFacility[]; isLoading: boolean };
 
   const activeLcs = lcs.filter((lc) => lc.status === 'ISSUED').length;
   const activeGuarantees = guarantees.filter((bg) => bg.status === 'ISSUED').length;

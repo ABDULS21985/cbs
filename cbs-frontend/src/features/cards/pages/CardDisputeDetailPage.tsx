@@ -230,7 +230,7 @@ export function CardDisputeDetailPage() {
       {/* ── Chargeback Dialog ──────────────────────────────────────────── */}
       {showChargeback && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowChargeback(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowChargeback(false)} />
           <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">File Chargeback</h3><button onClick={() => setShowChargeback(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
             <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Scheme Case ID *</label>
@@ -252,7 +252,7 @@ export function CardDisputeDetailPage() {
       {/* ── Representment Dialog ───────────────────────────────────────── */}
       {showRepresentment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowRepresentment(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowRepresentment(false)} />
           <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">Submit Representment</h3><button onClick={() => setShowRepresentment(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
             <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Merchant Response *</label>
@@ -272,7 +272,7 @@ export function CardDisputeDetailPage() {
       {/* ── Arbitration Dialog ────────────────────────────────────────── */}
       {showArbitration && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowArbitration(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowArbitration(false)} />
           <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">Escalate to Arbitration</h3><button onClick={() => setShowArbitration(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
             <p className="text-sm text-muted-foreground">This will escalate the dispute to scheme arbitration. This is typically the last resort.</p>
@@ -293,7 +293,7 @@ export function CardDisputeDetailPage() {
       {/* ── Resolve Dialog ────────────────────────────────────────────── */}
       {showResolve && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowResolve(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowResolve(false)} />
           <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">Resolve Dispute</h3><button onClick={() => setShowResolve(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
             <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Resolution Type *</label>

@@ -127,7 +127,7 @@ export function NotificationPreferencesPage() {
         {/* Section 1: Channel Overview */}
         <div>
           <h2 className="text-sm font-semibold mb-3">Notification Channels</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {CHANNELS.map(({ channel, description }) => (
               <ChannelToggleCard
                 key={channel}

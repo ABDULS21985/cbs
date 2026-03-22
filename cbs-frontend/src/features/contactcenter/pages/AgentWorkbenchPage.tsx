@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -631,18 +631,13 @@ export function AgentWorkbenchPage() {
     refetchInterval: 10_000,
   });
 
-  const currentAgent = useMemo(() => {
-    if (!user) return null;
-    const normalizedUserId = user.id.trim().toLowerCase();
-    const normalizedUsername = user.username.trim().toLowerCase();
-    const normalizedFullName = user.fullName.trim().toLowerCase();
-    return agents.find((agent) => {
-      const agentId = agent.agentId.trim().toLowerCase();
-      const agentName = agent.agentName.trim().toLowerCase();
-      return agentId === normalizedUserId || agentId === normalizedUsername || agentName === normalizedFullName;
-    }) ?? null;
-  }, [agents, user]);
-  const missingAgentMapping = Boolean(user) && agents.length > 0 && !currentAgent;
+  const { data: myAgent } = useQuery({
+    queryKey: ['contact-center', 'agents', 'me'],
+    queryFn: () => contactCenterApi.getMyAgent(),
+    staleTime: 30_000,
+  });
+  const currentAgent = myAgent ?? agents.find((a) => user && a.agentId.toLowerCase() === user.username?.toLowerCase()) ?? null;
+  const missingAgentMapping = Boolean(user) && agents.length > 0 && !currentAgent && myAgent === null;
   const activeInteraction = interactions.find(
     (i) => i.agentId === currentAgent?.agentId && (i.status === 'ACTIVE' || i.status === 'QUEUED'),
   ) ?? null;
@@ -666,7 +661,7 @@ export function AgentWorkbenchPage() {
     // Find oldest waiting interaction
     const waiting = interactions.filter((i) => i.status === 'QUEUED').sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     if (waiting.length === 0) { toast.info('No interactions waiting in queue'); return; }
-    assignMut.mutate({ id: String(waiting[0].id), agentId: currentAgent.agentId }, {
+    assignMut.mutate({ id: waiting[0].interactionId, agentId: currentAgent.agentId }, {
       onSuccess: () => toast.success('Interaction assigned'),
       onError: () => toast.error('Failed to assign'),
     });
@@ -674,22 +669,18 @@ export function AgentWorkbenchPage() {
 
   const handleCompleteInteraction = useCallback((disp: CallDisposition) => {
     if (!activeInteraction) return;
-    // Save disposition first
-    contactCenterApi.saveDisposition(String(activeInteraction.id), disp).then(() => {
-      // Complete the interaction
-      completeMut.mutate({ id: String(activeInteraction.id), disposition: disp.disposition, fcr: disp.fcr }, {
-        onSuccess: () => {
-          toast.success('Interaction completed');
-          // Set agent to AVAILABLE
-          if (currentAgent) {
-            contactCenterApi.updateAgentState(currentAgent.agentId, 'AVAILABLE').then(() => {
-              qc.invalidateQueries({ queryKey: ['contact-center'] });
-            });
-          }
-        },
-        onError: () => toast.error('Failed to complete'),
-      });
-    }).catch(() => toast.error('Failed to save disposition'));
+    completeMut.mutate({ id: activeInteraction.interactionId, disposition: disp.disposition, fcr: disp.fcr }, {
+      onSuccess: () => {
+        toast.success('Interaction completed');
+        // Set agent to AVAILABLE
+        if (currentAgent) {
+          contactCenterApi.updateAgentState(currentAgent.agentId, 'AVAILABLE').then(() => {
+            qc.invalidateQueries({ queryKey: ['contact-center'] });
+          });
+        }
+      },
+      onError: () => toast.error('Failed to complete'),
+    });
   }, [activeInteraction, currentAgent, completeMut, qc]);
 
   return (

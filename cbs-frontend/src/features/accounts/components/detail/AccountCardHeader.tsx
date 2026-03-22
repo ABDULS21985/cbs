@@ -89,11 +89,11 @@ export function AccountCardHeader({ account }: AccountCardHeaderProps) {
       {/* Action buttons */}
       <div className="flex items-center gap-2 flex-wrap">
         <Link
-          to="/payments/new"
+          to={`/accounts/post-transaction?account=${account.accountNumber}`}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-sm font-medium transition-colors"
         >
           <ArrowRightLeft className="w-4 h-4" />
-          Initiate Transfer
+          Post Transaction
         </Link>
         <Link
           to={`/accounts/wallets?accountId=${account.id}`}

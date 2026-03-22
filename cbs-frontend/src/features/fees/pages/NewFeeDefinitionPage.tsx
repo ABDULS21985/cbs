@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { FeeCalculationEditor } from '../components/FeeCalculationEditor';
 import { FeeTemplateSelector } from '../components/FeeTemplateSelector';
 import { createFeeDefinition, type FeeDefinition } from '../api/feeApi';
+import { feeKeys } from '../hooks/useFees';
 
 export function NewFeeDefinitionPage() {
   useEffect(() => { document.title = 'New Fee Definition | CBS'; }, []);
@@ -24,7 +25,7 @@ export function NewFeeDefinitionPage() {
     mutationFn: (data: Partial<FeeDefinition>) =>
       createFeeDefinition(data as Omit<FeeDefinition, 'id' | 'createdAt'>),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['fee-definitions'] });
+      queryClient.invalidateQueries({ queryKey: feeKeys.definitions() });
       toast.success('Fee definition created');
       navigate('/admin/fees');
     },

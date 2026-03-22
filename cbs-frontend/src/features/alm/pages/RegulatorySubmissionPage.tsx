@@ -135,14 +135,18 @@ function ReturnDetailDrawer({
       onSuccess: () => {
         toast.success('Return submitted to CBN successfully');
         setShowConfirmSubmit(false);
+        setValidationResult(null);
       },
+      onError: () => toast.error('Failed to submit return'),
     });
   };
 
+  // Use the live detail status if available, fall back to the list-level status
+  const currentStatus = detail?.status ?? returnItem.status;
   const canSubmit =
     validationResult !== null &&
     validationResult.errors.length === 0 &&
-    returnItem.status !== 'SUBMITTED';
+    currentStatus !== 'SUBMITTED';
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -169,7 +173,7 @@ function ReturnDetailDrawer({
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Status</p>
-              <StatusBadge status={returnItem.status} dot />
+              <StatusBadge status={currentStatus} dot />
             </div>
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Next Due</p>

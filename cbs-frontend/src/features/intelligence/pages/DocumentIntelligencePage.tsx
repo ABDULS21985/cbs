@@ -20,15 +20,17 @@ import {
   usePendingDocuments,
   useSubmitDocument,
   useReviewDocument,
+  useOcrProviderStatus,
   type DocumentProcessingJob,
 } from '../hooks/useIntelligence';
 
 // ---- Constants ------------------------------------------------------------------
 
+// Values must match the DB CHECK constraint on document_processing_job.document_type
 const DOCUMENT_TYPES = [
   'NATIONAL_ID', 'PASSPORT', 'DRIVERS_LICENSE', 'UTILITY_BILL',
-  'BANK_STATEMENT', 'TAX_RETURN', 'COMPANY_REGISTRATION', 'PROOF_OF_ADDRESS',
-  'EMPLOYMENT_LETTER', 'FINANCIAL_STATEMENT',
+  'BANK_STATEMENT', 'PAY_SLIP', 'TAX_RETURN', 'BUSINESS_REGISTRATION',
+  'FINANCIAL_STATEMENT', 'INVOICE', 'CONTRACT', 'CHEQUE',
 ] as const;
 
 const PROCESSING_TYPES = [
@@ -232,7 +234,7 @@ function DocumentDetailDrawer({
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Confidence</p>
                 <p className="text-sm tabular-nums">
-                  {job.confidenceScore != null ? `${(Number(job.confidenceScore) * 100).toFixed(1)}%` : '—'}
+                  {job.confidenceScore != null ? `${Number(job.confidenceScore).toFixed(1)}%` : '—'}
                 </p>
               </div>
               <div>
@@ -311,6 +313,34 @@ function DocumentDetailDrawer({
   );
 }
 
+// ---- OCR Status Banner ----------------------------------------------------------
+
+function OcrStatusBanner() {
+  const { data: status } = useOcrProviderStatus();
+
+  // Don't render anything while loading or if OCR is available
+  if (!status || status.available) return null;
+
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-4 py-3 flex items-start gap-3">
+      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+      <div>
+        <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+          Automatic Extraction Not Configured
+        </p>
+        <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5 leading-relaxed">
+          No OCR provider is wired (AWS Textract, Google Document AI, or Azure AI Document
+          Intelligence). All submitted documents will be routed to{' '}
+          <span className="font-semibold">Manual Review</span> with a 0% confidence score
+          until a provider is configured. To enable automatic extraction, implement an
+          {' '}<code className="font-mono bg-amber-100 dark:bg-amber-900/40 px-1 rounded">OcrProvider</code>{' '}
+          bean in the backend.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ---- Page -----------------------------------------------------------------------
 
 export function DocumentIntelligencePage() {
@@ -359,7 +389,7 @@ export function DocumentIntelligencePage() {
       header: 'Confidence',
       cell: ({ getValue }) => {
         const v = getValue() as number | null;
-        return <span className="text-sm tabular-nums">{v != null ? `${(Number(v) * 100).toFixed(1)}%` : '—'}</span>;
+        return <span className="text-sm tabular-nums">{v != null ? `${Number(v).toFixed(1)}%` : '—'}</span>;
       },
     },
     {
@@ -464,6 +494,8 @@ export function DocumentIntelligencePage() {
         }
       />
       <div className="page-container space-y-6">
+        <OcrStatusBanner />
+
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <StatCard label="Total Jobs" value={allJobs.length} format="number" icon={FileSearch} />

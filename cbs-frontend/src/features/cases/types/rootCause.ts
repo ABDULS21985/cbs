@@ -38,7 +38,7 @@ export interface CaseRootCauseAnalysis {
   preventiveActions: Record<string, unknown>;
   lessonsLearned: string;
   linkedKnowledgeArticleId?: number;
-  status: 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'VALIDATED';
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'VALIDATED';
 }
 
 export interface RcaDashboardData {

@@ -118,16 +118,30 @@ describe('transactionApi', () => {
     });
   });
 
-  it('getTransaction fetches by id', async () => {
+  it('getTransaction fetches by numeric id', async () => {
     mocks.api.get.mockResolvedValue({
       data: {
-        data: { id: 'txn-1', reference: 'TXN-1' },
+        data: { id: 1, reference: 'TXN-001' },
       },
     });
 
-    await transactionApi.getTransaction('txn-1');
+    await transactionApi.getTransaction(1);
 
-    expect(mocks.api.get).toHaveBeenCalledWith('/api/v1/transactions/txn-1', {
+    expect(mocks.api.get).toHaveBeenCalledWith('/api/v1/transactions/1', {
+      signal: undefined,
+    });
+  });
+
+  it('getTransaction also accepts a string id for backward compatibility', async () => {
+    mocks.api.get.mockResolvedValue({
+      data: {
+        data: { id: 1, reference: 'TXN-001' },
+      },
+    });
+
+    await transactionApi.getTransaction('1');
+
+    expect(mocks.api.get).toHaveBeenCalledWith('/api/v1/transactions/1', {
       signal: undefined,
     });
   });
@@ -135,12 +149,12 @@ describe('transactionApi', () => {
   it('reverseTransaction sends reason in body', async () => {
     mocks.apiPost.mockResolvedValue({ status: 'PENDING' });
 
-    await transactionApi.reverseTransaction('txn-1', {
+    await transactionApi.reverseTransaction(1, {
       reasonCategory: 'CUSTOMER_REQUEST',
       notes: 'Duplicate debit',
     });
 
-    expect(mocks.apiPost).toHaveBeenCalledWith('/api/v1/transactions/txn-1/reverse', {
+    expect(mocks.apiPost).toHaveBeenCalledWith('/api/v1/transactions/1/reverse', {
       reasonCategory: 'CUSTOMER_REQUEST',
       notes: 'Duplicate debit',
     });
@@ -171,7 +185,7 @@ describe('transactionApi', () => {
       },
     });
 
-    await transactionApi.downloadReceipt('txn-1');
+    await transactionApi.downloadReceipt(1);
 
     expect(createObjectURL).toHaveBeenCalled();
     expect(anchor.download).toBe('receipt.pdf');

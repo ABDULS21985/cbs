@@ -31,6 +31,14 @@ public class IssuedDeviceController {
     public ResponseEntity<ApiResponse<IssuedDevice>> replace(@PathVariable String code, @RequestParam String reason) {
         return ResponseEntity.ok(ApiResponse.ok(service.replace(code, reason)));
     }
+    @PostMapping("/{code}/unblock") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<IssuedDevice>> unblock(@PathVariable String code) {
+        return ResponseEntity.ok(ApiResponse.ok(service.unblock(code)));
+    }
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<IssuedDevice>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAll()));
+    }
     @GetMapping("/customer/{id}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<IssuedDevice>>> getByCustomer(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(service.getByCustomer(id)));

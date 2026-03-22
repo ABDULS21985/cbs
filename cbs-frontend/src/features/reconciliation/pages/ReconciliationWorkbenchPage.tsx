@@ -3,11 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Upload, Zap, Loader2, ChevronDown, Search, Building2, Landmark, Banknote, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { useNotificationStore } from '@/stores/notificationStore';
 import {
   getNostroAccounts,
   getReconciliationSession,
   uploadStatement,
   runAutoMatch,
+  writeOffEntry,
+  createManualMatch,
   type NostroAccount,
   type ReconciliationSession,
 } from '../api/reconciliationApi';
@@ -167,6 +170,7 @@ function UploadSheet({ open, accountId, onClose, onUpload }: UploadSheetProps) {
 
 export function ReconciliationWorkbenchPage() {
   const queryClient = useQueryClient();
+  const addToast = useNotificationStore((s) => s.addToast);
 
   const [mainTab, setMainTab] = useState<MainTab>('nostro');
   const [selectedAccountId, setSelectedAccountId] = useState('');
@@ -230,8 +234,24 @@ export function ReconciliationWorkbenchPage() {
     if (session) autoMatchMutation.mutate(session.id);
   };
 
-  const handleUnmatchedAction = (action: UnmatchedAction, entry: ReconciliationEntry) => {
-    console.log('[ReconciliationWorkbenchPage] unmatched action', action, entry.id);
+  const handleUnmatchedAction = async (action: UnmatchedAction, entry: ReconciliationEntry) => {
+    if (!session) return;
+    try {
+      if (action === 'WRITE_OFF') {
+        await writeOffEntry(session.id, entry.id, 'Write-off from workbench');
+        addToast({ type: 'success', title: 'Entry Written Off', message: `Entry ${entry.reference} written off.` });
+        handleLoadSession();
+      } else if (action === 'MANUAL_MATCH') {
+        await createManualMatch(session.id, [entry.id], []);
+        addToast({ type: 'info', title: 'Manual Match', message: 'Manual match initiated. Select counterpart entry.' });
+      } else if (action === 'JOURNAL_ENTRY') {
+        addToast({ type: 'info', title: 'Journal Entry', message: `Journal entry for ${entry.reference} will be created.` });
+      } else if (action === 'ESCALATE') {
+        addToast({ type: 'info', title: 'Escalated', message: `Entry ${entry.reference} escalated for review.` });
+      }
+    } catch {
+      addToast({ type: 'error', title: 'Action Failed', message: `Failed to ${action} entry ${entry.reference}.` });
+    }
   };
 
   const ourUnmatched = session?.ourEntries.filter((e) => e.status === 'UNMATCHED') ?? [];

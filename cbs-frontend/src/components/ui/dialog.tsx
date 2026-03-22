@@ -30,7 +30,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="modal-scrim fixed inset-0 z-50 flex items-center justify-center"
       onClick={(e) => {
         if (e.target === overlayRef.current) onOpenChange(false);
       }}
@@ -51,7 +51,7 @@ export function DialogContent({ children, className }: DialogContentProps) {
   return (
     <div
       className={cn(
-        'bg-background border rounded-xl shadow-lg w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-auto animate-in fade-in-0 zoom-in-95',
+        'gloss-panel w-full max-w-lg space-y-4 rounded-2xl p-6 max-h-[90vh] overflow-auto animate-in fade-in-0 zoom-in-95',
         className,
       )}
       onClick={(e) => e.stopPropagation()}

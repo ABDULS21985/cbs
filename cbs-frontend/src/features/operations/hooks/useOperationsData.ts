@@ -547,7 +547,8 @@ export function useVaultTransactions(id: number) {
 export function useVaultCashIn() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => vaultsApi.cashIn(id),
+    mutationFn: ({ id, data }: { id: number; data: { amount: number; reference?: string; narration?: string } }) =>
+      vaultsApi.cashIn(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.vault.all });
       qc.invalidateQueries({ queryKey: KEYS.centralCash.all });
@@ -558,7 +559,8 @@ export function useVaultCashIn() {
 export function useVaultCashOut() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => vaultsApi.cashOut(id),
+    mutationFn: ({ id, data }: { id: number; data: { amount: number; reference?: string; narration?: string } }) =>
+      vaultsApi.cashOut(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.vault.all });
       qc.invalidateQueries({ queryKey: KEYS.centralCash.all });
@@ -569,7 +571,8 @@ export function useVaultCashOut() {
 export function useVaultTransfer() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => vaultsApi.transfer(),
+    mutationFn: (data: { fromVaultId: number; toVaultId: number; amount: number }) =>
+      vaultsApi.transfer(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.vault.all });
       qc.invalidateQueries({ queryKey: KEYS.centralCash.all });
@@ -591,17 +594,28 @@ export function useCashVaultsByType(type: string) {
 export function useCashVaultMovements(code: string) {
   return useQuery({
     queryKey: KEYS.cashVault.movements(code),
-    queryFn: () => cashVaultsApi.getByType2(code),
+    queryFn: () => cashVaultsApi.getMovements(code),
     enabled: !!code,
     staleTime: 30_000,
   });
 }
 
-export function useRegisterCashMovement() {
+export function useRegisterCashVault() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Parameters<typeof cashVaultsApi.register>[0]) =>
       cashVaultsApi.register(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.cashVault.all });
+    },
+  });
+}
+
+export function useRecordCashMovement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof cashVaultsApi.recordMovement>[0]) =>
+      cashVaultsApi.recordMovement(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.cashVault.all });
       qc.invalidateQueries({ queryKey: KEYS.vault.all });
@@ -609,10 +623,13 @@ export function useRegisterCashMovement() {
   });
 }
 
+/** @deprecated Use useRecordCashMovement instead */
+export const useRegisterCashMovement = useRecordCashMovement;
+
 export function useConfirmCashMovement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (ref: string) => cashVaultsApi.confirm(ref),
+    mutationFn: (ref: string) => cashVaultsApi.confirmDelivery(ref),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.cashVault.all });
       qc.invalidateQueries({ queryKey: KEYS.vault.all });
@@ -623,7 +640,7 @@ export function useConfirmCashMovement() {
 export function useReconcileCashVault() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => cashVaultsApi.confirm2(code),
+    mutationFn: (code: string) => cashVaultsApi.reconcile(code),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.cashVault.all });
     },
@@ -751,7 +768,8 @@ export function useReceiveLockboxItem() {
 export function useLockboxException() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (itemId: number) => lockboxesApi.exception(itemId),
+    mutationFn: ({ itemId, reason }: { itemId: number; reason: string }) =>
+      lockboxesApi.exception(itemId, reason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.lockbox.all });
     },
@@ -942,7 +960,8 @@ export function useOpenItemsByAssignee(assignedTo: string) {
 export function useAssignOpenItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => openItemsApi.assign(code),
+    mutationFn: ({ code, assignedTo, assignedTeam }: { code: string; assignedTo: string; assignedTeam?: string }) =>
+      openItemsApi.assign(code, { assignedTo, assignedTeam }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.openItem.all });
     },
@@ -952,7 +971,8 @@ export function useAssignOpenItem() {
 export function useResolveOpenItem() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (code: string) => openItemsApi.resolve(code),
+    mutationFn: ({ code, action, notes }: { code: string; action: string; notes?: string }) =>
+      openItemsApi.resolve(code, { action, notes }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.openItem.all });
     },

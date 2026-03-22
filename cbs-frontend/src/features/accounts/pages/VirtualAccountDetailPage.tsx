@@ -59,7 +59,7 @@ function ActionModal({ title, icon, open, onClose, onConfirm, isPending, confirm
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 modal-scrim" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div className="flex items-center gap-2">

@@ -295,12 +295,15 @@ export function RcaPage() {
     enabled: !!id,
   });
 
-  const { data: rca, isLoading: rcaLoading, refetch: refetchRca } = useQuery({
+  const { data: rcaList, isLoading: rcaLoading, refetch: refetchRca } = useQuery({
     queryKey: ['cases', 'rca', caseData?.id],
     queryFn: () => rootCauseAnalysisApi.getByCaseId(caseData!.id),
     enabled: !!caseData?.id,
     retry: false,
   });
+
+  // Backend returns array; pick the first (most recent) RCA for the case
+  const rca = Array.isArray(rcaList) ? rcaList[0] ?? null : rcaList ?? null;
 
   const completeMutation = useMutation({
     mutationFn: () => rootCauseAnalysisApi.complete(rca!.rcaCode),

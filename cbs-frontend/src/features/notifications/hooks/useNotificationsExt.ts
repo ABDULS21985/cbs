@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationApi } from '../api/notificationApi';
+// ScheduledNotification is the correct entity returned by the /scheduled endpoint
+export type { ScheduledNotification } from '@/features/admin/api/notificationAdminApi';
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 

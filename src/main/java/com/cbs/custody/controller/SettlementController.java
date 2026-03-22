@@ -73,6 +73,24 @@ public class SettlementController {
         return ResponseEntity.ok(ApiResponse.ok(service.getFailedSettlements()));
     }
 
+    @PostMapping("/instructions/{ref}/resubmit")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<SettlementInstruction>> resubmitSettlement(@PathVariable String ref) {
+        return ResponseEntity.ok(ApiResponse.ok(service.resubmitSettlement(ref)));
+    }
+
+    @PostMapping("/instructions/{ref}/cancel")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<SettlementInstruction>> cancelSettlement(@PathVariable String ref, @RequestParam(required = false) String reason) {
+        return ResponseEntity.ok(ApiResponse.ok(service.cancelSettlement(ref, reason)));
+    }
+
+    @PostMapping("/instructions/{ref}/escalate")
+    @PreAuthorize("hasRole('CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<SettlementInstruction>> escalateSettlement(@PathVariable String ref) {
+        return ResponseEntity.ok(ApiResponse.ok(service.escalateSettlement(ref)));
+    }
+
     @GetMapping("/dashboard")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Long>>> getDashboard() {

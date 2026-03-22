@@ -86,8 +86,19 @@ public class VaultService {
 
     public Vault getVault(Long id) { return findVaultOrThrow(id); }
 
+    public List<Vault> getVaults(String branchCode) {
+        if (branchCode != null && !branchCode.isBlank()) {
+            return vaultRepository.findByBranchCodeAndStatus(branchCode, "ACTIVE");
+        }
+        return vaultRepository.findByStatus("ACTIVE");
+    }
+
     public List<Vault> getBranchVaults(String branchCode) {
         return vaultRepository.findByBranchCodeAndStatus(branchCode, "ACTIVE");
+    }
+
+    public Page<VaultTransaction> getTransactions(Pageable pageable) {
+        return txnRepository.findAllByOrderByCreatedAtDesc(pageable);
     }
 
     public Page<VaultTransaction> getTransactions(Long vaultId, Pageable pageable) {

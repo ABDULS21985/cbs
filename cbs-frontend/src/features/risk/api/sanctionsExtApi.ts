@@ -3,8 +3,8 @@ import type { ScreeningRequest } from '../types/sanctionsExt';
 
 export const sanctionsApi = {
   /** POST /v1/sanctions/screen */
-  screen: () =>
-    apiPost<ScreeningRequest>('/api/v1/sanctions/screen'),
+  screen: (data: Partial<ScreeningRequest>) =>
+    apiPost<ScreeningRequest>('/api/v1/sanctions/screen', data),
 
   /** POST /v1/sanctions/matches/{screeningId}/dispose/{matchId} */
   dispose: (screeningId: number, matchId: number) =>

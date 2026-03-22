@@ -16,9 +16,9 @@ export const rootCauseAnalysisApi = {
   getById: (code: string) =>
     apiGet<CaseRootCauseAnalysis>(`/api/v1/root-cause-analysis/${code}`),
 
-  /** GET /v1/root-cause-analysis/case/{caseId} */
+  /** GET /v1/root-cause-analysis/case/{caseId} — returns array, caller picks first */
   getByCaseId: (caseId: number) =>
-    apiGet<CaseRootCauseAnalysis>(`/api/v1/root-cause-analysis/case/${caseId}`),
+    apiGet<CaseRootCauseAnalysis[]>(`/api/v1/root-cause-analysis/case/${caseId}`),
 
   /** POST /v1/root-cause-analysis/{code}/corrective-action */
   addCorrectiveAction: (code: string, data: CorrectiveActionPayload) =>

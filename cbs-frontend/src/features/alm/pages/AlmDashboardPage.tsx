@@ -14,7 +14,7 @@ import {
   useGenerateGapReport,
   useDurationAnalytics,
 } from '../hooks/useAlm';
-import { almApi, type AlmGapReport } from '../api/almApi';
+import { almApi } from '../api/almApi';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DualAxisGapChart,
@@ -36,14 +36,21 @@ function GenerateReportForm({ onGenerated }: { onGenerated: (date: string) => vo
   const [totalRsl, setTotalRsl] = useState(75_000_000_000);
   const [multiCurrency, setMultiCurrency] = useState(false);
   const generate = useGenerateGapReport();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async () => {
     if (multiCurrency) {
-      for (const c of CURRENCIES) {
-        await almApi.generateGapReport({ reportDate, currencyCode: c, totalRsa, totalRsl });
+      try {
+        for (const c of CURRENCIES) {
+          await almApi.generateGapReport({ reportDate, currencyCode: c, totalRsa, totalRsl });
+        }
+        // Invalidate all gap report queries after batch generation
+        queryClient.invalidateQueries({ queryKey: ['alm', 'gap-reports'] });
+        toast.success(`Gap reports generated for ${CURRENCIES.join(', ')}`);
+        onGenerated(reportDate);
+      } catch {
+        toast.error('Failed to generate multi-currency reports');
       }
-      toast.success(`Gap reports generated for ${CURRENCIES.join(', ')}`);
-      onGenerated(reportDate);
     } else {
       generate.mutate(
         { reportDate, currencyCode, totalRsa, totalRsl },

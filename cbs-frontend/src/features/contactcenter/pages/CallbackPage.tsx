@@ -152,7 +152,7 @@ export function CallbackPage() {
       {/* Outcome Selection Dialog */}
       {outcomeDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setOutcomeDialog(null)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setOutcomeDialog(null)} />
           <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <div>
@@ -195,7 +195,7 @@ export function CallbackPage() {
       {/* Schedule Callback Dialog */}
       {showSchedule && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowSchedule(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowSchedule(false)} />
           <div className="relative z-10 w-full max-w-lg mx-4 rounded-xl bg-background border shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-base font-semibold">Schedule Callback</h2>

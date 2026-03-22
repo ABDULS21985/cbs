@@ -567,7 +567,7 @@ export default function OnboardingWizardPage() {
       {/* Draft picker */}
       {showDraftPicker && wizard.existingDrafts.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-label="Resume draft">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDraftPicker(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowDraftPicker(false)} />
           <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">Resume Draft?</h3><button onClick={() => setShowDraftPicker(false)} className="p-1 rounded hover:bg-muted" aria-label="Close"><X className="w-4 h-4" /></button></div>
             <p className="text-sm text-muted-foreground">You have saved drafts. Resume one or start fresh.</p>
@@ -588,7 +588,7 @@ export default function OnboardingWizardPage() {
       {/* Confirm submit */}
       {showConfirmSubmit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-label="Confirm submission">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowConfirmSubmit(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowConfirmSubmit(false)} />
           <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <h3 className="font-semibold">Confirm Submission</h3>
             <p className="text-sm text-muted-foreground">This will create a new customer record in the system. This action cannot be undone.</p>

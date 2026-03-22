@@ -74,6 +74,15 @@ export function useRecordSecuritiesMovement() {
   });
 }
 
+export function useSecuritiesFail(ref: string) {
+  return useQuery({
+    queryKey: [...KEYS.fails.all, ref],
+    queryFn: () => securitiesFailsApi.getByRef(ref),
+    enabled: !!ref,
+    staleTime: 30_000,
+  });
+}
+
 // ─── Securities Fails ────────────────────────────────────────────────────────
 
 export function useSecuritiesFailsDashboard() {
@@ -236,6 +245,23 @@ export function useCompleteValuationRun() {
 }
 
 // ─── Counterparties ──────────────────────────────────────────────────────────
+
+export function useAllCounterparties() {
+  return useQuery({
+    queryKey: [...KEYS.counterparties.all, 'list'],
+    queryFn: () => counterpartiesApi.getAll(),
+    staleTime: 30_000,
+  });
+}
+
+export function useCounterparty(code: string) {
+  return useQuery({
+    queryKey: [...KEYS.counterparties.all, 'detail', code],
+    queryFn: () => counterpartiesApi.getByCode(code),
+    enabled: !!code,
+    staleTime: 30_000,
+  });
+}
 
 export function useCounterpartiesByType(type: string) {
   return useQuery({

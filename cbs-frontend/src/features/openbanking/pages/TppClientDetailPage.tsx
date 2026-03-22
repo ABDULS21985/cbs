@@ -17,7 +17,7 @@ import {
   Loader2,
   Shield,
 } from 'lucide-react';
-import { useTppClients, useConsents } from '../hooks/useOpenBanking';
+import { useTppClients, useConsents, useDeactivateClient } from '../hooks/useOpenBanking';
 import type { TppClientType } from '../api/openBankingApi';
 import { TppScopeSelector } from '../components/tpp/TppScopeSelector';
 import { TppStatusActions } from '../components/tpp/TppStatusActions';
@@ -25,10 +25,9 @@ import { ConsentTable } from '../components/consent/ConsentTable';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const TYPE_STYLES: Record<TppClientType, string> = {
+const TYPE_STYLES: Partial<Record<TppClientType, string>> = {
   TPP_AISP: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   TPP_PISP: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  TPP_BOTH: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
   TPP_CBPII: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
   INTERNAL: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
   PARTNER: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
@@ -80,6 +79,7 @@ export function TppClientDetailPage() {
 
   const { data: clients = [], isLoading } = useTppClients();
   const client = useMemo(() => clients.find(c => String(c.id) === id), [clients, id]);
+  const deactivateClient = useDeactivateClient();
 
   const { data: allConsents = [], isLoading: consentsLoading } = useConsents();
   const clientConsents = useMemo(
@@ -256,8 +256,14 @@ export function TppClientDetailPage() {
         actions={
           <TppStatusActions
             client={client}
-            onSuspend={() => toast.info('Suspend via API')}
-            onReactivate={() => toast.info('Reactivate via API')}
+            onSuspend={() => {
+              deactivateClient.mutate(client.clientId, {
+                onSuccess: () => toast.success('Client deactivated'),
+                onError: () => toast.error('Failed to deactivate client'),
+              });
+            }}
+            onReactivate={() => toast.info('Reactivation requires admin backend action')}
+            isPending={deactivateClient.isPending}
           />
         }
       />

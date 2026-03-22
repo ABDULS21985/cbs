@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { formatDateTime } from '@/lib/formatters';
 import { Clock } from 'lucide-react';
-import { getTemplateVersions } from '../../../admin/api/notificationAdminApi';
+import { notificationApi } from '../../api/communicationApi';
 
 // Note: the backend /templates/{id}/versions endpoint exists but returns [] currently.
 // We show version info from the template metadata itself.
@@ -18,7 +18,7 @@ export function TemplateVersionHistory({ templateId, currentVersion, createdAt, 
   // Attempt to fetch version history from API
   const { data: versions = [] } = useQuery({
     queryKey: ['template-versions', templateId],
-    queryFn: () => getTemplateVersions(String(templateId)),
+    queryFn: () => notificationApi.getTemplateVersions(templateId),
     enabled: templateId > 0,
     staleTime: 60_000,
   });

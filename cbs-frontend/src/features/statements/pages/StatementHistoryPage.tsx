@@ -12,6 +12,8 @@ import {
   CalendarDays,
   CheckCircle,
   AlertCircle,
+  X,
+  Send,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -60,6 +62,84 @@ function Toast({ message, type }: ToastData) {
   );
 }
 
+// ─── Email Dialog ─────────────────────────────────────────────────────────────
+
+function EmailDialog({
+  open,
+  onClose,
+  onSend,
+  isSending,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSend: (email: string) => void;
+  isSending: boolean;
+}) {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+
+  if (!open) return null;
+
+  const handleSend = () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    setError('');
+    onSend(email);
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div className="bg-card rounded-xl shadow-2xl border w-full max-w-md p-6 space-y-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-lg font-semibold">Email Statement</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Send this statement to a customer email address.
+              </p>
+            </div>
+            <button onClick={onClose} className="p-1 rounded-md hover:bg-muted transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Recipient Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(''); }}
+              placeholder="customer@example.com"
+              className="w-full px-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              autoFocus
+            />
+            {error && <p className="text-xs text-destructive">{error}</p>}
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={onClose}
+              disabled={isSending}
+              className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={isSending}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {isSending ? 'Sending…' : 'Send Statement'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function StatementHistoryPage() {
@@ -69,6 +149,7 @@ export function StatementHistoryPage() {
     to: string;
   } | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -279,10 +360,7 @@ export function StatementHistoryPage() {
                 Excel
               </button>
               <button
-                onClick={() => {
-                  const email = window.prompt('Enter recipient email address:');
-                  if (email) emailMutation.mutate(email);
-                }}
+                onClick={() => setEmailDialogOpen(true)}
                 disabled={emailMutation.isPending}
                 className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-md border hover:bg-muted transition-colors disabled:opacity-50"
               >
@@ -350,6 +428,17 @@ export function StatementHistoryPage() {
       </div>
 
       {toast && <Toast message={toast.message} type={toast.type} />}
+
+      <EmailDialog
+        open={emailDialogOpen}
+        onClose={() => setEmailDialogOpen(false)}
+        onSend={(email) => {
+          emailMutation.mutate(email, {
+            onSuccess: () => setEmailDialogOpen(false),
+          });
+        }}
+        isSending={emailMutation.isPending}
+      />
     </>
   );
 }

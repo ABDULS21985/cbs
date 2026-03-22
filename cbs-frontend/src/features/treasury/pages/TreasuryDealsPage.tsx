@@ -401,7 +401,7 @@ export function TreasuryDealsPage() {
             <label className="text-xs font-medium text-muted-foreground mr-2">Status</label>
             <select className={selectCls} value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as FilterStatus)}>
-              {(['ALL', 'BOOKED', 'CONFIRMED', 'SETTLED', 'MATURED', 'CANCELLED'] as FilterStatus[]).map((s) => (
+              {(['ALL', 'BOOKED', 'CONFIRMED', 'SETTLED', 'MATURED', 'CANCELLED', 'DEFAULTED'] as FilterStatus[]).map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>

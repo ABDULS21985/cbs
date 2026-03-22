@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { ShieldOff, Briefcase, Eye, AlertTriangle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -41,16 +42,23 @@ export function FraudInvestigationView({ alertId }: Props) {
   }
 
   const handleAction = async (action: string) => {
-    switch (action) {
-      case 'block-account':
-        await blockAccount.mutateAsync(alert.id);
-        break;
-      case 'file-case':
-        await fileFraudCase.mutateAsync(alert.id);
-        break;
-      case 'allow':
-        await allowTransaction.mutateAsync(alert.id);
-        break;
+    try {
+      switch (action) {
+        case 'block-account':
+          await blockAccount.mutateAsync(alert.id);
+          toast.success('Account blocked successfully');
+          break;
+        case 'file-case':
+          await fileFraudCase.mutateAsync(alert.id);
+          toast.success('Fraud case filed successfully');
+          break;
+        case 'allow':
+          await allowTransaction.mutateAsync(alert.id);
+          toast.success('Transaction allowed');
+          break;
+      }
+    } catch {
+      toast.error('Action failed. Please try again.');
     }
     setConfirmAction(null);
   };

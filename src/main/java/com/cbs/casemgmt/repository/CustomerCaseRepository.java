@@ -1,9 +1,10 @@
 package com.cbs.casemgmt.repository;
 import com.cbs.casemgmt.entity.CustomerCase;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import java.util.List; import java.util.Optional;
-public interface CustomerCaseRepository extends JpaRepository<CustomerCase, Long> {
+public interface CustomerCaseRepository extends JpaRepository<CustomerCase, Long>, JpaSpecificationExecutor<CustomerCase> {
     Optional<CustomerCase> findByCaseNumber(String caseNumber);
     List<CustomerCase> findByCustomerIdOrderByCreatedAtDesc(Long customerId);
     List<CustomerCase> findByAssignedToAndStatusInOrderBySlaDueAtAsc(String assignedTo, List<String> statuses);

@@ -15,7 +15,7 @@ import {
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Counterparty } from '../types/counterparty';
 import {
-  useCounterpartiesByType, usePendingKycCounterparties,
+  useAllCounterparties, usePendingKycCounterparties,
   useUpdateCounterpartyExposure,
 } from '../hooks/useCustodyExt';
 import { ExposureGauge } from '../components/ExposureGauge';
@@ -23,7 +23,7 @@ import { CounterpartyForm } from '../components/CounterpartyForm';
 import { KycReviewPanel } from '../components/KycReviewPanel';
 import { toast } from 'sonner';
 
-const TYPES = ['ALL', 'BANK', 'BROKER_DEALER', 'CUSTODIAN', 'CCP', 'CORPORATE', 'SOVEREIGN'];
+const TYPES = ['ALL', 'BANK', 'BROKER_DEALER', 'INSURANCE', 'FUND_MANAGER', 'CORPORATE', 'SOVEREIGN', 'CENTRAL_BANK', 'CLEARING_HOUSE', 'EXCHANGE', 'SPV'];
 const CHART_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
 
 const ratingColor = (rating: string): string => {
@@ -93,23 +93,15 @@ function AllCounterpartiesTab() {
   const [selectedType, setSelectedType] = useState('ALL');
   const [showForm, setShowForm] = useState(false);
 
-  // Fetch all types to get totals, and filtered for the table
-  const { data: allCps = [], isLoading: allLoading } = useCounterpartiesByType('BANK');
-  const { data: filtered = [], isLoading } = useCounterpartiesByType(selectedType === 'ALL' ? 'BANK' : selectedType);
-
-  // For "ALL", we aggregate multiple types
-  const { data: brokers = [] } = useCounterpartiesByType('BROKER_DEALER');
-  const { data: custodians = [] } = useCounterpartiesByType('CUSTODIAN');
-  const { data: ccps = [] } = useCounterpartiesByType('CCP');
-  const { data: corporates = [] } = useCounterpartiesByType('CORPORATE');
-  const { data: sovereigns = [] } = useCounterpartiesByType('SOVEREIGN');
+  const { data: allCps = [], isLoading: allLoading } = useAllCounterparties();
 
   const allCounterparties = useMemo(
     () => selectedType === 'ALL'
-      ? [...allCps, ...brokers, ...custodians, ...ccps, ...corporates, ...sovereigns]
-      : filtered,
-    [selectedType, allCps, brokers, custodians, ccps, corporates, sovereigns, filtered],
+      ? allCps
+      : allCps.filter((c) => c.counterpartyType === selectedType),
+    [selectedType, allCps],
   );
+  const isLoading = allLoading;
 
   const totalExposure = allCounterparties.reduce((s, c) => s + c.currentExposure, 0);
   const totalLimit = allCounterparties.reduce((s, c) => s + c.totalExposureLimit, 0);
@@ -262,16 +254,9 @@ function KycReviewTab() {
 // ── Exposure Dashboard Tab ───────────────────────────────────────────────────
 
 function ExposureDashboardTab() {
-  const { data: banks = [] } = useCounterpartiesByType('BANK');
-  const { data: brokers = [] } = useCounterpartiesByType('BROKER_DEALER');
-  const { data: custodians = [] } = useCounterpartiesByType('CUSTODIAN');
-  const { data: ccps = [] } = useCounterpartiesByType('CCP');
-  const { data: corporates = [] } = useCounterpartiesByType('CORPORATE');
-  const { data: sovereigns = [] } = useCounterpartiesByType('SOVEREIGN');
+  const { data: allCps = [] } = useAllCounterparties();
 
   const [exposureTarget, setExposureTarget] = useState<Counterparty | null>(null);
-
-  const allCps = useMemo(() => [...banks, ...brokers, ...custodians, ...ccps, ...corporates, ...sovereigns], [banks, brokers, custodians, ccps, corporates, sovereigns]);
 
   const totalExposure = allCps.reduce((s, c) => s + c.currentExposure, 0);
   const totalLimit = allCps.reduce((s, c) => s + c.totalExposureLimit, 0);

@@ -10,6 +10,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController @RequestMapping("/v1/intelligence/documents") @RequiredArgsConstructor
 @Tag(name = "AI Document Processing", description = "OCR/NLP extraction, classification, verification, tamper detection")
@@ -40,5 +41,18 @@ public class DocumentProcessingController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<DocumentProcessingJob>>> pendingReview() {
         return ResponseEntity.ok(ApiResponse.ok(service.getPendingReview()));
+    }
+
+    /**
+     * Returns the current OCR provider status.
+     * The frontend uses this to show an informational banner when no OCR is configured.
+     */
+    @GetMapping("/provider-status")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> providerStatus() {
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "available", service.isOcrAvailable(),
+                "providerName", service.getOcrProviderName()
+        )));
     }
 }

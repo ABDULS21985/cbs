@@ -129,6 +129,7 @@ export function StatementRequestForm({
             {...register('accountId')}
             className="w-full px-3 py-2 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
           >
+            <option value="">Select account...</option>
             {accounts.map((acc) => (
               <option key={acc.id} value={acc.id}>
                 {acc.label}

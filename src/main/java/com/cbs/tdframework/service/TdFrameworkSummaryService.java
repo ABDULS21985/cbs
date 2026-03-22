@@ -26,7 +26,15 @@ public class TdFrameworkSummaryService {
     }
 
     public Map<String, BigDecimal> getMaturityLadder(Long agreementId) {
-        TdFrameworkSummary latest = getLatest(agreementId);
+        Optional<TdFrameworkSummary> latestOpt = repository.findFirstByAgreementIdOrderBySnapshotDateDesc(agreementId);
+        if (latestOpt.isEmpty()) {
+            Map<String, BigDecimal> empty = new LinkedHashMap<>();
+            empty.put("next30Days", BigDecimal.ZERO);
+            empty.put("next60Days", BigDecimal.ZERO);
+            empty.put("next90Days", BigDecimal.ZERO);
+            return empty;
+        }
+        TdFrameworkSummary latest = latestOpt.get();
         Map<String, BigDecimal> ladder = new LinkedHashMap<>();
         ladder.put("next30Days", latest.getMaturingNext30Days() != null ? latest.getMaturingNext30Days() : BigDecimal.ZERO);
         ladder.put("next60Days", latest.getMaturingNext60Days() != null ? latest.getMaturingNext60Days() : BigDecimal.ZERO);
@@ -35,7 +43,15 @@ public class TdFrameworkSummaryService {
     }
 
     public Map<String, Object> getRolloverForecast(Long agreementId) {
-        TdFrameworkSummary latest = getLatest(agreementId);
+        Optional<TdFrameworkSummary> latestOpt = repository.findFirstByAgreementIdOrderBySnapshotDateDesc(agreementId);
+        if (latestOpt.isEmpty()) {
+            Map<String, Object> empty = new HashMap<>();
+            empty.put("totalPrincipal", BigDecimal.ZERO);
+            empty.put("expectedRolloverPct", BigDecimal.ZERO);
+            empty.put("expectedRolloverAmount", BigDecimal.ZERO);
+            return empty;
+        }
+        TdFrameworkSummary latest = latestOpt.get();
         Map<String, Object> forecast = new HashMap<>();
         forecast.put("totalPrincipal", latest.getTotalPrincipal());
         forecast.put("expectedRolloverPct", latest.getExpectedRolloverPct());
@@ -43,6 +59,8 @@ public class TdFrameworkSummaryService {
             forecast.put("expectedRolloverAmount", latest.getTotalPrincipal()
                     .multiply(latest.getExpectedRolloverPct())
                     .divide(BigDecimal.valueOf(100), 4, java.math.RoundingMode.HALF_UP));
+        } else {
+            forecast.put("expectedRolloverAmount", BigDecimal.ZERO);
         }
         return forecast;
     }

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiGet, apiPost, apiPostParams, apiPutParams } from '@/lib/api';
 import type { Auditable } from '@/types/common';
 
 export interface StandingOrder extends Auditable {
@@ -58,9 +58,26 @@ export const standingOrderApi = {
   getById: (id: number) =>
     apiGet<StandingOrder>(`/api/v1/standing-orders/${id}`),
   create: (data: Partial<StandingOrder>) =>
-    apiPost<StandingOrder>('/api/v1/standing-orders', data),
+    apiPostParams<StandingOrder>('/api/v1/standing-orders', {
+      debitAccountId: data.sourceAccountId,
+      type: 'STANDING_ORDER',
+      creditAccountNumber: data.beneficiaryAccount,
+      creditAccountName: data.beneficiaryName,
+      creditBankCode: data.beneficiaryBankCode,
+      amount: data.amount,
+      currencyCode: data.currency,
+      frequency: data.frequency,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      narration: data.description,
+    }),
   update: (id: number, data: Partial<StandingOrder>) =>
-    apiPut<StandingOrder>(`/api/v1/standing-orders/${id}`, data),
+    apiPutParams<StandingOrder>(`/api/v1/standing-orders/${id}`, {
+      amount: data.amount,
+      frequency: data.frequency,
+      endDate: data.endDate,
+      narration: data.description,
+    }),
   pause: (id: number) =>
     apiPost<StandingOrder>(`/api/v1/standing-orders/${id}/pause`, {}),
   resume: (id: number) =>
@@ -74,7 +91,16 @@ export const standingOrderApi = {
   getDirectDebits: (filters?: Record<string, unknown>) =>
     apiGet<DirectDebitMandate[]>('/api/v1/direct-debits', filters),
   authorizeMandate: (data: Partial<DirectDebitMandate>) =>
-    apiPost<DirectDebitMandate>('/api/v1/direct-debits', data),
+    apiPostParams<DirectDebitMandate>('/api/v1/direct-debits', {
+      debitAccountId: data.accountId,
+      creditAccountNumber: data.creditorCode,
+      creditAccountName: data.creditorName,
+      amount: data.maxAmount,
+      frequency: data.frequency,
+      startDate: data.validFrom,
+      endDate: data.validTo,
+      mandateRef: data.mandateRef,
+    }),
   revokeMandate: (id: number) =>
     apiPost<DirectDebitMandate>(`/api/v1/direct-debits/${id}/revoke`, {}),
 };

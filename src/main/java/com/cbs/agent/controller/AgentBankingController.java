@@ -35,9 +35,10 @@ public class AgentBankingController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<List<BankingAgent>>> getActiveAgents(
+    public ResponseEntity<ApiResponse<List<BankingAgent>>> getAgents(
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        Page<BankingAgent> result = agentService.getActiveAgents(PageRequest.of(page, size));
+        Page<BankingAgent> result = agentService.getAgents(status, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 

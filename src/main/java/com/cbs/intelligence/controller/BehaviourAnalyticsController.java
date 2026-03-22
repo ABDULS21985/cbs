@@ -33,7 +33,15 @@ public class BehaviourAnalyticsController {
         return ResponseEntity.ok(ApiResponse.ok(service.generateRecommendations(customerId)));
     }
 
+    /** Returns all recommendations for a customer (all statuses). Used by the frontend for both the active panel and history table. */
     @GetMapping("/recommendations/{customerId}")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<ProductRecommendation>>> getAll(@PathVariable Long customerId) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAllRecommendations(customerId)));
+    }
+
+    /** Returns only PENDING recommendations (used for quick-action widgets). */
+    @GetMapping("/recommendations/{customerId}/pending")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<ProductRecommendation>>> getPending(@PathVariable Long customerId) {
         return ResponseEntity.ok(ApiResponse.ok(service.getPendingRecommendations(customerId)));

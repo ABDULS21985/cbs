@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Edit2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { DataTable } from '@/components/shared/DataTable';
 import { useAmlRules } from '../../hooks/useAmlAlerts';
 import { amlApi } from '../../api/amlApi';
@@ -15,6 +16,7 @@ interface RuleMeta {
 }
 
 export function AmlRuleEditor() {
+  const { isAdmin } = useAuth();
   const { data: rules, isLoading, refetch } = useAmlRules();
   const [editingRule, setEditingRule] = useState<AmlRule | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -22,7 +24,7 @@ export function AmlRuleEditor() {
   const handleToggle = async (rule: AmlRule) => {
     setTogglingId(rule.id);
     try {
-      await amlApi.toggleRule(rule.id, !rule.active);
+      await amlApi.toggleRule(rule.id);
       refetch();
     } finally {
       setTogglingId(null);
@@ -86,8 +88,9 @@ export function AmlRuleEditor() {
         return (
           <button
             onClick={(e) => { e.stopPropagation(); handleToggle(rule); }}
-            disabled={isToggling}
+            disabled={isToggling || !isAdmin}
             className={cn(
+              !isAdmin && 'cursor-not-allowed opacity-60',
               'relative w-10 h-5 rounded-full transition-colors focus:outline-none disabled:opacity-50',
               rule.active ? 'bg-green-500' : 'bg-gray-300',
             )}
@@ -122,12 +125,14 @@ export function AmlRuleEditor() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">AML Rules</h3>
-        <button
-          onClick={() => setEditingRule({ id: 0, ruleNumber: '', name: '', type: '', threshold: '', lookbackPeriod: '30d', riskWeight: 1, active: true })}
-          className="text-sm px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          + New Rule
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setEditingRule({ id: 0, ruleNumber: '', name: '', type: '', threshold: '', lookbackPeriod: '30d', riskWeight: 1, active: true })}
+            className="text-sm px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            + New Rule
+          </button>
+        )}
       </div>
 
       <DataTable

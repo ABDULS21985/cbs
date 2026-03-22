@@ -348,7 +348,7 @@ function AccountsTab() {
   const [form, setForm] = useState({
     accountName: '',
     customerId: 0,
-    accountType: 'SECURITIES',
+    accountType: 'GLOBAL_CUSTODY',
     currency: 'USD',
     subCustodian: '',
   });
@@ -395,9 +395,12 @@ function AccountsTab() {
             <div><label className="text-xs text-muted-foreground">Customer ID *</label><input type="number" value={form.customerId || ''} onChange={(e) => setForm((f) => ({ ...f, customerId: Number(e.target.value) }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm" /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="text-xs text-muted-foreground">Account Type</label><select value={form.accountType} onChange={(e) => setForm((f) => ({ ...f, accountType: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
-                <option value="SECURITIES">Securities</option>
-                <option value="DERIVATIVES">Derivatives</option>
-                <option value="MIXED">Mixed</option>
+                <option value="GLOBAL_CUSTODY">Global Custody</option>
+                <option value="SUB_CUSTODY">Sub-Custody</option>
+                <option value="SAFEKEEPING">Safekeeping</option>
+                <option value="NOMINEE">Nominee</option>
+                <option value="SETTLEMENT">Settlement</option>
+                <option value="CASH_COLLATERAL">Cash Collateral</option>
               </select></div>
               <div><label className="text-xs text-muted-foreground">Currency</label><select value={form.currency} onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))} className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-sm">
                 {['USD', 'EUR', 'GBP', 'NGN'].map((c) => <option key={c}>{c}</option>)}

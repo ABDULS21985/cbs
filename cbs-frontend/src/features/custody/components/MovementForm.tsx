@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { MoneyInput } from '@/components/shared/MoneyInput';
 import { useRecordSecuritiesMovement } from '../hooks/useCustodyExt';
 
-const MOVEMENT_TYPES = ['BUY', 'SELL', 'TRANSFER_IN', 'TRANSFER_OUT', 'COUPON', 'DIVIDEND', 'CORPORATE_ACTION'];
+const MOVEMENT_TYPES = ['BUY', 'SELL', 'TRANSFER_IN', 'TRANSFER_OUT', 'CORPORATE_ACTION', 'DIVIDEND', 'COUPON', 'MATURITY', 'MARGIN_CALL', 'REPO_IN', 'REPO_OUT', 'PLEDGE', 'RELEASE'];
 
 interface MovementFormProps {
   positionId?: string;
@@ -58,7 +58,7 @@ export function MovementForm({ positionId: initialPositionId, onClose }: Movemen
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 modal-scrim" onClick={onClose} />
       <div className="relative z-10 w-full max-w-lg mx-4 rounded-xl bg-background border shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background z-10">
           <h2 className="text-base font-semibold">Record Movement</h2>

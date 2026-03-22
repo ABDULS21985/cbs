@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface VaultTransactionRepository extends JpaRepository<VaultTransaction, Long> {
     Page<VaultTransaction> findByVaultIdOrderByCreatedAtDesc(Long vaultId, Pageable pageable);
+    Page<VaultTransaction> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

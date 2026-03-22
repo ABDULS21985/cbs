@@ -33,7 +33,6 @@ export function TdFrameworkDetailPage() {
   useEffect(() => { document.title = 'TD Framework Detail | CBS'; }, []);
   const { number } = useParams<{ number: string }>();
   const [showApprove, setShowApprove] = useState(false);
-  const [approvedBy, setApprovedBy] = useState('');
   const [showCalc, setShowCalc] = useState(false);
   const [calcAmount, setCalcAmount] = useState(0);
   const [calcTenor, setCalcTenor] = useState(90);
@@ -61,7 +60,7 @@ export function TdFrameworkDetailPage() {
   const canCheckRate = agreement.status === 'ACTIVE';
 
   const handleApprove = () => {
-    approveMutation.mutate({ agreementNumber: agreement.agreementNumber, approvedBy }, {
+    approveMutation.mutate(agreement.agreementNumber, {
       onSuccess: () => { toast.success('Framework approved'); setShowApprove(false); },
       onError: () => toast.error('Failed to approve'),
     });
@@ -203,10 +202,16 @@ export function TdFrameworkDetailPage() {
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
             <div className="bg-card rounded-xl shadow-2xl border w-full max-w-sm p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-base font-semibold">Approve Framework</h3>
-              <input type="text" value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} placeholder="Your name" className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+              <p className="text-sm text-muted-foreground">
+                This will activate framework {agreement.agreementNumber} for customer #{agreement.customerId}.
+                Your identity will be recorded as the approver.
+              </p>
               <div className="flex gap-3 justify-end">
                 <button onClick={() => setShowApprove(false)} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-                <button onClick={handleApprove} disabled={!approvedBy.trim() || approveMutation.isPending} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">Approve</button>
+                <button onClick={handleApprove} disabled={approveMutation.isPending} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  {approveMutation.isPending && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  Approve
+                </button>
               </div>
             </div>
           </div></>

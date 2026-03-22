@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { acquiringApi } from '../api/acquiringApi';
+import type { RecordChargebackPayload, SetupFacilityPayload, RegisterTerminalPayload } from '../api/acquiringApi';
 
 const QK = {
   activeMerchants: ['acquiring', 'merchants', 'active'] as const,
@@ -152,7 +153,7 @@ export function useProcessSettlement() {
 export function useRecordChargeback() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Parameters<typeof acquiringApi.recordChargeback>[0]) =>
+    mutationFn: (payload: RecordChargebackPayload) =>
       acquiringApi.recordChargeback(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.chargebacks });
@@ -176,7 +177,7 @@ export function useSubmitRepresentment() {
 export function useSetupFacility() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Parameters<typeof acquiringApi.setupFacility>[0]) =>
+    mutationFn: (payload: SetupFacilityPayload) =>
       acquiringApi.setupFacility(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.facilities });
@@ -199,7 +200,7 @@ export function useActivateFacility() {
 export function useRegisterTerminal() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Parameters<typeof acquiringApi.registerTerminal>[0]) =>
+    mutationFn: (payload: RegisterTerminalPayload) =>
       acquiringApi.registerTerminal(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QK.terminals });

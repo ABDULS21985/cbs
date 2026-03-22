@@ -24,7 +24,55 @@ export interface FxRate {
   sourceCurrency: string;
   targetCurrency: string;
   rate: number;
+  inverseRate: number;
+  buyRate: number;
+  sellRate: number;
+  midRate: number;
   timestamp: string;
+  validUntil: string;
+  source: string;
+}
+
+export interface BackendFxRate {
+  sourceCurrency: string;
+  targetCurrency: string;
+  buyRate?: number | string | null;
+  sellRate?: number | string | null;
+  midRate?: number | string | null;
+  rateDate?: string | null;
+  rateSource?: string | null;
+  createdAt?: string | null;
+}
+
+function parseFxNumber(value: number | string | null | undefined): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+export function mapFxRate(raw: BackendFxRate | null | undefined): FxRate {
+  const buyRate = parseFxNumber(raw?.buyRate);
+  const sellRate = parseFxNumber(raw?.sellRate);
+  const midRate = parseFxNumber(raw?.midRate);
+  const directRate = midRate || sellRate || buyRate;
+
+  return {
+    sourceCurrency: raw?.sourceCurrency ?? '',
+    targetCurrency: raw?.targetCurrency ?? '',
+    rate: directRate,
+    inverseRate: directRate > 0 ? Number((1 / directRate).toFixed(12)) : 0,
+    buyRate,
+    sellRate,
+    midRate,
+    timestamp: raw?.createdAt ?? raw?.rateDate ?? new Date().toISOString(),
+    validUntil: new Date(Date.now() + 30_000).toISOString(),
+    source: raw?.rateSource ?? 'FX Board',
+  };
 }
 
 export interface BankOption {
@@ -203,5 +251,5 @@ export const paymentApi = {
       ,
 
   getFxRate: (source: string, target: string) =>
-    apiGet<FxRate>(`/api/v1/payments/fx-rate/${source}/${target}`),
+    apiGet<BackendFxRate>(`/api/v1/payments/fx-rate/${source}/${target}`).then(mapFxRate),
 };

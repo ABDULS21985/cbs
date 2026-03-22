@@ -615,21 +615,9 @@ export function AgentBankingPage() {
   const [registerLoading, setRegisterLoading] = useState(false);
 
   // We don't have a list-all endpoint, so we use branchOpsApi approach
-  // Use a query that fetches an agent list. Since the API is agent-by-code,
-  // we simulate with a known agents list query.
   const { data: agents = [], isLoading } = useQuery<BankingAgent[]>({
     queryKey: ['agents', 'all'],
-    queryFn: async () => {
-      // The API doesn't have a list-all; return empty and let the
-      // application populate from agent codes or a backend list endpoint
-      try {
-        const response = await fetch('/api/v1/agents');
-        if (response.ok) return response.json();
-        return [];
-      } catch {
-        return [];
-      }
-    },
+    queryFn: () => agentsApi.getAll({ size: 200 }),
     staleTime: 30_000,
   });
 

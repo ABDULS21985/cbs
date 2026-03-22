@@ -148,7 +148,7 @@ export function DomainEventsPage() {
       {/* Create Subscription Dialog */}
       {showCreateSub && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreateSub(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowCreateSub(false)} />
           <div className="relative z-10 w-full max-w-lg mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">Create Event Subscription</h3><button onClick={() => setShowCreateSub(false)} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button></div>
             <div className="space-y-1.5"><label className="text-xs font-medium text-muted-foreground">Event Type *</label>

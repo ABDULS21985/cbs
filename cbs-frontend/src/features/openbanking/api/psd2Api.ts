@@ -146,22 +146,19 @@ export const psd2Api = {
     allowedScopes?: string[];
     scaApproach?: string;
   }) =>
-    apiGet<BackendPsd2Tpp>('/api/v1/integration/psd2/tpp').then(() =>
-      // POST with body — entity is accepted as @RequestBody
-      api
-        .post<ApiResponse<BackendPsd2Tpp>>('/api/v1/integration/psd2/tpp', {
-          tppId: `TPP-${Date.now().toString(36).toUpperCase()}`,
-          tppName: data.tppName,
-          tppType: data.tppType,
-          nationalAuthority: data.nationalAuthority,
-          authorizationNumber: data.authorizationNumber,
-          eidasCertificate: data.eidasCertificate ?? '',
-          allowedScopes: data.allowedScopes ?? [],
-          scaApproach: data.scaApproach ?? 'REDIRECT',
-          status: 'PENDING',
-        })
-        .then((res) => mapTpp(res.data.data)),
-    ),
+    api
+      .post<ApiResponse<BackendPsd2Tpp>>('/api/v1/integration/psd2/tpp', {
+        tppId: `TPP-${Date.now().toString(36).toUpperCase()}`,
+        tppName: data.tppName,
+        tppType: data.tppType,
+        nationalAuthority: data.nationalAuthority,
+        authorizationNumber: data.authorizationNumber,
+        eidasCertificate: data.eidasCertificate ?? '',
+        allowedScopes: data.allowedScopes ?? [],
+        scaApproach: data.scaApproach ?? 'REDIRECT',
+        status: 'PENDING',
+      })
+      .then((res) => mapTpp(res.data.data)),
 
   activateTpp: (tppId: string) =>
     api

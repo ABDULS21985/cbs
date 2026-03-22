@@ -30,7 +30,8 @@ export function useAmlAlert(id: number) {
 export function useAssignAlert() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: number) => (await amlApi.assignAlert(id)).data.data,
+    mutationFn: async ({ id, assignedTo }: { id: number; assignedTo: string }) =>
+      (await amlApi.assignAlert(id, assignedTo)).data.data,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['aml', 'alerts'] });
     },
@@ -40,8 +41,8 @@ export function useAssignAlert() {
 export function useEscalateAlert() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, reason }: { id: number; reason: string }) =>
-      (await amlApi.escalateAlert(id, reason)).data.data,
+    mutationFn: async (id: number) =>
+      (await amlApi.escalateAlert(id)).data.data,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['aml', 'alerts'] });
     },
@@ -51,8 +52,8 @@ export function useEscalateAlert() {
 export function useDismissAlert() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, reason }: { id: number; reason: string }) =>
-      (await amlApi.dismissAlert(id, reason)).data.data,
+    mutationFn: async (id: number) =>
+      (await amlApi.dismissAlert(id)).data.data,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['aml', 'alerts'] });
     },
@@ -70,7 +71,8 @@ export function useStrList(params?: object) {
 export function useCreateStr() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Partial<StrReport>) => (await amlApi.createStr(data)).data.data,
+    mutationFn: async (data: { alertId: number; reference?: string; filedBy?: string }) =>
+      (await amlApi.createStr(data)).data.data,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['aml', 'strs'] });
       qc.invalidateQueries({ queryKey: ['aml', 'stats'] });

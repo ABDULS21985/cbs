@@ -151,7 +151,7 @@ export function RegulatoryTimeline() {
                       year: 'numeric',
                     })}
                   </span>
-                  <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium', styles.badge)}>
+                  <span className={cn('ui-chip', styles.badge)}>
                     {event.status === 'in-progress' ? 'In Progress' : event.status === 'completed' ? 'Completed' : 'Upcoming'}
                   </span>
                 </div>

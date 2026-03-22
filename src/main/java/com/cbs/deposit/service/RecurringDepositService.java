@@ -124,6 +124,28 @@ public class RecurringDepositService {
         return rdRepository.findByCustomerId(customerId, pageable).map(this::toResponse);
     }
 
+    /**
+     * Paginated list of all recurring deposits — admin view.
+     *
+     * Uses a two-query pattern (ID page → batch JOIN FETCH) to avoid the
+     * HHH90003004 in-memory-pagination warning and LazyInitializationException
+     * when serialising the account/customer/product relations in toResponse().
+     */
+    public Page<RecurringDepositResponse> listAll(Pageable pageable) {
+        Page<Long> idPage = rdRepository.findAllIds(pageable);
+        if (idPage.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        List<RecurringDeposit> deposits = rdRepository.findByIdsWithDetails(idPage.getContent());
+        java.util.Map<Long, RecurringDeposit> byId = deposits.stream()
+                .collect(java.util.stream.Collectors.toMap(RecurringDeposit::getId, rd -> rd));
+        List<RecurringDepositResponse> content = idPage.getContent().stream()
+                .filter(byId::containsKey)
+                .map(id -> toResponse(byId.get(id)))
+                .toList();
+        return new org.springframework.data.domain.PageImpl<>(content, pageable, idPage.getTotalElements());
+    }
+
     @Transactional
     public int processAutoDebits() {
         List<RecurringDeposit> dueDeposits = rdRepository.findDueForAutoDebit(LocalDate.now());

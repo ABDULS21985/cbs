@@ -62,6 +62,12 @@ export function useDepositAnalytics() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const segmentDistributionQuery = useQuery({
+    queryKey: ['deposit-analytics', 'segment-distribution'],
+    queryFn: () => depositAnalyticsApi.getSegmentDistribution(),
+    staleTime: 5 * 60 * 1000,
+  });
+
   return {
     stats: statsQuery.data,
     statsLoading: statsQuery.isLoading,
@@ -103,6 +109,10 @@ export function useDepositAnalytics() {
     churnLoading: churnQuery.isLoading,
     churnError: churnQuery.isError,
 
+    segmentDistribution: segmentDistributionQuery.data ?? [],
+    segmentDistributionLoading: segmentDistributionQuery.isLoading,
+    segmentDistributionError: segmentDistributionQuery.isError,
+
     hasLoadError:
       statsQuery.isError ||
       mixQuery.isError ||
@@ -113,6 +123,7 @@ export function useDepositAnalytics() {
       rateSensitivityQuery.isError ||
       costOfFundsQuery.isError ||
       retentionVintageQuery.isError ||
-      churnQuery.isError,
+      churnQuery.isError ||
+      segmentDistributionQuery.isError,
   };
 }

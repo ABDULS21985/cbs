@@ -12,20 +12,20 @@ export const amlApi = {
   getAlert: (id: number) =>
     api.get<ApiResponse<AmlAlert>>(`/api/v1/aml/alerts/${id}`),
 
-  assignAlert: (id: number) =>
-    api.post<ApiResponse<AmlAlert>>(`/api/v1/aml/alerts/${id}/assign`),
+  assignAlert: (id: number, assignedTo: string) =>
+    api.post<ApiResponse<AmlAlert>>(`/api/v1/aml/alerts/${id}/assign`, null, { params: { assignedTo } }),
 
-  escalateAlert: (id: number, reason: string) =>
-    api.post<ApiResponse<AmlAlert>>(`/api/v1/aml/alerts/${id}/escalate`, { reason }),
+  escalateAlert: (id: number) =>
+    api.post<ApiResponse<AmlAlert>>(`/api/v1/aml/alerts/${id}/escalate`),
 
-  dismissAlert: (id: number, reason: string) =>
-    api.post<ApiResponse<AmlAlert>>(`/api/v1/aml/alerts/${id}/dismiss`, { reason }),
+  dismissAlert: (id: number) =>
+    api.post<ApiResponse<AmlAlert>>(`/api/v1/aml/alerts/${id}/dismiss`),
 
   listStrs: (params?: object) =>
     api.get<ApiResponse<StrReport[]>>('/api/v1/aml/strs', { params }),
 
-  createStr: (data: Partial<StrReport>) =>
-    api.post<ApiResponse<StrReport>>('/api/v1/aml/strs', data),
+  createStr: (data: { alertId: number; reference?: string; filedBy?: string }) =>
+    api.post<ApiResponse<AmlAlert>>('/api/v1/aml/strs', data),
 
   listCtrs: (params?: object) =>
     api.get<ApiResponse<CtrReport[]>>('/api/v1/aml/ctrs', { params }),
@@ -33,6 +33,6 @@ export const amlApi = {
   listRules: () =>
     api.get<ApiResponse<AmlRule[]>>('/api/v1/aml/rules'),
 
-  toggleRule: (id: number, active: boolean) =>
-    api.patch<ApiResponse<AmlRule>>(`/api/v1/aml/rules/${id}/toggle`, { active }),
+  toggleRule: (id: number) =>
+    api.patch<ApiResponse<Record<string, object>>>(`/api/v1/aml/rules/${id}/toggle`),
 };

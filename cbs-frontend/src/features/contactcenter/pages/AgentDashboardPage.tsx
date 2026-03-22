@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Phone, PhoneCall, Clock, HeadphonesIcon, CheckCircle2,
@@ -112,19 +112,14 @@ export function AgentDashboardPage() {
     refetchInterval: 10_000,
   });
 
-  const currentAgent = useMemo(() => {
-    if (!user) return undefined;
-    const normalizedUserId = user.id.trim().toLowerCase();
-    const normalizedUsername = user.username.trim().toLowerCase();
-    const normalizedFullName = user.fullName.trim().toLowerCase();
-    return agents.find((agent) => {
-      const agentId = agent.agentId.trim().toLowerCase();
-      const agentName = agent.agentName.trim().toLowerCase();
-      return agentId === normalizedUserId || agentId === normalizedUsername || agentName === normalizedFullName;
-    });
-  }, [agents, user]);
+  const { data: myAgent } = useQuery({
+    queryKey: ['contact-center', 'agents', 'me'],
+    queryFn: () => contactCenterApi.getMyAgent(),
+    staleTime: 30_000,
+  });
+  const currentAgent = myAgent ?? agents.find((a) => user && a.agentId.toLowerCase() === user.username?.toLowerCase());
   const currentAgentId = currentAgent?.agentId ?? null;
-  const missingAgentMapping = Boolean(user) && agents.length > 0 && !currentAgent;
+  const missingAgentMapping = Boolean(user) && agents.length > 0 && !currentAgent && myAgent === null;
 
   const { data: myQueue = [], isLoading: queueLoading, isError: queueError } = useQuery({
     queryKey: ['contact-center', 'agent-queue', currentAgentId],

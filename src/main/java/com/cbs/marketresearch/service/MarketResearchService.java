@@ -9,11 +9,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.util.HashMap;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,58 +25,82 @@ public class MarketResearchService {
     private final MarketResearchProjectRepository repository;
 
     @Transactional
-    public MarketResearchProject createProject(MarketResearchProject project) {
+    public MarketResearchProject create(MarketResearchProject project) {
         project.setProjectCode("MRP-" + UUID.randomUUID().toString().substring(0, 10).toUpperCase());
+        project.setStatus("ACTIVE");
+        project.setCreatedAt(Instant.now());
         return repository.save(project);
     }
 
+    public List<MarketResearchProject> getActive() {
+        return repository.findByStatusOrderByCreatedAtDesc("ACTIVE");
+    }
+
+    public List<MarketResearchProject> getLibrary(String type) {
+        if (type != null && !type.isBlank()) {
+            return repository.findByProjectTypeOrderByCreatedAtDesc(type);
+        }
+        return repository.findAll();
+    }
+
     @Transactional
-    public MarketResearchProject completeProject(String projectCode, Map<String, Object> findings, Map<String, Object> recommendations) {
+    public MarketResearchProject complete(String projectCode,
+                                          String findings,
+                                          List<String> keyInsights,
+                                          List<String> actionItems) {
         MarketResearchProject project = getByCode(projectCode);
-        if (findings == null || findings.isEmpty()) {
-            throw new BusinessException("Project completion requires key findings");
+        if ("COMPLETED".equals(project.getStatus())) {
+            throw new BusinessException("Project " + projectCode + " is already completed.");
         }
-        if (recommendations == null || recommendations.isEmpty()) {
-            throw new BusinessException("Project completion requires recommendations");
-        }
-        project.setKeyFindings(findings);
-        project.setRecommendations(recommendations);
         project.setStatus("COMPLETED");
-        project.setActualEndDate(LocalDate.now());
+        project.setFindings(findings);
+        project.setKeyInsights(keyInsights);
+        project.setActionItems(actionItems);
+        project.setCompletedAt(Instant.now());
         return repository.save(project);
     }
 
     @Transactional
-    public MarketResearchProject trackActions(String projectCode, Map<String, Object> action) {
+    public MarketResearchProject trackActions(String projectCode, Map<String, Object> data) {
         MarketResearchProject project = getByCode(projectCode);
-        Map<String, Object> existing = project.getActionsTaken();
-        if (existing == null) {
-            existing = new HashMap<>();
+        if (data.containsKey("actionItems")) {
+            @SuppressWarnings("unchecked")
+            List<String> items = (List<String>) data.get("actionItems");
+            project.setActionItems(items);
         }
-        existing.putAll(action);
-        project.setActionsTaken(existing);
         return repository.save(project);
     }
 
-    public List<MarketResearchProject> getActiveProjects() {
-        return repository.findByStatusInOrderByCreatedAtDesc(List.of("APPROVED", "IN_PROGRESS", "ANALYSIS"));
-    }
+    public Map<String, Object> getInsights() {
+        long total = repository.count();
+        long completedThisMonth = repository.countCompletedSince(
+                Instant.now().minus(30, ChronoUnit.DAYS));
 
-    public List<MarketResearchProject> getResearchLibrary(String type) {
-        return repository.findByProjectTypeAndStatusOrderByCreatedAtDesc(type, "COMPLETED");
-    }
+        List<MarketResearchProject> all = repository.findAll();
+        List<String> keyThemes = all.stream()
+                .filter(p -> p.getProjectType() != null)
+                .map(MarketResearchProject::getProjectType)
+                .distinct()
+                .map(t -> t.replace('_', ' '))
+                .collect(Collectors.toList());
 
-    public List<MarketResearchProject> getInsightsSummary() {
-        return repository.findByStatusOrderByCreatedAtDesc("COMPLETED");
+        List<String> recommendations = all.stream()
+                .filter(p -> "COMPLETED".equals(p.getStatus()) && p.getFindings() != null)
+                .map(MarketResearchProject::getFindings)
+                .filter(f -> f.length() <= 200)
+                .limit(5)
+                .collect(Collectors.toList());
+
+        return Map.of(
+                "totalProjects", total,
+                "completedThisMonth", completedThisMonth,
+                "keyThemes", keyThemes,
+                "recommendations", recommendations
+        );
     }
 
     private MarketResearchProject getByCode(String code) {
         return repository.findByProjectCode(code)
                 .orElseThrow(() -> new ResourceNotFoundException("MarketResearchProject", "projectCode", code));
     }
-
-    public java.util.List<MarketResearchProject> getAllProjects() {
-        return repository.findAll();
-    }
-
 }

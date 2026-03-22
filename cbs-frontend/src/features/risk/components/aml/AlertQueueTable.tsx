@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { DataTable } from '@/components/shared/DataTable';
@@ -31,7 +32,7 @@ function DismissInline({ alertId, onClose }: DismissInlineProps) {
 
   const handleDismiss = () => {
     if (!reason.trim()) return;
-    dismiss.mutate({ id: alertId, reason }, { onSuccess: onClose });
+    dismiss.mutate(alertId, { onSuccess: () => { toast.success('Alert dismissed'); onClose(); }, onError: () => { toast.error('Failed to dismiss alert'); } });
   };
 
   return (
@@ -169,14 +170,20 @@ export function AlertQueueTable({ data, isLoading }: Props) {
           >
             <div className="flex gap-1">
               <button
-                onClick={() => assign.mutate(alert.id)}
+                onClick={() => assign.mutate({ id: alert.id, assignedTo: 'CURRENT_USER' }, {
+                  onSuccess: () => { toast.success('Alert assigned'); },
+                  onError: () => { toast.error('Failed to assign alert'); },
+                })}
                 disabled={assign.isPending}
                 className="text-xs px-2 py-0.5 rounded border hover:bg-muted transition-colors disabled:opacity-50"
               >
                 Assign
               </button>
               <button
-                onClick={() => escalate.mutate({ id: alert.id, reason: 'Escalated from queue' })}
+                onClick={() => escalate.mutate(alert.id, {
+                  onSuccess: () => { toast.success('Alert escalated'); },
+                  onError: () => { toast.error('Failed to escalate alert'); },
+                })}
                 disabled={escalate.isPending}
                 className="text-xs px-2 py-0.5 rounded border text-amber-700 hover:bg-amber-50 transition-colors disabled:opacity-50"
               >

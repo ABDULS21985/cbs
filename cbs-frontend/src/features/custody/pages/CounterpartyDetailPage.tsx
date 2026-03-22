@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatusBadge } from '@/components/shared';
 import { cn } from '@/lib/utils';
@@ -8,12 +7,11 @@ import { formatMoney, formatDate } from '@/lib/formatters';
 import {
   Shield, AlertTriangle, Loader2, RefreshCw, Check, X,
 } from 'lucide-react';
-import { counterpartiesApi } from '../api/counterpartyApi';
-import { useUpdateCounterpartyExposure } from '../hooks/useCustodyExt';
+import { useCounterparty, useUpdateCounterpartyExposure } from '../hooks/useCustodyExt';
+import { useSecuritiesFailsCounterpartyReport } from '../hooks/useCustodyExt';
 import { ExposureGauge } from '../components/ExposureGauge';
 import { KycReviewPanel } from '../components/KycReviewPanel';
 import type { Counterparty } from '../types/counterparty';
-import { securitiesFailsApi } from '../api/securitiesFailApi';
 import { toast } from 'sonner';
 
 const ratingColor = (r: string) => {
@@ -78,49 +76,10 @@ export function CounterpartyDetailPage() {
   const [showKyc, setShowKyc] = useState(false);
   const [showExposure, setShowExposure] = useState(false);
 
-  // Fetch counterparty by finding it from the type list
-  // Backend doesn't have a GET by code, so we search across types
-  const { data: allBanks = [] } = useQuery({
-    queryKey: ['custody', 'counterparties', 'type', 'BANK'],
-    queryFn: () => counterpartiesApi.byType('BANK'),
-    staleTime: 30_000,
-  });
-  const { data: allBrokers = [] } = useQuery({
-    queryKey: ['custody', 'counterparties', 'type', 'BROKER_DEALER'],
-    queryFn: () => counterpartiesApi.byType('BROKER_DEALER'),
-    staleTime: 30_000,
-  });
-  const { data: allOther = [] } = useQuery({
-    queryKey: ['custody', 'counterparties', 'type', 'CUSTODIAN'],
-    queryFn: () => counterpartiesApi.byType('CUSTODIAN'),
-    staleTime: 30_000,
-  });
-  const { data: ccps = [] } = useQuery({
-    queryKey: ['custody', 'counterparties', 'type', 'CCP'],
-    queryFn: () => counterpartiesApi.byType('CCP'),
-    staleTime: 30_000,
-  });
-  const { data: corporates = [] } = useQuery({
-    queryKey: ['custody', 'counterparties', 'type', 'CORPORATE'],
-    queryFn: () => counterpartiesApi.byType('CORPORATE'),
-    staleTime: 30_000,
-  });
-  const { data: sovereigns = [] } = useQuery({
-    queryKey: ['custody', 'counterparties', 'type', 'SOVEREIGN'],
-    queryFn: () => counterpartiesApi.byType('SOVEREIGN'),
-    staleTime: 30_000,
-  });
+  const { data: cp, isLoading } = useCounterparty(code);
 
-  const allCps = [...allBanks, ...allBrokers, ...allOther, ...ccps, ...corporates, ...sovereigns];
-  const cp = allCps.find((c) => c.counterpartyCode === code);
-  const isLoading = allBanks.length === 0 && allBrokers.length === 0;
-
-  // Counterparty fail report: Record<cpName, failCount> — find count for this cp
-  const { data: cpReport } = useQuery({
-    queryKey: ['custody', 'fails', 'counterparty-report'],
-    queryFn: () => securitiesFailsApi.counterpartyReport(),
-    staleTime: 60_000,
-  });
+  // Counterparty fail report: Record<cpCode, failCount> — find count for this cp
+  const { data: cpReport } = useSecuritiesFailsCounterpartyReport();
   const cpFailCount = cpReport ? (cpReport[cp?.counterpartyCode ?? ''] ?? cpReport[cp?.counterpartyName ?? ''] ?? 0) : 0;
 
   if (isLoading) {

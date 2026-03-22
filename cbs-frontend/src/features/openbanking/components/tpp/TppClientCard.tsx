@@ -4,20 +4,18 @@ import { cn } from '@/lib/utils';
 import { Globe, KeyRound } from 'lucide-react';
 import type { TppClient, TppClientType } from '../../api/openBankingApi';
 
-const CLIENT_TYPE_STYLES: Record<TppClientType, string> = {
+const CLIENT_TYPE_STYLES: Partial<Record<TppClientType, string>> = {
   TPP_AISP: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   TPP_PISP: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  TPP_BOTH: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
   TPP_CBPII: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
   INTERNAL: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400',
   PARTNER: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   SANDBOX: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
 };
 
-const CLIENT_TYPE_LABEL: Record<TppClientType, string> = {
+const CLIENT_TYPE_LABEL: Partial<Record<TppClientType, string>> = {
   TPP_AISP: 'AISP',
   TPP_PISP: 'PISP',
-  TPP_BOTH: 'BOTH',
   TPP_CBPII: 'CBPII',
   INTERNAL: 'Internal',
   PARTNER: 'Partner',

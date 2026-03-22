@@ -337,6 +337,14 @@ public final class ReportDTOs {
         @Builder.Default private BigDecimal closedAmount = BigDecimal.ZERO;
     }
 
+    @Data @AllArgsConstructor @NoArgsConstructor
+    public static class DepositSegmentEntry {
+        private String segment;
+        private BigDecimal totalDeposits;
+        private double percentage;
+        private int accountCount;
+    }
+
     // ========================================================================
     // PAYMENTS
     // ========================================================================
@@ -730,5 +738,180 @@ public final class ReportDTOs {
         private String stage;
         @Builder.Default private long count = 0;
         @Builder.Default private BigDecimal conversionRate = BigDecimal.ZERO;
+    }
+
+    // ========================================================================
+    // CUSTOM REPORTS — /v1/reports/custom/*
+    // ========================================================================
+
+    /**
+     * DTO returned to the frontend for a saved custom report.
+     * Maps entity fields to the frontend SavedReport contract:
+     *   id           → entity.id (as String)
+     *   name         → entity.reportName
+     *   description  → entity.description
+     *   createdBy    → entity.owner
+     *   createdAt    → entity.createdAt (ISO-8601 string)
+     *   schedule     → entity.schedule["frequency"] or "MANUAL"
+     *   config       → entity.config (JSON pass-through)
+     *   savedTo      → PRIVATE→MY_REPORTS | SHARED→SHARED | PUBLIC→DEPARTMENT
+     */
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class CustomReportDto {
+        private String id;
+        private String name;
+        private String description;
+        private String category;
+        private String createdBy;
+        private String createdAt;
+        private String lastRun;
+        private String schedule;       // ScheduleType string: MANUAL|DAILY|WEEKLY|MONTHLY
+        private java.util.Map<String, Object> config;
+        private String savedTo;        // MY_REPORTS | SHARED | DEPARTMENT
+        private String status;         // DRAFT | ACTIVE | DELETED
+    }
+
+    /**
+     * Request body for POST /v1/reports/custom/save (create or update).
+     * Mirrors the frontend CreateReportRequest shape.
+     */
+    @Data @NoArgsConstructor @AllArgsConstructor
+    public static class SaveReportRequest {
+        private String id;             // null = create, non-null = update
+        private String name;
+        private String description;
+        private String category;
+        private String schedule;       // MANUAL|DAILY|WEEKLY|MONTHLY
+        private java.util.Map<String, Object> config;
+        private String savedTo;        // MY_REPORTS | SHARED | DEPARTMENT
+        private java.util.List<String> deliveryEmails;
+        private String exportFormat;
+        private String scheduleTime;
+        private String scheduleDay;
+    }
+
+    /**
+     * The result of running a custom report (POST /v1/reports/custom/{id}/run).
+     */
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class ReportRunResult {
+        private String reportId;
+        private String runAt;
+        private int rowCount;
+        private java.util.List<java.util.Map<String, Object>> columns;
+        private java.util.List<java.util.Map<String, Object>> rows;
+        private Long executionId;
+        private int durationMs;
+    }
+
+    /**
+     * A data source available for the custom report builder.
+     */
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class DataSourceDto {
+        private String id;
+        private String name;
+        private String category;
+        private java.util.List<DataFieldDto> fields;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class DataFieldDto {
+        private String id;
+        private String name;
+        private String displayName;
+        private String type;           // TEXT | NUMBER | MONEY | DATE | BOOLEAN
+        private boolean aggregatable;
+        private boolean filterable;
+        private boolean groupable;
+    }
+
+    // ========================================================================
+    // ENRICHED EXECUTIVE DTOs — aligned with frontend's richer field set
+    // ========================================================================
+
+    /**
+     * Replaces the simple PnlSummary with the full breakdown the executive dashboard needs.
+     * Backend was: { currentRevenue, currentExpenses, currentNetProfit, ... }
+     * Frontend needs: { interestIncome, interestExpense, netInterestIncome, feeCommission,
+     *                   tradingIncome, otherIncome, totalRevenue, opex, provisions, pbt,
+     *                   tax, netProfit, nim, costToIncome, roe }
+     */
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class PnlSummaryV2 {
+        @Builder.Default private BigDecimal interestIncome      = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal interestExpense     = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal netInterestIncome   = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal feeCommission       = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal tradingIncome       = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal otherIncome         = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal totalRevenue        = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal opex                = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal provisions          = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal pbt                 = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal tax                 = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal netProfit           = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal nim                 = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal costToIncome        = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal roe                 = BigDecimal.ZERO;
+    }
+
+    /**
+     * Monthly P&L with the granular breakdown the frontend chart needs.
+     * Backend was: { month, revenue, expenses, netProfit }
+     * Frontend needs: { month, interestIncome, feeIncome, tradingIncome, opex, netProfit }
+     */
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class MonthlyPnlEntryV2 {
+        private String month;
+        @Builder.Default private BigDecimal interestIncome  = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal feeIncome       = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal tradingIncome   = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal opex            = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal netProfit       = BigDecimal.ZERO;
+    }
+
+    /**
+     * A single enriched key ratio row with display metadata for the frontend ratio bar.
+     * Replaces the single KeyRatios object with an array of these.
+     */
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class KeyRatioEntry {
+        private String label;
+        @Builder.Default private BigDecimal value       = BigDecimal.ZERO;
+        private String formatted;
+        @Builder.Default private BigDecimal target      = BigDecimal.ZERO;
+        private String targetLabel;
+        private String targetType;    // MIN | MAX | RANGE
+        private boolean met;
+        private BigDecimal peerAvg;
+        @Builder.Default private BigDecimal barFill     = BigDecimal.ZERO;
+    }
+
+    /**
+     * Enriched customer growth entry includes running total customer count.
+     */
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class CustomerGrowthEntryV2 {
+        private String month;
+        @Builder.Default private long newCustomers      = 0;
+        @Builder.Default private long closedCustomers   = 0;
+        @Builder.Default private long netGrowth         = 0;
+        @Builder.Default private long totalCustomers    = 0;
+    }
+
+    /**
+     * Enriched branch performance entry with rank, customer count, and efficiency ratio.
+     */
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class BranchPerformanceV2 {
+        private int rank;
+        private String branch;
+        private String branchCode;
+        @Builder.Default private BigDecimal deposits        = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal loans           = BigDecimal.ZERO;
+        @Builder.Default private BigDecimal revenue         = BigDecimal.ZERO;
+        @Builder.Default private long customers             = 0;
+        @Builder.Default private BigDecimal efficiencyRatio = BigDecimal.ZERO;
     }
 }

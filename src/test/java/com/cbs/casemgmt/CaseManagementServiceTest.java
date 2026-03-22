@@ -1,5 +1,6 @@
 package com.cbs.casemgmt;
 
+import com.cbs.admin.service.AdminUserService;
 import com.cbs.casemgmt.entity.*;
 import com.cbs.casemgmt.repository.*;
 import com.cbs.casemgmt.service.CaseManagementService;
@@ -10,6 +11,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -19,6 +22,8 @@ class CaseManagementServiceTest {
 
     @Mock private CustomerCaseRepository caseRepository;
     @Mock private CaseNoteRepository noteRepository;
+    @Mock private CaseAttachmentRepository attachmentRepository;
+    @Mock private AdminUserService adminUserService;
     @InjectMocks private CaseManagementService service;
 
     @Test @DisplayName("Case creation sets SLA based on priority")
@@ -42,5 +47,102 @@ class CaseManagementServiceTest {
         CustomerCase result = service.escalateCase("CAS-ESC", "manager@bank.com");
         assertThat(result.getStatus()).isEqualTo("ESCALATED");
         assertThat(result.getAssignedTo()).isEqualTo("manager@bank.com");
+    }
+
+    @Test @DisplayName("Case creation auto-derives caseCategory from caseType when not provided")
+    void createDerivesCategoryFromType() {
+        when(caseRepository.save(any())).thenAnswer(inv -> { CustomerCase c = inv.getArgument(0); c.setId(2L); return c; });
+        CustomerCase c = CustomerCase.builder().customerId(1L).caseType("CARD_ISSUE")
+                .priority("MEDIUM").subject("Card blocked").build();
+        CustomerCase result = service.createCase(c);
+        assertThat(result.getCaseCategory()).isEqualTo("CARDS");
+    }
+
+    @Test @DisplayName("Case creation preserves explicitly provided caseCategory")
+    void createPreservesExplicitCategory() {
+        when(caseRepository.save(any())).thenAnswer(inv -> { CustomerCase c = inv.getArgument(0); c.setId(3L); return c; });
+        CustomerCase c = CustomerCase.builder().customerId(1L).caseType("COMPLAINT").caseCategory("DIGITAL")
+                .priority("LOW").subject("App crash").build();
+        CustomerCase result = service.createCase(c);
+        assertThat(result.getCaseCategory()).isEqualTo("DIGITAL");
+    }
+
+    @Test @DisplayName("Escalation with reason appends to description")
+    void escalationWithReason() {
+        CustomerCase c = CustomerCase.builder().id(1L).caseNumber("CAS-RSN").status("IN_PROGRESS")
+                .priority("MEDIUM").description("Original desc").build();
+        when(caseRepository.findByCaseNumber("CAS-RSN")).thenReturn(java.util.Optional.of(c));
+        when(caseRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CustomerCase result = service.escalateCase("CAS-RSN", "manager@bank.com", "Customer VIP");
+        assertThat(result.getDescription()).contains("[Escalation reason]: Customer VIP");
+    }
+
+    @Test @DisplayName("Resolve rejects already resolved cases")
+    void resolveRejectsAlreadyResolved() {
+        CustomerCase c = CustomerCase.builder().id(1L).caseNumber("CAS-RES").status("RESOLVED").build();
+        when(caseRepository.findByCaseNumber("CAS-RES")).thenReturn(java.util.Optional.of(c));
+
+        assertThatThrownBy(() -> service.resolveCase("CAS-RES", "summary", "FULLY_RESOLVED", null))
+                .isInstanceOf(com.cbs.common.exception.BusinessException.class);
+    }
+
+    @Test @DisplayName("Add note creates note with correct fields")
+    void addNote() {
+        CustomerCase c = CustomerCase.builder().id(5L).caseNumber("CAS-NOTE").build();
+        when(caseRepository.findByCaseNumber("CAS-NOTE")).thenReturn(java.util.Optional.of(c));
+        when(noteRepository.save(any())).thenAnswer(inv -> { CaseNote n = inv.getArgument(0); n.setId(1L); return n; });
+
+        CaseNote result = service.addNote("CAS-NOTE", "Follow-up needed", "INTERNAL", "admin");
+        assertThat(result.getContent()).isEqualTo("Follow-up needed");
+        assertThat(result.getNoteType()).isEqualTo("INTERNAL");
+        assertThat(result.getCaseId()).isEqualTo(5L);
+    }
+
+    @Test @DisplayName("Approve compensation sets approved fields")
+    void approveCompensation() {
+        CustomerCase c = CustomerCase.builder().id(1L).caseNumber("CAS-COMP").compensationAmount(BigDecimal.valueOf(50000)).build();
+        when(caseRepository.findByCaseNumber("CAS-COMP")).thenReturn(java.util.Optional.of(c));
+        when(caseRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CustomerCase result = service.approveCompensation("CAS-COMP", "manager");
+        assertThat(result.getCompensationApproved()).isTrue();
+        assertThat(result.getCompensationApprovedBy()).isEqualTo("manager");
+        assertThat(result.getCompensationApprovedAt()).isNotNull();
+    }
+
+    @Test @DisplayName("Reject compensation sets rejection reason")
+    void rejectCompensation() {
+        CustomerCase c = CustomerCase.builder().id(1L).caseNumber("CAS-REJC").compensationAmount(BigDecimal.valueOf(100000)).build();
+        when(caseRepository.findByCaseNumber("CAS-REJC")).thenReturn(java.util.Optional.of(c));
+        when(caseRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        CustomerCase result = service.rejectCompensation("CAS-REJC", "manager", "Amount too high");
+        assertThat(result.getCompensationApproved()).isFalse();
+        assertThat(result.getCompensationRejectionReason()).isEqualTo("Amount too high");
+    }
+
+    @Test @DisplayName("Approve compensation fails when no amount set")
+    void approveCompensationNoAmount() {
+        CustomerCase c = CustomerCase.builder().id(1L).caseNumber("CAS-NOAMT").build();
+        when(caseRepository.findByCaseNumber("CAS-NOAMT")).thenReturn(java.util.Optional.of(c));
+
+        assertThatThrownBy(() -> service.approveCompensation("CAS-NOAMT", "manager"))
+                .isInstanceOf(com.cbs.common.exception.BusinessException.class);
+    }
+
+    @Test @DisplayName("resolveDisplayName falls back to username when Keycloak unavailable")
+    void resolveDisplayNameFallback() {
+        when(adminUserService.getUsernameIndex()).thenReturn(java.util.Map.of());
+        String result = service.resolveDisplayName("agent-1");
+        assertThat(result).isEqualTo("agent-1");
+    }
+
+    @Test @DisplayName("resolveDisplayName returns full name from Keycloak")
+    void resolveDisplayNameKeycloak() {
+        java.util.Map<String, Object> kcUser = java.util.Map.of("firstName", "Jane", "lastName", "Smith", "username", "jane.smith");
+        when(adminUserService.getUsernameIndex()).thenReturn(java.util.Map.of("agent-1", kcUser));
+        String result = service.resolveDisplayName("agent-1");
+        assertThat(result).isEqualTo("Jane Smith");
     }
 }

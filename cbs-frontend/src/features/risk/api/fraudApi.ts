@@ -220,8 +220,8 @@ export const fraudApi = {
   allowTransaction: (alertId: number) =>
     api.post(`/api/v1/fraud/alerts/${alertId}/allow`),
 
-  dismissAlert: (alertId: number, reason: string) =>
-    api.post(`/api/v1/fraud/alerts/${alertId}/dismiss`, { reason }),
+  dismissAlert: (alertId: number) =>
+    api.post(`/api/v1/fraud/alerts/${alertId}/dismiss`),
 
   fileFraudCase: (alertId: number) =>
     api.post(`/api/v1/fraud/alerts/${alertId}/file-case`),
@@ -231,8 +231,8 @@ export const fraudApi = {
     return (data.data ?? []).map(mapRule);
   },
 
-  toggleRule: (id: number, active: boolean) =>
-    api.patch(`/api/v1/fraud/rules/${id}/toggle`, { active }),
+  toggleRule: (id: number) =>
+    api.patch(`/api/v1/fraud/rules/${id}/toggle`),
 
   getModelPerformance: async (): Promise<ModelPerformance> => {
     const { data } = await api.get<ApiResponse<RawFraudModelPerformance>>('/api/v1/fraud/model-performance');

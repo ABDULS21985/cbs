@@ -10,11 +10,13 @@ export interface Vault {
   vaultType: VaultType;
   currencyCode: string;
   currentBalance: number;
-  minimumBalance: number;
-  maximumBalance: number;
-  insuranceLimit: number;
-  custodian: string;
+  minimumBalance: number | null;
+  maximumBalance: number | null;
+  insuranceLimit: number | null;
+  custodian: string | null;
   status: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface VaultTransaction {
@@ -24,11 +26,11 @@ export interface VaultTransaction {
   amount: number;
   runningBalance: number;
   currencyCode: string;
-  counterpartyVault: Vault;
-  reference: string;
-  narration: string;
+  counterpartyVault: Vault | null;
+  reference: string | null;
+  narration: string | null;
   performedBy: string;
-  approvedBy: string;
+  approvedBy: string | null;
   createdAt: string;
   version: number;
 }

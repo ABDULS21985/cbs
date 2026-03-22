@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/shared';
 import { formatDate, formatRelative } from '@/lib/formatters';
+import { useAuthStore } from '@/stores/authStore';
+import { hasRole } from '@/lib/permissions';
 import { reportBuilderApi, type SavedReport, type ReportResult } from '../api/reportBuilderApi';
 import { ReportExecutionView } from '../components/builder/ReportExecutionView';
 import { RunHistoryTable } from '../components/builder/RunHistoryTable';
@@ -42,9 +44,10 @@ interface ReportRowProps {
   onClone: (r: SavedReport) => void;
   onDelete: (r: SavedReport) => void;
   isRunning: boolean;
+  canDelete: boolean;
 }
 
-function ReportRow({ report, onRun, onEdit, onClone, onDelete, isRunning }: ReportRowProps) {
+function ReportRow({ report, onRun, onEdit, onClone, onDelete, isRunning, canDelete }: ReportRowProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   return (
@@ -58,13 +61,13 @@ function ReportRow({ report, onRun, onEdit, onClone, onDelete, isRunning }: Repo
         </td>
         <td className="px-4 py-3">
           <div className="flex flex-wrap gap-1">
-            {report.config.dataSources.slice(0, 3).map((src) => (
+            {(report.config?.dataSources ?? []).slice(0, 3).map((src) => (
               <span key={src} className="text-xs bg-muted px-1.5 py-0.5 rounded capitalize">
                 {src.replace(/_/g, ' ')}
               </span>
             ))}
-            {report.config.dataSources.length > 3 && (
-              <span className="text-xs text-muted-foreground">+{report.config.dataSources.length - 3}</span>
+            {(report.config?.dataSources ?? []).length > 3 && (
+              <span className="text-xs text-muted-foreground">+{(report.config?.dataSources ?? []).length - 3}</span>
             )}
           </div>
         </td>
@@ -115,13 +118,15 @@ function ReportRow({ report, onRun, onEdit, onClone, onDelete, isRunning }: Repo
             >
               <History className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => onDelete(report)}
-              title="Delete report"
-              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {canDelete && (
+              <button
+                onClick={() => onDelete(report)}
+                title="Delete report"
+                className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-muted-foreground hover:text-red-600 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </td>
       </tr>
@@ -147,9 +152,10 @@ interface ReportsTableProps {
   onClone: (r: SavedReport) => void;
   onDelete: (r: SavedReport) => void;
   runningId: string | null;
+  isAdmin: boolean;
 }
 
-function ReportsTable({ owner, scheduledOnly, onRun, onEdit, onClone, onDelete, runningId }: ReportsTableProps) {
+function ReportsTable({ owner, scheduledOnly, onRun, onEdit, onClone, onDelete, runningId, isAdmin }: ReportsTableProps) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
 
@@ -236,6 +242,7 @@ function ReportsTable({ owner, scheduledOnly, onRun, onEdit, onClone, onDelete, 
                   onClone={onClone}
                   onDelete={onDelete}
                   isRunning={runningId === report.id}
+                  canDelete={isAdmin}
                 />
               ))}
             </tbody>
@@ -252,6 +259,8 @@ export function SavedReportsPage() {
   useEffect(() => { document.title = 'Custom Reports | CBS'; }, []);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const userRoles = useAuthStore((s) => s.user?.roles ?? []);
+  const isAdmin = hasRole(userRoles, ['CBS_ADMIN']);
   const [activeTab, setActiveTab] = useState<TabKey>('mine');
   const [activeReport, setActiveReport] = useState<SavedReport | null>(null);
   const [activeResult, setActiveResult] = useState<ReportResult | null>(null);
@@ -396,6 +405,7 @@ export function SavedReportsPage() {
         onClone={handleClone}
         onDelete={handleDelete}
         runningId={runningId}
+        isAdmin={isAdmin}
       />
 
       {/* Delete confirmation */}

@@ -67,7 +67,7 @@ type SearchResult = {
 };
 
 const baseTransaction = {
-  id: 'txn-1',
+  id: 1,
   reference: 'TXN-001',
   type: 'PAYMENT',
   channel: 'WEB',

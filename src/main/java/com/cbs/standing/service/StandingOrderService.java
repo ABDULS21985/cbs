@@ -227,6 +227,100 @@ public class StandingOrderService {
                 si.getInstructionRef(), success, si.getNextExecutionDate());
     }
 
+    @Transactional
+    public StandingExecutionLog retryFailedExecution(Long instructionId, Long executionId) {
+        StandingInstruction instruction = getInstruction(instructionId);
+
+        StandingExecutionLog failedExec = executionLogRepository.findById(executionId)
+                .orElseThrow(() -> new ResourceNotFoundException("StandingExecutionLog", "id", executionId));
+
+        if (!failedExec.getInstruction().getId().equals(instructionId)) {
+            throw new BusinessException("Execution does not belong to this instruction", "EXECUTION_MISMATCH");
+        }
+
+        if ("SUCCESS".equals(failedExec.getStatus())) {
+            throw new BusinessException("Cannot retry a successful execution", "ALREADY_SUCCESSFUL");
+        }
+
+        // Reset retry count and ensure instruction is active
+        instruction.setRetryCount(0);
+        if (instruction.getStatus() == StandingStatus.PAUSED) {
+            instruction.setStatus(StandingStatus.ACTIVE);
+        }
+
+        // Re-execute the instruction
+        Account debitAccount = instruction.getDebitAccount();
+        if (debitAccount.getAvailableBalance().compareTo(instruction.getAmount()) < 0) {
+            // Still insufficient — log new retry pending
+            StandingExecutionLog retryLog = StandingExecutionLog.builder()
+                    .instruction(instruction)
+                    .executionDate(LocalDate.now())
+                    .amount(instruction.getAmount())
+                    .status("RETRY_PENDING")
+                    .failureReason("Insufficient balance on retry")
+                    .build();
+            executionLogRepository.save(retryLog);
+            instruction.setRetryCount(instruction.getRetryCount() + 1);
+            instructionRepository.save(instruction);
+            log.warn("Standing order retry still insufficient: ref={}", instruction.getInstructionRef());
+            return retryLog;
+        }
+
+        // Execute the payment
+        Long seq = paymentRepository.getNextInstructionSequence();
+        String ref = String.format("PAY%015d", seq);
+
+        PaymentInstruction payment = PaymentInstruction.builder()
+                .instructionRef(ref)
+                .paymentType(instruction.getInstructionType() == InstructionType.STANDING_ORDER ?
+                        PaymentType.STANDING_ORDER : PaymentType.DIRECT_DEBIT)
+                .debitAccount(debitAccount).debitAccountNumber(debitAccount.getAccountNumber())
+                .creditAccountNumber(instruction.getCreditAccountNumber())
+                .beneficiaryName(instruction.getCreditAccountName())
+                .beneficiaryBankCode(instruction.getCreditBankCode())
+                .amount(instruction.getAmount()).currencyCode(instruction.getCurrencyCode())
+                .paymentRail("STANDING").remittanceInfo(instruction.getNarration())
+                .status(PaymentStatus.PROCESSING).build();
+
+        Account localCredit = accountRepository.findByAccountNumber(instruction.getCreditAccountNumber()).orElse(null);
+        if (localCredit != null) {
+            accountPostingService.postTransfer(
+                    debitAccount, localCredit, instruction.getAmount(), instruction.getAmount(),
+                    instruction.getNarration(), instruction.getNarration(),
+                    com.cbs.account.entity.TransactionChannel.SYSTEM, ref,
+                    "STANDING_ORDER", instruction.getInstructionRef());
+            payment.setCreditAccount(localCredit);
+            payment.setStatus(PaymentStatus.COMPLETED);
+        } else {
+            accountPostingService.postDebitAgainstGl(
+                    debitAccount, com.cbs.account.entity.TransactionType.DEBIT, instruction.getAmount(),
+                    instruction.getNarration(), com.cbs.account.entity.TransactionChannel.SYSTEM, ref,
+                    requiredExternalClearingGl(), "STANDING_ORDER", instruction.getInstructionRef());
+            payment.setStatus(PaymentStatus.SUBMITTED);
+        }
+        payment.setExecutionDate(LocalDate.now());
+        paymentRepository.save(payment);
+
+        // Log successful retry
+        StandingExecutionLog retryLog = StandingExecutionLog.builder()
+                .instruction(instruction)
+                .executionDate(LocalDate.now())
+                .amount(instruction.getAmount())
+                .status("SUCCESS")
+                .paymentInstruction(payment)
+                .build();
+        executionLogRepository.save(retryLog);
+
+        instruction.setTotalExecutions(instruction.getTotalExecutions() + 1);
+        instruction.setSuccessfulExecutions(instruction.getSuccessfulExecutions() + 1);
+        instruction.setLastExecutionDate(LocalDate.now());
+        instruction.setRetryCount(0);
+        instructionRepository.save(instruction);
+
+        log.info("Standing order retry successful: ref={}, paymentRef={}", instruction.getInstructionRef(), ref);
+        return retryLog;
+    }
+
     public Page<StandingExecutionLog> getExecutionHistory(Long instructionId, Pageable pageable) {
         return executionLogRepository.findByInstructionIdOrderByExecutionDateDesc(instructionId, pageable);
     }

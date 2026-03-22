@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Send, Check, X } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
-import { testSendTemplate } from '../../../admin/api/notificationAdminApi';
+import { notificationApi } from '../../api/communicationApi';
 
 interface TemplateTestSendDialogProps {
   templateId: number;
@@ -15,7 +15,7 @@ export function TemplateTestSendDialog({ templateId, channel, onClose }: Templat
   const [result, setResult] = useState<{ success: boolean; subject: string; body: string } | null>(null);
 
   const sendMut = useMutation({
-    mutationFn: () => testSendTemplate(templateId, recipient),
+    mutationFn: () => notificationApi.testTemplate(templateId, recipient),
     onSuccess: (data) => {
       toast.success(`Test sent to ${recipient}`);
       setResult(data);
@@ -28,7 +28,7 @@ export function TemplateTestSendDialog({ templateId, channel, onClose }: Templat
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 modal-scrim" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-base font-semibold">Send Test</h2>

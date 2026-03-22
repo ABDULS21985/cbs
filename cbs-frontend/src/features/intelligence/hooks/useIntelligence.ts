@@ -25,6 +25,7 @@ export type {
 
 export const intelligenceKeys = {
   all: ['intelligence'] as const,
+  ocrProviderStatus: () => [...intelligenceKeys.all, 'ocr-provider-status'] as const,
   events: () => [...intelligenceKeys.all, 'events'] as const,
   recommendations: (customerId: number) => [...intelligenceKeys.all, 'recommendations', customerId] as const,
   churnScore: (customerId: number) => [...intelligenceKeys.all, 'churn', customerId] as const,
@@ -74,6 +75,11 @@ export function useGenerateRecommendations() {
     mutationFn: (customerId: number) => intelligenceApi.generateRecommendations(customerId),
     onSuccess: (_data, customerId) => {
       qc.invalidateQueries({ queryKey: intelligenceKeys.recommendations(customerId) });
+      // generateRecommendations also persists CustomerBehaviorModel records as a side-effect.
+      // Invalidate the customer-behavior cache so the Models tab auto-refreshes.
+      qc.invalidateQueries({
+        queryKey: ['intelligence', 'customer-behavior', 'customer', customerId],
+      });
     },
   });
 }
@@ -145,6 +151,14 @@ export function useApproveForecast() {
 }
 
 // ---- Document Intelligence ----------------------------------------------------
+
+export function useOcrProviderStatus() {
+  return useQuery({
+    queryKey: intelligenceKeys.ocrProviderStatus(),
+    queryFn: () => intelligenceApi.getOcrProviderStatus(),
+    staleTime: 5 * 60_000, // provider config rarely changes at runtime
+  });
+}
 
 export function useAllDocumentJobs() {
   return useQuery({
@@ -227,10 +241,15 @@ export function useCreateDashboard() {
 export function useAddWidget() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ dashboardId, widget }: { dashboardId: number; widget: Partial<DashboardWidget> }) =>
+    mutationFn: ({ dashboardId, widget, dashboardCode }: { dashboardId: number; widget: Partial<DashboardWidget>; dashboardCode?: string }) =>
       intelligenceApi.addWidget(dashboardId, widget),
-    onSuccess: () => {
+    onSuccess: (_data, { dashboardCode }) => {
       qc.invalidateQueries({ queryKey: intelligenceKeys.dashboards() });
+      // Also invalidate the specific dashboard-with-widgets cache so the viewer
+      // reflects the newly added widget without a manual page refresh.
+      if (dashboardCode) {
+        qc.invalidateQueries({ queryKey: intelligenceKeys.dashboardByCode(dashboardCode) });
+      }
     },
   });
 }

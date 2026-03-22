@@ -11,7 +11,7 @@ interface Props {
   caseData: CustomerCase;
 }
 
-type ActiveDialog = 'resolve' | 'assign' | 'escalate' | 'close' | null;
+type ActiveDialog = 'resolve' | 'assign' | 'escalate' | 'close' | 'reject_compensation' | null;
 
 const RESOLUTION_TYPES = [
   { value: 'FULLY_RESOLVED', label: 'Fully Resolved' },
@@ -40,6 +40,10 @@ export function CaseInfoPanel({ caseData }: Props) {
 
   // Close state
   const [closeReason, setCloseReason] = useState('');
+
+  // Compensation state
+  const [compensationAmount, setCompensationAmount] = useState('');
+  const [compensationRejectReason, setCompensationRejectReason] = useState('');
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['cases'] });
   const close = () => setActiveDialog(null);
@@ -72,6 +76,24 @@ export function CaseInfoPanel({ caseData }: Props) {
     mutationFn: () => caseApi.close(caseData.caseNumber, closeReason || undefined),
     onSuccess: () => { toast.success('Case closed'); invalidate(); close(); },
     onError: () => toast.error('Failed to close case'),
+  });
+
+  const setCompMutation = useMutation({
+    mutationFn: () => caseApi.setCompensation(caseData.caseNumber, Number(compensationAmount)),
+    onSuccess: () => { toast.success('Compensation amount set'); invalidate(); close(); setCompensationAmount(''); },
+    onError: () => toast.error('Failed to set compensation'),
+  });
+
+  const approveCompMutation = useMutation({
+    mutationFn: () => caseApi.approveCompensation(caseData.caseNumber),
+    onSuccess: () => { toast.success('Compensation approved'); invalidate(); },
+    onError: () => toast.error('Failed to approve compensation'),
+  });
+
+  const rejectCompMutation = useMutation({
+    mutationFn: () => caseApi.rejectCompensation(caseData.caseNumber, compensationRejectReason || undefined),
+    onSuccess: () => { toast.success('Compensation rejected'); invalidate(); close(); setCompensationRejectReason(''); },
+    onError: () => toast.error('Failed to reject compensation'),
   });
 
   const isTerminal = caseData.status === 'RESOLVED' || caseData.status === 'CLOSED';
@@ -108,7 +130,7 @@ export function CaseInfoPanel({ caseData }: Props) {
 
       <div>
         <label className="block text-xs font-medium text-muted-foreground mb-1">Assigned To</label>
-        <p className="text-sm">{caseData.assignedToName || 'Unassigned'}</p>
+        <p className="text-sm">{caseData.assignedToName || caseData.assignedTo || 'Unassigned'}</p>
         {caseData.assignedTeam && <p className="text-xs text-muted-foreground">{caseData.assignedTeam}</p>}
       </div>
 
@@ -118,13 +140,59 @@ export function CaseInfoPanel({ caseData }: Props) {
         {caseData.subCategory && <p className="text-xs text-muted-foreground">{caseData.subCategory}</p>}
       </div>
 
-      {caseData.compensationAmount != null && (
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Compensation</label>
-          <p className="text-sm font-mono">₦{caseData.compensationAmount.toLocaleString()}</p>
-          <StatusBadge status={caseData.compensationApproved ? 'APPROVED' : 'PENDING'} />
-        </div>
-      )}
+      {/* Compensation section */}
+      <div>
+        <label className="block text-xs font-medium text-muted-foreground mb-1">Compensation</label>
+        {caseData.compensationAmount != null ? (
+          <div className="space-y-2">
+            <p className="text-sm font-mono">₦{caseData.compensationAmount.toLocaleString()}</p>
+            <StatusBadge status={caseData.compensationApproved === true ? 'APPROVED' : caseData.compensationApproved === false ? 'REJECTED' : 'PENDING'} />
+            {caseData.compensationApproved === true && caseData.compensationApprovedBy && (
+              <p className="text-xs text-muted-foreground">Approved by {caseData.compensationApprovedBy}</p>
+            )}
+            {caseData.compensationApproved === false && caseData.compensationRejectionReason && (
+              <p className="text-xs text-red-600 dark:text-red-400">Rejected: {caseData.compensationRejectionReason}</p>
+            )}
+            {caseData.compensationApproved == null && !isTerminal && (
+              <div className="flex gap-1.5 pt-1">
+                <button
+                  onClick={() => approveCompMutation.mutate()}
+                  disabled={approveCompMutation.isPending}
+                  className="px-2.5 py-1 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 disabled:opacity-50"
+                >
+                  {approveCompMutation.isPending ? '...' : 'Approve'}
+                </button>
+                <button
+                  onClick={() => setActiveDialog('reject_compensation')}
+                  className="px-2.5 py-1 border border-red-300 text-red-700 rounded text-xs hover:bg-red-50 dark:border-red-700 dark:text-red-400"
+                >
+                  Reject
+                </button>
+              </div>
+            )}
+          </div>
+        ) : !isTerminal ? (
+          <div className="flex gap-2">
+            <input
+              type="number"
+              min={0}
+              value={compensationAmount}
+              onChange={(e) => setCompensationAmount(e.target.value)}
+              placeholder="Amount"
+              className="w-24 px-2 py-1 border rounded text-xs font-mono"
+            />
+            <button
+              onClick={() => compensationAmount && setCompMutation.mutate()}
+              disabled={!compensationAmount || setCompMutation.isPending}
+              className="px-2.5 py-1 bg-primary text-primary-foreground rounded text-xs font-medium disabled:opacity-50"
+            >
+              Set
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">None</p>
+        )}
+      </div>
 
       {caseData.relatedCaseIds && caseData.relatedCaseIds.length > 0 && (
         <div>
@@ -276,6 +344,33 @@ export function CaseInfoPanel({ caseData }: Props) {
                   className="flex-1 px-3 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                 >
                   {resolveMutation.isPending ? 'Resolving…' : 'Resolve'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Reject Compensation dialog */}
+          {activeDialog === 'reject_compensation' && (
+            <div className="space-y-3 rounded-lg border border-red-200 p-3 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10">
+              <p className="text-xs font-semibold text-red-700 dark:text-red-400 uppercase tracking-wide">Reject Compensation</p>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Reason</label>
+                <textarea
+                  value={compensationRejectReason}
+                  onChange={(e) => setCompensationRejectReason(e.target.value)}
+                  rows={2}
+                  placeholder="Reason for rejection..."
+                  className="w-full px-3 py-2 border rounded-md text-sm resize-none"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={close} className="flex-1 px-3 py-2 border rounded-md text-sm hover:bg-muted">Cancel</button>
+                <button
+                  onClick={() => rejectCompMutation.mutate()}
+                  disabled={rejectCompMutation.isPending}
+                  className="flex-1 px-3 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                >
+                  {rejectCompMutation.isPending ? 'Rejecting…' : 'Reject'}
                 </button>
               </div>
             </div>

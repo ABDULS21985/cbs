@@ -77,4 +77,39 @@ public class AchController {
                 List.of("SETTLED", "SUBMITTED"), PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
+
+    @PostMapping("/inbound/{batchId}/items/{itemId}/post")
+    @Operation(summary = "Post an inbound ACH item")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<com.cbs.achops.entity.AchItem>> postInboundItem(
+            @PathVariable Long batchId, @PathVariable Long itemId) {
+        return ResponseEntity.ok(ApiResponse.ok(service.postInboundItem(batchId, itemId)));
+    }
+
+    @PostMapping("/inbound/{batchId}/items/{itemId}/return")
+    @Operation(summary = "Return an inbound ACH item")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<com.cbs.achops.entity.AchItem>> returnInboundItem(
+            @PathVariable Long batchId, @PathVariable Long itemId,
+            @RequestBody(required = false) java.util.Map<String, String> body) {
+        String reasonCode = body != null ? body.getOrDefault("reasonCode", "R01") : "R01";
+        return ResponseEntity.ok(ApiResponse.ok(service.returnInboundItem(batchId, itemId, reasonCode)));
+    }
+
+    @GetMapping("/{batchId}/items")
+    @Operation(summary = "Get items for a batch")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<com.cbs.achops.entity.AchItem>>> getBatchItems(
+            @PathVariable Long batchId) {
+        return ResponseEntity.ok(ApiResponse.ok(service.getItemsByBatch(batchId)));
+    }
+
+    @GetMapping("/outbound/{batchId}/nacha")
+    @Operation(summary = "Get raw NACHA file content for a batch")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<String> getNachaFile(@PathVariable String batchId) {
+        // Stub: return a placeholder NACHA file header
+        String nachaContent = "101 0210000190101036 " + batchId + "\n5200COMPANY NAME                        ORIGINATION    CCD\n";
+        return ResponseEntity.ok().contentType(org.springframework.http.MediaType.TEXT_PLAIN).body(nachaContent);
+    }
 }

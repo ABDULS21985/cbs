@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pause, Play, Loader2, AlertTriangle } from 'lucide-react';
+import { Power, Loader2, AlertTriangle } from 'lucide-react';
 import type { TppClient } from '../../api/openBankingApi';
 
 interface TppStatusActionsProps {
@@ -9,40 +9,26 @@ interface TppStatusActionsProps {
   isPending?: boolean;
 }
 
-export function TppStatusActions({ client, onSuspend, onReactivate, isPending }: TppStatusActionsProps) {
+export function TppStatusActions({ client, onSuspend, isPending }: TppStatusActionsProps) {
   const [showConfirm, setShowConfirm] = useState(false);
-  const isSuspend = client.status === 'ACTIVE';
+
+  if (client.status !== 'ACTIVE') return null;
 
   const handleConfirm = () => {
-    if (isSuspend) {
-      onSuspend();
-    } else {
-      onReactivate();
-    }
+    onSuspend();
     setShowConfirm(false);
   };
 
   return (
     <>
-      {isSuspend ? (
-        <button
-          onClick={() => setShowConfirm(true)}
-          disabled={isPending}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-300 text-amber-700 dark:text-amber-400 text-sm font-medium hover:bg-amber-50 dark:hover:bg-amber-900/10 transition-colors disabled:opacity-50"
-        >
-          {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pause className="w-3.5 h-3.5" />}
-          Suspend
-        </button>
-      ) : client.status === 'SUSPENDED' ? (
-        <button
-          onClick={() => setShowConfirm(true)}
-          disabled={isPending}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-green-300 text-green-700 dark:text-green-400 text-sm font-medium hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors disabled:opacity-50"
-        >
-          {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-          Reactivate
-        </button>
-      ) : null}
+      <button
+        onClick={() => setShowConfirm(true)}
+        disabled={isPending}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-300 text-red-700 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors disabled:opacity-50"
+      >
+        {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Power className="w-3.5 h-3.5" />}
+        Deactivate
+      </button>
 
       {showConfirm && (
         <>
@@ -51,17 +37,13 @@ export function TppStatusActions({ client, onSuspend, onReactivate, isPending }:
             <div className="bg-card rounded-xl shadow-2xl border w-full max-w-sm">
               <div className="p-6 space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold">
-                      {isSuspend ? 'Suspend TPP Client' : 'Reactivate TPP Client'}
-                    </h3>
+                    <h3 className="text-sm font-semibold">Deactivate TPP Client</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {isSuspend
-                        ? `Suspending "${client.name}" will immediately revoke all active API access. Active consents will be paused.`
-                        : `Reactivating "${client.name}" will restore API access. Paused consents will resume.`}
+                      Deactivating &quot;{client.name}&quot; will immediately revoke all active API access. This action cannot be undone from the UI.
                     </p>
                   </div>
                 </div>
@@ -75,12 +57,10 @@ export function TppStatusActions({ client, onSuspend, onReactivate, isPending }:
                   <button
                     onClick={handleConfirm}
                     disabled={isPending}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors disabled:opacity-50 ${
-                      isSuspend ? 'bg-amber-600 hover:bg-amber-700' : 'bg-green-600 hover:bg-green-700'
-                    }`}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
                   >
                     {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {isSuspend ? 'Suspend' : 'Reactivate'}
+                    Deactivate
                   </button>
                 </div>
               </div>

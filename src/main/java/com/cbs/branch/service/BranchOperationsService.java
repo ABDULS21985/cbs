@@ -314,5 +314,83 @@ public class BranchOperationsService {
         }
     }
 
+    // ── Branch Stats ────────────────────────────────────────────────────
+    public Map<String, Object> getBranchStats(Long branchId) {
+        Instant startOfDay = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant endOfDay = LocalDate.now().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        List<BranchQueueTicket> todayTickets = queueTicketRepository.findByBranchIdAndIssuedAtBetween(branchId, startOfDay, endOfDay);
+        long completedToday = todayTickets.stream().filter(t -> "COMPLETED".equals(t.getStatus())).count();
+        double avgWait = todayTickets.stream()
+                .filter(t -> t.getWaitTimeSeconds() != null)
+                .mapToInt(BranchQueueTicket::getWaitTimeSeconds)
+                .average().orElse(0.0);
+        double avgService = todayTickets.stream()
+                .filter(t -> t.getServiceTimeSeconds() != null)
+                .mapToInt(BranchQueueTicket::getServiceTimeSeconds)
+                .average().orElse(0.0);
+        long staffOnDuty = staffScheduleRepository.countByBranchIdAndScheduledDateAndShiftTypeNot(branchId, LocalDate.now(), "OFF");
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("customersServedToday", completedToday);
+        stats.put("avgWaitMinutes", Math.round(avgWait / 60.0));
+        stats.put("avgServiceMinutes", Math.round(avgService / 60.0));
+        stats.put("staffOnDuty", staffOnDuty);
+        stats.put("transactionsToday", todayTickets.size());
+        return stats;
+    }
+
+    // ── Queue History ────────────────────────────────────────────────────
+    public List<BranchQueueTicket> getQueueHistory(Long branchId, String dateStr) {
+        LocalDate date = dateStr != null ? LocalDate.parse(dateStr) : LocalDate.now();
+        Instant startOfDay = date.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant endOfDay = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        return queueTicketRepository.findByBranchIdAndIssuedAtBetween(branchId, startOfDay, endOfDay);
+    }
+
+    @Transactional
+    public BranchQueueTicket markNoShow(Long ticketId) {
+        BranchQueueTicket ticket = queueTicketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("BranchQueueTicket", "id", ticketId));
+        ticket.setStatus("NO_SHOW");
+        ticket.setCompletedAt(Instant.now());
+        log.info("Ticket marked no-show: ticketId={}", ticketId);
+        return queueTicketRepository.save(ticket);
+    }
+
+    // ── Schedule Facades ─────────────────────────────────────────────────
+    public List<Map<String, Object>> getSchedule(Long branchId, String weekOfStr) {
+        LocalDate weekOf = weekOfStr != null ? LocalDate.parse(weekOfStr)
+                : LocalDate.now().minusDays(LocalDate.now().getDayOfWeek().getValue() - 1L);
+        return getStaffSchedule(branchId, weekOf).stream()
+                .map(v -> Map.<String, Object>of(
+                        "staffId", v.staffId(),
+                        "staffName", v.staffName(),
+                        "role", v.role(),
+                        "schedule", v.schedule()))
+                .toList();
+    }
+
+    // ── Service Plans by Branch ──────────────────────────────────────────
+    public List<BranchServicePlan> getServicePlansByBranch(Long branchId) {
+        return servicePlanRepository.findByBranchId(branchId);
+    }
+
+    // ── Branch Rankings ──────────────────────────────────────────────────
+    public List<Map<String, Object>> getBranchRankings() {
+        return servicePlanRepository.findAll().stream()
+                .map(plan -> {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("branchId", plan.getBranchId());
+                    row.put("planPeriod", plan.getPlanPeriod());
+                    int target = plan.getTargetTransactionVolume() != null ? plan.getTargetTransactionVolume() : 1;
+                    int actual = plan.getActualTransactionVolume() != null ? plan.getActualTransactionVolume() : 0;
+                    row.put("score", target > 0 ? Math.round(actual * 100.0 / target) : 0);
+                    row.put("transactionsToday", actual);
+                    return row;
+                })
+                .sorted(Comparator.<Map<String, Object>, Long>comparing(m -> (Long) m.getOrDefault("score", 0L)).reversed())
+                .toList();
+    }
+
     public record BranchStaffScheduleView(String staffId, String staffName, String role, Map<String, String> schedule) {}
 }

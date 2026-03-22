@@ -1,7 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { RefreshCw, Activity } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Activity, Wifi, WifiOff } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DateRangePicker } from '@/components/shared';
 import { cn } from '@/lib/utils';
@@ -14,17 +13,18 @@ import { FailureAnalysisCharts } from '../components/payments/FailureAnalysisCha
 import { RailsUtilizationTable } from '../components/payments/RailsUtilizationTable';
 import { ReconciliationSummaryTable } from '../components/payments/ReconciliationSummaryTable';
 import { PaymentFlowSankey, type SankeyFlow } from '../components/payments/PaymentFlowSankey';
-import { paymentAnalyticsApi } from '../api/paymentAnalyticsApi';
 
-// ─── Real-Time Transaction Feed ───────────────────────────────────────────────
+// ─── Real-Time Transaction Feed (SSE) ─────────────────────────────────────────
 
-interface RealTimeTxn {
-  id: string;
+interface LiveTransaction {
   reference: string;
-  amount: number;
   channel: string;
+  type: string;
+  amount: number;
+  currency: string;
   status: 'SUCCESS' | 'FAILED' | 'PENDING';
   timestamp: string;
+  processingTimeMs: number;
 }
 
 function statusColor(status: string): string {
@@ -39,36 +39,28 @@ function statusBadge(status: string): string {
   return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
 }
 
-// Derive synthetic real-time feed from channel breakdown data
-function buildRealTimeFeed(channels: any[]): RealTimeTxn[] {
-  if (!channels || channels.length === 0) return [];
-  const statuses: Array<'SUCCESS' | 'FAILED' | 'PENDING'> = ['SUCCESS', 'SUCCESS', 'SUCCESS', 'FAILED', 'PENDING', 'SUCCESS', 'SUCCESS', 'FAILED'];
-  const now = new Date();
-  return Array.from({ length: 10 }, (_, i) => {
-    const ch = channels[i % channels.length];
-    const status = statuses[i % statuses.length];
-    const ts = new Date(now.getTime() - i * 14_000);
-    return {
-      id: `TXN-${100000 + i}`,
-      reference: `REF${Date.now().toString(36).toUpperCase().slice(-6)}${i}`,
-      amount: Math.round((ch.value / (ch.volume || 1)) * (0.5 + Math.random())),
-      channel: ch.channel,
-      status,
-      timestamp: ts.toISOString(),
-    };
-  });
-}
+function RealTimeMonitor() {
+  const [transactions, setTransactions] = useState<LiveTransaction[]>([]);
+  const [connected, setConnected] = useState(false);
 
-function RealTimeMonitor({
-  channels,
-  isRefreshing,
-  lastRefreshed,
-}: {
-  channels: any[];
-  isRefreshing: boolean;
-  lastRefreshed: Date;
-}) {
-  const feed = buildRealTimeFeed(channels);
+  useEffect(() => {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    const url = `${baseUrl}/api/v1/reports/payments/live-feed`;
+    const es = new EventSource(url);
+
+    es.addEventListener('transaction', (event) => {
+      const txn: LiveTransaction = JSON.parse(event.data);
+      setTransactions((prev) => [txn, ...prev].slice(0, 20));
+    });
+
+    es.onopen = () => setConnected(true);
+    es.onerror = () => {
+      setConnected(false);
+      es.close();
+    };
+
+    return () => es.close();
+  }, []);
 
   return (
     <div className="bg-card rounded-lg border border-border p-6 space-y-4">
@@ -77,19 +69,28 @@ function RealTimeMonitor({
           <Activity className="w-4 h-4 text-green-500 animate-pulse" />
           <h2 className="text-sm font-semibold text-foreground">Real-Time Transaction Monitor</h2>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} />
-          <span>Auto-refresh every 30s · Last: {format(lastRefreshed, 'HH:mm:ss')}</span>
+        <div className="flex items-center gap-2 text-xs">
+          {connected ? (
+            <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+              <Wifi className="w-3.5 h-3.5" />
+              Connected
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <WifiOff className="w-3.5 h-3.5" />
+              Disconnected
+            </span>
+          )}
         </div>
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Live feed of the most recent transactions across all payment channels.
+        Live feed of the most recent transactions across all payment channels via SSE.
       </p>
 
-      {feed.length === 0 ? (
+      {transactions.length === 0 ? (
         <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-          No live transaction data available
+          {connected ? 'Waiting for transactions...' : 'No live transaction data available'}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -98,16 +99,19 @@ function RealTimeMonitor({
               <tr className="border-b border-border">
                 <th className="text-left font-medium text-muted-foreground pb-2 pr-3">Reference</th>
                 <th className="text-left font-medium text-muted-foreground pb-2 px-2">Channel</th>
+                <th className="text-left font-medium text-muted-foreground pb-2 px-2">Type</th>
                 <th className="text-right font-medium text-muted-foreground pb-2 px-2">Amount</th>
                 <th className="text-center font-medium text-muted-foreground pb-2 px-2">Status</th>
+                <th className="text-right font-medium text-muted-foreground pb-2 px-2">Latency</th>
                 <th className="text-right font-medium text-muted-foreground pb-2 pl-2">Time</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-              {feed.map((txn) => (
-                <tr key={txn.id} className="hover:bg-muted/30 transition-colors">
+              {transactions.map((txn) => (
+                <tr key={txn.reference} className="hover:bg-muted/30 transition-colors">
                   <td className="py-2 pr-3 font-mono text-foreground">{txn.reference}</td>
                   <td className="py-2 px-2 text-muted-foreground">{txn.channel}</td>
+                  <td className="py-2 px-2 text-muted-foreground">{txn.type.replace(/_/g, ' ')}</td>
                   <td className="py-2 px-2 text-right tabular-nums font-medium text-foreground">
                     {formatMoney(txn.amount)}
                   </td>
@@ -115,6 +119,9 @@ function RealTimeMonitor({
                     <span className={cn('inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold', statusBadge(txn.status))}>
                       {txn.status}
                     </span>
+                  </td>
+                  <td className="py-2 px-2 text-right tabular-nums text-muted-foreground">
+                    {txn.processingTimeMs}ms
                   </td>
                   <td className={cn('py-2 pl-2 text-right tabular-nums', statusColor(txn.status))}>
                     {format(new Date(txn.timestamp), 'HH:mm:ss')}
@@ -186,24 +193,6 @@ export function PaymentAnalyticsPage() {
     reconciliationLoading,
   } = usePaymentAnalytics();
 
-  // Real-time transaction monitor — auto-refresh every 30 seconds
-  const {
-    data: realtimeChannels,
-    isFetching: rtFetching,
-    dataUpdatedAt: rtUpdatedAt,
-  } = useQuery({
-    queryKey: ['payment-analytics', 'realtime-channels', {
-      dateFrom: format(dateRange.from, 'yyyy-MM-dd'),
-      dateTo: format(dateRange.to, 'yyyy-MM-dd'),
-    }],
-    queryFn: () => paymentAnalyticsApi.getChannelBreakdown({
-      dateFrom: format(dateRange.from, 'yyyy-MM-dd'),
-      dateTo: format(dateRange.to, 'yyyy-MM-dd'),
-    }),
-    refetchInterval: 30_000,
-    staleTime: 0,
-  });
-
   const handleDateRangeChange = (range: { from?: Date; to?: Date }) => {
     if (range.from && range.to) {
       setDateRange({ from: range.from, to: range.to });
@@ -213,8 +202,6 @@ export function PaymentAnalyticsPage() {
   };
 
   const sankeyFlows = buildSankeyFlows(channels, failureReasons);
-  const lastRefreshed = rtUpdatedAt ? new Date(rtUpdatedAt) : new Date();
-  const liveChannels = realtimeChannels ?? channels;
 
   return (
     <>
@@ -244,12 +231,8 @@ export function PaymentAnalyticsPage() {
           <PaymentFlowSankey data={sankeyFlows} />
         )}
 
-        {/* Real-Time Transaction Monitor */}
-        <RealTimeMonitor
-          channels={liveChannels}
-          isRefreshing={rtFetching}
-          lastRefreshed={lastRefreshed}
-        />
+        {/* Real-Time Transaction Monitor (SSE) */}
+        <RealTimeMonitor />
 
         <ChannelBreakdownCharts data={channels} isLoading={channelsLoading} />
 

@@ -132,6 +132,14 @@ public class StandingOrderController {
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
+    @PostMapping("/{id}/executions/{execId}/retry")
+    @Operation(summary = "Retry a failed execution")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<StandingExecutionLog>> retryExecution(
+            @PathVariable Long id, @PathVariable Long execId) {
+        return ResponseEntity.ok(ApiResponse.ok(standingOrderService.retryFailedExecution(id, execId)));
+    }
+
     // ========================================================================
     // DIRECT DEBITS (filtered view of standing instructions)
     // ========================================================================

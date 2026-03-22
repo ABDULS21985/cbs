@@ -4,15 +4,18 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/test/helpers';
 import { MarketDataManagementPage } from '../pages/MarketDataManagementPage';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
+import { server } from '@/test/msw/server';
 
-// ─── MSW Handlers ────────────────────────────────────────────────────────────
+// ─── Mock Data ───────────────────────────────────────────────────────────────
+
+const wrap = (data: unknown) => ({ success: true, data, timestamp: new Date().toISOString() });
 
 const switchDashboard = {
   totalFeeds: 12,
   activeFeeds: 10,
   messagesPerSec: 450,
   errorRate: 0.02,
+  uptimePct: 99.9,
 };
 
 const feeds = [
@@ -28,59 +31,38 @@ const feeds = [
   },
 ];
 
-const handlers = [
-  http.get('*/api/v1/market-data-switch/dashboard', () =>
-    HttpResponse.json({ data: switchDashboard }),
-  ),
-  http.get('*/api/v1/market-data/feeds/status', () =>
-    HttpResponse.json({ data: feeds }),
-  ),
-  http.get('*/api/v1/market-data-switch/feed-quality', () =>
-    HttpResponse.json({ data: [] }),
-  ),
-  http.get('*/api/v1/market-data/prices/*', () =>
-    HttpResponse.json({ data: null }),
-  ),
-  http.get('*/api/v1/market-data/signals/*', () =>
-    HttpResponse.json({ data: [] }),
-  ),
-  http.get('*/api/v1/market-data/research/published', () =>
-    HttpResponse.json({ data: [] }),
-  ),
-  http.get('*/api/v1/market-analysis/type/*', () =>
-    HttpResponse.json({ data: [] }),
-  ),
-];
-
-const errorHandlers = [
-  http.get('*/api/v1/market-data-switch/dashboard', () =>
-    HttpResponse.json({ message: 'Server error' }, { status: 500 }),
-  ),
-  http.get('*/api/v1/market-data/feeds/status', () =>
-    HttpResponse.json({ data: [] }),
-  ),
-  http.get('*/api/v1/market-data-switch/feed-quality', () =>
-    HttpResponse.json({ data: [] }),
-  ),
-  http.get('*/api/v1/market-data/research/published', () =>
-    HttpResponse.json({ data: [] }),
-  ),
-  http.get('*/api/v1/market-analysis/type/*', () =>
-    HttpResponse.json({ data: [] }),
-  ),
-];
-
-const server = setupServer(...handlers);
-
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+function setupHandlers(overrides?: { dashboard?: unknown; feeds?: unknown }) {
+  server.use(
+    http.get('/api/v1/market-data-switch/dashboard', () =>
+      HttpResponse.json(wrap(overrides?.dashboard ?? switchDashboard)),
+    ),
+    http.get('/api/v1/market-data/feeds/status', () =>
+      HttpResponse.json(wrap(overrides?.feeds ?? feeds)),
+    ),
+    http.get('/api/v1/market-data-switch/feed-quality', () =>
+      HttpResponse.json(wrap([])),
+    ),
+    http.get('/api/v1/market-data/prices/*', () =>
+      HttpResponse.json(wrap(null)),
+    ),
+    http.get('/api/v1/market-data/signals/*', () =>
+      HttpResponse.json(wrap([])),
+    ),
+    http.get('/api/v1/market-data/research/published', () =>
+      HttpResponse.json(wrap([])),
+    ),
+    http.get('/api/v1/market-analysis/type/:type', () =>
+      HttpResponse.json(wrap([])),
+    ),
+  );
+}
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('MarketDataManagementPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setupHandlers();
   });
 
   it('renders the page header', async () => {
@@ -124,11 +106,7 @@ describe('MarketDataManagementPage', () => {
   });
 
   it('shows empty state when no feeds are registered', async () => {
-    server.use(
-      http.get('*/api/v1/market-data/feeds/status', () =>
-        HttpResponse.json({ data: [] }),
-      ),
-    );
+    setupHandlers({ feeds: [] });
     renderWithProviders(<MarketDataManagementPage />);
     await waitFor(() => {
       expect(screen.getByText(/no data feeds registered/i)).toBeInTheDocument();
@@ -136,13 +114,16 @@ describe('MarketDataManagementPage', () => {
   });
 
   it('shows error banner when dashboard fails', async () => {
-    server.use(...errorHandlers);
-    renderWithProviders(<MarketDataManagementPage />);
-    await waitFor(
-      () => {
-        expect(screen.getByText(/unable to load market data/i)).toBeInTheDocument();
-      },
-      { timeout: 5000 },
+    server.use(
+      http.get('/api/v1/market-data-switch/dashboard', () => HttpResponse.error()),
+      http.get('/api/v1/market-data/feeds/status', () => HttpResponse.json(wrap([]))),
+      http.get('/api/v1/market-data-switch/feed-quality', () => HttpResponse.json(wrap([]))),
+      http.get('/api/v1/market-data/research/published', () => HttpResponse.json(wrap([]))),
+      http.get('/api/v1/market-analysis/type/:type', () => HttpResponse.json(wrap([]))),
     );
+    renderWithProviders(<MarketDataManagementPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/unable to load market data/i)).toBeInTheDocument();
+    });
   });
 });

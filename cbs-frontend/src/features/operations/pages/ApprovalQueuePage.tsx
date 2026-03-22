@@ -45,7 +45,7 @@ function ActionDialog({ task, action, onClose, onConfirm, isLoading }: ActionDia
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 modal-scrim" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md mx-4 bg-card rounded-xl border border-border shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2">
@@ -361,7 +361,7 @@ export function ApprovalQueuePage() {
       {/* Bulk Confirm */}
       {showBulkConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowBulkConfirm(false)} />
+          <div className="absolute inset-0 modal-scrim" onClick={() => setShowBulkConfirm(false)} />
           <div className="relative z-10 w-full max-w-sm mx-4 bg-card rounded-xl border border-border shadow-2xl p-6">
             <div className="flex items-center gap-2 mb-3">
               <AlertTriangle className="w-5 h-5 text-amber-500" />

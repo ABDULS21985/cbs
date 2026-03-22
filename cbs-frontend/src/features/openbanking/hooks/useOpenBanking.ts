@@ -27,6 +27,14 @@ export function useRegisterTppClient() {
   });
 }
 
+export function useDeactivateClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (clientId: string) => openBankingApi.deactivateClient(clientId),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: QK.tppClients }); },
+  });
+}
+
 // ─── Consent Hooks ──────────────────────────────────────────────────────────
 
 export function useConsents(params?: Record<string, unknown>) {

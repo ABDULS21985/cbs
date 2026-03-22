@@ -56,7 +56,7 @@ export interface FraudRule {
 
 export interface FraudStats {
   totalAlerts: number;
-  byStatus: Record<string, number>;
+  byStatus: Record<FraudAlertStatus, number>;
   byChannel: Record<string, number>;
 }
 

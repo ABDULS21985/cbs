@@ -92,13 +92,17 @@ function renderMaintenance(accountId = 'ACC-501') {
 }
 
 describe('AccountMaintenancePage', () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
   it('renders account info header with account details', async () => {
     setupDefaultHandlers();
     renderMaintenance();
 
     await waitFor(() => {
       expect(screen.getByText('0123456789')).toBeInTheDocument();
-    });
+    }, { timeout: 10_000 });
 
     expect(screen.getByText('Amara Primary Savings')).toBeInTheDocument();
     expect(screen.getByText('Standard Savings')).toBeInTheDocument();

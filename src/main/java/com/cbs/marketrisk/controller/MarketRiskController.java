@@ -14,6 +14,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,7 +26,7 @@ public class MarketRiskController {
 
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<MarketRiskPosition>> record(@RequestBody MarketRiskPosition pos) { return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.recordPosition(pos))); }
     @GetMapping("/{date}") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<MarketRiskPosition>>> byDate(@PathVariable LocalDate date) { return ResponseEntity.ok(ApiResponse.ok(service.getByDate(date))); }
-    @GetMapping("/breaches") @PreAuthorize("hasRole('CBS_ADMIN')") public ResponseEntity<ApiResponse<List<MarketRiskPosition>>> breaches() { return ResponseEntity.ok(ApiResponse.ok(service.getBreaches())); }
+    @GetMapping("/breaches") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')") public ResponseEntity<ApiResponse<List<MarketRiskPosition>>> breaches() { return ResponseEntity.ok(ApiResponse.ok(service.getBreaches())); }
 
     @GetMapping
     @Operation(summary = "List all market risk positions")
@@ -39,12 +40,31 @@ public class MarketRiskController {
     }
 
     @GetMapping("/stats")
-    @Operation(summary = "Get market risk statistics")
+    @Operation(summary = "Get market risk statistics — totalVar, avgLimitUtilization, breachCount, portfolioStressLoss")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStats() {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of(
-                "totalPositions", marketRiskPositionRepository.count(),
-                "breaches", marketRiskPositionRepository.findByLimitBreachTrueOrderByPositionDateDesc().size()
-        )));
+        List<MarketRiskPosition> recent = marketRiskPositionRepository.findAll(
+                PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "positionDate"))).getContent();
+
+        double totalVar = recent.stream()
+                .mapToDouble(p -> p.getVar1d95() != null ? p.getVar1d95().doubleValue() : 0d)
+                .sum();
+
+        double avgUtil = recent.isEmpty() ? 0d : recent.stream()
+                .mapToDouble(p -> p.getVarUtilizationPct() != null ? p.getVarUtilizationPct().doubleValue() : 0d)
+                .average().orElse(0d);
+
+        List<MarketRiskPosition> breached = marketRiskPositionRepository.findByLimitBreachTrueOrderByPositionDateDesc();
+
+        double stressLoss = recent.stream()
+                .mapToDouble(p -> p.getStressLossSevere() != null ? p.getStressLossSevere().doubleValue() : 0d)
+                .sum();
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("totalVar", totalVar);
+        stats.put("avgLimitUtilization", avgUtil);
+        stats.put("breachCount", breached.size());
+        stats.put("portfolioStressLoss", stressLoss);
+        return ResponseEntity.ok(ApiResponse.ok(stats));
     }
 }

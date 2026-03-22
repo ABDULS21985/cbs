@@ -1,11 +1,10 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { CHART_PALETTE } from '@/lib/chartPalette';
 
 const data = [
   { name: 'Savings', value: 35 }, { name: 'Current', value: 28 }, { name: 'Fixed Deposit', value: 22 },
   { name: 'Domiciliary', value: 10 }, { name: 'Other', value: 5 },
 ];
-
-const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#94a3b8'];
 
 const renderCustomLabel = ({ cx, cy }: { cx: number; cy: number }) => (
   <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
@@ -30,7 +29,7 @@ export function PieChartWidget() {
           labelLine={false}
         >
           {data.map((_, index) => (
-            <Cell key={index} fill={COLORS[index % COLORS.length]} strokeWidth={0} />
+            <Cell key={index} fill={CHART_PALETTE[index % CHART_PALETTE.length]} strokeWidth={0} />
           ))}
           {renderCustomLabel({ cx: 200, cy: 140 })}
         </Pie>

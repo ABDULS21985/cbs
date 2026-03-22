@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { recurringDepositApi, type RDInstallment } from '../../api/goalApi';
+import { goalQueryKeys } from '../../hooks/useGoals';
 
 interface PayInstallmentDialogProps {
   depositId: number;
@@ -41,8 +42,9 @@ export function PayInstallmentDialog({ depositId, installments, currency = 'NGN'
     },
     onSuccess: () => {
       toast.success(`${selectedInstallments.length} installment(s) paid`);
-      qc.invalidateQueries({ queryKey: ['recurring-deposit'] });
-      qc.invalidateQueries({ queryKey: ['recurring-deposits'] });
+      // Use canonical goal query keys so React Query cache entries are correctly invalidated
+      qc.invalidateQueries({ queryKey: goalQueryKeys.recurringDeposits });
+      qc.invalidateQueries({ queryKey: goalQueryKeys.recurringDeposit(String(depositId)) });
       onClose();
     },
     onError: () => toast.error('Payment failed'),
@@ -58,7 +60,7 @@ export function PayInstallmentDialog({ depositId, installments, currency = 'NGN'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 modal-scrim" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-base font-semibold">Pay Installment</h2>

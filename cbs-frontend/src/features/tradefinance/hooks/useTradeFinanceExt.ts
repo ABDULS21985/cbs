@@ -60,8 +60,7 @@ export function useLettersOfCredit(customerId?: number) {
     queryFn: () =>
       customerId
         ? tradeFinanceExtApi.getCustomerLcs(customerId)
-        : tradeFinanceExtApi.getCustomerLcs(0),
-    enabled: customerId !== undefined ? !!customerId : true,
+        : tradeFinanceExtApi.listLcs(),
     staleTime: 30_000,
   });
 }
@@ -94,6 +93,7 @@ export function useIssueLc() {
       goodsDescription: '',
       paymentTerms: input.paymentTerms,
       tenorDays: input.tenor,
+      lcType: 'IMPORT_LC',
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.lcs.all });
@@ -165,8 +165,7 @@ export function useBankGuarantees(customerId?: number) {
     queryFn: () =>
       customerId
         ? tradeFinanceExtApi.getCustomerGuarantees(customerId)
-        : tradeFinanceExtApi.getCustomerGuarantees(0),
-    enabled: customerId !== undefined ? !!customerId : true,
+        : tradeFinanceExtApi.listGuarantees(),
     staleTime: 30_000,
   });
 }
@@ -272,7 +271,7 @@ export function useCreateScfProgramme() {
       limitAmount: number;
     }) => tradeFinanceExtApi.createScfProgramme({
       anchorCustomerId: parseInt(input.buyer) || 0,
-      type: 'REVERSE_FACTORING',
+      type: 'APPROVED_PAYABLES',
       programmeName: `SCF-${input.buyer}`,
       limit: input.limitAmount,
       currencyCode: input.currency,
@@ -357,6 +356,20 @@ export function useUploadDocument() {
   });
 }
 
+export function useUploadDocumentWithFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { file: File; category: string; lcId?: number; collectionId?: number; customerId?: number }) =>
+      tradeFinanceExtApi.uploadDocumentWithFile(input),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['trade', 'documents'] });
+      if (variables.lcId) {
+        qc.invalidateQueries({ queryKey: KEYS.lcs.documents(variables.lcId) });
+      }
+    },
+  });
+}
+
 // ─── Factoring (tradeFinanceExtApi) ──────────────────────────────────────────
 
 export function useFactoringFacilitiesExt() {
@@ -422,15 +435,21 @@ export function useRecordCollection() {
 }
 
 export function useCreateCollection() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: {
-      drawer: string;
-      drawee: string;
-      currency: string;
+      drawerCustomerId: number;
+      collectionType: string;
+      draweeName: string;
       amount: number;
-      type: CollectionType;
-      documents: string[];
+      currencyCode: string;
+      documents?: string[];
+      tenorDays?: number;
     }) => tradeFinanceExtApi.createCollection(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trade-finance', 'collections'] });
+      qc.invalidateQueries({ queryKey: ['trade', 'collections'] });
+    },
   });
 }
 
@@ -535,6 +554,40 @@ export function useSubmitForClearing() {
     mutationFn: (data: Partial<ClearingSubmission>) => tradeOpsApi.submitForClearing(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.tradeOps.all });
+    },
+  });
+}
+
+// ─── Trade Documents (all) ──────────────────────────────────────────────────
+
+export function useTradeDocuments() {
+  return useQuery({
+    queryKey: ['trade', 'documents'],
+    queryFn: () => tradeFinanceExtApi.listDocuments(),
+    staleTime: 30_000,
+  });
+}
+
+// ─── Factoring Invoices (ext) ───────────────────────────────────────────────
+
+export function useFactoringInvoicesExt() {
+  return useQuery({
+    queryKey: [...KEYS.factoring.all, 'invoices-ext'],
+    queryFn: () => factoringApi.listInvoices(),
+    staleTime: 30_000,
+  });
+}
+
+// ─── Settle Collection ──────────────────────────────────────────────────────
+
+export function useSettleCollection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, amount }: { id: number; amount: number }) =>
+      tradeFinanceExtApi.settleCollection(id, amount),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['trade-finance', 'collections'] });
+      qc.invalidateQueries({ queryKey: ['trade', 'collections'] });
     },
   });
 }

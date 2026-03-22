@@ -485,8 +485,10 @@ function HandoffDialog({ session, open, onClose, onSubmit, isPending }: HandoffD
 // ─── Live Sessions Panel ──────────────────────────────────────────────────────
 
 function LiveSessionsPanel() {
+  const [sessionPage, setSessionPage] = useState(0);
+  const pageSize = 20;
   const { data: counts, isLoading, refetch, isFetching, dataUpdatedAt } = useChannelSessionCounts();
-  const { data: sessions = [], isLoading: sessionsLoading } = useChannelSessions({ page: 0, size: 20 });
+  const { data: sessions = [], isLoading: sessionsLoading } = useChannelSessions({ page: sessionPage, size: pageSize });
   const { mutate: cleanup, isPending: cleaning } = useCleanupSessions();
   const { mutate: endSession } = useEndChannelSession();
   const { mutate: handoffSession, isPending: handingOff } = useHandoffSession();
@@ -613,7 +615,7 @@ function LiveSessionsPanel() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {sessions.slice(0, 10).map((s: ChannelSession) => (
+                {sessions.map((s: ChannelSession) => (
                   <tr key={s.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-2.5">
                       <span className="font-mono text-xs">{s.sessionId}</span>
@@ -651,6 +653,29 @@ function LiveSessionsPanel() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {sessions.length > 0 && (
+          <div className="flex items-center justify-between px-5 py-2 border-t">
+            <p className="text-xs text-muted-foreground">
+              Page {sessionPage + 1} — showing {sessions.length} sessions
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSessionPage((p) => Math.max(0, p - 1))}
+                disabled={sessionPage === 0}
+                className="px-2.5 py-1 rounded border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setSessionPage((p) => p + 1)}
+                disabled={sessions.length < pageSize}
+                className="px-2.5 py-1 rounded border text-xs font-medium hover:bg-muted transition-colors disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
         {dataUpdatedAt > 0 && (

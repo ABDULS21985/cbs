@@ -35,8 +35,9 @@ function applyFilters(cases: CustomerCase[], filters: CaseFilters): CustomerCase
     if (filters.caseType && c.caseType !== filters.caseType) return false;
     if (filters.priority && c.priority !== filters.priority) return false;
     if (filters.status && c.status !== filters.status) return false;
-    if (filters.dateFrom && c.openedAt < filters.dateFrom) return false;
-    if (filters.dateTo && c.openedAt > filters.dateTo + 'T23:59:59') return false;
+    const openDate = c.openedAt || c.createdAt;
+    if (filters.dateFrom && openDate < filters.dateFrom) return false;
+    if (filters.dateTo && openDate > filters.dateTo + 'T23:59:59') return false;
     if (filters.search) {
       const q = filters.search.toLowerCase();
       if (!c.caseNumber.toLowerCase().includes(q) && !c.customerName.toLowerCase().includes(q) && !c.subject.toLowerCase().includes(q)) return false;
@@ -55,8 +56,19 @@ export function CaseListPage() {
   const { data: myCases = [], isLoading: myLoading } = useMyCases();
   const { data: unassigned = [], isLoading: unassignedLoading } = useUnassignedCases();
   const { data: allCases = [], isLoading: allLoading } = useQuery({
-    queryKey: ['cases', 'list'],
-    queryFn: () => caseApi.getAll(),
+    queryKey: ['cases', 'list', filters],
+    queryFn: () => caseApi.getAll(
+      hasActiveFilters(filters)
+        ? {
+            search: filters.search || undefined,
+            caseType: filters.caseType || undefined,
+            priority: filters.priority || undefined,
+            status: filters.status || undefined,
+            dateFrom: filters.dateFrom || undefined,
+            dateTo: filters.dateTo || undefined,
+          }
+        : undefined
+    ),
   });
   const { data: escalated = [], isLoading: escalatedLoading } = useEscalatedCases();
   const { data: slaBreached = [], isLoading: slaLoading } = useQuery({

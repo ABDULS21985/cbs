@@ -3,7 +3,7 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { DataTable, StatusBadge } from '@/components/shared';
 import { formatDate } from '@/lib/formatters';
 import { ChannelBadge } from './ChannelBadge';
-import type { NotificationTemplate } from '../../../admin/api/notificationAdminApi';
+import type { NotificationTemplate } from '../../api/communicationApi';
 
 interface TemplateTableProps {
   templates: NotificationTemplate[];

@@ -230,6 +230,79 @@ describe('notificationApi', () => {
     expect(mocks.apiGet).toHaveBeenCalledWith('/api/v1/notifications/unread-count', { customerId: 42 });
     expect(result.unreadCount).toBe(7);
   });
+
+  // ── Scheduled Campaigns (ScheduledNotification type) ────────────────
+
+  it('getScheduled() returns ScheduledNotification array', async () => {
+    mocks.apiGet.mockResolvedValue([
+      { id: 1, name: 'Weekly Promo', channel: 'EMAIL', frequency: 'WEEKLY', status: 'ACTIVE', recipientCount: 500 },
+    ]);
+    const result = await notificationApi.getScheduled(0, 20);
+    expect(mocks.apiGet).toHaveBeenCalledWith('/api/v1/notifications/scheduled', { page: 0, size: 20 });
+    expect(result[0]).toHaveProperty('name');
+    expect(result[0]).toHaveProperty('frequency');
+    expect(result[0]).toHaveProperty('status');
+  });
+
+  it('createScheduled() posts scheduled campaign', async () => {
+    const data = { name: 'Year End', channel: 'SMS' as const, frequency: 'ONCE' as const, subject: 'Sale' };
+    mocks.apiPost.mockResolvedValue({ id: 10, ...data, status: 'ACTIVE' });
+    const result = await notificationApi.createScheduled(data);
+    expect(mocks.apiPost).toHaveBeenCalledWith('/api/v1/notifications/scheduled', data);
+    expect(result.status).toBe('ACTIVE');
+  });
+
+  it('toggleScheduled() calls PUT toggle and returns ScheduledNotification', async () => {
+    mocks.apiPut.mockResolvedValue({ id: 3, status: 'PAUSED', name: 'Promo' });
+    const result = await notificationApi.toggleScheduled(3);
+    expect(mocks.apiPut).toHaveBeenCalledWith('/api/v1/notifications/scheduled/3/toggle');
+    expect(result).toHaveProperty('status');
+  });
+
+  // ── Send by template ──────────────────────────────────────────────
+
+  it('sendByTemplate() posts template-based send', async () => {
+    const data = { templateId: 5, recipients: ['user@test.com'], mergeData: { customerName: 'John' } };
+    mocks.apiPost.mockResolvedValue({ sent: 1, failed: 0, total: 1 });
+    const result = await notificationApi.sendByTemplate(data);
+    expect(mocks.apiPost).toHaveBeenCalledWith('/api/v1/notifications/send-by-template', data);
+    expect(result.sent).toBe(1);
+  });
+
+  // ── Customer notifications ────────────────────────────────────────
+
+  it('getCustomerNotifications() fetches paginated customer notifications', async () => {
+    mocks.apiGet.mockResolvedValue([{ id: 1, customerId: 42, channel: 'EMAIL', status: 'DELIVERED' }]);
+    const result = await notificationApi.getCustomerNotifications(42, 0, 20);
+    expect(mocks.apiGet).toHaveBeenCalledWith('/api/v1/notifications/customer/42', { page: 0, size: 20 });
+    expect(result).toHaveLength(1);
+  });
+
+  // ── Send event notification ───────────────────────────────────────
+
+  it('send() constructs query string from params', async () => {
+    mocks.apiPost.mockResolvedValue([{ id: 1, status: 'PENDING' }]);
+    await notificationApi.send(
+      { eventType: 'ACCOUNT_OPENED', customerId: 42, email: 'test@example.com', name: 'John' },
+      { customerName: 'John', accountNumber: '1234' },
+    );
+    expect(mocks.apiPost).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/notifications/send?eventType=ACCOUNT_OPENED'),
+      { customerName: 'John', accountNumber: '1234' },
+    );
+    expect(mocks.apiPost).toHaveBeenCalledWith(
+      expect.stringContaining('customerId=42'),
+      expect.anything(),
+    );
+  });
+
+  // ── Notification preferences ──────────────────────────────────────
+
+  it('getNotificationPreferences() fetches all or filtered by customerId', async () => {
+    mocks.apiGet.mockResolvedValue([]);
+    await notificationApi.getNotificationPreferences(42);
+    expect(mocks.apiGet).toHaveBeenCalledWith('/api/v1/notifications/preferences', { customerId: 42 });
+  });
 });
 
 // ── Routing API ────────────────────────────────────────────────────────────

@@ -70,8 +70,8 @@ export function useAllowTransaction() {
 export function useDismissAlert() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ alertId, reason }: { alertId: number; reason: string }) => {
-      const res = await fraudApi.dismissAlert(alertId, reason);
+    mutationFn: async (alertId: number) => {
+      const res = await fraudApi.dismissAlert(alertId);
       return res;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fraud'] }),
@@ -105,8 +105,8 @@ export function useModelPerformance() {
 export function useToggleFraudRule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, active }: { id: number; active: boolean }) => {
-      const res = await fraudApi.toggleRule(id, active);
+    mutationFn: async (id: number) => {
+      const res = await fraudApi.toggleRule(id);
       return res;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['fraud', 'rules'] }),

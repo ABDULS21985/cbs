@@ -178,7 +178,10 @@ export interface KycDocument {
 
 export const portalApi = {
   getAccounts: () =>
-    apiGet<PortalAccount[]>('/api/v1/portal/accounts'),
+    apiGet<PortalAccount[]>('/api/v1/portal/accounts').catch(() =>
+      // Fallback to the core accounts module endpoint for portal users
+      apiGet<PortalAccount[]>('/api/v1/accounts/my'),
+    ),
   getTransactions: (accountId: number, params?: Record<string, unknown>) =>
     apiGet<PortalTransaction[]>(`/api/v1/portal/accounts/${accountId}/transactions`, params),
   getRecentTransactions: () =>

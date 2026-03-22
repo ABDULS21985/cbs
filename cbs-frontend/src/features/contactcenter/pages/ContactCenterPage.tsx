@@ -610,12 +610,12 @@ export function ContactCenterPage() {
         return (
           <div className="flex gap-1">
             {(ix.status === 'QUEUED' || (!ix.agentId && isActive)) && (
-              <button onClick={(e) => { e.stopPropagation(); setShowAssign(ix); }} className="px-2 py-1 text-[10px] font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400">
+              <button onClick={(e) => { e.stopPropagation(); setShowAssign(ix); }} className="ui-action-chip ui-action-chip-info dark:bg-blue-900/30 dark:text-blue-400">
                 Assign
               </button>
             )}
             {isActive && ix.agentId && (
-              <button onClick={(e) => { e.stopPropagation(); setShowComplete(ix); }} className="px-2 py-1 text-[10px] font-medium rounded bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400">
+              <button onClick={(e) => { e.stopPropagation(); setShowComplete(ix); }} className="ui-action-chip ui-action-chip-success dark:bg-green-900/30 dark:text-green-400">
                 Complete
               </button>
             )}

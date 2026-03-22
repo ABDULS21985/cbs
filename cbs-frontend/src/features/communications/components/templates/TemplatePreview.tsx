@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
-import { previewTemplate, type TemplatePreview as TemplatePreviewType } from '../../../admin/api/notificationAdminApi';
+import { notificationApi, type TemplatePreview as TemplatePreviewType } from '../../api/communicationApi';
 import { ChannelBadge } from './ChannelBadge';
 
 interface TemplatePreviewProps {
@@ -74,7 +74,7 @@ export function TemplatePreview({ templateId, channel }: TemplatePreviewProps) {
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
   const { data: preview, isLoading, isError } = useQuery({
     queryKey: ['template-preview', templateId],
-    queryFn: () => previewTemplate(templateId),
+    queryFn: () => notificationApi.previewTemplate(templateId),
     enabled: templateId > 0,
     staleTime: 30_000,
   });

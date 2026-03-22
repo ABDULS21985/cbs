@@ -32,6 +32,7 @@ class AlmAlcoPackServiceTest {
     @Mock private AlcoActionItemRepository actionItemRepository;
     @Mock private AlmRegulatoryReturnRepository regulatoryReturnRepository;
     @Mock private AlmRegulatorySubmissionRepository regulatorySubmissionRepository;
+    @Mock private StressTestRunRepository stressTestRunRepository;
     @Mock private CurrentActorProvider currentActorProvider;
 
     @InjectMocks private AlmService almService;
@@ -493,6 +494,8 @@ class AlmAlcoPackServiceTest {
                     .shiftBps(Map.of("1Y", 200, "2Y", 200, "5Y", 200, "10Y", 200))
                     .build();
             when(scenarioRepository.findById(1L)).thenReturn(Optional.of(scenario));
+            when(currentActorProvider.getCurrentActor()).thenReturn("tester");
+            when(stressTestRunRepository.save(any())).thenAnswer(inv -> { StressTestRun r = inv.getArgument(0); r.setId(1L); return r; });
 
             AlmGapReport report = AlmGapReport.builder()
                     .niiBase(new BigDecimal("5000000000"))
@@ -541,6 +544,8 @@ class AlmAlcoPackServiceTest {
                     .shiftBps(Map.of("1Y", -100)).build();
             when(scenarioRepository.findById(1L)).thenReturn(Optional.of(s1));
             when(scenarioRepository.findById(2L)).thenReturn(Optional.of(s2));
+            when(currentActorProvider.getCurrentActor()).thenReturn("tester");
+            when(stressTestRunRepository.save(any())).thenAnswer(inv -> { StressTestRun r = inv.getArgument(0); r.setId(99L); return r; });
             when(gapReportRepository.findAll()).thenReturn(List.of(
                     AlmGapReport.builder().niiBase(new BigDecimal("5000000000"))
                             .eveBase(new BigDecimal("2000000000"))

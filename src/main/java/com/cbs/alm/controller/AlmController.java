@@ -107,6 +107,20 @@ public class AlmController {
         return ResponseEntity.ok(ApiResponse.ok(almService.compareScenarios(scenarioIds)));
     }
 
+    @GetMapping("/stress-runs")
+    @Operation(summary = "List all stress test runs (audit trail)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<com.cbs.alm.entity.StressTestRun>>> getStressRuns() {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getAllStressTestRuns()));
+    }
+
+    @GetMapping("/stress-runs/scenario/{scenarioId}")
+    @Operation(summary = "List stress test runs for a specific scenario")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<com.cbs.alm.entity.StressTestRun>>> getStressRunsByScenario(@PathVariable Long scenarioId) {
+        return ResponseEntity.ok(ApiResponse.ok(almService.getStressTestRunsByScenario(scenarioId)));
+    }
+
     // ── ALCO Pack Management ─────────────────────────────────────────────────
 
     @GetMapping("/alco-packs")

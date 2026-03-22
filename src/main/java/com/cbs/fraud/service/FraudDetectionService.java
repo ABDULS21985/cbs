@@ -130,7 +130,13 @@ public class FraudDetectionService {
     @Transactional
     public FraudAlert resolveAlert(Long alertId, String resolution, String resolvedBy) {
         FraudAlert alert = findAlertOrThrow(alertId);
-        alert.setStatus("FALSE_POSITIVE".equalsIgnoreCase(resolution) ? "FALSE_POSITIVE" : "CONFIRMED_FRAUD");
+        String newStatus = switch (resolution == null ? "" : resolution.toUpperCase()) {
+            case "FALSE_POSITIVE", "DISMISSED" -> "FALSE_POSITIVE";
+            case "ALLOWED" -> "RESOLVED";
+            case "CONFIRMED_FRAUD", "FRAUD_CONFIRMED" -> "CONFIRMED_FRAUD";
+            default -> "RESOLVED";
+        };
+        alert.setStatus(newStatus);
         alert.setResolutionNotes(resolution);
         alert.setResolvedBy(resolvedBy);
         alert.setResolvedAt(Instant.now());
@@ -144,6 +150,43 @@ public class FraudDetectionService {
     @Transactional
     public FraudRule createRule(FraudRule rule) { return ruleRepository.save(rule); }
     public List<FraudRule> getAllActiveRules() { return ruleRepository.findByIsActiveTrueOrderByScoreWeightDesc(); }
+
+    @Transactional
+    public FraudRule toggleRule(Long ruleId) {
+        FraudRule rule = ruleRepository.findById(ruleId)
+                .orElseThrow(() -> new ResourceNotFoundException("FraudRule", "id", ruleId));
+        rule.setIsActive(!rule.getIsActive());
+        log.info("Fraud rule toggled: code={}, active={}", rule.getRuleCode(), rule.getIsActive());
+        return ruleRepository.save(rule);
+    }
+
+    @Transactional
+    public FraudAlert blockCard(Long alertId) {
+        FraudAlert alert = findAlertOrThrow(alertId);
+        alert.setActionTaken("BLOCK_CARD");
+        alert.setStatus("CONFIRMED_FRAUD");
+        log.info("Card blocked for fraud alert: ref={}", alert.getAlertRef());
+        return alertRepository.save(alert);
+    }
+
+    @Transactional
+    public FraudAlert blockAccount(Long alertId) {
+        FraudAlert alert = findAlertOrThrow(alertId);
+        alert.setActionTaken("BLOCK_ACCOUNT");
+        alert.setStatus("CONFIRMED_FRAUD");
+        log.info("Account blocked for fraud alert: ref={}", alert.getAlertRef());
+        return alertRepository.save(alert);
+    }
+
+    @Transactional
+    public FraudAlert fileCase(Long alertId, String notes) {
+        FraudAlert alert = findAlertOrThrow(alertId);
+        alert.setActionTaken("CASE_FILED");
+        alert.setStatus("INVESTIGATING");
+        alert.setResolutionNotes(notes);
+        log.info("Investigation case filed for fraud alert: ref={}", alert.getAlertRef());
+        return alertRepository.save(alert);
+    }
 
     private FraudAlert findAlertOrThrow(Long id) {
         return alertRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("FraudAlert", "id", id));

@@ -53,14 +53,22 @@ export interface Amendment {
   newVersion: number;
 }
 
-// ── Customer Agreements (5 endpoints) ────────────────────────────────────────
+// ── Customer Agreements (7 endpoints) ────────────────────────────────────────
 
 export function getAgreements() {
   return apiGet<CustomerAgreement[]>('/api/v1/agreements');
 }
 
+export function getAgreementById(id: number) {
+  return apiGet<CustomerAgreement>(`/api/v1/agreements/${id}`);
+}
+
 export function createAgreement(data: CreateCustomerAgreementPayload) {
   return apiPost<CustomerAgreement>('/api/v1/agreements', data);
+}
+
+export function updateAgreement(id: number, data: Partial<CustomerAgreement>) {
+  return apiPut<CustomerAgreement>(`/api/v1/agreements/${id}`, data);
 }
 
 export function activateAgreement(agreementNumber: string) {
@@ -90,9 +98,9 @@ export function createTdFramework(data: CreateTdFrameworkPayload) {
   return apiPost<TdFrameworkAgreement>('/api/v1/td-frameworks', data);
 }
 
-export function approveTdFramework(agreementNumber: string, approvedBy: string) {
+export function approveTdFramework(agreementNumber: string) {
   return apiPost<TdFrameworkAgreement>(
-    `/api/v1/td-frameworks/${agreementNumber}/approve?approvedBy=${encodeURIComponent(approvedBy)}`,
+    `/api/v1/td-frameworks/${agreementNumber}/approve`,
   );
 }
 
@@ -146,6 +154,10 @@ export function getCommissionAgreements() {
   return apiGet<CommissionAgreement[]>('/api/v1/commissions/agreements');
 }
 
+export function getCommissionAgreementByCode(code: string) {
+  return apiGet<CommissionAgreement>(`/api/v1/commissions/agreements/${code}`);
+}
+
 export function createCommissionAgreement(data: CreateCommissionAgreementPayload) {
   return apiPost<CommissionAgreement>('/api/v1/commissions/agreements', data);
 }
@@ -161,7 +173,12 @@ export function calculatePayout(
   params: { grossSales: number; qualifyingSales: number; period: string },
 ) {
   return apiPost<CommissionPayout>(
-    `/api/v1/commissions/agreements/${code}/calculate-payout?grossSales=${params.grossSales}&qualifyingSales=${params.qualifyingSales}&period=${encodeURIComponent(params.period)}`,
+    `/api/v1/commissions/agreements/${code}/calculate-payout`,
+    {
+      grossSales: params.grossSales,
+      qualifyingSales: params.qualifyingSales,
+      period: params.period,
+    },
   );
 }
 

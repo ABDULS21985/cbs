@@ -48,7 +48,7 @@ function createWrapper() {
 }
 
 const transaction = {
-  id: 'txn-1',
+  id: 1,
   reference: 'TXN-001',
   type: 'TRANSFER',
   channel: 'WEB',

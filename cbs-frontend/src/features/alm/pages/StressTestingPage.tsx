@@ -10,8 +10,9 @@ import {
   useRunScenario,
   useHistoricalReplay,
   useCompareScenarios,
+  useStressTestRuns,
 } from '../hooks/useAlm';
-import type { AlmScenario, StressTestResult, HistoricalReplayResult, ScenarioComparison } from '../api/almApi';
+import type { AlmScenario, StressTestResult, HistoricalReplayResult, ScenarioComparison, StressTestRunSummary } from '../api/almApi';
 import { ScenarioBuilder } from '../components/ScenarioBuilder';
 import { StressResultsPanel, HistoricalReplayChart, ScenarioRadarChart } from '../components/StressResultsPanel';
 
@@ -55,6 +56,7 @@ export function StressTestingPage() {
   const runScenario = useRunScenario();
   const historicalReplay = useHistoricalReplay();
   const compareScenarios = useCompareScenarios();
+  const { data: stressRuns = [] } = useStressTestRuns();
 
   // Results
   const [stressResult, setStressResult] = useState<StressTestResult | null>(null);
@@ -362,6 +364,66 @@ export function StressTestingPage() {
                   <p className="text-xs text-muted-foreground">{crisis.desc}</p>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Stress Test Audit Trail ─────────────────────────────────── */}
+        {view === 'library' && stressRuns.length > 0 && (
+          <div className="rounded-lg border bg-card">
+            <div className="px-4 py-3 border-b">
+              <h2 className="text-sm font-semibold">Stress Test Run History</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Persisted audit trail of all stress test executions</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Scenario</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Type</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">Shock (bps)</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">NII Impact</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">EVE Impact</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground">CET1 After</th>
+                    <th className="text-center px-4 py-3 text-xs font-medium text-muted-foreground">Breaches</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Run By</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground">Run At</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {stressRuns.slice(0, 20).map((run) => (
+                    <tr key={run.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-3 font-medium text-sm">{run.scenarioName}</td>
+                      <td className="px-4 py-3">
+                        <span className={cn('ui-chip', CATEGORY_COLORS[run.scenarioType] || CATEGORY_COLORS.CUSTOM)}>
+                          {run.scenarioType}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums font-mono text-xs">{run.avgShockBps > 0 ? '+' : ''}{run.avgShockBps}</td>
+                      <td className={cn('px-4 py-3 text-right tabular-nums font-mono text-xs', run.niiImpact >= 0 ? 'text-green-600' : 'text-red-600')}>
+                        {formatMoney(run.niiImpact)}
+                      </td>
+                      <td className={cn('px-4 py-3 text-right tabular-nums font-mono text-xs', run.eveImpact >= 0 ? 'text-green-600' : 'text-red-600')}>
+                        {formatMoney(run.eveImpact)}
+                      </td>
+                      <td className={cn('px-4 py-3 text-right tabular-nums font-mono text-xs', run.cet1After < 10.5 ? 'text-red-600 font-bold' : '')}>
+                        {run.cet1After?.toFixed(2)}%
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {run.breachCount > 0 ? (
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-700 text-[10px] font-bold dark:bg-red-900/30 dark:text-red-400">
+                            {run.breachCount}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">0</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{run.runBy || '--'}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">{new Date(run.runAt).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

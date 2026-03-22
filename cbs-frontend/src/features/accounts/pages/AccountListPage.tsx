@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { type ColumnDef } from '@tanstack/react-table';
 import { useNavigate } from 'react-router-dom';
-import { Landmark, Users, Wallet, TrendingUp, Plus } from 'lucide-react';
+import { Landmark, Users, Wallet, TrendingUp, Plus, Settings, ArrowRightLeft } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, StatusBadge } from '@/components/shared';
 import { formatMoney } from '@/lib/formatters';
@@ -26,60 +26,86 @@ interface AccountRow {
   openedDate: string;
 }
 
-const columns: ColumnDef<AccountRow, unknown>[] = [
-  {
-    accessorKey: 'accountNumber',
-    header: 'Account Number',
-    cell: ({ getValue }) => (
-      <span className="font-mono text-xs font-medium">{String(getValue())}</span>
-    ),
-  },
-  {
-    accessorKey: 'accountName',
-    header: 'Account Name',
-    cell: ({ getValue }) => (
-      <span className="text-sm font-medium">{String(getValue() ?? '—')}</span>
-    ),
-  },
-  {
-    accessorKey: 'productCategory',
-    header: 'Type',
-    cell: ({ getValue }) => (
-      <span className="text-sm">{String(getValue() ?? 'N/A')}</span>
-    ),
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ getValue }) => <StatusBadge status={String(getValue() ?? 'ACTIVE')} />,
-  },
-  {
-    accessorKey: 'currency',
-    header: 'Currency',
-    cell: ({ getValue }) => (
-      <span className="text-xs font-mono">{String(getValue() ?? 'NGN')}</span>
-    ),
-  },
-  {
-    accessorKey: 'availableBalance',
-    header: 'Available Balance',
-    cell: ({ row }) => (
-      <span className="text-sm font-mono text-right block">
-        {formatMoney(row.original.availableBalance ?? 0, row.original.currency ?? 'NGN')}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'branchCode',
-    header: 'Branch',
-    cell: ({ getValue }) => (
-      <span className="text-xs">{String(getValue() ?? '—')}</span>
-    ),
-  },
-];
+function useAccountColumns(): ColumnDef<AccountRow, unknown>[] {
+  const navigate = useNavigate();
+  return [
+    {
+      accessorKey: 'accountNumber',
+      header: 'Account Number',
+      cell: ({ getValue }) => (
+        <span className="font-mono text-xs font-medium">{String(getValue())}</span>
+      ),
+    },
+    {
+      accessorKey: 'accountName',
+      header: 'Account Name',
+      cell: ({ getValue }) => (
+        <span className="text-sm font-medium">{String(getValue() ?? '—')}</span>
+      ),
+    },
+    {
+      accessorKey: 'productCategory',
+      header: 'Type',
+      cell: ({ getValue }) => (
+        <span className="text-sm">{String(getValue() ?? 'N/A')}</span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ getValue }) => <StatusBadge status={String(getValue() ?? 'ACTIVE')} />,
+    },
+    {
+      accessorKey: 'currency',
+      header: 'Currency',
+      cell: ({ getValue }) => (
+        <span className="text-xs font-mono">{String(getValue() ?? 'NGN')}</span>
+      ),
+    },
+    {
+      accessorKey: 'availableBalance',
+      header: 'Available Balance',
+      cell: ({ row }) => (
+        <span className="text-sm font-mono text-right block">
+          {formatMoney(row.original.availableBalance ?? 0, row.original.currency ?? 'NGN')}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'branchCode',
+      header: 'Branch',
+      cell: ({ getValue }) => (
+        <span className="text-xs">{String(getValue() ?? '—')}</span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => navigate(`/accounts/${row.original.accountNumber}/maintenance`)}
+            className="p-1.5 rounded-md hover:bg-muted transition-colors"
+            title="Account Maintenance"
+          >
+            <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <button
+            onClick={() => navigate(`/accounts/post-transaction?account=${row.original.accountNumber}`)}
+            className="p-1.5 rounded-md hover:bg-muted transition-colors"
+            title="Post Transaction"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+}
 
 export function AccountListPage() {
   const navigate = useNavigate();
+  const columns = useAccountColumns();
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [branchFilter, setBranchFilter] = useState<string>('ALL');
 
@@ -99,7 +125,7 @@ export function AccountListPage() {
 
   const queryParams: Record<string, unknown> = {};
   if (statusFilter !== 'ALL') queryParams.status = statusFilter;
-  if (branchFilter !== 'ALL') queryParams.branch = branchFilter;
+  if (branchFilter !== 'ALL') queryParams.branchCode = branchFilter;
 
   const { data: accounts = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['accounts', 'list', statusFilter, branchFilter],

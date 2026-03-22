@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationApi, communicationApi, routingApi } from '../api/communicationApi';
+import type { NotificationTemplate, ScheduledNotification } from '../api/communicationApi';
 
 const KEYS = {
   notifications: ['notifications'] as const,
@@ -13,6 +14,8 @@ const KEYS = {
   unread: (id?: number) => ['notifications', 'unread', id] as const,
   channels: ['notifications', 'channels'] as const,
   templates: ['notifications', 'templates'] as const,
+  template: (id: number | string) => ['notifications', 'template', id] as const,
+  templateVersions: (id: number | string) => ['notifications', 'template-versions', id] as const,
   communications: ['communications'] as const,
 };
 
@@ -200,10 +203,45 @@ export function useTestTemplate() {
 
 export function useTemplateVersions(templateId: number) {
   return useQuery({
-    queryKey: ['notifications', 'template-versions', templateId],
+    queryKey: KEYS.templateVersions(templateId),
     queryFn: () => notificationApi.getTemplateVersions(templateId),
     enabled: templateId > 0,
     staleTime: 60_000,
+  });
+}
+
+// ── Single template query ────────────────────────────────────────────────
+
+export function useNotificationTemplate(id: number | string) {
+  const numId = typeof id === 'string' ? parseInt(id, 10) : id;
+  return useQuery({
+    queryKey: KEYS.template(id),
+    queryFn: () => notificationApi.getTemplate(numId),
+    enabled: numId > 0,
+    staleTime: 30_000,
+  });
+}
+
+// ── Template CRUD mutations ──────────────────────────────────────────────
+
+export function useCreateTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<NotificationTemplate>) => notificationApi.createTemplate(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.templates });
+    },
+  });
+}
+
+export function useUpdateTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number | string; data: Partial<NotificationTemplate> }) =>
+      notificationApi.updateTemplate(typeof id === 'string' ? parseInt(id, 10) : id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.templates });
+    },
   });
 }
 
@@ -223,6 +261,16 @@ export function useToggleScheduledNotification() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => notificationApi.toggleScheduled(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.scheduled });
+    },
+  });
+}
+
+export function useCreateScheduledNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Partial<ScheduledNotification>) => notificationApi.createScheduled(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.scheduled });
     },

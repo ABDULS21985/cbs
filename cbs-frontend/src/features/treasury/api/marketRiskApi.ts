@@ -1,22 +1,30 @@
 import { apiGet, apiPost } from '@/lib/api';
 
+/** Matches com.cbs.marketrisk.entity.MarketRiskPosition field names exactly */
 export interface MarketRiskPosition {
   id: number;
-  reportDate: string;
-  deskId: number;
-  deskName: string;
+  positionDate: string;        // entity: LocalDate positionDate
+  riskType: string;
+  portfolio: string;
   currency: string;
-  varHistorical: number;
-  varParametric: number;
-  varMonteCarlo: number;
-  stressLoss: number;
-  greeksDelta: number;
-  greeksGamma: number;
-  greeksVega: number;
-  greeksTheta: number;
-  pnlAttribution: number;
-  limitUtilization: number;
-  breached: boolean;
+  var1d95: number;             // 1-day 95% historical VaR
+  var1d99: number;             // 1-day 99% parametric VaR
+  var10d99: number;            // 10-day 99% VaR
+  varMethod: string;
+  stressLossModerate: number;
+  stressLossSevere: number;
+  stressScenario?: string;
+  delta: number;
+  gamma: number;
+  vega: number;
+  theta: number;
+  rho: number;
+  varLimit: number;
+  varUtilizationPct: number;   // entity: varUtilizationPct
+  limitBreach: boolean;        // entity: limitBreach
+  dailyPnl: number;
+  mtdPnl: number;
+  ytdPnl: number;
   createdAt: string;
 }
 

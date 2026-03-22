@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { MergeFieldToolbar } from './MergeFieldToolbar';
-import type { NotificationTemplate, NotificationChannel } from '../../../admin/api/notificationAdminApi';
+import type { NotificationTemplate, NotificationChannel } from '../../api/communicationApi';
 
 const CHANNELS: { value: NotificationChannel; label: string }[] = [
   { value: 'EMAIL', label: 'Email' },

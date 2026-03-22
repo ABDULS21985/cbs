@@ -1,19 +1,9 @@
-import { useState, useEffect } from 'react';
-import { format, subMonths } from 'date-fns';
+import { useEffect } from 'react';
+import { format } from 'date-fns';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DateRangePicker } from '@/components/shared';
-import { channelAnalyticsApi } from '../api/channelAnalyticsApi';
-import type {
-  ChannelStats,
-  ChannelVolume,
-  ChannelMixPoint,
-  HourlyHeatmapCell,
-  ChannelSuccessRate,
-  SuccessRateTrendPoint,
-  DigitalAdoption,
-  TransactionType,
-  MigrationData,
-} from '../api/channelAnalyticsApi';
+import { useChannelAnalytics } from '../hooks/useChannelAnalytics';
+import type { ChannelSuccessRate } from '../api/channelAnalyticsApi';
 import { ChannelStatsCards }       from '../components/channels/ChannelStatsCards';
 import { ChannelVolumeDonut }       from '../components/channels/ChannelVolumeDonut';
 import { ChannelMixTrend }          from '../components/channels/ChannelMixTrend';
@@ -103,88 +93,19 @@ function SlaCard({ rates, isLoading }: SlaCardProps) {
 
 export function ChannelAnalyticsPage() {
   useEffect(() => { document.title = 'Channel Analytics | CBS'; }, []);
-  const [dateRange, setDateRange] = useState({
-    from: subMonths(new Date(), 1),
-    to:   new Date(),
-  });
 
-  const [stats,           setStats]          = useState<ChannelStats | undefined>();
-  const [volumes,         setVolumes]        = useState<ChannelVolume[]>([]);
-  const [mixTrend,        setMixTrend]       = useState<ChannelMixPoint[]>([]);
-  const [heatmap,         setHeatmap]        = useState<HourlyHeatmapCell[]>([]);
-  const [successRates,    setSuccessRates]   = useState<ChannelSuccessRate[]>([]);
-  const [successTrend,    setSuccessTrend]   = useState<SuccessRateTrendPoint[]>([]);
-  const [adoption,        setAdoption]       = useState<DigitalAdoption | undefined>();
-  const [txnTypes,        setTxnTypes]       = useState<TransactionType[]>([]);
-  const [migrations,      setMigrations]     = useState<MigrationData[]>([]);
-  const [migrationScore,  setMigrationScore] = useState('');
-
-  const [loading, setLoading] = useState({
-    stats: true, volumes: true, mixTrend: true, heatmap: true,
-    successRates: true, successTrend: true, adoption: true,
-    txnTypes: true, migrations: true,
-  });
-
-  const params = {
-    dateFrom: format(dateRange.from, 'yyyy-MM-dd'),
-    dateTo:   format(dateRange.to,   'yyyy-MM-dd'),
-  };
-
-  useEffect(() => {
-    setLoading((l) => ({ ...l, stats: true }));
-    channelAnalyticsApi.getChannelStats(params).then((d) => {
-      setStats(d);
-      setLoading((l) => ({ ...l, stats: false }));
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.dateFrom, params.dateTo]);
-
-  useEffect(() => {
-    setLoading((l) => ({ ...l, volumes: true }));
-    channelAnalyticsApi.getChannelVolumes(params).then((d) => {
-      setVolumes(d);
-      setLoading((l) => ({ ...l, volumes: false }));
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.dateFrom, params.dateTo]);
-
-  useEffect(() => {
-    setLoading((l) => ({ ...l, heatmap: true, successRates: true, txnTypes: true }));
-    channelAnalyticsApi.getHourlyHeatmap(params).then((d) => {
-      setHeatmap(d);
-      setLoading((l) => ({ ...l, heatmap: false }));
-    });
-    channelAnalyticsApi.getChannelSuccessRates(params).then((d) => {
-      setSuccessRates(d);
-      setLoading((l) => ({ ...l, successRates: false }));
-    });
-    channelAnalyticsApi.getTransactionTypes(params).then((d) => {
-      setTxnTypes(d);
-      setLoading((l) => ({ ...l, txnTypes: false }));
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.dateFrom, params.dateTo]);
-
-  // Static data — load once
-  useEffect(() => {
-    channelAnalyticsApi.getChannelMixTrend().then((d) => {
-      setMixTrend(d);
-      setLoading((l) => ({ ...l, mixTrend: false }));
-    });
-    channelAnalyticsApi.getSuccessRateTrend().then((d) => {
-      setSuccessTrend(d);
-      setLoading((l) => ({ ...l, successTrend: false }));
-    });
-    channelAnalyticsApi.getDigitalAdoption().then((d) => {
-      setAdoption(d);
-      setLoading((l) => ({ ...l, adoption: false }));
-    });
-    channelAnalyticsApi.getMigrationData().then((d) => {
-      setMigrations(d.migrations);
-      setMigrationScore(d.migrationScore);
-      setLoading((l) => ({ ...l, migrations: false }));
-    });
-  }, []);
+  const {
+    dateRange, setDateRange,
+    stats, statsLoading,
+    volumes, volumesLoading,
+    mixTrend, mixTrendLoading,
+    heatmap, heatmapLoading,
+    successRates, successRatesLoading,
+    successTrend, successTrendLoading,
+    adoption, adoptionLoading,
+    txnTypes, txnTypesLoading,
+    migrations, migrationsLoading,
+  } = useChannelAnalytics();
 
   const handleDateRangeChange = (range: { from?: Date; to?: Date }) => {
     if (range.from && range.to) {
@@ -209,37 +130,37 @@ export function ChannelAnalyticsPage() {
 
       <div className="page-container space-y-6">
         {/* Stats cards */}
-        <ChannelStatsCards stats={stats} isLoading={loading.stats} />
+        <ChannelStatsCards stats={stats} isLoading={statsLoading} />
 
         {/* Volume donut + mix trend */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ChannelVolumeDonut volumes={volumes} isLoading={loading.volumes} />
-          <ChannelMixTrend    data={mixTrend}   isLoading={loading.mixTrend} />
+          <ChannelVolumeDonut volumes={volumes} isLoading={volumesLoading} />
+          <ChannelMixTrend    data={mixTrend}   isLoading={mixTrendLoading} />
         </div>
 
         {/* Hourly heatmap */}
-        <HourlyHeatmap data={heatmap} isLoading={loading.heatmap} />
+        <HourlyHeatmap data={heatmap} isLoading={heatmapLoading} />
 
         {/* Success rate table */}
-        <SuccessRateTable rates={successRates} isLoading={loading.successRates} />
+        <SuccessRateTable rates={successRates} isLoading={successRatesLoading} />
 
         {/* Success rate trend + SLA summary */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <SuccessRateTrend data={successTrend} isLoading={loading.successTrend} />
+            <SuccessRateTrend data={successTrend} isLoading={successTrendLoading} />
           </div>
-          <SlaCard rates={successRates} isLoading={loading.successRates} />
+          <SlaCard rates={successRates} isLoading={successRatesLoading} />
         </div>
 
         {/* Digital adoption */}
-        <DigitalAdoptionMetrics data={adoption} isLoading={loading.adoption} />
+        <DigitalAdoptionMetrics data={adoption} isLoading={adoptionLoading} />
 
         {/* Transaction types */}
-        <TransactionTypeTable types={txnTypes} isLoading={loading.txnTypes} />
+        <TransactionTypeTable types={txnTypes} isLoading={txnTypesLoading} />
 
         {/* Migration sankey */}
-        {!loading.migrations && migrations.length > 0 && (
-          <ChannelMigrationSankey data={migrations} migrationScore={migrationScore} />
+        {!migrationsLoading && migrations?.migrations && migrations.migrations.length > 0 && (
+          <ChannelMigrationSankey data={migrations.migrations} migrationScore={migrations.migrationScore} />
         )}
       </div>
     </>

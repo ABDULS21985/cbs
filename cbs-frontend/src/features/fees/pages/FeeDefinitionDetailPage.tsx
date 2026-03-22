@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileText, Clock, Ban, Calculator, Loader2, CheckCircle2, XCircle, AlertTriangle, Copy } from 'lucide-react';
@@ -10,7 +10,7 @@ import { FeeChargeHistoryTable } from '../components/FeeChargeHistoryTable';
 import { FeePreviewCalculator } from '../components/FeePreviewCalculator';
 import {
   getFeeById,
-  getFeeChargeHistory,
+  getFeeChargesByCode,
   getPendingWaivers,
   updateFeeDefinition,
   approveWaiver,
@@ -21,15 +21,18 @@ import {
 
 // ─── Waivers Tab ──────────────────────────────────────────────────────────────
 
-function WaiversTab({ feeId }: { feeId: string }) {
+function WaiversTab({ feeCode }: { feeCode: string }) {
   const queryClient = useQueryClient();
+  const [rejectId, setRejectId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const { data: waivers = [], isLoading } = useQuery({
-    queryKey: ['pending-waivers', feeId],
+    queryKey: ['pending-waivers', feeCode],
     queryFn: getPendingWaivers,
   });
 
-  const feeWaivers = waivers.filter((w) => w.feeId === feeId || !feeId);
+  // feeId on the waiver object is the fee *code* (e.g. "MAINT-001"), not the numeric DB id
+  const feeWaivers = waivers.filter((w) => w.feeId === feeCode || !feeCode);
 
   const approveMutation = useMutation({
     mutationFn: ({ id, by }: { id: string; by: string }) => approveWaiver(id, by),
@@ -38,8 +41,13 @@ function WaiversTab({ feeId }: { feeId: string }) {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ id, by }: { id: string; by: string }) => rejectWaiver(id, by),
-    onSuccess: () => { toast.success('Waiver rejected'); queryClient.invalidateQueries({ queryKey: ['pending-waivers'] }); },
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => rejectWaiver(id, reason),
+    onSuccess: () => {
+      toast.success('Waiver rejected');
+      queryClient.invalidateQueries({ queryKey: ['pending-waivers'] });
+      setRejectId(null);
+      setRejectReason('');
+    },
     onError: () => toast.error('Failed to reject waiver'),
   });
 
@@ -64,77 +72,119 @@ function WaiversTab({ feeId }: { feeId: string }) {
   }
 
   return (
-    <div className="space-y-3">
-      {feeWaivers.map((waiver: FeeWaiver) => (
-        <div key={waiver.id} className="rounded-xl border bg-card p-5 space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold">Waiver Request — {waiver.id}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Submitted {new Date(waiver.createdAt).toLocaleDateString('en-NG', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </p>
+    <>
+      <div className="space-y-3">
+        {feeWaivers.map((waiver: FeeWaiver) => (
+          <div key={waiver.id} className="rounded-xl border bg-card p-5 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold">Waiver Request — {waiver.id}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Submitted {new Date(waiver.createdAt).toLocaleDateString('en-NG', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                PENDING
+              </span>
             </div>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-              PENDING
-            </span>
-          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">Amount to Waive</p>
-              <p className="font-semibold text-primary">
-                ₦{waiver.amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
-              </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Amount to Waive</p>
+                <p className="font-semibold text-primary">
+                  ₦{waiver.amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Requested By</p>
+                <p className="font-medium">{waiver.requestedBy}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Account ID</p>
+                <p className="font-mono text-xs">{waiver.accountId}</p>
+              </div>
+              <div className="col-span-2 md:col-span-3">
+                <p className="text-xs text-muted-foreground">Reason</p>
+                <p className="text-sm mt-0.5 text-foreground/80">{waiver.reason}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Requested By</p>
-              <p className="font-medium">{waiver.requestedBy}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Account ID</p>
-              <p className="font-mono text-xs">{waiver.accountId}</p>
-            </div>
-            <div className="col-span-2 md:col-span-3">
-              <p className="text-xs text-muted-foreground">Reason</p>
-              <p className="text-sm mt-0.5 text-foreground/80">{waiver.reason}</p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2 pt-1">
-            <button
-              onClick={() => approveMutation.mutate({ id: waiver.id, by: 'Current User' })}
-              disabled={approveMutation.isPending || rejectMutation.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-            >
-              {approveMutation.isPending ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              )}
-              Approve
-            </button>
-            <button
-              onClick={() => rejectMutation.mutate({ id: waiver.id, by: 'Current User' })}
-              disabled={approveMutation.isPending || rejectMutation.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-            >
-              {rejectMutation.isPending ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => approveMutation.mutate({ id: waiver.id, by: 'Current User' })}
+                disabled={approveMutation.isPending || rejectMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {approveMutation.isPending ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                )}
+                Approve
+              </button>
+              <button
+                onClick={() => { setRejectId(waiver.id); setRejectReason(''); }}
+                disabled={approveMutation.isPending || rejectMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
                 <XCircle className="w-3.5 h-3.5" />
-              )}
-              Reject
+                Reject
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Reject reason dialog */}
+      {rejectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-sm p-6 relative">
+            <button
+              onClick={() => setRejectId(null)}
+              className="absolute top-4 right-4 p-1 rounded-md hover:bg-muted"
+            >
+              <XCircle className="w-4 h-4" />
             </button>
+            <h2 className="text-base font-semibold mb-4">Reject Waiver</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Rejection Reason <span className="text-destructive">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Provide reason for rejection..."
+                  className="w-full mt-1 px-3 py-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setRejectId(null)}
+                  className="px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => rejectMutation.mutate({ id: rejectId, reason: rejectReason })}
+                  disabled={rejectReason.trim().length < 5 || rejectMutation.isPending}
+                  className="px-4 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                >
+                  {rejectMutation.isPending ? 'Rejecting…' : 'Reject'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 }
 
@@ -151,17 +201,20 @@ export function FeeDefinitionDetailPage() {
     enabled: !!id,
   });
 
+  // Use fee CODE (e.g. "MAINT-001") to fetch charge history, not the numeric definition ID.
+  // The backend /history/fee/{feeCode} endpoint was added to support this lookup.
   const { data: chargeHistory = [], isLoading: historyLoading } = useQuery({
-    queryKey: ['fee-charge-history', id],
-    queryFn: () => getFeeChargeHistory(id),
-    enabled: !!id,
+    queryKey: ['fee-charge-history', fee?.code],
+    queryFn: () => getFeeChargesByCode(fee!.code),
+    enabled: !!fee?.code,
   });
 
   const { data: waivers = [] } = useQuery<FeeWaiver[]>({
     queryKey: ['pending-waivers'],
     queryFn: getPendingWaivers,
   });
-  const pendingWaiverCount = waivers.filter((w) => w.feeId === id).length;
+  // waivers.feeId is the fee code string — compare against fee.code, not the numeric id param
+  const pendingWaiverCount = fee ? waivers.filter((w) => w.feeId === fee.code).length : 0;
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<FeeDefinition>) => updateFeeDefinition(id!, data),
@@ -257,7 +310,7 @@ export function FeeDefinitionDetailPage() {
       badge: pendingWaiverCount,
       content: (
         <div className="p-6">
-          <WaiversTab feeId={id!} />
+          <WaiversTab feeCode={fee.code} />
         </div>
       ),
     },

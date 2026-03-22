@@ -78,7 +78,7 @@ export interface AmlDashboard {
 
 export interface AmlStats {
   totalAlerts: number;
-  byStatus: Record<string, number>;
+  byStatus: Record<AmlAlertStatus, number>;
   bySeverity: Record<string, number>;
 }
 

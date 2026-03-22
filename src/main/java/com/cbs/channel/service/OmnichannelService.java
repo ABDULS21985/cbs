@@ -6,6 +6,9 @@ import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -106,6 +109,11 @@ public class OmnichannelService {
 
     public List<ChannelSession> getAllActiveSessions() {
         return sessionRepository.findAll();
+    }
+
+    public Page<ChannelSession> getActiveSessionsPaged(int page, int size) {
+        return sessionRepository.findAll(
+                PageRequest.of(page, Math.min(size, 100), Sort.by(Sort.Direction.DESC, "startedAt")));
     }
 
     public Map<String, Long> getActiveSessionCounts() {

@@ -1,30 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Download, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import {
-  getLoanPortfolioStats,
-  getDpdBuckets,
-  getDpdMatrix,
-  getSectorExposure,
-  getGeographicConcentration,
-  getProductMix,
-  getVintageData,
-  getVintageMatrix,
-  getNplTrend,
-  getProvisionWaterfall,
-  getTopObligors,
-  type LoanPortfolioStats,
-  type DpdBucket,
-  type DpdMatrixRow,
   type SectorExposure,
   type GeographicConcentration,
   type ProductMix,
   type VintageCell,
-  type VintageCellEntry,
-  type NplTrendPoint,
-  type ProvisionWaterfallItem,
   type TopObligor,
 } from '../api/loanAnalyticsApi';
+import { useLoanAnalytics } from '../hooks/useLoanAnalytics';
 import { LoanStatsCards } from '../components/loans/LoanStatsCards';
 import { DpdAgingChart } from '../components/loans/DpdAgingChart';
 import { DpdAgingTable } from '../components/loans/DpdAgingTable';
@@ -135,63 +120,36 @@ function buildConcentrationData(
 export function LoanAnalyticsPage() {
   useEffect(() => { document.title = 'Loan Analytics | CBS'; }, []);
   const [selectedPeriod, setSelectedPeriod] = useState(PERIODS[0].value);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const [stats, setStats] = useState<LoanPortfolioStats | null>(null);
-  const [dpdBuckets, setDpdBuckets] = useState<DpdBucket[]>([]);
-  const [dpdMatrix, setDpdMatrix] = useState<DpdMatrixRow[]>([]);
-  const [sectors, setSectors] = useState<SectorExposure[]>([]);
-  const [geography, setGeography] = useState<GeographicConcentration[]>([]);
-  const [products, setProducts] = useState<ProductMix[]>([]);
-  const [vintage, setVintage] = useState<VintageCell[]>([]);
-  const [vintageMatrix, setVintageMatrix] = useState<VintageCellEntry[]>([]);
   const [vintageView, setVintageView] = useState<'simple' | 'matrix'>('matrix');
-  const [nplTrend, setNplTrend] = useState<NplTrendPoint[]>([]);
-  const [waterfall, setWaterfall] = useState<ProvisionWaterfallItem[]>([]);
-  const [obligors, setObligors] = useState<TopObligor[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const {
+    stats,
+    statsLoading,
+    dpdBuckets,
+    dpdBucketsLoading,
+    dpdMatrix,
+    dpdMatrixLoading,
+    sectorExposure: sectors,
+    sectorExposureLoading,
+    geographicConcentration: geography,
+    productMix: products,
+    productMixLoading,
+    vintage,
+    vintageLoading,
+    vintageMatrix,
+    vintageMatrixLoading,
+    nplTrend,
+    nplTrendLoading,
+    provisionWaterfall: waterfall,
+    provisionWaterfallLoading,
+    topObligors: obligors,
+  } = useLoanAnalytics();
 
-  async function loadAll() {
-    setLoading(true);
-    try {
-      const [s, dpd, matrix, sec, geo, prod, vint, vintMat, npl, wf, obl] = await Promise.all([
-        getLoanPortfolioStats(),
-        getDpdBuckets(),
-        getDpdMatrix(),
-        getSectorExposure(),
-        getGeographicConcentration(),
-        getProductMix(),
-        getVintageData(),
-        getVintageMatrix(),
-        getNplTrend(),
-        getProvisionWaterfall(),
-        getTopObligors(),
-      ]);
-      setStats(s);
-      setDpdBuckets(dpd);
-      setDpdMatrix(matrix);
-      setSectors(sec);
-      setGeography(geo);
-      setProducts(prod);
-      setVintage(vint);
-      setVintageMatrix(vintMat);
-      setNplTrend(npl);
-      setWaterfall(wf);
-      setObligors(obl);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const refreshing = false;
 
-  useEffect(() => {
-    loadAll();
-  }, [selectedPeriod]);
-
-  async function handleRefresh() {
-    setRefreshing(true);
-    await loadAll();
-    setRefreshing(false);
+  function handleRefresh() {
+    queryClient.invalidateQueries({ queryKey: ['loan-analytics'] });
   }
 
   // Derived data
@@ -237,7 +195,7 @@ export function LoanAnalyticsPage() {
             {/* Refresh */}
             <button
               onClick={handleRefresh}
-              disabled={refreshing || loading}
+              disabled={refreshing || statsLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-border bg-background hover:bg-muted transition-colors disabled:opacity-50"
               aria-label="Refresh data"
             >
@@ -260,13 +218,13 @@ export function LoanAnalyticsPage() {
       <div className="page-container space-y-6">
 
         {/* Stats Cards */}
-        {loading || !stats ? (
+        {statsLoading || !stats ? (
           <StatsSkeleton />
         ) : (
           <LoanStatsCards stats={stats} />
         )}
 
-        {loading || dpdMatrix.length === 0 ? (
+        {dpdMatrixLoading || dpdMatrix.length === 0 ? (
           <SectionSkeleton height={300} />
         ) : (
           <DpdHeatmapMatrix data={dpdMatrix} />
@@ -274,7 +232,7 @@ export function LoanAnalyticsPage() {
 
         {/* DPD Aging — Chart + Table (kept as secondary view) */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {loading || dpdBuckets.length === 0 ? (
+          {dpdBucketsLoading || dpdBuckets.length === 0 ? (
             <>
               <SectionSkeleton height={340} />
               <SectionSkeleton height={340} />
@@ -288,14 +246,14 @@ export function LoanAnalyticsPage() {
         </div>
 
         {/* Vintage Analysis Chart */}
-        {loading || activeVintageData.length === 0 ? (
+        {(vintageLoading && vintageMatrixLoading) || activeVintageData.length === 0 ? (
           <SectionSkeleton height={380} />
         ) : (
           <VintageAnalysisChart data={vintageCohorts} />
         )}
 
         {/* Concentration Dashboard (replaces sector + obligor sections) */}
-        {loading || (sectors.length === 0 && products.length === 0) ? (
+        {(sectorExposureLoading || productMixLoading) || (sectors.length === 0 && products.length === 0) ? (
           <SectionSkeleton height={500} />
         ) : (
           <ConcentrationDashboard
@@ -308,7 +266,7 @@ export function LoanAnalyticsPage() {
 
         {/* Product Mix — Donut + Table */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {loading || products.length === 0 ? (
+          {productMixLoading || products.length === 0 ? (
             <>
               <SectionSkeleton height={380} />
               <SectionSkeleton height={380} />
@@ -348,7 +306,7 @@ export function LoanAnalyticsPage() {
               </button>
             </div>
           </div>
-          {loading || activeVintageData.length === 0 ? (
+          {(vintageLoading && vintageMatrixLoading) || activeVintageData.length === 0 ? (
             <SectionSkeleton height={280} />
           ) : (
             <VintageHeatmap data={activeVintageData} />
@@ -357,7 +315,7 @@ export function LoanAnalyticsPage() {
 
         {/* NPL Trend — full width */}
         <div>
-          {loading || nplTrend.length === 0 ? (
+          {nplTrendLoading || nplTrend.length === 0 ? (
             <SectionSkeleton height={360} />
           ) : (
             <NplTrendChart data={nplTrend} />
@@ -366,7 +324,7 @@ export function LoanAnalyticsPage() {
 
         {/* Provision Waterfall — full width */}
         <div>
-          {loading || waterfall.length === 0 ? (
+          {provisionWaterfallLoading || waterfall.length === 0 ? (
             <SectionSkeleton height={360} />
           ) : (
             <ProvisionWaterfallChart items={waterfall} />

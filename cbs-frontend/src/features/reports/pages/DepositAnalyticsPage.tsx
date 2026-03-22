@@ -15,6 +15,11 @@ import { DepositRetentionChart } from '../components/deposits/DepositRetentionCh
 import { DepositStabilityGauge, type StabilityFactor } from '../components/deposits/DepositStabilityGauge';
 import { MaturityRolloverChart, type MaturityRolloverRow } from '../components/deposits/MaturityRolloverChart';
 
+const segmentColors: Record<string, string> = {
+  'Retail': '#3b82f6', 'Corporate': '#10b981', 'SME': '#f59e0b',
+  'Government': '#8b5cf6', 'High Net Worth': '#ef4444',
+};
+
 const PERIOD_OPTIONS = [
   { value: 'mtd', label: 'MTD' },
   { value: 'qtd', label: 'QTD' },
@@ -106,6 +111,7 @@ export function DepositAnalyticsPage() {
     retentionVintageLoading,
     churnStats,
     churnLoading,
+    segmentDistribution,
     hasLoadError,
   } = useDepositAnalytics();
 
@@ -195,12 +201,30 @@ export function DepositAnalyticsPage() {
           </div>
 
           {/* Right: segment pie */}
-          <div className="bg-card rounded-lg border border-border p-6">
-            <h2 className="text-sm font-semibold text-foreground mb-4">Deposits by Segment</h2>
-            <div className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-              Backend segment-distribution data is not exposed for this page yet, so no synthetic chart is shown.
+          {segmentDistribution.length > 0 ? (
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h2 className="text-sm font-semibold mb-4">Deposits by Segment</h2>
+              <div className="space-y-3">
+                {segmentDistribution.map((seg) => (
+                  <div key={seg.segment} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: segmentColors[seg.segment] || '#6b7280' }} />
+                      <span className="text-sm font-medium">{seg.segment}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-semibold">{seg.percentage.toFixed(1)}%</span>
+                      <span className="text-xs text-muted-foreground ml-2">({seg.accountCount.toLocaleString()} accounts)</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h2 className="text-sm font-semibold mb-4">Deposits by Segment</h2>
+              <p className="text-sm text-muted-foreground">Loading segment data...</p>
+            </div>
+          )}
         </div>
 
         {/* ── Maturity Profile ────────────────────────────────────── */}

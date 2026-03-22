@@ -1,5 +1,10 @@
 package com.cbs.eod.service;
 
+import com.cbs.account.entity.*;
+import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.account.service.AccountService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.deposit.service.FixedDepositService;
 import com.cbs.deposit.service.RecurringDepositService;
@@ -14,9 +19,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -32,6 +40,10 @@ public class EndOfDayService {
     private final OverdraftService overdraftService;
     private final StandingOrderService standingOrderService;
     private final TreasuryService treasuryService;
+    private final AccountService accountService;
+    private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+    private final CbsProperties cbsProperties;
 
     /**
      * Executes the full End-of-Day batch with ordered steps.
@@ -208,19 +220,87 @@ public class EndOfDayService {
         return EodRunType.EOD;
     }
 
+    /**
+     * Accrues daily interest on all active, interest-bearing savings/current accounts.
+     * Delegates to AccountService.batchAccrueInterest() which iterates all eligible
+     * accounts, calculates daily accrual using the configured day-count convention,
+     * and updates each account's accruedInterest running total.
+     */
     private int accrueAccountInterest() {
-        // Placeholder — delegates to account interest accrual batch
-        // In Batch 2, AccountLifecycleScheduler handles this via cron
-        return 0;
+        int processed = accountService.batchAccrueInterest();
+        log.info("EOD savings interest accrual: {} accounts processed", processed);
+        return processed;
     }
 
+    /**
+     * Posts accumulated accrued interest to all accounts that have a positive
+     * accruedInterest balance. Runs at month-end (EOM/EOQ/EOY).
+     * Each account's accrued amount is credited via GL journal, and the
+     * accruedInterest field is reset to zero.
+     */
     private int postMonthlyInterest() {
-        // Placeholder — monthly interest posting for savings accounts
-        return 0;
+        List<Account> accounts = accountRepository.findActiveInterestBearingAccounts();
+        int posted = 0;
+        for (Account account : accounts) {
+            try {
+                if (account.getAccruedInterest() != null
+                        && account.getAccruedInterest().compareTo(BigDecimal.ZERO) > 0) {
+                    accountService.postInterest(account.getId());
+                    posted++;
+                }
+            } catch (Exception e) {
+                log.error("Monthly interest posting failed for account {}: {}",
+                        account.getAccountNumber(), e.getMessage());
+            }
+        }
+        log.info("EOD monthly interest posting: {} accounts posted", posted);
+        return posted;
     }
 
+    /**
+     * Charges monthly maintenance fees to all active accounts whose product
+     * defines a non-zero monthlyMaintenanceFee. Debits the account and credits
+     * the product's GL fee income account.
+     */
     private int chargeMonthlyFees() {
-        // Placeholder — monthly maintenance fee charging
-        return 0;
+        List<Account> accounts = accountRepository.findActiveInterestBearingAccounts();
+        int charged = 0;
+        for (Account account : accounts) {
+            try {
+                Product product = account.getProduct();
+                if (product == null) continue;
+
+                BigDecimal fee = product.getMonthlyMaintenanceFee();
+                if (fee == null || fee.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+                int postingScale = cbsProperties.getInterest().getPostingScale();
+                BigDecimal roundedFee = fee.setScale(postingScale, RoundingMode.HALF_UP);
+
+                String glFeeIncome = product.getGlFeeIncomeCode();
+                if (glFeeIncome == null || glFeeIncome.isBlank()) {
+                    log.warn("Skipping fee for account {} — product {} has no glFeeIncomeCode",
+                            account.getAccountNumber(), product.getCode());
+                    continue;
+                }
+
+                accountPostingService.postDebitAgainstGl(
+                        account,
+                        TransactionType.FEE_DEBIT,
+                        roundedFee,
+                        String.format("Monthly maintenance fee — %s", product.getName()),
+                        TransactionChannel.SYSTEM,
+                        null,
+                        glFeeIncome,
+                        "ACCOUNT",
+                        account.getAccountNumber()
+                );
+                charged++;
+            } catch (Exception e) {
+                log.error("Monthly fee charging failed for account {}: {}",
+                        account.getAccountNumber(), e.getMessage());
+            }
+        }
+        log.info("EOD monthly fee charging: {} accounts charged", charged);
+        return charged;
     }
 }

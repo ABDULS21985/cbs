@@ -31,7 +31,11 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
 
     Page<Account> findByStatus(AccountStatus status, Pageable pageable);
 
+    List<Account> findByBranchCode(String branchCode);
+
     Page<Account> findByBranchCode(String branchCode, Pageable pageable);
+
+    List<Account> findByCurrencyCode(String currencyCode);
 
     @Query("SELECT a FROM Account a JOIN FETCH a.product JOIN FETCH a.customer WHERE a.accountNumber = :accountNumber")
     Optional<Account> findByAccountNumberWithDetails(@Param("accountNumber") String accountNumber);

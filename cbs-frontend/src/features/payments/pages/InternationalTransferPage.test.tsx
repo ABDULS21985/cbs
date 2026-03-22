@@ -11,12 +11,20 @@ const mockAccounts = [
   { id: 1, accountNumber: '0012345678', accountName: 'Main USD Account', currency: 'USD', availableBalance: 50000 },
 ];
 
-const mockFxRate = { rate: 1550.50, inverseRate: 0.000645, validUntil: '2026-03-20T12:00:00Z', source: 'Reuters' };
+const mockFxRates = [{
+  sourceCurrency: 'NGN',
+  targetCurrency: 'USD',
+  buyRate: 1548.25,
+  sellRate: 1552.75,
+  midRate: 1550.50,
+  rateDate: '2026-03-20',
+  rateSource: 'Reuters',
+}];
 
 function setupHandlers() {
   server.use(
     http.get('/api/v1/accounts', () => HttpResponse.json(wrap(mockAccounts))),
-    http.get('/api/v1/fx/rate', () => HttpResponse.json(wrap(mockFxRate))),
+    http.get('/api/v1/fx/rate', () => HttpResponse.json(wrap(mockFxRates))),
     http.get('/api/v1/payments/beneficiaries', () => HttpResponse.json(wrap([]))),
     http.get('/api/v1/payments/international/purpose-codes', () => HttpResponse.json(wrap([]))),
     http.get('/api/v1/payments/international/source-of-funds', () => HttpResponse.json(wrap([]))),
@@ -42,9 +50,8 @@ describe('InternationalTransferPage', () => {
     setupHandlers();
     renderWithProviders(<InternationalTransferPage />);
     await waitFor(() => {
-      // The FxRateDisplay should show the rate when currencies differ (NGN → USD by default)
-      const rateElements = screen.queryAllByText(/1,550/);
-      expect(rateElements.length).toBeGreaterThanOrEqual(0); // Rate may or may not show depending on form state
+      expect(screen.getByText(/FX Conversion/i)).toBeInTheDocument();
+      expect(screen.getByText(/1 NGN = 1550\.500000 USD/i)).toBeInTheDocument();
     });
   });
 });

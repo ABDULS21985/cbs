@@ -10,9 +10,9 @@ import {
   CheckCircle,
   Loader2,
   BarChart3,
-  DollarSign,
   Eye,
   XCircle,
+  Info,
 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import {
@@ -27,6 +27,40 @@ import {
 const ENTITY_TYPES = ['BANK', 'BRANCH', 'CUSTOMER', 'PRODUCT', 'CURRENCY'] as const;
 const MODEL_TYPES = ['ARIMA', 'EXPONENTIAL_SMOOTHING', 'PROPHET', 'LSTM', 'ENSEMBLE', 'RULE_BASED', 'MONTE_CARLO'] as const;
 
+/** Human-readable description + confidence range per entity type shown in the Generate dialog. */
+const ENTITY_TYPE_INFO: Record<string, { label: string; confidence: string; description: string; entityIdHint: string }> = {
+  CUSTOMER: {
+    label: 'Customer',
+    confidence: '50–85%',
+    description: 'Forecast uses actual transaction history from all accounts owned by the customer. Confidence scales with available history (up to 85% at 6+ months).',
+    entityIdHint: 'Numeric customer ID (e.g. 42)',
+  },
+  BRANCH: {
+    label: 'Branch',
+    confidence: '50–85%',
+    description: 'Aggregates transaction history across all accounts belonging to the specified branch code. Confidence scales with available history.',
+    entityIdHint: 'Branch code (e.g. LAG001)',
+  },
+  CURRENCY: {
+    label: 'Currency',
+    confidence: '50–85%',
+    description: 'Aggregates transaction history across all accounts denominated in the specified currency. Useful for FX exposure forecasting.',
+    entityIdHint: '3-letter ISO currency code (e.g. USD)',
+  },
+  BANK: {
+    label: 'Bank-Wide',
+    confidence: '50–85%',
+    description: 'Aggregates transaction history across ALL accounts in the institution. Highest coverage; branch-level variation is obscured.',
+    entityIdHint: 'Institution identifier (e.g. HEAD_OFFICE)',
+  },
+  PRODUCT: {
+    label: 'Product',
+    confidence: '50%',
+    description: 'Product-level forecasts do not map to individual accounts. The forecast uses a book-balance baseline with the minimum confidence tier (50%). Use CUSTOMER or BRANCH for richer results.',
+    entityIdHint: 'Product code (e.g. SAVINGS_CLASSIC)',
+  },
+};
+
 // ---- Generate Dialog ------------------------------------------------------------
 
 function GenerateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -36,6 +70,22 @@ function GenerateDialog({ open, onClose }: { open: boolean; onClose: () => void 
   const [currency, setCurrency] = useState('USD');
   const [horizonDays, setHorizonDays] = useState(30);
   const [modelType, setModelType] = useState<string>('ARIMA');
+
+  const entityInfo = ENTITY_TYPE_INFO[entityType];
+  const isLowConfidence = entityType === 'PRODUCT';
+
+  const handleEntityTypeChange = (newType: string) => {
+    setEntityType(newType);
+    // Reset entityId to a sensible default for the selected type
+    const defaults: Record<string, string> = {
+      BANK: 'HEAD_OFFICE',
+      BRANCH: 'LAG001',
+      CUSTOMER: '1',
+      PRODUCT: 'SAVINGS_CLASSIC',
+      CURRENCY: 'USD',
+    };
+    setEntityId(defaults[newType] ?? '');
+  };
 
   const handleSubmit = () => {
     generate.mutate(
@@ -56,22 +106,45 @@ function GenerateDialog({ open, onClose }: { open: boolean; onClose: () => void 
             <label className="text-xs font-medium text-muted-foreground">Entity Type</label>
             <select
               value={entityType}
-              onChange={(e) => setEntityType(e.target.value)}
+              onChange={(e) => handleEntityTypeChange(e.target.value)}
               className="mt-1 w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
               {ENTITY_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>{ENTITY_TYPE_INFO[t]?.label ?? t}</option>
               ))}
             </select>
           </div>
 
+          {/* Entity-type advisory */}
+          {entityInfo && (
+            <div className={cn(
+              'flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs',
+              isLowConfidence
+                ? 'border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800'
+                : 'border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800',
+            )}>
+              <Info className={cn('w-3.5 h-3.5 mt-0.5 flex-shrink-0', isLowConfidence ? 'text-amber-600' : 'text-blue-500')} />
+              <div>
+                <span className={cn('font-semibold', isLowConfidence ? 'text-amber-700 dark:text-amber-300' : 'text-blue-700 dark:text-blue-300')}>
+                  Max confidence: {entityInfo.confidence}
+                </span>
+                <p className="text-muted-foreground mt-0.5 leading-relaxed">{entityInfo.description}</p>
+              </div>
+            </div>
+          )}
+
           <div>
-            <label className="text-xs font-medium text-muted-foreground">Entity ID</label>
+            <label className="text-xs font-medium text-muted-foreground">
+              Entity ID
+              {entityInfo && (
+                <span className="ml-1.5 text-muted-foreground/60 font-normal">— {entityInfo.entityIdHint}</span>
+              )}
+            </label>
             <input
               value={entityId}
               onChange={(e) => setEntityId(e.target.value)}
               className="mt-1 w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
-              placeholder="e.g. HEAD_OFFICE, CUST-001"
+              placeholder={entityInfo?.entityIdHint ?? 'Entity identifier'}
             />
           </div>
 
@@ -80,7 +153,7 @@ function GenerateDialog({ open, onClose }: { open: boolean; onClose: () => void 
               <label className="text-xs font-medium text-muted-foreground">Currency</label>
               <input
                 value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
+                onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                 maxLength={3}
                 className="mt-1 w-full px-3 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
@@ -231,6 +304,16 @@ function ForecastDetailDrawer({
                 <p className="text-sm tabular-nums">{forecast.upperBound != null ? formatMoney(Number(forecast.upperBound), forecast.currency) : '—'}</p>
               </div>
             </div>
+            {/* Entity-scope confidence advisory */}
+            {ENTITY_TYPE_INFO[forecast.entityType] && (
+              <div className="flex items-start gap-2 pt-2 border-t mt-2">
+                <Info className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="font-medium">{ENTITY_TYPE_INFO[forecast.entityType].label} scope:</span>{' '}
+                  {ENTITY_TYPE_INFO[forecast.entityType].description}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Feature importance */}

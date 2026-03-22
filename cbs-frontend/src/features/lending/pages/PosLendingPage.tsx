@@ -131,7 +131,7 @@ export function PosLendingPage() {
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center"><div className="absolute inset-0 modal-scrim" onClick={() => setShowCreate(false)} />
           <div className="relative z-10 w-full max-w-lg mx-4 rounded-xl bg-background border shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b sticky top-0 bg-background z-10"><h2 className="text-base font-semibold">New POS Loan</h2><button onClick={() => setShowCreate(false)} className="p-1.5 rounded-md hover:bg-muted">&times;</button></div>
             <div className="px-6 py-5 space-y-4">

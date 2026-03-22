@@ -7,8 +7,29 @@ export const treasuryApi = {
   getCouponCalendar: (days?: number) => apiGet<CouponEvent[]>('/api/v1/treasury/fixed-income/coupons', { days }),
 
   // Market Data
-  getFxRates: () => apiGet<FxRate[]>('/api/v1/fx/rate'),
-  getMoneyMarketRates: () => apiGet<MoneyMarketRate[]>('/api/v1/market-data/money-market'),
+  getFxRates: async (): Promise<FxRate[]> => {
+    const raw = await apiGet<any[]>('/api/v1/fx/rate');
+    return (Array.isArray(raw) ? raw : []).map((r) => ({
+      pair: `${r.sourceCurrency ?? ''}/${r.targetCurrency ?? ''}`,
+      bid: Number(r.buyRate ?? 0),
+      ask: Number(r.sellRate ?? 0),
+      mid: Number(r.midRate ?? 0),
+      change: 0,
+      changeDirection: 'flat' as const,
+      lastUpdated: r.createdAt ?? (r.rateDate ? `${r.rateDate}T00:00:00Z` : new Date().toISOString()),
+    }));
+  },
+  getMoneyMarketRates: async (): Promise<MoneyMarketRate[]> => {
+    const raw = await apiGet<any[]>('/api/v1/market-data/money-market');
+    return (Array.isArray(raw) ? raw : []).map((r) => ({
+      instrument: r.instrumentCode ?? r.instrument ?? '',
+      bid: Number(r.price ?? r.bid ?? 0),
+      offer: Number(r.price ?? r.offer ?? 0),
+      mid: Number(r.price ?? r.mid ?? 0),
+      change: Number(r.change ?? 0),
+      changeDirection: (r.changeDirection ?? 'flat') as MoneyMarketRate['changeDirection'],
+    }));
+  },
   getFeedStatus: () => apiGet<FeedStatus[]>('/api/v1/market-data/feeds/status'),
   getPriceHistory: (instrumentCode: string, days: number) => apiGet<{ date: string; close: number }[]>(`/api/v1/market-data/prices/${instrumentCode}`, { days }),
 

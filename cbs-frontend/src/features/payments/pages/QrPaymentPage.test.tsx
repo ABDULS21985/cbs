@@ -48,7 +48,8 @@ describe('QrPaymentPage', () => {
   it('renders QR generator section', () => {
     setupHandlers();
     renderWithProviders(<QrPaymentPage />);
-    expect(screen.getByText('Generate QR Code')).toBeInTheDocument();
+    // "Generate QR Code" appears as both section title and button
+    expect(screen.getAllByText('Generate QR Code').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows transaction history section', () => {

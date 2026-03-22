@@ -237,7 +237,7 @@ export interface FeeCharge {
   amount: number;
   vatAmount: number;
   date: string;
-  status: 'CHARGED' | 'WAIVED' | 'PENDING' | 'REVERSED';
+  status: 'CHARGED' | 'WAIVED' | 'PENDING' | 'REVERSED' | 'REJECTED';
   waivedBy?: string;
   waivedReason?: string;
   transactionRef?: string;
@@ -361,38 +361,52 @@ export async function previewFee(feeCode: string, amount: number): Promise<FeePr
   return mapFeeResult(raw);
 }
 
-// Preview event fees — maps POST /v1/fees/charge/event to PreviewChargeResult shape
+// Preview event fees — uses GET /v1/fees/definitions to find fees for the event type,
+// then calculates each via GET /v1/fees/preview/{feeCode}.
+// NOTE: Does NOT call POST /charge/event (which actually charges); this is a true dry-run.
 export async function previewCharge(
-  _customerId: string,
+  customerId: string,
   eventType: string,
   amount: number,
 ): Promise<PreviewChargeResult> {
-  const results = await (async () => {
-    const { data } = await api.post<ApiResponse<BackendFeeResult[]>>(
-      '/api/v1/fees/charge/event',
-      undefined,
-      { params: { triggerEvent: eventType, accountId: 0, amount } },
-    );
-    return data.data ?? [];
-  })();
+  // Fetch all active fee definitions and filter by trigger event
+  const allFees = await apiGet<RawFeeDefinition[]>('/api/v1/fees/definitions');
+  const eventFees = allFees.filter(
+    (f) => f.triggerEvent === eventType || f.feeCategory === eventType,
+  );
 
-  const applicableFees = results.map((r) => ({
-    feeId: r.feeCode ?? '',
-    feeName: r.feeName ?? r.feeCode ?? '',
-    calculatedAmount: r.feeAmount ?? r.totalAmount ?? 0,
-    vatAmount: r.taxAmount ?? r.vatAmount ?? 0,
-    breakdown: r.breakdown ?? `${r.calculationType ?? 'FLAT'} on ${r.baseAmount ?? 0}`,
-  }));
+  // Preview each applicable fee without charging
+  const applicableFees = await Promise.all(
+    eventFees.map(async (f) => {
+      try {
+        const result = await apiGet<BackendFeeResult>(
+          `/api/v1/fees/preview/${encodeURIComponent(f.feeCode)}`,
+          { amount },
+        );
+        return {
+          feeId: f.feeCode,
+          feeName: f.feeName,
+          calculatedAmount: result.feeAmount ?? 0,
+          vatAmount: result.taxAmount ?? 0,
+          breakdown: result.breakdown ?? `${result.calculationType ?? 'FLAT'} on ${result.baseAmount ?? amount}`,
+        };
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  const fees = applicableFees.filter(Boolean) as PreviewChargeResult['applicableFees'];
 
   return {
-    customerId: _customerId,
+    customerId,
     customerName: '',
     eventType,
     transactionAmount: amount,
-    applicableFees,
-    totalFees: applicableFees.reduce((s, f) => s + f.calculatedAmount, 0),
-    totalVat: applicableFees.reduce((s, f) => s + f.vatAmount, 0),
-    totalCharge: applicableFees.reduce((s, f) => s + f.calculatedAmount + f.vatAmount, 0),
+    applicableFees: fees,
+    totalFees: fees.reduce((s, f) => s + f.calculatedAmount, 0),
+    totalVat: fees.reduce((s, f) => s + f.vatAmount, 0),
+    totalCharge: fees.reduce((s, f) => s + f.calculatedAmount + f.vatAmount, 0),
   };
 }
 
@@ -442,7 +456,20 @@ export async function listCharges(page = 0, size = 50): Promise<FeeCharge[]> {
   return (data.data ?? []).map(mapFeeChargeLog);
 }
 
-// Backward-compat alias — require an identifier instead of silently pretending history is empty.
+// GET /v1/fees/history/fee/{feeCode}?page=X&size=Y — charge history for a specific fee definition
+export async function getFeeChargesByCode(
+  feeCode: string,
+  page = 0,
+  size = 50,
+): Promise<FeeCharge[]> {
+  const { data } = await api.get<ApiResponse<RawFeeChargeLog[]>>(
+    `/api/v1/fees/history/fee/${encodeURIComponent(feeCode)}`,
+    { params: { page, size } },
+  );
+  return (data.data ?? []).map(mapFeeChargeLog);
+}
+
+// Backward-compat alias — retained for external callers. Uses account-based endpoint.
 export function getFeeChargeHistory(feeId?: string): Promise<FeeCharge[]> {
   if (!feeId) {
     return Promise.reject(new Error('Fee charge history requires a fee or account identifier.'));
@@ -538,7 +565,8 @@ export async function reverseFeeCharge(chargeLogId: string): Promise<FeeCharge> 
   }
 }
 
-// GET /v1/fees/waivers — all waivers (not just pending). Backend returns FeeChargeLog[].
+// GET /v1/fees/waivers — all waiver-related logs (PENDING, WAIVED, REJECTED).
+// Backend endpoint added: GET /v1/fees/waivers returns FeeChargeLog[] filtered by those statuses.
 export async function getAllWaivers(): Promise<FeeWaiver[]> {
   const { data } = await api.get<ApiResponse<RawFeeChargeLog[]>>('/api/v1/fees/waivers');
   return (data.data ?? []).map((raw) => ({
@@ -550,7 +578,11 @@ export async function getAllWaivers(): Promise<FeeWaiver[]> {
     reason: raw.waiverReason ?? '',
     requestedBy: raw.waivedBy ?? '',
     authorizedBy: raw.wasWaived ? raw.waivedBy : undefined,
-    status: (raw.status === 'WAIVED' ? 'APPROVED' : raw.status === 'REJECTED' ? 'REJECTED' : 'PENDING') as FeeWaiver['status'],
+    status: (raw.status === 'WAIVED'
+      ? 'APPROVED'
+      : raw.status === 'REJECTED'
+        ? 'REJECTED'
+        : 'PENDING') as FeeWaiver['status'],
     createdAt: raw.createdAt,
   }));
 }
@@ -565,6 +597,7 @@ export const feeApi = {
   chargeFee,
   waiveFee,
   getAccountFeeHistory,
+  getFeeChargesByCode,
   getFeeChargeHistory,
   listCharges,
   getPendingWaivers,

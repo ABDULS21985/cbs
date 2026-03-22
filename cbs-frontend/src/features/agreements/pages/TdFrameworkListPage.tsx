@@ -284,19 +284,15 @@ function CreateDialog({ open, onClose }: CreateDialogProps) {
 // ── Approve Dialog ───────────────────────────────────────────────────────────
 
 function ApproveDialog({ agreement, onClose }: { agreement: TdFrameworkAgreement | null; onClose: () => void }) {
-  const [approvedBy, setApprovedBy] = useState('');
   const approveMutation = useApproveTdFramework();
 
   if (!agreement) return null;
 
   const handleApprove = () => {
-    approveMutation.mutate(
-      { agreementNumber: agreement.agreementNumber, approvedBy },
-      {
-        onSuccess: () => { toast.success('Framework approved'); onClose(); },
-        onError: () => toast.error('Failed to approve'),
-      },
-    );
+    approveMutation.mutate(agreement.agreementNumber, {
+      onSuccess: () => { toast.success('Framework approved'); onClose(); },
+      onError: () => toast.error('Failed to approve'),
+    });
   };
 
   return (
@@ -305,14 +301,13 @@ function ApproveDialog({ agreement, onClose }: { agreement: TdFrameworkAgreement
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
         <div className="bg-card rounded-xl shadow-2xl border w-full max-w-sm p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
           <h3 className="text-base font-semibold">Approve {agreement.agreementNumber}</h3>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wide">Approved By *</label>
-            <input type="text" value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} placeholder="Your name"
-              className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-          </div>
+          <p className="text-sm text-muted-foreground">
+            This will activate the TD framework agreement for customer #{agreement.customerId} ({agreement.currency}, {agreement.rateStructure}).
+            Your identity will be recorded as the approver.
+          </p>
           <div className="flex gap-3 justify-end">
             <button onClick={onClose} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors">Cancel</button>
-            <button onClick={handleApprove} disabled={!approvedBy.trim() || approveMutation.isPending}
+            <button onClick={handleApprove} disabled={approveMutation.isPending}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50">
               {approveMutation.isPending && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
               <CheckCircle className="w-4 h-4" /> Approve

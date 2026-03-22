@@ -45,9 +45,20 @@ export interface NotificationTemplate {
 }
 
 export interface ChannelConfig {
+  id: number;
   channel: string;
   provider: string;
   enabled: boolean;
+  config: Record<string, unknown>;
+  senderAddress: string | null;
+  apiKey: string | null;
+  apiSecret: string | null;
+  webhookUrl: string | null;
+  rateLimit: number;
+  retryEnabled: boolean;
+  maxRetries: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DeliveryStats {
@@ -111,6 +122,51 @@ export interface ChannelPreference {
   channel: Communication['channel'];
   category: string;
   enabled: boolean;
+}
+
+// ── Scheduled Notification type (backend ScheduledNotification entity) ──────
+
+export interface ScheduledNotification {
+  id: number;
+  name: string;
+  templateCode: string | null;
+  channel: NotificationChannel;
+  eventType: string | null;
+  subject: string | null;
+  body: string | null;
+  cronExpression: string | null;
+  frequency: 'ONCE' | 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  nextRun: string | null;
+  lastRun: string | null;
+  recipientCriteria: Record<string, unknown> | null;
+  recipientCount: number;
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+  createdBy: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  version: number | null;
+}
+
+// ── Template Version type ──────────────────────────────────────────────────
+
+export interface TemplateVersionEntry {
+  id: number;
+  templateId: number;
+  versionNumber: number;
+  bodyTemplate: string;
+  subject: string | null;
+  changedBy: string | null;
+  changeSummary: string | null;
+  createdAt: string;
+}
+
+// ── Template Preview type ──────────────────────────────────────────────────
+
+export interface TemplatePreview {
+  subject: string;
+  body: string;
+  channel: string;
+  isHtml: boolean;
 }
 
 // ── Routing Rule types (backend RoutingRule entity) ─────────────────────────
@@ -215,11 +271,13 @@ export const notificationApi = {
 
   // Scheduled campaigns
   getScheduled: (page = 0, size = 20) =>
-    apiGet<NotificationLog[]>('/api/v1/notifications/scheduled', { page, size } as Record<string, unknown>),
+    apiGet<ScheduledNotification[]>('/api/v1/notifications/scheduled', { page, size } as Record<string, unknown>),
+  createScheduled: (data: Partial<ScheduledNotification>) =>
+    apiPost<ScheduledNotification>('/api/v1/notifications/scheduled', data),
   deleteScheduled: (id: number) =>
     apiDelete<{ id: string; deleted: string }>(`/api/v1/notifications/scheduled/${id}`),
   toggleScheduled: (id: number) =>
-    apiPut<Record<string, unknown>>(`/api/v1/notifications/scheduled/${id}/toggle`),
+    apiPut<ScheduledNotification>(`/api/v1/notifications/scheduled/${id}/toggle`),
 
   // Unread
   getUnreadCount: (customerId?: number) =>
@@ -254,6 +312,10 @@ export const notificationApi = {
     apiPost<{ success: boolean; recipient: string; subject: string; body: string }>(`/api/v1/notifications/templates/${id}/test`, { recipient }),
   getTemplateVersions: (id: number) =>
     apiGet<Array<{ id: number; templateId: number; versionNumber: number; bodyTemplate: string; subject: string; changedBy: string; changeSummary: string; createdAt: string }>>(`/api/v1/notifications/templates/${id}/versions`),
+
+  // Send by template (admin/compose flow using template ID + merge data + recipients)
+  sendByTemplate: (data: { templateId: number; recipients: string[]; mergeData: Record<string, string> }) =>
+    apiPost<{ sent: number; failed: number; total: number }>('/api/v1/notifications/send-by-template', data),
 
   // Channel management
   updateChannel: (channel: string, data: Record<string, unknown>) =>

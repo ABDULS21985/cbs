@@ -62,6 +62,13 @@ public class FeeController {
         return ResponseEntity.ok(ApiResponse.ok(feeService.getPendingWaivers()));
     }
 
+    @GetMapping("/waivers")
+    @Operation(summary = "List all waiver-related charge logs (PENDING, WAIVED, REJECTED)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<FeeChargeLog>>> getAllWaivers() {
+        return ResponseEntity.ok(ApiResponse.ok(feeService.getAllWaivers()));
+    }
+
     @PostMapping("/waivers/{waiverId}/reject")
     @Operation(summary = "Reject a fee waiver request")
     @PreAuthorize("hasRole('CBS_ADMIN')")
@@ -149,6 +156,16 @@ public class FeeController {
             @PathVariable Long accountId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         Page<FeeChargeLog> result = feeService.getAccountFeeHistory(accountId, PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
+    }
+
+    @GetMapping("/history/fee/{feeCode}")
+    @Operation(summary = "Get charge history for a specific fee definition by fee code")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<List<FeeChargeLog>>> getFeeChargeHistory(
+            @PathVariable String feeCode,
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+        Page<FeeChargeLog> result = feeService.getFeeChargeHistory(feeCode, PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 

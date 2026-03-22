@@ -29,10 +29,10 @@ export function NotificationBell() {
   }, [countIncreased, unreadCount]);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative z-[70]" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="p-2 rounded-md hover:bg-muted transition-colors relative"
+        className="gloss-pill relative rounded-xl p-2 transition-colors hover:text-foreground"
       >
         <Bell className={cn('w-4 h-4', pulse && 'animate-bounce')} />
         {unreadCount > 0 && (

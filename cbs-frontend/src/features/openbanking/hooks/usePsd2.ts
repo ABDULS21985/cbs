@@ -66,6 +66,7 @@ export function useRecentScaSessions() {
 }
 
 export function useInitiateSca() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: {
       tppId: string;
@@ -75,12 +76,19 @@ export function useInitiateSca() {
       consentId?: string;
       amount?: number;
     }) => psd2Api.initiateSca(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.recentScaSessions });
+    },
   });
 }
 
 export function useFinaliseSca() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, success }: { sessionId: string; success: boolean }) =>
       psd2Api.finaliseSca(sessionId, success),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.recentScaSessions });
+    },
   });
 }

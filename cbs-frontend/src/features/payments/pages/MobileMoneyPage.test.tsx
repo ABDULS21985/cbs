@@ -69,12 +69,15 @@ describe('MobileMoneyPage', () => {
     expect(screen.getByText('Recent Transactions')).toBeInTheDocument();
   });
 
-  it('renders stat cards', () => {
+  it('renders stat cards', async () => {
     setupHandlers();
     renderWithProviders(<MobileMoneyPage />);
-    expect(screen.getByText('Linked Accounts')).toBeInTheDocument();
-    expect(screen.getByText("Today's Volume")).toBeInTheDocument();
-    expect(screen.getByText("Today's Transactions")).toBeInTheDocument();
+    await waitFor(() => {
+      // "Linked Accounts" appears as both stat card label and section heading
+      expect(screen.getAllByText('Linked Accounts').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText("Today's Volume")).toBeInTheDocument();
+      expect(screen.getByText("Today's Transactions")).toBeInTheDocument();
+    });
   });
 
   it('renders link account button', async () => {

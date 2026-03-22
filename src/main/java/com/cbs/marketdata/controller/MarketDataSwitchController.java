@@ -79,11 +79,12 @@ public class MarketDataSwitchController {
             @RequestParam(required = false) Long feedId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        if (feedId == null) {
-            return ResponseEntity.ok(ApiResponse.ok(java.util.Collections.emptyList()));
-        }
         if (from == null) from = LocalDate.now().minusMonths(1);
         if (to == null) to = LocalDate.now();
+        if (feedId == null) {
+            // Return latest metric per feed across all feeds for the dashboard overview
+            return ResponseEntity.ok(ApiResponse.ok(service.getAllFeedQualityMetrics(from, to).stream().map(FeedQualityMetricDto::from).toList()));
+        }
         return ResponseEntity.ok(ApiResponse.ok(service.getFeedQualityReport(feedId, from, to).stream().map(FeedQualityMetricDto::from).toList()));
     }
 }

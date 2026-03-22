@@ -27,8 +27,21 @@ public interface RecurringDepositRepository extends JpaRepository<RecurringDepos
     @Query("SELECT rd FROM RecurringDeposit rd WHERE rd.status = 'ACTIVE' AND rd.maturityDate <= :date")
     List<RecurringDeposit> findMaturedDeposits(@Param("date") LocalDate date);
 
-    @Query("SELECT rd FROM RecurringDeposit rd JOIN FETCH rd.account JOIN FETCH rd.customer WHERE rd.id = :id")
+    @Query("SELECT rd FROM RecurringDeposit rd JOIN FETCH rd.account JOIN FETCH rd.customer JOIN FETCH rd.product WHERE rd.id = :id")
     Optional<RecurringDeposit> findByIdWithDetails(@Param("id") Long id);
+
+    // ── Two-query pagination for the admin list endpoint ──────────────────────
+
+    /** Step 1: ID-only page — no JOIN FETCH, so Hibernate paginates at SQL level. */
+    @Query(value = "SELECT rd.id FROM RecurringDeposit rd ORDER BY rd.createdAt DESC",
+           countQuery = "SELECT COUNT(rd) FROM RecurringDeposit rd")
+    Page<Long> findAllIds(Pageable pageable);
+
+    /** Step 2: batch-fetch by IDs with all relations needed by toResponse(). */
+    @Query("SELECT rd FROM RecurringDeposit rd " +
+           "JOIN FETCH rd.account JOIN FETCH rd.customer JOIN FETCH rd.product " +
+           "WHERE rd.id IN :ids")
+    List<RecurringDeposit> findByIdsWithDetails(@Param("ids") List<Long> ids);
 
     @Query(value = "SELECT nextval('cbs.recurring_deposit_seq')", nativeQuery = true)
     Long getNextDepositSequence();

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatusBadge, StatCard, EmptyState, TabsPage } from '@/components/shared';
-import { formatDateTime, formatRelative } from '@/lib/formatters';
+import { formatDate, formatDateTime, formatRelative } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import {
   Brain,
@@ -13,6 +13,7 @@ import {
   Users,
   Search,
   TrendingUp,
+  Cpu,
 } from 'lucide-react';
 import type { ColumnDef } from '@tanstack/react-table';
 import {
@@ -24,6 +25,8 @@ import {
   type ProductRecommendation,
   type CustomerBehaviourEvent,
 } from '../hooks/useIntelligence';
+import { useCustomerBehaviorModels } from '../hooks/useIntelligenceExt';
+import type { CustomerBehaviorModel } from '../types/customerBehavior';
 
 // ---- Churn Gauge ----------------------------------------------------------------
 
@@ -227,6 +230,158 @@ function RecommendationsTab({ customerId }: { customerId: number }) {
   );
 }
 
+// ---- Models Tab ------------------------------------------------------------------
+
+const MODEL_TYPE_LABELS: Record<string, string> = {
+  CHURN_PREDICTION:      'Churn Prediction',
+  CROSS_SELL_PROPENSITY: 'Cross-Sell Propensity',
+  CREDIT_BEHAVIOR:       'Credit Behaviour',
+  CHANNEL_PREFERENCE:    'Channel Preference',
+  LIFECYCLE_STAGE:       'Lifecycle Stage',
+  CLV_PREDICTION:        'CLV Prediction',
+  FRAUD_PROPENSITY:      'Fraud Propensity',
+  ENGAGEMENT_SCORE:      'Engagement Score',
+  DORMANCY_RISK:         'Dormancy Risk',
+  PRODUCT_AFFINITY:      'Product Affinity',
+};
+
+const SCORE_BAND_COLOR: Record<string, string> = {
+  VERY_HIGH: 'text-green-600 bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800',
+  HIGH:      'text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800',
+  MEDIUM:    'text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800',
+  LOW:       'text-orange-600 bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:border-orange-800',
+  VERY_LOW:  'text-red-600 bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800',
+};
+
+function ModelCard({ model }: { model: CustomerBehaviorModel }) {
+  const bandColor = SCORE_BAND_COLOR[model.scoreBand] ?? 'text-muted-foreground bg-muted border-border';
+  const featureEntries = model.featureImportance
+    ? Object.entries(model.featureImportance as Record<string, number>)
+        .filter(([, v]) => typeof v === 'number')
+        .sort(([, a], [, b]) => b - a)
+    : [];
+
+  return (
+    <div className="rounded-xl border bg-card p-5 space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-sm font-semibold">{MODEL_TYPE_LABELS[model.modelType] ?? model.modelType}</p>
+          <p className="text-xs text-muted-foreground font-mono mt-0.5">{model.modelCode}</p>
+        </div>
+        <div className={cn('px-3 py-1.5 rounded-lg border text-xs font-bold tabular-nums', bandColor)}>
+          {Number(model.score).toFixed(1)} / 100
+          <span className="ml-1.5 font-medium opacity-75">{model.scoreBand?.replace(/_/g, ' ')}</span>
+        </div>
+      </div>
+
+      {/* Key metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+        <div>
+          <p className="text-xs text-muted-foreground">Confidence</p>
+          <p className="font-medium tabular-nums">{Number(model.confidencePct).toFixed(0)}%</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Predicted Outcome</p>
+          <p className="font-medium truncate">{model.predictedOutcome || '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Probability</p>
+          <p className="font-medium tabular-nums">
+            {model.predictedProbability != null
+              ? `${(Number(model.predictedProbability) * 100).toFixed(1)}%`
+              : '—'}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Valid Until</p>
+          <p className="font-medium">{model.validUntil ? formatDate(model.validUntil) : '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Scored At</p>
+          <p className="font-medium">{formatDateTime(model.scoredAt)}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Version</p>
+          <p className="font-medium font-mono">{model.modelVersion}</p>
+        </div>
+      </div>
+
+      {/* Recommended action */}
+      {model.recommendedAction && (
+        <div className="rounded-lg bg-primary/5 border border-primary/15 px-3 py-2">
+          <p className="text-xs font-medium text-primary">Recommended Action</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{model.recommendedAction}</p>
+        </div>
+      )}
+
+      {/* Feature importance mini-bars */}
+      {featureEntries.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-2">Feature Importance</p>
+          <div className="space-y-1.5">
+            {featureEntries.slice(0, 5).map(([key, val]) => (
+              <div key={key} className="flex items-center gap-2 text-xs">
+                <span className="w-36 text-muted-foreground truncate capitalize">
+                  {key.replace(/_/g, ' ')}
+                </span>
+                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full"
+                    style={{ width: `${Math.min(100, val * 100)}%` }}
+                  />
+                </div>
+                <span className="w-10 text-right tabular-nums">{(val * 100).toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ModelsTab({ customerId }: { customerId: number }) {
+  const { data: models = [], isLoading } = useCustomerBehaviorModels(customerId);
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-56 rounded-xl bg-muted animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (models.length === 0) {
+    return (
+      <EmptyState
+        title="No Behaviour Models"
+        description="Generate product recommendations first — the system automatically computes and persists Churn Prediction, Engagement Score, and Cross-Sell Propensity models as a side-effect."
+        icon={Cpu}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-sm font-medium">Customer Behaviour Models</p>
+        <p className="text-xs text-muted-foreground">
+          AI-scored behavioural models for customer #{customerId} — refreshed automatically when
+          recommendations are generated.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {models.map((m) => (
+          <ModelCard key={m.id} model={m} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---- Events Tab ------------------------------------------------------------------
 
 const eventColumns: ColumnDef<CustomerBehaviourEvent>[] = [
@@ -351,6 +506,11 @@ export function BehaviourAnalyticsPage() {
               id: 'churn',
               label: 'Churn Risk',
               content: <ChurnDetails customerId={customerId} />,
+            },
+            {
+              id: 'models',
+              label: 'Behaviour Models',
+              content: <ModelsTab customerId={customerId} />,
             },
             {
               id: 'events',

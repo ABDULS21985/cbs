@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fraudApi } from '../api/fraudExtApi';
 import { amlApi } from '../api/amlExtApi';
 import { sanctionsApi } from '../api/sanctionsExtApi';
+import type { ScreeningRequest } from '../types/sanctionsExt';
 import { opriskApi } from '../api/opriskExtApi';
 import { marketRiskApi } from '../api/marketRiskExtApi';
 import { liquidityRiskApi } from '../api/liquidityRiskExtApi';
@@ -241,9 +242,10 @@ export function useSanctionsPending(params?: Record<string, unknown>) {
 export function useSanctionsScreen() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => sanctionsApi.screen(),
+    mutationFn: (data: Partial<ScreeningRequest>) => sanctionsApi.screen(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: RISK_EXT_KEYS.sanctions });
+      queryClient.invalidateQueries({ queryKey: ['sanctions'] });
     },
   });
 }

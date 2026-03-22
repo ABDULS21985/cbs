@@ -148,4 +148,60 @@ public class ChequeController {
                         .filter(l -> l.getStatus() == ChequeStatus.RETURNED)
                         .toList()));
     }
+
+    @PostMapping("/{leafId}/return")
+    @Operation(summary = "Return a cheque in clearing")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<ChequeLeaf>> returnCheque(
+            @PathVariable Long leafId,
+            @RequestParam String reasonCode,
+            @RequestParam(required = false) String notes) {
+        ChequeLeaf leaf = chequeLeafRepository.findById(leafId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("ChequeLeaf", "id", leafId));
+        if (leaf.getStatus() != ChequeStatus.CLEARING && leaf.getStatus() != ChequeStatus.PRESENTED) {
+            throw new com.cbs.common.exception.BusinessException("Cheque is not in clearing/presented state", "NOT_IN_CLEARING");
+        }
+        leaf.setStatus(ChequeStatus.RETURNED);
+        leaf.setReturnReason(reasonCode + (notes != null ? " - " + notes : ""));
+        return ResponseEntity.ok(ApiResponse.ok(chequeLeafRepository.save(leaf)));
+    }
+
+    @PostMapping("/{leafId}/hold")
+    @Operation(summary = "Place a cheque on hold during clearing")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<ChequeLeaf>> holdCheque(
+            @PathVariable Long leafId,
+            @RequestParam String reason) {
+        ChequeLeaf leaf = chequeLeafRepository.findById(leafId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("ChequeLeaf", "id", leafId));
+        if (leaf.getStatus() != ChequeStatus.CLEARING && leaf.getStatus() != ChequeStatus.PRESENTED) {
+            throw new com.cbs.common.exception.BusinessException("Cheque is not in clearing/presented state", "NOT_IN_CLEARING");
+        }
+        leaf.setStatus(ChequeStatus.PRESENTED); // PRESENTED serves as the hold state
+        leaf.setReturnReason("ON HOLD: " + reason);
+        return ResponseEntity.ok(ApiResponse.ok(chequeLeafRepository.save(leaf)));
+    }
+
+    @PostMapping("/stop-payments")
+    @Operation(summary = "Create a stop payment request (JSON body)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
+    public ResponseEntity<ApiResponse<ChequeLeaf>> stopPaymentFromBody(@RequestBody java.util.Map<String, Object> data) {
+        Long accountId = Long.valueOf(data.get("accountId").toString());
+        String chequeNumber = String.valueOf(((Number) data.get("chequeFrom")).intValue());
+        String reason = data.getOrDefault("reason", "CUSTOMER_REQUEST").toString();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(chequeService.stopCheque(accountId, chequeNumber, reason)));
+    }
+
+    @PostMapping("/books/request")
+    @Operation(summary = "Request a new cheque book (JSON body)")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<ChequeBook>> requestChequeBook(@RequestBody java.util.Map<String, Object> data) {
+        Long accountId = Long.valueOf(data.get("accountId").toString());
+        int leaves = data.containsKey("leaves") ? ((Number) data.get("leaves")).intValue() : 25;
+        String prefix = data.containsKey("seriesPrefix") ? data.get("seriesPrefix").toString() : "CHQ";
+        int startNumber = (int) (System.currentTimeMillis() % 900000) + 100000;
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok(chequeService.issueBook(accountId, prefix, startNumber, leaves)));
+    }
 }

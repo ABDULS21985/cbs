@@ -375,6 +375,13 @@ export const almApi = {
 
   compareScenarios: (scenarioIds: number[]) =>
     apiPost<ScenarioComparison>('/api/v1/alm/scenarios/compare', scenarioIds),
+
+  // Stress Test Run History (Audit Trail)
+  getStressRuns: () =>
+    apiGet<StressTestRunSummary[]>('/api/v1/alm/stress-runs'),
+
+  getStressRunsByScenario: (scenarioId: number) =>
+    apiGet<StressTestRunSummary[]>(`/api/v1/alm/stress-runs/scenario/${scenarioId}`),
 };
 
 // ── Stress Testing Types ────────────────────────────────────────────────────
@@ -448,4 +455,21 @@ export interface HistoricalReplayResult {
 export interface ScenarioComparison {
   scenarios: StressTestResult[];
   comparedAt: string;
+}
+
+/** Persisted stress test run — audit trail record */
+export interface StressTestRunSummary {
+  id: number;
+  scenarioId: number;
+  scenarioName: string;
+  scenarioType: string;
+  avgShockBps: number;
+  niiImpact: number;
+  eveImpact: number;
+  cet1Before: number;
+  cet1After: number;
+  breachCount: number;
+  runBy: string;
+  runAt: string;
+  createdAt: string;
 }

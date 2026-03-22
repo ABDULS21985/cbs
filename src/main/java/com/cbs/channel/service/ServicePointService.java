@@ -133,6 +133,11 @@ public class ServicePointService {
     }
 
     @Transactional
+    public ServicePoint saveServicePoint(ServicePoint servicePoint) {
+        return servicePointRepository.save(servicePoint);
+    }
+
+    @Transactional
     public void deleteServicePoint(Long id) {
         if (!servicePointRepository.existsById(id)) {
             throw new ResourceNotFoundException("ServicePoint", "id", id);

@@ -233,6 +233,36 @@ public class TradeFinanceController {
                 tradeService.uploadTradeDocument(category, lcId, collectionId, customerId, fileName, fileType, storagePath, fileSizeBytes)));
     }
 
+    @PostMapping(value = "/documents/upload", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload a trade document with binary file")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<TradeDocument>> uploadDocumentWithFile(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam TradeDocCategory category,
+            @RequestParam(required = false) Long lcId,
+            @RequestParam(required = false) Long collectionId,
+            @RequestParam(required = false) Long customerId) {
+        if (file == null || file.isEmpty()) {
+            throw new com.cbs.common.exception.BusinessException("File is required", "FILE_REQUIRED");
+        }
+        try {
+            java.nio.file.Path directory = java.nio.file.Path.of("build", "document-store", "trade-docs");
+            java.nio.file.Files.createDirectories(directory);
+            String safeName = (file.getOriginalFilename() != null ? file.getOriginalFilename() : "document")
+                    .replaceAll("[^A-Za-z0-9._-]", "_");
+            java.nio.file.Path storagePath = directory.resolve(java.util.UUID.randomUUID() + "-" + safeName);
+            java.nio.file.Files.write(storagePath, file.getBytes(),
+                    java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+
+            String fileType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
+                    tradeService.uploadTradeDocument(category, lcId, collectionId, customerId,
+                            safeName, fileType, storagePath.toAbsolutePath().toString(), file.getSize())));
+        } catch (java.io.IOException ex) {
+            throw new com.cbs.common.exception.BusinessException("Failed to store document: " + ex.getMessage(), "FILE_STORAGE_ERROR");
+        }
+    }
+
     @PostMapping("/documents/{id}/verify")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<TradeDocument>> verifyDocument(@PathVariable Long id,

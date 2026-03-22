@@ -18,6 +18,8 @@ export interface TreasuryDeal {
   amount: number;
   rate: number;
   maturityDate: string;
+  /** Leg 1 value date (trade settlement start date), mapped from backend `leg1ValueDate` */
+  valueDate?: string;
   deskId: string;
   deskName: string;
   status: DealStatus;
@@ -152,10 +154,17 @@ export interface DeskDashboard {
   utilizationPct: number;
 }
 
+/** Must match DeskPnl entity field names sent as @RequestBody to POST /v1/dealer-desks/{id}/pnl */
 export interface RecordPnlRequest {
-  realized: number;
-  unrealized: number;
-  fees: number;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  totalPnl: number;
+  tradingRevenue?: number;
+  hedgingCost?: number;
+  fundingCost?: number;
+  varUtilizationPct?: number;
+  currency?: string;
+  pnlDate?: string;
 }
 
 // ─── Trader Position Types ─────────────────────────────────────────────────────
@@ -417,11 +426,14 @@ const DEAL_TYPE_REVERSE: Partial<Record<DealType, string>> = {
   REVERSE_REPO: 'REVERSE_REPO', TBILL_PURCHASE: 'TBILL_PURCHASE', TBILL_DISCOUNT: 'TBILL_DISCOUNT',
 };
 
-/** Maps backend DealStatus to frontend status */
+/** Maps backend DealStatus to frontend status.
+ *  Backend enum: PENDING | CONFIRMED | SETTLED | MATURED | CANCELLED | DEFAULTED
+ *  Frontend type: 'BOOKED' | 'CONFIRMED' | 'SETTLED' | 'MATURED' | 'CANCELLED' | 'DEFAULTED'
+ */
 const DEAL_STATUS_MAP: Record<string, DealStatus> = {
   PENDING: 'BOOKED', CONFIRMED: 'CONFIRMED', SETTLED: 'SETTLED',
-  MATURED: 'SETTLED', CANCELLED: 'CANCELLED', DEFAULTED: 'CANCELLED',
-  // Passthrough
+  MATURED: 'MATURED', CANCELLED: 'CANCELLED', DEFAULTED: 'DEFAULTED',
+  // Passthrough for already-mapped values
   BOOKED: 'BOOKED',
 };
 
@@ -436,12 +448,14 @@ function mapBackendDeal(raw: Record<string, any>): TreasuryDeal {
     type: DEAL_TYPE_MAP[raw.dealType ?? raw.type] ?? (raw.dealType ?? raw.type ?? 'FX'),
     counterparty: raw.counterpartyName ?? raw.counterparty ?? '',
     currency: raw.leg1Currency ?? raw.currency ?? '',
-    amount: raw.leg1Amount ?? raw.amount ?? 0,
-    rate: raw.dealRate ?? raw.yieldRate ?? raw.rate ?? 0,
+    amount: Number(raw.leg1Amount ?? raw.amount ?? 0),
+    rate: Number(raw.dealRate ?? raw.yieldRate ?? raw.rate ?? 0),
     maturityDate: raw.maturityDate ?? '',
-    deskId: raw.dealer ?? raw.deskId ?? '',
-    deskName: raw.branchCode ?? raw.deskName ?? '',
-    status: DEAL_STATUS_MAP[raw.status] ?? raw.status ?? 'BOOKED',
+    valueDate: raw.leg1ValueDate ?? raw.valueDate,
+    // `dealer` column stores the booking dealer's employee ID/name; not a deskId FK
+    deskId: raw.deskId ?? '',
+    deskName: raw.deskName ?? raw.branchCode ?? '',
+    status: DEAL_STATUS_MAP[raw.status] ?? (raw.status as DealStatus) ?? 'BOOKED',
     bookedAt: raw.createdAt ?? raw.bookedAt ?? '',
     confirmedAt: raw.confirmedAt,
     settledAt: raw.settledAt,
@@ -465,7 +479,14 @@ export const tradingApi = {
   // Deals
   listDeals: async (params?: TreasuryDealsParams): Promise<TreasuryDeal[]> => {
     const queryParams: Record<string, unknown> = {};
-    if (params?.status && params.status !== 'ALL') queryParams.status = params.status === 'BOOKED' ? 'PENDING' : params.status;
+    // Translate frontend status tokens to backend DealStatus enum values
+    const FRONTEND_TO_BACKEND_STATUS: Record<string, string> = {
+      BOOKED: 'PENDING', CONFIRMED: 'CONFIRMED', SETTLED: 'SETTLED',
+      MATURED: 'MATURED', CANCELLED: 'CANCELLED', DEFAULTED: 'DEFAULTED',
+    };
+    if (params?.status && params.status !== 'ALL') {
+      queryParams.status = FRONTEND_TO_BACKEND_STATUS[params.status] ?? params.status;
+    }
     if (params?.page !== undefined) queryParams.page = params.page;
     if (params?.size !== undefined) queryParams.size = params.size;
     const raw = await apiGet<any[]>('/api/v1/treasury/deals', queryParams);
@@ -491,7 +512,10 @@ export const tradingApi = {
     if (data.dealRate ?? data.rate) params.set('dealRate', String(data.dealRate ?? data.rate));
     if (data.yieldRate != null) params.set('yieldRate', String(data.yieldRate));
     if (data.tenorDays != null) params.set('tenorDays', String(data.tenorDays));
-    if (data.dealer ?? data.counterparty) params.set('dealer', data.dealer ?? data.counterparty!);
+    // Only send `dealer` when explicitly provided — do NOT fall back to counterparty name
+    // (the backend resolves the acting dealer from the security context for confirmDeal/settleDeal;
+    //  for bookDeal the caller can pass an explicit dealer employee ID / name if known)
+    if (data.dealer) params.set('dealer', data.dealer);
     const raw = await apiPost<any>(`/api/v1/treasury/deals?${params.toString()}`);
     return mapBackendDeal(raw);
   },
@@ -522,24 +546,42 @@ export const tradingApi = {
     apiGet<TreasuryAnalyticsRecord[]>('/api/v1/treasury/analytics', { currency }),
 
   // Dealer Desks
-  listDealerDesks: () =>
-    apiGet<DealerDesk[]>('/api/v1/treasury/desks'),
+  listDealerDesks: async (): Promise<DealerDesk[]> => {
+    const raw = await apiGet<any[]>('/api/v1/treasury/desks');
+    return (Array.isArray(raw) ? raw : []).map((d) => ({
+      ...d,
+      id: String(d.id ?? ''),
+      // headDealerId is already String on the backend record
+    })) as DealerDesk[];
+  },
   getDeskDashboard: (id: string) =>
     apiGet<DeskDashboard>(`/api/v1/treasury/desks/${id}`),
   recordDeskPnl: (id: string, data: RecordPnlRequest) =>
     apiPost<void>(`/api/v1/dealer-desks/${id}/pnl`, data),
 
   // Trader Positions
-  getPositionsByDealer: (dealerId: string) =>
-    apiGet<TraderPosition[]>(`/api/v1/treasury/positions/${dealerId}`),
-  getPositionBreaches: (params: PositionBreachParams) =>
-    apiGet<TraderPosition[]>('/api/v1/treasury/positions/breaches', params as unknown as Record<string, unknown>),
-  getOvernightPositions: (deskId: string) =>
-    apiGet<OvernightPosition[]>(`/api/v1/trader-positions/overnight/${deskId}`),
+  getPositionsByDealer: async (dealerId: string): Promise<TraderPosition[]> => {
+    const raw = await apiGet<any[]>(`/api/v1/treasury/positions/${dealerId}`);
+    return (Array.isArray(raw) ? raw : []).map((p) => ({ ...p, id: String(p.id ?? '') })) as TraderPosition[];
+  },
+  getPositionBreaches: async (params: PositionBreachParams): Promise<TraderPosition[]> => {
+    const raw = await apiGet<any[]>('/api/v1/treasury/positions/breaches', params as unknown as Record<string, unknown>);
+    return (Array.isArray(raw) ? raw : []).map((p) => ({ ...p, id: String(p.id ?? '') })) as TraderPosition[];
+  },
+  getOvernightPositions: async (deskId: string): Promise<OvernightPosition[]> => {
+    const raw = await apiGet<any[]>(`/api/v1/trader-positions/overnight/${deskId}`);
+    return (Array.isArray(raw) ? raw : []).map((p) => ({ ...p, id: String(p.id ?? '') })) as OvernightPosition[];
+  },
 
   // Trading Books
-  listTradingBooks: () =>
-    apiGet<TradingBook[]>('/api/v1/treasury/trading-books'),
+  listTradingBooks: async (): Promise<TradingBook[]> => {
+    const raw = await apiGet<any[]>('/api/v1/treasury/trading-books');
+    return (Array.isArray(raw) ? raw : []).map((b) => ({
+      ...b,
+      id: String(b.id ?? ''),
+      deskId: String(b.deskId ?? ''),
+    })) as TradingBook[];
+  },
   getTradingBookDashboard: (id: string) =>
     apiGet<TradingBookDashboard>(`/api/v1/trading-books/${id}/dashboard`),
   getTradingBookCapital: (id: string) =>
@@ -566,8 +608,14 @@ export const tradingApi = {
     apiPost<void>(`/api/v1/treasury/orders/${id}/cancel`, reason ? { reason } : {}),
 
   // Order Executions
-  getExecutionsByOrder: (orderId: string) =>
-    apiGet<OrderExecution[]>('/api/v1/treasury/executions', { orderId }),
+  getExecutionsByOrder: async (orderId: string): Promise<OrderExecution[]> => {
+    const raw = await apiGet<any[]>('/api/v1/treasury/executions', { orderId });
+    return (Array.isArray(raw) ? raw : []).map((e) => ({
+      ...e,
+      id: String(e.id ?? ''),
+      orderId: String(e.orderId ?? ''),
+    })) as OrderExecution[];
+  },
 
   // Program Trading
   getActiveProgramExecutions: () =>

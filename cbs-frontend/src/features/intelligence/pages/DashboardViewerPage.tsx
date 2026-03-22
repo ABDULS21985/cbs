@@ -553,10 +553,12 @@ function AddWidgetDialog({
   open,
   onClose,
   dashboardId,
+  dashboardCode,
 }: {
   open: boolean;
   onClose: () => void;
   dashboardId: number;
+  dashboardCode: string;
 }) {
   const addWidget = useAddWidget();
   const [widgetCode, setWidgetCode] = useState('');
@@ -572,6 +574,7 @@ function AddWidgetDialog({
     addWidget.mutate(
       {
         dashboardId,
+        dashboardCode, // passed so the hook invalidates the specific dashboard-with-widgets cache
         widget: {
           dashboardId,
           widgetCode,
@@ -820,6 +823,7 @@ export function DashboardViewerPage() {
           open={showAddWidget}
           onClose={() => setShowAddWidget(false)}
           dashboardId={dashboard.id}
+          dashboardCode={dashboard.dashboardCode}
         />
       )}
     </>

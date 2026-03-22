@@ -23,7 +23,7 @@ export function BillPaymentForm({ biller, onSuccess, onBack }: Props) {
   const { data: accounts = [] } = useAccounts();
 
   const validateMutation = useMutation({
-    mutationFn: () => billPaymentApi.validateReference(biller.id, fields),
+    mutationFn: () => billPaymentApi.validateReference(biller.code, fields),
     onSuccess: (result) => setValidation(result),
     onError: () => toast.error('Validation failed'),
   });
@@ -31,6 +31,7 @@ export function BillPaymentForm({ biller, onSuccess, onBack }: Props) {
   const payMutation = useMutation({
     mutationFn: () => billPaymentApi.payBill({
       billerId: biller.id,
+      billerCode: biller.code,
       sourceAccountId: Number(sourceAccountId),
       amount,
       fields,

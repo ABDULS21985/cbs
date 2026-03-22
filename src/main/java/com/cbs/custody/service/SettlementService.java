@@ -106,6 +106,54 @@ public class SettlementService {
         return dashboard;
     }
 
+    /**
+     * Resubmit a FAILED settlement instruction — resets status back to CREATED
+     * so it can go through the settlement cycle again.
+     */
+    @Transactional
+    public SettlementInstruction resubmitSettlement(String instructionRef) {
+        SettlementInstruction instruction = getInstruction(instructionRef);
+        if (!"FAILED".equals(instruction.getStatus())) {
+            throw new IllegalStateException("Only FAILED instructions can be resubmitted; current status: " + instruction.getStatus());
+        }
+        instruction.setStatus("CREATED");
+        instruction.setFailReason(null);
+        instruction.setFailedSince(null);
+        instruction.setPenaltyAmount(BigDecimal.ZERO);
+        log.info("Settlement instruction resubmitted: {}", instructionRef);
+        return instructionRepository.save(instruction);
+    }
+
+    /**
+     * Cancel a FAILED settlement instruction — terminal state, no further processing.
+     */
+    @Transactional
+    public SettlementInstruction cancelSettlement(String instructionRef, String reason) {
+        SettlementInstruction instruction = getInstruction(instructionRef);
+        if (!"FAILED".equals(instruction.getStatus())) {
+            throw new IllegalStateException("Only FAILED instructions can be cancelled; current status: " + instruction.getStatus());
+        }
+        instruction.setStatus("CANCELLED");
+        instruction.setHoldReason(reason != null ? reason : "Cancelled by operations");
+        log.info("Settlement instruction cancelled: {} — reason: {}", instructionRef, reason);
+        return instructionRepository.save(instruction);
+    }
+
+    /**
+     * Escalate a FAILED settlement instruction — marks it as priority for senior review.
+     */
+    @Transactional
+    public SettlementInstruction escalateSettlement(String instructionRef) {
+        SettlementInstruction instruction = getInstruction(instructionRef);
+        if (!"FAILED".equals(instruction.getStatus())) {
+            throw new IllegalStateException("Only FAILED instructions can be escalated; current status: " + instruction.getStatus());
+        }
+        instruction.setPriorityFlag(true);
+        instruction.setHoldReason("ESCALATED — pending senior review");
+        log.info("Settlement instruction escalated: {}", instructionRef);
+        return instructionRepository.save(instruction);
+    }
+
     public SettlementInstruction getInstruction(String ref) {
         return instructionRepository.findByInstructionRef(ref)
                 .orElseThrow(() -> new ResourceNotFoundException("SettlementInstruction", "instructionRef", ref));

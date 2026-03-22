@@ -5,6 +5,7 @@ import { BarChart3, ArrowLeftRight, PieChart as PieIcon } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DataTable, StatCard, TabsPage } from '@/components/shared';
+import { PIE_PALETTE } from '@/lib/chartPalette';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { apiGet } from '@/lib/api';
@@ -33,8 +34,6 @@ interface PortfolioSummary {
   byAssetClass: { assetClass: string; marketValue: number; percentage: number; count: number }[];
   positions: SecPosition[];
 }
-
-const PIE_COLORS = ['#6366f1', '#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 const MOVEMENT_BADGE: Record<string, string> = {
   BUY: 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -193,7 +192,7 @@ export function SecuritiesPositionPage() {
                   <ResponsiveContainer width="100%" height={260}>
                     <PieChart>
                       <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                        {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                        {pieData.map((_, i) => <Cell key={i} fill={PIE_PALETTE[i % PIE_PALETTE.length]} />)}
                       </Pie>
                       <Tooltip formatter={(v: number) => formatMoney(v)} />
                       <Legend />

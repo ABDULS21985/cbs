@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCreateCounterparty } from '../hooks/useCustodyExt';
 
-const TYPES = ['BANK', 'BROKER_DEALER', 'CUSTODIAN', 'CCP', 'CORPORATE', 'SOVEREIGN', 'SUPRANATIONAL'];
+const TYPES = ['BANK', 'BROKER_DEALER', 'INSURANCE', 'FUND_MANAGER', 'CORPORATE', 'SOVEREIGN', 'CENTRAL_BANK', 'CLEARING_HOUSE', 'EXCHANGE', 'SPV'];
 const AGENCIES = ['MOODY', 'S&P', 'FITCH'];
 const COUNTRIES = ['NG', 'US', 'GB', 'DE', 'FR', 'CH', 'JP', 'CN', 'SG', 'ZA', 'AE', 'KE', 'GH'];
 
@@ -15,7 +15,6 @@ interface CounterpartyFormProps {
 export function CounterpartyForm({ onClose, onSuccess }: CounterpartyFormProps) {
   const create = useCreateCounterparty();
   const [form, setForm] = useState({
-    counterpartyCode: '',
     counterpartyName: '',
     counterpartyType: 'BANK',
     lei: '',
@@ -34,12 +33,12 @@ export function CounterpartyForm({ onClose, onSuccess }: CounterpartyFormProps) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.counterpartyCode || !form.counterpartyName || !form.counterpartyType || form.totalExposureLimit <= 0) {
+    if (!form.counterpartyName || !form.counterpartyType || form.totalExposureLimit <= 0) {
       toast.error('Please fill all required fields');
       return;
     }
     create.mutate(
-      { ...form, counterpartyCode: form.counterpartyCode.toUpperCase() },
+      form,
       {
         onSuccess: (data) => {
           toast.success('Counterparty created');
@@ -58,29 +57,19 @@ export function CounterpartyForm({ onClose, onSuccess }: CounterpartyFormProps) 
         </button>
         <h2 className="text-lg font-semibold mb-4">New Counterparty</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Code *</label>
-              <input
-                className="w-full mt-1 input uppercase"
-                placeholder="CPTY-001"
-                value={form.counterpartyCode}
-                onChange={(e) => update('counterpartyCode', e.target.value.toUpperCase())}
-                required
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Type *</label>
-              <select className="w-full mt-1 input" value={form.counterpartyType} onChange={(e) => update('counterpartyType', e.target.value)} required>
-                {TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
-              </select>
-            </div>
-          </div>
+        <p className="text-xs text-muted-foreground mb-4">A unique counterparty code (CP-...) will be generated automatically.</p>
 
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-sm font-medium text-muted-foreground">Name *</label>
             <input className="w-full mt-1 input" placeholder="Counterparty name" value={form.counterpartyName} onChange={(e) => update('counterpartyName', e.target.value)} required />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Type *</label>
+            <select className="w-full mt-1 input" value={form.counterpartyType} onChange={(e) => update('counterpartyType', e.target.value)} required>
+              {TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

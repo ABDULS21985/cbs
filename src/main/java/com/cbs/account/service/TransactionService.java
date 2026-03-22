@@ -129,7 +129,10 @@ public class TransactionService {
 
     public TransactionAnalyticsDto.Summary getAnalyticsSummary(LocalDate fromDate, LocalDate toDate) {
         AnalyticsWindow window = resolveAnalyticsWindow(fromDate, toDate);
-        Object[] aggregates = transactionJournalRepository.aggregateAnalyticsSummary(window.from(), window.to());
+        Object[] aggregates = transactionJournalRepository.aggregateAnalyticsSummary(window.from(), window.to())
+                .stream()
+                .findFirst()
+                .orElseGet(() -> new Object[0]);
 
         long totalTransactions = toLong(aggregates, 0);
         BigDecimal totalValue = toBigDecimal(aggregates, 1);

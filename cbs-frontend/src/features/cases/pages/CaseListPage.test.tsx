@@ -22,6 +22,7 @@ function setupHandlers(stats = mockStats, cases = mockCases) {
     http.get('/api/v1/cases/stats', () => HttpResponse.json(wrap(stats))),
     http.get('/api/v1/cases/my', () => HttpResponse.json(wrap(cases.slice(0, 2)))),
     http.get('/api/v1/cases/unassigned', () => HttpResponse.json(wrap([]))),
+    http.get('/api/v1/cases/escalated', () => HttpResponse.json(wrap(cases.filter(c => c.status === 'ESCALATED')))),
     http.get('/api/v1/cases/sla-breached', () => HttpResponse.json(wrap(cases.filter(c => c.slaBreached)))),
     http.get('/api/v1/cases', () => HttpResponse.json(wrap(cases))),
   );
@@ -117,6 +118,7 @@ describe('CaseListPage', () => {
       http.get('/api/v1/cases/stats', () => HttpResponse.json({}, { status: 500 })),
       http.get('/api/v1/cases/my', () => HttpResponse.json(wrap([]))),
       http.get('/api/v1/cases/unassigned', () => HttpResponse.json(wrap([]))),
+      http.get('/api/v1/cases/escalated', () => HttpResponse.json(wrap([]))),
       http.get('/api/v1/cases/sla-breached', () => HttpResponse.json(wrap([]))),
       http.get('/api/v1/cases', () => HttpResponse.json(wrap([]))),
     );
@@ -132,6 +134,7 @@ describe('CaseListPage', () => {
       http.get('/api/v1/cases/stats', () => HttpResponse.json(wrap(mockStats))),
       http.get('/api/v1/cases/my', () => HttpResponse.json({}, { status: 500 })),
       http.get('/api/v1/cases/unassigned', () => HttpResponse.json(wrap([]))),
+      http.get('/api/v1/cases/escalated', () => HttpResponse.json(wrap([]))),
       http.get('/api/v1/cases/sla-breached', () => HttpResponse.json(wrap([]))),
       http.get('/api/v1/cases', () => HttpResponse.json({}, { status: 500 })),
     );

@@ -151,6 +151,14 @@ public class CbsProperties {
         private String escheatmentDetectionCron = "0 0 1 1 * *";
     }
 
+    private StatementsConfig statements = new StatementsConfig();
+
+    @Getter @Setter
+    public static class StatementsConfig {
+        /** Cron expression for processing recurring statement subscriptions (default: 6 AM daily) */
+        private String subscriptionCron = "0 0 6 * * *";
+    }
+
     private AlmConfig alm = new AlmConfig();
 
     @Getter @Setter

@@ -39,9 +39,9 @@ function DispositionModal({ type, alertId, onClose, onFileStr }: DispositionModa
 
   const handleSubmit = () => {
     if (type === 'dismiss') {
-      dismiss.mutate({ id: alertId, reason }, { onSuccess: () => { onClose(); navigate('/risk/aml'); } });
+      dismiss.mutate(alertId, { onSuccess: () => { onClose(); navigate('/risk/aml'); } });
     } else if (type === 'escalate') {
-      escalate.mutate({ id: alertId, reason }, { onSuccess: onClose });
+      escalate.mutate(alertId, { onSuccess: onClose });
     } else if (type === 'file_str') {
       onFileStr?.();
       onClose();
@@ -262,7 +262,7 @@ export function InvestigationWorkbench({ alertId, customerProfile, transactions 
               Attach Doc
             </button>
             <button
-              onClick={() => assign.mutate(alert.id)}
+              onClick={() => assign.mutate({ id: alert.id, assignedTo: 'CURRENT_USER' })}
               disabled={assign.isPending}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm hover:bg-muted transition-colors disabled:opacity-50"
             >

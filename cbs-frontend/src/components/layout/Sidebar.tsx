@@ -68,26 +68,31 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(`${path}/`);
 
   return (
-    <aside className="flex h-full w-full flex-col bg-[hsl(222.2,84%,4.9%)] text-white">
-      <div className="flex h-14 flex-shrink-0 items-center border-b border-white/10 px-4">
+    <aside className="app-sidebar-surface">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-8 top-0 h-40 w-40 rounded-full bg-sky-400/16 blur-3xl" />
+        <div className="absolute bottom-10 left-8 h-32 w-32 rounded-full bg-amber-300/10 blur-3xl" />
+      </div>
+
+      <div className="relative flex h-14 flex-shrink-0 items-center border-b border-white/10 px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-amber-500 text-sm font-bold">
+          <div className="app-sidebar-brand-mark">
             BB
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <span className="block text-base font-semibold tracking-tight">DigiCore</span>
-              <span className="block text-[10px] text-gray-500">Core Banking</span>
+              <span className="block text-base font-semibold tracking-tight text-slate-50">DigiCore</span>
+              <span className="block text-[10px] uppercase tracking-[0.3em] text-slate-400">Core Banking</span>
             </div>
           )}
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-3">
+      <nav className="relative flex-1 overflow-y-auto px-2 py-3">
         {filteredSections.map((section) => (
           <div key={section.title} className="mb-4">
             {!collapsed && (
-              <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+              <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.32em] text-slate-500">
                 {section.title}
               </div>
             )}
@@ -107,16 +112,16 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="flex-shrink-0 border-t border-white/10 p-2">
+      <div className="relative flex-shrink-0 border-t border-white/10 p-2">
         <ThemeToggle collapsed={collapsed} />
         {!collapsed && (
-          <div className="px-3 py-1 text-[10px] text-gray-600">v1.0.0</div>
+          <div className="px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-slate-600">v1.0.0</div>
         )}
       </div>
 
       <button
         onClick={onToggle}
-        className="hidden h-9 flex-shrink-0 items-center justify-center border-t border-white/10 text-gray-500 transition-colors hover:text-white lg:flex"
+        className="relative hidden h-9 flex-shrink-0 items-center justify-center border-t border-white/10 text-slate-500 transition-colors hover:text-white lg:flex"
         title={collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
       >
         {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -145,12 +150,12 @@ function SidebarItem({
 
   if (collapsed) {
     return (
-      <NavLink
-        to={targetPath}
-        title={item.label}
-        className={cn(
-          'flex h-10 w-full items-center justify-center rounded-md transition-colors',
-          active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white',
+        <NavLink
+          to={targetPath}
+          title={item.label}
+          className={cn(
+            'app-sidebar-item h-10 w-full justify-center px-0',
+            active ? 'app-sidebar-item-active' : 'app-sidebar-item-idle',
         )}
       >
         {Icon && <Icon className="h-5 w-5" />}
@@ -164,8 +169,8 @@ function SidebarItem({
         <button
           onClick={onToggleExpand}
           className={cn(
-            'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-            active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white',
+            'app-sidebar-item w-full',
+            active ? 'app-sidebar-item-active' : 'app-sidebar-item-idle',
           )}
         >
           {Icon && <Icon className="h-5 w-5 flex-shrink-0" />}
@@ -176,8 +181,8 @@ function SidebarItem({
         <NavLink
           to={item.path}
           className={cn(
-            'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-            active ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white',
+            'app-sidebar-item',
+            active ? 'app-sidebar-item-active' : 'app-sidebar-item-idle',
           )}
         >
           {Icon && <Icon className="h-5 w-5 flex-shrink-0" />}
@@ -199,8 +204,8 @@ function SidebarItem({
                 to={child.path}
                 end={child.path === item.path}
                 className={({ isActive: childActive }) => cn(
-                  'block rounded-md px-3 py-1.5 text-sm transition-colors',
-                  childActive ? 'bg-white/5 text-white' : 'text-gray-500 hover:text-gray-300',
+                  'block rounded-lg px-3 py-1.5 text-sm transition-colors',
+                  childActive ? 'bg-white/7 text-white' : 'text-slate-500 hover:text-slate-300',
                 )}
               >
                 {child.label}

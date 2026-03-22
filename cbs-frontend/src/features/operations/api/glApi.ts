@@ -98,7 +98,7 @@ export interface SubLedgerRow {
   glBalance: number;
   subledgerBalance: number;
   difference: number;
-  balanced: boolean;
+  isBalanced: boolean;
   exceptionCount: number;
   status: string;
   resolvedBy?: string | null;

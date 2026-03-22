@@ -85,7 +85,10 @@ public class EodController {
                 .orElseThrow(() -> new BusinessException("EOD run not found: " + runId, "EOD_RUN_NOT_FOUND"));
 
         List<Map<String, Object>> entries = new ArrayList<>();
-        int cursorIndex = cursor != null ? Integer.parseInt(cursor) : 0;
+        int cursorIndex = 0;
+        if (cursor != null && !cursor.isBlank()) {
+            try { cursorIndex = Integer.parseInt(cursor); } catch (NumberFormatException ignored) { /* default to 0 */ }
+        }
 
         List<EodStep> steps = run.getSteps();
         for (int i = cursorIndex; i < steps.size(); i++) {
@@ -104,6 +107,13 @@ public class EodController {
                                 step.getStepName(),
                                 step.getRecordsProcessed() != null ? step.getRecordsProcessed() : 0,
                                 step.getDurationMs() != null ? step.getDurationMs() : 0)));
+            }
+            if ("SKIPPED".equals(step.getStatus())) {
+                entries.add(Map.of(
+                        "timestamp", step.getCompletedAt() != null ? step.getCompletedAt().toString() : Instant.now().toString(),
+                        "level", "WARN",
+                        "message", "Skipped: " + step.getStepName() +
+                                (step.getErrorMessage() != null ? " — " + step.getErrorMessage() : "")));
             }
             if ("FAILED".equals(step.getStatus())) {
                 entries.add(Map.of(
@@ -127,6 +137,10 @@ public class EodController {
             @PathVariable Long runId, @PathVariable Long stepId) {
         EodStep step = eodStepRepository.findById(stepId)
                 .orElseThrow(() -> new BusinessException("EOD step not found: " + stepId, "EOD_STEP_NOT_FOUND"));
+
+        if (!step.getEodRun().getId().equals(runId)) {
+            throw new BusinessException("Step does not belong to the specified run", "EOD_STEP_RUN_MISMATCH");
+        }
 
         if (!"FAILED".equals(step.getStatus())) {
             throw new BusinessException("Only failed steps can be retried", "EOD_STEP_NOT_FAILED");
@@ -153,6 +167,10 @@ public class EodController {
             @RequestBody(required = false) Map<String, String> body) {
         EodStep step = eodStepRepository.findById(stepId)
                 .orElseThrow(() -> new BusinessException("EOD step not found: " + stepId, "EOD_STEP_NOT_FOUND"));
+
+        if (!step.getEodRun().getId().equals(runId)) {
+            throw new BusinessException("Step does not belong to the specified run", "EOD_STEP_RUN_MISMATCH");
+        }
 
         if (!"FAILED".equals(step.getStatus()) && !"PENDING".equals(step.getStatus())) {
             throw new BusinessException("Only failed or pending steps can be skipped", "EOD_STEP_CANNOT_SKIP");

@@ -1,4 +1,3 @@
-import { apiGet, apiPost, apiPut } from "@/lib/api";
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type {
   CustomerAgreement,
@@ -13,7 +12,9 @@ import type {
 } from '../types/agreementExt';
 import {
   getAgreements,
+  getAgreementById,
   createAgreement,
+  updateAgreement,
   activateAgreement,
   terminateAgreement,
   getCustomerAgreements,
@@ -29,6 +30,7 @@ import {
   getLargeDeposits,
   getTdSummaryHistory,
   getCommissionAgreements,
+  getCommissionAgreementByCode,
   createCommissionAgreement,
   activateCommissionAgreement,
   calculatePayout,
@@ -39,7 +41,6 @@ import {
   getActiveDiscounts,
   createDiscountScheme,
   evaluateDiscount,
-  getDiscountEvaluation,
   getDiscountUtilization,
   getSpecialPricingAgreements,
   createSpecialPricing,
@@ -196,8 +197,8 @@ export function useCreateTdFramework() {
 export function useApproveTdFramework() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ agreementNumber, approvedBy }: { agreementNumber: string; approvedBy: string }) =>
-      approveTdFramework(agreementNumber, approvedBy),
+    mutationFn: (agreementNumber: string) =>
+      approveTdFramework(agreementNumber),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: agreementKeys.tdFrameworks });
     },
@@ -442,16 +443,18 @@ export function useTdFramework(agreementNumber: string) {
 export function useCommissionAgreement(code: string) {
   return useQuery({
     queryKey: ['commission-agreement', code],
-    queryFn: () => apiGet<CommissionAgreement>(`/api/v1/commissions/agreements/${code}`),
+    queryFn: () => getCommissionAgreementByCode(code),
     enabled: !!code,
+    ...QUERY_DEFAULTS,
   });
 }
 
 export function useAgreement(id: number) {
   return useQuery({
-    queryKey: ['agreement', id],
-    queryFn: () => apiGet<CustomerAgreement>(`/api/v1/agreements/${id}`),
+    queryKey: agreementKeys.detail(String(id)),
+    queryFn: () => getAgreementById(id),
     enabled: !!id && id > 0,
+    ...QUERY_DEFAULTS,
   });
 }
 
@@ -459,7 +462,7 @@ export function useUpdateAgreement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<CustomerAgreement> }) =>
-      apiPut<CustomerAgreement>(`/api/v1/agreements/${id}`, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['agreements'] }),
+      updateAgreement(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: agreementKeys.all }),
   });
 }

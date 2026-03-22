@@ -1,11 +1,8 @@
 package com.cbs.statements.controller;
 
-import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionJournal;
-import com.cbs.account.repository.AccountRepository;
-import com.cbs.account.repository.TransactionJournalRepository;
 import com.cbs.common.dto.ApiResponse;
-import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.statements.entity.StatementSubscription;
+import com.cbs.statements.service.StatementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -15,8 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 
@@ -26,8 +21,9 @@ import java.util.*;
 @Tag(name = "Statements", description = "Account statements, certificates, confirmations, and subscriptions")
 public class StatementController {
 
-    private final AccountRepository accountRepository;
-    private final TransactionJournalRepository transactionJournalRepository;
+    private final StatementService statementService;
+
+    // ── Generate ────────────────────────────────────────────────────────────────
 
     @GetMapping("/generate")
     @Operation(summary = "Generate statement for account and date range")
@@ -41,7 +37,7 @@ public class StatementController {
         }
         if (fromDate == null) fromDate = LocalDate.now().minusMonths(1);
         if (toDate == null) toDate = LocalDate.now();
-        return generateStatement(accountId, fromDate, toDate);
+        return ResponseEntity.ok(ApiResponse.ok(statementService.generateStatement(accountId, fromDate, toDate)));
     }
 
     @PostMapping("/generate")
@@ -56,61 +52,10 @@ public class StatementController {
         }
         if (fromDate == null) fromDate = LocalDate.now().minusMonths(1);
         if (toDate == null) toDate = LocalDate.now();
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
-
-        List<TransactionJournal> transactions = transactionJournalRepository
-                .findByAccountIdAndDateRange(accountId, fromDate, toDate);
-
-        BigDecimal openingBalance = BigDecimal.ZERO;
-        BigDecimal closingBalance = account.getBookBalance();
-        BigDecimal totalCredits = BigDecimal.ZERO;
-        BigDecimal totalDebits = BigDecimal.ZERO;
-
-        List<Map<String, Object>> txnList = new ArrayList<>();
-        for (TransactionJournal txn : transactions) {
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("transactionRef", txn.getTransactionRef());
-            entry.put("date", txn.getPostingDate());
-            entry.put("narration", txn.getNarration());
-            entry.put("type", txn.getTransactionType().name());
-            entry.put("amount", txn.getAmount());
-            entry.put("runningBalance", txn.getRunningBalance());
-            txnList.add(entry);
-
-            if (txn.getTransactionType().name().contains("CREDIT") || txn.getTransactionType().name().contains("DEPOSIT")) {
-                totalCredits = totalCredits.add(txn.getAmount());
-            } else {
-                totalDebits = totalDebits.add(txn.getAmount());
-            }
-        }
-
-        if (!transactions.isEmpty()) {
-            closingBalance = transactions.get(0).getRunningBalance();
-            openingBalance = transactions.get(transactions.size() - 1).getRunningBalance()
-                    .subtract(transactions.get(transactions.size() - 1).getAmount());
-        }
-
-        String statementId = "STMT-" + accountId + "-" + System.currentTimeMillis();
-
-        Map<String, Object> statement = new LinkedHashMap<>();
-        statement.put("statementId", statementId);
-        statement.put("accountId", accountId);
-        statement.put("accountNumber", account.getAccountNumber());
-        statement.put("accountName", account.getAccountName());
-        statement.put("currencyCode", account.getCurrencyCode());
-        statement.put("fromDate", fromDate);
-        statement.put("toDate", toDate);
-        statement.put("openingBalance", openingBalance);
-        statement.put("closingBalance", closingBalance);
-        statement.put("totalCredits", totalCredits);
-        statement.put("totalDebits", totalDebits);
-        statement.put("transactionCount", transactions.size());
-        statement.put("transactions", txnList);
-        statement.put("generatedAt", Instant.now().toString());
-
-        return ResponseEntity.ok(ApiResponse.ok(statement));
+        return ResponseEntity.ok(ApiResponse.ok(statementService.generateStatement(accountId, fromDate, toDate)));
     }
+
+    // ── Download ────────────────────────────────────────────────────────────────
 
     @GetMapping("/download")
     @Operation(summary = "Download generated statement (PDF-ready data)")
@@ -125,25 +70,10 @@ public class StatementController {
         }
         if (fromDate == null) fromDate = LocalDate.now().minusMonths(1);
         if (toDate == null) toDate = LocalDate.now();
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
-
-        List<TransactionJournal> transactions = transactionJournalRepository
-                .findByAccountIdAndDateRange(accountId, fromDate, toDate);
-
-        Map<String, Object> downloadData = new LinkedHashMap<>();
-        downloadData.put("accountNumber", account.getAccountNumber());
-        downloadData.put("accountName", account.getAccountName());
-        downloadData.put("currencyCode", account.getCurrencyCode());
-        downloadData.put("fromDate", fromDate);
-        downloadData.put("toDate", toDate);
-        downloadData.put("transactionCount", transactions.size());
-        downloadData.put("format", format);
-        downloadData.put("generatedAt", Instant.now().toString());
-        downloadData.put("downloadReady", true);
-
-        return ResponseEntity.ok(ApiResponse.ok(downloadData));
+        return ResponseEntity.ok(ApiResponse.ok(statementService.downloadStatement(accountId, fromDate, toDate, format)));
     }
+
+    // ── Email ───────────────────────────────────────────────────────────────────
 
     @GetMapping("/email")
     @Operation(summary = "Get email statement status")
@@ -160,20 +90,11 @@ public class StatementController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam String emailAddress) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
-
-        return ResponseEntity.ok(ApiResponse.ok(Map.of(
-                "accountId", accountId,
-                "accountNumber", account.getAccountNumber(),
-                "emailAddress", emailAddress,
-                "fromDate", fromDate.toString(),
-                "toDate", toDate.toString(),
-                "status", "QUEUED",
-                "message", "Statement has been queued for delivery to " + emailAddress,
-                "timestamp", Instant.now().toString()
-        )));
+        return ResponseEntity.ok(ApiResponse.ok(
+                statementService.emailStatement(accountId, fromDate, toDate, emailAddress)));
     }
+
+    // ── Certificate ─────────────────────────────────────────────────────────────
 
     @GetMapping("/certificate")
     @Operation(summary = "Certificate of balance data for an account")
@@ -183,23 +104,10 @@ public class StatementController {
         if (accountId == null) {
             return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "READY")));
         }
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
-
-        Map<String, Object> certificate = new LinkedHashMap<>();
-        certificate.put("accountId", accountId);
-        certificate.put("accountNumber", account.getAccountNumber());
-        certificate.put("accountName", account.getAccountName());
-        certificate.put("currencyCode", account.getCurrencyCode());
-        certificate.put("currentBalance", account.getBookBalance());
-        certificate.put("availableBalance", account.getAvailableBalance());
-        certificate.put("accountStatus", account.getStatus().name());
-        certificate.put("asOfDate", LocalDate.now());
-        certificate.put("certificateRef", "COB-" + accountId + "-" + System.currentTimeMillis());
-        certificate.put("generatedAt", Instant.now().toString());
-
-        return ResponseEntity.ok(ApiResponse.ok(certificate));
+        return ResponseEntity.ok(ApiResponse.ok(statementService.getCertificateOfBalance(accountId)));
     }
+
+    // ── Confirmation ────────────────────────────────────────────────────────────
 
     @GetMapping("/confirmation")
     @Operation(summary = "Account confirmation letter data")
@@ -209,57 +117,46 @@ public class StatementController {
         if (accountId == null) {
             return ResponseEntity.ok(ApiResponse.ok(Map.of("status", "READY")));
         }
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
-
-        Map<String, Object> confirmation = new LinkedHashMap<>();
-        confirmation.put("accountId", accountId);
-        confirmation.put("accountNumber", account.getAccountNumber());
-        confirmation.put("accountName", account.getAccountName());
-        confirmation.put("accountType", account.getAccountType().name());
-        confirmation.put("currencyCode", account.getCurrencyCode());
-        confirmation.put("accountStatus", account.getStatus().name());
-        confirmation.put("openedDate", account.getOpenedDate());
-        confirmation.put("branchCode", account.getBranchCode());
-        confirmation.put("confirmationRef", "ACL-" + accountId + "-" + System.currentTimeMillis());
-        confirmation.put("generatedAt", Instant.now().toString());
-
-        return ResponseEntity.ok(ApiResponse.ok(confirmation));
+        return ResponseEntity.ok(ApiResponse.ok(statementService.getAccountConfirmation(accountId)));
     }
+
+    // ── Subscriptions ───────────────────────────────────────────────────────────
 
     @GetMapping("/subscriptions")
     @Operation(summary = "Recurring statement subscriptions")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSubscriptions(
-            @RequestParam(required = false) Long customerId) {
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+    public ResponseEntity<ApiResponse<List<StatementSubscription>>> getSubscriptions(
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) Long accountId) {
+        if (accountId != null) {
+            return ResponseEntity.ok(ApiResponse.ok(statementService.getSubscriptionsByAccount(accountId)));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(statementService.getSubscriptions(customerId)));
     }
 
     @PostMapping("/subscriptions")
     @Operation(summary = "Create a statement subscription")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> createSubscription(@RequestBody Map<String, Object> subscription) {
-        Map<String, Object> result = new LinkedHashMap<>(subscription);
-        result.put("id", System.currentTimeMillis());
-        result.put("status", "ACTIVE");
-        result.put("createdAt", Instant.now().toString());
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(result));
+    public ResponseEntity<ApiResponse<StatementSubscription>> createSubscription(
+            @RequestBody Map<String, Object> subscription) {
+        StatementSubscription created = statementService.createSubscription(subscription);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(created));
     }
 
     @PostMapping("/subscriptions/{id}")
     @Operation(summary = "Update a statement subscription")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updateSubscription(@PathVariable Long id, @RequestBody Map<String, Object> subscription) {
-        Map<String, Object> result = new LinkedHashMap<>(subscription);
-        result.put("id", id);
-        result.put("updatedAt", Instant.now().toString());
-        return ResponseEntity.ok(ApiResponse.ok(result));
+    public ResponseEntity<ApiResponse<StatementSubscription>> updateSubscription(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> subscription) {
+        return ResponseEntity.ok(ApiResponse.ok(statementService.updateSubscription(id, subscription)));
     }
 
     @PostMapping("/subscriptions/{id}/delete")
     @Operation(summary = "Delete a statement subscription")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<Map<String, String>>> deleteSubscription(@PathVariable Long id) {
+        statementService.deleteSubscription(id);
         return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "DELETED")));
     }
 }

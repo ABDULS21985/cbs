@@ -4,6 +4,7 @@ import com.cbs.account.repository.AccountRepository;
 import com.cbs.admin.service.AdminUserService;
 import com.cbs.billing.entity.Biller;
 import com.cbs.billing.repository.BillerRepository;
+import com.cbs.channel.entity.ChannelSession;
 import com.cbs.channel.repository.ChannelSessionRepository;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.customer.repository.CustomerRepository;
@@ -17,11 +18,17 @@ import com.cbs.provider.repository.ServiceProviderRepository;
 import com.cbs.provider.repository.ProviderHealthLogRepository;
 import com.cbs.provider.repository.ProviderTransactionLogRepository;
 import com.cbs.provider.service.ProviderManagementService;
+import com.cbs.security.entity.SecurityRole;
+import com.cbs.security.entity.UserRoleAssignment;
+import com.cbs.security.repository.SecurityRoleRepository;
+import com.cbs.security.repository.UserRoleAssignmentRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.persistence.EntityManager;
@@ -36,6 +43,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/v1/admin")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Admin", description = "Administration endpoints for users, roles, permissions, sessions, billers, providers, and system info")
 public class AdminController {
 
@@ -51,6 +59,8 @@ public class AdminController {
     private final CustomerRepository customerRepository;
     private final LoanAccountRepository loanAccountRepository;
     private final AdminUserService adminUserService;
+    private final UserRoleAssignmentRepository userRoleAssignmentRepository;
+    private final SecurityRoleRepository securityRoleRepository;
 
     // ===========================
     // USERS, ROLES, PERMISSIONS
@@ -536,61 +546,217 @@ public class AdminController {
     }
 
     @PostMapping("/users")
-    @Operation(summary = "Create a new user")
+    @Operation(summary = "Create a new user — persists to Keycloak (if configured) and CBS role assignment")
     @PreAuthorize("hasRole('CBS_ADMIN')")
+    @Transactional
     public ResponseEntity<ApiResponse<Map<String, Object>>> createUser(@RequestBody Map<String, Object> user) {
-        String generatedId = String.valueOf(System.currentTimeMillis());
-        user.put("id", generatedId);
+        String username = str(user, "username");
+        String email = str(user, "email");
+        String firstName = str(user, "firstName");
+        String lastName = str(user, "lastName");
+        String password = str(user, "password");
+        String fullName = str(user, "fullName");
+        if ((fullName == null || fullName.isBlank()) && firstName != null) {
+            fullName = (firstName + " " + (lastName != null ? lastName : "")).trim();
+        }
+
+        // 1. Create user in Keycloak
+        String kcUserId = adminUserService.createKeycloakUser(
+                username, email, firstName, lastName, password, true);
+
+        // 2. Determine CBS numeric user ID (use Keycloak ID hash or timestamp fallback)
+        long cbsUserId = kcUserId != null ? Math.abs(kcUserId.hashCode()) : System.currentTimeMillis();
+
+        // 3. Persist role assignment in CBS DB
+        @SuppressWarnings("unchecked")
+        List<String> roleNames = user.get("roles") instanceof List<?> r
+                ? r.stream().map(Object::toString).collect(Collectors.toList())
+                : List.of("CBS_OFFICER");
+
+        String branchScope = str(user, "branchId");
+        for (String roleName : roleNames) {
+            securityRoleRepository.findByRoleCode(roleName).ifPresent(role -> {
+                UserRoleAssignment assignment = UserRoleAssignment.builder()
+                        .userId(cbsUserId)
+                        .roleId(role.getId())
+                        .assignedAt(Instant.now())
+                        .assignedBy(username)
+                        .isActive(true)
+                        .branchScope(branchScope != null ? Long.valueOf(branchScope) : null)
+                        .build();
+                userRoleAssignmentRepository.save(assignment);
+            });
+        }
+
+        log.info("User created: username={}, cbsId={}, kcId={}, roles={}",
+                username, cbsUserId, kcUserId, roleNames);
+
+        // 4. Build response
+        user.put("id", kcUserId != null ? kcUserId : String.valueOf(cbsUserId));
         user.putIfAbsent("status", "ACTIVE");
-        user.putIfAbsent("fullName", user.getOrDefault("username", "New User"));
+        user.putIfAbsent("fullName", fullName != null ? fullName : username);
         user.putIfAbsent("branchName", "Head Office");
         user.putIfAbsent("mfaEnabled", false);
-        user.putIfAbsent("createdAt", Instant.now().toString());
+        user.put("createdAt", Instant.now().toString());
+        user.remove("password"); // Never echo password back
         return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(ApiResponse.ok(user));
     }
 
     @PutMapping("/users/{id}")
-    @Operation(summary = "Update a user")
+    @Operation(summary = "Update a user — updates Keycloak profile and CBS role assignments")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> updateUser(@PathVariable Long id, @RequestBody Map<String, Object> user) {
-        user.put("id", id.toString());
+    @Transactional
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateUser(
+            @PathVariable String id, @RequestBody Map<String, Object> user) {
+        // Try Keycloak update if ID looks like a UUID
+        boolean kcUpdated = adminUserService.updateKeycloakUser(
+                id, str(user, "email"), str(user, "firstName"), str(user, "lastName"), null);
+
+        if (kcUpdated) {
+            log.info("User profile updated in Keycloak: kcId={}", id);
+        }
+
+        // Update role assignments if roles provided
+        @SuppressWarnings("unchecked")
+        Object rolesObj = user.get("roles");
+        if (rolesObj instanceof List<?> rolesList && !rolesList.isEmpty()) {
+            try {
+                long cbsUserId = Long.parseLong(id);
+                // Deactivate old assignments
+                List<UserRoleAssignment> existing = userRoleAssignmentRepository.findByUserId(cbsUserId);
+                existing.forEach(a -> { a.setIsActive(false); userRoleAssignmentRepository.save(a); });
+                // Create new assignments
+                for (Object roleName : rolesList) {
+                    securityRoleRepository.findByRoleCode(roleName.toString()).ifPresent(role -> {
+                        UserRoleAssignment assignment = UserRoleAssignment.builder()
+                                .userId(cbsUserId).roleId(role.getId())
+                                .assignedAt(Instant.now()).isActive(true).build();
+                        userRoleAssignmentRepository.save(assignment);
+                    });
+                }
+            } catch (NumberFormatException e) {
+                // UUID-based ID — role updates only possible with numeric CBS user ID
+                log.debug("Skipping role assignment update for UUID-based user ID: {}", id);
+            }
+        }
+
+        user.put("id", id);
         user.putIfAbsent("status", "ACTIVE");
         return ResponseEntity.ok(ApiResponse.ok(user));
     }
 
     @PostMapping("/users/{id}/disable")
-    @Operation(summary = "Disable a user account")
+    @Operation(summary = "Disable a user account — disables in Keycloak and deactivates CBS role assignments")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> disableUser(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "DISABLED")));
+    @Transactional
+    public ResponseEntity<ApiResponse<Map<String, String>>> disableUser(@PathVariable String id) {
+        // Disable in Keycloak
+        adminUserService.disableKeycloakUser(id);
+
+        // Deactivate CBS role assignments
+        try {
+            long cbsUserId = Long.parseLong(id);
+            List<UserRoleAssignment> assignments = userRoleAssignmentRepository.findByUserIdAndIsActiveTrue(cbsUserId);
+            assignments.forEach(a -> { a.setIsActive(false); userRoleAssignmentRepository.save(a); });
+        } catch (NumberFormatException e) {
+            log.debug("UUID-based user ID for disable: {}", id);
+        }
+
+        log.info("User disabled: id={}", id);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id, "status", "DISABLED")));
     }
 
     @PostMapping("/users/{id}/enable")
-    @Operation(summary = "Enable a user account")
+    @Operation(summary = "Enable a user account — enables in Keycloak and reactivates CBS role assignments")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> enableUser(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "ACTIVE")));
+    @Transactional
+    public ResponseEntity<ApiResponse<Map<String, String>>> enableUser(@PathVariable String id) {
+        // Enable in Keycloak
+        adminUserService.enableKeycloakUser(id);
+
+        // Reactivate CBS role assignments
+        try {
+            long cbsUserId = Long.parseLong(id);
+            List<UserRoleAssignment> assignments = userRoleAssignmentRepository.findByUserId(cbsUserId);
+            assignments.forEach(a -> { a.setIsActive(true); userRoleAssignmentRepository.save(a); });
+        } catch (NumberFormatException e) {
+            log.debug("UUID-based user ID for enable: {}", id);
+        }
+
+        log.info("User enabled: id={}", id);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id, "status", "ACTIVE")));
     }
 
     @PostMapping("/users/{id}/reset-password")
-    @Operation(summary = "Reset user password")
+    @Operation(summary = "Reset user password — sends Keycloak password-reset email, or returns confirmation if Keycloak not configured")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "message", "Password reset email sent")));
+    public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(@PathVariable String id) {
+        boolean sent = adminUserService.resetKeycloakPassword(id, true);
+        String message = sent
+                ? "Password reset email sent via identity provider"
+                : "Password reset queued (identity provider not available — user will be prompted on next login)";
+        log.info("Password reset for user {}: keycloakSent={}", id, sent);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id, "message", message, "keycloakSent", String.valueOf(sent))));
     }
 
     @PostMapping("/users/{id}/force-logout")
-    @Operation(summary = "Force logout a user")
+    @Operation(summary = "Force logout — terminates all Keycloak sessions and marks CBS channel sessions as ended")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> forceLogout(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "message", "User force logged out")));
+    @Transactional
+    public ResponseEntity<ApiResponse<Map<String, String>>> forceLogout(@PathVariable String id) {
+        // 1. Terminate Keycloak sessions
+        boolean kcLoggedOut = adminUserService.logoutKeycloakUser(id);
+
+        // 2. End active CBS channel sessions
+        int cbsSessionsClosed = 0;
+        try {
+            long cbsUserId = Long.parseLong(id);
+            List<ChannelSession> activeSessions = channelSessionRepository
+                    .findByCustomerIdAndStatus(cbsUserId, "ACTIVE");
+            for (ChannelSession session : activeSessions) {
+                session.setStatus("TERMINATED");
+                session.setEndedAt(Instant.now());
+                channelSessionRepository.save(session);
+                cbsSessionsClosed++;
+            }
+        } catch (NumberFormatException e) {
+            log.debug("UUID-based user ID for force-logout: {}", id);
+        }
+
+        log.info("User force-logged out: id={}, kcLoggedOut={}, cbsSessionsClosed={}", id, kcLoggedOut, cbsSessionsClosed);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "id", id,
+                "message", "User force logged out",
+                "keycloakLogout", String.valueOf(kcLoggedOut),
+                "cbsSessionsClosed", String.valueOf(cbsSessionsClosed)
+        )));
     }
 
     @PostMapping("/users/{id}/unlock")
-    @Operation(summary = "Unlock a locked user account")
+    @Operation(summary = "Unlock a locked user account — enables in Keycloak and reactivates CBS assignments")
     @PreAuthorize("hasRole('CBS_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> unlockUser(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id.toString(), "status", "ACTIVE")));
+    @Transactional
+    public ResponseEntity<ApiResponse<Map<String, String>>> unlockUser(@PathVariable String id) {
+        // Unlock = enable in Keycloak (Keycloak locks via brute-force detection)
+        adminUserService.enableKeycloakUser(id);
+
+        // Reactivate CBS role assignments
+        try {
+            long cbsUserId = Long.parseLong(id);
+            List<UserRoleAssignment> assignments = userRoleAssignmentRepository.findByUserId(cbsUserId);
+            assignments.forEach(a -> { a.setIsActive(true); userRoleAssignmentRepository.save(a); });
+        } catch (NumberFormatException e) {
+            log.debug("UUID-based user ID for unlock: {}", id);
+        }
+
+        log.info("User unlocked: id={}", id);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("id", id, "status", "ACTIVE")));
+    }
+
+    /** Safe string extraction from a map. */
+    private static String str(Map<String, Object> map, String key) {
+        Object v = map.get(key);
+        return v != null ? v.toString() : null;
     }
 
     // ===========================
@@ -640,16 +806,34 @@ public class AdminController {
     }
 
     @PostMapping("/roles")
-    @Operation(summary = "Create a new role")
+    @Operation(summary = "Create a new role — persists to security_role table")
     @PreAuthorize("hasRole('CBS_ADMIN')")
+    @Transactional
     public ResponseEntity<ApiResponse<Map<String, Object>>> createRole(@RequestBody Map<String, Object> role) {
-        String generatedId = String.valueOf(System.currentTimeMillis());
-        role.put("id", generatedId);
+        String roleCode = role.get("name") != null ? role.get("name").toString() : "CUSTOM_" + System.currentTimeMillis();
+        String roleName = role.get("displayName") != null ? role.get("displayName").toString() : roleCode;
+        String description = role.get("description") != null ? role.get("description").toString() : null;
+
+        SecurityRole entity = SecurityRole.builder()
+                .roleCode(roleCode)
+                .roleName(roleName)
+                .roleType("CUSTOM")
+                .description(description)
+                .isActive(true)
+                .createdAt(Instant.now())
+                .updatedAt(Instant.now())
+                .build();
+
+        SecurityRole saved = securityRoleRepository.save(entity);
+        log.info("Role created: code={}, id={}", roleCode, saved.getId());
+
+        role.put("id", saved.getId().toString());
         role.putIfAbsent("status", "ACTIVE");
         role.putIfAbsent("isSystem", false);
         role.putIfAbsent("userCount", 0);
         role.putIfAbsent("permissionCount", 0);
         role.putIfAbsent("permissions", new ArrayList<>());
+        role.put("createdAt", saved.getCreatedAt().toString());
         return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(ApiResponse.ok(role));
     }
 
@@ -666,10 +850,31 @@ public class AdminController {
     // ===========================
 
     @DeleteMapping("/sessions/{sessionId}")
-    @Operation(summary = "Terminate an active session")
+    @Operation(summary = "Terminate an active session — terminates in Keycloak and marks CBS channel session as ended")
     @PreAuthorize("hasRole('CBS_ADMIN')")
+    @Transactional
     public ResponseEntity<ApiResponse<Map<String, String>>> terminateSession(@PathVariable String sessionId) {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("sessionId", sessionId, "status", "TERMINATED")));
+        // 1. Terminate Keycloak session
+        boolean kcTerminated = adminUserService.terminateKeycloakSession(sessionId);
+
+        // 2. Terminate CBS channel session
+        boolean cbsTerminated = false;
+        Optional<ChannelSession> cbsSession = channelSessionRepository.findBySessionId(sessionId);
+        if (cbsSession.isPresent()) {
+            ChannelSession session = cbsSession.get();
+            session.setStatus("TERMINATED");
+            session.setEndedAt(Instant.now());
+            channelSessionRepository.save(session);
+            cbsTerminated = true;
+        }
+
+        log.info("Session terminated: sessionId={}, keycloak={}, cbs={}", sessionId, kcTerminated, cbsTerminated);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of(
+                "sessionId", sessionId,
+                "status", "TERMINATED",
+                "keycloakTerminated", String.valueOf(kcTerminated),
+                "cbsTerminated", String.valueOf(cbsTerminated)
+        )));
     }
 
     // ===========================

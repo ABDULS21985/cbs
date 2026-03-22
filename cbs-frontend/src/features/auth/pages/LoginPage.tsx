@@ -1,8 +1,43 @@
-import { useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthStore } from '@/stores/authStore';
-import { Loader2, AlertCircle, ShieldCheck, FlaskConical } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  AlertCircle,
+  ArrowRight,
+  FlaskConical,
+  KeyRound,
+  Loader2,
+  Orbit,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/authStore';
+import coreBankingHero from '@/assets/auth/core-banking-hero.svg';
+import { AuthShell } from '../components/AuthShell';
+
+const heroMetrics = [
+  { value: '240+', label: 'Core models' },
+  { value: '758', label: 'Secured APIs' },
+  { value: '99.9%', label: 'Access SLA' },
+];
+
+const heroFeatures = [
+  {
+    icon: ShieldCheck,
+    title: 'Hosted credentials only',
+    description: 'Passwords and MFA never touch the app shell. Authentication stays on Keycloak-hosted pages.',
+  },
+  {
+    icon: Orbit,
+    title: 'Role-aware landing',
+    description: 'Operators, treasury, compliance, and portal users all re-enter through the same hardened trust boundary.',
+  },
+  {
+    icon: KeyRound,
+    title: 'Recovery built in',
+    description: 'Reset and callback flows stay linked to session state, PKCE, and auditable identity recovery.',
+  },
+];
 
 export function LoginPage() {
   const [username, setUsername] = useState('');
@@ -13,6 +48,10 @@ export function LoginPage() {
   const [searchParams] = useSearchParams();
   const reason = searchParams.get('reason');
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
+
+  useEffect(() => {
+    document.title = 'Secure Sign In | CBS';
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,135 +64,168 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-[55%] bg-gradient-to-br from-[#0B1A56] via-[#1E40AF] to-[#15308A] relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 25% 25%, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-        <div className="relative z-10 flex flex-col justify-between p-12 text-white">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center font-bold text-lg">BB</div>
-            <span className="text-xl font-semibold tracking-tight">DigiCore</span>
-          </div>
-          <div className="max-w-lg">
-            <h1 className="text-4xl font-bold leading-tight">Core Banking System</h1>
-            <p className="text-lg text-blue-200 mt-4 leading-relaxed">
-              Secure, scalable, and compliant banking operations platform.
-              Manage customers, accounts, lending, payments, treasury, and risk — all in one place.
-            </p>
-            <div className="flex gap-6 mt-8 text-sm text-blue-300">
-              <div><span className="text-2xl font-bold text-white block">240+</span>DB Tables</div>
-              <div><span className="text-2xl font-bold text-white block">758</span>API Endpoints</div>
-              <div><span className="text-2xl font-bold text-white block">99.9%</span>Uptime SLA</div>
-            </div>
-          </div>
-          <p className="text-xs text-blue-400">&copy; {new Date().getFullYear()} DigiCore MFB. All rights reserved.</p>
+    <AuthShell
+      theme="light"
+      badge="Identity Perimeter"
+      title="Secure sign-in"
+      description="Start a hardened hosted sign-in session for DigiCore CBS. Credentials, MFA, and recovery stay with the identity provider."
+      icon={ShieldCheck}
+      heroArtworkSrc={coreBankingHero}
+      heroArtworkAlt="Illustration of a modern core banking control plane with analytics, payment, and ledger surfaces."
+      heroTitle="Operate every banking domain from a single hardened entry point."
+      heroDescription="A cleaner hosted sign-in experience with zero local password handling, PKCE hand-off, and role-aware session recovery for production banking access."
+      metrics={heroMetrics}
+      features={heroFeatures}
+      footer={(
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Need password recovery? Use the hosted reset flow.
+          </p>
+          <Link to="/forgot-password" className="auth-inline-link">
+            Password reset
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
-      </div>
-
-      {/* Right login form */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-background">
-        <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center font-bold text-lg text-white">BB</div>
-            <span className="text-xl font-semibold">DigiCore CBS</span>
-          </div>
-
-          <div className="mb-6">
-            <h2 className="text-2xl font-semibold">Secure sign in</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Authentication is handled by your identity provider using a hosted sign-in flow.
+      )}
+    >
+      {reason === 'session_expired' && (
+        <div className="auth-warning-banner">
+          <AlertCircle className="auth-warning-icon mt-0.5 h-4 w-4 flex-shrink-0" />
+          <div>
+            <p className="auth-warning-title">Session expired</p>
+            <p className="auth-warning-copy">
+              Your previous secure session timed out. Start a fresh sign-in to continue.
             </p>
           </div>
+        </div>
+      )}
 
-          {reason === 'session_expired' && (
-            <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-sm">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              Your session expired. Please sign in again.
+      {error && (
+        <div className="auth-status-banner border-red-500/20 bg-red-500/10 text-red-100">
+          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-300" />
+          <div>
+            <p className="font-medium text-red-100">Unable to launch sign-in</p>
+            <p className="mt-1 text-red-100/75">{error}</p>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="space-y-2">
+          <label htmlFor="username" className="auth-field-label">
+            Username or staff ID
+          </label>
+          <input
+            id="username"
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Optional login hint"
+            autoFocus
+            autoComplete="username"
+            disabled={isLoading}
+            className="auth-field-input"
+          />
+          <p className="text-sm leading-6 text-muted-foreground">
+            This pre-fills the hosted Keycloak page. Password entry always happens on the identity provider.
+          </p>
+        </div>
+
+        <div className="gloss-pill rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+              <Sparkles className="h-4 w-4" />
             </div>
-          )}
-
-          {error && (
-            <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 text-sm">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1.5">Username / Staff ID</label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Optional login hint"
-                autoFocus
-                autoComplete="username"
-                disabled={isLoading}
-                className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                This pre-fills the secure sign-in page. Password entry happens on the identity provider.
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-foreground">Production-safe access hand-off</p>
+              <p className="text-sm leading-6 text-muted-foreground">
+                DigiCore CBS now uses Authorization Code + PKCE with hosted recovery and MFA. No local password entry, no shadow auth flow.
               </p>
             </div>
+          </div>
+        </div>
 
-            <div className="rounded-xl border border-border/70 bg-muted/30 p-4 text-sm text-muted-foreground">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 h-4 w-4 text-primary" />
-                <div>
-                  <p className="font-medium text-foreground">Production-safe sign-in</p>
-                  <p className="mt-1">
-                    This app no longer collects passwords directly. You will be redirected to Keycloak for
-                    Authorization Code + PKCE sign-in.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={cn(
-                'w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                'bg-primary text-primary-foreground hover:bg-primary/90',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
-            >
-              {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting...</> : 'Continue to secure sign-in'}
-            </button>
-          </form>
-
-          <p className="text-xs text-center text-muted-foreground mt-8">
-            Authentication uses hosted identity-provider pages. Local test credentials are disabled here.
-          </p>
-
-          {import.meta.env.DEV && (
-            <div className="mt-6 rounded-xl border border-dashed border-amber-400/60 bg-amber-50/50 dark:bg-amber-950/20 p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <FlaskConical className="h-4 w-4 text-amber-600" />
-                <span className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">Dev Login</span>
-              </div>
-              <div className="flex flex-col gap-2">
-                {(['admin', 'officer', 'teller'] as const).map((role) => (
-                  <button
-                    key={role}
-                    type="button"
-                    onClick={() => { devLogin(role); navigate(from, { replace: true }); }}
-                    className="w-full text-left px-3 py-2 rounded-lg border bg-background hover:bg-muted text-sm transition-colors flex items-center justify-between"
-                  >
-                    <span className="font-medium capitalize">{role}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {role === 'admin' ? 'CBS_ADMIN · full access' : role === 'officer' ? 'CBS_OFFICER' : 'TELLER'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-xs text-amber-600/70 dark:text-amber-500/70">Only visible in development mode</p>
-            </div>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="auth-primary-button w-full"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Redirecting to secure sign-in
+            </>
+          ) : (
+            <>
+              Continue to secure sign-in
+              <ArrowRight className="h-4 w-4" />
+            </>
           )}
+        </button>
+      </form>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="gloss-pill rounded-2xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Access path
+          </p>
+          <p className="mt-2 text-sm font-semibold text-foreground">Hosted Keycloak journey</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Best for staff, administrators, and sensitive operational roles.
+          </p>
+        </div>
+        <div className="gloss-pill rounded-2xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Recovery
+          </p>
+          <p className="mt-2 text-sm font-semibold text-foreground">Identity-managed reset</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            Password recovery and MFA enrollment remain under the identity provider security policy.
+          </p>
         </div>
       </div>
-    </div>
+
+      <p className="text-center text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        Authentication uses hosted identity pages only
+      </p>
+
+      {import.meta.env.DEV && (
+        <div className="auth-warning-card">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="auth-warning-chip">
+              <FlaskConical className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="auth-warning-card-title">Development shortcuts</p>
+              <p className="auth-warning-card-kicker">
+                Local-only bypass
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {(['admin', 'officer', 'teller'] as const).map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => {
+                  devLogin(role);
+                  navigate(from, { replace: true });
+                }}
+                className={cn('auth-warning-shortcut')}
+              >
+                <span className="auth-warning-shortcut-label">{role}</span>
+                <span className="auth-warning-shortcut-meta">
+                  {role === 'admin' ? 'CBS_ADMIN · full access' : role === 'officer' ? 'CBS_OFFICER' : 'TELLER'}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="auth-warning-note">
+            Visible only in development mode. Production operators always use hosted identity flows.
+          </p>
+        </div>
+      )}
+    </AuthShell>
   );
 }

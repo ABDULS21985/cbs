@@ -56,6 +56,122 @@ class ContactRoutingServiceTest {
     }
 
     @Test
+    @DisplayName("Routing returns default route when no rules match")
+    void routingReturnsDefaultOnNoMatch() {
+        RoutingRule rule = new RoutingRule();
+        rule.setId(1L);
+        rule.setRuleName("Chat Only");
+        rule.setRuleType("SKILL_BASED");
+        rule.setPriority(1);
+        rule.setConditions(Map.of("channel", "CHAT"));
+        rule.setTargetQueue("CHAT_QUEUE");
+        rule.setIsActive(true);
+
+        when(ruleRepo.findByIsActiveTrueOrderByPriorityAsc()).thenReturn(List.of(rule));
+
+        Map<String, String> result = service.routeContact(100L, "INQUIRY", "PHONE");
+
+        assertThat(result).containsEntry("ruleName", "DEFAULT");
+        assertThat(result).containsEntry("targetQueue", "GENERAL_QUEUE");
+    }
+
+    @Test
+    @DisplayName("Structured AND conditions — both conditions must match")
+    void structuredAndConditions() {
+        Map<String, Object> conditions = new HashMap<>();
+        conditions.put("AND_0_0_channelType", Map.of("operator", "IS", "value", "PHONE"));
+        conditions.put("AND_0_1_contactReason", Map.of("operator", "IS", "value", "LOAN_INQUIRY"));
+
+        RoutingRule rule = new RoutingRule();
+        rule.setId(1L);
+        rule.setRuleName("Loan Phone");
+        rule.setRuleType("SKILL_BASED");
+        rule.setPriority(1);
+        rule.setConditions(conditions);
+        rule.setTargetQueue("LOAN_QUEUE");
+        rule.setIsActive(true);
+
+        when(ruleRepo.findByIsActiveTrueOrderByPriorityAsc()).thenReturn(List.of(rule));
+
+        // Both match
+        Map<String, String> result = service.routeContact(100L, "LOAN_INQUIRY", "PHONE");
+        assertThat(result).containsEntry("ruleName", "Loan Phone");
+
+        // Channel doesn't match
+        Map<String, String> noMatch = service.routeContact(100L, "LOAN_INQUIRY", "CHAT");
+        assertThat(noMatch).containsEntry("ruleName", "DEFAULT");
+    }
+
+    @Test
+    @DisplayName("Structured OR groups — any group matching is sufficient")
+    void structuredOrGroups() {
+        Map<String, Object> conditions = new HashMap<>();
+        // Group 0 (AND): channel=CHAT
+        conditions.put("AND_0_0_channelType", Map.of("operator", "IS", "value", "CHAT"));
+        // Group 1 (OR): channel=PHONE
+        conditions.put("OR_1_0_channelType", Map.of("operator", "IS", "value", "PHONE"));
+
+        RoutingRule rule = new RoutingRule();
+        rule.setId(1L);
+        rule.setRuleName("Chat or Phone");
+        rule.setRuleType("OVERFLOW");
+        rule.setPriority(1);
+        rule.setConditions(conditions);
+        rule.setTargetQueue("MULTI_QUEUE");
+        rule.setIsActive(true);
+
+        when(ruleRepo.findByIsActiveTrueOrderByPriorityAsc()).thenReturn(List.of(rule));
+
+        // Group 1 matches (PHONE)
+        Map<String, String> result = service.routeContact(100L, "INQUIRY", "PHONE");
+        assertThat(result).containsEntry("ruleName", "Chat or Phone");
+    }
+
+    @Test
+    @DisplayName("IS_NOT operator excludes matching values")
+    void isNotOperator() {
+        Map<String, Object> conditions = new HashMap<>();
+        conditions.put("AND_0_0_channelType", Map.of("operator", "IS_NOT", "value", "EMAIL"));
+
+        RoutingRule rule = new RoutingRule();
+        rule.setId(1L);
+        rule.setRuleName("Non-Email");
+        rule.setRuleType("ROUND_ROBIN");
+        rule.setPriority(1);
+        rule.setConditions(conditions);
+        rule.setTargetQueue("NON_EMAIL");
+        rule.setIsActive(true);
+
+        when(ruleRepo.findByIsActiveTrueOrderByPriorityAsc()).thenReturn(List.of(rule));
+
+        // PHONE != EMAIL → matches
+        assertThat(service.routeContact(100L, "INQUIRY", "PHONE")).containsEntry("ruleName", "Non-Email");
+        // EMAIL == EMAIL → doesn't match
+        assertThat(service.routeContact(100L, "INQUIRY", "EMAIL")).containsEntry("ruleName", "DEFAULT");
+    }
+
+    @Test
+    @DisplayName("IN operator matches comma-separated values")
+    void inOperator() {
+        Map<String, Object> conditions = new HashMap<>();
+        conditions.put("AND_0_0_channelType", Map.of("operator", "IN", "value", "PHONE,CHAT,VIDEO"));
+
+        RoutingRule rule = new RoutingRule();
+        rule.setId(1L);
+        rule.setRuleName("Real-time Channels");
+        rule.setRuleType("SKILL_BASED");
+        rule.setPriority(1);
+        rule.setConditions(conditions);
+        rule.setTargetQueue("REALTIME_QUEUE");
+        rule.setIsActive(true);
+
+        when(ruleRepo.findByIsActiveTrueOrderByPriorityAsc()).thenReturn(List.of(rule));
+
+        assertThat(service.routeContact(100L, "INQUIRY", "CHAT")).containsEntry("ruleName", "Real-time Channels");
+        assertThat(service.routeContact(100L, "INQUIRY", "EMAIL")).containsEntry("ruleName", "DEFAULT");
+    }
+
+    @Test
     @DisplayName("Callback max attempts enforced - status set to FAILED")
     void callbackMaxAttemptsEnforced() {
         CallbackRequest callback = new CallbackRequest();

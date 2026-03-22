@@ -3,9 +3,9 @@ package com.cbs.goal.controller;
 import com.cbs.common.dto.ApiResponse;
 import com.cbs.common.dto.PageMeta;
 import com.cbs.goal.dto.*;
-import com.cbs.goal.entity.SavingsGoal;
-import com.cbs.deposit.repository.RecurringDepositRepository;
-import com.cbs.goal.repository.SavingsGoalRepository;
+import com.cbs.goal.entity.GoalStatus;
+import com.cbs.deposit.dto.RecurringDepositResponse;
+import com.cbs.deposit.service.RecurringDepositService;
 import com.cbs.goal.service.SavingsGoalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,8 +29,7 @@ import java.util.Map;
 public class SavingsGoalController {
 
     private final SavingsGoalService goalService;
-    private final SavingsGoalRepository savingsGoalRepository;
-    private final RecurringDepositRepository recurringDepositRepository;
+    private final RecurringDepositService recurringDepositService;
 
     @PostMapping("/customer/{customerId}")
     @Operation(summary = "Create a new savings goal")
@@ -56,7 +54,7 @@ public class SavingsGoalController {
             @PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         Page<GoalResponse> result = goalService.getCustomerGoals(customerId,
-                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
@@ -86,18 +84,18 @@ public class SavingsGoalController {
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
     public ResponseEntity<ApiResponse<GoalResponse>> configureAutoDebit(
             @PathVariable Long goalId, @RequestBody Map<String, Object> config) {
-        // Auto-debit config is stored in the goal's metadata
-        return ResponseEntity.ok(ApiResponse.ok(goalService.getGoal(goalId)));
+        return ResponseEntity.ok(ApiResponse.ok(goalService.configureAutoDebit(goalId, config)));
     }
 
     @GetMapping("/{goalId}/contributions")
     @Operation(summary = "Get contribution history for a goal")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getContributions(
+    public ResponseEntity<ApiResponse<List<GoalTransactionResponse>>> getContributions(
             @PathVariable Long goalId,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
-        // Returns transaction journal entries linked to this goal
-        return ResponseEntity.ok(ApiResponse.ok(List.of()));
+        Page<GoalTransactionResponse> result = goalService.getContributions(goalId,
+                PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
     @PostMapping("/{goalId}/fund")
@@ -127,34 +125,47 @@ public class SavingsGoalController {
     @Operation(summary = "Process auto-debits for due savings goals")
     @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Integer>>> processAutoDebits() {
-        return ResponseEntity.ok(ApiResponse.ok(Map.of("processed", goalService.processAutoDebits())));
+        // Service now returns {processed, skipped, failed} directly
+        return ResponseEntity.ok(ApiResponse.ok(goalService.processAutoDebits()));
     }
 
-    // List all savings goals
+    // List all savings goals with optional status and search filtering
     @GetMapping
     @Operation(summary = "List all savings goals")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
-    public ResponseEntity<ApiResponse<List<SavingsGoal>>> listGoals(
+    public ResponseEntity<ApiResponse<List<GoalResponse>>> listGoals(
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<SavingsGoal> result = savingsGoalRepository.findAll(pageable);
+        GoalStatus statusEnum = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                statusEnum = GoalStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                // Invalid status value — treat as no filter
+            }
+        }
+        Pageable pageable = PageRequest.of(page, size);
+        Page<GoalResponse> result = goalService.getGoals(statusEnum, search, pageable);
         return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
     @GetMapping("/recurring-deposits")
     @Operation(summary = "List recurring deposits (proxy to deposit module)")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<List<?>>> getRecurringDeposits() {
-        return ResponseEntity.ok(ApiResponse.ok(recurringDepositRepository.findAll()));
+    public ResponseEntity<ApiResponse<List<RecurringDepositResponse>>> getRecurringDeposits(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        Page<RecurringDepositResponse> result = recurringDepositService.listAll(
+                PageRequest.of(page, size));
+        return ResponseEntity.ok(ApiResponse.ok(result.getContent(), PageMeta.from(result)));
     }
 
     @GetMapping("/recurring-deposits/{id}")
     @Operation(summary = "Get recurring deposit by ID")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','PORTAL_USER')")
-    public ResponseEntity<ApiResponse<?>> getRecurringDeposit(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(recurringDepositRepository.findById(id)
-                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException("RecurringDeposit", "id", id))));
+    public ResponseEntity<ApiResponse<RecurringDepositResponse>> getRecurringDeposit(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(recurringDepositService.getDeposit(id)));
     }
 }

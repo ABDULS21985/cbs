@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PIE_PALETTE, SEMANTIC_CHART_COLORS } from '@/lib/chartPalette';
 import { formatMoney } from '@/lib/formatters';
 import type { SecuritiesPosition } from '../types/securitiesPosition';
-
-const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#f97316', '#14b8a6', '#6366f1'];
 
 interface HoldingsChartProps {
   positions: SecuritiesPosition[];
@@ -29,7 +28,7 @@ export function HoldingsChart({ positions, currency = 'NGN' }: HoldingsChartProp
       .map((p) => ({
         name: p.instrumentCode,
         pnl: p.unrealizedGainLoss,
-        fill: p.unrealizedGainLoss >= 0 ? '#22c55e' : '#ef4444',
+        fill: p.unrealizedGainLoss >= 0 ? SEMANTIC_CHART_COLORS.success : SEMANTIC_CHART_COLORS.danger,
       }));
   }, [positions]);
 
@@ -50,7 +49,7 @@ export function HoldingsChart({ positions, currency = 'NGN' }: HoldingsChartProp
         <ResponsiveContainer width="100%" height={240}>
           <PieChart>
             <Pie data={donutData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85} innerRadius={45} paddingAngle={2}>
-              {donutData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+              {donutData.map((_, i) => <Cell key={i} fill={PIE_PALETTE[i % PIE_PALETTE.length]} />)}
             </Pie>
             <Tooltip formatter={(v: number) => formatMoney(v, currency)} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10 }} />

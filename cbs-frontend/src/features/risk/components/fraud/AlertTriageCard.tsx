@@ -1,4 +1,5 @@
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Search, CheckCircle, XCircle } from 'lucide-react';
 import type { FraudAlert } from '../../types/fraud';
@@ -97,7 +98,10 @@ export function AlertTriageCard({ alert, onInvestigate }: Props) {
             Investigate
           </button>
           <button
-            onClick={() => allowTransaction.mutate(alert.id)}
+            onClick={() => allowTransaction.mutate(alert.id, {
+              onSuccess: () => { toast.success('Transaction allowed'); },
+              onError: () => { toast.error('Failed to allow transaction'); },
+            })}
             disabled={allowTransaction.isPending}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium hover:bg-green-50 hover:text-green-700 hover:border-green-200 disabled:opacity-50 transition-colors"
           >
@@ -105,7 +109,10 @@ export function AlertTriageCard({ alert, onInvestigate }: Props) {
             Allow
           </button>
           <button
-            onClick={() => dismissAlert.mutate({ alertId: alert.id, reason: 'Dismissed from triage queue' })}
+            onClick={() => dismissAlert.mutate(alert.id, {
+              onSuccess: () => { toast.success('Alert dismissed'); },
+              onError: () => { toast.error('Failed to dismiss alert'); },
+            })}
             disabled={dismissAlert.isPending}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium hover:bg-gray-100 disabled:opacity-50 transition-colors"
           >

@@ -2,19 +2,24 @@ import { apiGet, apiPost } from '@/lib/api';
 
 export interface LiquidityMetric {
   id: number;
-  reportDate: string;
+  /** Serialized by backend as `metricDate` (LocalDate field name on entity) */
+  metricDate: string;
   currency: string;
   lcrRatio: number;
   nsfrRatio: number;
   hqlaLevel1: number;
-  hqlaLevel2A: number;
-  hqlaLevel2B: number;
+  /** Backend field is `hqlaLevel2a` (lowercase 'a') */
+  hqlaLevel2a: number;
+  hqlaLevel2b: number;
   totalHqla: number;
-  totalNetCashOutflows: number;
+  /** Backend field is `netCashOutflows30d` */
+  netCashOutflows30d: number;
   availableStableFunding: number;
   requiredStableFunding: number;
-  lcrBreached: boolean;
-  nsfrBreached: boolean;
+  /** Backend field is `lcrBreach` */
+  lcrBreach: boolean;
+  /** Backend field is `nsfrBreach` */
+  nsfrBreach: boolean;
   stressScenario?: string;
   stressedLcr?: number;
   createdAt: string;

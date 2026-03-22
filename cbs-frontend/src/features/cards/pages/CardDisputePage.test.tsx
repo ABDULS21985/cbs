@@ -65,10 +65,10 @@ describe('CardDisputePage', () => {
     setupHandlers();
     renderWithProviders(<CardDisputePage />);
     await waitFor(() => {
-      expect(screen.getAllByText('INITIATED').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Open').length).toBeGreaterThan(0);
     });
-    expect(screen.getAllByText('INVESTIGATION').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('RESOLVED_CUSTOMER').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Investigating').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Resolved (Customer)').length).toBeGreaterThan(0);
   });
 
   it('renders stat cards', async () => {
@@ -123,10 +123,10 @@ describe('CardDisputePage', () => {
     setupHandlers();
     renderWithProviders(<CardDisputePage />);
     await waitFor(() => {
-      expect(screen.getAllByText('INITIATED').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Open').length).toBeGreaterThan(0);
     });
-    // Find all INVESTIGATING elements and click the filter button one
-    const investigatingEls = screen.getAllByText('INVESTIGATION');
+    // Find all Investigating elements and click the filter button one
+    const investigatingEls = screen.getAllByText('Investigating');
     const filterBtn = investigatingEls.find(el => el.closest('button') && !el.closest('.stat-card'));
     expect(filterBtn).toBeTruthy();
     fireEvent.click(filterBtn!);

@@ -31,5 +31,5 @@ export const creditRiskApi = {
   getWatchList: () =>
     api.get<ApiResponse<CreditWatchItem[]>>('/api/v1/credit-risk/watch-list'),
   generateCommitteePack: () =>
-    api.post<ApiResponse<{ jobId: string; downloadUrl: string }>>('/api/v1/credit-risk/committee-pack'),
+    api.get<ApiResponse<Record<string, unknown>>>('/api/v1/credit-risk/committee-pack'),
 };
