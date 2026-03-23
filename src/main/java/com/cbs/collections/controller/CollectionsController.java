@@ -222,31 +222,37 @@ public class CollectionsController {
     }
 
     @GetMapping("/recovery")
-    @Operation(summary = "Recovery tracking - amounts recovered per period")
+    @Operation(summary = "Recovery tracking - per-case recovery records")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getRecoveryTracking() {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecoveryTracking() {
         List<CollectionCase> allCases = collectionCaseRepository.findAll();
 
-        BigDecimal totalRecovered = allCases.stream()
-                .filter(c -> c.getStatus() == CollectionCaseStatus.RECOVERED && c.getResolutionAmount() != null)
-                .map(CollectionCase::getResolutionAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Return per-case recovery records matching the frontend RecoveryRecord interface:
+        // { id, loanNumber, writtenOff, writeOffDate, recovered, recoveryPct, lastRecovery, agent }
+        List<Map<String, Object>> records = allCases.stream()
+                .filter(c -> c.getStatus() == CollectionCaseStatus.RECOVERED
+                        || c.getStatus() == CollectionCaseStatus.WRITE_OFF_APPROVED
+                        || c.getStatus() == CollectionCaseStatus.WRITE_OFF_PROPOSED)
+                .map(c -> {
+                    BigDecimal writtenOff = c.getTotalOutstanding() != null ? c.getTotalOutstanding() : BigDecimal.ZERO;
+                    BigDecimal recovered = c.getResolutionAmount() != null ? c.getResolutionAmount() : BigDecimal.ZERO;
+                    double recoveryPct = writtenOff.compareTo(BigDecimal.ZERO) > 0
+                            ? recovered.divide(writtenOff, 4, java.math.RoundingMode.HALF_UP).doubleValue() * 100
+                            : 0.0;
 
-        long recoveredCount = collectionCaseRepository.countByStatus(CollectionCaseStatus.RECOVERED);
-        long totalActiveCases = allCases.stream()
-                .filter(c -> c.getStatus() != CollectionCaseStatus.CLOSED && c.getStatus() != CollectionCaseStatus.RECOVERED)
-                .count();
+                    Map<String, Object> record = new java.util.LinkedHashMap<>();
+                    record.put("id", c.getId());
+                    record.put("loanNumber", c.getLoanAccount() != null ? c.getLoanAccount().getLoanNumber() : c.getCaseNumber());
+                    record.put("writtenOff", writtenOff);
+                    record.put("writeOffDate", c.getResolvedDate() != null ? c.getResolvedDate().toString() : null);
+                    record.put("recovered", recovered);
+                    record.put("recoveryPct", recoveryPct);
+                    record.put("lastRecovery", c.getResolvedDate() != null ? c.getResolvedDate().toString() : null);
+                    record.put("agent", c.getAssignedTo());
+                    return record;
+                })
+                .toList();
 
-        BigDecimal totalOutstanding = allCases.stream()
-                .filter(c -> c.getStatus() != CollectionCaseStatus.CLOSED && c.getStatus() != CollectionCaseStatus.RECOVERED)
-                .map(CollectionCase::getTotalOutstanding)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return ResponseEntity.ok(ApiResponse.ok(Map.of(
-                "totalRecoveredAmount", totalRecovered,
-                "recoveredCaseCount", recoveredCount,
-                "activeCaseCount", totalActiveCases,
-                "outstandingAmount", totalOutstanding
-        )));
+        return ResponseEntity.ok(ApiResponse.ok(records));
     }
 }

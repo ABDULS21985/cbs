@@ -26,8 +26,10 @@ export function formatDateTime(date: string | Date): string {
   return format(d, 'dd MMM yyyy, HH:mm');
 }
 
-export function formatRelative(date: string | Date): string {
+export function formatRelative(date: string | Date | null | undefined): string {
+  if (!date) return '--';
   const d = typeof date === 'string' ? parseISO(date) : date;
+  if (isNaN(d.getTime())) return '--';
   return formatDistanceToNow(d, { addSuffix: true });
 }
 

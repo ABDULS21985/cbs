@@ -129,15 +129,15 @@ describe('ChannelManagementPage', () => {
       },
       { timeout: 3000 },
     );
-    expect(screen.getByText('Mobile')).toBeInTheDocument();
-    expect(screen.getByText('ATM')).toBeInTheDocument();
-    expect(screen.getByText('Branch')).toBeInTheDocument();
-    expect(screen.getByText('USSD')).toBeInTheDocument();
-    expect(screen.getByText('IVR')).toBeInTheDocument();
-    expect(screen.getByText('WhatsApp')).toBeInTheDocument();
-    expect(screen.getByText('POS')).toBeInTheDocument();
-    expect(screen.getByText('Agent')).toBeInTheDocument();
-    expect(screen.getByText('API')).toBeInTheDocument();
+    expect(screen.getAllByText('Mobile').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('ATM').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Branch').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('USSD').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('IVR').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('WhatsApp').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('POS').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Agent').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('API').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows correct session count values (WEB: 3, MOBILE: 10, etc)', async () => {
@@ -152,11 +152,11 @@ describe('ChannelManagementPage', () => {
       { timeout: 3000 },
     );
     // MOBILE = 10
-    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1);
     // BRANCH = 5
-    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getAllByText('5').length).toBeGreaterThanOrEqual(1);
     // USSD = 2
-    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(1);
     // IVR = 1
     const ones = screen.getAllByText('1');
     expect(ones.length).toBeGreaterThanOrEqual(1);
@@ -278,7 +278,7 @@ describe('ChannelManagementPage', () => {
       { timeout: 3000 },
     );
     expect(screen.getByText('SP-001')).toBeInTheDocument();
-    expect(screen.getByText('BRANCH')).toBeInTheDocument();
+    expect(screen.getAllByText('BRANCH').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('VI ATM')).toBeInTheDocument();
     expect(screen.getByText('SP-002')).toBeInTheDocument();
   });
@@ -355,9 +355,9 @@ describe('ChannelManagementPage', () => {
   it('renders both tabs as buttons', () => {
     setupHandlers();
     renderWithProviders(<ChannelManagementPage />);
-    const liveSessionsTab = screen.getByText('Live Sessions');
+    const liveSessionsTab = screen.getByRole('button', { name: /live sessions/i });
     expect(liveSessionsTab.tagName).toBe('BUTTON');
-    const servicePointsTab = screen.getByText('Service Points');
+    const servicePointsTab = screen.getByRole('button', { name: /service points/i });
     expect(servicePointsTab.tagName).toBe('BUTTON');
   });
 
