@@ -39,8 +39,8 @@ function ToggleCheckbox({ icon, label, description, checked, onChange }: ToggleC
       type="button"
       onClick={() => onChange(!checked)}
       className={cn(
-        'flex items-center gap-3 p-3.5 rounded-lg border-2 w-full text-left transition-colors',
-        checked ? 'border-primary bg-primary/5 dark:bg-primary/10' : 'border-border hover:border-primary/40',
+        'opening-selection-card flex items-center gap-3 w-full',
+        checked && 'opening-selection-card-active',
       )}
     >
       <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0', checked ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
@@ -112,6 +112,24 @@ export function AccountConfigStep({ customer, product, currency, initialValues, 
         <p className="text-sm text-muted-foreground mt-1">Configure the account details and linked services.</p>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="opening-kpi-card">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Customer</p>
+          <p className="mt-2 text-sm font-semibold">{customer.fullName}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{customer.type} · {customer.segment}</p>
+        </div>
+        <div className="opening-kpi-card">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Product</p>
+          <p className="mt-2 text-sm font-semibold">{product.name}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{product.code} · {currency}</p>
+        </div>
+        <div className="opening-kpi-card">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Minimum Balance</p>
+          <p className="mt-2 text-sm font-semibold">{formatMoney(product.minimumBalance, currency)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Set the opening deposit accordingly</p>
+        </div>
+      </div>
+
       {/* Basic details */}
       <FormSection title="Account Details">
         <div className="space-y-4">
@@ -126,8 +144,8 @@ export function AccountConfigStep({ customer, product, currency, initialValues, 
               onChange={(e) => { setAccountTitle(e.target.value); setTitleError(''); }}
               maxLength={100}
               className={cn(
-                'w-full px-3 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring',
-                titleError && 'border-red-500 focus:ring-red-500',
+                'opening-field-input',
+                titleError ? 'border-red-500 focus:ring-red-500' : 'focus:ring-primary/30',
               )}
               placeholder="e.g. John Doe or ABC Limited"
             />
@@ -212,7 +230,7 @@ export function AccountConfigStep({ customer, product, currency, initialValues, 
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+          className="btn-secondary"
         >
           <ChevronLeft className="w-4 h-4" />
           Back
@@ -220,7 +238,7 @@ export function AccountConfigStep({ customer, product, currency, initialValues, 
         <button
           type="button"
           onClick={handleNext}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="btn-primary"
         >
           Continue to Compliance
           <ChevronRight className="w-4 h-4" />

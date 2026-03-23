@@ -15,10 +15,8 @@ export function ProductCard({ product, selected, onClick }: ProductCardProps) {
       type="button"
       onClick={onClick}
       className={cn(
-        'relative w-full text-left rounded-xl border-2 p-5 transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-        selected
-          ? 'border-primary bg-primary/5 dark:bg-primary/10 shadow-sm'
-          : 'border-border bg-card hover:border-primary/40 hover:shadow-sm',
+        'opening-selection-card relative w-full focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2',
+        selected && 'opening-selection-card-active',
       )}
     >
       {/* Selection indicator */}
@@ -37,19 +35,20 @@ export function ProductCard({ product, selected, onClick }: ProductCardProps) {
       )}
 
       {/* Product type badge */}
-      <div className="mb-3">
+      <div className="mb-3 flex items-center gap-2">
         <span className={cn(
-          'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+          'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-[0.16em]',
           product.type === 'SAVINGS' && 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
           product.type === 'CURRENT' && 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
           product.type === 'DOMICILIARY' && 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
         )}>
           {product.type}
         </span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{product.code}</span>
       </div>
 
       {/* Name */}
-      <h3 className={cn('text-sm font-semibold mb-1', selected && 'text-primary')}>{product.name}</h3>
+      <h3 className={cn('text-base font-semibold mb-1', selected && 'text-primary')}>{product.name}</h3>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 mb-4">

@@ -37,18 +37,20 @@ export function ReviewSubmitStep({
   if (createdAccount) {
     return (
       <div className="space-y-6">
-        <div className="flex flex-col items-center text-center py-6">
-          <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
+        <div className="opening-hero-shell p-8">
+          <div className="flex flex-col items-center text-center py-2">
+            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
             <CheckCircle2 className="w-9 h-9 text-green-600 dark:text-green-400" />
+            </div>
+            <h2 className="text-xl font-bold text-green-700 dark:text-green-300">Account Opened Successfully!</h2>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+              The account has been created and is ready for use.
+            </p>
           </div>
-          <h2 className="text-xl font-bold text-green-700 dark:text-green-300">Account Opened Successfully!</h2>
-          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-            The account has been created and is ready for use.
-          </p>
         </div>
 
         {/* Account details */}
-        <div className="rounded-xl border-2 border-green-200 dark:border-green-800/40 bg-green-50/50 dark:bg-green-900/10 p-6 space-y-4">
+        <div className="opening-section-card border-2 border-green-200 dark:border-green-800/40 bg-green-50/50 dark:bg-green-900/10 space-y-4">
           <div className="text-center">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Account Number</p>
             <p className="text-3xl font-bold font-mono mt-1 text-green-700 dark:text-green-300 tracking-widest">
@@ -82,14 +84,14 @@ export function ReviewSubmitStep({
           <button
             type="button"
             onClick={handlePrintWelcomeLetter}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors flex-1"
+            className="btn-secondary flex-1 justify-center"
           >
             <Printer className="w-4 h-4" />
             Print Welcome Letter
           </button>
           <a
             href={`/accounts/${createdAccount.accountNumber}`}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex-1"
+            className="btn-primary flex-1 justify-center"
           >
             View Account
           </a>
@@ -106,7 +108,7 @@ export function ReviewSubmitStep({
       </div>
 
       {/* Customer Summary */}
-      <div className="rounded-lg border p-5 space-y-3">
+      <div className="opening-section-card space-y-3">
         <SectionTitle>Customer</SectionTitle>
         <InfoGrid
           columns={3}
@@ -122,7 +124,7 @@ export function ReviewSubmitStep({
       </div>
 
       {/* Product Summary */}
-      <div className="rounded-lg border p-5 space-y-3">
+      <div className="opening-section-card space-y-3">
         <SectionTitle>Product</SectionTitle>
         <InfoGrid
           columns={3}
@@ -135,7 +137,7 @@ export function ReviewSubmitStep({
       </div>
 
       {/* Configuration Summary */}
-      <div className="rounded-lg border p-5 space-y-4">
+      <div className="opening-section-card space-y-4">
         <SectionTitle>Account Configuration</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -199,7 +201,7 @@ export function ReviewSubmitStep({
       </div>
 
       {/* Compliance Summary */}
-      <div className="rounded-lg border p-5 space-y-3">
+      <div className="opening-section-card space-y-3">
         <SectionTitle>Compliance Clearance</SectionTitle>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
@@ -225,7 +227,7 @@ export function ReviewSubmitStep({
       </div>
 
       {/* Terms & Conditions */}
-      <div className="rounded-lg border p-5 bg-muted/20">
+      <div className="opening-note-card">
         <label className="flex items-start gap-3 cursor-pointer">
           <div
             role="checkbox"
@@ -259,7 +261,7 @@ export function ReviewSubmitStep({
           type="button"
           onClick={onBack}
           disabled={isSubmitting}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
+          className="btn-secondary disabled:opacity-50"
         >
           <ChevronLeft className="w-4 h-4" />
           Back
@@ -268,12 +270,7 @@ export function ReviewSubmitStep({
           type="button"
           disabled={!termsAccepted || isSubmitting}
           onClick={onSubmit}
-          className={cn(
-            'flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors min-w-[140px] justify-center',
-            termsAccepted && !isSubmitting
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground cursor-not-allowed',
-          )}
+          className={cn('btn-primary min-w-[140px] justify-center', (!termsAccepted || isSubmitting) && 'cursor-not-allowed opacity-60')}
         >
           {isSubmitting ? (
             <>

@@ -28,7 +28,7 @@ const STEP_LABELS = STEP_META.map((step) => step.label);
 
 // ─── Validated Field ────────────────────────────────────────────────────────
 
-function ValidatedField({ name, label, required, type = 'text', value, defaultValue, onChange, onBlur, error, placeholder, className, ...props }: {
+function ValidatedField({ name, label, required, type = 'text', value, defaultValue, onChange, onBlur, error, placeholder, className, ariaLabel, ...props }: {
   name: string; label: string; required?: boolean; type?: string; value?: string; defaultValue?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; onBlur?: () => void;
   error?: string; placeholder?: string; className?: string; maxLength?: number; min?: string; ariaLabel?: string;
@@ -46,7 +46,7 @@ function ValidatedField({ name, label, required, type = 'text', value, defaultVa
           value={value} defaultValue={defaultValue}
           onChange={onChange} onBlur={onBlur}
           placeholder={placeholder}
-          aria-label={props.ariaLabel}
+          aria-label={ariaLabel}
           aria-invalid={!!error} aria-describedby={error ? errorId : undefined}
           className={cn(
             'onboarding-field-input',
@@ -514,7 +514,8 @@ export default function OnboardingWizardPage() {
                     formData.accountProduct === code && 'onboarding-choice-card-active',
                   )}>
                   <span className="text-2xl mb-2 block">{icon}</span>
-                  <div className="font-semibold mb-1">{label}</div>
+                  <div className="font-semibold mb-1 tracking-[0.18em] text-xs text-primary/80">{code}</div>
+                  <div className="text-sm font-medium mb-1">{label}</div>
                   <div className="text-xs text-muted-foreground">{desc}</div>
                 </button>
               ))}

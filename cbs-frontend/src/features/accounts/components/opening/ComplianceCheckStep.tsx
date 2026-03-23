@@ -25,11 +25,11 @@ interface CheckRowProps {
 function CheckRow({ label, description, passed, isWarning, extra }: CheckRowProps) {
   return (
     <div className={cn(
-      'flex items-start gap-4 p-4 rounded-lg border transition-colors',
-      passed === null && 'bg-muted/30 border-border',
-      passed === true && !isWarning && 'bg-green-50/50 border-green-200 dark:bg-green-900/10 dark:border-green-800/40',
-      passed === false && 'bg-red-50/50 border-red-200 dark:bg-red-900/10 dark:border-red-800/40',
-      isWarning && passed === false && 'bg-amber-50/50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800/40',
+      'opening-check-row',
+      passed === null && 'opening-check-row-pending',
+      passed === true && !isWarning && 'opening-check-row-pass',
+      passed === false && !isWarning && 'opening-check-row-fail',
+      isWarning && passed === false && 'opening-check-row-warn',
     )}>
       <div className="flex-shrink-0 mt-0.5">
         {passed === null ? (
@@ -60,7 +60,7 @@ function CheckRow({ label, description, passed, isWarning, extra }: CheckRowProp
 
 export function ComplianceCheckStep({
   customerId,
-  productId: _productId,
+  productId,
   onNext,
   onBack,
   complianceResult,
@@ -94,9 +94,22 @@ export function ComplianceCheckStep({
         </p>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="opening-kpi-card">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Customer ID</p>
+          <p className="mt-2 text-sm font-semibold">{customerId}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Compliance is run against the selected customer record.</p>
+        </div>
+        <div className="opening-kpi-card">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Product Code</p>
+          <p className="mt-2 text-sm font-semibold">{productId}</p>
+          <p className="mt-1 text-xs text-muted-foreground">The screening uses the chosen account product code.</p>
+        </div>
+      </div>
+
       {/* Loading state */}
       {isLoading && (
-        <div className="flex flex-col items-center justify-center py-10 gap-3">
+        <div className="opening-section-card flex flex-col items-center justify-center py-10 gap-3">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
             <Loader2 className="w-6 h-6 text-primary animate-spin" />
           </div>
@@ -182,7 +195,7 @@ export function ComplianceCheckStep({
       {/* Summary banner */}
       {complianceResult && !isLoading && (
         <div className={cn(
-          'flex items-center gap-3 p-4 rounded-lg border',
+          'opening-section-card flex items-center gap-3',
           allClear
             ? 'bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-800/40'
             : 'bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800/40',
@@ -216,7 +229,7 @@ export function ComplianceCheckStep({
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+          className="btn-secondary"
         >
           <ChevronLeft className="w-4 h-4" />
           Back
@@ -225,12 +238,7 @@ export function ComplianceCheckStep({
           type="button"
           disabled={!canProceed}
           onClick={onNext}
-          className={cn(
-            'flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors',
-            canProceed
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground cursor-not-allowed',
-          )}
+          className={cn('btn-primary', !canProceed && 'cursor-not-allowed opacity-60')}
         >
           Proceed to Review
           <ChevronRight className="w-4 h-4" />

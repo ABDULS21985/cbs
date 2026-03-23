@@ -9,6 +9,8 @@ import { queryKeys } from '@/lib/queryKeys';
 
 interface CustomerSelectionStepProps {
   onNext: (customer: CustomerSearchResult) => void;
+  initialSelectedCustomer?: CustomerSearchResult | null;
+  customerContextId?: string;
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -26,10 +28,10 @@ function KycIcon({ status }: { status: CustomerSearchResult['kycStatus'] }) {
   return <XCircle className="w-4 h-4 text-red-500" />;
 }
 
-export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
+export function CustomerSelectionStep({ onNext, initialSelectedCustomer, customerContextId }: CustomerSelectionStepProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(initialSelectedCustomer ?? null);
   const [showDropdown, setShowDropdown] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const debouncedQuery = useDebounce(query, 350);
@@ -49,6 +51,13 @@ export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (initialSelectedCustomer) {
+      setSelectedCustomer(initialSelectedCustomer);
+      setQuery(initialSelectedCustomer.fullName);
+    }
+  }, [initialSelectedCustomer]);
 
   const handleSelect = (customer: CustomerSearchResult) => {
     setSelectedCustomer(customer);
@@ -71,9 +80,23 @@ export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
         <p className="text-sm text-muted-foreground mt-1">Search for an existing customer by name, CIF, email, or phone.</p>
       </div>
 
+      {customerContextId && initialSelectedCustomer && (
+        <div className="opening-note-card flex items-start gap-3">
+          <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <User className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">Customer context loaded from the profile flow</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Customer ID {customerContextId} is prefilled. You can continue with this customer or search for another one.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Search Input */}
       <div ref={containerRef} className="relative">
-        <div className="relative">
+        <div className="opening-search-shell">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <input
             type="text"
@@ -81,7 +104,7 @@ export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
             onChange={(e) => handleQueryChange(e.target.value)}
             onFocus={() => query.length >= 2 && setShowDropdown(true)}
             placeholder="Search by name, CIF, email, or phone..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="opening-field-input border-0 bg-transparent pl-10 pr-4 py-3 focus:ring-primary/30"
           />
           {isFetching && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -92,7 +115,7 @@ export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
 
         {/* Dropdown results */}
         {showDropdown && debouncedQuery.length >= 2 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 overflow-hidden">
+          <div className="opening-search-dropdown z-50">
             {results.length === 0 && !isFetching ? (
               <div className="px-4 py-3 text-sm text-muted-foreground text-center">No customers found</div>
             ) : (
@@ -102,11 +125,11 @@ export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
                     <button
                       type="button"
                       onClick={() => handleSelect(customer)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left"
                     >
                       <div className={cn(
-                        'w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0',
-                        customer.type === 'CORPORATE' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+                        'w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0',
+                        customer.type === 'CORPORATE' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-primary/10 text-primary',
                       )}>
                         {customer.type === 'CORPORATE' ? <Building2 className="w-4 h-4" /> : <User className="w-4 h-4" />}
                       </div>
@@ -130,13 +153,13 @@ export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
       {/* Selected Customer Card */}
       {selectedCustomer && (
         <div className={cn(
-          'rounded-lg border p-4 transition-colors',
+          'opening-section-card transition-colors',
           selectedCustomer.kycStatus === 'VERIFIED' ? 'border-green-200 bg-green-50/50 dark:border-green-800/40 dark:bg-green-900/10' : 'border-amber-200 bg-amber-50/50 dark:border-amber-800/40 dark:bg-amber-900/10',
         )}>
           <div className="flex items-start gap-4">
             <div className={cn(
-              'w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0',
-              selectedCustomer.type === 'CORPORATE' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+              'w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0',
+              selectedCustomer.type === 'CORPORATE' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-primary/10 text-primary',
             )}>
               {selectedCustomer.type === 'CORPORATE' ? <Building2 className="w-5 h-5" /> : <User className="w-5 h-5" />}
             </div>
@@ -188,7 +211,7 @@ export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
       <button
         type="button"
         onClick={() => navigate('/customers/onboarding?returnUrl=/accounts/open')}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-colors text-sm font-medium text-muted-foreground hover:text-primary"
+        className="opening-selection-card w-full flex items-center justify-center gap-2 border-dashed text-sm font-medium text-muted-foreground hover:text-primary"
       >
         <UserPlus className="w-4 h-4" />
         Register New Customer
@@ -200,12 +223,7 @@ export function CustomerSelectionStep({ onNext }: CustomerSelectionStepProps) {
           type="button"
           disabled={!canProceed}
           onClick={() => selectedCustomer && onNext(selectedCustomer)}
-          className={cn(
-            'flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors',
-            canProceed
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground cursor-not-allowed',
-          )}
+          className={cn('btn-primary', !canProceed && 'cursor-not-allowed opacity-60')}
         >
           Continue
           <ChevronRight className="w-4 h-4" />

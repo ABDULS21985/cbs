@@ -92,10 +92,8 @@ export function SignatoryManager({ signatories, onChange, signingRule, onRuleCha
               type="button"
               onClick={() => onRuleChange(rule.value)}
               className={cn(
-                'text-left p-3 rounded-lg border-2 transition-colors',
-                signingRule === rule.value
-                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                  : 'border-border hover:border-primary/40',
+                'opening-selection-card',
+                signingRule === rule.value && 'opening-selection-card-active',
               )}
             >
               <p className={cn('text-sm font-medium', signingRule === rule.value && 'text-primary')}>{rule.label}</p>
@@ -111,7 +109,7 @@ export function SignatoryManager({ signatories, onChange, signingRule, onRuleCha
           <label className="block text-sm font-medium">Added Signatories ({signatories.length})</label>
           <ul className="space-y-2">
             {signatories.map((sig, index) => (
-              <li key={sig.customerId} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+              <li key={sig.customerId} className="flex items-center gap-3 opening-note-card">
                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
                   <Users className="w-4 h-4" />
                 </div>
@@ -155,7 +153,7 @@ export function SignatoryManager({ signatories, onChange, signingRule, onRuleCha
       {/* Add Signatory Search */}
       <div ref={containerRef} className="relative">
         <label className="block text-sm font-medium mb-1.5">Add Signatory</label>
-        <div className="relative">
+        <div className="opening-search-shell">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <input
             type="text"
@@ -163,7 +161,7 @@ export function SignatoryManager({ signatories, onChange, signingRule, onRuleCha
             onChange={(e) => { setSearchQuery(e.target.value); setShowDropdown(true); }}
             onFocus={() => searchQuery.length >= 2 && setShowDropdown(true)}
             placeholder="Search customer to add as signatory..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="opening-field-input border-0 bg-transparent pl-10 pr-4 focus:ring-primary/30"
           />
           {isFetching && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -173,7 +171,7 @@ export function SignatoryManager({ signatories, onChange, signingRule, onRuleCha
         </div>
 
         {showDropdown && debouncedQuery.length >= 2 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 overflow-hidden">
+          <div className="opening-search-dropdown z-50">
             {filteredResults.length === 0 && !isFetching ? (
               <div className="px-4 py-3 text-sm text-muted-foreground text-center">No customers found</div>
             ) : (

@@ -176,7 +176,7 @@ describe('AccountOpeningPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Review & Submit')).toBeInTheDocument();
-      expect(screen.getByText('Premier')).toBeInTheDocument();
+      expect(screen.getAllByText('Premier').length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole('checkbox'));
@@ -198,6 +198,46 @@ describe('AccountOpeningPage', () => {
       expect(screen.getByText(/account opened successfully/i)).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /view account/i })).toHaveAttribute('href', '/accounts/0123456789');
     });
+  });
+
+  it('auto-loads a verified customer from query params and advances to product selection', async () => {
+    server.use(
+      http.get('/api/v1/customers/101', () =>
+        HttpResponse.json(wrap(mockCustomerDetail)),
+      ),
+      http.get('/api/v1/accounts/products', () =>
+        HttpResponse.json(wrap(mockProducts)),
+      ),
+    );
+
+    renderWithProviders(<AccountOpeningPage />, { route: '/accounts/open?customerId=101' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Select Product')).toBeInTheDocument();
+      expect(screen.getByText('Standard Savings')).toBeInTheDocument();
+    });
+  });
+
+  it('keeps a preselected customer with pending kyc on the customer step', async () => {
+    server.use(
+      http.get('/api/v1/customers/101', () =>
+        HttpResponse.json(
+          wrap({
+            ...mockCustomerDetail,
+            identifications: [],
+          }),
+        ),
+      ),
+    );
+
+    renderWithProviders(<AccountOpeningPage />, { route: '/accounts/open?customerId=101' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Select Customer')).toBeInTheDocument();
+      expect(screen.getByText(/kyc must be verified before opening an account/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('button', { name: /^continue$/i })).toBeDisabled();
   });
 
   it('renders the stepper on initial load at step 1', () => {
@@ -344,7 +384,7 @@ describe('AccountOpeningPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Review & Submit')).toBeInTheDocument();
-      expect(screen.getByText('Premier')).toBeInTheDocument();
+      expect(screen.getAllByText('Premier').length).toBeGreaterThan(0);
     });
   });
 

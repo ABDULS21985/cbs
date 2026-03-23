@@ -50,7 +50,8 @@ export function ProductSelectionStep({ customerId, onNext, onBack }: ProductSele
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1.5 p-1 bg-muted rounded-lg w-fit">
+      <div className="opening-section-card p-2">
+        <div className="flex gap-1.5 flex-wrap">
         {(['ALL', 'SAVINGS', 'CURRENT', 'DOMICILIARY'] as ProductTypeFilter[]).map((f) => (
           <button
             key={f}
@@ -60,13 +61,14 @@ export function ProductSelectionStep({ customerId, onNext, onBack }: ProductSele
               setSelectedProductId(null);
             }}
             className={cn(
-              'px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-              filter === f ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
+              filter === f ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-background/80 text-muted-foreground hover:text-foreground',
             )}
           >
             {filterLabels[f]}
           </button>
         ))}
+        </div>
       </div>
 
       {/* Product grid */}
@@ -89,9 +91,21 @@ export function ProductSelectionStep({ customerId, onNext, onBack }: ProductSele
         </div>
       )}
 
+      {selectedProduct && (
+        <div className="opening-note-card flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium">{selectedProduct.name}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {selectedProduct.type} product · Base currency {selectedProduct.currency}
+            </p>
+          </div>
+          <div className="opening-hero-chip">{selectedProduct.type === 'DOMICILIARY' ? domCurrency : selectedProduct.currency}</div>
+        </div>
+      )}
+
       {/* Domiciliary currency selector */}
       {selectedProduct?.type === 'DOMICILIARY' && (
-        <div className="rounded-lg border bg-teal-50/50 dark:bg-teal-900/10 border-teal-200 dark:border-teal-800/40 p-4">
+        <div className="opening-section-card border-teal-200 bg-teal-50/50 dark:border-teal-800/40 dark:bg-teal-900/10">
           <label className="block text-sm font-medium mb-2">Select Account Currency</label>
           <div className="flex gap-2 flex-wrap">
             {DOMICILIARY_CURRENCIES.map((cur) => (
@@ -121,7 +135,7 @@ export function ProductSelectionStep({ customerId, onNext, onBack }: ProductSele
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+          className="btn-secondary"
         >
           <ChevronLeft className="w-4 h-4" />
           Back
@@ -130,12 +144,7 @@ export function ProductSelectionStep({ customerId, onNext, onBack }: ProductSele
           type="button"
           disabled={!selectedProduct}
           onClick={handleNext}
-          className={cn(
-            'flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-colors',
-            selectedProduct
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground cursor-not-allowed',
-          )}
+          className={cn('btn-primary', !selectedProduct && 'cursor-not-allowed opacity-60')}
         >
           Continue
           <ChevronRight className="w-4 h-4" />
