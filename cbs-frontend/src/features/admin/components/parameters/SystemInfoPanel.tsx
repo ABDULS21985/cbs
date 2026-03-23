@@ -39,7 +39,7 @@ function Gauge({ value, label, detail, icon }: GaugeProps) {
     'bg-green-500';
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-muted">{icon}</div>
@@ -67,7 +67,7 @@ export function SystemInfoPanel() {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="rounded-xl border bg-card p-4 space-y-3 animate-pulse">
+          <div key={i} className="surface-card p-4 space-y-3 animate-pulse">
             <div className="h-5 bg-muted rounded w-1/2" />
             <div className="h-2 bg-muted rounded w-full" />
             <div className="h-4 bg-muted rounded w-1/3" />
@@ -120,7 +120,7 @@ export function SystemInfoPanel() {
           detail={`${formatBytes(info.diskTotal - info.diskUsed)} used of ${formatBytes(info.diskTotal)}`}
           icon={<HardDrive className="w-4 h-4 text-muted-foreground" />}
         />
-        <div className="rounded-xl border bg-card p-4 space-y-3">
+        <div className="surface-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-muted">
@@ -136,7 +136,7 @@ export function SystemInfoPanel() {
 
       {/* Application Info + Uptime */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <div className="flex items-center gap-2 mb-4">
             <Info className="w-4 h-4 text-muted-foreground" />
             <h4 className="text-sm font-semibold">Application Info</h4>
@@ -156,7 +156,7 @@ export function SystemInfoPanel() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-muted-foreground" />
             <h4 className="text-sm font-semibold">Uptime</h4>

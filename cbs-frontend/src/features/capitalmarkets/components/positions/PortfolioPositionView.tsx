@@ -32,7 +32,7 @@ export function PortfolioPositionView({ data, isLoading }: PortfolioPositionView
   return (
     <div className="space-y-6">
       {/* Summary bar */}
-      <div className="rounded-xl border bg-card p-4 flex items-center justify-between">
+      <div className="surface-card p-4 flex items-center justify-between">
         <div>
           <p className="text-sm font-medium">{data.portfolioName}</p>
           <p className="text-xs text-muted-foreground">{data.portfolioCode} — {data.positionCount} positions</p>
@@ -46,7 +46,7 @@ export function PortfolioPositionView({ data, isLoading }: PortfolioPositionView
       {/* Asset class breakdown */}
       {data.byAssetClass.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded-xl border bg-card p-4">
+          <div className="surface-card p-4">
             <p className="text-sm font-medium mb-3">Allocation by Asset Class</p>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
@@ -73,7 +73,7 @@ export function PortfolioPositionView({ data, isLoading }: PortfolioPositionView
             </ResponsiveContainer>
           </div>
 
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div className="px-4 py-3 border-b">
               <p className="text-sm font-medium">Asset Class Breakdown</p>
             </div>

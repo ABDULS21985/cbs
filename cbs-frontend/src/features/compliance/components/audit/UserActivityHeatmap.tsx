@@ -22,7 +22,7 @@ export function UserActivityHeatmap({ data }: Props) {
   };
 
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-1">Activity Heatmap — {data.userId}</h3>
       <p className="text-xs text-muted-foreground mb-4">{data.totalEvents.toLocaleString()} total events</p>
       <div className="overflow-x-auto">

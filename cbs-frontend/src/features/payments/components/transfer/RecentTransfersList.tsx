@@ -12,7 +12,7 @@ export function RecentTransfersList({ onRepeat }: Props) {
   if (!recent.length) return null;
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="surface-card">
       <div className="px-4 py-2.5 border-b">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Recent Transfers</h4>
       </div>

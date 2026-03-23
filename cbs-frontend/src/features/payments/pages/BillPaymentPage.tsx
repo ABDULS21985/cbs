@@ -41,7 +41,7 @@ export function BillPaymentPage() {
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <h2 className="text-xl font-semibold">Payment Successful</h2>
-          <div className="rounded-lg border bg-card p-5 text-left text-sm space-y-2">
+          <div className="surface-card p-5 text-left text-sm space-y-2">
             <div className="flex justify-between"><span className="text-muted-foreground">Biller</span><span>{receipt.billerName}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-mono font-semibold">{formatMoney(receipt.amount, 'NGN')}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Reference</span><span className="font-mono text-xs">{receipt.transactionRef}</span></div>
@@ -62,7 +62,7 @@ export function BillPaymentPage() {
       <div className="page-container space-y-6">
         {/* Favorites */}
         {step === 'category' && favorites.length > 0 && (
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5"><Star className="w-4 h-4 text-amber-500" /> Favorites</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {favorites.slice(0, 4).map((fav) => (

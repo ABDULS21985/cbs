@@ -67,7 +67,7 @@ export function SlaTrendChart({ data, isLoading }: SlaTrendChartProps) {
   };
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
+    <div className="surface-card p-4 space-y-4">
       <div className="flex items-start justify-between gap-4">
         <h2 className="text-sm font-semibold text-foreground">SLA Achievement Trend (12 Months)</h2>
       </div>

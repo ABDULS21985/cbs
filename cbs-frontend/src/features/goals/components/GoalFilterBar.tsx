@@ -29,7 +29,7 @@ const SORTS = [
 
 export function GoalFilterBar({ status, onStatusChange, sort, onSortChange, search, onSearchChange }: GoalFilterBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
+    <div className="flex flex-wrap items-center gap-3 surface-card p-3">
       {/* Status tabs */}
       <div className="flex items-center gap-1">
         {STATUSES.map((s) => (

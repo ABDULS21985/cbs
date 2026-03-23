@@ -119,7 +119,7 @@ export function ComplianceChecklist() {
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold">PSD2 Compliance Status</h3>
           <span className="text-xs font-medium text-muted-foreground">
@@ -142,7 +142,7 @@ export function ComplianceChecklist() {
           const isExpanded = expanded === item.id;
 
           return (
-            <div key={item.id} className="rounded-xl border bg-card overflow-hidden">
+            <div key={item.id} className="surface-card overflow-hidden">
               <button
                 onClick={() => setExpanded(isExpanded ? null : item.id)}
                 className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-muted/30 transition-colors"

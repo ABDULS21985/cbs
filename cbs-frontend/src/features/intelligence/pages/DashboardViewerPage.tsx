@@ -805,7 +805,7 @@ export function DashboardViewerPage() {
             {sortedWidgets.map((w) => (
               <div
                 key={w.id}
-                className="rounded-xl border bg-card p-4 shadow-sm"
+                className="surface-card p-4 shadow-sm"
                 style={{
                   gridColumn: `span ${Math.min(w.width, 12)}`,
                   minHeight: `${Math.max(w.height * 60, 120)}px`,

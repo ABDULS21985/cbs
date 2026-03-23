@@ -590,7 +590,7 @@ export function ServicePointDetailPage() {
       />
       <div className="page-container space-y-6">
         {/* Header info + actions */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
@@ -688,7 +688,7 @@ export function ServicePointDetailPage() {
         </div>
 
         {/* Properties */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <div className="px-5 py-4 border-b">
             <h3 className="text-sm font-semibold">Service Point Properties</h3>
           </div>
@@ -735,7 +735,7 @@ export function ServicePointDetailPage() {
 
         {/* Metrics Detail */}
         {metrics && (
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div className="px-5 py-4 border-b">
               <h3 className="text-sm font-semibold">Performance Metrics</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Real-time computed from interaction history</p>

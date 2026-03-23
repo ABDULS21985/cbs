@@ -50,7 +50,7 @@ export function StatementPreview({ statement, onAccept, onReject }: StatementPre
       )}
 
       {/* Statement Header */}
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-4 py-3 border-b bg-muted/30">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Statement Header</p>
         </div>
@@ -118,7 +118,7 @@ export function StatementPreview({ statement, onAccept, onReject }: StatementPre
       </div>
 
       {/* Entries Table */}
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Entries ({entries.length})

@@ -50,7 +50,7 @@ export function ThroughputChart() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <div className="h-4 w-48 bg-muted rounded animate-pulse mb-4" />
         <div className="h-64 bg-muted rounded animate-pulse" />
       </div>
@@ -58,7 +58,7 @@ export function ThroughputChart() {
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-medium">Message Throughput — Last 24 Hours</h3>
         <span className="text-xs text-muted-foreground">Auto-refresh every 30s</span>

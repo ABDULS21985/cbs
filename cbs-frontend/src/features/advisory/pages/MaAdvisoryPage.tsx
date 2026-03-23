@@ -547,7 +547,7 @@ export function MaAdvisoryPage() {
 
         {/* Pipeline summary */}
         {Object.keys(pipeline).length > 0 && (
-          <div className="rounded-xl border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-3">Pipeline by Stage</h3>
             <div className="flex flex-wrap gap-2">
               {Object.entries(pipeline).map(([status, count]) => (

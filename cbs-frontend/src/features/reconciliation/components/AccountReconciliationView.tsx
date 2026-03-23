@@ -26,7 +26,7 @@ export function AccountReconciliationView({ session, loading }: AccountReconcili
 
   if (loading) {
     return (
-      <div className="rounded-xl border bg-card flex items-center justify-center py-24">
+      <div className="surface-card flex items-center justify-center py-24">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
           <Loader2 className="w-8 h-8 animate-spin" />
           <p className="text-sm">Loading reconciliation session…</p>
@@ -37,7 +37,7 @@ export function AccountReconciliationView({ session, loading }: AccountReconcili
 
   if (!session) {
     return (
-      <div className="rounded-xl border bg-card border-dashed flex items-center justify-center py-20">
+      <div className="surface-card border-dashed flex items-center justify-center py-20">
         <div className="text-center space-y-2">
           <AlertCircle className="w-10 h-10 mx-auto text-muted-foreground/30" />
           <p className="text-sm font-medium text-muted-foreground">No reconciliation session loaded</p>
@@ -69,7 +69,7 @@ export function AccountReconciliationView({ session, loading }: AccountReconcili
   );
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       {/* Tab Bar */}
       <div className="flex items-center gap-1 px-4 py-2 border-b bg-muted/20">
         {TABS.map(({ id, label, icon: Icon }) => (

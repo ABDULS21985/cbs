@@ -39,7 +39,7 @@ export function FieldDragDrop({ sources, selectedColumns, onAdd, onRemove, onUpd
     <div className="grid grid-cols-12 gap-4">
       {/* Left panel: available fields */}
       <div className="col-span-12 lg:col-span-4">
-        <div className="rounded-xl border bg-card p-4 h-full" style={{ minHeight: '420px' }}>
+        <div className="surface-card p-4 h-full" style={{ minHeight: '420px' }}>
           <h3 className="text-sm font-semibold mb-3">Available Fields</h3>
 
           <div className="relative mb-3">
@@ -98,7 +98,7 @@ export function FieldDragDrop({ sources, selectedColumns, onAdd, onRemove, onUpd
 
       {/* Right panel: selected fields (ordered) */}
       <div className="col-span-12 lg:col-span-8">
-        <div className="rounded-xl border bg-card p-4 h-full" style={{ minHeight: '420px' }}>
+        <div className="surface-card p-4 h-full" style={{ minHeight: '420px' }}>
           <h3 className="text-sm font-semibold mb-3">
             Selected Fields
             {selectedColumns.length > 0 && (

@@ -16,7 +16,7 @@ interface Props {
 export function ValuationPanel({ totalValue, costBasis, unrealizedPnl, lastValuationDate, currency = 'NGN', onValuate, isValuating, valuationResult }: Props) {
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-sm font-semibold">Portfolio Valuation</h3>

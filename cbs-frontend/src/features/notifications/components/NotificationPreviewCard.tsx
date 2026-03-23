@@ -59,7 +59,7 @@ export function NotificationPreviewCard({ channel, subject, body, recipientName 
           <Bell className="w-4 h-4 text-purple-600" />
           <span className="text-xs font-medium">Push Notification Preview</span>
         </div>
-        <div className="rounded-xl border bg-card shadow-lg p-3 flex items-start gap-3">
+        <div className="surface-card shadow-lg p-3 flex items-start gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <Bell className="w-4 h-4 text-primary" />
           </div>
@@ -101,7 +101,7 @@ export function NotificationPreviewCard({ channel, subject, body, recipientName 
         <Smartphone className="w-4 h-4 text-amber-600" />
         <span className="text-xs font-medium">In-App Notification Preview</span>
       </div>
-      <div className="rounded-lg border bg-card p-3 flex items-start gap-3">
+      <div className="surface-card p-3 flex items-start gap-3">
         <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
         <div className="flex-1">
           {subject && <p className="text-sm font-medium">{subject}</p>}

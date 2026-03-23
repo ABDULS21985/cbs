@@ -59,7 +59,7 @@ export function VarDashboard({ desks, positions }: VarDashboardProps) {
   const breaches = varByDesk.filter((desk) => desk.utilizationPct > 100);
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold">Parametric VaR</h3>

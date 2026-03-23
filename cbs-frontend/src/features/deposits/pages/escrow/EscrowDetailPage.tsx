@@ -155,7 +155,7 @@ export function EscrowDetailPage() {
 
       <div className="px-6 pb-8 space-y-6">
         {/* Release Progress */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium">Release Progress</span>
             <span className="text-xs font-mono">{pct.toFixed(1)}% released</span>
@@ -172,7 +172,7 @@ export function EscrowDetailPage() {
 
         {/* Mandate Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="rounded-xl border bg-card p-5 space-y-4">
+          <div className="surface-card p-5 space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2"><Shield className="w-4 h-4" /> Mandate Details</h3>
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div><p className="text-muted-foreground">Mandate #</p><p className="font-mono font-medium">{mandate.mandateNumber}</p></div>
@@ -186,7 +186,7 @@ export function EscrowDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-card p-5 space-y-4">
+          <div className="surface-card p-5 space-y-4">
             <h3 className="text-sm font-semibold flex items-center gap-2"><Users className="w-4 h-4" /> Parties & Conditions</h3>
             <div className="grid grid-cols-2 gap-3 text-xs">
               {mandate.depositorName && <div><p className="text-muted-foreground">Depositor</p><p className="font-medium">{mandate.depositorName}</p></div>}
@@ -240,7 +240,7 @@ export function EscrowDetailPage() {
         )}
 
         {/* Release History */}
-        <div className="rounded-xl border bg-card">
+        <div className="surface-card">
           <div className="px-5 py-4 border-b">
             <h3 className="text-sm font-semibold">Release History</h3>
           </div>

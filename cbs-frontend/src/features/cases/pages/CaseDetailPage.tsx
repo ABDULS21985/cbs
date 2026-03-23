@@ -88,7 +88,7 @@ export function CaseDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
           {/* Left panel */}
           <div className="space-y-6">
-            <div className="rounded-lg border bg-card p-5">
+            <div className="surface-card p-5">
               <div className="flex items-center gap-3 mb-4">
                 <StatusBadge status={caseData.status} dot />
                 <CasePriorityBadge priority={caseData.priority} />
@@ -126,7 +126,7 @@ export function CaseDetailPage() {
           </div>
 
           {/* Right panel */}
-          <div className="rounded-lg border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Case Details</h3>
             <CaseInfoPanel caseData={caseData} />
           </div>

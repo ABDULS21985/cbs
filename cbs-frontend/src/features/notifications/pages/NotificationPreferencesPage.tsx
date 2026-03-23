@@ -158,7 +158,7 @@ export function NotificationPreferencesPage() {
         </div>
 
         {/* Section 4: Test Notification */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h2 className="text-sm font-semibold mb-3">Test Notification</h2>
           <p className="text-xs text-muted-foreground mb-4">Send a test notification to verify your settings</p>
           <div className="flex items-center gap-3">

@@ -242,7 +242,7 @@ export function ValuationPage() {
           </div>
           <DataTable columns={runCols} data={runs} isLoading={runsLoading} enableGlobalFilter enableExport exportFilename="valuation-runs" emptyMessage="No valuation runs" onRowClick={(row) => navigate(`/custody/valuations/runs/${row.runRef}`)} />
           {recentCompletedRuns.length > 0 && (
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Fair Value Breakdown (Latest Run)</h3>
               <FairValueBreakdown
                 level1Total={recentCompletedRuns[0].fairValueLevel1Total}
@@ -270,7 +270,7 @@ export function ValuationPage() {
 
           {/* Breach trend */}
           {recentCompletedRuns.length > 1 && (
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">IPV Breach Trend</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={recentCompletedRuns.reverse().map((r) => ({ date: r.valuationDate, breaches: r.ipvBreachCount }))}>
@@ -285,7 +285,7 @@ export function ValuationPage() {
           )}
 
           {/* Current breaches */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Current Breaches {latestRun && `(Run: ${latestRun.runRef})`}</h3>
             {breachedExceptions.length > 0 ? (
               <DataTable columns={breachCols} data={breachedExceptions} enableGlobalFilter emptyMessage="No breaches" />

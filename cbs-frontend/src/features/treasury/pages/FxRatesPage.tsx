@@ -18,7 +18,7 @@ function RateCard({ rate }: { rate: FxRate }) {
         : 'text-muted-foreground';
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="font-mono text-sm font-bold">{rate.pair}</span>
         <div className={cn('flex items-center gap-1 text-xs font-medium', directionColor)}>
@@ -108,7 +108,7 @@ export function FxRatesPage() {
         <div className="flex justify-end">
           <button
             onClick={() => refetch()}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border bg-card hover:bg-muted/40 transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium surface-card hover:bg-muted/40 transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Refresh
@@ -119,7 +119,7 @@ export function FxRatesPage() {
         {isLoading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="rounded-lg border bg-card p-4 space-y-3 animate-pulse">
+              <div key={i} className="surface-card p-4 space-y-3 animate-pulse">
                 <div className="h-5 w-20 bg-muted rounded" />
                 <div className="h-8 w-full bg-muted rounded" />
                 <div className="h-3 w-24 bg-muted rounded" />

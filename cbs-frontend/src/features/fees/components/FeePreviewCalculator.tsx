@@ -122,7 +122,7 @@ export function FeePreviewCalculator({ accountId, feeCode }: FeePreviewCalculato
   };
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b bg-muted/30">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">

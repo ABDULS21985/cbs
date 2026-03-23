@@ -188,7 +188,7 @@ function ReturnDetailDrawer({
           </div>
 
           {/* Pre-populated form data */}
-          <div className="rounded-xl border bg-card">
+          <div className="surface-card">
             <div className="px-4 py-3 border-b">
               <p className="text-sm font-medium">Return Data</p>
               <p className="text-xs text-muted-foreground mt-0.5">Pre-populated from ALM calculations</p>

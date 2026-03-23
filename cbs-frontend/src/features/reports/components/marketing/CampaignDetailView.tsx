@@ -71,13 +71,13 @@ export function CampaignDetailView({ campaign, open, onClose }: CampaignDetailVi
             </div>
 
             {campaign.funnelSteps.length > 0 && (
-              <div className="rounded-lg border bg-card p-4 space-y-3">
+              <div className="surface-card p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-foreground">Campaign Funnel</h3>
                 <CampaignFunnelChart steps={campaign.funnelSteps} />
               </div>
             )}
 
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <div className="flex items-center gap-2 mb-2 text-sm font-semibold">
                 <BarChart2 className="w-4 h-4 text-muted-foreground" />
                 Live Delivery Snapshot

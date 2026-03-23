@@ -28,7 +28,7 @@ export function SavedSearches({
   );
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-2">

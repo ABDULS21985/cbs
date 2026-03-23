@@ -14,7 +14,7 @@ export function FormSection({ title, description, children, collapsible, default
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="surface-card">
       <div
         className={cn('flex items-center justify-between px-5 py-3.5', collapsible && 'cursor-pointer hover:bg-muted/50 transition-colors')}
         onClick={collapsible ? () => setOpen(!open) : undefined}

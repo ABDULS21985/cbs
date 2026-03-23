@@ -45,7 +45,7 @@ export function FdCalculator({ principal, rate, tenor, serverResult, isCalculati
   const isEstimated = !serverResult && hasValues;
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-1">
+    <div className="surface-card p-4 space-y-1">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Interest Calculation</h4>
         {isEstimated && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">(estimated)</span>}

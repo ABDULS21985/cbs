@@ -75,7 +75,7 @@ function GenerateReportForm({ onGenerated }: { onGenerated: (date: string) => vo
   const inputCls = 'flex-1 h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30';
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <p className="text-sm font-medium">Generate New Gap Report</p>
       <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
         <div>
@@ -219,7 +219,7 @@ function GapReportTab() {
             { label: 'NII Sensitivity', value: fmtCompact(report.niiSensitivity) },
             { label: 'Duration Gap', value: report.durationGap != null ? `${Number(report.durationGap).toFixed(2)}Y` : '--' },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-lg border bg-card p-3">
+            <div key={label} className="surface-card p-3">
               <p className="text-xs text-muted-foreground">{label}</p>
               <p className="text-lg font-bold tabular-nums mt-0.5">{value}</p>
             </div>
@@ -228,7 +228,7 @@ function GapReportTab() {
       )}
 
       {/* 1. Dual-Axis Gap Chart */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Repricing Gap — Assets vs Liabilities</p>
         <DualAxisGapChart
           buckets={chartData}
@@ -237,14 +237,14 @@ function GapReportTab() {
       </div>
 
       {/* 2. Sensitivity Heat Map */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">NII & EVE Sensitivity Heat Map</p>
         <SensitivityHeatMap report={report} loading={isLoading} />
       </div>
 
       {/* 3. All Reports for Date */}
       {reports.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Reports for {formatDate(reportDate)}</p>
           <div className="rounded-xl border overflow-hidden">
             <table className="w-full text-sm">
@@ -282,7 +282,7 @@ function GapReportTab() {
       )}
 
       {/* 4. Position Snapshot Table */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Repricing Ladder — Position Snapshot ({reportCurrency})</p>
         <PositionSnapshotTable positions={positions} loading={posLoading} />
       </div>
@@ -314,7 +314,7 @@ function DurationTab() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="rounded-xl border bg-card p-6">
+      <div className="surface-card p-6">
         <p className="text-sm font-medium mb-4">Portfolio Duration Metrics — {DEFAULT_PORTFOLIO}</p>
         {isLoading ? (
           <div className="h-24 rounded-lg bg-muted animate-pulse" />

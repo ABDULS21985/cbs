@@ -17,7 +17,7 @@ export function SpendingInsightsChart({ spending, currency = 'NGN' }: SpendingIn
   const isUp = changePercent > 0;
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold">Spending Insights</h3>
         <div className={`flex items-center gap-1 text-xs font-medium ${isUp ? 'text-red-500' : 'text-green-500'}`}>

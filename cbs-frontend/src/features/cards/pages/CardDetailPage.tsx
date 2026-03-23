@@ -482,7 +482,7 @@ function TokenizationTab({ cardId }: { cardId: number }) {
   return (
     <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
       {tokens.map((token) => (
-        <div key={token.id} className="rounded-xl border bg-card p-4 space-y-3">
+        <div key={token.id} className="surface-card p-4 space-y-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <span className="text-2xl">{WALLET_ICONS[token.walletProvider] ?? '💳'}</span>

@@ -23,7 +23,7 @@ export function ChannelToggleCard({ channel, description, enabled, onToggle, isL
   const Icon = config.icon;
 
   return (
-    <div className={cn('rounded-xl border bg-card p-4 transition-colors', enabled ? 'border-primary/20' : 'opacity-60')}>
+    <div className={cn('surface-card p-4 transition-colors', enabled ? 'border-primary/20' : 'opacity-60')}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', enabled ? 'bg-primary/10' : 'bg-muted')}>

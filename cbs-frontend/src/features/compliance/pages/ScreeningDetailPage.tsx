@@ -273,7 +273,7 @@ export function ScreeningDetailPage() {
 
       <div className="page-container space-y-6">
         {/* Subject Profile */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><FileSearch className="w-4 h-4" /> Subject Profile</h3>
           <InfoGrid
             columns={4}
@@ -310,7 +310,7 @@ export function ScreeningDetailPage() {
               ))}
             </div>
           ) : (
-            <div className="rounded-lg border bg-card p-8 text-center">
+            <div className="surface-card p-8 text-center">
               <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">No matches found for this screening</p>
             </div>
@@ -318,7 +318,7 @@ export function ScreeningDetailPage() {
         </div>
 
         {/* Summary */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <h3 className="text-sm font-semibold mb-4">Screening Summary</h3>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <div className="text-center">

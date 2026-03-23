@@ -114,7 +114,7 @@ export function MerchantOnboardPage() {
         </div>
 
         {/* Step content */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           {step === 0 && (
             <div className="space-y-4">
               <h3 className="text-sm font-semibold">Business Information</h3>

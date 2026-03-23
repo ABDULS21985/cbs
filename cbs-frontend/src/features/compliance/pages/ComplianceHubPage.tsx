@@ -50,7 +50,7 @@ function QuickLinkCard({ icon: Icon, label, description, path, badge, badgeColor
   const navigate = useNavigate();
   return (
     <button onClick={() => navigate(path)}
-      className="rounded-xl border bg-card p-4 text-left hover:bg-muted/50 hover:border-border/80 transition-all group">
+      className="surface-card p-4 text-left hover:bg-muted/50 hover:border-border/80 transition-all group">
       <div className="flex items-start justify-between">
         <Icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
         {badge != null && badge > 0 && (
@@ -110,7 +110,7 @@ export function ComplianceHubPage() {
         {/* Top Section: Health + Key Metrics */}
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
           {/* Health Gauge */}
-          <div className="rounded-xl border bg-card p-6 flex flex-col items-center justify-center">
+          <div className="surface-card p-6 flex flex-col items-center justify-center">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Compliance Health</h3>
             <HealthGauge score={healthScore} />
             <p className="text-xs text-muted-foreground mt-3">Based on assessments, gap remediation, and alert posture</p>
@@ -161,7 +161,7 @@ export function ComplianceHubPage() {
         {/* Status Overview Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Gap Remediation Progress */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold">Gap Remediation</h3>
               <button onClick={() => navigate('/compliance/gaps')} className="text-xs text-primary hover:underline">View All</button>
@@ -180,7 +180,7 @@ export function ComplianceHubPage() {
           </div>
 
           {/* AML Summary */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold">AML/CFT</h3>
               <button onClick={() => navigate('/compliance/aml')} className="text-xs text-primary hover:underline">View All</button>
@@ -194,7 +194,7 @@ export function ComplianceHubPage() {
           </div>
 
           {/* Fraud Summary */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold">Fraud Detection</h3>
               <button onClick={() => navigate('/compliance/fraud')} className="text-xs text-primary hover:underline">View All</button>

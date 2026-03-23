@@ -4,7 +4,7 @@ interface TransactionTableSkeletonProps {
 
 export function TransactionTableSkeleton({ rows = 10 }: TransactionTableSkeletonProps) {
   return (
-    <div className="rounded-xl border bg-card overflow-hidden" role="status" aria-label="Loading transactions">
+    <div className="surface-card overflow-hidden" role="status" aria-label="Loading transactions">
       <span className="sr-only">Loading transactions</span>
       <div className="border-b bg-muted/30 px-4 py-3">
         <div className="grid grid-cols-[48px_160px_160px_180px_1fr_120px_120px_120px_120px] gap-4 animate-pulse">

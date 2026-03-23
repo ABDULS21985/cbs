@@ -34,7 +34,7 @@ export function RiskHeatmap({ data, isLoading }: Props) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-6">
+      <div className="surface-card p-6">
         <div className="h-5 w-32 bg-muted rounded animate-pulse mb-4" />
         <div className="grid gap-1 animate-pulse" style={{ gridTemplateColumns: 'auto repeat(5, 1fr)' }}>
           {Array.from({ length: 24 }).map((_, i) => (
@@ -46,7 +46,7 @@ export function RiskHeatmap({ data, isLoading }: Props) {
   }
 
   return (
-    <div className="rounded-lg border bg-card p-6 relative">
+    <div className="surface-card p-6 relative">
       <h3 className="text-sm font-semibold mb-4">Risk Heatmap</h3>
       <div className="overflow-x-auto">
         <table className="w-full text-xs border-collapse">

@@ -307,7 +307,7 @@ function ContributionCalendar({ contributions }: { contributions: GoalTransactio
   const maxAmount = Math.max(...days.map((d) => d.amount), 1);
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-3">Contribution Activity (90 days)</h3>
       <div className="flex flex-wrap gap-[3px]">
         {days.map((day) => {
@@ -363,7 +363,7 @@ function SavingsProjection({ goal }: { goal: SavingsGoal }) {
   if (remaining <= 0) return null;
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-3">
+    <div className="surface-card p-5 space-y-3">
       <h3 className="text-sm font-semibold flex items-center gap-2"><Zap className="w-4 h-4 text-primary" /> What-If Scenarios</h3>
       {scenarios.map((s, i) => (
         <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/20 border">
@@ -435,7 +435,7 @@ function InsightsPanel({ goal, contributions }: { goal: SavingsGoal; contributio
 
       <div className="grid grid-cols-2 gap-3">
         {bestMonth && (
-          <div className="rounded-xl border bg-card p-4">
+          <div className="surface-card p-4">
             <div className="flex items-center gap-2 mb-1">
               <Trophy className="w-4 h-4 text-amber-500" />
               <span className="text-xs text-muted-foreground">Best Month</span>
@@ -444,7 +444,7 @@ function InsightsPanel({ goal, contributions }: { goal: SavingsGoal; contributio
             <p className="text-xs text-muted-foreground">{format(parseISO(`${bestMonth[0]}-01`), 'MMMM yyyy')}</p>
           </div>
         )}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <Flame className="w-4 h-4 text-orange-500" />
             <span className="text-xs text-muted-foreground">Streak</span>
@@ -452,7 +452,7 @@ function InsightsPanel({ goal, contributions }: { goal: SavingsGoal; contributio
           <p className="text-lg font-bold">{streak} month{streak !== 1 ? 's' : ''}</p>
           <p className="text-xs text-muted-foreground">consecutive contributions</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <BarChart3 className="w-4 h-4 text-blue-500" />
             <span className="text-xs text-muted-foreground">Avg Contribution</span>
@@ -460,7 +460,7 @@ function InsightsPanel({ goal, contributions }: { goal: SavingsGoal; contributio
           <p className="text-lg font-bold font-mono">{formatMoney(avgContribution)}</p>
           <p className="text-xs text-muted-foreground">per deposit</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center gap-2 mb-1">
             <Target className="w-4 h-4 text-primary" />
             <span className="text-xs text-muted-foreground">Total Transactions</span>
@@ -471,7 +471,7 @@ function InsightsPanel({ goal, contributions }: { goal: SavingsGoal; contributio
       </div>
 
       {remaining > 0 && goal.autoDebitEnabled && goal.autoDebitAmount && (
-        <div className="rounded-xl border bg-card p-5 flex items-start gap-3">
+        <div className="surface-card p-5 flex items-start gap-3">
           <Zap className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold">Optimization Suggestion</p>
@@ -508,7 +508,7 @@ function AutoDebitTab({ goal }: { goal: SavingsGoal }) {
   return (
     <div className="space-y-6 max-w-2xl">
       {goal.autoDebitEnabled ? (
-        <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="surface-card p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold">Auto-Debit Configuration</h3>
             <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
@@ -534,7 +534,7 @@ function AutoDebitTab({ goal }: { goal: SavingsGoal }) {
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card p-6 text-center space-y-3">
+        <div className="surface-card p-6 text-center space-y-3">
           <Clock className="w-8 h-8 text-muted-foreground mx-auto" />
           <p className="text-sm font-medium">No auto-debit configured</p>
           <p className="text-xs text-muted-foreground">Set up automatic contributions to stay on track</p>
@@ -545,7 +545,7 @@ function AutoDebitTab({ goal }: { goal: SavingsGoal }) {
       )}
 
       {editing && (
-        <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="surface-card p-6 space-y-4">
           <h4 className="text-sm font-semibold">Configure Auto-Debit</h4>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -658,7 +658,7 @@ export function GoalDetailPage() {
       content: (
         <div className="p-4 space-y-6">
           {chartData.length > 1 && (
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Savings Growth</h3>
               <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
@@ -742,7 +742,7 @@ export function GoalDetailPage() {
               <p className="text-lg font-bold font-mono">{formatMoney(goal.currentAmount + goal.accruedInterest)}</p>
             </div>
           </div>
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <p className="text-sm text-muted-foreground">Interest transactions</p>
             <DataTable
               columns={contributionCols}
@@ -795,22 +795,22 @@ export function GoalDetailPage() {
       <div className="page-container space-y-6">
         {/* Goal details row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
-          <div className="rounded-lg border bg-card p-3">
+          <div className="surface-card p-3">
             <span className="text-xs text-muted-foreground">Customer</span>
             <p className="font-medium">{goal.customerDisplayName}</p>
           </div>
-          <div className="rounded-lg border bg-card p-3">
+          <div className="surface-card p-3">
             <span className="text-xs text-muted-foreground">Account</span>
             <p className="font-mono">{goal.accountNumber}</p>
           </div>
-          <div className="rounded-lg border bg-card p-3">
+          <div className="surface-card p-3">
             <span className="text-xs text-muted-foreground">Currency</span>
             <p className="font-medium">{goal.currencyCode}</p>
           </div>
         </div>
 
         {/* Progress Hero */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <div className="flex flex-col lg:flex-row gap-6 items-center">
             <GoalProgressCircle percentage={pct} size="lg" />
             <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-4">

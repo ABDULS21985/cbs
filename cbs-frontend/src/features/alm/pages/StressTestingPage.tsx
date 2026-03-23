@@ -296,7 +296,7 @@ export function StressTestingPage() {
                   {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-lg bg-muted animate-pulse" />)}
                 </div>
               ) : filtered.length === 0 ? (
-                <div className="rounded-lg border bg-card p-8 text-center text-muted-foreground">No scenarios found.</div>
+                <div className="surface-card p-8 text-center text-muted-foreground">No scenarios found.</div>
               ) : (
                 <div className="space-y-3">
                   {filtered.map(scenario => {
@@ -304,7 +304,7 @@ export function StressTestingPage() {
                     const isSelected = compareIds.includes(scenario.id);
                     return (
                       <div key={scenario.id}
-                        className={cn('rounded-lg border bg-card p-4 transition-all', isSelected && 'ring-2 ring-purple-500 border-purple-300')}>
+                        className={cn('surface-card p-4 transition-all', isSelected && 'ring-2 ring-purple-500 border-purple-300')}>
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-start gap-3 min-w-0">
                             {/* Compare checkbox */}
@@ -355,7 +355,7 @@ export function StressTestingPage() {
               {HISTORICAL_CRISES.map(crisis => (
                 <button key={crisis.key} onClick={() => handleStartReplay(crisis.key)}
                   disabled={historicalReplay.isPending}
-                  className="w-full text-left rounded-lg border bg-card p-4 hover:border-primary/30 hover:shadow-sm transition-all disabled:opacity-50">
+                  className="w-full text-left surface-card p-4 hover:border-primary/30 hover:shadow-sm transition-all disabled:opacity-50">
                   <div className="flex items-center gap-2 mb-1">
                     <History className={cn('w-4 h-4', crisis.color)} />
                     <h3 className="text-sm font-semibold">{crisis.label}</h3>
@@ -370,7 +370,7 @@ export function StressTestingPage() {
 
         {/* ── Stress Test Audit Trail ─────────────────────────────────── */}
         {view === 'library' && stressRuns.length > 0 && (
-          <div className="rounded-lg border bg-card">
+          <div className="surface-card">
             <div className="px-4 py-3 border-b">
               <h2 className="text-sm font-semibold">Stress Test Run History</h2>
               <p className="text-xs text-muted-foreground mt-0.5">Persisted audit trail of all stress test executions</p>

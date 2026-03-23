@@ -126,7 +126,7 @@ export function AmlAlertDetailPage() {
       <div className="page-container space-y-6">
         {/* Action bar */}
         {!isTerminal && (
-          <div className="flex flex-wrap gap-2 p-4 rounded-lg border bg-card">
+          <div className="flex flex-wrap gap-2 p-4 surface-card">
             {(status === 'NEW' || status === 'UNDER_REVIEW') && (
               <>
                 <button onClick={() => assignAlert.mutate({ id: alert.id, assignedTo: 'ADMIN' }, { onSuccess: () => { toast.success('Assigned to you'); refetch(); } })}

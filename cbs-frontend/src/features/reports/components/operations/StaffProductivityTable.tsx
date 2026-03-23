@@ -79,7 +79,7 @@ export function StaffProductivityTable({ data, isLoading }: StaffProductivityTab
   );
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-6">
+    <div className="surface-card p-4 space-y-6">
       <h2 className="text-sm font-semibold text-foreground">Staff Productivity</h2>
 
       <DataTable

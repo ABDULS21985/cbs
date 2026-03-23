@@ -137,7 +137,7 @@ export function ParameterTable() {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-sm text-muted-foreground">Loading parameters…</div>
         ) : parameters.length === 0 ? (

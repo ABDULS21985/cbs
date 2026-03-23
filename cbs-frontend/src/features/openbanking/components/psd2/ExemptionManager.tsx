@@ -104,7 +104,7 @@ export function ExemptionManager() {
   return (
     <div className="space-y-4">
       {/* Summary bar */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold">SCA Exemptions</h3>
@@ -139,7 +139,7 @@ export function ExemptionManager() {
             <div
               key={exemption.id}
               className={cn(
-                'rounded-xl border bg-card overflow-hidden transition-colors',
+                'surface-card overflow-hidden transition-colors',
                 !exemption.enabled && 'opacity-60',
               )}
             >

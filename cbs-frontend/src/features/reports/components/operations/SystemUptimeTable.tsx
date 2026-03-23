@@ -86,7 +86,7 @@ export function SystemUptimeTable({ data, isLoading }: SystemUptimeTableProps) {
   );
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <h2 className="text-sm font-semibold text-foreground">System Uptime</h2>
       <DataTable
         columns={columns}

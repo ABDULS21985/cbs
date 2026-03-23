@@ -283,7 +283,7 @@ export function OpenItemsPage() {
         </div>
 
         {/* Aging BarChart */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-3">Aging Distribution</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={agingChartData}>

@@ -251,7 +251,7 @@ export function ApiMonitoringPage() {
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <ErrorRateChart data={errorData} loading={usageLoading} />
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Active Connections</h3>
               <div className="flex flex-col items-center justify-center py-8">
                 <Wifi className="w-8 h-8 text-blue-500 mb-3" />
@@ -289,7 +289,7 @@ export function ApiMonitoringPage() {
       icon: Clock,
       content: (
         <div className="p-6">
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div className="px-5 py-4 border-b flex items-center justify-between">
               <h3 className="text-sm font-semibold">Daily Aggregates</h3>
               <span className="text-xs text-muted-foreground">
@@ -395,7 +395,7 @@ export function ApiMonitoringPage() {
                   />
                 ))}
               </div>
-              <div className="mt-8 rounded-xl border bg-card overflow-hidden">
+              <div className="mt-8 surface-card overflow-hidden">
                 <div className="px-5 py-4 border-b">
                   <h3 className="text-sm font-semibold">SLA Summary</h3>
                 </div>

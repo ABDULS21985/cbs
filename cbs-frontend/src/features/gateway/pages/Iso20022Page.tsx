@@ -228,7 +228,7 @@ export function Iso20022Page() {
         <div className="p-4 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Code Set Browser */}
-            <div className="rounded-xl border bg-card p-5 space-y-3">
+            <div className="surface-card p-5 space-y-3">
               <h3 className="text-sm font-semibold flex items-center gap-2"><Database className="w-4 h-4" /> Browse Code Set</h3>
               <input className="w-full input" placeholder="Enter code set name (e.g., ExternalPurpose1Code)" value={codeSetName} onChange={(e) => setCodeSetName(e.target.value)} />
               {codeSetName && codeSetData.length > 0 && (
@@ -240,7 +240,7 @@ export function Iso20022Page() {
             </div>
 
             {/* Code Lookup */}
-            <div className="rounded-xl border bg-card p-5 space-y-3">
+            <div className="surface-card p-5 space-y-3">
               <h3 className="text-sm font-semibold flex items-center gap-2"><Search className="w-4 h-4" /> Lookup Code</h3>
               <input className="w-full input" placeholder="Code set name" value={lookupCodeSet} onChange={(e) => setLookupCodeSet(e.target.value)} />
               <input className="w-full input" placeholder="Code value" value={lookupCode} onChange={(e) => setLookupCode(e.target.value)} />
@@ -261,7 +261,7 @@ export function Iso20022Page() {
       content: (
         <div className="p-4 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Validation Results</h3>
               {validationData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
@@ -276,7 +276,7 @@ export function Iso20022Page() {
               ) : <p className="text-sm text-muted-foreground text-center py-8">No validation data</p>}
             </div>
 
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Recent Errors ({errorMessages.length})</h3>
               {errorMessages.length > 0 ? (
                 <div className="space-y-2 max-h-[220px] overflow-y-auto">
@@ -307,7 +307,7 @@ export function Iso20022Page() {
       label: 'Ingest & Processing',
       content: (
         <div className="p-4 space-y-6">
-          <div className="rounded-xl border bg-card p-6 text-center space-y-3">
+          <div className="surface-card p-6 text-center space-y-3">
             <FileCode className="w-10 h-10 text-primary mx-auto" />
             <h3 className="text-sm font-semibold">Ingest New Message</h3>
             <p className="text-xs text-muted-foreground">Submit an ISO 20022 XML message for validation and processing</p>
@@ -345,7 +345,7 @@ export function Iso20022Page() {
         </div>
 
         {/* SWIFT Migration Banner */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <button onClick={() => setShowMigration(!showMigration)} className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">Migration Guide</span>

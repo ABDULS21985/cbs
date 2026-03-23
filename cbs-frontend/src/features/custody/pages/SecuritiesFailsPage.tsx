@@ -104,7 +104,7 @@ export function SecuritiesFailsPage() {
 
         {/* Empty state */}
         {!dashLoading && totalFails === 0 && (
-          <div className="rounded-xl border bg-card p-12 text-center">
+          <div className="surface-card p-12 text-center">
             <ShieldAlert className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-40" />
             <p className="text-sm font-medium">No securities fails</p>
             <p className="text-xs text-muted-foreground mt-1">All settlements are resolving normally</p>

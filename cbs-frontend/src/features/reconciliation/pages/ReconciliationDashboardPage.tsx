@@ -84,7 +84,7 @@ interface AccountRowData {
 
 function AccountsOverviewTable({ data, onOpenWorkbench }: { data: AccountRowData[]; onOpenWorkbench: (accountId: string) => void }) {
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-5 py-3.5 border-b">
         <h3 className="text-sm font-semibold">Reconciliation Positions</h3>
       </div>
@@ -198,7 +198,7 @@ function BreaksPanel({ data }: { data: AccountRowData[] }) {
           {breaksData.map(({ account, session }) => {
             if (!session) return null;
             return (
-              <div key={account.id} className="rounded-xl border bg-card px-5 py-4">
+              <div key={account.id} className="surface-card px-5 py-4">
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="text-sm font-semibold">{account.name}</p>

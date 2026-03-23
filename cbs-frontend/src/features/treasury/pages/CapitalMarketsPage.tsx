@@ -76,7 +76,7 @@ const TYPE_COLORS: Record<DealType, string> = {
 
 function DealCard({ deal }: { deal: CapitalMarketsDeal }) {
   return (
-    <div className="rounded-lg border bg-card p-3 shadow-sm hover:shadow-md transition-shadow space-y-2">
+    <div className="surface-card p-3 shadow-sm hover:shadow-md transition-shadow space-y-2">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold leading-tight line-clamp-2">{deal.name}</p>
         <span className={cn('shrink-0 text-xs font-medium px-1.5 py-0.5 rounded', TYPE_COLORS[deal.type])}>
@@ -236,7 +236,7 @@ export function CapitalMarketsPage() {
 
         {/* Deal Detail Table (collapsed view) */}
         {deals.length > 0 && (
-          <div className="rounded-lg border bg-card">
+          <div className="surface-card">
             <div className="px-5 py-3 border-b">
               <h2 className="text-sm font-semibold">All Deals</h2>
               <p className="text-xs text-muted-foreground mt-0.5">Flat list view of all {deals.length} deals</p>

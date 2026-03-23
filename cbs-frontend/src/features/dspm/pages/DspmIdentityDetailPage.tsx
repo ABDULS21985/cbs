@@ -191,7 +191,7 @@ function OverviewTab({
 
   return (
     <div className="p-6">
-      <div className="rounded-xl border bg-card p-6">
+      <div className="surface-card p-6">
         <h3 className="text-sm font-semibold mb-4">Identity Details</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-8">
           {fields.map((f) => (

@@ -170,7 +170,7 @@ export function CardRequestPage() {
       <>
         <PageHeader title="Card Issued" backTo="/cards" />
         <div className="page-container max-w-2xl">
-          <div className="rounded-xl border bg-card p-8 flex flex-col items-center gap-6">
+          <div className="surface-card p-8 flex flex-col items-center gap-6">
             <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
               <Check className="w-8 h-8 text-green-600" />
             </div>
@@ -204,7 +204,7 @@ export function CardRequestPage() {
     <>
       <PageHeader title="Request New Card" subtitle="Card issuance wizard" backTo="/cards" />
       <div className="page-container max-w-3xl">
-        <div className="rounded-xl border bg-card p-6 sm:p-8">
+        <div className="surface-card p-6 sm:p-8">
           <StepIndicator step={step} />
 
           {/* ── Step 1: Customer & Account ── */}

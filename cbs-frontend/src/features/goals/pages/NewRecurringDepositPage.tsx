@@ -61,7 +61,7 @@ export function NewRecurringDepositPage() {
       <PageHeader title="New Recurring Deposit" subtitle="Create a scheduled deposit plan" backTo="/accounts/recurring-deposits" />
 
       <div className="page-container max-w-xl">
-        <form onSubmit={handleSubmit} className="rounded-xl border bg-card p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="surface-card p-6 space-y-5">
           <div>
             <label className="block text-sm font-medium mb-1">Account <span className="text-red-500">*</span></label>
             <select value={form.accountId || ''} onChange={(e) => setForm({ ...form, accountId: Number(e.target.value) })} className={inputCls} required>

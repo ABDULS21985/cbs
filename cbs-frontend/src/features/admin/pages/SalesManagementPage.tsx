@@ -125,7 +125,7 @@ export function SalesManagementPage() {
             {[...(articles as SalesKnowledgeArticle[]).map(a => ({ type: 'article' as const, title: a.title, code: a.articleCode, category: a.articleType, status: a.status, views: a.viewCount })),
               ...(collateral as unknown as SalesCollateral[]).map(c => ({ type: 'collateral' as const, title: c.title, code: c.collateralCode, category: c.collateralType, status: c.status, views: c.downloadCount })),
             ].map((item) => (
-              <div key={item.code} className="rounded-xl border bg-card p-4 hover:border-primary/30 hover:shadow-sm transition-all">
+              <div key={item.code} className="surface-card p-4 hover:border-primary/30 hover:shadow-sm transition-all">
                 <div className="flex items-start justify-between mb-2">
                   <span className={cn('text-[10px] px-1.5 py-0.5 rounded font-medium', item.type === 'article' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400')}>{item.type === 'article' ? 'Article' : 'Collateral'}</span>
                   <StatusBadge status={item.status} dot />

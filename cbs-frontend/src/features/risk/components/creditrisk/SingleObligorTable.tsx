@@ -94,7 +94,7 @@ export function SingleObligorTable() {
   const top20 = useMemo(() => obligors.slice(0, 20), [obligors]);
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="surface-card">
       <div className="px-4 py-3 border-b">
         <h4 className="text-sm font-semibold">Large Exposures — Top 20 Single Obligors</h4>
         {obligors.some(o => o.breached) && (

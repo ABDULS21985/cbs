@@ -69,7 +69,7 @@ function MetricCard({ label, value, sub, icon: Icon, color, loading }: MetricCar
 function RepricingGapTrend({ reports, loading }: { reports: AlmGapReport[]; loading: boolean }) {
   if (loading) return <Skeleton className="h-72" />;
   if (reports.length === 0) return (
-    <div className="h-72 flex items-center justify-center rounded-xl border bg-card text-sm text-muted-foreground">
+    <div className="h-72 flex items-center justify-center surface-card text-sm text-muted-foreground">
       No gap report history. Generate gap reports to populate this chart.
     </div>
   );
@@ -111,7 +111,7 @@ function RepricingGapTrend({ reports, loading }: { reports: AlmGapReport[]; load
 
 function IrrScenarioLadder({ report }: { report: AlmGapReport | undefined }) {
   if (!report) return (
-    <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+    <div className="surface-card p-8 text-center text-sm text-muted-foreground">
       Select a gap report to view the IRR scenario ladder.
     </div>
   );

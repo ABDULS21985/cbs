@@ -47,7 +47,7 @@ function ActionsDropdown({ template, onEdit, onPreview, onTest, onPublish, onArc
         <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded-lg border bg-card shadow-lg py-1">
+        <div className="absolute right-0 top-full mt-1 z-20 w-40 surface-card shadow-lg py-1">
           <button onClick={() => { onEdit(); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted"><Pencil className="w-3.5 h-3.5" /> Edit</button>
           <button onClick={() => { onPreview(); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted"><Eye className="w-3.5 h-3.5" /> Preview</button>
           <button onClick={() => { onTest(); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted"><Send className="w-3.5 h-3.5" /> Test Send</button>

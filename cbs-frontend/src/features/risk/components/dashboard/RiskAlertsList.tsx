@@ -26,7 +26,7 @@ export function RiskAlertsList({ data, isLoading }: Props) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <div className="h-5 w-32 bg-muted rounded animate-pulse mb-4" />
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="flex gap-3 py-3 animate-pulse">
@@ -47,7 +47,7 @@ export function RiskAlertsList({ data, isLoading }: Props) {
   });
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <h3 className="text-sm font-semibold mb-2">Risk Alerts</h3>
       <div className="divide-y max-h-80 overflow-y-auto">
         {sorted.map((alert) => (

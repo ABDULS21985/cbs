@@ -113,7 +113,7 @@ export function PortalNotificationsPage() {
 
       {/* Preferences panel */}
       {showPrefs && prefs.length > 0 && (
-        <div className="rounded-lg border bg-card p-4 space-y-3">
+        <div className="surface-card p-4 space-y-3">
           <h3 className="text-sm font-semibold">Notification Preferences</h3>
           <p className="text-xs text-muted-foreground">Control what notifications you receive.</p>
           <div className="space-y-2">

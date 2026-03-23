@@ -10,7 +10,7 @@ export function GlReconciliationCard({ data }: Props) {
   const { cbsEclTotal, glProvisionBalance, difference, reconciled } = data;
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold">GL Reconciliation</h3>
         <span

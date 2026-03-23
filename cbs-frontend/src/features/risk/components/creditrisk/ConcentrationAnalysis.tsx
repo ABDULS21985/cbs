@@ -42,7 +42,7 @@ export function ConcentrationAnalysis() {
   return (
     <div className="space-y-6 p-4">
       {/* Sector Concentration */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-semibold">By Sector</h4>
           {sectorData.length > 0 && (
@@ -76,7 +76,7 @@ export function ConcentrationAnalysis() {
       </div>
 
       {/* Product Concentration */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h4 className="text-sm font-semibold mb-3">By Product</h4>
         {productLoading ? (
           <div className="h-[180px] flex items-center justify-center text-sm text-muted-foreground">Loading...</div>
@@ -112,7 +112,7 @@ export function ConcentrationAnalysis() {
       </div>
 
       {/* Rating Grade Concentration */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h4 className="text-sm font-semibold mb-3">By Rating Grade</h4>
         {ratingLoading ? (
           <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">Loading...</div>

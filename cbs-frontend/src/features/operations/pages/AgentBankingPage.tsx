@@ -580,7 +580,7 @@ function FloatManagementTab({ agents, isLoading }: { agents: BankingAgent[]; isL
             {lowFloatAgents.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center justify-between px-3 py-2 rounded-lg border bg-card text-sm"
+                className="flex items-center justify-between px-3 py-2 surface-card text-sm"
               >
                 <div>
                   <span className="font-medium">{a.agentName}</span>

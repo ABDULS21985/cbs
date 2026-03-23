@@ -111,7 +111,7 @@ function InteractionHistoryTab({ interactions, isLoading }: { interactions: Cont
 function SkillsTab({ agent }: { agent: RoutingAgentState }) {
   return (
     <div className="p-4 space-y-6">
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Skill Groups</p>
         {agent.skillGroups.length === 0 ? (
           <p className="text-sm text-muted-foreground">No skills assigned</p>
@@ -124,7 +124,7 @@ function SkillsTab({ agent }: { agent: RoutingAgentState }) {
         )}
       </div>
 
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Languages</p>
         {agent.languages.length === 0 ? (
           <p className="text-sm text-muted-foreground">No languages configured</p>
@@ -137,7 +137,7 @@ function SkillsTab({ agent }: { agent: RoutingAgentState }) {
         )}
       </div>
 
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Configuration</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
           <div><p className="text-xs text-muted-foreground">Max Concurrent Chats</p><p className="font-bold text-lg">{agent.maxConcurrentChats}</p></div>
@@ -165,22 +165,22 @@ function QualityTab({ agent, interactions }: { agent: RoutingAgentState; interac
   return (
     <div className="p-4 space-y-6">
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-xs text-muted-foreground mb-2">Quality Score</p>
           <p className="text-lg font-bold mt-2">{agent.qualityScore}/100</p>
           <p className="text-xs text-muted-foreground mt-2">Current score from agent-state backend data</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-xs text-muted-foreground mb-2">First Contact Resolution</p>
           <p className="text-lg font-bold mt-2">{agent.dailyFirstContactResolution.toFixed(0)}%</p>
           <p className="text-xs text-muted-foreground mt-2">{resolved} of {completed.length} completed interactions resolved first time</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-xs text-muted-foreground mb-2">Avg Handle Time</p>
           <p className="text-lg font-bold font-mono mt-2">{fmtTime(agent.dailyAvgHandleTime)}</p>
           <p className="text-xs text-muted-foreground mt-2">Daily handled: {agent.dailyHandled}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-xs text-muted-foreground mb-2">Operational Summary</p>
           <div className="space-y-1 text-sm">
             <div>Average wait: <span className="font-mono">{fmtTime(avgWait)}</span></div>
@@ -301,7 +301,7 @@ export function AgentDetailPage() {
 
       <div className="page-container space-y-6">
         {/* Agent Header */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex items-center gap-5">
             <div className={cn('w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white', stateColor)} aria-label={`Agent ${agent.agentName}, status ${agent.state}`}>
               {initials}

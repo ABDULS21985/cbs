@@ -19,30 +19,33 @@ export function PageHeader({ title, subtitle, backTo, actions, tabs, className, 
   const navigate = useNavigate();
 
   return (
-    <div className={cn('px-6 pt-4 pb-2', className)}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          {backTo && (
-            <button
-              onClick={() => navigate(backTo)}
-              className="mt-1 p-1 rounded-md hover:bg-muted transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
-          {Icon && (
-            <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center mt-0.5', iconBg || 'bg-primary/10')}>
-              <Icon className={cn('w-5 h-5', iconColor || 'text-primary')} />
+    <div className={cn('px-6 pt-5 pb-0', className)}>
+      <div className="page-header-shell mx-auto max-w-[1680px]">
+        <div className="page-header-grid">
+          <div className="page-header-main">
+            {backTo && (
+              <button
+                onClick={() => navigate(backTo)}
+                className="page-header-back"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            {Icon && (
+              <div className={cn('page-header-icon', iconBg || 'bg-primary/10')}>
+                <Icon className={cn('h-5 w-5', iconColor || 'text-primary')} />
+              </div>
+            )}
+            <div className="page-header-copy">
+              <h1 className="page-header-title">{title}</h1>
+              {subtitle && <p className="page-header-subtitle">{subtitle}</p>}
             </div>
-          )}
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-            {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
           </div>
+          {actions && <div className="page-header-actions">{actions}</div>}
         </div>
-        {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
+        {tabs && <div className="page-header-tabs">{tabs}</div>}
       </div>
-      {tabs && <div className="mt-4 -mb-2">{tabs}</div>}
     </div>
   );
 }

@@ -149,7 +149,7 @@ export function CollateralDetailPage() {
 
           {/* Right column */}
           <div>
-            <div className="rounded-xl border bg-card shadow-sm">
+            <div className="surface-card shadow-sm">
               <div className="p-5 border-b">
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Valuation History

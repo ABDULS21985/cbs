@@ -64,7 +64,7 @@ export function BulkPaymentPage() {
 
         {step === 'approve' && batch && (
           <div className="max-w-lg mx-auto space-y-6">
-            <div className="rounded-lg border bg-card p-5 space-y-3">
+            <div className="surface-card p-5 space-y-3">
               <h3 className="font-semibold">Batch Summary</h3>
               <div className="text-sm space-y-1">
                 <div className="flex justify-between"><span className="text-muted-foreground">Batch Ref</span><span className="font-mono">{batch.batchRef}</span></div>

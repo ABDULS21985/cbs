@@ -597,7 +597,7 @@ export function VirtualAccountDetailPage() {
         </div>
 
         {/* Account detail row */}
-        <div className="rounded-lg border bg-card px-5 py-4 mb-6">
+        <div className="surface-card px-5 py-4 mb-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3 text-sm">
             <div>
               <div className="text-xs text-muted-foreground mb-0.5">Physical Account</div>
@@ -654,7 +654,7 @@ export function VirtualAccountDetailPage() {
         </div>
 
         {/* Tabs */}
-        <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <TabsPage
             tabs={[
               {

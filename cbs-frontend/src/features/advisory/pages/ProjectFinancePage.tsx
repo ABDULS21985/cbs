@@ -451,7 +451,7 @@ export function ProjectFinancePage() {
         />
 
         {expanded && (
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <MilestonePanel facilityCode={expanded} />
           </div>
         )}

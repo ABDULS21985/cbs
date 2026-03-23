@@ -31,7 +31,7 @@ export function LimitUtilizationGauge({
     normalized >= 90 ? 'stroke-red-500' : normalized >= 70 ? 'stroke-amber-500' : 'stroke-green-500';
 
   return (
-    <div className={cn('rounded-xl border bg-card p-4', className)}>
+    <div className={cn('surface-card p-4', className)}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">

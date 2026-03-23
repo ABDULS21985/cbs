@@ -10,7 +10,7 @@ interface PerformanceAttributionChartProps {
 
 function MetricCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="rounded-lg border bg-card p-3">
+    <div className="surface-card p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className={cn('text-lg font-bold tracking-tight', color)}>{value}</p>
       {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
@@ -71,7 +71,7 @@ export function PerformanceAttributionChart({ planCode }: PerformanceAttribution
       </div>
 
       {/* Monthly Returns Chart */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h4 className="text-sm font-semibold mb-3">Rolling Monthly Returns vs Benchmark</h4>
         {monthlyReturns.length === 0 ? (
           <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">No monthly data</div>
@@ -96,7 +96,7 @@ export function PerformanceAttributionChart({ planCode }: PerformanceAttribution
       </div>
 
       {/* Attribution Breakdown */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h4 className="text-sm font-semibold mb-3">Return Attribution</h4>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={attributionData} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>

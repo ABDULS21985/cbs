@@ -46,7 +46,7 @@ export function DealAnalyticsTab({ deal, investors }: DealAnalyticsTabProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Investor Concentration */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-1">Investor Concentration</h3>
         <p className="text-xs text-muted-foreground mb-4">Top 5 investors by bid volume</p>
         <ResponsiveContainer width="100%" height={200}>
@@ -61,7 +61,7 @@ export function DealAnalyticsTab({ deal, investors }: DealAnalyticsTabProps) {
 
       {/* Fee Breakdown */}
       {feeBreakdown.length > 0 && (
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-1">Fee Breakdown</h3>
           <p className="text-xs text-muted-foreground mb-4">Total: {formatMoney(deal.feesEarned ?? 0, deal.currency)}</p>
           <ResponsiveContainer width="100%" height={200}>
@@ -84,7 +84,7 @@ export function DealAnalyticsTab({ deal, investors }: DealAnalyticsTabProps) {
       )}
 
       {/* Key Metrics */}
-      <div className="rounded-xl border bg-card p-5 md:col-span-2">
+      <div className="surface-card p-5 md:col-span-2">
         <h3 className="text-sm font-semibold mb-4">Deal Metrics Summary</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[

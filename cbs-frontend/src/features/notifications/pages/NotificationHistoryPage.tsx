@@ -75,7 +75,7 @@ function DashboardTab() {
       <ChannelHealthCards data={byChannel} isLoading={channelLoading} />
 
       {/* Row 3: Delivery trend area chart */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h3 className="text-sm font-medium mb-4">Delivery Trend (30 days)</h3>
         {trendLoading ? (
           <div className="flex items-center justify-center h-[280px]" role="status">
@@ -111,7 +111,7 @@ function DashboardTab() {
       {/* Row 4: Two charts side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Channel bar chart */}
-        <div className="rounded-lg border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-medium mb-4">Delivery by Channel</h3>
           {channelLoading ? (
             <div className="flex items-center justify-center h-[300px]" role="status">
@@ -140,7 +140,7 @@ function DashboardTab() {
         </div>
 
         {/* Failure reasons donut */}
-        <div className="rounded-lg border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-medium mb-4">Failure Reasons</h3>
           <FailureReasonsChart data={failures} isLoading={failuresLoading} height={300} />
         </div>
@@ -421,7 +421,7 @@ function FailuresTab() {
       )}
 
       {/* Failure reasons chart */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h3 className="text-sm font-medium mb-2">Failure Reasons Breakdown</h3>
         <FailureReasonsChart data={failures} isLoading={isLoading} height={260} />
       </div>

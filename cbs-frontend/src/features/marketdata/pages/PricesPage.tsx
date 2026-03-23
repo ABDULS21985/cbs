@@ -141,7 +141,7 @@ function InstrumentDetail({ code }: { code: string }) {
   return (
     <div className="space-y-4">
       {/* Price Header */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold font-mono">{code}</h3>
@@ -176,7 +176,7 @@ function InstrumentDetail({ code }: { code: string }) {
 
       {/* Signals */}
       {signals.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Latest Signals</p>
           <div className="space-y-2">
             {signals.slice(0, 5).map((sig) => (
@@ -308,7 +308,7 @@ export function PricesPage() {
         <div className="flex gap-4">
           {/* Watchlist (Left) */}
           <div className="w-64 flex-shrink-0 hidden lg:block">
-            <div className="rounded-xl border bg-card p-3 space-y-2 sticky top-4">
+            <div className="surface-card p-3 space-y-2 sticky top-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">Watchlist</p>
 
               {/* Add instrument */}
@@ -359,7 +359,7 @@ export function PricesPage() {
             )}
 
             {/* Market Overview Table */}
-            <div className="rounded-xl border bg-card overflow-hidden">
+            <div className="surface-card overflow-hidden">
               <div className="px-4 py-3 border-b">
                 <p className="text-sm font-medium">Market Overview</p>
               </div>

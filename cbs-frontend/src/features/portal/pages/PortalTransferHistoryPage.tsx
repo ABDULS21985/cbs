@@ -78,7 +78,7 @@ export function PortalTransferHistoryPage() {
         </div>
       ) : (
         <>
-          <div className="rounded-lg border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/30">

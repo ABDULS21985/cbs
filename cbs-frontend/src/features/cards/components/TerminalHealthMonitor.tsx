@@ -38,7 +38,7 @@ export function TerminalHealthMonitor({ terminals, isLoading }: TerminalHealthMo
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-medium">Terminal Health Grid</p>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">

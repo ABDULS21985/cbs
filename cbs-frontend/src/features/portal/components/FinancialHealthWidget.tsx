@@ -31,7 +31,7 @@ export function FinancialHealthWidget({ health }: FinancialHealthWidgetProps) {
   const strokeColor = RISK_BG[riskLevel] || RISK_BG.UNKNOWN;
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Financial Health</h3>
       <div className="flex items-center gap-6">
         {/* Circular Gauge */}

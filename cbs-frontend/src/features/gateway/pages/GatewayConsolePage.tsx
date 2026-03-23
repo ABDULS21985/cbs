@@ -128,7 +128,7 @@ function ExceptionsTab() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <StatCard label="Total Exceptions" value={exceptions.length} format="number" icon={AlertOctagon} />
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-xs text-muted-foreground mb-2">By Error Type</p>
           {byError.length > 0 ? (
             <ResponsiveContainer width="100%" height={120}>
@@ -197,7 +197,7 @@ function AnalyticsTab() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Message Type Distribution</p>
           {byType.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -205,7 +205,7 @@ function AnalyticsTab() {
             </ResponsiveContainer>
           ) : <p className="text-sm text-muted-foreground text-center py-8">No data</p>}
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Direction Breakdown</p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={byDirection}><CartesianGrid strokeDasharray="3 3" className="stroke-border" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" radius={[4, 4, 0, 0]}>{byDirection.map((_, i) => <Cell key={i} fill={CHART_COLORS[i]} />)}</Bar></BarChart>
@@ -214,7 +214,7 @@ function AnalyticsTab() {
       </div>
 
       {/* Hourly breakdown */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Throughput Timeline</p>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={throughput.slice(-24)}>

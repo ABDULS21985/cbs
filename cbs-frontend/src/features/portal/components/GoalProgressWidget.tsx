@@ -27,7 +27,7 @@ function monthlyNeeded(goal: GoalSummary): string | null {
 export function GoalProgressWidget({ goals }: GoalProgressWidgetProps) {
   if (goals.length === 0) {
     return (
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Savings Goals</h3>
         <div className="flex flex-col items-center py-6 text-muted-foreground">
           <Target className="w-8 h-8 mb-2 opacity-40" />
@@ -39,7 +39,7 @@ export function GoalProgressWidget({ goals }: GoalProgressWidgetProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold">Savings Goals</h3>
         <span className="text-xs text-muted-foreground">{goals.length} active</span>

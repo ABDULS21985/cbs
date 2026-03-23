@@ -36,7 +36,7 @@ export function PortfolioCard({ portfolio, holdings = [] }: PortfolioCardProps) 
 
   return (
     <div onClick={() => navigate(`/investments/portfolios/${portfolio.code}`)}
-      className="rounded-xl border bg-card p-5 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer space-y-3">
+      className="surface-card p-5 hover:shadow-md hover:border-primary/30 transition-all cursor-pointer space-y-3">
       <div className="flex items-start justify-between">
         <div>
           <code className="text-[10px] font-mono text-muted-foreground">{portfolio.code}</code>

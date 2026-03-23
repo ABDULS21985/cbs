@@ -39,7 +39,7 @@ export function InterestBenefitCalculator({ totalBalance }: InterestBenefitCalcu
   }, [totalBalance, rateNum]);
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-4">
+    <div className="surface-card p-5 space-y-4">
       <div className="flex items-center gap-2">
         <div className="p-1.5 rounded-md bg-primary/10">
           <Calculator className="w-4 h-4 text-primary" />

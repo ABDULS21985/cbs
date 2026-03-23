@@ -119,7 +119,7 @@ export function PositionDetailPage() {
 
         {/* P&L Analysis */}
         {position && (
-          <div className="rounded-xl border bg-card p-6">
+          <div className="surface-card p-6">
             <h3 className="text-sm font-semibold mb-4">P&L Analysis</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
               {/* P&L indicator */}
@@ -166,7 +166,7 @@ export function PositionDetailPage() {
         )}
 
         {/* Movements */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <div className="px-5 py-3 border-b flex items-center justify-between bg-muted/30">
             <h3 className="text-sm font-semibold">Movements</h3>
             <span className="text-xs text-muted-foreground">{movements.length} movement{movements.length !== 1 ? 's' : ''}</span>

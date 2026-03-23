@@ -79,7 +79,7 @@ export function PayoutBreakdownCard({ payout, compact }: PayoutBreakdownCardProp
   }
 
   return (
-    <div className="rounded-lg border bg-card p-5 space-y-1">
+    <div className="surface-card p-5 space-y-1">
       <LineItem label="Gross Sales" amount={payout.grossSales} currency={cur} color="gray" />
 
       <div className="flex items-center gap-2 py-0.5">

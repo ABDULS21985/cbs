@@ -201,7 +201,8 @@ export default function CollectionsPage() {
   const { data: cases = [], isLoading: casesLoading } = useCollectionCases();
   const { data: dunningQueue = [], isLoading: dunningLoading } = useDunningQueue();
   const { data: writeOffRequests = [], isLoading: writeOffLoading } = useWriteOffRequests();
-  const { data: recovery = [], isLoading: recoveryLoading } = useRecovery();
+  const { data: rawRecovery, isLoading: recoveryLoading } = useRecovery();
+  const recovery = Array.isArray(rawRecovery) ? rawRecovery : [];
 
   const tabFromUrl = searchParams.get('tab');
   const activeTabId = TAB_CONFIG.some((tab) => tab.id === tabFromUrl) ? tabFromUrl! : 'active-cases';

@@ -36,7 +36,7 @@ export function FdEarlyWithdrawalCalc({ fdId, fd }: FdEarlyWithdrawalCalcProps) 
 
   if (fd.status !== 'ACTIVE') {
     return (
-      <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground text-center py-6">
+      <div className="surface-card p-4 text-sm text-muted-foreground text-center py-6">
         Early withdrawal is only available for active fixed deposits.
       </div>
     );
@@ -44,7 +44,7 @@ export function FdEarlyWithdrawalCalc({ fdId, fd }: FdEarlyWithdrawalCalcProps) 
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4 flex items-center justify-center py-8">
+      <div className="surface-card p-4 flex items-center justify-center py-8">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
       </div>
     );

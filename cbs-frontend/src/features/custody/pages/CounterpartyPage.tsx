@@ -274,14 +274,14 @@ function ExposureDashboardTab() {
   return (
     <div className="p-4 space-y-6">
       {/* Central gauge */}
-      <div className="rounded-xl border bg-card p-6 flex flex-col items-center">
+      <div className="surface-card p-6 flex flex-col items-center">
         <p className="text-sm font-medium mb-4">Total Portfolio Exposure</p>
         <ExposureGauge current={totalExposure} limit={totalLimit} size="lg" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top 10 horizontal bar */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Top 10 Exposures</p>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={top10} layout="vertical" margin={{ left: 80 }}>
@@ -295,7 +295,7 @@ function ExposureDashboardTab() {
         </div>
 
         {/* Concentration pie */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Concentration by Type</p>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>

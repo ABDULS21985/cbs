@@ -93,14 +93,14 @@ export function SegmentProfitabilityTable({ data, isLoading }: SegmentProfitabil
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4 h-64 flex items-center justify-center">
+      <div className="surface-card p-4 h-64 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <h2 className="text-sm font-semibold text-foreground">Segment Profitability</h2>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="overflow-hidden">

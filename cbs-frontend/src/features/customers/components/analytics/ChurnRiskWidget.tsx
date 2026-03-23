@@ -39,7 +39,7 @@ export function ChurnRiskWidget({ data, customerId }: Props) {
 
       {/* Risk Factors */}
       {data.riskFactors.length > 0 && (
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3">Risk Factors</h3>
           <div className="space-y-2">
             {data.riskFactors.map((f, i) => {
@@ -68,7 +68,7 @@ export function ChurnRiskWidget({ data, customerId }: Props) {
 
       {/* Recommended Actions */}
       {data.recommendedActions.length > 0 && (
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3">Recommended Actions</h3>
           <div className="space-y-2">
             {data.recommendedActions.map((a, i) => {

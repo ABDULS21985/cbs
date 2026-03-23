@@ -75,7 +75,7 @@ export function JournalEntryTable({ entries, isLoading }: JournalEntryTableProps
 
   if (entries.length === 0) {
     return (
-      <div className="rounded-lg border bg-card py-16 text-center text-muted-foreground text-sm">
+      <div className="surface-card py-16 text-center text-muted-foreground text-sm">
         No journal entries found. Adjust your filters or create a new entry.
       </div>
     );
@@ -160,7 +160,7 @@ export function JournalEntryTable({ entries, isLoading }: JournalEntryTableProps
                   {isOpen && (
                     <tr key={`${entry.id}-detail`} className="border-b bg-muted/10">
                       <td colSpan={10} className="px-6 py-3">
-                        <div className="rounded-lg border bg-card overflow-hidden">
+                        <div className="surface-card overflow-hidden">
                           <table className="w-full text-xs">
                             <thead>
                               <tr className="bg-muted/20 border-b text-muted-foreground">

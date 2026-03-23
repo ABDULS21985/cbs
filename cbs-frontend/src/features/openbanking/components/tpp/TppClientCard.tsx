@@ -32,7 +32,7 @@ export function TppClientCard({ client, onClick }: TppClientCardProps) {
     <div
       onClick={() => onClick?.(client)}
       className={cn(
-        'rounded-xl border bg-card p-5 space-y-3 transition-all',
+        'surface-card p-5 space-y-3 transition-all',
         onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30',
       )}
     >

@@ -162,7 +162,7 @@ export function ScaFlowDiagram({ currentStep = 0, scaStatus }: ScaFlowDiagramPro
       : null;
 
   return (
-    <div className="rounded-xl border bg-card p-6">
+    <div className="surface-card p-6">
       <h3 className="text-sm font-semibold mb-1">SCA Authentication Flow</h3>
       <p className="text-xs text-muted-foreground mb-6">
         PSD2 Strong Customer Authentication (SCA) process for TPP access authorization

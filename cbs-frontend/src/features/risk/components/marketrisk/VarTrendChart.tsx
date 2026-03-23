@@ -6,7 +6,7 @@ interface Props { data: VarTrendPoint[]; varLimit: number; backtest: BacktestRes
 
 export function VarTrendChart({ data, varLimit, backtest, currency }: Props) {
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold">VaR Trend (60 Days)</h3>
         {backtest && (

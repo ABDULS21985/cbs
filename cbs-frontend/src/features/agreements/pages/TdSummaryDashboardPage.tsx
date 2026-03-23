@@ -105,7 +105,7 @@ export function TdSummaryDashboardPage() {
 
       <div className="page-container space-y-6">
         {/* Agreement Selector */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center gap-4">
             <label className="text-sm font-medium whitespace-nowrap">Agreement:</label>
             <select value={selectedAgreementId} onChange={(e) => setSelectedAgreementId(Number(e.target.value))}
@@ -123,7 +123,7 @@ export function TdSummaryDashboardPage() {
             {/* Maturity Ladder + Rollover Forecast */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Maturity Ladder */}
-              <div className="lg:col-span-2 rounded-xl border bg-card p-5">
+              <div className="lg:col-span-2 surface-card p-5">
                 <h3 className="text-sm font-semibold mb-4">Maturity Ladder</h3>
                 {maturityData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={280}>
@@ -145,7 +145,7 @@ export function TdSummaryDashboardPage() {
               </div>
 
               {/* Rollover Forecast */}
-              <div className="rounded-xl border bg-card p-5 space-y-4">
+              <div className="surface-card p-5 space-y-4">
                 <h3 className="text-sm font-semibold">Rollover Forecast</h3>
                 {rollover ? (
                   <>

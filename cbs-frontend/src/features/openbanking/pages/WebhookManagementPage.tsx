@@ -148,7 +148,7 @@ export function WebhookManagementPage() {
         <div className="page-container space-y-6">
           {/* Webhook Info Strip */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            <div className="rounded-xl border bg-card p-4">
+            <div className="surface-card p-4">
               <p className="text-xs text-muted-foreground">Status</p>
               <p className={cn(
                 'text-sm font-semibold mt-1',
@@ -157,19 +157,19 @@ export function WebhookManagementPage() {
                 {selectedWebhook.status}
               </p>
             </div>
-            <div className="rounded-xl border bg-card p-4">
+            <div className="surface-card p-4">
               <p className="text-xs text-muted-foreground">Auth Type</p>
               <p className="text-sm font-semibold mt-1">{selectedWebhook.authType}</p>
             </div>
-            <div className="rounded-xl border bg-card p-4">
+            <div className="surface-card p-4">
               <p className="text-xs text-muted-foreground">Success Rate</p>
               <p className="text-sm font-semibold mt-1 tabular-nums">{selectedWebhook.successRate}%</p>
             </div>
-            <div className="rounded-xl border bg-card p-4">
+            <div className="surface-card p-4">
               <p className="text-xs text-muted-foreground">Events</p>
               <p className="text-sm font-semibold mt-1">{selectedWebhook.events.length}</p>
             </div>
-            <div className="rounded-xl border bg-card p-4">
+            <div className="surface-card p-4">
               <p className="text-xs text-muted-foreground">Deliveries</p>
               <p className="text-sm font-semibold mt-1 tabular-nums">
                 {deliveriesLoading ? '...' : deliveries.length}
@@ -178,7 +178,7 @@ export function WebhookManagementPage() {
           </div>
 
           {/* Events */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Subscribed Events</h3>
             <div className="flex flex-wrap gap-2">
               {selectedWebhook.events.map((event) => (
@@ -203,7 +203,7 @@ export function WebhookManagementPage() {
             </div>
             <div className="lg:col-span-2">
               {deliveriesLoading ? (
-                <div className="flex items-center justify-center py-12 rounded-xl border bg-card">
+                <div className="flex items-center justify-center py-12 surface-card">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
               ) : (
@@ -241,25 +241,25 @@ export function WebhookManagementPage() {
       <div className="page-container space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-xs text-muted-foreground">Total Webhooks</p>
             <p className="text-2xl font-bold mt-1 tabular-nums">
               {isLoading ? '...' : webhooks.length}
             </p>
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-xs text-muted-foreground">Active</p>
             <p className="text-2xl font-bold mt-1 tabular-nums text-green-600">
               {isLoading ? '...' : webhooks.filter((w) => w.status === 'ACTIVE').length}
             </p>
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-xs text-muted-foreground">Failed</p>
             <p className="text-2xl font-bold mt-1 tabular-nums text-red-600">
               {isLoading ? '...' : webhooks.filter((w) => w.status === 'FAILED').length}
             </p>
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-xs text-muted-foreground">Avg Success Rate</p>
             <p className="text-2xl font-bold mt-1 tabular-nums">
               {isLoading
@@ -274,7 +274,7 @@ export function WebhookManagementPage() {
 
         {/* Table */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12 rounded-xl border bg-card">
+          <div className="flex items-center justify-center py-12 surface-card">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : (

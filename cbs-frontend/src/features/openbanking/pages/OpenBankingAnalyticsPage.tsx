@@ -219,7 +219,7 @@ export function OpenBankingAnalyticsPage() {
           <GeographicDistributionMap data={geoData} loading={isLoading} />
 
           {/* Usage Heatmap */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Usage Heatmap (Hour x Day)</h3>
             {isLoading ? (
               <div className="h-52 bg-muted/30 rounded animate-pulse" />

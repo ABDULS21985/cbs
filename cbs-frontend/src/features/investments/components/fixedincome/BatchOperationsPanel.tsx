@@ -33,7 +33,7 @@ function BatchCard({ title, description, statusQuery, runMutation, queryKey }: B
   const isComplete = status?.status === 'COMPLETED' || (status?.processed ?? 0) > 0;
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-3">
+    <div className="surface-card p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold">{title}</h4>
         {isComplete && <Check className="w-4 h-4 text-green-500" />}

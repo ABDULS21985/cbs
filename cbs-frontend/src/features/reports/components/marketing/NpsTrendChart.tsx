@@ -31,7 +31,7 @@ function CustomTooltip({ active, payload, label }: any) {
 
 export function NpsTrendChart({ data }: NpsTrendChartProps) {
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">NPS Trend (12 Months)</h3>
         <div className="text-xs text-muted-foreground">Customer sentiment from survey responses returned by the backend.</div>

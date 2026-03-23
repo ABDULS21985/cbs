@@ -9,7 +9,7 @@ interface Props {
 export function KeyRiskIndicators({ data, isLoading }: Props) {
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <div className="h-5 w-40 bg-muted rounded animate-pulse mb-4" />
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="flex items-center gap-3 py-2.5 animate-pulse">
@@ -25,7 +25,7 @@ export function KeyRiskIndicators({ data, isLoading }: Props) {
   const display = (data ?? []).slice(0, 6);
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <h3 className="text-sm font-semibold mb-2">Key Risk Indicators</h3>
       <div className="divide-y">
         {display.map((kri) => (

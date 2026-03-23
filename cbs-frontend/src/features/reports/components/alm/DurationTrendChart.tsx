@@ -42,7 +42,7 @@ export function DurationTrendChart({ months = 12 }: DurationTrendChartProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <div className="h-4 w-48 bg-muted rounded animate-pulse mb-4" />
         <div className="h-64 bg-muted/30 rounded animate-pulse" />
       </div>
@@ -50,7 +50,7 @@ export function DurationTrendChart({ months = 12 }: DurationTrendChartProps) {
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <h3 className="text-sm font-semibold mb-4">Duration Trend — Last {months} Months</h3>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={trend} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>

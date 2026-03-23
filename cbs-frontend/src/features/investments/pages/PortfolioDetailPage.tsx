@@ -63,11 +63,11 @@ export function PortfolioDetailPage() {
       id: 'allocation', label: 'Allocation',
       content: (
         <div className="p-4 space-y-6">
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Asset Allocation</h3>
             <AllocationChart holdings={holdings} currency={portfolio.currency} />
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <ConcentrationAnalysis holdings={holdings} currency={portfolio.currency} />
           </div>
         </div>
@@ -77,7 +77,7 @@ export function PortfolioDetailPage() {
       id: 'performance', label: 'Performance',
       content: (
         <div className="p-4 space-y-6">
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Returns Summary</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
@@ -130,7 +130,7 @@ export function PortfolioDetailPage() {
             </div>
           )}
           {valuations.length > 0 && (
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-3">Valuation History</h3>
               <div className="space-y-2">
                 {valuations.map((v: any, i: number) => (
@@ -150,7 +150,7 @@ export function PortfolioDetailPage() {
       content: (
         <div className="p-4">
           {acctSummary ? (
-            <div className="rounded-xl border bg-card p-5 space-y-3">
+            <div className="surface-card p-5 space-y-3">
               <h3 className="text-sm font-semibold">IFRS9 Accounting Summary</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {Object.entries(acctSummary).map(([k, v]) => (

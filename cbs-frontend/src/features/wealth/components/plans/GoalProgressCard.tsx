@@ -106,7 +106,7 @@ export function GoalProgressCard({ goals, planCode: _planCode, onAddGoal, isAddi
           const aboveTarget = projection && projection.projected >= goal.targetAmount;
 
           return (
-            <div key={goal.id} className="rounded-xl border bg-card overflow-hidden">
+            <div key={goal.id} className="surface-card overflow-hidden">
               <div className="p-4 space-y-3 cursor-pointer" onClick={() => setExpandedGoal(isExpanded ? null : goal.id)}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export function GoalProgressCard({ goals, planCode: _planCode, onAddGoal, isAddi
 
       {/* Add Goal Form */}
       {showAddForm && (
-        <form onSubmit={handleSubmit} className="rounded-xl border bg-card p-4 space-y-3">
+        <form onSubmit={handleSubmit} className="surface-card p-4 space-y-3">
           <h4 className="text-sm font-semibold">New Financial Goal</h4>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">

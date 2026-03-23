@@ -69,7 +69,7 @@ function CreateLimitModal({ open, onClose }: { open: boolean; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-xl border bg-card p-6 shadow-xl">
+      <div className="relative w-full max-w-lg surface-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold">Create Transaction Limit</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -197,7 +197,7 @@ function UpdateLimitModal({ open, onClose, limit }: { open: boolean; onClose: ()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-xl border bg-card p-6 shadow-xl">
+      <div className="relative w-full max-w-md surface-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold">Update Limit</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
@@ -250,7 +250,7 @@ function UsagePanel({ accountId }: { accountId: number }) {
   const usage = usageQuery.data;
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-3">Today's Usage</h3>
       <div className="flex items-center gap-3 mb-4">
         <select value={limitType} onChange={(e) => setLimitType(e.target.value as LimitType)}
@@ -349,7 +349,7 @@ export function TransactionLimitsPage() {
           <>
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="rounded-xl border bg-card p-5">
+              <div className="surface-card p-5">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
                     <Shield className="w-4.5 h-4.5" />
@@ -358,7 +358,7 @@ export function TransactionLimitsPage() {
                 </div>
                 <p className="text-2xl font-bold">{activeLimits.length}</p>
               </div>
-              <div className="rounded-xl border bg-card p-5">
+              <div className="surface-card p-5">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400">
                     <Clock className="w-4.5 h-4.5" />
@@ -367,7 +367,7 @@ export function TransactionLimitsPage() {
                 </div>
                 <p className="text-2xl font-bold">{inactiveLimits.length}</p>
               </div>
-              <div className="rounded-xl border bg-card p-5">
+              <div className="surface-card p-5">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
                     <DollarSign className="w-4.5 h-4.5" />

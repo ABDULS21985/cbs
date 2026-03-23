@@ -50,7 +50,7 @@ export function KeyboardShortcutHelp() {
       {/* Floating panel */}
       {open && (
         <div className={cn(
-          'fixed bottom-4 right-4 z-50 w-72 rounded-xl border bg-card shadow-2xl overflow-hidden',
+          'fixed bottom-4 right-4 z-50 w-72 surface-card shadow-2xl overflow-hidden',
           'animate-in slide-in-from-bottom-2 fade-in duration-200',
         )}>
           <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">

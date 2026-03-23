@@ -214,7 +214,7 @@ export function OpenBankingPage() {
           </div>
 
           {/* Consent trend chart — not yet available */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Consent Trends (30 days)</h3>
             <div className="flex items-center justify-center h-[280px] text-muted-foreground text-sm border border-dashed rounded-lg">
               Consent trend analytics are not yet available. Wire{' '}
@@ -226,7 +226,7 @@ export function OpenBankingPage() {
           </div>
 
           {/* Customer consent search */}
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div className="px-5 py-4 border-b flex items-center justify-between">
               <h3 className="text-sm font-semibold">Search Customer Consents</h3>
               <form
@@ -310,7 +310,7 @@ export function OpenBankingPage() {
       content: (
         <div className="p-4 space-y-6">
           {/* API Traffic Chart — not yet available */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">API Traffic (30 days, by TPP)</h3>
             <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm border border-dashed rounded-lg">
               API traffic analytics are not yet available. Wire{' '}
@@ -322,7 +322,7 @@ export function OpenBankingPage() {
           </div>
 
           {/* Top TPPs horizontal bar — uses real apiCalls30d from backend */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Top TPPs by API Calls (30 days)</h3>
             {topTpps.every((t) => t.calls === 0) ? (
               <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm border border-dashed rounded-lg">
@@ -363,7 +363,7 @@ export function OpenBankingPage() {
           </div>
 
           {/* Error rate table — not yet available */}
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div className="px-5 py-4 border-b">
               <h3 className="text-sm font-semibold">Error Rates by TPP</h3>
             </div>
@@ -384,7 +384,7 @@ export function OpenBankingPage() {
       content: (
         <div className="p-4 space-y-6">
           {/* Score overview */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-semibold">PSD2 Compliance Score</h3>
@@ -415,7 +415,7 @@ export function OpenBankingPage() {
           </div>
 
           {/* Checklist */}
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div className="px-5 py-4 border-b">
               <h3 className="text-sm font-semibold">PSD2 Requirements Checklist</h3>
             </div>

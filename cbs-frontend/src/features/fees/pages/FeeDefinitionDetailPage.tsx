@@ -75,7 +75,7 @@ function WaiversTab({ feeCode }: { feeCode: string }) {
     <>
       <div className="space-y-3">
         {feeWaivers.map((waiver: FeeWaiver) => (
-          <div key={waiver.id} className="rounded-xl border bg-card p-5 space-y-4">
+          <div key={waiver.id} className="surface-card p-5 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold">Waiver Request — {waiver.id}</p>

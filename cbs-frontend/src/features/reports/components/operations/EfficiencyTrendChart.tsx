@@ -78,7 +78,7 @@ export function EfficiencyTrendChart({ data, isLoading }: EfficiencyTrendChartPr
         : 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800';
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
+    <div className="surface-card p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">Cost per Transaction Trend</h2>
         <div className="flex items-center gap-2">

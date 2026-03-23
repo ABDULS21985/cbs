@@ -33,7 +33,7 @@ function FeatureCard({ icon: Icon, title, description, colorClass, path, stats }
   const navigate = useNavigate();
 
   return (
-    <div className="rounded-xl border bg-card p-6 flex flex-col gap-3 hover:shadow-md transition-shadow">
+    <div className="surface-card p-6 flex flex-col gap-3 hover:shadow-md transition-shadow">
       <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', colorClass)}>
         <Icon className="w-5 h-5 text-white" />
       </div>
@@ -124,7 +124,7 @@ export function IntelligencePage() {
         </div>
 
         {/* Quick access section */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <h3 className="text-sm font-semibold mb-3">Quick Access</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <QuickLink

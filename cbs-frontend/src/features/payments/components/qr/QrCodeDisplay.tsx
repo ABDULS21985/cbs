@@ -168,7 +168,7 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
   };
 
   return (
-    <div className="rounded-lg border bg-card p-6 flex flex-col items-center gap-4">
+    <div className="surface-card p-6 flex flex-col items-center gap-4">
       <div className="text-center">
         <h3 className="text-base font-semibold">Scan to Pay</h3>
         <p className="text-xs text-muted-foreground mt-0.5">Use any mobile banking or payment app</p>

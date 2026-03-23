@@ -25,7 +25,7 @@ export function DealCard({ deal }: { deal: CapitalMarketsDeal }) {
     <div
       onClick={() => navigate(`/capital-markets/${deal.code}`)}
       className={cn(
-        'rounded-lg border bg-card p-3 space-y-2 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all border-l-4',
+        'surface-card p-3 space-y-2 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all border-l-4',
         STAGE_COLORS[deal.status],
       )}
       title={`${deal.issuer} — ${deal.code}\nTotal Bids: ${deal.totalBids ?? 0}\nFees: ${deal.feesEarned ?? 0}`}

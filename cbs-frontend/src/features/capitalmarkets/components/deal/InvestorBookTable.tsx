@@ -116,7 +116,7 @@ export function InvestorBookTable({ investors, isLoading, targetAmount, currency
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Bid distribution */}
           {bidDistribution.length > 1 && (
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Bid Distribution by Price</h4>
               <ResponsiveContainer width="100%" height={140}>
                 <BarChart data={bidDistribution}>
@@ -131,7 +131,7 @@ export function InvestorBookTable({ investors, isLoading, targetAmount, currency
 
           {/* Type breakdown */}
           {typeBreakdown.length > 0 && (
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Investor Type Breakdown</h4>
               <ResponsiveContainer width="100%" height={140}>
                 <PieChart>

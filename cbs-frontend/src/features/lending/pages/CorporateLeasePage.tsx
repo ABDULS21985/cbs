@@ -45,7 +45,7 @@ export function CorporateLeasePage() {
         <DataTable columns={cols} data={portfolios} isLoading={isLoading} enableGlobalFilter emptyMessage="No corporate lease portfolios" />
 
         {/* Customer lookup */}
-        <div className="rounded-xl border bg-card p-5 space-y-3">
+        <div className="surface-card p-5 space-y-3">
           <h3 className="text-sm font-semibold">Customer Lease Summary</h3>
           <div className="flex gap-3 items-end">
             <div><label className="text-xs text-muted-foreground">Customer ID</label>

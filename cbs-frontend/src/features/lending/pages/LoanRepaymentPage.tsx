@@ -50,7 +50,7 @@ export function LoanRepaymentPage() {
       <>
         <PageHeader title="Payment Receipt" backTo={`/lending/${id}`} />
         <div className="page-container max-w-lg mx-auto">
-          <div className="rounded-xl border bg-card p-8 text-center space-y-4">
+          <div className="surface-card p-8 text-center space-y-4">
             <CheckCircle className="w-12 h-12 text-green-600 mx-auto" />
             <h3 className="text-xl font-semibold">Payment Successful</h3>
             <div className="text-3xl font-bold font-mono text-primary">{formatMoney(receipt.amount)}</div>

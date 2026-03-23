@@ -90,7 +90,7 @@ export function BehavioralOverlay({ params, onParamsChange, topDepositors, fundi
   return (
     <div className="space-y-6">
       {/* Behavioral Parameter Controls */}
-      <div className="rounded-lg border bg-card">
+      <div className="surface-card">
         <button
           type="button"
           onClick={() => setShowParams(!showParams)}
@@ -141,7 +141,7 @@ export function BehavioralOverlay({ params, onParamsChange, topDepositors, fundi
       </div>
 
       {/* Deposit Stability — Top Depositor Concentration */}
-      <div className="rounded-lg border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold">Top 20 Depositor Concentration</h3>
           <div className="flex items-center gap-2">
@@ -186,7 +186,7 @@ export function BehavioralOverlay({ params, onParamsChange, topDepositors, fundi
       </div>
 
       {/* Funding Source Mix */}
-      <div className="rounded-lg border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Funding Source Composition</h3>
         {fundingSources.length > 0 ? (
           <div className="space-y-2">
@@ -214,7 +214,7 @@ export function BehavioralOverlay({ params, onParamsChange, topDepositors, fundi
       </div>
 
       {/* Deposit Rollover Assumptions */}
-      <div className="rounded-lg border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Deposit Rollover Assumptions</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

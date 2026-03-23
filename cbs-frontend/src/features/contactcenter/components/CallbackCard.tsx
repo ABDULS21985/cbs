@@ -14,7 +14,7 @@ export function CallbackCard({ callback, onAttempt }: CallbackCardProps) {
   const isPast = new Date(callback.preferredTime) < new Date();
 
   return (
-    <div className={cn('rounded-xl border bg-card p-4 space-y-2', isPast && 'border-amber-300 dark:border-amber-800/40')}>
+    <div className={cn('surface-card p-4 space-y-2', isPast && 'border-amber-300 dark:border-amber-800/40')}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-semibold">Customer #{callback.customerId}</p>

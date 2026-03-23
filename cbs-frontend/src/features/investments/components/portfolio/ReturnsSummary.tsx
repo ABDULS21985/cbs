@@ -18,7 +18,7 @@ export function ReturnsSummary({ returnYtd, returnTotal = 0, unrealizedPnl, cost
   ];
 
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Return Summary</h3>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {items.map((item) => (

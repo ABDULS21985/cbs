@@ -84,7 +84,7 @@ export function RailsUtilizationTable({ data, isLoading }: RailsUtilizationTable
   }, [data]);
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="surface-card">
       <div className="px-4 pt-4 pb-2">
         <h2 className="text-sm font-semibold text-foreground">Rails Utilization</h2>
       </div>

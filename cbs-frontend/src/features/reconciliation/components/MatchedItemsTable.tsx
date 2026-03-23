@@ -32,7 +32,7 @@ export function MatchedItemsTable({ entries }: MatchedItemsTableProps) {
 
   if (matched.length === 0) {
     return (
-      <div className="rounded-xl border bg-card">
+      <div className="surface-card">
         <div className="px-5 py-3.5 border-b">
           <h3 className="text-sm font-semibold">Matched Items</h3>
         </div>
@@ -45,7 +45,7 @@ export function MatchedItemsTable({ entries }: MatchedItemsTableProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-5 py-3.5 border-b flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-green-600" />

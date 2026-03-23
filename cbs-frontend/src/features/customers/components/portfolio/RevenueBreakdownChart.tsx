@@ -15,7 +15,7 @@ const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899'];
 
 export function RevenueBreakdownChart({ data, currency = 'NGN' }: Props) {
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Revenue Breakdown</h3>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">

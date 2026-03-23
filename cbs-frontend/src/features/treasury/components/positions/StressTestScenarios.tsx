@@ -116,7 +116,7 @@ export function StressTestScenarios({ positions }: StressTestScenariosProps) {
   );
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div>
         <h3 className="text-sm font-semibold">Stress Test Scenarios</h3>
         <p className="text-xs text-muted-foreground">

@@ -23,7 +23,7 @@ function GaugeChart({ appetite }: { appetite: RiskAppetite }) {
   ];
 
   return (
-    <div className="flex flex-col items-center p-4 rounded-lg border bg-card">
+    <div className="flex flex-col items-center p-4 surface-card">
       <div className="flex items-center gap-1.5 mb-1">
         <span className="text-sm font-medium">{appetite.label}</span>
         <span>{statusEmoji(appetite.status)}</span>
@@ -60,7 +60,7 @@ function GaugeChart({ appetite }: { appetite: RiskAppetite }) {
 
 function GaugeSkeleton() {
   return (
-    <div className="flex flex-col items-center p-4 rounded-lg border bg-card animate-pulse">
+    <div className="flex flex-col items-center p-4 surface-card animate-pulse">
       <div className="h-4 w-24 bg-muted rounded mb-2" />
       <div className="w-32 h-16 bg-muted rounded" />
       <div className="h-3 w-20 bg-muted rounded mt-2" />

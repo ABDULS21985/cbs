@@ -24,7 +24,7 @@ export function ConsentFunnelChart({
 }: ConsentFunnelChartProps) {
   if (loading) {
     return (
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="h-4 w-40 bg-muted rounded mb-4" />
         <div className="h-72 bg-muted/30 rounded animate-pulse" />
       </div>
@@ -34,7 +34,7 @@ export function ConsentFunnelChart({
   const maxCount = Math.max(...stages.map((s) => s.count), 1);
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Consent Funnel</h3>
 
       <div className="flex flex-col items-center gap-2 py-4">

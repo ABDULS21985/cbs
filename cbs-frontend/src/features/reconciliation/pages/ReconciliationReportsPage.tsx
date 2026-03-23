@@ -127,7 +127,7 @@ export function ReconciliationReportsPage() {
         {/* Compliance Section */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* CBN Compliance Checklist */}
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">CBN Compliance Checklist</p>
@@ -173,7 +173,7 @@ export function ReconciliationReportsPage() {
           </div>
 
           {/* Compliance Score Trend */}
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">Compliance Score Trend</p>

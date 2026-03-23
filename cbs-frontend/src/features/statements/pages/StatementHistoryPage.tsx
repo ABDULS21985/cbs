@@ -250,7 +250,7 @@ export function StatementHistoryPage() {
         {/* ── Filter Bar ─────────────────────────────────────────── */}
         <form
           onSubmit={handleSubmit(onFilter)}
-          className="flex flex-wrap items-end gap-4 p-4 rounded-lg border bg-card"
+          className="flex flex-wrap items-end gap-4 p-4 surface-card"
         >
           {/* Account */}
           <div className="space-y-1 min-w-[240px] flex-1">
@@ -299,7 +299,7 @@ export function StatementHistoryPage() {
 
         {/* ── Results ──────────────────────────────────────────── */}
         {!searchParams && !isLoading && (
-          <div className="rounded-lg border bg-card min-h-[300px] flex items-center justify-center">
+          <div className="surface-card min-h-[300px] flex items-center justify-center">
             <EmptyState
               icon={CalendarDays}
               title="Select an account and period"
@@ -309,7 +309,7 @@ export function StatementHistoryPage() {
         )}
 
         {isLoading && (
-          <div className="rounded-lg border bg-card p-6 space-y-4 animate-pulse">
+          <div className="surface-card p-6 space-y-4 animate-pulse">
             <div className="h-6 w-48 bg-muted rounded" />
             <div className="grid grid-cols-3 gap-3">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -378,7 +378,7 @@ export function StatementHistoryPage() {
             </div>
 
             {/* Transaction Table */}
-            <div className="rounded-lg border bg-card overflow-auto">
+            <div className="surface-card overflow-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-muted/50 border-b">

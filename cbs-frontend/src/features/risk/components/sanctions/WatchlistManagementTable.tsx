@@ -33,7 +33,7 @@ export function WatchlistManagementTable({ watchlists, isLoading }: Props) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="animate-pulse divide-y">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="px-4 py-3 flex items-center gap-4">
@@ -48,7 +48,7 @@ export function WatchlistManagementTable({ watchlists, isLoading }: Props) {
   }
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="grid grid-cols-[120px_1fr_160px_120px_120px_100px_auto] items-center px-4 py-2.5 bg-muted/30 border-b text-xs font-semibold text-muted-foreground uppercase tracking-wide gap-4">
         <div>Code</div>
         <div>Name</div>

@@ -83,7 +83,7 @@ function DashboardTab() {
       </div>
 
       {/* Funnel */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Settlement Flow</h3>
         <div className="space-y-3">
           {funnelStages.map((stage) => (

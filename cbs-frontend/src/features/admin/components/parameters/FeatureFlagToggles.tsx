@@ -20,7 +20,7 @@ function FlagCard({ flag, onToggle, isLoading }: FlagCardProps) {
   return (
     <div
       className={cn(
-        'rounded-xl border bg-card p-5 space-y-3 hover:border-primary/30 transition-colors',
+        'surface-card p-5 space-y-3 hover:border-primary/30 transition-colors',
         isExperimental && 'border-amber-300 dark:border-amber-700',
       )}
     >
@@ -205,7 +205,7 @@ export function FeatureFlagToggles() {
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="rounded-xl border bg-card p-5 space-y-3 animate-pulse">
+          <div key={i} className="surface-card p-5 space-y-3 animate-pulse">
             <div className="h-4 bg-muted rounded w-3/4" />
             <div className="h-3 bg-muted rounded w-full" />
             <div className="h-3 bg-muted rounded w-1/2" />

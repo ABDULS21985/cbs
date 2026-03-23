@@ -90,7 +90,7 @@ export function PoolStructureTree({ pool, participants, onParticipantClick }: Po
                     onClick={() => onParticipantClick?.(participant.id)}
                     disabled={!onParticipantClick}
                     className={cn(
-                      'w-full rounded-xl border bg-card px-4 py-3 text-left shadow-sm transition-all',
+                      'w-full surface-card px-4 py-3 text-left shadow-sm transition-all',
                       !participant.isActive && 'opacity-50',
                       onParticipantClick &&
                         'hover:border-primary/50 hover:shadow-md hover:bg-primary/5 cursor-pointer',

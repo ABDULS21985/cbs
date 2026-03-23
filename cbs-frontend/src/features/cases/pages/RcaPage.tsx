@@ -352,7 +352,7 @@ export function RcaPage() {
       />
       <div className="page-container space-y-6">
         {!rca && !showCreate && (
-          <div className="rounded-xl border bg-card p-8 text-center space-y-4">
+          <div className="surface-card p-8 text-center space-y-4">
             <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center">
               <ClipboardList className="w-6 h-6 text-muted-foreground" />
             </div>
@@ -381,7 +381,7 @@ export function RcaPage() {
         {rca && (
           <>
             {/* RCA Summary */}
-            <div className="rounded-xl border bg-card p-5 space-y-5">
+            <div className="surface-card p-5 space-y-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground font-medium">RCA Code</p>

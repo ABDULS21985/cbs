@@ -61,7 +61,7 @@ export function RecurringDepositDetailPage() {
           { id: 'projection', label: 'Projection', content: <div className="p-4"><DepositProjectionChart installments={schedule} installmentAmount={rd.installmentAmount} /></div> },
           { id: 'details', label: 'Plan Details', content: (
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-xl border bg-card p-4 space-y-2">
+              <div className="surface-card p-4 space-y-2">
                 <h3 className="text-sm font-semibold">Payment Summary</h3>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Deposited</span><span className="font-semibold text-green-600 tabular-nums">{formatMoney(totalPaid)}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Expected</span><span className="font-medium tabular-nums">{formatMoney(totalExpected)}</span></div>
@@ -70,7 +70,7 @@ export function RecurringDepositDetailPage() {
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Accrued Interest</span><span className="font-medium text-green-600 tabular-nums">{formatMoney(rd.accruedInterest)}</span></div>
                 {rd.totalPenalties > 0 && <div className="flex justify-between text-sm"><span className="text-red-600">Penalties</span><span className="text-red-600 tabular-nums">{formatMoney(rd.totalPenalties)}</span></div>}
               </div>
-              <div className="rounded-xl border bg-card p-4 space-y-2">
+              <div className="surface-card p-4 space-y-2">
                 <h3 className="text-sm font-semibold">Plan Info</h3>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Start Date</span><span>{formatDate(rd.startDate)}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Maturity Date</span><span>{formatDate(rd.maturityDate)}</span></div>

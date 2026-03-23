@@ -39,7 +39,7 @@ export function CostPerAcquisitionChart({ data }: CostPerAcquisitionChartProps) 
   }));
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Conversion Rate by Funnel Stage</h3>
         <span className="text-xs text-muted-foreground">

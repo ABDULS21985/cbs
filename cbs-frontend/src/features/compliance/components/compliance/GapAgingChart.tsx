@@ -13,7 +13,7 @@ export function GapAgingChart({ gaps }: Props) {
   ];
 
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Open Gap Aging</h3>
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">

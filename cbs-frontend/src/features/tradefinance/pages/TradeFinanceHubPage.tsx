@@ -1420,7 +1420,7 @@ function TradeOpsTab() {
       </div>
 
       {/* Confirmations */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold">Trade Confirmations</h3>
           {unmatched.length > 0 && (
@@ -1458,7 +1458,7 @@ function TradeOpsTab() {
       </div>
 
       {/* Clearing Queue */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Clearing Queue</h3>
         {clearLoading ? <div className="py-4 text-center text-muted-foreground">Loading...</div> : clearing.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">No clearing submissions</p>
@@ -1488,7 +1488,7 @@ function TradeOpsTab() {
       </div>
 
       {/* Reports */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Trade Reports</h3>
         {repLoading ? <div className="py-4 text-center text-muted-foreground">Loading...</div> : reports.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">No trade reports</p>

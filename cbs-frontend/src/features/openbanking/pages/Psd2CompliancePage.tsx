@@ -129,19 +129,19 @@ function ScaManagementTab() {
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-lg border bg-card p-3">
+        <div className="surface-card p-3">
           <p className="text-xs text-muted-foreground">Total</p>
           <p className="text-lg font-bold tabular-nums">{sessions.length}</p>
         </div>
-        <div className="rounded-lg border bg-card p-3">
+        <div className="surface-card p-3">
           <p className="text-xs text-muted-foreground">Finalised</p>
           <p className="text-lg font-bold tabular-nums text-green-600">{finalisedCount}</p>
         </div>
-        <div className="rounded-lg border bg-card p-3">
+        <div className="surface-card p-3">
           <p className="text-xs text-muted-foreground">Failed</p>
           <p className="text-lg font-bold tabular-nums text-red-600">{failedCount}</p>
         </div>
-        <div className="rounded-lg border bg-card p-3">
+        <div className="surface-card p-3">
           <p className="text-xs text-muted-foreground">Exempted</p>
           <p className="text-lg font-bold tabular-nums text-blue-600">{exemptedCount}</p>
         </div>
@@ -316,7 +316,7 @@ export function Psd2CompliancePage() {
         </div>
 
         {/* Tabs */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <TabsPage tabs={tabs} defaultTab="registry" />
         </div>
       </div>

@@ -81,7 +81,7 @@ export function PortalServiceRequestsPage() {
         <div className="space-y-3">
           {filteredRequests.map((req) => (
             <button key={req.id} onClick={() => setSelectedRequest(req)}
-              className="w-full text-left rounded-lg border bg-card p-4 hover:border-primary/30 transition-colors">
+              className="w-full text-left surface-card p-4 hover:border-primary/30 transition-colors">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-medium">{req.type}</h3>
                 <div className="flex items-center gap-2">

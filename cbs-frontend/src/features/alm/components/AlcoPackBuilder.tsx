@@ -136,7 +136,7 @@ export function AlcoPackBuilder({
                   onDrop={() => handleDrop(index)}
                   onDragEnd={handleDragEnd}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-lg border bg-card cursor-move transition-all',
+                    'flex items-center gap-2 px-3 py-2 surface-card cursor-move transition-all',
                     dragOverIndex === index && 'border-primary bg-primary/5',
                     dragIndex === index && 'opacity-50',
                   )}

@@ -128,7 +128,7 @@ export function MerchantListPage() {
         </div>
 
         {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-3 surface-card p-3">
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Status</label>
             <select

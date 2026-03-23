@@ -261,13 +261,13 @@ function ComplianceDashboardTab() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">SCA Outcomes</p>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart><Pie data={outcomeData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>{outcomeData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i]} />)}</Pie><Tooltip contentStyle={{ fontSize: 12 }} /><Legend wrapperStyle={{ fontSize: 11 }} /></PieChart>
           </ResponsiveContainer>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">SCA by Method</p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={byMethod}><CartesianGrid strokeDasharray="3 3" className="stroke-border" /><XAxis dataKey="method" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} /></BarChart>
@@ -277,7 +277,7 @@ function ComplianceDashboardTab() {
 
       {/* Certificate Status */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Certificate Status</p>
           <div className="flex items-center gap-4">
             <div className="text-center">
@@ -290,7 +290,7 @@ function ComplianceDashboardTab() {
             </div>
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">PSD2 Compliance Checklist</p>
           <div className="space-y-2">
             {checklist.map((item) => (

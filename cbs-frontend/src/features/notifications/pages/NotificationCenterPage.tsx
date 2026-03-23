@@ -99,7 +99,7 @@ export function NotificationCenterPage() {
         {/* Two-column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-[500px]">
           {/* LEFT — Notification list */}
-          <div className="lg:col-span-2 rounded-xl border bg-card overflow-hidden">
+          <div className="lg:col-span-2 surface-card overflow-hidden">
             {isLoading ? (
               <div className="divide-y">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -137,7 +137,7 @@ export function NotificationCenterPage() {
           </div>
 
           {/* RIGHT — Detail panel */}
-          <div className="rounded-xl border bg-card p-5 hidden lg:block">
+          <div className="surface-card p-5 hidden lg:block">
             {selected ? (
               <div className="space-y-4">
                 {/* Type icon + title */}

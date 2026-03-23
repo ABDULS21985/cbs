@@ -108,7 +108,7 @@ export function CustomerGoalsTab({ customerId }: CustomerGoalsTabProps) {
           {activeGoals.map((goal) => {
             const pct = goal.progressPercentage;
             return (
-              <div key={goal.id} className="rounded-xl border bg-card p-4 space-y-3">
+              <div key={goal.id} className="surface-card p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{goal.goalIcon || '🎯'}</span>
                   <div className="flex-1">

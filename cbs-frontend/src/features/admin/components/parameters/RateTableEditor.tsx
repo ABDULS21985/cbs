@@ -120,7 +120,7 @@ export function RateTableEditor({ rateTables }: RateTableEditorProps) {
       </div>
 
       {showNewForm && (
-        <div className="rounded-xl border bg-card p-5 space-y-4">
+        <div className="surface-card p-5 space-y-4">
           <h4 className="text-sm font-semibold">New Rate Table</h4>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
@@ -189,7 +189,7 @@ export function RateTableEditor({ rateTables }: RateTableEditorProps) {
             const tiers = editedTiers[rt.id] ?? parseTiers(rt);
 
             return (
-              <div key={rt.id} className="rounded-xl border bg-card overflow-hidden">
+              <div key={rt.id} className="surface-card overflow-hidden">
                 <button
                   type="button"
                   onClick={() => handleExpand(rt.id)}

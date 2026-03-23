@@ -47,7 +47,7 @@ function CustomTooltip({ active, payload, label }: any) {
 
 export function VolumeTrendChart({ data, groupBy, onGroupByChange, isLoading }: VolumeTrendChartProps) {
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
+    <div className="surface-card p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">Payment Volume Trend</h2>
         <div className="flex items-center gap-1 rounded-md border bg-muted/30 p-0.5">

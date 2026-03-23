@@ -34,7 +34,7 @@ export function AgentCard({ agent, onStateChange }: AgentCardProps) {
   const stateColor = STATE_COLORS[agent.state] ?? 'bg-gray-400';
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3 hover:shadow-sm transition-shadow">
+    <div className="surface-card p-4 space-y-3 hover:shadow-sm transition-shadow">
       <div className="flex items-center gap-3">
         <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-white', stateColor)}>
           <StateIcon className="w-5 h-5" />

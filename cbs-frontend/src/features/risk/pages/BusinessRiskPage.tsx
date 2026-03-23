@@ -88,7 +88,7 @@ function CreateAssessmentModal({ open, onClose }: { open: boolean; onClose: () =
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+      <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto surface-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold">New Business Risk Assessment</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -171,7 +171,7 @@ function AssessmentCard({ assessment, onComplete, isAdmin }: { assessment: Busin
   const StatusIcon = STATUS_ICONS[assessment.status] || Clock;
 
   return (
-    <div className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow">
+    <div className="surface-card p-5 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-foreground truncate">{assessment.assessmentName}</p>
@@ -263,7 +263,7 @@ export function BusinessRiskPage() {
             { label: 'Exceeded Appetite', value: String(exceededCount), icon: AlertTriangle, accent: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' },
             { label: 'Avg Residual Score', value: avgResidual, icon: TrendingUp, accent: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border bg-card p-5">
+            <div key={s.label} className="surface-card p-5">
               <div className="flex items-center gap-3 mb-2">
                 <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center', s.accent)}>
                   <s.icon className="w-4.5 h-4.5" />

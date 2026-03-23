@@ -36,7 +36,7 @@ export function CrossSellRecommendations({ recommendations, customerName }: Prop
   if (hasApiData) {
     const apiRecs = recommendations as ProductRecommendation[];
     return (
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <Target className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-semibold">

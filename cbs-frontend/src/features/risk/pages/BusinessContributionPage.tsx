@@ -159,7 +159,7 @@ export function BusinessContributionPage() {
       <div className="px-6 space-y-6 pb-8">
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
                 <DollarSign className="w-4.5 h-4.5" />
@@ -168,7 +168,7 @@ export function BusinessContributionPage() {
             </div>
             <p className="text-2xl font-bold tabular-nums">{fmtMoney(totalRevenue)}</p>
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <div className="flex items-center gap-3 mb-2">
               <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center',
                 totalProfit >= 0 ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400')}>
@@ -180,7 +180,7 @@ export function BusinessContributionPage() {
               {fmtMoney(totalProfit)}
             </p>
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
                 <BarChart3 className="w-4.5 h-4.5" />

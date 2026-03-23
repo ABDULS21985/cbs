@@ -26,7 +26,7 @@ export function ConsentDetailCard({ consent }: ConsentDetailCardProps) {
   ];
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-5 py-4 border-b flex items-center gap-2">
         <KeyRound className="w-4 h-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">Consent Details</h3>

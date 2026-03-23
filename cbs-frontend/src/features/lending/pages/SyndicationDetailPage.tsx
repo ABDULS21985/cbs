@@ -79,7 +79,7 @@ export function SyndicationDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2"><DataTable columns={participantCols} data={participants} enableGlobalFilter emptyMessage="No participants" /></div>
             {pieData.length > 0 && (
-              <div className="rounded-xl border bg-card p-4">
+              <div className="surface-card p-4">
                 <h4 className="text-xs font-semibold text-muted-foreground mb-3">Share Distribution</h4>
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={35}>

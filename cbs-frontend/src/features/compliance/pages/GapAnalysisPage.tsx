@@ -56,7 +56,7 @@ function LifecyclePipeline({ gaps, onFilter }: { gaps: any[]; onFilter: (status:
   const riskCount = gaps.filter((g) => g.status === 'ACCEPTED_RISK').length;
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-3">Gap Lifecycle Pipeline</h3>
       <div className="flex items-center gap-1">
         {LIFECYCLE_STAGES.map((stage, i) => (
@@ -441,7 +441,7 @@ export function GapAnalysisPage() {
           )},
           { id: 'analytics', label: 'Gap Analytics', content: (
             <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="rounded-lg border bg-card p-5">
+              <div className="surface-card p-5">
                 <h3 className="text-sm font-semibold mb-4">Severity Distribution</h3>
                 <div className="h-52">
                   <ResponsiveContainer width="100%" height="100%">
@@ -454,7 +454,7 @@ export function GapAnalysisPage() {
                   </ResponsiveContainer>
                 </div>
               </div>
-              <div className="rounded-lg border bg-card p-5">
+              <div className="surface-card p-5">
                 <h3 className="text-sm font-semibold mb-4">Category Breakdown</h3>
                 <div className="h-52">
                   <ResponsiveContainer width="100%" height="100%">

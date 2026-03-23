@@ -46,7 +46,7 @@ function OverviewTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* IFRS9 Stage Distribution */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">IFRS 9 Stage Distribution</h3>
           {ratingDist.data && ratingDist.data.length > 0 ? (
             <ResponsiveContainer width="100%" height={260}>
@@ -64,7 +64,7 @@ function OverviewTab() {
         </div>
 
         {/* NPL Trend */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">NPL Trend</h3>
           {nplTrend.data && nplTrend.data.length > 0 ? (
             <ResponsiveContainer width="100%" height={260}>
@@ -95,7 +95,7 @@ function ConcentrationTab() {
     <div className="p-4 space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sector Concentration */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Sector Concentration</h3>
           {sectorConc.data && sectorConc.data.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
@@ -113,7 +113,7 @@ function ConcentrationTab() {
         </div>
 
         {/* Product Concentration */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Product Concentration</h3>
           {productConc.data && productConc.data.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>

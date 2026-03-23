@@ -47,11 +47,11 @@ export function CreditRiskPage() {
 
       {/* Row 2: Two charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-lg border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-3">Rating Distribution</h3>
           <RatingDistributionChart data={distribution ?? []} />
         </div>
-        <div className="rounded-lg border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-3">NPL Trend</h3>
           <NplTrendChart data={nplTrend ?? []} />
         </div>

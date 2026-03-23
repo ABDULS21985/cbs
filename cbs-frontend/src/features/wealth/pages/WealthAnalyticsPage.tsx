@@ -138,7 +138,7 @@ function SectionCard({
   errorMessage?: string;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="mb-4">
         <h3 className="text-sm font-semibold">{title}</h3>
         {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}

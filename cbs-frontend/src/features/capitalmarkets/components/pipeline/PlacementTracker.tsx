@@ -35,7 +35,7 @@ export function PlacementTracker({ placements, loading }: PlacementTrackerProps)
         const days = daysSince(p.createdAt);
 
         return (
-          <div key={p.id} className="rounded-xl border bg-card p-4 space-y-3 hover:border-primary/30 transition-colors">
+          <div key={p.id} className="surface-card p-4 space-y-3 hover:border-primary/30 transition-colors">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-semibold">{p.issuer}</p>

@@ -72,11 +72,11 @@ export function OptInOutManager({ customerId }: Props) {
   };
 
   if (isLoading) {
-    return <div className="rounded-lg border bg-card p-6"><div className="h-48 bg-muted/30 animate-pulse rounded-lg" /></div>;
+    return <div className="surface-card p-6"><div className="h-48 bg-muted/30 animate-pulse rounded-lg" /></div>;
   }
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-5 py-3 border-b">
         <h3 className="text-sm font-semibold">Communication Preferences</h3>
         <p className="text-xs text-muted-foreground mt-0.5">Manage notification opt-in/out per category and channel</p>

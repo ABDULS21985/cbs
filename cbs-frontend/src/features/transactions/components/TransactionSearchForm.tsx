@@ -118,7 +118,7 @@ export const TransactionSearchForm = memo(function TransactionSearchForm({
   }, [onChange]);
 
   return (
-    <form className="space-y-4 rounded-xl border bg-card p-5" role="search" onSubmit={handleSubmit}>
+    <form className="space-y-4 surface-card p-5" role="search" onSubmit={handleSubmit}>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end">
         <div className="space-y-1.5">
           <label htmlFor={searchId} className="block text-sm font-medium">

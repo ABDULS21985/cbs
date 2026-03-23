@@ -49,7 +49,7 @@ export function CreditCommitteePackGenerator() {
   const { mutate: generate, isPending, data: result, isSuccess, isError } = useGenerateCommitteePack();
 
   return (
-    <div className="rounded-lg border bg-card p-6 space-y-5">
+    <div className="surface-card p-6 space-y-5">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
           <FileText className="w-5 h-5 text-primary" />

@@ -53,14 +53,14 @@ export function ChannelPerformanceGrid({
   isLoading = false,
 }: ChannelPerformanceGridProps) {
   if (isLoading) {
-    return <div className="h-[620px] animate-pulse rounded-xl border bg-card" />;
+    return <div className="h-[620px] animate-pulse surface-card" />;
   }
 
   const channels = data?.channels ?? [];
   const trendRows = buildMonthlyTrend(data, priorData ?? null);
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="mb-4">
         <h2 className="text-base font-semibold text-foreground">Channel Performance Analysis</h2>
         <p className="text-sm text-muted-foreground">

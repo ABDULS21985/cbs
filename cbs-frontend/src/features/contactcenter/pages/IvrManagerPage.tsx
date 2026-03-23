@@ -72,7 +72,7 @@ function MenuDetailPanel({ menu, allMenus, onClose }: { menu: IvrMenu; allMenus:
                   const action = typeof opt === 'object' && opt ? (opt as Record<string, unknown>).action : 'Unknown';
                   const target = typeof opt === 'object' && opt ? (opt as Record<string, unknown>).target : '';
                   return (
-                    <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg border bg-card">
+                    <div key={i} className="flex items-center gap-3 p-2.5 surface-card">
                       <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">
                         {String(key)}
                       </div>
@@ -344,7 +344,7 @@ export function IvrManagerPage() {
             onRowClick={(row) => setSelectedMenu(row)}
           />
         ) : (
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             {isLoading ? (
               <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
             ) : rootMenus.length > 0 ? (

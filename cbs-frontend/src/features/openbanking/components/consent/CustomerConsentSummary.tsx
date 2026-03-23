@@ -21,7 +21,7 @@ export function CustomerConsentSummary({ customerId, consents, onRevoke }: Custo
   });
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       {/* Customer header */}
       <div className="px-5 py-4 border-b flex items-center justify-between">
         <div className="flex items-center gap-3">

@@ -116,7 +116,7 @@ export function CampaignManagementPage() {
         {activeTab !== 'analytics' ? (
           <DataTable columns={columns} data={currentData} enableGlobalFilter emptyMessage="No campaigns found" pageSize={15} />
         ) : (
-          <div className="rounded-xl border bg-card p-6">
+          <div className="surface-card p-6">
             <h3 className="text-sm font-semibold mb-4">Campaign Performance</h3>
             {analyticsData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>

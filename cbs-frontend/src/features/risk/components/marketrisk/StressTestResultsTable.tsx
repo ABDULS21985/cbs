@@ -23,7 +23,7 @@ interface Props { data: StressTestResult[] }
 
 export function StressTestResultsTable({ data }: Props) {
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Stress Testing Results</h3>
       <DataTable columns={columns} data={data} emptyMessage="No stress tests" pageSize={10} />
     </div>

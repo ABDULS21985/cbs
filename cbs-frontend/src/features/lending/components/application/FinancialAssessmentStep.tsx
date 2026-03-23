@@ -24,7 +24,7 @@ export function FinancialAssessmentStep({ state, updateField, onNext, onBack }: 
       <MoneyInput label="Existing Loan Obligations (monthly)" value={state.existingObligations} onChange={(v) => updateField('existingObligations', v)} currency="NGN" />
 
       {/* DTI Gauge */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium">Debt-to-Income Ratio</span>
           <span className={cn('text-2xl font-bold font-mono', dtiColor)}>{dti.toFixed(1)}%</span>

@@ -133,7 +133,7 @@ export function ConsentManagementPage() {
             <button
               key={status}
               className={cn(
-                'p-4 rounded-lg border bg-card text-left transition-colors hover:bg-muted/50',
+                'p-4 surface-card text-left transition-colors hover:bg-muted/50',
                 statusFilter === status ? 'ring-2 ring-primary' : '',
               )}
               onClick={() => setStatusFilter(s => s === status ? 'ALL' : status)}
@@ -220,7 +220,7 @@ export function ConsentManagementPage() {
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           {isLoading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

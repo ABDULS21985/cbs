@@ -15,7 +15,7 @@ export function SettlementRateChart({ data, isLoading }: SettlementChartsProps) 
   if (isLoading || !data) return <div className="h-64 rounded-xl bg-muted animate-pulse" />;
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface-card p-4">
       <p className="text-sm font-medium mb-3">Settlement Rate — Last 30 Days</p>
       <ResponsiveContainer width="100%" height={250}>
         <BarChart data={data.settlementRateByDay} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
@@ -43,7 +43,7 @@ export function SettlementByDepositoryChart({ data, isLoading }: SettlementChart
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface-card p-4">
       <p className="text-sm font-medium mb-3">Settlement by Depository</p>
       <ResponsiveContainer width="100%" height={250}>
         <PieChart>
@@ -73,7 +73,7 @@ export function TopFailingCounterpartiesTable({ data, isLoading }: SettlementCha
   if (isLoading || !data) return <div className="h-40 rounded-xl bg-muted animate-pulse" />;
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-4 py-3 border-b">
         <p className="text-sm font-medium">Top Failing Counterparties</p>
       </div>
@@ -110,7 +110,7 @@ export function StpRateCard({ data, isLoading }: SettlementChartsProps) {
 
   const pct = data.stpRate;
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface-card p-4">
       <p className="text-sm font-medium mb-2">STP Rate (Straight-Through Processing)</p>
       <div className="flex items-center gap-4">
         <span className="text-3xl font-bold tabular-nums">{pct.toFixed(1)}%</span>

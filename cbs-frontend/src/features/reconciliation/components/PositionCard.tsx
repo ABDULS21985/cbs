@@ -52,7 +52,7 @@ export function PositionCard({ position, onClick }: PositionCardProps) {
       type="button"
       onClick={() => onClick?.(position)}
       className={cn(
-        'w-full text-left rounded-xl border bg-card p-5 transition-all',
+        'w-full text-left surface-card p-5 transition-all',
         'hover:shadow-md hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         hasMismatch && 'border-red-200 dark:border-red-800/50',
       )}

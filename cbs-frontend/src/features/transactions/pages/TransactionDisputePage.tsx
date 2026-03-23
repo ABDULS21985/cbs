@@ -46,7 +46,7 @@ function DashboardCard({
   tone: string;
 }) {
   return (
-    <div className="rounded-xl border bg-card px-4 py-3">
+    <div className="surface-card px-4 py-3">
       <div className="flex items-center justify-between">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
         <div className={cn('rounded-lg p-1.5', tone)}>
@@ -282,7 +282,7 @@ export function TransactionDisputePage() {
         <>
           <div className="fixed inset-0 z-[70] bg-black/50" onClick={() => setSelectedDisputeId(null)} />
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-            <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border bg-card shadow-2xl">
+            <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto surface-card shadow-2xl">
               <div className="sticky top-0 flex items-center justify-between border-b bg-card px-6 py-4">
                 <div>
                   <h3 className="text-lg font-semibold">{selectedDispute?.disputeRef ?? 'Dispute Detail'}</h3>
@@ -470,7 +470,7 @@ export function TransactionDisputePage() {
         <>
           <div className="fixed inset-0 z-[80] bg-black/50" onClick={() => setActionType(null)} />
           <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-            <div className="w-full max-w-md space-y-4 rounded-xl border bg-card p-6 shadow-xl">
+            <div className="w-full max-w-md space-y-4 surface-card p-6 shadow-xl">
               <h3 className="text-lg font-semibold">
                 {actionType === 'respond' ? 'Respond to Dispute' : actionType === 'escalate' ? 'Escalate Dispute' : 'Close Dispute'}
               </h3>

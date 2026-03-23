@@ -37,7 +37,7 @@ export function ModelPerformancePanel() {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-6 animate-pulse space-y-4">
+      <div className="surface-card p-6 animate-pulse space-y-4">
         <div className="h-5 w-48 bg-muted rounded" />
         <div className="h-4 w-32 bg-muted rounded" />
         <div className="grid grid-cols-3 gap-4">
@@ -53,7 +53,7 @@ export function ModelPerformancePanel() {
   if (!model) return null;
 
   return (
-    <div className="rounded-lg border bg-card p-6 space-y-6">
+    <div className="surface-card p-6 space-y-6">
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-base font-semibold">Fraud Detection Performance</h3>

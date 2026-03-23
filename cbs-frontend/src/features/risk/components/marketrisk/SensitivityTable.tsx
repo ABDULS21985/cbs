@@ -5,7 +5,7 @@ interface Props { data: SensitivityRow[]; currency: string }
 
 export function SensitivityTable({ data, currency }: Props) {
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Sensitivity Analysis</h3>
       <table className="w-full">
         <thead><tr className="border-b bg-muted/30"><th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Risk Factor Shift</th><th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">P&L Impact</th></tr></thead>

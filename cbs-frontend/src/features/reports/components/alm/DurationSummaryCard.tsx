@@ -31,7 +31,7 @@ export function DurationSummaryCard({ asOfDate }: DurationSummaryCardProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4 space-y-4">
+      <div className="surface-card p-4 space-y-4">
         <div className="h-4 w-40 bg-muted rounded animate-pulse" />
         <div className="grid grid-cols-2 gap-3">
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 bg-muted rounded animate-pulse" />)}
@@ -45,7 +45,7 @@ export function DurationSummaryCard({ asOfDate }: DurationSummaryCardProps) {
   const durationGapWarn = data.durationGap > 2;
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-4 py-3 border-b bg-muted/30">
         <h3 className="text-sm font-semibold">Duration Analysis</h3>
       </div>

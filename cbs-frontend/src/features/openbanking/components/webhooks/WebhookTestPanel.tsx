@@ -62,7 +62,7 @@ export function WebhookTestPanel({
     'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Test Webhook</h3>
 
       <div className="space-y-4">

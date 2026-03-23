@@ -34,7 +34,7 @@ export function SavingsStreak({ contributions }: Props) {
   const maxCount = Math.max(...heatmap.map((h) => h.count), 1);
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-3">
+    <div className="surface-card p-5 space-y-3">
       <div className="flex items-center gap-3">
         <span className="text-3xl">{streak > 0 ? '🔥' : '❄️'}</span>
         <div>

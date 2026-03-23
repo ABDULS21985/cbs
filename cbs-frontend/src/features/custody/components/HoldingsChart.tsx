@@ -43,7 +43,7 @@ export function HoldingsChart({ positions, currency = 'NGN' }: HoldingsChartProp
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Donut: Market Value Distribution */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-1">Holdings by Market Value</h3>
         <p className="text-xs text-muted-foreground mb-4">Top 10 positions</p>
         <ResponsiveContainer width="100%" height={240}>
@@ -58,7 +58,7 @@ export function HoldingsChart({ positions, currency = 'NGN' }: HoldingsChartProp
       </div>
 
       {/* Bar: Unrealized P&L */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-1">Unrealized P&L by Instrument</h3>
         <p className="text-xs text-muted-foreground mb-4">Top 10 by absolute value</p>
         <ResponsiveContainer width="100%" height={240}>

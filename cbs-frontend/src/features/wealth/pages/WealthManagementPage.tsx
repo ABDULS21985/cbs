@@ -207,7 +207,7 @@ interface KpiCardProps {
 
 function KpiCard({ label, value, icon: Icon, loading, accent = 'text-primary' }: KpiCardProps) {
   return (
-    <div className="rounded-xl border bg-card p-4 flex items-start gap-3">
+    <div className="surface-card p-4 flex items-start gap-3">
       <div className={cn('mt-0.5 p-2 rounded-lg bg-muted', accent)}>
         <Icon className="w-4 h-4" />
       </div>
@@ -542,7 +542,7 @@ export function WealthManagementPage() {
         </div>
 
         {/* ── AUM Trend Chart ── */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-semibold">AUM Trend</h3>
@@ -614,7 +614,7 @@ export function WealthManagementPage() {
         {/* ── Three-column grid ── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Asset Allocation Pie */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Asset Allocation</h3>
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
@@ -638,7 +638,7 @@ export function WealthManagementPage() {
           </div>
 
           {/* Plan Status Pipeline */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Plan Pipeline</h3>
             <div className="space-y-3">
               {[
@@ -673,7 +673,7 @@ export function WealthManagementPage() {
           </div>
 
           {/* Top Plans by AUM */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Top Plans by AUM</h3>
             {plansLoading ? (
               <div className="space-y-2">
@@ -715,7 +715,7 @@ export function WealthManagementPage() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           {/* Tab bar */}
           <div className="flex border-b bg-muted/30">
             {TAB_IDS.map((tab) => {

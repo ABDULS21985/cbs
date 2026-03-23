@@ -220,7 +220,7 @@ export function AdvisorCalendar({ advisorId }: AdvisorCalendarProps) {
       </div>
 
       {/* Calendar Grid */}
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         {/* Day names header */}
         <div className="grid grid-cols-7 border-b bg-muted/30">
           {DAY_NAMES.map((day) => (
@@ -289,7 +289,7 @@ export function AdvisorCalendar({ advisorId }: AdvisorCalendarProps) {
           </h4>
 
           {selectedReviews.length === 0 ? (
-            <div className="rounded-xl border bg-card p-6 text-center">
+            <div className="surface-card p-6 text-center">
               <CalendarIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">No reviews scheduled for this day</p>
             </div>
@@ -358,7 +358,7 @@ export function AdvisorCalendar({ advisorId }: AdvisorCalendarProps) {
       {/* Schedule Review Modal */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
-          <div className="w-full max-w-md rounded-2xl border bg-card shadow-xl">
+          <div className="w-full max-w-md surface-card shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-base font-semibold">Schedule Review</h2>
               <button

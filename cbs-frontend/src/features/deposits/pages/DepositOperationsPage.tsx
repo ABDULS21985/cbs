@@ -44,21 +44,21 @@ function OperationsDashboard() {
 
       {/* Additional Ops Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className={cn('rounded-xl border bg-card p-4', maturingToday.length > 0 && manualToday.length > 0 && 'border-red-200 dark:border-red-800')}>
+        <div className={cn('surface-card p-4', maturingToday.length > 0 && manualToday.length > 0 && 'border-red-200 dark:border-red-800')}>
           <p className="text-xs text-muted-foreground">Maturing Today</p>
           <p className="text-xl font-bold tabular-nums">{maturingToday.length}</p>
           <p className="text-xs text-muted-foreground tabular-nums">{formatMoney(maturingTodayValue)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-xs text-muted-foreground">Maturing This Week</p>
           <p className="text-xl font-bold tabular-nums">{maturingThisWeek.length}</p>
           <p className="text-xs text-muted-foreground tabular-nums">{formatMoney(maturingWeekValue)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-xs text-muted-foreground">Active FDs</p>
           <p className="text-xl font-bold tabular-nums">{allFds.filter((fd) => fd.status === 'ACTIVE').length}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-xs text-muted-foreground">Pending Accrual</p>
           <p className="text-xl font-bold tabular-nums">{allFds.filter((fd) => fd.status === 'ACTIVE').length}</p>
           <p className="text-[10px] text-muted-foreground">estimated today</p>
@@ -89,7 +89,7 @@ function OperationsDashboard() {
           <button
             key={action.label}
             onClick={() => action.href ? navigate(action.href) : undefined}
-            className="rounded-xl border bg-card p-4 text-left hover:shadow-sm hover:border-primary/30 transition-all"
+            className="surface-card p-4 text-left hover:shadow-sm hover:border-primary/30 transition-all"
           >
             <action.icon className={cn('w-6 h-6 mb-2', action.color)} />
             <p className="text-sm font-medium">{action.label}</p>

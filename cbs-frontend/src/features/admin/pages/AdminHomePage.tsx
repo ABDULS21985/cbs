@@ -122,7 +122,7 @@ export function AdminHomePage() {
         {/* Quick Stats Charts Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Users by Role donut */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Users by Role</h3>
             {roleChartData.length > 0 ? (
               <div className="flex items-center gap-4">
@@ -152,7 +152,7 @@ export function AdminHomePage() {
           </div>
 
           {/* Login Activity last 7 days */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Login Activity — Last 7 Days</h3>
             <ResponsiveContainer width="100%" height={120}>
               <BarChart data={loginBarData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
@@ -167,7 +167,7 @@ export function AdminHomePage() {
           </div>
 
           {/* Active Sessions by IP subnet */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Active Sessions ({sessions.length})</h3>
             {sessionsByBranch.length > 0 ? (
               <ResponsiveContainer width="100%" height={120}>
@@ -192,7 +192,7 @@ export function AdminHomePage() {
               <button
                 key={mod.path}
                 onClick={() => navigate(mod.path)}
-                className="flex items-start gap-4 rounded-xl border bg-card p-5 text-left hover:bg-muted/40 hover:shadow-sm hover:border-primary/30 transition-all group"
+                className="flex items-start gap-4 surface-card p-5 text-left hover:bg-muted/40 hover:shadow-sm hover:border-primary/30 transition-all group"
               >
                 <div className="rounded-lg bg-primary/10 p-2.5 text-primary group-hover:bg-primary/20 transition-colors">
                   <mod.icon className="w-5 h-5" />
@@ -218,7 +218,7 @@ export function AdminHomePage() {
               View all
             </button>
           </div>
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             {recentEvents.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
                 <p className="text-sm">No recent login events</p>

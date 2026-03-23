@@ -47,7 +47,7 @@ export function NpsDistributionChart({ data }: NpsDistributionChartProps) {
   );
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <h3 className="text-sm font-semibold text-foreground">NPS Score Distribution</h3>
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={data} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>

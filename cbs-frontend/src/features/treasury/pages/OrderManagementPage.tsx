@@ -119,7 +119,7 @@ function NewOrderDialog({ open, onClose }: NewOrderDialogProps) {
     <>
       <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl rounded-xl border bg-card p-6 shadow-2xl">
+        <div className="w-full max-w-2xl surface-card p-6 shadow-2xl">
           <div className="mb-5">
             <h2 className="text-lg font-semibold">New Treasury Order</h2>
             <p className="mt-1 text-sm text-muted-foreground">Capture a live market order and route it to the selected desk.</p>
@@ -314,7 +314,7 @@ function ExecutionQualitySection({ orders }: { orders: MarketOrder[] }) {
         <StatCard label="Fill Rate" value={fillRate} format="percent" icon={CheckCircle} />
         <StatCard label="Executed Volume" value={totalVolume} format="money" compact icon={ArrowUpDown} />
       </div>
-      <div className="rounded-lg border bg-card">
+      <div className="surface-card">
         <div className="px-4 py-3 border-b">
           <h3 className="text-sm font-semibold">Order-Level Execution Quality</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Slippage and market impact per filled order</p>

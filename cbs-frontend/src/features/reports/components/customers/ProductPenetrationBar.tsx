@@ -41,7 +41,7 @@ function CustomTooltip({ active, payload, label }: any) {
 export function ProductPenetrationBar({ data, isLoading }: ProductPenetrationBarProps) {
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4 h-72 flex items-center justify-center">
+      <div className="surface-card p-4 h-72 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
       </div>
     );
@@ -50,7 +50,7 @@ export function ProductPenetrationBar({ data, isLoading }: ProductPenetrationBar
   const sorted = [...data].sort((a, b) => b.penetrationPct - a.penetrationPct);
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <h2 className="text-sm font-semibold text-foreground">Product Penetration Rate</h2>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart

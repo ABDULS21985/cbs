@@ -119,7 +119,7 @@ export function DeveloperPortalPage() {
       content: (
         <div className="p-6 space-y-6">
           {/* Steps */}
-          <div className="rounded-lg border bg-card p-6">
+          <div className="surface-card p-6">
             <h3 className="text-base font-semibold mb-2">Get Started in 5 Steps</h3>
             <p className="text-sm text-muted-foreground mb-6">
               Follow this guide to make your first Open Banking API call in under 30 minutes.
@@ -154,7 +154,7 @@ export function DeveloperPortalPage() {
           </div>
 
           {/* Available APIs */}
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-4">Available APIs</h3>
             {publishedProducts.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No published APIs yet.</p>
@@ -189,7 +189,7 @@ export function DeveloperPortalPage() {
         <div className="p-6 space-y-6">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
             {SDKS.map(sdk => (
-              <div key={sdk.name} className="rounded-lg border bg-card p-4 hover:shadow-md transition-shadow">
+              <div key={sdk.name} className="surface-card p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start gap-3">
                   <span className="text-3xl">{sdk.icon}</span>
                   <div className="flex-1 min-w-0">
@@ -216,7 +216,7 @@ export function DeveloperPortalPage() {
             ))}
           </div>
 
-          <div className="rounded-lg border bg-card p-4 space-y-4">
+          <div className="surface-card p-4 space-y-4">
             <h3 className="text-sm font-semibold">Install via Package Manager</h3>
             <div>
               <p className="text-xs text-muted-foreground mb-1">npm</p>
@@ -244,7 +244,7 @@ export function DeveloperPortalPage() {
       icon: Code2,
       content: (
         <div className="p-6 space-y-6">
-          <div className="rounded-lg border bg-card p-4 space-y-4">
+          <div className="surface-card p-4 space-y-4">
             <h3 className="text-sm font-semibold">cURL Examples</h3>
             <div className="flex gap-2 flex-wrap">
               {Object.keys(CODE_SNIPPETS).map(k => (
@@ -265,7 +265,7 @@ export function DeveloperPortalPage() {
             <CodeBlock code={CODE_SNIPPETS[activeSnippet] ?? ''} />
           </div>
 
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-4">JavaScript SDK</h3>
             <CodeBlock code={`import { OpenBankingClient } from '@cbsbank/openbanking-sdk';
 
@@ -299,7 +299,7 @@ const consent = await client.consents.create({
             {RESOURCES.map(({ icon: Icon, title, desc, badge }) => (
               <div
                 key={title}
-                className="rounded-lg border bg-card p-4 hover:shadow-md transition-shadow cursor-pointer"
+                className="surface-card p-4 hover:shadow-md transition-shadow cursor-pointer"
               >
                 <div className="flex items-start gap-3">
                   <div className="p-2 rounded-lg bg-primary/10">
@@ -328,7 +328,7 @@ const consent = await client.consents.create({
       icon: Terminal,
       content: (
         <div className="p-6">
-          <div className="rounded-lg border bg-card p-6 max-w-2xl space-y-6">
+          <div className="surface-card p-6 max-w-2xl space-y-6">
             <div>
               <h3 className="text-base font-semibold flex items-center gap-2">
                 <Terminal className="h-5 w-5 text-primary" />
@@ -422,7 +422,7 @@ const consent = await client.consents.create({
             { icon: Code2, label: 'API Endpoints', value: totalEndpoints.toString() },
             { icon: Zap, label: 'Avg SLA Uptime', value: `${avgUptime}%` },
           ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="rounded-lg border bg-card p-4 flex items-center gap-3">
+            <div key={label} className="surface-card p-4 flex items-center gap-3">
               <Icon className="h-7 w-7 text-primary/70" />
               <div>
                 <p className="text-xs text-muted-foreground">{label}</p>

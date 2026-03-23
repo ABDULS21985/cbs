@@ -215,7 +215,7 @@ export function KycReviewPage() {
 
       <div className="page-container space-y-6">
         {/* Action bar */}
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-2 surface-card p-3">
           <button
             onClick={handleVerifyCustomer}
             disabled={kycDecisionMut.isPending}
@@ -263,7 +263,7 @@ export function KycReviewPage() {
         {/* Reject Dialog */}
         {showRejectDialog && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-md rounded-xl border bg-card p-6 shadow-xl space-y-4">
+            <div className="w-full max-w-md surface-card p-6 shadow-xl space-y-4">
               <h3 className="text-lg font-semibold">Reject KYC</h3>
               <p className="text-sm text-muted-foreground">
                 Please provide a mandatory reason for rejecting this customer's KYC.
@@ -300,7 +300,7 @@ export function KycReviewPage() {
         {/* Request Info Dialog */}
         {showRequestInfoDialog && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-md rounded-xl border bg-card p-6 shadow-xl space-y-4">
+            <div className="w-full max-w-md surface-card p-6 shadow-xl space-y-4">
               <h3 className="text-lg font-semibold">Request Information</h3>
               <p className="text-sm text-muted-foreground">
                 Send a request for additional information or documents from the customer.

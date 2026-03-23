@@ -100,7 +100,7 @@ export default function MortgageDetailPage() {
             <StatCard label="Total Paid" value={formatMoney((ext.principalAmount ?? loan.disbursedAmount) - loan.outstandingBalance, loan.currency)} />
             <StatCard label="Remaining" value={formatMoney(loan.outstandingBalance, loan.currency)} />
           </div>
-          <div className="rounded-xl border bg-card p-5 space-y-3">
+          <div className="surface-card p-5 space-y-3">
             <h3 className="text-sm font-semibold">Overpayment Allowance</h3>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Annual limit ({formatPercent(ext.annualOverpaymentPct ?? 10)})</span>
@@ -166,7 +166,7 @@ export default function MortgageDetailPage() {
               { label: 'Purchase Price', value: ext.purchasePrice ? formatMoney(ext.purchasePrice, loan.currency) : '—' },
             ]} />
           </FormSection>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">LTV</h3>
             <div className="flex items-center gap-4">
               {(() => {
@@ -202,7 +202,7 @@ export default function MortgageDetailPage() {
       id: 'documents', label: 'Documents', icon: FileText,
       content: (
         <div className="p-6 space-y-6">
-          <div className="rounded-xl border bg-card p-5 space-y-4">
+          <div className="surface-card p-5 space-y-4">
             <div>
               <h3 className="text-sm font-semibold">Upload Mortgage Document</h3>
               <p className="text-xs text-muted-foreground mt-1">Attach valuation, title, insurance, or other supporting files directly to this mortgage.</p>
@@ -226,14 +226,14 @@ export default function MortgageDetailPage() {
           </div>
 
           {documentsLoading ? (
-            <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">Loading documents...</div>
+            <div className="surface-card p-5 text-sm text-muted-foreground">Loading documents...</div>
           ) : documents.length === 0 ? (
             <EmptyState
               title="No mortgage documents yet"
               description="Upload the first supporting document for this mortgage."
             />
           ) : (
-            <div className="rounded-xl border bg-card overflow-hidden">
+            <div className="surface-card overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40">
                   <tr>

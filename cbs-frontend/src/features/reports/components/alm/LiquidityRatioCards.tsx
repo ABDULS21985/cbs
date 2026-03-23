@@ -64,7 +64,7 @@ function RatioCard({ ratio }: { ratio: LiquidityRatio }) {
     'border-red-200 dark:border-red-800';
 
   return (
-    <div className={cn('rounded-lg border bg-card p-4', borderColor)}>
+    <div className={cn('surface-card p-4', borderColor)}>
       <div className="flex items-start justify-between gap-2 mb-1">
         <div>
           <p className="text-sm font-semibold">{ratio.metric}</p>
@@ -96,7 +96,7 @@ export function LiquidityRatioCards({ asOfDate }: LiquidityRatioCardsProps) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="rounded-lg border bg-card p-4 animate-pulse">
+          <div key={i} className="surface-card p-4 animate-pulse">
             <div className="h-4 w-24 bg-muted rounded mb-2" />
             <div className="h-8 w-20 bg-muted rounded mt-3" />
             <div className="h-2 w-full bg-muted rounded mt-4" />

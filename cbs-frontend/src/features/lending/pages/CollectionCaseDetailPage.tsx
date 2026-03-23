@@ -101,7 +101,7 @@ function LogActionForm({ caseId, onClose }: { caseId: number; onClose: () => voi
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-lg border bg-card p-4 space-y-3">
+    <form onSubmit={handleSubmit} className="surface-card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold">Log Action</h4>
         <button type="button" onClick={onClose} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
@@ -238,12 +238,12 @@ export function CollectionCaseDetailPage() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard label="Overdue Amount" value={c.overdueAmount ?? c.outstanding} format="money" compact icon={DollarSign} />
           <StatCard label="Total Outstanding" value={c.outstanding} format="money" compact icon={DollarSign} />
-          <div className="rounded-xl border bg-card p-4 flex flex-col items-center justify-center">
+          <div className="surface-card p-4 flex flex-col items-center justify-center">
             <span className={cn('text-3xl font-bold', dpdColor)}>{c.dpd}</span>
             <span className="text-xs text-muted-foreground">Days Past Due</span>
           </div>
           <StatCard label="Escalation Level" value={c.escalationLevel ?? 0} format="number" icon={ArrowUp} />
-          <div className="rounded-xl border bg-card p-4 flex flex-col items-center justify-center">
+          <div className="surface-card p-4 flex flex-col items-center justify-center">
             <span className="text-sm font-mono bg-muted px-2 py-0.5 rounded">{c.bucket}</span>
             <span className="text-xs text-muted-foreground mt-1">DPD Bucket</span>
           </div>
@@ -315,7 +315,7 @@ export function CollectionCaseDetailPage() {
           {/* Right column */}
           <div className="space-y-4">
             {/* Assignment */}
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Assignment</h4>
               <p className="text-sm font-medium">{c.assignedTo ?? 'Unassigned'}</p>
               {c.team && <p className="text-xs text-muted-foreground">{c.team}</p>}
@@ -324,7 +324,7 @@ export function CollectionCaseDetailPage() {
 
             {/* Promise to Pay Tracker */}
             {ptpActions.length > 0 && (
-              <div className="rounded-lg border bg-card p-4">
+              <div className="surface-card p-4">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Promise to Pay</h4>
                 <div className="space-y-2">
                   {ptpActions.map((p) => (
@@ -343,7 +343,7 @@ export function CollectionCaseDetailPage() {
             )}
 
             {/* Quick Stats */}
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Quick Stats</h4>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">Case Opened</span><span>{c.createdAt ? formatDate(c.createdAt) : '—'}</span></div>

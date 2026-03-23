@@ -57,7 +57,7 @@ export function MatchSuggestions({ selectedEntry, candidateEntries, tolerance, o
   if (suggestions.length === 0) return null;
 
   return (
-    <div className="absolute left-2 right-2 z-30 mt-1 rounded-xl border bg-card shadow-lg overflow-hidden">
+    <div className="absolute left-2 right-2 z-30 mt-1 surface-card shadow-lg overflow-hidden">
       <div className="px-3 py-2 border-b bg-muted/30 flex items-center gap-1.5">
         <Sparkles className="w-3.5 h-3.5 text-amber-500" />
         <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">

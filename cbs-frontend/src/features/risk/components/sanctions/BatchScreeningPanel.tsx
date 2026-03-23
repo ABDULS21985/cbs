@@ -31,7 +31,7 @@ export function BatchScreeningPanel({ onMatchClick }: Props) {
   return (
     <div className="p-6 space-y-6">
       {/* Launch section */}
-      <div className="rounded-lg border bg-card p-6">
+      <div className="surface-card p-6">
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-base font-semibold">Full Batch Screening</h3>

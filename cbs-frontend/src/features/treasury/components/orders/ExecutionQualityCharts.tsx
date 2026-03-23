@@ -52,7 +52,7 @@ export function ExecutionQualityCharts({ orders }: ExecutionQualityChartsProps) 
 
   if (orders.length === 0) {
     return (
-      <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+      <div className="surface-card px-4 py-8 text-center text-sm text-muted-foreground">
         No orders are available for execution-quality analytics.
       </div>
     );
@@ -60,7 +60,7 @@ export function ExecutionQualityCharts({ orders }: ExecutionQualityChartsProps) 
 
   return (
     <div className="grid gap-4 xl:grid-cols-3">
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <h4 className="text-sm font-semibold">Slippage by Instrument</h4>
         <div className="mt-3 h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -75,7 +75,7 @@ export function ExecutionQualityCharts({ orders }: ExecutionQualityChartsProps) 
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <h4 className="text-sm font-semibold">Order Outcome Mix</h4>
         <div className="mt-3 h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -90,7 +90,7 @@ export function ExecutionQualityCharts({ orders }: ExecutionQualityChartsProps) 
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <h4 className="text-sm font-semibold">Largest Executions</h4>
         <div className="mt-3 h-64">
           <ResponsiveContainer width="100%" height="100%">

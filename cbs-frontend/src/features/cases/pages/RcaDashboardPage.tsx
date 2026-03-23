@@ -107,7 +107,7 @@ export function RcaDashboardPage() {
         {dashLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
             {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="animate-pulse rounded-xl border bg-card p-4 h-24" />
+              <div key={i} className="animate-pulse surface-card p-4 h-24" />
             ))}
           </div>
         ) : (
@@ -115,7 +115,7 @@ export function RcaDashboardPage() {
             {kpis.map((kpi) => {
               const Icon = kpi.icon;
               return (
-                <div key={kpi.label} className="rounded-xl border bg-card p-4">
+                <div key={kpi.label} className="surface-card p-4">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <p className="text-xs text-muted-foreground">{kpi.label}</p>
                     <div className="rounded-full bg-primary/10 p-1.5 text-primary">
@@ -133,7 +133,7 @@ export function RcaDashboardPage() {
 
         {/* By Category Breakdown */}
         {dashboard?.byCategory && Object.keys(dashboard.byCategory).length > 0 && (
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Root Causes by Category</h3>
             <div className="space-y-3">
               {Object.entries(dashboard.byCategory)
@@ -156,7 +156,7 @@ export function RcaDashboardPage() {
         )}
 
         {/* Recurring Root Causes */}
-        <div className="rounded-xl border bg-card p-5 space-y-4">
+        <div className="surface-card p-5 space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <h3 className="text-sm font-semibold">Recurring Root Causes</h3>
             <div className="flex items-center gap-2">
@@ -228,7 +228,7 @@ export function RcaDashboardPage() {
         </div>
 
         {/* Pattern Insights */}
-        <div className="rounded-xl border bg-card p-5 space-y-4">
+        <div className="surface-card p-5 space-y-4">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <h3 className="text-sm font-semibold">Pattern Insights</h3>
             <div className="flex items-center gap-2">

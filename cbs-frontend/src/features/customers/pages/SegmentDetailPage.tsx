@@ -265,7 +265,7 @@ export function SegmentDetailPage() {
 
       <div className="page-container space-y-6">
         {/* Segment Info Card */}
-        <div className="rounded-xl border bg-card p-5" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
+        <div className="surface-card p-5" style={{ borderLeftWidth: 4, borderLeftColor: color }}>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 text-sm">
             <div>
               <p className="text-xs text-muted-foreground">Code</p>
@@ -303,7 +303,7 @@ export function SegmentDetailPage() {
 
         {/* Segment Rules */}
         {segment.rules && segment.rules.length > 0 && (
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm font-medium">Segment Rules</p>
               <span className="text-xs text-muted-foreground">
@@ -334,7 +334,7 @@ export function SegmentDetailPage() {
         </div>
 
         {/* Customer List */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <div className="px-5 py-3 border-b flex items-center justify-between">
             <p className="text-sm font-medium">
               Customers in Segment ({customers.length})

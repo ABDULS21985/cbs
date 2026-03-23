@@ -26,7 +26,7 @@ export function TransferReview({
 }: Props) {
   return (
     <div className="max-w-lg mx-auto">
-      <div className="rounded-lg border bg-card p-6 space-y-4">
+      <div className="surface-card p-6 space-y-4">
         <h3 className="text-lg font-semibold">Transfer Summary</h3>
 
         <div className="space-y-3 text-sm">

@@ -450,7 +450,7 @@ export function FeeScheduleListPage() {
         )}
 
         {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-3 mb-4 p-4 rounded-xl border bg-card">
+        <div className="flex flex-wrap items-center gap-3 mb-4 p-4 surface-card">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}

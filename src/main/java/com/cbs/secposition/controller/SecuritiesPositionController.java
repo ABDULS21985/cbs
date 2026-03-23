@@ -16,6 +16,10 @@ import java.util.List;
 public class SecuritiesPositionController {
     private final SecuritiesPositionService service;
 
+    @GetMapping @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<List<SecuritiesPosition>>> getAll() {
+        return ResponseEntity.ok(ApiResponse.ok(service.getAll()));
+    }
     @PostMapping @PreAuthorize("hasRole('CBS_ADMIN')")
     public ResponseEntity<ApiResponse<SecuritiesPosition>> record(@RequestBody SecuritiesPosition pos) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(service.record(pos)));

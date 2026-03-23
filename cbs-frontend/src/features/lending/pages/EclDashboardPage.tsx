@@ -71,7 +71,7 @@ export default function EclDashboardPage() {
 
       {/* Row 2: Stage Distribution + Migration */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-lg border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-1">Stage Distribution</h3>
           <p className="text-xs text-muted-foreground mb-3">
             Click a stage to drill down
@@ -84,7 +84,7 @@ export default function EclDashboardPage() {
             selectedStage={selectedStage}
           />
         </div>
-        <div className="rounded-lg border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-3">
             Stage Migration — This Month
           </h3>
@@ -94,7 +94,7 @@ export default function EclDashboardPage() {
 
       {/* Drilldown */}
       {selectedStage && (
-        <div className="rounded-lg border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold">
               Stage {selectedStage} Loans
@@ -114,25 +114,25 @@ export default function EclDashboardPage() {
       )}
 
       {/* Row 3: Provision Movement */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h3 className="text-sm font-semibold mb-4">Provision Movement</h3>
         <ProvisionMovementTable data={movement ?? []} />
       </div>
 
       {/* Row 4: Parameter Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 rounded-lg border bg-card p-4">
+        <div className="lg:col-span-2 surface-card p-4">
           <h3 className="text-sm font-semibold mb-3">PD Term Structure</h3>
           <PdTermStructureTable data={pdData ?? []} />
         </div>
-        <div className="rounded-lg border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-3">LGD by Collateral Type</h3>
           <LgdByCollateralTable data={lgdData ?? []} />
         </div>
       </div>
 
       {/* EAD by Product */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h3 className="text-sm font-semibold mb-3">EAD by Product</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -182,7 +182,7 @@ export default function EclDashboardPage() {
       {glData && <GlReconciliationCard data={glData} />}
 
       {/* Macro Scenario Panel */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h3 className="text-sm font-semibold mb-4">Macro Scenario Analysis</h3>
         <MacroScenarioPanel scenarios={scenarios ?? []} />
       </div>

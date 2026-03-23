@@ -65,7 +65,7 @@ function PortfolioAnalyticsTab() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Portfolio Returns Comparison (YTD)</h3>
           {perfData.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
@@ -87,7 +87,7 @@ function PortfolioAnalyticsTab() {
           ) : <p className="text-sm text-muted-foreground text-center py-8">No performance data</p>}
         </div>
 
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Aggregate Allocation</h3>
           {allocationData.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
@@ -109,7 +109,7 @@ function PortfolioAnalyticsTab() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-green-500" /> Top 5 Portfolios (YTD)</h3>
           <div className="space-y-2">
             {topPerformers.map((p: any, i: number) => (
@@ -127,7 +127,7 @@ function PortfolioAnalyticsTab() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><TrendingDown className="w-4 h-4 text-red-500" /> Bottom 5 Portfolios</h3>
           <div className="space-y-2">
             {bottomPerformers.map((p: any, i: number) => (
@@ -146,7 +146,7 @@ function PortfolioAnalyticsTab() {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-3">Allocation Breakdown</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -215,7 +215,7 @@ function WealthAnalyticsTab() {
   return (
     <div className="space-y-6 p-1">
       {/* AUM Trend */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-primary" /> AUM Trend (12 months)</h3>
         {aumTrend.length > 0 ? (
           <ResponsiveContainer width="100%" height={260}>
@@ -239,7 +239,7 @@ function WealthAnalyticsTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Client Segments */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Users className="w-4 h-4 text-primary" /> Client Segments</h3>
           {segments.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -255,7 +255,7 @@ function WealthAnalyticsTab() {
         </div>
 
         {/* Fee Revenue */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4 text-green-500" /> Fee Revenue (12 months)</h3>
           {feeRevenue.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
@@ -273,7 +273,7 @@ function WealthAnalyticsTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Concentration Risk */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><ShieldAlert className="w-4 h-4 text-amber-500" /> Concentration Risk</h3>
           {concentration.length > 0 ? (
             <div className="space-y-2">
@@ -298,7 +298,7 @@ function WealthAnalyticsTab() {
         </div>
 
         {/* Risk Heatmap */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><ShieldAlert className="w-4 h-4 text-red-500" /> Risk Heatmap</h3>
           {riskHeatmap.length > 0 ? (
             <div className="grid grid-cols-4 gap-1.5">
@@ -319,7 +319,7 @@ function WealthAnalyticsTab() {
 
       {/* Insights */}
       {insights.length > 0 && (
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Lightbulb className="w-4 h-4 text-amber-500" /> AI Insights</h3>
           <div className="space-y-2">
             {insights.map((ins: any, i: number) => (

@@ -62,7 +62,7 @@ function QueueCardExpanded({ queue, interactions }: { queue: QueueStatus; intera
   const isHighWait = queue.longestWaitSec > (queue.slaTargetSec * 2);
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden hover:shadow-sm transition-shadow">
+    <div className="surface-card overflow-hidden hover:shadow-sm transition-shadow">
       <div className="p-5 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -330,7 +330,7 @@ export function QueueDashboardPage() {
               {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-56 rounded-xl bg-muted/30 animate-pulse" />)}
             </div>
           ) : queues.length === 0 ? (
-            <div className="rounded-lg border bg-card p-12 text-center">
+            <div className="surface-card p-12 text-center">
               <Phone className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">No active queues found.</p>
             </div>

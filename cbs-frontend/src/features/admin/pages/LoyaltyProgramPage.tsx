@@ -111,7 +111,7 @@ export function LoyaltyProgramPage() {
         {activeTab === 'members' && (accountsLoading ? <div className="h-48 rounded-lg bg-muted animate-pulse" /> : <DataTable columns={accountCols} data={accounts} enableGlobalFilter emptyMessage="No loyalty members" pageSize={15} />)}
         {activeTab === 'analytics' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Tier Distribution</h3>
               {tierDistribution.length > 0 ? (
                 <div className="flex items-center gap-4">
@@ -120,7 +120,7 @@ export function LoyaltyProgramPage() {
                 </div>
               ) : <p className="text-sm text-muted-foreground text-center py-8">No data</p>}
             </div>
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Points Summary</h3>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Issued</span><span className="font-semibold tabular-nums">{totalPointsIssued.toLocaleString()}</span></div>

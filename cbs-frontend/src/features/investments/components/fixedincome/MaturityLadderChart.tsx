@@ -37,7 +37,7 @@ export function MaturityLadderChart({ holdings }: MaturityLadderChartProps) {
   }, [holdings]);
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Maturity Ladder</h3>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>

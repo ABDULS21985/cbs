@@ -245,7 +245,7 @@ export function TrustManagementPage() {
         {/* Charts + Table layout */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Donut chart */}
-          <div className="lg:col-span-1 rounded-xl border bg-card p-5">
+          <div className="lg:col-span-1 surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Trust Type Breakdown</h3>
             {typeBreakdown.length > 0 ? (
               <ResponsiveContainer width="100%" height={240}>
@@ -275,7 +275,7 @@ export function TrustManagementPage() {
           </div>
 
           {/* Table */}
-          <div className="lg:col-span-3 rounded-xl border bg-card">
+          <div className="lg:col-span-3 surface-card">
             <div className="px-5 pt-4 pb-2">
               <h3 className="text-sm font-semibold">All Trust Accounts</h3>
             </div>
@@ -300,7 +300,7 @@ export function TrustManagementPage() {
       {/* Create Trust Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
-          <div className="w-full max-w-2xl rounded-2xl border bg-card shadow-xl">
+          <div className="w-full max-w-2xl surface-card shadow-xl">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-base font-semibold">Create New Trust</h2>

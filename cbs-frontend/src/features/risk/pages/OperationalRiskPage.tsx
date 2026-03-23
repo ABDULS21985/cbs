@@ -91,7 +91,7 @@ function ReportLossEventModal({ open, onClose }: { open: boolean; onClose: () =>
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto surface-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold">Report Loss Event</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -232,7 +232,7 @@ function ReportIncidentModal({ open, onClose }: { open: boolean; onClose: () => 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-xl border bg-card p-6 shadow-xl">
+      <div className="relative w-full max-w-lg surface-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold">Report Incident</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">

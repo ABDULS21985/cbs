@@ -153,11 +153,11 @@ export function CounterpartyDetailPage() {
       <div className="page-container space-y-6">
         {/* Exposure Gauge + Info */}
         <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6">
-          <div className="rounded-xl border bg-card p-6 flex flex-col items-center justify-center">
+          <div className="surface-card p-6 flex flex-col items-center justify-center">
             <ExposureGauge current={cp.currentExposure} limit={cp.totalExposureLimit} size="lg" />
           </div>
 
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Counterparty Details</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
               {infoItems.map((item) => (
@@ -173,7 +173,7 @@ export function CounterpartyDetailPage() {
         </div>
 
         {/* Agreements */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3">Agreements</h3>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
@@ -193,7 +193,7 @@ export function CounterpartyDetailPage() {
 
         {/* Settlement Instructions */}
         {cp.settlementInstructions && Object.keys(cp.settlementInstructions).length > 0 && (
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Settlement Instructions</h3>
             <div className="space-y-1.5">
               {Object.entries(cp.settlementInstructions).map(([key, value]) => (

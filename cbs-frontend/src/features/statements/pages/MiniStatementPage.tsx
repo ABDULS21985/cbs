@@ -131,7 +131,7 @@ export function MiniStatementPage() {
         {/* ── Search Form ─────────────────────────────────────── */}
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="flex flex-wrap items-end gap-4 p-4 rounded-lg border bg-card"
+          className="flex flex-wrap items-end gap-4 p-4 surface-card"
         >
           <div className="space-y-1 min-w-[240px] flex-1">
             <label className="text-sm font-medium">Account</label>
@@ -176,7 +176,7 @@ export function MiniStatementPage() {
 
         {/* ── Results ──────────────────────────────────────────── */}
         {!searchParams && !isLoading && (
-          <div className="rounded-lg border bg-card min-h-[250px] flex items-center justify-center">
+          <div className="surface-card min-h-[250px] flex items-center justify-center">
             <EmptyState
               icon={FileText}
               title="Select an account"
@@ -199,7 +199,7 @@ export function MiniStatementPage() {
         )}
 
         {searchParams && !isLoading && !isError && (
-          <div className="rounded-lg border bg-card overflow-auto">
+          <div className="surface-card overflow-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 border-b">

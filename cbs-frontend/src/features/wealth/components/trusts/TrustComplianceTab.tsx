@@ -157,28 +157,28 @@ export function TrustComplianceTab({ trustCode }: TrustComplianceTabProps) {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <CheckCircle2 className="w-4 h-4 text-green-500" />
             <span className="text-xs text-muted-foreground">Compliant</span>
           </div>
           <p className="text-2xl font-bold text-green-600 dark:text-green-400">{summary.COMPLIANT}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="w-4 h-4 text-amber-500" />
             <span className="text-xs text-muted-foreground">Due Soon</span>
           </div>
           <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">{summary.DUE_SOON}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertCircle className="w-4 h-4 text-red-500" />
             <span className="text-xs text-muted-foreground">Overdue</span>
           </div>
           <p className="text-2xl font-bold text-red-600 dark:text-red-400">{summary.OVERDUE}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="w-4 h-4 text-gray-400" />
             <span className="text-xs text-muted-foreground">Pending</span>
@@ -198,7 +198,7 @@ export function TrustComplianceTab({ trustCode }: TrustComplianceTabProps) {
           <div
             key={type}
             className={cn(
-              'rounded-xl border bg-card',
+              'surface-card',
               hasOverdue && 'border-red-300 dark:border-red-800',
             )}
           >
@@ -224,7 +224,7 @@ export function TrustComplianceTab({ trustCode }: TrustComplianceTabProps) {
 
       {/* Full table (all items) if items exist across multiple categories */}
       {items.length > 0 && (
-        <div className="rounded-xl border bg-card">
+        <div className="surface-card">
           <div className="px-5 pt-4 pb-2">
             <h3 className="text-sm font-semibold">All Compliance Items</h3>
           </div>

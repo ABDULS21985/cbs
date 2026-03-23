@@ -62,7 +62,7 @@ export function RelationshipGraph({ data, centralCustomerId, centralCustomerName
   }, [data.nodes, centralCustomerId, otherNodes.length]);
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-medium">Relationship Network</p>
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">

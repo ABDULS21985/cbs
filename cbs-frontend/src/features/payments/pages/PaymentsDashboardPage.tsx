@@ -166,7 +166,7 @@ export function PaymentsDashboardPage() {
         </div>
 
         {/* Payment Volume Chart */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Payment Volume (Last 7 Days)</p>
           {volumeData.length > 0 ? (
             <ResponsiveContainer width="100%" height={240}>
@@ -187,7 +187,7 @@ export function PaymentsDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
           {/* LEFT: Recent Activity */}
-          <div className="lg:col-span-8 rounded-xl border bg-card">
+          <div className="lg:col-span-8 surface-card">
             <div className="flex items-center justify-between border-b px-5 py-4">
               <h2 className="text-lg font-semibold">Recent Activity</h2>
               <Link
@@ -257,7 +257,7 @@ export function PaymentsDashboardPage() {
                 <button
                   key={action.path}
                   onClick={() => navigate(action.path)}
-                  className="flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-center transition-colors hover:bg-muted/50"
+                  className="flex flex-col items-center gap-2 surface-card p-4 text-center transition-colors hover:bg-muted/50"
                 >
                   <action.icon className="h-6 w-6 text-muted-foreground" />
                   <span className="text-xs font-medium">{action.label}</span>
@@ -282,7 +282,7 @@ export function PaymentsDashboardPage() {
               <button
                 key={link.path}
                 onClick={() => navigate(link.path)}
-                className="rounded-lg border bg-card p-4 text-left hover:bg-muted/40 transition-colors"
+                className="surface-card p-4 text-left hover:bg-muted/40 transition-colors"
               >
                 <span className="text-sm font-medium">{link.label}</span>
               </button>

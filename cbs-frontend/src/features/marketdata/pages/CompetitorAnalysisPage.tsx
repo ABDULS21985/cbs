@@ -418,7 +418,7 @@ function CompetitorCard({
   const threat = THREAT_CONFIG[competitor.threatLevel] ?? THREAT_CONFIG.MEDIUM;
 
   return (
-    <div className="rounded-xl border bg-card p-5 hover:shadow-md transition-shadow">
+    <div className="surface-card p-5 hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -492,7 +492,7 @@ function CompetitorCard({
 
 function CardSkeleton() {
   return (
-    <div className="rounded-xl border bg-card p-5 animate-pulse">
+    <div className="surface-card p-5 animate-pulse">
       <div className="flex items-center gap-2.5 mb-3">
         <div className="w-2.5 h-2.5 rounded-full bg-muted" />
         <div className="flex-1 space-y-1.5">

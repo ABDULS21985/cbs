@@ -897,7 +897,7 @@ export function TransactionSearchPage() {
               </button>
 
               {exportMenuOpen && (
-                <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-56 rounded-xl border bg-card p-2 shadow-xl">
+                <div className="absolute right-0 top-[calc(100%+8px)] z-30 w-56 surface-card p-2 shadow-xl">
                   {[
                     { label: 'Export CSV', format: 'csv' as const, icon: Download },
                     { label: 'Export Excel', format: 'excel' as const, icon: FileSpreadsheet },
@@ -1042,7 +1042,7 @@ export function TransactionSearchPage() {
         )}
 
         {hasSearched && (
-          <div className="no-print space-y-3 rounded-xl border bg-card p-4">
+          <div className="no-print space-y-3 surface-card p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 {activeFilterPills.length > 0 ? (
@@ -1167,7 +1167,7 @@ export function TransactionSearchPage() {
         <>
           <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setDisputeModalOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-xl rounded-2xl border bg-card p-6 shadow-2xl">
+            <div className="w-full max-w-xl surface-card p-6 shadow-2xl">
               <h3 className="text-lg font-semibold">Batch Dispute Form</h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 Prepare a dispute packet for the selected transactions. This generates an operations-ready CSV intake pack.
@@ -1283,7 +1283,7 @@ export function TransactionSearchPage() {
         <>
           <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setShortcutHelpOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-lg rounded-2xl border bg-card p-6 shadow-2xl">
+            <div className="w-full max-w-lg surface-card p-6 shadow-2xl">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-semibold">Keyboard Shortcuts</h3>

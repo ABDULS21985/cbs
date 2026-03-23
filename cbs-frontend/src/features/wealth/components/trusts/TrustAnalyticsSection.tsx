@@ -36,7 +36,7 @@ export function TrustAnalyticsSection() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* (a) Total Distributions by Trust Type - Horizontal Bar Chart */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Total Distributions by Trust Type</h3>
           {isLoading ? (
             <ChartSkeleton height={280} />
@@ -75,7 +75,7 @@ export function TrustAnalyticsSection() {
         </div>
 
         {/* (b) Corpus Growth Over 36 Months - Multi-line Chart */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Corpus Growth (36 Months)</h3>
           {isLoading ? (
             <ChartSkeleton height={280} />
@@ -142,7 +142,7 @@ export function TrustAnalyticsSection() {
         </div>
 
         {/* (c) Beneficiary Count Distribution - Histogram-style Bar Chart */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Beneficiary Count Distribution</h3>
           {isLoading ? (
             <ChartSkeleton height={280} />
@@ -169,7 +169,7 @@ export function TrustAnalyticsSection() {
         </div>
 
         {/* (d) Fee Income Trend - Area Chart with Gradient */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Fee Income Trend</h3>
           {isLoading ? (
             <ChartSkeleton height={280} />

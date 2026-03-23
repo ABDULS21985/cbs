@@ -118,7 +118,7 @@ export function FixedDepositDetailPage() {
       content: (
         <div className="p-6 space-y-6">
           {/* Progress bar */}
-          <div className="rounded-xl border bg-card p-5 space-y-3">
+          <div className="surface-card p-5 space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{progress.daysElapsed} days elapsed</span>
               <span className={cn('font-medium', progress.daysRemaining > 0 ? 'text-foreground' : 'text-amber-600')}>

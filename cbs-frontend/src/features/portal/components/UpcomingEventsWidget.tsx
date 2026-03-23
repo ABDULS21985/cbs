@@ -22,7 +22,7 @@ const STATUS_STYLES: Record<string, string> = {
 export function UpcomingEventsWidget({ events }: UpcomingEventsWidgetProps) {
   if (events.length === 0) {
     return (
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Upcoming (Next 7 Days)</h3>
         <div className="flex flex-col items-center py-6 text-muted-foreground">
           <Calendar className="w-8 h-8 mb-2 opacity-40" />
@@ -34,7 +34,7 @@ export function UpcomingEventsWidget({ events }: UpcomingEventsWidgetProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Upcoming (Next 7 Days)</h3>
       <div className="space-y-3">
         {events.map((event, i) => {

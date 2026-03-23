@@ -183,7 +183,7 @@ export function GatewayDetailPage() {
         </div>
 
         {/* Volume Progress */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-medium">Daily Volume</p>
             <span className="text-xs text-muted-foreground tabular-nums">{gateway.todayMessages.toLocaleString()} messages today</span>
@@ -194,7 +194,7 @@ export function GatewayDetailPage() {
         </div>
 
         {/* Queued Messages */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <div className="px-5 py-3 border-b">
             <p className="text-sm font-medium">Queued Messages ({queuedMessages.length})</p>
           </div>

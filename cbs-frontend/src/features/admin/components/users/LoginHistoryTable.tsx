@@ -195,7 +195,7 @@ export function LoginHistoryTable() {
       )}
 
       {/* Failed attempts chart */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h3 className="text-sm font-semibold mb-3">Failed Login Attempts — Last 24 Hours</h3>
         <ResponsiveContainer width="100%" height={120}>
           <BarChart data={hourlyChart} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>

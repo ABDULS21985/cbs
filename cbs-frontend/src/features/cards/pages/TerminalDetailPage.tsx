@@ -188,7 +188,7 @@ export function TerminalDetailPage() {
         </div>
 
         {/* Capabilities */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Capabilities</p>
           <div className="flex flex-wrap gap-2">
             <CapBadge supported={terminal.supportsChip} label="Chip" />
@@ -200,7 +200,7 @@ export function TerminalDetailPage() {
         </div>
 
         {/* Terminal Info */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Terminal Details</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             {infoItems.map((item) => (
@@ -213,7 +213,7 @@ export function TerminalDetailPage() {
         </div>
 
         {/* Transaction History */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <div className="px-4 py-3 border-b">
             <p className="text-sm font-medium">Transaction History</p>
           </div>

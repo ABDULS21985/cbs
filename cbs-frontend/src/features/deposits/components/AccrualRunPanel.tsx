@@ -41,7 +41,7 @@ export function AccrualRunPanel() {
   return (
     <div className="space-y-6">
       {/* Pre-run Info */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Interest Accrual Run</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div>
@@ -64,7 +64,7 @@ export function AccrualRunPanel() {
       </div>
 
       {/* Validation Checks */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-3">Pre-Run Validation</h3>
         <div className="space-y-2">
           {validationChecks.map((check) => (

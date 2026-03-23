@@ -12,7 +12,7 @@ export function QueueCard({ queue }: { queue: QueueStatus }) {
   const slaBg = queue.slaPct >= 90 ? 'bg-green-500' : queue.slaPct >= 80 ? 'bg-amber-500' : 'bg-red-500';
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-3 hover:shadow-sm transition-shadow">
+    <div className="surface-card p-5 space-y-3 hover:shadow-sm transition-shadow">
       <div className="flex items-center justify-between">
         <h4 className="font-semibold text-sm">{queue.queueName}</h4>
         <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{queue.queueType}</span>

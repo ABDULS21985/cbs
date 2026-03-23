@@ -117,7 +117,7 @@ export function CapitalMarketsDashboardPage() {
         <PipelineStatsRow deals={pipeline} />
 
         {/* Filter Bar */}
-        <div className="rounded-xl border bg-card p-3">
+        <div className="surface-card p-3">
           <DealFilters filters={filters} onChange={setFilters} />
         </div>
 

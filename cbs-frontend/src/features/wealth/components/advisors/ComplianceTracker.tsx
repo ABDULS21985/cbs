@@ -78,7 +78,7 @@ export function ComplianceTracker({ advisorId }: ComplianceTrackerProps) {
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+        <div className="surface-card p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center shrink-0">
             <ShieldCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
           </div>
@@ -88,7 +88,7 @@ export function ComplianceTracker({ advisorId }: ComplianceTrackerProps) {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+        <div className="surface-card p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
             <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
           </div>
@@ -100,7 +100,7 @@ export function ComplianceTracker({ advisorId }: ComplianceTrackerProps) {
 
         <div
           className={cn(
-            'rounded-xl border bg-card p-4 flex items-center gap-3',
+            'surface-card p-4 flex items-center gap-3',
             expiredCount > 0 && 'border-red-200 dark:border-red-800',
           )}
         >
@@ -117,7 +117,7 @@ export function ComplianceTracker({ advisorId }: ComplianceTrackerProps) {
       </div>
 
       {/* Certification Table */}
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-5 pt-4 pb-2 flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold">Certification Expiry Tracker</h3>
@@ -183,7 +183,7 @@ export function ComplianceTracker({ advisorId }: ComplianceTrackerProps) {
       </div>
 
       {/* Training Completion */}
-      <div className="rounded-xl border bg-card p-5 space-y-4">
+      <div className="surface-card p-5 space-y-4">
         <div className="flex items-center gap-2">
           <BookOpen className="w-4 h-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold">Training Completion</h3>

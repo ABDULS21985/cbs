@@ -17,7 +17,7 @@ export function DeviceFingerprintCard({ knownDevices, currentDevice }: Props) {
   const isNewDevice = currentDevice && !knownDevices.some((d) => d.device === currentDevice);
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="flex items-center gap-2 mb-3">
         <Monitor className="w-4 h-4 text-muted-foreground" />
         <h4 className="text-sm font-semibold">Device Fingerprint</h4>

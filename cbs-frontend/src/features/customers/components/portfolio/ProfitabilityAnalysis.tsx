@@ -12,7 +12,7 @@ interface Props {
 
 export function ProfitabilityAnalysis({ revenue, costOfFunds, operatingCost, provisions, netProfit, roc, currency = 'NGN' }: Props) {
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Profitability Analysis</h3>
       <InfoGrid
         columns={3}

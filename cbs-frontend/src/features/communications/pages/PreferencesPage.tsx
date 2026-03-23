@@ -20,7 +20,7 @@ export function PreferencesPage() {
 
       <div className="page-container space-y-6">
         {/* Customer search */}
-        <div className="rounded-lg border bg-card p-5">
+        <div className="surface-card p-5">
           <form onSubmit={handleSearch} className="flex items-end gap-4">
             <div className="flex-1 space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Customer ID</label>
@@ -46,7 +46,7 @@ export function PreferencesPage() {
             <OptInOutManager customerId={customerId} />
           </div>
         ) : (
-          <div className="rounded-lg border bg-card p-12 text-center">
+          <div className="surface-card p-12 text-center">
             <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">Enter a customer ID above to load their communication preferences.</p>
           </div>

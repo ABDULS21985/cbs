@@ -33,7 +33,7 @@ export function QuietHoursConfig() {
   };
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-4">
+    <div className="surface-card p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center">

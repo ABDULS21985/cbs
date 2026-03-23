@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 export function StatCardSkeleton() {
   return (
-    <div className="rounded-xl border bg-card p-4 animate-pulse" role="status" aria-label="Loading stat card">
+    <div className="surface-card p-4 animate-pulse" role="status" aria-label="Loading stat card">
       <div className="h-3 w-20 bg-muted/50 rounded mb-3" />
       <div className="h-7 w-28 bg-muted/50 rounded mb-2" />
       <div className="h-3 w-16 bg-muted/50 rounded" />
@@ -33,7 +33,7 @@ interface TableSkeletonProps {
 
 export function TableSkeleton({ rows = 5 }: TableSkeletonProps) {
   return (
-    <div className="rounded-xl border bg-card overflow-hidden animate-pulse" role="status" aria-label="Loading table">
+    <div className="surface-card overflow-hidden animate-pulse" role="status" aria-label="Loading table">
       {/* Header row */}
       <div className="flex gap-4 px-4 py-3 border-b bg-muted/20">
         {Array.from({ length: 5 }).map((_, i) => (

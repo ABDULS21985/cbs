@@ -304,7 +304,7 @@ export function VirtualAccountListPage() {
           </button>
 
           {showFilters && (
-            <div className="mt-3 p-4 rounded-lg border bg-card">
+            <div className="mt-3 p-4 surface-card">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Status</label>

@@ -12,7 +12,7 @@ interface ApiProductGridProps {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-xl border bg-card overflow-hidden animate-pulse">
+    <div className="surface-card overflow-hidden animate-pulse">
       <div className="p-5 space-y-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-muted" />

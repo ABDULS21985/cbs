@@ -28,7 +28,7 @@ export function DealStageProgress({ status, dates }: DealStageProgressProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4 overflow-x-auto">
+    <div className="surface-card p-4 overflow-x-auto">
       <div className="flex items-center min-w-[500px]">
         {STAGES.map((stage, i) => {
           const done = i < currentIdx;

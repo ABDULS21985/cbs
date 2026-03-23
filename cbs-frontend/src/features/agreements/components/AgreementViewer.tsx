@@ -5,7 +5,7 @@ interface Props {
 
 export function AgreementViewer({ content, title }: Props) {
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="surface-card">
       <div className="px-5 py-3 border-b">
         <h3 className="text-sm font-semibold">{title}</h3>
       </div>

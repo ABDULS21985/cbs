@@ -23,7 +23,7 @@ export function PortalGoalWidget({ customerId }: Props) {
   const earned = computeAchievements(goals, []).filter((a) => a.earned);
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-4">
+    <div className="surface-card p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Savings Goals</h3>
         <button onClick={() => navigate('/accounts/goals')}

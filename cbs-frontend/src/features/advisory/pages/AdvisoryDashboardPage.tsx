@@ -234,7 +234,7 @@ export function AdvisoryDashboardPage() {
 
         {/* M&A Pipeline chart */}
         {pipelineChartData.length > 0 && (
-          <div className="rounded-xl border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-4">M&A Pipeline by Stage</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={pipelineChartData}>
@@ -268,7 +268,7 @@ export function AdvisoryDashboardPage() {
                   </div>
                   {/* Workload per banker */}
                   {workloadEntries.length > 0 && (
-                    <div className="rounded-xl border bg-card p-4">
+                    <div className="surface-card p-4">
                       <h4 className="text-sm font-semibold mb-3">Lead Banker Workload</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {workloadEntries.map(([banker, count]) => (
@@ -309,7 +309,7 @@ export function AdvisoryDashboardPage() {
                     </Link>
                   </div>
                   {taxChartData.length > 0 && (
-                    <div className="rounded-xl border bg-card p-4">
+                    <div className="surface-card p-4">
                       <h4 className="text-sm font-semibold mb-3">Engagements by Type</h4>
                       <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={taxChartData}>

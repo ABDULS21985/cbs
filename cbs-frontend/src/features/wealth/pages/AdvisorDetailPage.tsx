@@ -24,7 +24,7 @@ function ProfileTab({ advisor }: { advisor: any }) {
   return (
     <div className="p-6 space-y-6">
       {/* Contact & Bio */}
-      <div className="rounded-xl border bg-card p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="surface-card p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <h3 className="text-sm font-semibold mb-3">Contact Details</h3>
           <dl className="space-y-2">
@@ -72,7 +72,7 @@ function ProfileTab({ advisor }: { advisor: any }) {
           { label: 'Client Retention', value: '94.2%' },
           { label: 'Revenue', value: advisor.revenue ? formatMoneyCompact(advisor.revenue) : '—' },
         ].map((s) => (
-          <div key={s.label} className="rounded-xl border bg-card p-4">
+          <div key={s.label} className="surface-card p-4">
             <p className="text-xs text-muted-foreground">{s.label}</p>
             <p className="text-2xl font-bold font-mono mt-1">{s.value}</p>
           </div>
@@ -130,7 +130,7 @@ export function AdvisorDetailPage() {
 
       <div className="page-container space-y-6">
         {/* Profile strip */}
-        <div className="rounded-xl border bg-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+        <div className="surface-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shrink-0"
             style={{ backgroundColor: avatarColor }}

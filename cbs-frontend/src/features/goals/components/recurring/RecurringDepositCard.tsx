@@ -17,7 +17,7 @@ export function RecurringDepositCard({ deposit, onPayNow }: RecurringDepositCard
 
   return (
     <div className={cn(
-      'rounded-xl border bg-card p-5 space-y-3 hover:shadow-sm transition-shadow cursor-pointer',
+      'surface-card p-5 space-y-3 hover:shadow-sm transition-shadow cursor-pointer',
       hasOverdue && 'border-red-200 dark:border-red-800/40',
     )} onClick={() => navigate(`/accounts/recurring-deposits/${deposit.id}`)}>
       <div className="flex items-start justify-between">

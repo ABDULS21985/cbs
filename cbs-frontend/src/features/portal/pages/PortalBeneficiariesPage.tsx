@@ -98,7 +98,7 @@ export function PortalBeneficiariesPage() {
           <p className="text-xs text-muted-foreground mt-1">Add frequently used recipients for faster transfers</p>
         </div>
       ) : (
-        <div className="rounded-lg border bg-card divide-y">
+        <div className="surface-card divide-y">
           {beneficiaries.map((ben) => (
             <div key={ben.id} className="px-5 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">

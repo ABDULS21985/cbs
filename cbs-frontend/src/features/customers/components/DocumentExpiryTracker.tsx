@@ -36,7 +36,7 @@ export function DocumentExpiryTracker({ documents }: DocumentExpiryTrackerProps)
   }
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-amber-600" />

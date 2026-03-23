@@ -115,7 +115,7 @@ export function AtRiskCustomersTable({ data, isLoading }: AtRiskCustomersTablePr
   const columns = useMemo(() => buildColumns(), []);
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">At-Risk Customers</h2>
         <span className="text-xs text-muted-foreground">

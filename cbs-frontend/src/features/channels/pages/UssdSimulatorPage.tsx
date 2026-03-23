@@ -176,7 +176,7 @@ export function UssdSimulatorPage() {
 
       <div className="page-container space-y-6">
         {/* Controls Bar */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
             {/* MSISDN Input */}
             <div className="flex-1 min-w-0 w-full sm:w-auto">
@@ -412,7 +412,7 @@ export function UssdSimulatorPage() {
 
         {/* Conversation Log (Expanded View) */}
         {history.length > 0 && (
-          <div className="rounded-xl border bg-card">
+          <div className="surface-card">
             <div className="flex items-center justify-between px-5 py-3 border-b">
               <div className="flex items-center gap-2">
                 <MessageCircle className="w-4 h-4 text-muted-foreground" />

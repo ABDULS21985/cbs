@@ -103,7 +103,7 @@ function PaymentsTab({ schedule, loan }: { schedule: RepaymentScheduleItem[]; lo
         <StatCard label="Late" value={payments.length - onTime} format="number" icon={AlertTriangle} />
       </div>
       {pieData.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Principal vs Interest</p>
           <ResponsiveContainer width="100%" height={180}><PieChart><Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70}>{pieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i]} />)}</Pie><Tooltip formatter={(v: number) => [formatMoney(v), '']} contentStyle={{ fontSize: 12 }} /><Legend wrapperStyle={{ fontSize: 11 }} /></PieChart></ResponsiveContainer>
         </div>
@@ -129,7 +129,7 @@ function CollateralTab({ loanId, loan }: { loanId: number; loan: LoanAccount }) 
         <div className="text-center py-8 text-muted-foreground text-sm"><Shield className="w-8 h-8 mx-auto mb-2 opacity-40" /><p>No collateral linked</p></div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{linked.map((c: any) => (
-          <div key={c.id} className="rounded-xl border bg-card p-4 space-y-2">
+          <div key={c.id} className="surface-card p-4 space-y-2">
             <div className="flex items-center justify-between"><span className="font-mono text-xs font-medium">{c.collateralNumber || `COL-${c.id}`}</span><StatusBadge status={c.collateralType || c.type} /></div>
             <p className="text-sm font-medium">{c.description}</p>
             <div className="grid grid-cols-2 gap-2 text-xs"><div><span className="text-muted-foreground">Value:</span> <span className="font-bold tabular-nums">{formatMoney(c.marketValue || c.estimatedValue || 0)}</span></div><div><span className="text-muted-foreground">Lien:</span> <StatusBadge status={c.lienStatus || 'ACTIVE'} /></div></div>
@@ -176,7 +176,7 @@ export function LoanDetailPage() {
         </div>
       } />
       <div className="page-container space-y-4">
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <div className="flex items-center gap-3 mb-4">
             <StatusBadge status={loan.status} size="md" dot />
             <StatusBadge status={loan.classification} size="md" />

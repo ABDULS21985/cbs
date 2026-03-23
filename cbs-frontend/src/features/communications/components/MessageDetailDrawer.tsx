@@ -92,10 +92,10 @@ export function MessageDetailDrawer({ message, onClose, onRetry, retrying }: Mes
           <div>
             <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Content</h4>
             {message.channel === 'EMAIL' && message.body ? (
-              <div className="rounded-lg border bg-card p-4 prose prose-sm dark:prose-invert max-h-[300px] overflow-y-auto"
+              <div className="surface-card p-4 prose prose-sm dark:prose-invert max-h-[300px] overflow-y-auto"
                 dangerouslySetInnerHTML={{ __html: message.body }} />
             ) : (
-              <div className="rounded-lg border bg-card p-4 text-sm whitespace-pre-wrap">
+              <div className="surface-card p-4 text-sm whitespace-pre-wrap">
                 {message.body ?? 'No content'}
               </div>
             )}

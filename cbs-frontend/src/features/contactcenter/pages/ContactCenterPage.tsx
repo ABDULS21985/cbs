@@ -98,7 +98,7 @@ function QueueCard({ queue }: { queue: QueueStatus }) {
   const slaBg = queue.slaPct >= 90 ? 'bg-green-500' : queue.slaPct >= 80 ? 'bg-amber-500' : 'bg-red-500';
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-3 hover:shadow-sm transition-shadow">
+    <div className="surface-card p-5 space-y-3 hover:shadow-sm transition-shadow">
       <div className="flex items-center justify-between">
         <h4 className="font-semibold text-sm">{queue.queueName}</h4>
         <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{queue.queueType}</span>
@@ -140,7 +140,7 @@ function AgentCard({ agent, onStateChange }: { agent: AgentState; onStateChange:
   const stateColor = STATE_COLORS[agent.state] ?? 'bg-gray-400';
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3 hover:shadow-sm transition-shadow">
+    <div className="surface-card p-4 space-y-3 hover:shadow-sm transition-shadow">
       <div className="flex items-center gap-3">
         <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-white', stateColor)}>
           <StateIcon className="w-5 h-5" />
@@ -181,7 +181,7 @@ function CallbackCard({ callback, onAttempt }: { callback: CallbackRequest; onAt
   const isPast = new Date(callback.preferredTime) < new Date();
 
   return (
-    <div className={cn('rounded-xl border bg-card p-4 space-y-2', isPast && 'border-amber-300 dark:border-amber-800/40')}>
+    <div className={cn('surface-card p-4 space-y-2', isPast && 'border-amber-300 dark:border-amber-800/40')}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-semibold">Customer #{callback.customerId}</p>
@@ -761,7 +761,7 @@ export function ContactCenterPage() {
           </div>
 
           {/* Agent Leaderboard */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Agent Leaderboard</h3>
             {(() => {
               const sorted = [...agents].sort((a, b) => b.callsToday - a.callsToday);
@@ -775,7 +775,7 @@ export function ContactCenterPage() {
           </div>
 
           {/* Channel Breakdown Bar */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Channel Breakdown</h3>
             {channelBreakdown.length > 0 ? (
               <>
@@ -795,7 +795,7 @@ export function ContactCenterPage() {
           </div>
 
           {/* Hourly Volume Heatmap */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Hourly Volume Heatmap</h3>
             <p className="text-xs text-muted-foreground mb-3">Peak hours for staffing decisions</p>
             {(() => {
@@ -815,7 +815,7 @@ export function ContactCenterPage() {
           </div>
 
           {/* SLA Trend (inline SVG) */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">SLA Trend — Last 7 Days</h3>
             {(() => {
               const avgSlaTargetSec = queues.length > 0 ? queues.reduce((s, q) => s + q.slaTargetSec, 0) / queues.length : 20;
@@ -851,11 +851,11 @@ export function ContactCenterPage() {
 
           {/* Sentiment & Channel Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Sentiment Analysis</h3>
               <ResponsiveContainer width="100%" height={220}><BarChart data={sentimentBreakdown}><CartesianGrid strokeDasharray="3 3" className="stroke-border" /><XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip /><Bar dataKey="value" name="Count" radius={[4, 4, 0, 0]}>{sentimentBreakdown.map((_, i) => <Cell key={i} fill={SENTIMENT_COLORS[i]} />)}</Bar></BarChart></ResponsiveContainer>
             </div>
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Contact by Channel</h3>
               {channelBreakdown.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}><PieChart><Pie data={channelBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={80} dataKey="value" paddingAngle={2}>{channelBreakdown.map((_, i) => <Cell key={i} fill={CHANNEL_COLORS[i % CHANNEL_COLORS.length]} />)}</Pie><Tooltip /><Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} /></PieChart></ResponsiveContainer>

@@ -117,13 +117,13 @@ export function AccountMaintenancePage() {
           backTo={`/accounts/${accountId}`}
         />
         <div className="page-container space-y-4">
-          <div className="rounded-xl border bg-card p-5 animate-pulse">
+          <div className="surface-card p-5 animate-pulse">
             <div className="h-5 w-48 bg-muted rounded mb-2" />
             <div className="h-4 w-32 bg-muted rounded" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="rounded-xl border bg-card p-4 animate-pulse">
+              <div key={i} className="surface-card p-4 animate-pulse">
                 <div className="h-8 w-8 bg-muted rounded-lg mb-3" />
                 <div className="h-4 w-24 bg-muted rounded mb-1.5" />
                 <div className="h-3 w-32 bg-muted rounded" />
@@ -201,7 +201,7 @@ export function AccountMaintenancePage() {
 
       <div className="page-container space-y-4">
         {/* Account info header */}
-        <div className="rounded-xl border bg-card px-5 py-4">
+        <div className="surface-card px-5 py-4">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <div>
               <p className="text-xs text-muted-foreground mb-0.5">Account Number</p>
@@ -261,7 +261,7 @@ export function AccountMaintenancePage() {
         </div>
 
         {/* Maintenance history */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="mb-4">
             <h3 className="text-sm font-semibold">Maintenance History</h3>
             <p className="text-xs text-muted-foreground mt-0.5">

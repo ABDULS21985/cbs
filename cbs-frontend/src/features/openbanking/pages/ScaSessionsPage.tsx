@@ -77,7 +77,7 @@ function SessionDetailPanel({ session, onClose }: { session: Psd2ScaSession; onC
   ];
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b">
         <div className="flex items-center gap-2">
           <StatusIcon className={cn('w-5 h-5', statusInfo.className)} />
@@ -225,7 +225,7 @@ export function ScaSessionsPage() {
 
       <div className="page-container space-y-6">
         {/* Search */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <form onSubmit={handleSearch} className="flex items-end gap-3">
             <div className="flex-1 max-w-xs">
               <label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -265,23 +265,23 @@ export function ScaSessionsPage() {
           <div className="space-y-6">
             {/* Summary stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="rounded-xl border bg-card p-4">
+              <div className="surface-card p-4">
                 <p className="text-xs text-muted-foreground">Total Sessions</p>
                 <p className="text-xl font-bold mt-1 tabular-nums">{sessions.length}</p>
               </div>
-              <div className="rounded-xl border bg-card p-4">
+              <div className="surface-card p-4">
                 <p className="text-xs text-muted-foreground">Finalised</p>
                 <p className="text-xl font-bold mt-1 tabular-nums text-green-600">
                   {sessions.filter((s) => s.scaStatus === 'FINALISED').length}
                 </p>
               </div>
-              <div className="rounded-xl border bg-card p-4">
+              <div className="surface-card p-4">
                 <p className="text-xs text-muted-foreground">Failed</p>
                 <p className="text-xl font-bold mt-1 tabular-nums text-red-600">
                   {failedSessions.length}
                 </p>
               </div>
-              <div className="rounded-xl border bg-card p-4">
+              <div className="surface-card p-4">
                 <p className="text-xs text-muted-foreground">In Progress</p>
                 <p className="text-xl font-bold mt-1 tabular-nums text-amber-600">
                   {sessions.filter((s) => s.scaStatus === 'STARTED' || s.scaStatus === 'AUTHENTICATION_REQUIRED' || s.scaStatus === 'METHOD_SELECTED').length}
@@ -305,7 +305,7 @@ export function ScaSessionsPage() {
 
             {/* Failed sessions error analysis */}
             {failedSessions.length > 0 && (
-              <div className="rounded-xl border bg-card overflow-hidden">
+              <div className="surface-card overflow-hidden">
                 <div className="px-5 py-4 border-b flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-red-500" />
                   <h3 className="text-sm font-semibold">Failed Session Analysis</h3>

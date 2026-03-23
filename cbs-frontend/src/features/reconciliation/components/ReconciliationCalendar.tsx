@@ -156,7 +156,7 @@ export function ReconciliationCalendar({ accounts, historyMap }: ReconciliationC
   };
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       {/* Header */}
       <div className="px-5 py-3.5 border-b flex items-center justify-between">
         <h3 className="text-sm font-semibold">Reconciliation Calendar</h3>

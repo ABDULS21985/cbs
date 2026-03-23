@@ -50,7 +50,7 @@ export function ClientMatchingEngine({ advisors: _advisors }: ClientMatchingEngi
   }
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-5">
+    <div className="surface-card p-5 space-y-5">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Search className="w-5 h-5 text-primary" />
@@ -174,7 +174,7 @@ export function ClientMatchingEngine({ advisors: _advisors }: ClientMatchingEngi
               <div
                 key={result.advisorId}
                 className={cn(
-                  'rounded-xl border bg-card p-4 space-y-3',
+                  'surface-card p-4 space-y-3',
                   index === 0 && 'ring-2 ring-primary/30',
                 )}
               >

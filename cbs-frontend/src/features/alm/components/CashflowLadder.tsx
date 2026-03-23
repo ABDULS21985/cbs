@@ -49,7 +49,7 @@ export function CashflowLadder({ positions, currency, survivalLimit = 0, behavio
   const rows = useMemo(() => buildLadderRows(activePositions, survivalLimit), [activePositions, survivalLimit]);
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="surface-card">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 p-5 border-b flex-wrap">
         <h3 className="text-sm font-semibold">Cashflow Ladder</h3>

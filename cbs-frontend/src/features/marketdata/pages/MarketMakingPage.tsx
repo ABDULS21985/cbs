@@ -81,7 +81,7 @@ export function MarketMakingPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {mandates.map((m) => (
-              <div key={m.id} className={cn('rounded-xl border bg-card p-5 space-y-3 border-l-4', STATUS_COLORS[m.status] ?? 'border-l-gray-400')}>
+              <div key={m.id} className={cn('surface-card p-5 space-y-3 border-l-4', STATUS_COLORS[m.status] ?? 'border-l-gray-400')}>
                 <div className="flex items-start justify-between">
                   <div>
                     <code className="text-[10px] font-mono text-muted-foreground">{m.mandateCode}</code>

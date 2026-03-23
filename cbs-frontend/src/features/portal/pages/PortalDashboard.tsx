@@ -144,7 +144,7 @@ export function PortalDashboard() {
       </div>
 
       {/* ── Recent Activity ── */}
-      <div className="rounded-xl border bg-card">
+      <div className="surface-card">
         <div className="px-5 py-3 border-b flex items-center justify-between">
           <h3 className="text-sm font-semibold">Recent Activity</h3>
           <Link to="/portal/accounts" className="text-xs text-primary hover:underline">

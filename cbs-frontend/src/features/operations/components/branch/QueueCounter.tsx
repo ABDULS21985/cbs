@@ -56,7 +56,7 @@ export function QueueCounter({ counter, onCallNext }: QueueCounterProps) {
 
   return (
     <div className={cn(
-      'rounded-lg border bg-card p-4 flex flex-col gap-3',
+      'surface-card p-4 flex flex-col gap-3',
       isServing && 'border-green-200 dark:border-green-800',
       counter.status === 'BREAK' && 'border-amber-200 dark:border-amber-800',
     )}>

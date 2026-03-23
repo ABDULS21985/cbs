@@ -24,7 +24,7 @@ export function ProductHoldingsGrid({ holdings }: Props) {
       {holdings.map((holding) => {
         const Icon = categoryIcons[holding.category] || Landmark;
         return (
-          <div key={holding.category} className="rounded-lg border bg-card p-4">
+          <div key={holding.category} className="surface-card p-4">
             <div className="flex items-center gap-2 mb-3">
               <Icon className="w-4 h-4 text-primary" />
               <h4 className="text-sm font-semibold">{holding.category}</h4>

@@ -41,14 +41,14 @@ export function CrossSellMatrix({ data, isLoading }: CrossSellMatrixProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4 h-80 flex items-center justify-center">
+      <div className="surface-card p-4 h-80 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
+    <div className="surface-card p-4 space-y-4">
       <div>
         <h2 className="text-sm font-semibold text-foreground">Cross-Sell Conversion Probability Matrix</h2>
         <p className="text-xs text-muted-foreground mt-0.5">

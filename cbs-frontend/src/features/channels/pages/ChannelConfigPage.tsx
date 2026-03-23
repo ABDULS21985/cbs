@@ -548,7 +548,7 @@ function LiveSessionsPanel() {
         {Object.entries(CHANNEL_META).map(([ch, { icon: Icon, label, color }]) => {
           const count = (counts as Record<string, number> | undefined)?.[ch] ?? 0;
           return (
-            <div key={ch} className="rounded-xl border bg-card p-4 flex flex-col items-center gap-2">
+            <div key={ch} className="surface-card p-4 flex flex-col items-center gap-2">
               <div className={cn('w-10 h-10 rounded-full flex items-center justify-center', color)}>
                 <Icon className="w-5 h-5" />
               </div>
@@ -564,7 +564,7 @@ function LiveSessionsPanel() {
       </div>
 
       {/* Session List */}
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold">Active Sessions</h3>
@@ -743,7 +743,7 @@ function ChannelConfigTab() {
         <StatCard label="Disabled" value={configs.length - enabledCount} format="number" icon={XCircle} loading={isLoading} />
       </div>
 
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-5 py-4 border-b">
           <h3 className="text-sm font-semibold">Channel Configuration</h3>
           <p className="text-xs text-muted-foreground mt-0.5">

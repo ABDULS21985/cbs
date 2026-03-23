@@ -97,7 +97,7 @@ export function EnhancedReversalWorkflow({
     <>
       <div className="fixed inset-0 z-[70] bg-black/50" onClick={onClose} />
       <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-        <div className="w-full max-w-3xl rounded-2xl border bg-card shadow-2xl">
+        <div className="w-full max-w-3xl surface-card shadow-2xl">
           <div className="flex items-center justify-between border-b px-6 py-4">
             <div>
               <h3 className="text-lg font-semibold">Enhanced Reversal Workflow</h3>

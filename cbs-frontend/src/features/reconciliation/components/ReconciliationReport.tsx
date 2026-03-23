@@ -46,7 +46,7 @@ export function ReconciliationReport({
   };
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden hover:shadow-sm transition-shadow">
+    <div className="surface-card overflow-hidden hover:shadow-sm transition-shadow">
       <div className="p-4 space-y-3">
         {/* Header */}
         <div className="flex items-start gap-3">

@@ -34,7 +34,7 @@ function MetricCard({ label, value, format = 'number', precision = 4 }: MetricCa
   const trendColor = isPositive ? 'text-green-600' : isNegative ? 'text-red-600' : 'text-muted-foreground';
 
   return (
-    <div className="rounded-lg border bg-card p-3.5">
+    <div className="surface-card p-3.5">
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs text-muted-foreground font-medium">{label}</span>
         <TrendIcon className={cn('w-3.5 h-3.5', trendColor)} />

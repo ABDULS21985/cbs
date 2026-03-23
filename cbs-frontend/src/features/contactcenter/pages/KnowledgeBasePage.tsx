@@ -57,7 +57,7 @@ function ArticleCard({ article, onClick }: { article: HelpArticle; onClick: () =
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left rounded-xl border bg-card p-5 hover:shadow-md hover:border-primary/30 transition-all"
+      className="w-full text-left surface-card p-5 hover:shadow-md hover:border-primary/30 transition-all"
     >
       <div className="flex items-start gap-3">
         <FileText className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
@@ -385,7 +385,7 @@ export function KnowledgeBasePage() {
                   <button
                     key={cat.name}
                     onClick={() => setCategoryFilter(cat.name)}
-                    className="flex items-center gap-3 p-4 rounded-xl border bg-card hover:shadow-md hover:border-primary/30 transition-all text-left"
+                    className="flex items-center gap-3 p-4 surface-card hover:shadow-md hover:border-primary/30 transition-all text-left"
                   >
                     <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', cat.color)}>
                       <cat.icon className="w-5 h-5" />
@@ -442,7 +442,7 @@ export function KnowledgeBasePage() {
           {flows.length > 0 ? (
             <div className="space-y-3">
               {flows.map((flow) => (
-                <div key={flow.id} className="rounded-xl border bg-card p-5 flex items-center justify-between">
+                <div key={flow.id} className="surface-card p-5 flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold">{flow.flowName}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">

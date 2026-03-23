@@ -63,13 +63,13 @@ function PerformanceSkeleton() {
     <div className="space-y-6 animate-pulse">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="rounded-xl border bg-card p-5 h-32" />
+          <div key={i} className="surface-card p-5 h-32" />
         ))}
       </div>
-      <div className="rounded-xl border bg-card p-5 h-72" />
+      <div className="surface-card p-5 h-72" />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-xl border bg-card p-5 h-64" />
-        <div className="rounded-xl border bg-card p-5 h-64" />
+        <div className="surface-card p-5 h-64" />
+        <div className="surface-card p-5 h-64" />
       </div>
     </div>
   );
@@ -101,7 +101,7 @@ export function AdvisorPerformanceTab({ advisorId }: AdvisorPerformanceTabProps)
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Client Retention Rate */}
-        <div className="rounded-xl border bg-card p-5 flex items-center gap-4">
+        <div className="surface-card p-5 flex items-center gap-4">
           <div className="relative shrink-0">
             <CircularProgress value={retentionPct} size={72} strokeWidth={6} />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -121,7 +121,7 @@ export function AdvisorPerformanceTab({ advisorId }: AdvisorPerformanceTabProps)
         </div>
 
         {/* Avg Portfolio Alpha */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex items-center gap-1.5 mb-2">
             <TrendingUp className="w-4 h-4 text-muted-foreground" />
             <p className="text-xs text-muted-foreground">Avg Portfolio Alpha</p>
@@ -141,7 +141,7 @@ export function AdvisorPerformanceTab({ advisorId }: AdvisorPerformanceTabProps)
         </div>
 
         {/* Latest Month Performance */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex items-center gap-1.5 mb-2">
             <Target className="w-4 h-4 text-muted-foreground" />
             <p className="text-xs text-muted-foreground">Latest Month Return</p>
@@ -169,7 +169,7 @@ export function AdvisorPerformanceTab({ advisorId }: AdvisorPerformanceTabProps)
       </div>
 
       {/* Monthly Return vs Benchmark */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Monthly Return vs Benchmark</h3>
         <ResponsiveContainer width="100%" height={280}>
           <ComposedChart data={performance.monthlyReturns} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
@@ -203,7 +203,7 @@ export function AdvisorPerformanceTab({ advisorId }: AdvisorPerformanceTabProps)
       {/* Bottom row: AUM by Asset Class + Satisfaction */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* AUM by Asset Class Stacked Area */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">AUM by Asset Class (12 Months)</h3>
           <ResponsiveContainer width="100%" height={250}>
             <AreaChart data={performance.aumByAssetClass} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
@@ -267,7 +267,7 @@ export function AdvisorPerformanceTab({ advisorId }: AdvisorPerformanceTabProps)
         </div>
 
         {/* Client Satisfaction Scores */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Client Satisfaction Over Time</h3>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={performance.satisfactionScores} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>

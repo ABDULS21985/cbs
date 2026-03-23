@@ -574,7 +574,7 @@ export function SuitabilityPage() {
         </RoleGuard>
 
         {/* Recent checks table */}
-        <div className="rounded-xl border bg-card">
+        <div className="surface-card">
           <div className="p-4 border-b">
             <h3 className="font-semibold text-sm">Recent Suitability Checks</h3>
           </div>
@@ -592,7 +592,7 @@ export function SuitabilityPage() {
         </div>
 
         {/* Expired profiles */}
-        <div className="rounded-xl border bg-card">
+        <div className="surface-card">
           <div className="p-4 border-b flex items-center justify-between">
             <h3 className="font-semibold text-sm">Expired / Overdue Profiles</h3>
             {expiredProfiles.length > 0 && (

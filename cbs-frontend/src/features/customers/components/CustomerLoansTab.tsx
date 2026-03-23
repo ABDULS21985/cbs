@@ -49,7 +49,7 @@ export function CustomerLoansTab({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 surface-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium">Customer Loans</p>
           <p className="text-xs text-muted-foreground">Review this customer’s facilities or start a new loan application with their profile preloaded.</p>

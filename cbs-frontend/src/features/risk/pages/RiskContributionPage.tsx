@@ -136,15 +136,15 @@ export function RiskContributionPage() {
       <div className="px-6 space-y-6 pb-8">
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Portfolio Risk</p>
             <p className="text-2xl font-bold tabular-nums">{fmt(totalPortfolioRisk)}</p>
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Positions</p>
             <p className="text-2xl font-bold">{items.length}</p>
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
               <TrendingDown className="w-3 h-3" /> Diversification Benefit
             </p>

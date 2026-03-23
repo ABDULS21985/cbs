@@ -209,7 +209,7 @@ export function ServicePlanComparison({ branchId }: ServicePlanComparisonProps) 
       {chartData.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold mb-3">Target vs Actual (Non-monetary Metrics)</h3>
-          <div className="rounded-lg border bg-card p-4 h-72">
+          <div className="surface-card p-4 h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />

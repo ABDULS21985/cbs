@@ -117,7 +117,7 @@ export function PlacementDetailPage() {
 
       <div className="page-container space-y-6">
         {/* Summary */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <InfoGrid columns={4} items={[
             { label: 'Issuer', value: placement.issuer },
             { label: 'Instrument', value: placement.instrumentType },
@@ -146,7 +146,7 @@ export function PlacementDetailPage() {
         </div>
 
         {/* Investors table */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <div className="px-5 py-3 border-b flex items-center justify-between">
             <h3 className="text-sm font-semibold flex items-center gap-2"><Users className="w-4 h-4" /> Investors ({investors.length})</h3>
             <div className="text-xs text-muted-foreground">

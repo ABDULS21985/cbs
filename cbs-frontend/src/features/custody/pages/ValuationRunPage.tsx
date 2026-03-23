@@ -226,7 +226,7 @@ export function ValuationRunPage() {
 
       <div className="page-container space-y-6">
         {/* Summary */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <InfoGrid
             columns={4}
             items={[
@@ -247,7 +247,7 @@ export function ValuationRunPage() {
         </div>
 
         {/* Fair Value Breakdown */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <h3 className="text-sm font-semibold mb-4">Fair Value Hierarchy Breakdown</h3>
           <FairValueBreakdown
             level1Total={run.fairValueLevel1Total}
@@ -259,7 +259,7 @@ export function ValuationRunPage() {
 
         {/* Sensitivities */}
         {avgSensitivities && (
-          <div className="rounded-xl border bg-card p-6">
+          <div className="surface-card p-6">
             <h3 className="text-sm font-semibold mb-4">Average Sensitivities (across {exceptions.length} instruments)</h3>
             <SensitivityDisplay {...avgSensitivities} />
           </div>

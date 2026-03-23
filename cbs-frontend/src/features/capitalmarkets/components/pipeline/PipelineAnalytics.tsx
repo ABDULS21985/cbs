@@ -83,7 +83,7 @@ export function PipelineAnalytics({ deals }: PipelineAnalyticsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* 1. Fee Revenue by Month */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-semibold mb-3">Fee Revenue by Month</p>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={feeByMonth}>
@@ -98,7 +98,7 @@ export function PipelineAnalytics({ deals }: PipelineAnalyticsProps) {
       </div>
 
       {/* 2. Pipeline Funnel */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-semibold mb-3">Deal Pipeline Funnel</p>
         <div className="space-y-2">
           {funnelData.map((s, i) => {
@@ -125,7 +125,7 @@ export function PipelineAnalytics({ deals }: PipelineAnalyticsProps) {
       </div>
 
       {/* 3. Deal Volume by Type (Donut) */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-semibold mb-3">Deal Volume by Type</p>
         <div className="flex items-center gap-6">
           <ResponsiveContainer width={160} height={160}>
@@ -150,7 +150,7 @@ export function PipelineAnalytics({ deals }: PipelineAnalyticsProps) {
       </div>
 
       {/* 4. Average Days per Stage */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-semibold mb-3">Average Days per Stage</p>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={avgDaysPerStage} layout="vertical">

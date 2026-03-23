@@ -51,7 +51,7 @@ export function TransactionCompliancePage() {
       />
 
       <div className="page-container space-y-5">
-        <div className="grid gap-4 rounded-2xl border bg-card p-5 md:grid-cols-4">
+        <div className="grid gap-4 surface-card p-5 md:grid-cols-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium">From Date</label>
             <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="w-full rounded-lg border bg-background px-3 py-2 text-sm" />
@@ -95,7 +95,7 @@ export function TransactionCompliancePage() {
               key={action.key}
               onClick={() => void runDownload(action.key, action.run)}
               disabled={loadingKey !== null}
-              className="flex items-center justify-between rounded-2xl border bg-card px-4 py-4 text-left hover:bg-muted/30 disabled:opacity-50"
+              className="flex items-center justify-between surface-card px-4 py-4 text-left hover:bg-muted/30 disabled:opacity-50"
             >
               <div>
                 <p className="font-semibold">{action.label}</p>

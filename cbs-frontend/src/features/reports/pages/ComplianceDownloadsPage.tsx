@@ -220,7 +220,7 @@ function NipReportCard() {
   }, [dateFrom, dateTo, channel]);
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
+    <div className="surface-card p-6 shadow-sm">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
@@ -276,7 +276,7 @@ function CtrReportCard() {
   }, [dateFrom, dateTo, threshold, channel]);
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
+    <div className="surface-card p-6 shadow-sm">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
@@ -327,7 +327,7 @@ function StrReportCard() {
   }, [dateFrom, dateTo, channel]);
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
+    <div className="surface-card p-6 shadow-sm">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
@@ -377,7 +377,7 @@ function FirsReportCard() {
   }, [month]);
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
+    <div className="surface-card p-6 shadow-sm">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
@@ -425,7 +425,7 @@ function LargeValueReportCard() {
   }, [dateFrom, dateTo, threshold]);
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
+    <div className="surface-card p-6 shadow-sm">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
@@ -465,7 +465,7 @@ export function ComplianceDownloadsPage() {
       />
 
       {/* summary */}
-      <div className="flex items-center gap-3 rounded-lg border bg-card px-5 py-3">
+      <div className="flex items-center gap-3 surface-card px-5 py-3">
         <ShieldCheck className="h-5 w-5 text-primary" />
         <p className="text-sm text-muted-foreground">
           <span className="font-semibold text-card-foreground">5</span> compliance

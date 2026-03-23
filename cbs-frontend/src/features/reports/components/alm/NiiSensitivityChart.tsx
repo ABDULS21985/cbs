@@ -56,7 +56,7 @@ export function NiiSensitivityChart({ asOfDate }: NiiSensitivityChartProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <div className="h-4 w-48 bg-muted rounded animate-pulse mb-4" />
         <div className="h-64 bg-muted/30 rounded animate-pulse" />
       </div>
@@ -64,7 +64,7 @@ export function NiiSensitivityChart({ asOfDate }: NiiSensitivityChartProps) {
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <h3 className="text-sm font-semibold mb-1">NII by Rate Scenario</h3>
       <p className="text-xs text-muted-foreground mb-4">Net Interest Income sensitivity across rate change scenarios</p>
       <ResponsiveContainer width="100%" height={300}>

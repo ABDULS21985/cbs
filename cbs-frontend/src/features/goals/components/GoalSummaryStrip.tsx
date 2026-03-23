@@ -27,7 +27,7 @@ export function GoalSummaryStrip({ goals, isLoading }: GoalSummaryStripProps) {
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+      <div className="surface-card p-4 flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
           <Target className="w-5 h-5 text-primary" />
         </div>
@@ -37,7 +37,7 @@ export function GoalSummaryStrip({ goals, isLoading }: GoalSummaryStripProps) {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <div className="flex items-center gap-2 mb-1">
           <Wallet className="w-4 h-4 text-muted-foreground" />
           <p className="text-xs text-muted-foreground">Total Saved</p>
@@ -50,7 +50,7 @@ export function GoalSummaryStrip({ goals, isLoading }: GoalSummaryStripProps) {
         <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">{overallPct.toFixed(1)}%</p>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+      <div className="surface-card p-4 flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
           <CheckCircle className="w-5 h-5 text-green-500" />
         </div>
@@ -60,7 +60,7 @@ export function GoalSummaryStrip({ goals, isLoading }: GoalSummaryStripProps) {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 flex items-center gap-3">
+      <div className="surface-card p-4 flex items-center gap-3">
         <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
           <TrendingUp className="w-5 h-5 text-blue-500" />
         </div>

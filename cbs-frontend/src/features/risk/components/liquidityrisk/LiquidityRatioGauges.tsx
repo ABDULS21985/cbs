@@ -6,7 +6,7 @@ function Gauge({ label, value, min, unit = '%' }: GaugeProps) {
   const pct = Math.min(100, (value / (min * 2)) * 100);
   const ok = value >= min;
   return (
-    <div className="rounded-lg border bg-card p-5 text-center">
+    <div className="surface-card p-5 text-center">
       <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-2">{label}</div>
       <div className={`text-3xl font-bold font-mono ${ok ? 'text-green-600' : 'text-red-600'}`}>{value.toFixed(1)}{unit}</div>
       <div className="w-full h-2 bg-muted rounded-full mt-3 overflow-hidden">

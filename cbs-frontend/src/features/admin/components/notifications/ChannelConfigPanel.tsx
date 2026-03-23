@@ -65,7 +65,7 @@ export function ChannelConfigPanel({ configs, onUpdate, onTest }: ChannelConfigP
           const isToggling = togglingChannel === config.channel;
 
           return (
-            <div key={config.channel} className="rounded-xl border bg-card overflow-hidden">
+            <div key={config.channel} className="surface-card overflow-hidden">
               {/* Header */}
               <div className="p-5">
                 <div className="flex items-center justify-between mb-3">

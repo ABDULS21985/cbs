@@ -21,7 +21,7 @@ const CHART_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#0
 
 export function ReportPreview({ result, vizType, chartConfig, isLoading, onRefresh, maxRows = 10 }: ReportPreviewProps) {
   return (
-    <div className="rounded-xl border bg-card overflow-hidden flex flex-col">
+    <div className="surface-card overflow-hidden flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
         <h4 className="text-sm font-semibold">
           Preview{result ? ` (${Math.min(result.rowCount, maxRows)} of ${result.rowCount} rows)` : ''}

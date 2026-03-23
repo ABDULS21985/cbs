@@ -251,7 +251,7 @@ export function AgentDashboardPage() {
                 ) : (
                   <div className="space-y-3">
                     {myCallbacks.filter((c) => c.assignedAgentId === currentAgentId).map((cb) => (
-                      <div key={cb.id} className="rounded-lg border bg-card p-4 flex items-center justify-between">
+                      <div key={cb.id} className="surface-card p-4 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium">Customer #{cb.customerId} — {cb.callbackNumber}</p>
                           <p className="text-xs text-muted-foreground">{cb.contactReason} · {formatDate(cb.preferredTime)}</p>

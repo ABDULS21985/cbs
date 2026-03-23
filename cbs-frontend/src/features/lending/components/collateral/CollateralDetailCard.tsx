@@ -9,7 +9,7 @@ interface CollateralDetailCardProps {
 
 export function CollateralDetailCard({ collateral }: CollateralDetailCardProps) {
   return (
-    <div className="rounded-xl border bg-card shadow-sm divide-y">
+    <div className="surface-card shadow-sm divide-y">
       {/* Basic Info */}
       <div className="p-5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">

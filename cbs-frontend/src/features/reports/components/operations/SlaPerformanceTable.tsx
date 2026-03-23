@@ -99,7 +99,7 @@ export function SlaPerformanceTable({ data, isLoading }: SlaPerformanceTableProp
   );
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <h2 className="text-sm font-semibold text-foreground">SLA Performance</h2>
       <DataTable
         columns={columns}

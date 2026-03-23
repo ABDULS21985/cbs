@@ -27,7 +27,7 @@ export function MaturityGapTable({ asOfDate, onAsOfDateChange }: MaturityGapTabl
   }
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
         <h3 className="text-sm font-semibold">Maturity Gap Analysis</h3>
         <div className="flex items-center gap-2">

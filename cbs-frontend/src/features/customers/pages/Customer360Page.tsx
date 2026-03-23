@@ -93,7 +93,7 @@ function PortfolioTab({ customerId, customerName }: { customerId: number; custom
       />
 
       {profitabilityLoading ? (
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="animate-pulse space-y-3">
             <div className="h-4 w-40 rounded bg-muted" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -117,7 +117,7 @@ function PortfolioTab({ customerId, customerName }: { customerId: number; custom
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4">
+          <div className="flex items-center justify-between gap-3 surface-card p-4">
             <div>
               <p className="text-sm font-semibold">Live Portfolio Analytics</p>
               <p className="text-xs text-muted-foreground mt-1">

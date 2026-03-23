@@ -193,7 +193,7 @@ function AdvisorCard({ advisor, index, maxAum, onView }: AdvisorCardProps) {
   const aumPct = maxAum > 0 ? (advisor.aum / maxAum) * 100 : 0;
 
   return (
-    <div className="rounded-xl border bg-card p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
+    <div className="surface-card p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
       <div className="flex items-start gap-3">
         <div
           className="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
@@ -367,7 +367,7 @@ export function AdvisorListPage() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-xl border bg-card p-5 h-56 animate-pulse" />
+              <div key={i} className="surface-card p-5 h-56 animate-pulse" />
             ))}
           </div>
         ) : viewMode === 'cards' ? (
@@ -383,7 +383,7 @@ export function AdvisorListPage() {
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border bg-card">
+          <div className="surface-card">
             <DataTable
               columns={tableCols}
               data={advisors}
@@ -400,7 +400,7 @@ export function AdvisorListPage() {
       {/* Add Advisor Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
-          <div className="w-full max-w-lg rounded-2xl border bg-card shadow-xl">
+          <div className="w-full max-w-lg surface-card shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-base font-semibold">Add New Advisor</h2>
               <button onClick={() => setShowAddModal(false)} className="rounded-lg p-1.5 hover:bg-muted">

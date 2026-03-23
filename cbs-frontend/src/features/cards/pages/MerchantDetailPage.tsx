@@ -178,7 +178,7 @@ function AnalyticsTab({ transactions, merchant }: { transactions: CardSwitchTran
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Daily volume chart */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Daily Transaction Volume</p>
           {dailyVolume.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">No data available</p>
@@ -196,7 +196,7 @@ function AnalyticsTab({ transactions, merchant }: { transactions: CardSwitchTran
         </div>
 
         {/* Success rate donut */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Approval vs Decline</p>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
@@ -212,7 +212,7 @@ function AnalyticsTab({ transactions, merchant }: { transactions: CardSwitchTran
       </div>
 
       {/* Peak hours */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Peak Hours Distribution</p>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={hourlyDist}>
@@ -271,7 +271,7 @@ function RiskTab({ transactions, merchant }: { transactions: CardSwitchTransacti
       </div>
 
       {/* Fraud score histogram */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Fraud Score Distribution</p>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={fraudDist}>
@@ -290,7 +290,7 @@ function RiskTab({ transactions, merchant }: { transactions: CardSwitchTransacti
 
       {/* High-risk transactions */}
       {highFraud.length > 0 && (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <div className="px-4 py-3 border-b flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-500" />
             <p className="text-sm font-medium">High-Risk Transactions (fraud score &gt; 70)</p>
@@ -902,7 +902,7 @@ export function MerchantDetailPage() {
         </div>
 
         {/* Info Grid */}
-        <div className="rounded-lg border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3">Business Details</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 text-sm">
             {infoItems.map((item) => (

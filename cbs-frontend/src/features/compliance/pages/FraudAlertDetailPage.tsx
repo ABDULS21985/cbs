@@ -224,7 +224,7 @@ export function FraudAlertDetailPage() {
           {/* LEFT COLUMN */}
           <div className="space-y-6">
             {/* Risk Score Breakdown */}
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <p className="text-sm font-medium mb-4">Risk Score Breakdown</p>
               <div className="flex items-center gap-6 mb-6">
                 <div className={cn('w-20 h-20 rounded-full flex items-center justify-center border-4', riskScoreBorder(alert.riskScore), riskScoreBg(alert.riskScore))}>
@@ -262,7 +262,7 @@ export function FraudAlertDetailPage() {
             </div>
 
             {/* Transaction Details */}
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <p className="text-sm font-medium mb-4">Transaction & Alert Details</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                 <div><p className="text-xs text-muted-foreground">Alert Ref</p><p className="font-mono font-medium">{alert.alertRef}</p></div>
@@ -283,7 +283,7 @@ export function FraudAlertDetailPage() {
             </div>
 
             {/* Related Transactions */}
-            <div className="rounded-xl border bg-card overflow-hidden">
+            <div className="surface-card overflow-hidden">
               <div className="px-5 py-3 border-b">
                 <p className="text-sm font-medium">Related Transactions</p>
                 <p className="text-xs text-muted-foreground">Recent transactions from same customer/device</p>
@@ -295,7 +295,7 @@ export function FraudAlertDetailPage() {
 
             {/* Resolution */}
             {alert.resolvedAt && (
-              <div className="rounded-xl border bg-card p-5">
+              <div className="surface-card p-5">
                 <p className="text-sm font-medium mb-3">Resolution</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                   <div><p className="text-xs text-muted-foreground">Status</p><StatusBadge status={alert.status} dot /></div>
@@ -310,7 +310,7 @@ export function FraudAlertDetailPage() {
           {/* RIGHT COLUMN */}
           <div className="space-y-6">
             {/* Investigation Timeline */}
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <p className="text-sm font-medium mb-4">Timeline</p>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
@@ -349,7 +349,7 @@ export function FraudAlertDetailPage() {
             </div>
 
             {/* Device Intelligence */}
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <p className="text-sm font-medium mb-3 flex items-center gap-2">
                 <Fingerprint className="w-4 h-4" /> Device Intelligence
               </p>
@@ -361,7 +361,7 @@ export function FraudAlertDetailPage() {
             </div>
 
             {/* Customer Risk Summary */}
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <p className="text-sm font-medium mb-3 flex items-center gap-2">
                 <Shield className="w-4 h-4" /> Customer Risk Profile
               </p>

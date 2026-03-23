@@ -338,7 +338,7 @@ export function ChannelActivityLogsPage() {
         </div>
 
         {/* Filters */}
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Customer ID</label>
@@ -391,7 +391,7 @@ export function ChannelActivityLogsPage() {
         </div>
 
         {/* Data Table */}
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <div className="px-5 py-4 border-b flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold">Activity Logs</h3>

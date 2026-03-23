@@ -173,7 +173,7 @@ export function TreasuryPositionsPage() {
         )}
 
         {/* Position Limit Status Panel */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3">Position Limit Status</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>

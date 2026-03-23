@@ -68,7 +68,7 @@ export function MaturityProcessingPanel() {
   return (
     <div className="space-y-6">
       {/* Pre-run Summary */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Maturity Processing Summary</h3>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <div className="text-center">

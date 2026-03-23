@@ -24,7 +24,7 @@ export function JournalEntrySearch({ filters, onChange, onSearch, onReset }: Jou
   };
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
+    <div className="surface-card p-4 space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">GL Account Code</label>

@@ -43,7 +43,7 @@ export function TransactionTimeline({
   }, {});
 
   return (
-    <div className="space-y-6 rounded-xl border bg-card p-5">
+    <div className="space-y-6 surface-card p-5">
       {Object.entries(grouped).map(([label, items]) => (
         <section key={label} className="space-y-3">
           <div className="flex items-center gap-3">

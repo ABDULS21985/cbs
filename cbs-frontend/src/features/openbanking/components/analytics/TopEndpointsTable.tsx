@@ -32,7 +32,7 @@ const METHOD_STYLES: Record<string, string> = {
 export function TopEndpointsTable({ endpoints, loading }: TopEndpointsTableProps) {
   if (loading) {
     return (
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-5 py-4 border-b">
           <div className="h-4 w-32 bg-muted rounded" />
         </div>
@@ -48,7 +48,7 @@ export function TopEndpointsTable({ endpoints, loading }: TopEndpointsTableProps
   const sorted = [...endpoints].sort((a, b) => b.callCount - a.callCount);
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-5 py-4 border-b">
         <h3 className="text-sm font-semibold">Top Endpoints</h3>
       </div>

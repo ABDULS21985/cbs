@@ -26,7 +26,7 @@ export function AbTestResultCard({ variants }: AbTestResultCardProps) {
       : null;
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-4 py-3 border-b bg-muted/20">
         <h4 className="text-sm font-semibold text-foreground">A/B Test Results</h4>
         {uplift && (

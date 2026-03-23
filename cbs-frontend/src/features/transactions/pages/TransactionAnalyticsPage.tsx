@@ -251,7 +251,7 @@ export function TransactionAnalyticsPage() {
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-32 animate-pulse rounded-xl border bg-card" />
+              <div key={index} className="h-32 animate-pulse surface-card" />
             ))}
           </div>
         ) : !summary ? (
@@ -268,7 +268,7 @@ export function TransactionAnalyticsPage() {
                   onClick={card.onClick}
                   disabled={!card.onClick}
                   className={cn(
-                    'rounded-xl border bg-card p-5 text-left',
+                    'surface-card p-5 text-left',
                     card.onClick && 'transition-colors hover:border-primary/40 hover:bg-primary/5',
                   )}
                 >
@@ -335,7 +335,7 @@ export function TransactionAnalyticsPage() {
             </Suspense>
 
             {selectedHeatmapCell && (
-              <div className="rounded-xl border bg-card p-5">
+              <div className="surface-card p-5">
                 <h3 className="text-base font-semibold text-foreground">
                   Hour Drilldown: {heatmap?.cells.find((cell) => cell.dayOfWeek === selectedHeatmapCell.dayOfWeek)?.dayLabel} at {String(selectedHeatmapCell.hour).padStart(2, '0')}:00
                 </h3>

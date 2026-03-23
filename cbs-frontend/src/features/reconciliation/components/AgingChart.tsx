@@ -98,7 +98,7 @@ export function AgingChart({ sessions, onBucketClick }: AgingChartProps) {
   };
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-5 py-3.5 border-b flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold">Break Aging Analysis</h3>

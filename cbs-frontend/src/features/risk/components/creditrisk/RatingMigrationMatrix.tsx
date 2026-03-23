@@ -34,7 +34,7 @@ export function RatingMigrationMatrix() {
   const { data: rows = [], isLoading } = useRatingMigration(period);
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h4 className="text-sm font-semibold">Rating Migration Matrix</h4>

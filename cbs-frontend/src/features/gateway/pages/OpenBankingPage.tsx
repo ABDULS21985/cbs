@@ -282,7 +282,7 @@ function RateLimitingTab() {
 
   return (
     <div className="p-4 space-y-6">
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Daily Requests by Client (Top 10)</p>
         <ResponsiveContainer width="100%" height={250}>
           <BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-border" /><XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} /><Tooltip contentStyle={{ fontSize: 12 }} /><Bar dataKey="requests" name="Requests" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} opacity={0.85} /></BarChart>

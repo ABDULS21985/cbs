@@ -125,7 +125,7 @@ export function ReportsHomePage() {
             <button
               key={cat.path}
               onClick={() => navigate(cat.path)}
-              className="flex flex-col items-start gap-3 rounded-lg border bg-card p-5 text-left hover:bg-muted/40 hover:shadow-sm transition-all"
+              className="flex flex-col items-start gap-3 surface-card p-5 text-left hover:bg-muted/40 hover:shadow-sm transition-all"
             >
               <div className={`rounded-lg p-2.5 ${cat.color}`}>
                 <cat.icon className="w-5 h-5" />

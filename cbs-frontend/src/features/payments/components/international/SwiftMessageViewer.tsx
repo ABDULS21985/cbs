@@ -30,7 +30,7 @@ export function SwiftMessageViewer({ message }: Props) {
   };
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="surface-card">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50"

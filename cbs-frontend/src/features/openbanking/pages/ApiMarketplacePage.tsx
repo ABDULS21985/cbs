@@ -120,7 +120,7 @@ export function ApiMarketplacePage() {
       badge: stats.pendingSubs,
       content: (
         <div className="p-6">
-          <div className="rounded-lg border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div className="px-4 py-3 border-b">
               <h3 className="text-sm font-semibold">API Subscriptions</h3>
             </div>
@@ -207,7 +207,7 @@ export function ApiMarketplacePage() {
             <button
               key={label}
               className={cn(
-                'p-4 rounded-lg border bg-card text-left hover:bg-muted/50 transition-colors',
+                'p-4 surface-card text-left hover:bg-muted/50 transition-colors',
                 filter && statusFilter === filter ? 'ring-2 ring-primary' : '',
               )}
               onClick={() => filter && setStatusFilter(s => s === filter ? 'ALL' : filter)}

@@ -57,7 +57,7 @@ function scoreColor(score: number): string {
 
 export function CsatTouchpointTable({ data, isLoading }: CsatTouchpointTableProps) {
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-4 py-3 border-b bg-muted/20">
         <h3 className="text-sm font-semibold text-foreground">CSAT by Touchpoint</h3>
       </div>

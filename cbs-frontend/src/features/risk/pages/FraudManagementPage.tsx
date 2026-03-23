@@ -66,7 +66,7 @@ function CreateFraudRuleModal({ open, onClose }: { open: boolean; onClose: () =>
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border bg-card p-6 shadow-xl">
+      <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto surface-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold">Create Fraud Rule</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -301,7 +301,7 @@ export function FraudManagementPage() {
           {alertsLoading ? (
             <div className="grid gap-4 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="h-48 rounded-lg border bg-card animate-pulse" />
+                <div key={index} className="h-48 surface-card animate-pulse" />
               ))}
             </div>
           ) : allAlerts.length === 0 ? (
@@ -312,7 +312,7 @@ export function FraudManagementPage() {
             />
           ) : (
             <div className="grid gap-4 lg:grid-cols-3">
-              <div className="rounded-lg border bg-card p-4">
+              <div className="surface-card p-4">
                 <h3 className="text-sm font-semibold mb-3">Severity Mix</h3>
                 <div className="space-y-2">
                   {severityBreakdown.map((item) => (
@@ -325,7 +325,7 @@ export function FraudManagementPage() {
                   ))}
                 </div>
               </div>
-              <div className="rounded-lg border bg-card p-4">
+              <div className="surface-card p-4">
                 <h3 className="text-sm font-semibold mb-3">Channel Hotspots</h3>
                 <div className="space-y-2">
                   {channelBreakdown.map(([channel, count]) => (
@@ -336,7 +336,7 @@ export function FraudManagementPage() {
                   ))}
                 </div>
               </div>
-              <div className="rounded-lg border bg-card p-4">
+              <div className="surface-card p-4">
                 <h3 className="text-sm font-semibold mb-3">Most Triggered Rules</h3>
                 <div className="space-y-2">
                   {triggeredRules.length === 0 ? (
@@ -363,26 +363,26 @@ export function FraudManagementPage() {
       content: (
         <div className="p-6 space-y-4">
           <div className="grid gap-4 lg:grid-cols-4">
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <div className="text-xs text-muted-foreground">Total Alerts</div>
               <div className="mt-1 text-2xl font-bold">{stats?.totalAlerts ?? 0}</div>
             </div>
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <div className="text-xs text-muted-foreground">Open Backlog</div>
               <div className="mt-1 text-2xl font-bold">{alerts.length}</div>
             </div>
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <div className="text-xs text-muted-foreground">Resolved Alerts</div>
               <div className="mt-1 text-2xl font-bold">{stats?.resolvedAlerts ?? 0}</div>
             </div>
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <div className="text-xs text-muted-foreground">Active Rules</div>
               <div className="mt-1 text-2xl font-bold">{rules?.filter((rule) => rule.active).length ?? 0}</div>
             </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <h3 className="text-sm font-semibold mb-3">Highest-Risk Alerts</h3>
               {highestRiskAlerts.length === 0 ? (
                 <div className="text-sm text-muted-foreground">No alerts were returned for this reporting snapshot.</div>
@@ -404,7 +404,7 @@ export function FraudManagementPage() {
               )}
             </div>
 
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <h3 className="text-sm font-semibold mb-3">Rule Coverage Snapshot</h3>
               {triggeredRules.length === 0 ? (
                 <div className="text-sm text-muted-foreground">No triggered rules were returned with the current alert sample.</div>

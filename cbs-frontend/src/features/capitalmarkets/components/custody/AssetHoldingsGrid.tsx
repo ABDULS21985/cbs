@@ -17,7 +17,7 @@ export function AssetHoldingsGrid({ holdings }: AssetHoldingsGridProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {holdings.map((h) => (
-        <div key={h.instrumentCode} className="rounded-xl border bg-card p-4 hover:border-primary/30 transition-colors">
+        <div key={h.instrumentCode} className="surface-card p-4 hover:border-primary/30 transition-colors">
           <div className="flex items-start justify-between mb-2">
             <div>
               <p className="text-sm font-semibold">{h.instrumentCode}</p>

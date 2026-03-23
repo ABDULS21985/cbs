@@ -556,7 +556,7 @@ function FleetAnalyticsTab({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="rounded-xl border bg-card p-4 space-y-3">
+        <div className="surface-card p-4 space-y-3">
           <h3 className="text-sm font-semibold">Status Distribution</h3>
           {statusDist.length === 0 ? (
             <p className="text-sm text-muted-foreground">No data</p>
@@ -581,7 +581,7 @@ function FleetAnalyticsTab({
           )}
         </div>
 
-        <div className="rounded-xl border bg-card p-4 space-y-3">
+        <div className="surface-card p-4 space-y-3">
           <h3 className="text-sm font-semibold">Type Distribution</h3>
           {typeDist.length === 0 ? (
             <p className="text-sm text-muted-foreground">No data</p>

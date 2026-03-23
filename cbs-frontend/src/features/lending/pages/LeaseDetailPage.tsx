@@ -79,7 +79,7 @@ export default function LeaseDetailPage() {
             <LeasedAssetCard lease={lease} />
             <Ifrs16Panel lease={lease} amortization={amortization} />
             {ext.rouAssetAmount > 0 && (
-              <div className="rounded-xl border bg-card p-5 space-y-3">
+              <div className="surface-card p-5 space-y-3">
                 <h3 className="text-sm font-semibold">ROU & Liability</h3>
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between"><span className="text-muted-foreground">ROU Asset</span><span className="font-mono">{formatMoney(ext.rouAssetAmount, lease.currency)}</span></div>
@@ -123,7 +123,7 @@ export default function LeaseDetailPage() {
               {leasedAssets.map((a) => {
                 const overdue = a.nextInspectionDue && new Date(a.nextInspectionDue) < new Date();
                 return (
-                  <div key={a.id} className="rounded-xl border bg-card p-4 space-y-3">
+                  <div key={a.id} className="surface-card p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div><code className="text-[10px] font-mono text-muted-foreground">{a.assetCode}</code><p className="text-sm font-semibold">{a.description}</p><p className="text-xs text-muted-foreground">{a.manufacturer} {a.model}</p></div>
                       <span className={cn('px-2 py-0.5 rounded text-xs font-medium', COND_COLORS[a.condition] ?? 'bg-muted')}>{a.condition}</span>

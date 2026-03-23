@@ -27,7 +27,7 @@ export function TppAdoptionChart({ data, loading }: TppAdoptionChartProps) {
 
   if (loading) {
     return (
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="h-4 w-40 bg-muted rounded mb-4" />
         <div className="h-72 bg-muted/30 rounded animate-pulse" />
       </div>
@@ -35,7 +35,7 @@ export function TppAdoptionChart({ data, loading }: TppAdoptionChartProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">TPP Adoption</h3>
       <ResponsiveContainer width="100%" height={300}>
         <ComposedChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>

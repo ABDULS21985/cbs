@@ -65,7 +65,7 @@ export function BreakTrendChart({ historyMap }: BreakTrendChartProps) {
   const hasData = chartData.length > 0;
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-5 py-3.5 border-b">
         <h3 className="text-sm font-semibold">Reconciliation Trends</h3>
         <p className="text-xs text-muted-foreground mt-0.5">90-day trend of reconciliation performance</p>

@@ -86,7 +86,7 @@ export function TransactionSummaryBar({
     return (
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 7 }).map((_, index) => (
-          <div key={index} className="animate-pulse rounded-xl border bg-card p-4">
+          <div key={index} className="animate-pulse surface-card p-4">
             <div className="h-3 w-20 rounded bg-muted" />
             <div className="mt-3 h-7 w-28 rounded bg-muted" />
             <div className="mt-3 h-3 w-24 rounded bg-muted" />
@@ -176,7 +176,7 @@ export function TransactionSummaryBar({
               onClick={card.onClick}
               disabled={!card.onClick}
               className={cn(
-                'avoid-break rounded-xl border bg-card p-4 text-left transition-colors',
+                'avoid-break surface-card p-4 text-left transition-colors',
                 card.onClick ? 'hover:border-primary/40 hover:bg-primary/5' : 'cursor-default',
               )}
             >

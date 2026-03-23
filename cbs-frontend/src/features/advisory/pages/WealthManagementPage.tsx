@@ -584,7 +584,7 @@ function AnalyticsTab() {
 
       {/* AUM Trend */}
       {aumTrend.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-4">AUM Trend & Monthly Returns</h3>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={aumTrend}>
@@ -604,7 +604,7 @@ function AnalyticsTab() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Client Segments */}
         {segments.length > 0 && (
-          <div className="rounded-xl border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-3">AUM by Client Segment</h3>
             <div className="space-y-3">
               {segments.map(seg => (
@@ -622,7 +622,7 @@ function AnalyticsTab() {
 
         {/* Concentration Risk */}
         {concentration.length > 0 && (
-          <div className="rounded-xl border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-3">Top Client Concentration</h3>
             <div className="space-y-2">
               {concentration.slice(0, 5).map(c => (
@@ -646,7 +646,7 @@ function AnalyticsTab() {
 
       {/* Flow Analysis */}
       {flows.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-4">Monthly Inflow / Outflow</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={flows}>
@@ -664,7 +664,7 @@ function AnalyticsTab() {
 
       {/* Performance Attribution */}
       {attribution.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-3">Advisor Performance Attribution</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -699,7 +699,7 @@ function AnalyticsTab() {
 
       {/* Risk Heatmap */}
       {heatmap.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-3">Risk Heatmap by Asset Class</h3>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -741,7 +741,7 @@ function AnalyticsTab() {
 
       {/* Stress Scenarios */}
       {stress.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-3">Stress Test Scenarios</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {stress.map(s => (
@@ -768,7 +768,7 @@ function AnalyticsTab() {
 
       {/* Fee Revenue */}
       {feeRevenue.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-semibold mb-4">Monthly Fee Revenue</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={feeRevenue}>

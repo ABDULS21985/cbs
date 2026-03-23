@@ -38,13 +38,13 @@ export function FailureAnalysisPanel({
   isLoading = false,
 }: FailureAnalysisPanelProps) {
   if (isLoading) {
-    return <div className="h-[640px] animate-pulse rounded-xl border bg-card" />;
+    return <div className="h-[640px] animate-pulse surface-card" />;
   }
 
   const trendRows = buildTrendRows(data, priorData);
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="mb-4">
         <h2 className="text-base font-semibold text-foreground">Failure Analysis</h2>
         <p className="text-sm text-muted-foreground">

@@ -284,7 +284,7 @@ export function BreakManagementPage() {
       <div className="page-container space-y-4">
         {/* Filters */}
         {showFilters && (
-          <div className="rounded-xl border bg-card p-4">
+          <div className="surface-card p-4">
             <div className="flex items-center gap-3 flex-wrap">
               <select
                 value={statusFilter}
@@ -401,7 +401,7 @@ export function BreakManagementPage() {
 
           {/* Detail Slide-over */}
           {selectedBreak && (
-            <div className="w-[480px] flex-shrink-0 rounded-xl border bg-card overflow-hidden animate-in slide-in-from-right-4">
+            <div className="w-[480px] flex-shrink-0 surface-card overflow-hidden animate-in slide-in-from-right-4">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
                 <div>

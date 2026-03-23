@@ -132,7 +132,7 @@ export function ApiProductDetailPage() {
       label: 'Overview',
       content: (
         <div className="p-6 grid md:grid-cols-2 gap-6">
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-3">Product Details</h3>
             <div className="divide-y">
               {[
@@ -151,7 +151,7 @@ export function ApiProductDetailPage() {
               ))}
             </div>
           </div>
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-3">Description</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
             <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-3">
@@ -175,7 +175,7 @@ export function ApiProductDetailPage() {
       content: (
         <div className="p-6 space-y-2">
           {(product.endpoints ?? []).length === 0 ? (
-            <div className="rounded-lg border bg-card p-12 text-center text-sm text-muted-foreground">
+            <div className="surface-card p-12 text-center text-sm text-muted-foreground">
               No endpoint definitions available.
             </div>
           ) : (
@@ -189,7 +189,7 @@ export function ApiProductDetailPage() {
       label: 'Analytics',
       content: (
         <div className="p-6 space-y-6">
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-4">API Call Volume</h3>
             {analytics.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-8">No analytics data available.</p>
@@ -213,7 +213,7 @@ export function ApiProductDetailPage() {
               </ResponsiveContainer>
             )}
           </div>
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-4">P95 Latency (ms)</h3>
             {analytics.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-4">No data.</p>
@@ -237,7 +237,7 @@ export function ApiProductDetailPage() {
       label: 'Changelog',
       content: (
         <div className="p-6">
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-4">Version History</h3>
             {product.changelog ? (
               <pre className="text-sm whitespace-pre-wrap leading-relaxed">{product.changelog}</pre>
@@ -311,7 +311,7 @@ export function ApiProductDetailPage() {
             { icon: Globe, label: 'Subscribers', value: product.subscriberCount.toString(), color: 'text-green-600' },
             { icon: BarChart3, label: 'Error Rate', value: totalCalls ? `${((totalErrors / totalCalls) * 100).toFixed(2)}%` : '—', color: 'text-rose-600' },
           ].map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className="rounded-lg border bg-card p-4 flex items-center gap-3">
+            <div key={label} className="surface-card p-4 flex items-center gap-3">
               <Icon className={cn('h-8 w-8', color)} />
               <div>
                 <p className="text-xs text-muted-foreground">{label}</p>

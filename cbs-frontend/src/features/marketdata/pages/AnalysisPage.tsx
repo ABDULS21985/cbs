@@ -85,7 +85,7 @@ function AnalysisCard({ analysis }: { analysis: MarketAnalysis }) {
   const Icon = config.icon;
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden hover:border-border/80 transition-colors">
+    <div className="surface-card overflow-hidden hover:border-border/80 transition-colors">
       <div className="p-5 space-y-3">
         <div className="flex items-start gap-3">
           <div className={cn('p-2 rounded-lg shrink-0', config.bg)}>

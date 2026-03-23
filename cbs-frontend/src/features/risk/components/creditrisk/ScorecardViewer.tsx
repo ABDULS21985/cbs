@@ -92,7 +92,7 @@ export function ScorecardViewer() {
       />
 
       {selectedId !== null && (
-        <div className="rounded-lg border bg-card p-4 space-y-5">
+        <div className="surface-card p-4 space-y-5">
           {detailLoading ? (
             <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
               Loading scorecard detail...

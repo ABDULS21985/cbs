@@ -190,7 +190,7 @@ export function ConsentDetailPage() {
       label: 'Scopes & Data',
       content: (
         <div className="p-6">
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <Key className="h-4 w-4 text-muted-foreground" /> Authorised Data Access
             </h3>
@@ -204,7 +204,7 @@ export function ConsentDetailPage() {
       label: 'Timeline',
       content: (
         <div className="p-6">
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-4">Consent Lifecycle</h3>
             <ConsentTimeline events={timelineEvents} />
           </div>
@@ -216,7 +216,7 @@ export function ConsentDetailPage() {
       label: 'Customer',
       content: (
         <div className="p-6">
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <User className="h-4 w-4 text-muted-foreground" /> Customer Consents Summary
             </h3>

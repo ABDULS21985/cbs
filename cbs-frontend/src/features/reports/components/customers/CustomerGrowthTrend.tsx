@@ -45,7 +45,7 @@ function formatLegendLabel(value: string): string {
 
 export function CustomerGrowthTrend({ data, isLoading }: CustomerGrowthTrendProps) {
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
+    <div className="surface-card p-4 space-y-4">
       <h2 className="text-sm font-semibold text-foreground">Customer Growth Trend — 12 Months</h2>
 
       {isLoading ? (

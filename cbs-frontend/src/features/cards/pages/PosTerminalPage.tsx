@@ -262,7 +262,7 @@ export function PosTerminalPage() {
         <TerminalHealthMonitor terminals={terminals} isLoading={isLoading} />
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-3 surface-card p-3">
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Status</label>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 px-2 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30">

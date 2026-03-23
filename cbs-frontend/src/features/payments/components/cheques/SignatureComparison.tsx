@@ -14,7 +14,7 @@ export function SignatureComparison({ chequeId: _chequeId }: Props) {
   const [notes, setNotes] = useState('');
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-4">
+    <div className="surface-card p-4 space-y-4">
       <h4 className="text-sm font-semibold">Signature Comparison</h4>
 
       <div className="flex items-center gap-2 mb-2">

@@ -31,7 +31,7 @@ export function GeographicDistributionMap({
 }: GeographicDistributionMapProps) {
   if (loading) {
     return (
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <div className="h-4 w-48 bg-muted rounded mb-4" />
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -46,7 +46,7 @@ export function GeographicDistributionMap({
   const sorted = [...data].sort((a, b) => b.tppCount - a.tppCount);
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Geographic Distribution</h3>
 
       {sorted.length === 0 ? (

@@ -22,7 +22,7 @@ export function LeaderboardCard({ goals, currentUserId }: Props) {
   const medals = ['🥇', '🥈', '🥉'];
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-3">Savings Leaderboard</h3>
       <div className="space-y-2">
         {ranked.map(([id, { name, total }], i) => (

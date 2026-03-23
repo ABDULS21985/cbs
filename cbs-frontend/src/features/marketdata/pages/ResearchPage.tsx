@@ -272,7 +272,7 @@ export function ResearchPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {projects.map((project: MarketResearchProject) => (
-                    <div key={project.id} className="rounded-xl border bg-card p-5 space-y-3 hover:border-border/80 transition-colors">
+                    <div key={project.id} className="surface-card p-5 space-y-3 hover:border-border/80 transition-colors">
                       <div className="flex items-start gap-3">
                         <div className="p-2 rounded-lg bg-muted shrink-0">
                           {PROJECT_TYPE_ICONS[project.type] ?? <BarChart3 className="w-5 h-5" />}
@@ -325,7 +325,7 @@ export function ResearchPage() {
                   </div>
 
                   {insights.keyThemes && insights.keyThemes.length > 0 && (
-                    <div className="rounded-lg border bg-card p-5">
+                    <div className="surface-card p-5">
                       <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Lightbulb className="w-4 h-4 text-amber-500" /> Key Themes</h3>
                       <div className="space-y-2">
                         {insights.keyThemes.map((theme, i) => (
@@ -339,7 +339,7 @@ export function ResearchPage() {
                   )}
 
                   {insights.recommendations && insights.recommendations.length > 0 && (
-                    <div className="rounded-lg border bg-card p-5">
+                    <div className="surface-card p-5">
                       <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-green-500" /> Recommendations</h3>
                       <div className="space-y-2">
                         {insights.recommendations.map((rec, i) => (

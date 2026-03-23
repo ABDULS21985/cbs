@@ -131,7 +131,7 @@ export function MarketingAnalyticsPage() {
           <Tabs.Content value="surveys" className="mt-4 space-y-4">
             <div className="grid grid-cols-1 xl:grid-cols-[1.3fr_0.9fr] gap-4">
               <NpsTrendChart data={npsTrend} />
-              <div className="rounded-lg border bg-card p-4 space-y-4">
+              <div className="surface-card p-4 space-y-4">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground">Survey Coverage</h3>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -158,7 +158,7 @@ export function MarketingAnalyticsPage() {
                 </div>
               </div>
             </div>
-            <div className="rounded-lg border bg-card overflow-hidden">
+            <div className="surface-card overflow-hidden">
               <div className="px-4 py-3 border-b bg-muted/20">
                 <h3 className="text-sm font-semibold text-foreground">Survey Results</h3>
               </div>
@@ -204,26 +204,26 @@ export function MarketingAnalyticsPage() {
           {/* Brand Metrics */}
           <Tabs.Content value="brand" className="mt-4">
             <div className="grid gap-4 lg:grid-cols-4">
-              <div className="rounded-lg border bg-card p-4">
+              <div className="surface-card p-4">
                 <div className="text-xs text-muted-foreground">NPS</div>
                 <div className="mt-1 text-2xl font-bold">{stats?.npsScore ?? 0}</div>
               </div>
-              <div className="rounded-lg border bg-card p-4">
+              <div className="surface-card p-4">
                 <div className="text-xs text-muted-foreground">Campaign Open Rate</div>
                 <div className="mt-1 text-2xl font-bold">{formatPercent(campaignOpenRate, 1)}</div>
               </div>
-              <div className="rounded-lg border bg-card p-4">
+              <div className="surface-card p-4">
                 <div className="text-xs text-muted-foreground">Engagement Rate</div>
                 <div className="mt-1 text-2xl font-bold">{formatPercent(campaignEngagementRate, 1)}</div>
               </div>
-              <div className="rounded-lg border bg-card p-4">
+              <div className="surface-card p-4">
                 <div className="text-xs text-muted-foreground">Survey Response Rate</div>
                 <div className="mt-1 text-2xl font-bold">{formatPercent(overallSurveyResponseRate, 1)}</div>
               </div>
             </div>
 
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-lg border bg-card p-4">
+              <div className="surface-card p-4">
                 <h3 className="text-sm font-semibold mb-3">Top Campaign</h3>
                 {topCampaign ? (
                   <div className="space-y-2 text-sm">
@@ -235,7 +235,7 @@ export function MarketingAnalyticsPage() {
                   <div className="text-sm text-muted-foreground">No campaign data returned.</div>
                 )}
               </div>
-              <div className="rounded-lg border bg-card p-4">
+              <div className="surface-card p-4">
                 <h3 className="text-sm font-semibold mb-3">Sentiment Summary</h3>
                 <div className="text-sm text-muted-foreground">
                   Brand health in this build is derived from campaign engagement and survey response/NPS data returned by the backend reporting service.

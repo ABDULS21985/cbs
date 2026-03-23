@@ -73,7 +73,7 @@ function BatchOperationCard({
   }, [isPending]);
 
   return (
-    <div className="rounded-lg border bg-card p-5 flex flex-col gap-3">
+    <div className="surface-card p-5 flex flex-col gap-3">
       <div>
         <h4 className="text-sm font-semibold">{title}</h4>
         <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
@@ -228,7 +228,7 @@ export function FixedIncomePage() {
             label: 'Maturity Ladder',
             content: (
               <div className="p-6 space-y-6">
-                <div className="rounded-lg border bg-card p-5">
+                <div className="surface-card p-5">
                   <h3 className="text-sm font-semibold mb-4">Maturity Profile by Bucket</h3>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
@@ -247,7 +247,7 @@ export function FixedIncomePage() {
 
                 {/* Upcoming maturities (next 90d) */}
                 {maturingIn30.length > 0 && (
-                  <div className="rounded-lg border bg-card p-5">
+                  <div className="surface-card p-5">
                     <h3 className="text-sm font-semibold mb-3">Upcoming Maturities (Next 30 days)</h3>
                     <div className="space-y-2">
                       {maturingIn30.map((h) => (
@@ -309,7 +309,7 @@ export function FixedIncomePage() {
             label: 'Yield Curve',
             content: (
               <div className="p-6">
-                <div className="rounded-lg border bg-card p-5">
+                <div className="surface-card p-5">
                   <h3 className="text-sm font-semibold mb-4">Yield Curve (from Portfolio Holdings)</h3>
                   {yieldCurveData.length >= 2 ? (
                     <div className="h-72">

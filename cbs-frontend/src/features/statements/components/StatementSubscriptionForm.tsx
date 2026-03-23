@@ -77,7 +77,7 @@ interface SubscriptionCardProps {
 
 function SubscriptionCard({ sub, onEdit, onDelete }: SubscriptionCardProps) {
   return (
-    <div className="flex items-start justify-between p-3.5 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
+    <div className="flex items-start justify-between p-3.5 surface-card hover:bg-muted/30 transition-colors">
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
           <RefreshCw className="w-4 h-4 text-primary" />
@@ -229,7 +229,7 @@ export function StatementSubscriptionForm({
 
       {/* ── Add / Edit Form ─────────────────────────────────────────── */}
       {showForm ? (
-        <form onSubmit={handleSubmit(onSubmit)} className="rounded-lg border bg-card p-4 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="surface-card p-4 space-y-4">
           <div className="text-sm font-semibold">
             {editingId ? 'Edit Subscription' : 'New Statement Subscription'}
           </div>

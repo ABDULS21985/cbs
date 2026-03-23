@@ -56,7 +56,7 @@ export function PortalAccountsPage() {
         <button onClick={() => handleDownload('CSV')} disabled={!dateFrom || !dateTo} className="inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-md text-sm hover:bg-muted disabled:opacity-50"><Download className="w-3.5 h-3.5" /> CSV</button>
       </div>
 
-      <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         {txnsLoading ? (
           <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
         ) : transactions.length === 0 ? (

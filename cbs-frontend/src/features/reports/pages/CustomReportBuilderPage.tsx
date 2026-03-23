@@ -173,7 +173,7 @@ function ReviewStep({
 
       {/* Right: summary */}
       <div className="col-span-12 lg:col-span-7 space-y-4">
-        <div className="rounded-xl border bg-card p-5 space-y-4">
+        <div className="surface-card p-5 space-y-4">
           <h3 className="text-sm font-semibold">Configuration Summary</h3>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -539,7 +539,7 @@ export function CustomReportBuilderPage() {
                 </FormSection>
               </div>
               <div className="col-span-12 lg:col-span-6">
-                <div className="rounded-xl border bg-card p-5 space-y-3">
+                <div className="surface-card p-5 space-y-3">
                   <h3 className="text-sm font-semibold">Schedule Preview</h3>
                   {schedule === 'MANUAL' ? (
                     <p className="text-sm text-muted-foreground">This report will only run when manually triggered.</p>

@@ -21,7 +21,7 @@ function ChannelCard({ config, onTest, onEdit }: { config: ChannelConfig; onTest
   const Icon = meta.icon;
 
   return (
-    <div className="rounded-lg border bg-card p-5 space-y-4">
+    <div className="surface-card p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={cn('p-2.5 rounded-lg', meta.color)}><Icon className="w-5 h-5" /></div>

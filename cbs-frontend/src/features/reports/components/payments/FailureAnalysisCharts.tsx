@@ -88,7 +88,7 @@ export function FailureAnalysisCharts({ reasons, topFailed, isLoading }: Failure
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {[0, 1].map((i) => (
-          <div key={i} className="rounded-lg border bg-card p-4 h-72 flex items-center justify-center">
+          <div key={i} className="surface-card p-4 h-72 flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           </div>
         ))}
@@ -99,7 +99,7 @@ export function FailureAnalysisCharts({ reasons, topFailed, isLoading }: Failure
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Pie — Failure Reasons */}
-      <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="surface-card p-4 space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Failure Reasons</h2>
         <div className="flex flex-col items-center">
           <ResponsiveContainer width={200} height={200}>
@@ -133,7 +133,7 @@ export function FailureAnalysisCharts({ reasons, topFailed, isLoading }: Failure
       </div>
 
       {/* Table — Top Failed Transactions */}
-      <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="surface-card p-4 space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Top Failed Transactions</h2>
         <DataTable
           columns={columns}

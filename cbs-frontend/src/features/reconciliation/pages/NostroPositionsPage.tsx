@@ -27,7 +27,7 @@ function StatCard({ label, value, sub, icon: Icon, accent }: {
   icon: typeof BarChart3; accent: string;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="flex items-center gap-3 mb-3">
         <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', accent)}>
           <Icon className="w-5 h-5" />
@@ -78,7 +78,7 @@ function NewPositionModal({ open, onClose }: NewPositionModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-xl border bg-card p-6 shadow-xl">
+      <div className="relative w-full max-w-lg surface-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold">New Position</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">

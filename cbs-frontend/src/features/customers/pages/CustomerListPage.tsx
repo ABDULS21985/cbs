@@ -433,7 +433,7 @@ export default function CustomerListPage() {
 
         {/* ── Expandable Filter Panel ─────────────────────────────────── */}
         {filtersOpen && (
-          <div className="rounded-2xl border bg-card p-5 shadow-sm animate-in slide-in-from-top-2 duration-200">
+          <div className="surface-card p-5 shadow-sm animate-in slide-in-from-top-2 duration-200">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {/* Customer Type */}
               <div className="space-y-2">
@@ -499,7 +499,7 @@ export default function CustomerListPage() {
         )}
 
         {/* ── Data Table ──────────────────────────────────────────────── */}
-        <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
+        <div className="surface-card shadow-sm overflow-hidden">
           <DataTable
             columns={columns}
             data={data?.items ?? []}

@@ -122,7 +122,7 @@ export function TppClientDetailPage() {
         <div className="p-6 space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             {/* Client Details */}
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <h3 className="text-sm font-semibold mb-3">Client Details</h3>
               <div>
                 <InfoRow label="Client Name">{client.name}</InfoRow>
@@ -145,7 +145,7 @@ export function TppClientDetailPage() {
             </div>
 
             {/* Approved Scopes */}
-            <div className="rounded-lg border bg-card p-4">
+            <div className="surface-card p-4">
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <Key className="h-4 w-4 text-muted-foreground" /> Approved Scopes
               </h3>
@@ -184,7 +184,7 @@ export function TppClientDetailPage() {
       label: 'API Usage',
       content: (
         <div className="p-6 space-y-6">
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <Activity className="h-4 w-4 text-muted-foreground" /> Request Volume (30 days)
             </h3>
@@ -201,7 +201,7 @@ export function TppClientDetailPage() {
       label: 'Credentials',
       content: (
         <div className="p-6">
-          <div className="rounded-lg border bg-card p-4 max-w-lg">
+          <div className="surface-card p-4 max-w-lg">
             <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
               <Key className="h-4 w-4 text-muted-foreground" /> OAuth2 Credentials
             </h3>
@@ -289,7 +289,7 @@ export function TppClientDetailPage() {
           { icon: BarChart3, label: 'Avg Latency', value: avgLatency ? `${avgLatency}ms` : 'n/a', color: 'text-amber-600' },
           { icon: CheckCircle2, label: 'Error Rate', value: `${totalCalls ? ((totalErrors / totalCalls) * 100).toFixed(2) : '0.00'}%`, color: 'text-rose-600' },
         ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="rounded-lg border bg-card p-4 flex items-center gap-3">
+          <div key={label} className="surface-card p-4 flex items-center gap-3">
             <Icon className={cn('h-8 w-8', color)} />
             <div>
               <p className="text-xs text-muted-foreground">{label}</p>

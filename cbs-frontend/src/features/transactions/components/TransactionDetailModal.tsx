@@ -159,7 +159,7 @@ export function TransactionDetailModal({ transaction, open, onClose }: Transacti
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border bg-card shadow-2xl"
+          className="flex max-h-[90vh] w-full max-w-3xl flex-col surface-card shadow-2xl"
         >
           <div className="flex items-center justify-between border-b px-6 py-4">
             <div>

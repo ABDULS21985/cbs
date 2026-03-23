@@ -17,7 +17,7 @@ export function PositionHeatmap({ desks, positions }: PositionHeatmapProps) {
   const instruments = Array.from(new Set(positions.map((position) => position.instrument))).sort();
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold">Position Heatmap</h3>

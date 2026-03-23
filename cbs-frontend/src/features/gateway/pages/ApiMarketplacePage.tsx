@@ -61,7 +61,7 @@ function ProductCard({ product, onPublish, onDeprecate }: {
   onDeprecate: (id: number) => void;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-3 hover:shadow-sm transition-shadow">
+    <div className="surface-card p-5 space-y-3 hover:shadow-sm transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">{product.productName}</p>
@@ -371,7 +371,7 @@ export function ApiMarketplacePage() {
       label: 'Subscribe',
       content: (
         <div className="p-4 max-w-md">
-          <div className="rounded-xl border bg-card p-6 space-y-4">
+          <div className="surface-card p-6 space-y-4">
             <h3 className="text-sm font-semibold">Create Subscription</h3>
             <div><label className="text-xs font-medium text-muted-foreground">Product</label>
               <select className="w-full mt-1 input" value={subForm.productId} onChange={(e) => setSubForm((p) => ({ ...p, productId: parseInt(e.target.value) || 0 }))}>

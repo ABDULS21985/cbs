@@ -11,7 +11,7 @@ export function GoalEmptyState() {
   const navigate = useNavigate();
 
   return (
-    <div className="rounded-xl border bg-card p-12 text-center">
+    <div className="surface-card p-12 text-center">
       {/* Illustration */}
       <div className="flex justify-center mb-6">
         <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">

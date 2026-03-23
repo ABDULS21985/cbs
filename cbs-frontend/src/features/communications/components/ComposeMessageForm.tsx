@@ -189,7 +189,7 @@ export function ComposeMessageForm({ open, onClose }: ComposeMessageFormProps) {
                 {showPreview ? 'Hide Preview' : 'Show Preview'}
               </button>
               {showPreview && (
-                <div className="mt-2 rounded-lg border bg-card p-4 text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto">
+                <div className="mt-2 surface-card p-4 text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto">
                   {body.replace(/\{\{customerName\}\}/g, 'John Doe')
                     .replace(/\{\{accountNumber\}\}/g, '0012345678')
                     .replace(/\{\{amount\}\}/g, '₦150,000.00')

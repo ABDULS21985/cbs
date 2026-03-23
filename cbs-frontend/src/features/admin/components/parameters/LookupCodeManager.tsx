@@ -151,7 +151,7 @@ export function LookupCodeManager() {
       </div>
 
       {showAddForm && (
-        <div className="rounded-xl border bg-card p-5 space-y-4">
+        <div className="surface-card p-5 space-y-4">
           <h4 className="text-sm font-semibold">New Lookup Code</h4>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
@@ -205,7 +205,7 @@ export function LookupCodeManager() {
         </div>
       )}
 
-      <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center text-sm text-muted-foreground">Loading lookup codes…</div>
         ) : codes.length === 0 ? (

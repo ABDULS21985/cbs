@@ -140,7 +140,7 @@ function DocumentsTab({ planCode }: { planCode: string }) {
       ) : (
         <div className="space-y-2">
           {docs.map((d, i) => (
-            <div key={i} className="flex items-center gap-3 rounded-lg border bg-card p-3">
+            <div key={i} className="flex items-center gap-3 surface-card p-3">
               <FileText className="w-5 h-5 text-primary" />
               <div className="flex-1">
                 <p className="text-sm font-medium">{String(d.fileName ?? `Document ${i + 1}`)}</p>

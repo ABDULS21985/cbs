@@ -138,7 +138,7 @@ function BranchDashboard({ branchId }: { branchId: string }) {
 
       {!isLoading && stats && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-3">Queue Wait Trend (Today)</h3>
             <div className="space-y-1.5">
               {stats.queueWaitTrend.map((point) => (
@@ -161,7 +161,7 @@ function BranchDashboard({ branchId }: { branchId: string }) {
             </div>
           </div>
 
-          <div className="rounded-lg border bg-card p-4">
+          <div className="surface-card p-4">
             <h3 className="text-sm font-semibold mb-3">Service Mix</h3>
             <div className="space-y-2">
               {stats.serviceMix.map((item) => (

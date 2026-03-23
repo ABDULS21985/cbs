@@ -114,7 +114,7 @@ const STATUS_STYLES = {
 
 export function RegulatoryTimeline() {
   return (
-    <div className="rounded-xl border bg-card p-6">
+    <div className="surface-card p-6">
       <h3 className="text-sm font-semibold mb-1">Regulatory Timeline</h3>
       <p className="text-xs text-muted-foreground mb-6">
         Key compliance milestones and regulatory events

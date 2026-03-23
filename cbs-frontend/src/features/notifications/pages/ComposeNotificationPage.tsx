@@ -29,7 +29,7 @@ function Section({ number, title, description, children, defaultOpen = true }: {
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <button type="button" onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition-colors">
         <div className="flex items-center gap-3">
@@ -285,7 +285,7 @@ export function ComposeNotificationPage() {
         </Section>
 
         {/* Section 5: Review & Send */}
-        <div className="rounded-xl border bg-card p-5 space-y-4">
+        <div className="surface-card p-5 space-y-4">
           <div className="flex items-center gap-3">
             <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold">5</span>
             <h3 className="text-sm font-semibold">Review & Send</h3>

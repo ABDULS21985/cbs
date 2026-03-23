@@ -100,7 +100,7 @@ function PersonalInfoTab({ customerId }: { customerId: number }) {
       </div>
 
       {/* Profile Fields */}
-      <div className="rounded-lg border bg-card divide-y">
+      <div className="surface-card divide-y">
         {PROFILE_FIELDS.map(({ key, label, requestType, editable }) => {
           const value = String(profile[key] ?? '');
           const pending = getPendingForField(requestType);
@@ -131,7 +131,7 @@ function PersonalInfoTab({ customerId }: { customerId: number }) {
 
       {/* Addresses */}
       {profile.addresses && profile.addresses.length > 0 && (
-        <div className="rounded-lg border bg-card">
+        <div className="surface-card">
           <div className="px-5 py-3 border-b">
             <h3 className="text-sm font-semibold flex items-center gap-2"><MapPin className="w-4 h-4" /> Addresses</h3>
           </div>
@@ -148,7 +148,7 @@ function PersonalInfoTab({ customerId }: { customerId: number }) {
 
       {/* Pending Update Requests History */}
       {pendingUpdates.length > 0 && (
-        <div className="rounded-lg border bg-card">
+        <div className="surface-card">
           <div className="px-5 py-3 border-b">
             <h3 className="text-sm font-semibold">Update Requests</h3>
           </div>
@@ -274,7 +274,7 @@ function SecurityTab({ customerId }: { customerId: number }) {
   return (
     <div className="p-6 space-y-6">
       {/* Change Password */}
-      <div className="rounded-lg border bg-card">
+      <div className="surface-card">
         <div className="px-5 py-3 border-b">
           <h3 className="text-sm font-semibold flex items-center gap-2"><Lock className="w-4 h-4" /> Change Password</h3>
         </div>
@@ -326,7 +326,7 @@ function SecurityTab({ customerId }: { customerId: number }) {
       </div>
 
       {/* Two-Factor Authentication */}
-      <div className="rounded-lg border bg-card">
+      <div className="surface-card">
         <div className="px-5 py-3 border-b flex items-center justify-between">
           <h3 className="text-sm font-semibold flex items-center gap-2"><Smartphone className="w-4 h-4" /> Two-Factor Authentication</h3>
           <button
@@ -364,7 +364,7 @@ function SecurityTab({ customerId }: { customerId: number }) {
       </div>
 
       {/* Login History */}
-      <div className="rounded-lg border bg-card">
+      <div className="surface-card">
         <div className="px-5 py-3 border-b">
           <h3 className="text-sm font-semibold flex items-center gap-2"><Clock className="w-4 h-4" /> Login History</h3>
         </div>
@@ -403,7 +403,7 @@ function SecurityTab({ customerId }: { customerId: number }) {
       </div>
 
       {/* Active Sessions */}
-      <div className="rounded-lg border bg-card">
+      <div className="surface-card">
         <div className="px-5 py-3 border-b">
           <h3 className="text-sm font-semibold flex items-center gap-2"><Monitor className="w-4 h-4" /> Active Sessions</h3>
         </div>
@@ -500,7 +500,7 @@ function PreferencesTab({ customerId }: { customerId: number }) {
   return (
     <div className="p-6 space-y-6">
       {/* Communication Preferences Matrix */}
-      <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-5 py-3 border-b">
           <h3 className="text-sm font-semibold">Communication Preferences</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Manage notifications per category and channel</p>
@@ -551,7 +551,7 @@ function PreferencesTab({ customerId }: { customerId: number }) {
       </div>
 
       {/* Language Preference */}
-      <div className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="surface-card p-5 space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-2"><Globe className="w-4 h-4" /> Language</h3>
         <div className="flex flex-wrap gap-2">
           {LANGUAGES.map((lang) => (
@@ -573,7 +573,7 @@ function PreferencesTab({ customerId }: { customerId: number }) {
 
       {/* Default Transfer Account */}
       {accounts.length > 0 && (
-        <div className="rounded-lg border bg-card p-5 space-y-3">
+        <div className="surface-card p-5 space-y-3">
           <h3 className="text-sm font-semibold">Default Transfer Account</h3>
           <select
             value={preferences?.defaultTransferAccountId ?? ''}
@@ -589,7 +589,7 @@ function PreferencesTab({ customerId }: { customerId: number }) {
       )}
 
       {/* Statement Delivery */}
-      <div className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="surface-card p-5 space-y-3">
         <h3 className="text-sm font-semibold">Statement Delivery</h3>
         <div className="flex flex-wrap gap-2">
           {STATEMENT_DELIVERY_OPTIONS.map((opt) => (
@@ -706,7 +706,7 @@ function ActivityLogTab({ customerId }: { customerId: number }) {
           <p className="text-sm">No activities found.</p>
         </div>
       ) : (
-        <div className="rounded-lg border bg-card divide-y">
+        <div className="surface-card divide-y">
           {activities.map((activity: ActivityLogEntry) => (
             <div key={activity.id} className="px-5 py-3 flex items-start gap-3">
               <div className="mt-0.5">
@@ -804,7 +804,7 @@ function DocumentsTab({ customerId }: { customerId: number }) {
       </div>
 
       {/* Document List */}
-      <div className="rounded-lg border bg-card">
+      <div className="surface-card">
         <div className="px-5 py-3 border-b">
           <h3 className="text-sm font-semibold flex items-center gap-2"><FileText className="w-4 h-4" /> KYC Documents</h3>
         </div>

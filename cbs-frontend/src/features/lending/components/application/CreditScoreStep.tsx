@@ -10,7 +10,7 @@ interface CreditScoreStepProps {
 
 export function CreditScoreStep({ state, onNext, onBack }: CreditScoreStepProps) {
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-6">
+    <div className="surface-card p-6 space-y-6">
       <div>
         <h3 className="text-lg font-semibold mb-1">Credit Assessment</h3>
         <p className="text-sm text-muted-foreground">

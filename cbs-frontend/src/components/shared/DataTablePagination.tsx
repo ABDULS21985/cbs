@@ -18,13 +18,13 @@ export function DataTablePagination<T>({
   const rangeEnd = rowCount === 0 ? 0 : Math.min((pageIndex + 1) * pageSize, rowCount);
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t text-sm">
+    <div className="data-table-pagination">
       <div className="flex items-center gap-2 text-muted-foreground">
         <span>Rows per page</span>
         <select
           value={table.getState().pagination.pageSize}
           onChange={(e) => table.setPageSize(Number(e.target.value))}
-          className="h-8 w-16 rounded border bg-background text-sm"
+          className="data-table-select"
         >
           {pageSizeOptions.map((size) => (
             <option key={size} value={size}>{size}</option>
@@ -35,19 +35,19 @@ export function DataTablePagination<T>({
         </span>
       </div>
       <div className="flex items-center gap-1">
-        <button aria-label="First page" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()} className="p-1.5 rounded hover:bg-muted disabled:opacity-30">
+        <button aria-label="First page" onClick={() => table.setPageIndex(0)} disabled={!table.getCanPreviousPage()} className="data-table-pagination-button">
           <ChevronsLeft className="w-4 h-4" />
         </button>
-        <button aria-label="Previous page" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="p-1.5 rounded hover:bg-muted disabled:opacity-30">
+        <button aria-label="Previous page" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className="data-table-pagination-button">
           <ChevronLeft className="w-4 h-4" />
         </button>
         <span className="px-3 text-sm font-medium">
           Page {pageIndex + 1} of {Math.max(table.getPageCount(), 1)}
         </span>
-        <button aria-label="Next page" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="p-1.5 rounded hover:bg-muted disabled:opacity-30">
+        <button aria-label="Next page" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className="data-table-pagination-button">
           <ChevronRight className="w-4 h-4" />
         </button>
-        <button aria-label="Last page" onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()} className="p-1.5 rounded hover:bg-muted disabled:opacity-30">
+        <button aria-label="Last page" onClick={() => table.setPageIndex(table.getPageCount() - 1)} disabled={!table.getCanNextPage()} className="data-table-pagination-button">
           <ChevronsRight className="w-4 h-4" />
         </button>
       </div>

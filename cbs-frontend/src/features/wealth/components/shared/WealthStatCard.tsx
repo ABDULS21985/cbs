@@ -86,7 +86,7 @@ export function WealthStatCard({
 
   const card = (
     <div
-      className="rounded-xl border bg-card p-4 relative"
+      className="surface-card p-4 relative"
       aria-label={`${label}: ${loading ? 'Loading' : formattedValue}`}
       role="group"
     >

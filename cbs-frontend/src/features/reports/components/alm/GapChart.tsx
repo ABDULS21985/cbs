@@ -41,7 +41,7 @@ export function GapChart({ asOfDate }: GapChartProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <div className="h-4 w-32 bg-muted rounded animate-pulse mb-4" />
         <div className="h-64 bg-muted/30 rounded animate-pulse" />
       </div>
@@ -49,7 +49,7 @@ export function GapChart({ asOfDate }: GapChartProps) {
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <h3 className="text-sm font-semibold mb-4">Assets vs Liabilities by Maturity Bucket</h3>
       <ResponsiveContainer width="100%" height={300}>
         <ComposedChart data={buckets} margin={{ top: 8, right: 60, left: 16, bottom: 8 }}>

@@ -246,7 +246,7 @@ export function PortalTransferPage() {
           <p className="text-sm text-muted-foreground mt-1">{formatMoney(form.amount, 'NGN')} sent to {form.beneficiaryName}</p>
         </div>
 
-        <div className="rounded-xl border bg-card divide-y text-sm">
+        <div className="surface-card divide-y text-sm">
           <div className="px-5 py-3 flex justify-between"><span className="text-muted-foreground">Reference</span><span className="font-mono text-xs">{String(transferResult.reference ?? '')}</span></div>
           <div className="px-5 py-3 flex justify-between"><span className="text-muted-foreground">From</span><span className="font-mono">{form.fromAccountNumber}</span></div>
           <div className="px-5 py-3 flex justify-between"><span className="text-muted-foreground">To</span><span className="font-mono">{form.toAccountNumber}</span></div>
@@ -305,7 +305,7 @@ export function PortalTransferPage() {
     return (
       <div className="max-w-md mx-auto space-y-6">
         <h1 className="text-xl font-semibold">Review Transfer</h1>
-        <div className="rounded-xl border bg-card divide-y">
+        <div className="surface-card divide-y">
           <div className="px-5 py-3 flex justify-between"><span className="text-sm text-muted-foreground">From</span><span className="text-sm font-mono">{selectedAccount?.accountName} ({form.fromAccountNumber})</span></div>
           <div className="px-5 py-3 flex justify-between"><span className="text-sm text-muted-foreground">To</span><span className="text-sm font-mono">{form.toAccountNumber}</span></div>
           <div className="px-5 py-3 flex justify-between"><span className="text-sm text-muted-foreground">Beneficiary</span><span className="text-sm font-medium">{form.beneficiaryName}</span></div>

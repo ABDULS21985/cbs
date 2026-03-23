@@ -114,7 +114,7 @@ export function DepositReportGenerator() {
       </div>
 
       {/* Parameters */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3">
+      <div className="flex flex-wrap items-end gap-3 surface-card p-3">
         <div>
           <label className="text-xs text-muted-foreground block mb-1">Status</label>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-8 px-2 text-sm rounded-lg border bg-background">
@@ -181,7 +181,7 @@ export function DepositReportGenerator() {
       ) : reportType === 'ROLLOVER' ? (
         <div className="grid grid-cols-3 gap-4">
           {(reportData as { category: string; count: number }[]).map((row) => (
-            <div key={row.category} className="rounded-xl border bg-card p-5 text-center">
+            <div key={row.category} className="surface-card p-5 text-center">
               <p className="text-2xl font-bold tabular-nums">{row.count}</p>
               <p className="text-xs text-muted-foreground mt-1">{row.category}</p>
             </div>

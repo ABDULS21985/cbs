@@ -27,7 +27,7 @@ function CenterCard({ center, onEdit, onDeactivate }: { center: ContactCenter; o
     : '0';
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-4 hover:shadow-md transition-shadow">
+    <div className="surface-card p-5 space-y-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">

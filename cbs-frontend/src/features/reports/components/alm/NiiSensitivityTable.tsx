@@ -24,7 +24,7 @@ export function NiiSensitivityTable({ asOfDate }: NiiSensitivityTableProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4 space-y-2 animate-pulse">
+      <div className="surface-card p-4 space-y-2 animate-pulse">
         <div className="h-4 w-40 bg-muted rounded" />
         {Array.from({ length: 7 }).map((_, i) => <div key={i} className="h-9 bg-muted/50 rounded" />)}
       </div>
@@ -32,7 +32,7 @@ export function NiiSensitivityTable({ asOfDate }: NiiSensitivityTableProps) {
   }
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-4 py-3 border-b bg-muted/30">
         <h3 className="text-sm font-semibold">NII Sensitivity by Rate Scenario</h3>
         {base && (

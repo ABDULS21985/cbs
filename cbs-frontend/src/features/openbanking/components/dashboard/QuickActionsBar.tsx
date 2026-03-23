@@ -26,7 +26,7 @@ export function QuickActionsBar({
         <button
           key={label}
           onClick={onClick}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border bg-card text-sm font-medium hover:bg-muted transition-colors"
+          className="flex items-center gap-2 px-4 py-2 surface-card text-sm font-medium hover:bg-muted transition-colors"
         >
           <Icon className="w-4 h-4 text-muted-foreground" />
           {label}

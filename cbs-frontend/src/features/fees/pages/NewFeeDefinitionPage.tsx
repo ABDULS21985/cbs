@@ -58,7 +58,7 @@ export function NewFeeDefinitionPage() {
         )}
 
         {showTemplate ? (
-          <div className="rounded-xl border bg-card p-6">
+          <div className="surface-card p-6">
             <FeeTemplateSelector onSelect={handleTemplateSelect} />
           </div>
         ) : (

@@ -118,7 +118,7 @@ export function ScenarioBuilder({ onCreated }: ScenarioBuilderProps) {
       </div>
 
       {/* Draggable yield curve editor */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h3 className="text-sm font-semibold mb-3">Yield Curve Shift Editor <span className="text-muted-foreground font-normal">(drag points to adjust)</span></h3>
         <svg
           ref={svgRef}

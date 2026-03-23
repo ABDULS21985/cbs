@@ -8,6 +8,7 @@ interface DataTableToolbarProps<T> {
   table: Table<T>;
   globalFilter?: string;
   onGlobalFilterChange?: (value: string) => void;
+  searchPlaceholder?: string;
   enableGlobalFilter?: boolean;
   enableColumnVisibility?: boolean;
   enableExport?: boolean;
@@ -17,13 +18,13 @@ interface DataTableToolbarProps<T> {
 }
 
 export function DataTableToolbar<T>({
-  table, globalFilter, onGlobalFilterChange, enableGlobalFilter, enableColumnVisibility, enableExport, exportFilename, selectedCount, bulkActions,
+  table, globalFilter, onGlobalFilterChange, searchPlaceholder, enableGlobalFilter, enableColumnVisibility, enableExport, exportFilename, selectedCount, bulkActions,
 }: DataTableToolbarProps<T>) {
   const hasTools = enableGlobalFilter || enableColumnVisibility || enableExport;
   if (!hasTools && !selectedCount) return null;
 
   return (
-    <div className="flex items-center justify-between gap-4 px-4 py-3 border-b">
+    <div className="data-table-toolbar">
       <div className="flex items-center gap-2 flex-1">
         {selectedCount && selectedCount > 0 ? (
           <div className="flex items-center gap-3">
@@ -32,14 +33,14 @@ export function DataTableToolbar<T>({
           </div>
         ) : (
           enableGlobalFilter && (
-            <div className="relative max-w-sm">
+            <div className="relative w-full max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
-                type="text"
+                type="search"
                 value={globalFilter || ''}
                 onChange={(e) => onGlobalFilterChange?.(e.target.value)}
-                placeholder="Search..."
-                className="w-full pl-9 pr-8 py-1.5 text-sm rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder={searchPlaceholder || 'Search records...'}
+                className="data-table-search-input"
               />
               {globalFilter && (
                 <button onClick={() => onGlobalFilterChange?.('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">

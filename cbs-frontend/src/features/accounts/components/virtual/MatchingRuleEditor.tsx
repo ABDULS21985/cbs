@@ -78,7 +78,7 @@ export function MatchingRuleEditor({ rules: initialRules, onSave }: MatchingRule
           rules.map((rule, idx) => (
             <div
               key={`${rule.id}-${idx}`}
-              className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+              className="flex items-center gap-3 p-3 surface-card hover:bg-muted/30 transition-colors"
             >
               {/* Priority handle */}
               <div className="flex flex-col items-center gap-0.5 text-muted-foreground">

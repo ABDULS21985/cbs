@@ -14,7 +14,7 @@ export function RiskMetricsPanel({ portfolio }: { portfolio: BankPortfolio }) {
   ];
 
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Risk Metrics</h3>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {metrics.map((m) => (

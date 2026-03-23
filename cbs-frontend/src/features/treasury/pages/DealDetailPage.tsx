@@ -119,7 +119,7 @@ function DealSummaryCard({ deal }: { deal: TreasuryDeal }) {
   ];
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="surface-card">
       <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x">
         <div className="divide-y">
           {items.slice(0, 5).map(([label, value]) => (
@@ -206,7 +206,7 @@ function CashFlowsTab({ deal }: { deal: TreasuryDeal }) {
 function ConfirmationsTab({ deal }: { deal: TreasuryDeal }) {
   return (
     <div className="p-6 space-y-4">
-      <div className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="surface-card p-5 space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-2"><Shield className="w-4 h-4" /> Match Status</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -220,7 +220,7 @@ function ConfirmationsTab({ deal }: { deal: TreasuryDeal }) {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="surface-card p-5 space-y-3">
         <h3 className="text-sm font-semibold">SWIFT Confirmation</h3>
         <div className="bg-muted/30 rounded-lg p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap">
 {`:20:${deal.dealRef}
@@ -249,7 +249,7 @@ function SettlementTab({ deal }: { deal: TreasuryDeal }) {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="surface-card p-5 space-y-3">
         <h3 className="text-sm font-semibold">Settlement Instructions</h3>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
@@ -272,7 +272,7 @@ function SettlementTab({ deal }: { deal: TreasuryDeal }) {
       </div>
 
       {/* Settlement Status Timeline */}
-      <div className="rounded-lg border bg-card p-5 space-y-3">
+      <div className="surface-card p-5 space-y-3">
         <h3 className="text-sm font-semibold">Settlement Progress</h3>
         <div className="space-y-0">
           {steps.map((step, i) => (
@@ -313,7 +313,7 @@ function AuditTrailTab({ dealId }: { dealId: string }) {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="rounded-lg border bg-card divide-y">
+      <div className="surface-card divide-y">
         {events.length === 0 ? (
           <div className="p-5 text-sm text-muted-foreground">No audit trail available.</div>
         ) : (
@@ -387,7 +387,7 @@ function PnlTab({ deal }: { deal: TreasuryDeal }) {
           { label: 'MTM Value', value: mtmValue, currency: deal.currency },
           { label: 'Accrued Interest', value: accruedInterest, currency: deal.currency },
         ].map(({ label, value, currency }) => (
-          <div key={label} className="rounded-lg border bg-card p-4">
+          <div key={label} className="surface-card p-4">
             <p className="text-xs text-muted-foreground">{label}</p>
             <p className={cn('text-lg font-semibold font-mono mt-1',
               value > 0 ? 'text-green-600' : value < 0 ? 'text-red-600' : '')}>
@@ -596,7 +596,7 @@ export function DealDetailPage() {
 
       <div className="page-container space-y-5">
         {/* Lifecycle Timeline */}
-        <div className="rounded-lg border bg-card">
+        <div className="surface-card">
           <DealLifecycleTimeline deal={deal} />
         </div>
 

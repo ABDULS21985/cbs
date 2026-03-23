@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -224,6 +225,7 @@ public class CollectionsController {
     @GetMapping("/recovery")
     @Operation(summary = "Recovery tracking - per-case recovery records")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    @Transactional(readOnly = true)
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecoveryTracking() {
         List<CollectionCase> allCases = collectionCaseRepository.findAll();
 
@@ -231,7 +233,7 @@ public class CollectionsController {
         // { id, loanNumber, writtenOff, writeOffDate, recovered, recoveryPct, lastRecovery, agent }
         List<Map<String, Object>> records = allCases.stream()
                 .filter(c -> c.getStatus() == CollectionCaseStatus.RECOVERED
-                        || c.getStatus() == CollectionCaseStatus.WRITE_OFF_APPROVED
+                        || c.getStatus() == CollectionCaseStatus.WRITTEN_OFF
                         || c.getStatus() == CollectionCaseStatus.WRITE_OFF_PROPOSED)
                 .map(c -> {
                     BigDecimal writtenOff = c.getTotalOutstanding() != null ? c.getTotalOutstanding() : BigDecimal.ZERO;

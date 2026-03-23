@@ -24,7 +24,7 @@ export function TransferReceipt({ transfer, onNewTransfer }: Props) {
         <p className="text-sm text-muted-foreground mt-1">Reference: {transfer.transactionRef}</p>
       </div>
 
-      <div className="rounded-lg border bg-card p-5 text-left space-y-2 text-sm">
+      <div className="surface-card p-5 text-left space-y-2 text-sm">
         <div className="flex justify-between"><span className="text-muted-foreground">From</span><span className="font-mono">{transfer.fromAccount}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">To</span><span className="font-mono">{transfer.toAccount}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Beneficiary</span><span>{transfer.toAccountName}</span></div>

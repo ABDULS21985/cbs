@@ -1,6 +1,6 @@
 export function SearchFormSkeleton() {
   return (
-    <div className="rounded-xl border bg-card p-5" role="status" aria-label="Loading search form">
+    <div className="surface-card p-5" role="status" aria-label="Loading search form">
       <div className="space-y-4 animate-pulse">
         <span className="sr-only">Loading search form</span>
         <div className="space-y-2">

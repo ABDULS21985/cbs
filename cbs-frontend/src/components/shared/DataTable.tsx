@@ -43,6 +43,7 @@ interface DataTableProps<T> {
 
 export function DataTable<T>({
   columns, data, isLoading, enableRowSelection, onRowSelectionChange, enableGlobalFilter, enableColumnVisibility, enableExport, exportFilename, onRowClick, bulkActions, emptyMessage, pageSize = 10,
+  searchPlaceholder,
   getRowClassName,
   manualPagination,
   manualSorting,
@@ -115,7 +116,7 @@ export function DataTable<T>({
   const selectedCount = Object.keys(rowSelection).length;
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
+    <div className="data-table-shell">
       <DataTableToolbar
         table={table}
         globalFilter={globalFilter}
@@ -126,6 +127,7 @@ export function DataTable<T>({
         exportFilename={exportFilename}
         selectedCount={selectedCount}
         bulkActions={bulkActions}
+        searchPlaceholder={searchPlaceholder}
       />
 
       <div className="overflow-x-auto">
@@ -137,7 +139,7 @@ export function DataTable<T>({
           <table className="w-full data-table">
             <thead>
               {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id} className="border-b bg-muted/30">
+                <tr key={headerGroup.id} className="border-b border-border/70">
                   {headerGroup.headers.map((header) => (
                     <th key={header.id} className="px-4 py-2.5 text-left">
                       {header.isPlaceholder ? null : (

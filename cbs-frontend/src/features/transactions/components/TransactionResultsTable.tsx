@@ -364,7 +364,7 @@ export const TransactionResultsTable = memo(function TransactionResultsTable({
   }
 
   return (
-    <div className="relative rounded-xl border bg-card overflow-hidden">
+    <div className="relative surface-card overflow-hidden">
       <div
         ref={scrollContainerRef}
         className={cn('overflow-auto', virtualState.shouldVirtualize ? 'max-h-[768px]' : '')}

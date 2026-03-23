@@ -68,7 +68,7 @@ export function FraudInvestigationView({ alertId }: Props) {
   return (
     <div className="space-y-4">
       {/* Alert summary header */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <div className="flex items-start justify-between mb-3">
           <div>
             <div className="text-base font-semibold">{alert.type}</div>
@@ -133,7 +133,7 @@ export function FraudInvestigationView({ alertId }: Props) {
       </div>
 
       {/* Transaction timeline */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h4 className="text-sm font-semibold mb-3">Transaction Timeline</h4>
         {txnsLoading ? (
           <div className="h-[140px] bg-muted/40 rounded animate-pulse" />
@@ -146,7 +146,7 @@ export function FraudInvestigationView({ alertId }: Props) {
       </div>
 
       {/* Action buttons */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h4 className="text-sm font-semibold mb-3">Actions</h4>
         <div className="flex flex-wrap gap-2">
           <button

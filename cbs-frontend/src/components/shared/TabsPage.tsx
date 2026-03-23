@@ -24,15 +24,21 @@ export function TabsPage({ tabs, defaultTab, syncWithUrl }: TabsPageProps) {
   const activeTab = urlTab || localTab;
 
   const handleTabChange = (id: string) => {
-    if (syncWithUrl) { setSearchParams({ tab: id }); } else { setLocalTab(id); }
+    if (syncWithUrl) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('tab', id);
+      setSearchParams(nextParams);
+    } else {
+      setLocalTab(id);
+    }
   };
 
   const current = tabs.find((t) => t.id === activeTab) || tabs[0];
 
   return (
-    <div>
-      <div className="border-b px-6">
-        <div className="flex gap-0 -mb-px overflow-x-auto">
+    <div className="tabs-page-shell">
+      <div className="tabs-page-bar">
+        <div className="tabs-page-list" role="tablist" aria-label="Page sections">
           {tabs.map((tab) => {
             const isActive = tab.id === activeTab;
             const Icon = tab.icon;
@@ -41,8 +47,9 @@ export function TabsPage({ tabs, defaultTab, syncWithUrl }: TabsPageProps) {
                 key={tab.id}
                 onClick={() => !tab.disabled && handleTabChange(tab.id)}
                 disabled={tab.disabled}
+                aria-pressed={isActive}
                 className={cn(
-                  'flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',
+                  'tabs-page-trigger flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
                   isActive ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
                   tab.disabled && 'opacity-50 cursor-not-allowed',
                 )}
@@ -57,7 +64,7 @@ export function TabsPage({ tabs, defaultTab, syncWithUrl }: TabsPageProps) {
           })}
         </div>
       </div>
-      <div>{current?.content}</div>
+      <div className="tabs-page-content">{current?.content}</div>
     </div>
   );
 }

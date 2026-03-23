@@ -11,7 +11,7 @@ export function HqlaCompositionDonut({ data, currency }: Props) {
   const totalHqla = data.reduce((sum, d) => sum + d.netValue, 0);
 
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">HQLA Composition</h3>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="h-64">

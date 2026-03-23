@@ -68,7 +68,7 @@ export function CustomerCasesTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 surface-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-medium">Customer Cases</p>
           <p className="text-xs text-muted-foreground">Open a case to continue the workflow, or create a new case for this customer.</p>

@@ -191,7 +191,7 @@ export function StatementGeneratorPage() {
             />
 
             {/* Subscriptions panel */}
-            <div className="rounded-lg border bg-card">
+            <div className="surface-card">
               <div className="flex items-center gap-2 px-5 py-3.5 border-b">
                 <RefreshCw className="w-4 h-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold">Statement Subscriptions</h3>

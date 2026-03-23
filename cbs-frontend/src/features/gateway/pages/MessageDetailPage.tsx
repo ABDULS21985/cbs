@@ -137,7 +137,7 @@ export function MessageDetailPage() {
       />
       <div className="page-container space-y-6">
         {/* Lifecycle Tracker */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <p className="text-sm font-medium mb-4">Message Lifecycle</p>
           <LifecycleTracker status={message.status} sentAt={message.sentAt} message={message} />
         </div>
@@ -162,7 +162,7 @@ export function MessageDetailPage() {
         </div>
 
         {/* Info */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <p className="text-sm font-medium mb-4">Message Details</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
             {infoItems.map((item) => (
@@ -176,7 +176,7 @@ export function MessageDetailPage() {
 
         {/* Payload */}
         {message.payload && (
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-sm font-medium mb-3">Payload</p>
             <CodeBlock content={message.payload} language={message.payload.trim().startsWith('<') ? 'xml' : 'json'} />
           </div>
@@ -184,7 +184,7 @@ export function MessageDetailPage() {
 
         {/* Response */}
         {message.response && (
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-sm font-medium mb-3">Response</p>
             <CodeBlock content={message.response} />
           </div>
@@ -192,7 +192,7 @@ export function MessageDetailPage() {
 
         {/* Timing Breakdown */}
         {message.timingBreakdown && message.timingBreakdown.length > 0 && (
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-sm font-medium mb-3">Timing Breakdown</p>
             <div className="rounded-lg border overflow-hidden">
               <table className="w-full text-sm">

@@ -45,7 +45,7 @@ export function AlertTriageCard({ alert, onInvestigate }: Props) {
   const timeAgo = formatDistanceToNow(parseISO(alert.createdAt), { addSuffix: true });
 
   return (
-    <div className={cn('rounded-lg border bg-card overflow-hidden', config.border, config.bg)}>
+    <div className={cn('surface-card overflow-hidden', config.border, config.bg)}>
       <div className="p-4 space-y-3">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">

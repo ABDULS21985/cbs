@@ -118,7 +118,7 @@ export function EodConsolePage() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Pipeline Progress
             </h2>
-            <div className="rounded-xl border bg-card p-4">
+            <div className="surface-card p-4">
               <EodStepPipeline steps={steps} onStepClick={handleStepClick} />
             </div>
           </section>
@@ -157,11 +157,11 @@ export function EodConsolePage() {
             History & Trends
           </h2>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <div className="rounded-xl border bg-card p-4 space-y-3">
+            <div className="surface-card p-4 space-y-3">
               <h3 className="text-sm font-semibold">Run History (Last 30 Days)</h3>
               <EodHistoryTable data={history ?? []} isLoading={historyLoading} />
             </div>
-            <div className="rounded-xl border bg-card p-4 space-y-3">
+            <div className="surface-card p-4 space-y-3">
               <h3 className="text-sm font-semibold">Duration Trend</h3>
               <EodDurationTrendChart data={durationTrend ?? []} />
             </div>

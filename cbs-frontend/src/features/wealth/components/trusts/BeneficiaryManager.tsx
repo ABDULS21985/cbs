@@ -236,7 +236,7 @@ export function BeneficiaryManager({ trustCode, beneficiaries, currency: _curren
       {/* Layout: Table + Pie */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* DataTable */}
-        <div className="lg:col-span-2 rounded-xl border bg-card">
+        <div className="lg:col-span-2 surface-card">
           <DataTable
             columns={columns}
             data={beneficiaries}
@@ -248,7 +248,7 @@ export function BeneficiaryManager({ trustCode, beneficiaries, currency: _curren
         </div>
 
         {/* Pie Chart */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Allocation Breakdown</h3>
           {pieData.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
@@ -301,7 +301,7 @@ export function BeneficiaryManager({ trustCode, beneficiaries, currency: _curren
       {/* Add / Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
-          <div className="w-full max-w-md rounded-2xl border bg-card shadow-xl">
+          <div className="w-full max-w-md surface-card shadow-xl">
             {/* Header */}
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-base font-semibold">

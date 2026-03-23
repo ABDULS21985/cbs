@@ -58,7 +58,7 @@ function RunReconForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-xl border bg-card p-5 space-y-4">
+    <form onSubmit={handleSubmit} className="surface-card p-5 space-y-4">
       <h3 className="text-sm font-semibold">Run Sub-Ledger Reconciliation</h3>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <div>

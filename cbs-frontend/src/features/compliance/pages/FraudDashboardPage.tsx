@@ -119,7 +119,7 @@ function ModelPerformanceRow() {
 
   return (
     <div className="grid grid-cols-3 gap-4">
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-xs text-muted-foreground">Detection Rate</p>
         <div className="flex items-center gap-3 mt-1">
           <span className={cn('text-2xl font-bold tabular-nums', detectionMet ? 'text-green-600' : 'text-red-600')}>
@@ -131,7 +131,7 @@ function ModelPerformanceRow() {
         </div>
         <p className="text-[10px] text-muted-foreground mt-1">Target: &gt;95%</p>
       </div>
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-xs text-muted-foreground">False Positive Rate</p>
         <div className="flex items-center gap-3 mt-1">
           <span className={cn('text-2xl font-bold tabular-nums', fpMet ? 'text-green-600' : 'text-red-600')}>
@@ -143,7 +143,7 @@ function ModelPerformanceRow() {
         </div>
         <p className="text-[10px] text-muted-foreground mt-1">Target: &lt;10%</p>
       </div>
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-xs text-muted-foreground">Avg Response Time</p>
         <span className="text-2xl font-bold tabular-nums">{perf.averageResponseTimeMs}ms</span>
         <p className="text-[10px] text-muted-foreground mt-1">{perf.totalProcessed.toLocaleString()} transactions scored</p>
@@ -640,7 +640,7 @@ function TrendTab() {
         <span className="text-xs text-muted-foreground">Avg Score: {trend?.averageScore?.toFixed(0) ?? '--'}</span>
       </div>
 
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Alert Volume — Last 30 Days</p>
         <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={dailyData}>
@@ -654,7 +654,7 @@ function TrendTab() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Alerts by Channel</p>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={channelData}>
@@ -666,7 +666,7 @@ function TrendTab() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="rounded-xl border bg-card p-4">
+        <div className="surface-card p-4">
           <p className="text-sm font-medium mb-3">Alerts by Action</p>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
@@ -680,7 +680,7 @@ function TrendTab() {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-3">Risk Score vs Transaction Amount</p>
         <ResponsiveContainer width="100%" height={200}>
           <ScatterChart>
@@ -775,32 +775,32 @@ function ModelPerformanceTab() {
   return (
     <div className="p-4 space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-xl border bg-card p-4 text-center">
+        <div className="surface-card p-4 text-center">
           <p className="text-xs text-muted-foreground">Detection Rate</p>
           <p className={cn('text-3xl font-bold tabular-nums', perf.detectionRate >= 95 ? 'text-green-600' : 'text-red-600')}>
             {perf.detectionRate.toFixed(1)}%
           </p>
           <p className="text-[10px] text-muted-foreground">Target: &gt;95%</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 text-center">
+        <div className="surface-card p-4 text-center">
           <p className="text-xs text-muted-foreground">False Positive Rate</p>
           <p className={cn('text-3xl font-bold tabular-nums', perf.falsePositiveRate <= 10 ? 'text-green-600' : 'text-red-600')}>
             {perf.falsePositiveRate.toFixed(1)}%
           </p>
           <p className="text-[10px] text-muted-foreground">Target: &lt;10%</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 text-center">
+        <div className="surface-card p-4 text-center">
           <p className="text-xs text-muted-foreground">Response Time</p>
           <p className="text-3xl font-bold tabular-nums">{perf.averageResponseTimeMs}ms</p>
         </div>
-        <div className="rounded-xl border bg-card p-4 text-center">
+        <div className="surface-card p-4 text-center">
           <p className="text-xs text-muted-foreground">Total Processed</p>
           <p className="text-3xl font-bold tabular-nums">{perf.totalProcessed.toLocaleString()}</p>
         </div>
       </div>
 
       {/* Confusion Matrix */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="surface-card p-4">
         <p className="text-sm font-medium mb-4">Confusion Matrix</p>
         <div className="grid grid-cols-2 gap-2 max-w-md mx-auto">
           <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-4 text-center">

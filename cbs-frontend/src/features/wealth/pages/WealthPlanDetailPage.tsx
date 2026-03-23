@@ -111,7 +111,7 @@ type TabId = 'overview' | 'allocation' | 'goals' | 'tax' | 'documents';
 
 function SectionCard({ title, children, className }: { title?: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('rounded-xl border bg-card p-5', className)}>
+    <div className={cn('surface-card p-5', className)}>
       {title && <h3 className="text-sm font-semibold mb-4">{title}</h3>}
       {children}
     </div>
@@ -143,7 +143,7 @@ function StatPill({
   color?: string;
 }) {
   return (
-    <div className="rounded-lg border bg-card p-4 flex items-center gap-3">
+    <div className="surface-card p-4 flex items-center gap-3">
       <div className="p-2 rounded-lg bg-muted">
         <Icon className={cn('w-4 h-4', color)} />
       </div>
@@ -463,7 +463,7 @@ function GoalsTab({ plan }: { plan: WealthPlan }) {
 
       {/* Add Goal Form */}
       {showAddForm && (
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h4 className="text-sm font-semibold mb-4">New Goal</h4>
           <form onSubmit={handleAddGoal} className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">
@@ -564,7 +564,7 @@ function GoalsTab({ plan }: { plan: WealthPlan }) {
           {goals.map((goal) => {
             const pct = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
             return (
-              <div key={goal.id} className="rounded-xl border bg-card p-4 space-y-3">
+              <div key={goal.id} className="surface-card p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
@@ -636,7 +636,7 @@ function TaxInsightsTab() {
       {/* Scenario cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {TAX_SCENARIOS.map((scenario) => (
-          <div key={scenario.name} className="rounded-xl border bg-card p-5 space-y-3">
+          <div key={scenario.name} className="surface-card p-5 space-y-3">
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-primary" />
               <h4 className="font-semibold text-sm">{scenario.name}</h4>

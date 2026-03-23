@@ -42,7 +42,7 @@ export function AcquisitionFunnel({ data, isLoading }: AcquisitionFunnelProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="surface-card p-4 space-y-3">
         <div className="h-4 w-40 bg-muted rounded animate-pulse" />
         <div className="space-y-2">
           {Array.from({ length: 7 }).map((_, i) => (
@@ -60,7 +60,7 @@ export function AcquisitionFunnel({ data, isLoading }: AcquisitionFunnelProps) {
   const maxCount = data[0]?.count ?? 1;
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <h2 className="text-sm font-semibold text-foreground">Acquisition Funnel</h2>
       <div className="flex flex-col items-center gap-0.5">
         {data.map((step, index) => {

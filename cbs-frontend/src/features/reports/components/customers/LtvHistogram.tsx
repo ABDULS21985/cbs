@@ -67,14 +67,14 @@ function CustomTooltip({ active, payload, label }: any) {
 export function LtvHistogram({ data, isLoading }: LtvHistogramProps) {
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4 h-72 flex items-center justify-center">
+      <div className="surface-card p-4 h-72 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-5">
+    <div className="surface-card p-4 space-y-5">
       <h2 className="text-sm font-semibold text-foreground">Customer LTV Distribution</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

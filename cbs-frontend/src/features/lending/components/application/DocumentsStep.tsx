@@ -53,7 +53,7 @@ export function DocumentsStep({ state, updateField, onNext, onBack }: DocumentsS
 
   if (!customerId) {
     return (
-      <div className="rounded-xl border bg-card p-6 space-y-4">
+      <div className="surface-card p-6 space-y-4">
         <div>
           <h3 className="text-lg font-semibold mb-1">Application Documents</h3>
           <p className="text-sm text-muted-foreground">Select a customer first before attaching live documents.</p>
@@ -66,7 +66,7 @@ export function DocumentsStep({ state, updateField, onNext, onBack }: DocumentsS
   }
 
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-6">
+    <div className="surface-card p-6 space-y-6">
       <div>
         <h3 className="text-lg font-semibold mb-1">Application Documents</h3>
         <p className="text-sm text-muted-foreground">Attach live customer documents returned by the backend.</p>

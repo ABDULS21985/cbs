@@ -21,7 +21,7 @@ export function SettlementDashboardStrip({ data, isLoading }: SettlementDashboar
     pct >= 95 ? 'bg-green-500' : pct >= 80 ? 'bg-blue-500' : pct >= 60 ? 'bg-amber-500' : 'bg-red-500';
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm font-medium">
           Today's Settlement:{' '}

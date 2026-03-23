@@ -82,7 +82,7 @@ function ActionsDropdown({
         <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border bg-card shadow-lg py-1">
+        <div className="absolute right-0 top-full mt-1 z-20 w-44 surface-card shadow-lg py-1">
           <button onClick={() => { onView(); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted transition-colors">
             <Eye className="w-3.5 h-3.5" /> View
           </button>

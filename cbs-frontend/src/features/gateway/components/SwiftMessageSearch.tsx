@@ -103,7 +103,7 @@ export function SwiftMessageSearch() {
     <>
       <div className="space-y-4">
         {/* Search Form */}
-        <div className="rounded-lg border bg-card p-4">
+        <div className="surface-card p-4">
           <h3 className="text-sm font-medium mb-3">Search SWIFT Messages</h3>
           <div className="flex flex-wrap items-end gap-3">
             <div className="flex-1 min-w-48">
@@ -168,7 +168,7 @@ export function SwiftMessageSearch() {
             pageSize={15}
           />
         ) : (
-          <div className="rounded-lg border bg-card py-16 flex flex-col items-center justify-center gap-2 text-center">
+          <div className="surface-card py-16 flex flex-col items-center justify-center gap-2 text-center">
             <Search className="w-10 h-10 text-muted-foreground/30" />
             <p className="text-sm font-medium">Search for SWIFT messages</p>
             <p className="text-xs text-muted-foreground">Use the form above to search by reference, date range, or message type.</p>

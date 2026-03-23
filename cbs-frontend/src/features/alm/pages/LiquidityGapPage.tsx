@@ -73,7 +73,7 @@ function KriCard({ label, value, target, unit = '%', icon, inverse }: KriCardPro
   const barColor = ok ? 'bg-green-500' : value >= target * 0.8 || (inverse && value <= target * 1.2) ? 'bg-amber-500' : 'bg-red-500';
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium text-muted-foreground">{label}</span>
         <div className="text-muted-foreground/50">{icon}</div>
@@ -276,7 +276,7 @@ export function LiquidityGapPage() {
 
         {/* ── Section 1: Cashflow Ladder ── */}
         {positionsLoading ? (
-          <div className="rounded-lg border bg-card p-16 flex items-center justify-center">
+          <div className="surface-card p-16 flex items-center justify-center">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : positions.length > 0 ? (
@@ -287,14 +287,14 @@ export function LiquidityGapPage() {
             behavioralParams={behavioralParams}
           />
         ) : (
-          <div className="rounded-lg border bg-card p-8 text-center">
+          <div className="surface-card p-8 text-center">
             <p className="text-sm text-muted-foreground">No ALM position data available for {today}.</p>
             <p className="text-xs text-muted-foreground mt-1">Run an ALM position calculation from the ALM Dashboard first.</p>
           </div>
         )}
 
         {/* ── Section 2: Survival Horizon Visualization ── */}
-        <div className="rounded-lg border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <h3 className="text-sm font-semibold">Survival Horizon</h3>
@@ -400,7 +400,7 @@ export function LiquidityGapPage() {
         {/* ── Section 5: Contingency Funding Plan (CFP) Status ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Available Liquidity Sources */}
-          <div className="rounded-lg border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-4">Available Liquidity Sources (Haircut-Adjusted)</h3>
             {hqlaLoading ? (
               <div className="py-8 flex items-center justify-center">
@@ -465,7 +465,7 @@ export function LiquidityGapPage() {
           </div>
 
           {/* CFP Triggers & Action Plan */}
-          <div className="rounded-lg border bg-card p-5 space-y-5">
+          <div className="surface-card p-5 space-y-5">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold">CFP Activation Triggers</h3>

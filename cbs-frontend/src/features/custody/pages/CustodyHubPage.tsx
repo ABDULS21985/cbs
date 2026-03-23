@@ -80,7 +80,7 @@ export function CustodyHubPage() {
               const Icon = card.icon;
               return (
                 <button key={card.label} onClick={() => navigate(card.path)}
-                  className="rounded-xl border bg-card p-5 text-left hover:border-primary/30 hover:shadow-md transition-all group">
+                  className="surface-card p-5 text-left hover:border-primary/30 hover:shadow-md transition-all group">
                   <div className="p-2 rounded-lg bg-primary/10 w-fit mb-3 group-hover:bg-primary/20 transition-colors">
                     <Icon className="w-5 h-5 text-primary" />
                   </div>
@@ -92,7 +92,7 @@ export function CustodyHubPage() {
           </div>
 
           {/* Status donut */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Settlement Status</h3>
             {statusData.length > 0 ? (
               <div className="flex items-center gap-4">
@@ -121,7 +121,7 @@ export function CustodyHubPage() {
 
         {/* Recent failed */}
         {failed.length > 0 && (
-          <div className="rounded-xl border bg-card overflow-hidden">
+          <div className="surface-card overflow-hidden">
             <div className="px-5 py-4 border-b flex items-center justify-between">
               <h3 className="text-sm font-semibold">Recent Failed Settlements</h3>
               <span className="text-xs text-red-600 font-medium">{failed.length} failed</span>

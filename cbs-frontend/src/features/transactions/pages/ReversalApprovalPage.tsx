@@ -39,7 +39,7 @@ function DashboardCard({
   tone: string;
 }) {
   return (
-    <div className="rounded-xl border bg-card px-4 py-3">
+    <div className="surface-card px-4 py-3">
       <div className="flex items-center justify-between">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
         <div className={cn('rounded-lg p-1.5', tone)}>
@@ -252,7 +252,7 @@ export function ReversalApprovalPage() {
             <p className="text-sm text-muted-foreground">No reversal requests found for the selected filter.</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border bg-card">
+          <div className="overflow-hidden surface-card">
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-muted/30">
@@ -348,7 +348,7 @@ export function ReversalApprovalPage() {
         <>
           <div className="fixed inset-0 z-[70] bg-black/50" onClick={() => setSelectedReversalId(null)} />
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-            <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded-xl border bg-card shadow-xl">
+            <div className="max-h-[80vh] w-full max-w-lg overflow-y-auto surface-card shadow-xl">
               <div className="sticky top-0 flex items-center justify-between border-b bg-card px-6 py-4">
                 <h3 className="font-semibold">Reversal Request Details</h3>
                 <button onClick={() => setSelectedReversalId(null)} className="rounded-lg p-1.5 hover:bg-muted">
@@ -512,7 +512,7 @@ export function ReversalApprovalPage() {
             }}
           />
           <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-            <div className="w-full max-w-md space-y-4 rounded-xl border bg-card p-6 shadow-xl">
+            <div className="w-full max-w-md space-y-4 surface-card p-6 shadow-xl">
               <h3 className="text-lg font-semibold text-red-600">Reject Reversal</h3>
               <p className="text-sm text-muted-foreground">
                 {selectedReversal.requestRef} — {formatMoney(selectedReversal.amount, selectedReversal.currencyCode)}

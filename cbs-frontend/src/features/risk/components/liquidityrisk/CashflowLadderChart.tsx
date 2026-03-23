@@ -6,7 +6,7 @@ interface Props { data: CashflowBucket[]; currency: string }
 
 export function CashflowLadderChart({ data, currency }: Props) {
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-4">Cashflow Ladder (Gap Analysis)</h3>
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">

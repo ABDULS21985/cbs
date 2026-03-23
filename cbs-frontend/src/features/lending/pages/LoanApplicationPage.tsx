@@ -91,7 +91,7 @@ export function LoanApplicationPage() {
 
 function PlaceholderStep({ step, stepName, onNext, onBack }: { step: number; stepName: string; onNext: () => void; onBack: () => void }) {
   return (
-    <div className="rounded-lg border bg-card p-8 text-center">
+    <div className="surface-card p-8 text-center">
       <h3 className="text-lg font-semibold mb-2">Step {step + 1}: {stepName}</h3>
       <p className="text-sm text-muted-foreground mb-6">This step will be fully implemented with form fields and validation.</p>
       <div className="flex gap-3 justify-center">

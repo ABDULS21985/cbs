@@ -274,7 +274,7 @@ function ConfirmationsTab({ confirmations, isLoading }: ConfirmationsTabProps) {
 
       {selectedConfirmation && (
         <div className="grid gap-4 xl:grid-cols-2">
-          <div className="rounded-xl border bg-card p-4">
+          <div className="surface-card p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold">SWIFT Confirmation Preview</h3>
@@ -296,7 +296,7 @@ function ConfirmationsTab({ confirmations, isLoading }: ConfirmationsTabProps) {
             </pre>
           </div>
 
-          <div className="rounded-xl border bg-card p-4">
+          <div className="surface-card p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-sm font-semibold">Match Review</h3>

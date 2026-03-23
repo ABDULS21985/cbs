@@ -199,19 +199,19 @@ export function DealDetailPage() {
         {activeTab === 'pricing' && (
           <div className="space-y-6">
             {/* Pricing */}
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="font-semibold mb-4">Pricing</h3>
               <PricingWorkflow deal={deal} investors={investors} />
             </div>
 
             {/* Allotment */}
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="font-semibold mb-4">Allotment</h3>
               <AllotmentWorkflow deal={deal} investors={investors} />
             </div>
 
             {/* Settlement */}
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="font-semibold mb-4">Settlement</h3>
               <SettlementPanel deal={deal} investors={investors} />
             </div>
@@ -223,7 +223,7 @@ export function DealDetailPage() {
         )}
 
         {activeTab === 'timeline' && (
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="font-semibold mb-4">Deal Timeline</h3>
             <DealTimeline deal={deal} investors={investors} />
           </div>

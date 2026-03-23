@@ -210,7 +210,7 @@ export default function KycDashboardPage() {
 
         {/* Row 2: Summary charts / stat panels */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-xl border bg-card p-5 space-y-3">
+          <div className="surface-card p-5 space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <BarChart3 className="w-4 h-4 text-muted-foreground" />
               KYC Status Distribution
@@ -239,7 +239,7 @@ export default function KycDashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-card p-5 space-y-3">
+          <div className="surface-card p-5 space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Users className="w-4 h-4 text-muted-foreground" />
               Risk Rating Breakdown

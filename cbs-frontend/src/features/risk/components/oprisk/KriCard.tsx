@@ -9,7 +9,7 @@ export function KriCard({ kri, onClick }: Props) {
   const pct = Math.min(100, (kri.currentValue / kri.redThreshold) * 100);
 
   return (
-    <button onClick={onClick} className="text-left rounded-lg border bg-card p-4 hover:shadow-md transition-shadow w-full">
+    <button onClick={onClick} className="text-left surface-card p-4 hover:shadow-md transition-shadow w-full">
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-sm font-medium truncate">{kri.name}</h4>
         <span className={`text-xs font-semibold ${statusColors[kri.status]}`}>{kri.status === 'RED' ? '🔴' : kri.status === 'AMBER' ? '🟡' : '🟢'}</span>

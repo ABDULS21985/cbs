@@ -18,7 +18,7 @@ function OverviewTab({ advisor, performance }: { advisor: Record<string, unknown
   return (
     <div className="p-4 space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="rounded-xl border bg-card p-5 space-y-3">
+        <div className="surface-card p-5 space-y-3">
           <h3 className="text-sm font-semibold">Advisor Profile</h3>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div><span className="text-muted-foreground text-xs">Name</span><p className="font-medium">{String(advisor.name ?? advisor.advisorId ?? '—')}</p></div>
@@ -29,7 +29,7 @@ function OverviewTab({ advisor, performance }: { advisor: Record<string, unknown
         </div>
 
         {performance && (
-          <div className="rounded-xl border bg-card p-5 space-y-3">
+          <div className="surface-card p-5 space-y-3">
             <h3 className="text-sm font-semibold">Performance Metrics</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
               {Object.entries(performance).map(([key, val]) => (
@@ -64,7 +64,7 @@ function ClientsTab({ advisorId }: { advisorId: string }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {clients.map((c, i) => (
-            <div key={i} className="rounded-lg border bg-card p-4 space-y-2">
+            <div key={i} className="surface-card p-4 space-y-2">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center"><User className="w-4 h-4 text-primary" /></div>
                 <div>
@@ -122,7 +122,7 @@ function ReviewsTab({ advisorId }: { advisorId: string }) {
       ) : (
         <div className="space-y-3">
           {reviews.map((r, i) => (
-            <div key={i} className="rounded-lg border bg-card p-4 space-y-2">
+            <div key={i} className="surface-card p-4 space-y-2">
               <div className="flex items-center gap-2">
                 <div className="flex gap-0.5">
                   {[1, 2, 3, 4, 5].map((s) => (
@@ -190,7 +190,7 @@ function CertificationsTab({ advisorId }: { advisorId: string }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {certs.map((c, i) => (
-            <div key={i} className="rounded-lg border bg-card p-4 flex items-start gap-3">
+            <div key={i} className="surface-card p-4 flex items-start gap-3">
               <Award className="w-5 h-5 text-primary mt-0.5" />
               <div>
                 <p className="text-sm font-medium">{String(c.certificationName ?? c.name ?? `Certification ${i + 1}`)}</p>

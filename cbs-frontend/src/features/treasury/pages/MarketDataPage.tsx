@@ -98,7 +98,7 @@ function FeedStatusTab() {
           const StatusIcon = feed.status === 'ONLINE' ? Wifi : feed.status === 'DEGRADED' ? AlertTriangle : WifiOff;
           const statusColor = feed.status === 'ONLINE' ? 'text-green-500' : feed.status === 'DEGRADED' ? 'text-amber-500' : 'text-red-500';
           return (
-            <div key={feed.feedCode} className="rounded-lg border bg-card p-4 space-y-3">
+            <div key={feed.feedCode} className="surface-card p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold text-sm">{feed.feedName}</h4>
                 <StatusIcon className={cn('w-4 h-4', statusColor)} />

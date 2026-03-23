@@ -227,14 +227,14 @@ export function AgreementListPage() {
 function StatCard({ icon: Icon, label, value, loading }: { icon: React.ElementType; label: string; value: number; loading: boolean }) {
   if (loading) {
     return (
-      <div className="rounded-xl border bg-card p-5 animate-pulse">
+      <div className="surface-card p-5 animate-pulse">
         <div className="h-4 w-20 bg-muted rounded mb-2" />
         <div className="h-7 w-12 bg-muted rounded" />
       </div>
     );
   }
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm text-muted-foreground">{label}</span>
         <Icon className="w-5 h-5 text-muted-foreground/50" />

@@ -208,7 +208,7 @@ export function UnmatchedItemsPanel({ ourUnmatched, bankUnmatched, onAction }: U
 
   return (
     <>
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-5 py-3.5 border-b flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-amber-500" />
           <h3 className="text-sm font-semibold">Unmatched Items</h3>

@@ -185,7 +185,7 @@ export function MappingConfigurator({ csvHeaders, previewRows, bankName, onApply
       </div>
 
       {/* Preview Table + Mapping */}
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-4 py-3 border-b bg-muted/30">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Column Mapping (first 5 rows preview)

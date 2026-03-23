@@ -44,7 +44,7 @@ function OverviewTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LCR/NSFR Trend */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">LCR / NSFR Trend</h3>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={lcrTrend.length > 0 ? lcrTrend : nsfrTrend}>
@@ -59,7 +59,7 @@ function OverviewTab() {
         </div>
 
         {/* HQLA Composition */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">HQLA Composition</h3>
           {hqla.length > 0 ? (
             <ResponsiveContainer width="100%" height={260}>

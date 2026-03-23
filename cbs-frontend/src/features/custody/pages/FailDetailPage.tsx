@@ -57,7 +57,7 @@ export function FailDetailPage() {
         {failLoading ? (
           <div className="flex items-center justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : fail ? (
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold">Fail Details</h3>
               <StatusBadge status={fail.status} dot />
@@ -91,7 +91,7 @@ export function FailDetailPage() {
         )}
 
         {/* Action panel */}
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <h3 className="text-sm font-semibold mb-4">Available Actions</h3>
           {isResolved ? (
             <p className="text-sm text-muted-foreground">This fail has been resolved. No further actions available.</p>

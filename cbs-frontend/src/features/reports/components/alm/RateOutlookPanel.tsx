@@ -59,7 +59,7 @@ export function RateOutlookPanel() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border bg-card p-4 animate-pulse">
+        <div className="surface-card p-4 animate-pulse">
           <div className="h-4 w-40 bg-muted rounded mb-4" />
           {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-9 bg-muted/50 rounded mb-2" />)}
         </div>
@@ -69,7 +69,7 @@ export function RateOutlookPanel() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-4 py-3 border-b bg-muted/30 flex items-center justify-between">
           <h3 className="text-sm font-semibold">Interest Rate Outlook — Yield Curve</h3>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -103,7 +103,7 @@ export function RateOutlookPanel() {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <h3 className="text-sm font-semibold mb-1">Yield Curve — Current vs Forecast</h3>
         <p className="text-xs text-muted-foreground mb-4">Interest rates (%) across tenors</p>
         <ResponsiveContainer width="100%" height={280}>

@@ -35,7 +35,7 @@ interface NiiChartProps {
 function NiiSensitivityBarChart({ reports, loading }: NiiChartProps) {
   if (loading) return <Skeleton className="h-80" />;
   if (reports.length === 0) return (
-    <div className="h-80 flex items-center justify-center rounded-lg border bg-card text-sm text-muted-foreground">
+    <div className="h-80 flex items-center justify-center surface-card text-sm text-muted-foreground">
       No gap reports available. Generate a gap report first.
     </div>
   );
@@ -176,7 +176,7 @@ function NiiWhatIfSimulator({ latestReport }: WhatIfProps) {
 function NiiReportTable({ reports, loading }: { reports: AlmGapReport[]; loading: boolean }) {
   if (loading) return <Skeleton className="h-64" />;
   if (reports.length === 0) return (
-    <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+    <div className="surface-card p-8 text-center text-sm text-muted-foreground">
       No gap reports found. Generate a gap report from the ALM Dashboard.
     </div>
   );

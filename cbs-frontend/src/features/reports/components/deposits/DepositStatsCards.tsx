@@ -21,7 +21,7 @@ interface CardProps {
 function Card({ label, value, sub, icon: Icon, iconColor, accent, loading }: CardProps) {
   if (loading) {
     return (
-      <div className={cn('rounded-lg border bg-card p-5 animate-pulse', accent && 'border-primary/30')}>
+      <div className={cn('surface-card p-5 animate-pulse', accent && 'border-primary/30')}>
         <div className="h-3 w-20 bg-muted rounded mb-3" />
         <div className="h-8 w-28 bg-muted rounded mb-2" />
         <div className="h-3 w-16 bg-muted rounded" />
@@ -30,7 +30,7 @@ function Card({ label, value, sub, icon: Icon, iconColor, accent, loading }: Car
   }
 
   return (
-    <div className={cn('rounded-lg border bg-card p-5', accent && 'border-primary/40 bg-primary/5')}>
+    <div className={cn('surface-card p-5', accent && 'border-primary/40 bg-primary/5')}>
       <div className="flex items-start justify-between mb-2">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</span>
         <span className={cn('p-1.5 rounded-md', iconColor ?? 'bg-muted')}>

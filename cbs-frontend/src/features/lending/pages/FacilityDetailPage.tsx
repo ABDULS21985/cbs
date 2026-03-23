@@ -166,7 +166,7 @@ export function FacilityDetailPage() {
 
       {/* Summary card */}
       <div className="px-6 pb-4">
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <div className="surface-card shadow-sm overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x">
             {/* Left: key details */}
             <div className="col-span-2 p-6">

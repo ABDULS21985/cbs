@@ -46,7 +46,7 @@ export function ValidationPreviewStep({ batch, onBack, onContinue }: Props) {
       </div>
 
       {/* Summary info */}
-      <div className="rounded-lg border bg-card p-4 space-y-2 text-sm">
+      <div className="surface-card p-4 space-y-2 text-sm">
         <div className="flex justify-between"><span className="text-muted-foreground">Total Amount</span><span className="font-mono font-semibold">{formatMoney(batch.totalAmount, batch.currency)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Fee Estimate</span><span className="font-mono">{formatMoney(batch.feeEstimate, batch.currency)}</span></div>
         <div className="flex justify-between font-semibold"><span>Total Debit</span><span className="font-mono">{formatMoney(batch.totalAmount + batch.feeEstimate, batch.currency)}</span></div>

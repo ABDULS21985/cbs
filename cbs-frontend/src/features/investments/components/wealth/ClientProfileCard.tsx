@@ -13,7 +13,7 @@ export function ClientProfileCard({ plan }: { plan: WealthManagementPlan }) {
   ];
 
   return (
-    <div className="rounded-lg border bg-card p-5 space-y-4">
+    <div className="surface-card p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Client Profile</h3>
         <StatusBadge status={plan.planType} />

@@ -86,7 +86,7 @@ export function PortalAdminProfileUpdatesPage() {
         <div className="space-y-3">
           {pendingUpdates.map((req) => (
             <button key={req.id} onClick={() => setSelectedRequest(req)}
-              className="w-full text-left rounded-lg border bg-card p-4 hover:border-primary/30 transition-colors">
+              className="w-full text-left surface-card p-4 hover:border-primary/30 transition-colors">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-muted-foreground" />

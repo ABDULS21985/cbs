@@ -39,7 +39,7 @@ export function ReportSection({
   return (
     <div
       className={cn(
-        'rounded-xl border bg-card transition-colors',
+        'surface-card transition-colors',
         draggable && 'cursor-move hover:border-primary/40',
       )}
       draggable={draggable}

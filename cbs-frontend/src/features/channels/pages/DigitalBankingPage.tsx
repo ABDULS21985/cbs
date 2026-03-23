@@ -169,7 +169,7 @@ function IbSessionTester() {
 
       {/* Create Session Form */}
       {!activeSession && (
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
             <LogIn className="w-4 h-4" />
             Create IB Session
@@ -235,7 +235,7 @@ function IbSessionTester() {
 
       {/* Active Session Panel */}
       {activeSession && (
-        <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div className="surface-card p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold flex items-center gap-2">
               <Activity className="w-4 h-4 text-green-600" />
@@ -335,7 +335,7 @@ function IbSessionTester() {
 
       {/* Features List */}
       {activeSession && showFeatures && (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="surface-card overflow-hidden">
           <div className="px-5 py-4 border-b">
             <h4 className="text-sm font-semibold">Session Features</h4>
           </div>
@@ -417,7 +417,7 @@ function InternetBankingTab() {
     <div className="space-y-6">
       {/* Status Panel */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
               <Globe className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -435,7 +435,7 @@ function InternetBankingTab() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
               <Lock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -460,7 +460,7 @@ function InternetBankingTab() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
               <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
@@ -488,7 +488,7 @@ function InternetBankingTab() {
       </div>
 
       {/* IB Architecture Overview */}
-      <div className="rounded-xl border bg-card p-6">
+      <div className="surface-card p-6">
         <h3 className="text-sm font-semibold mb-4">Internet Banking Session Architecture</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           {[
@@ -532,7 +532,7 @@ function InternetBankingTab() {
 
       {/* IB Session Tester */}
       <RoleGuard roles={['CBS_ADMIN', 'CBS_OFFICER']}>
-        <div className="rounded-xl border bg-card p-6">
+        <div className="surface-card p-6">
           <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
             <Activity className="w-4 h-4" />
             IB Session Tester
@@ -1004,7 +1004,7 @@ function UssdMenuTab() {
         <StatCard label="Sub Menus" value={subMenus.length} format="number" icon={Layers} loading={isLoading} />
       </div>
 
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="text-sm font-semibold">USSD Menu Tree</h3>
           <RoleGuard roles="CBS_ADMIN">
@@ -1195,7 +1195,7 @@ function ActivitySummariesTab() {
         <StatCard label="Total Amount" value={totalAmount} format="money" icon={DollarSign} loading={isLoading} />
       </div>
 
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h3 className="text-sm font-semibold">Activity Summaries</h3>
           <div className="flex items-center gap-2">

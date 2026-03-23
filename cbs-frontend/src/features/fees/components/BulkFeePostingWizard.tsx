@@ -91,7 +91,7 @@ export function BulkFeePostingWizard({ onComplete }: BulkFeePostingWizardProps) 
   const stepIndex = { select: 0, preview: 1, results: 2 }[step];
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       {/* Step progress bar */}
       <div className="px-6 pt-5 pb-4 border-b bg-muted/30">
         <div className="flex items-center gap-2">

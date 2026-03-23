@@ -15,7 +15,7 @@ export function ReconciliationSummary({ session }: ReconciliationSummaryProps) {
   const isBalanced = session.difference === 0;
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       {/* Header */}
       <div className="px-5 py-3.5 border-b flex items-center justify-between">
         <h2 className="text-sm font-semibold">Reconciliation Summary</h2>

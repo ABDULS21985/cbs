@@ -15,7 +15,7 @@ interface WidgetCardProps {
 
 export function WidgetCard({ title, children, colSpan, isLoading, onRefresh, className, info, headerRight }: WidgetCardProps) {
   return (
-    <div className={cn('rounded-xl border bg-card shadow-sm overflow-hidden', className)} style={{ gridColumn: `span ${colSpan}` }}>
+    <div className={cn('surface-card shadow-sm overflow-hidden', className)} style={{ gridColumn: `span ${colSpan}` }}>
       <div className="flex items-center justify-between px-5 py-3 border-b bg-card">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold">{title}</h3>

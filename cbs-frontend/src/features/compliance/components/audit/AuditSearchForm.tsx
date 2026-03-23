@@ -12,7 +12,7 @@ export function AuditSearchForm({ onSearch }: Props) {
     setForm((p) => ({ ...p, [field]: value || undefined }));
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1">Entity Type</label>

@@ -62,7 +62,7 @@ export function LoanTypeStep({ state, updateField, onNext }: Props) {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground flex items-center gap-3">
+      <div className="surface-card p-6 text-sm text-muted-foreground flex items-center gap-3">
         <Loader2 className="w-4 h-4 animate-spin" />
         Loading loan products...
       </div>
@@ -83,7 +83,7 @@ export function LoanTypeStep({ state, updateField, onNext }: Props) {
       <h3 className="text-lg font-semibold mb-4">Select Loan Product</h3>
       <p className="text-sm text-muted-foreground mb-4">Available products are loaded from the live product catalog.</p>
       {products.length === 0 ? (
-        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
+        <div className="surface-card p-6 text-sm text-muted-foreground">
           No active loan products are available.
         </div>
       ) : null}

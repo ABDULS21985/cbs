@@ -37,7 +37,7 @@ export function YieldCurveChart({ holdings }: YieldCurveChartProps) {
   }, [holdings]);
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <h3 className="text-sm font-semibold mb-1">Yield Curve</h3>
       <p className="text-xs text-muted-foreground mb-4">Government vs corporate bond yields by tenor</p>
       <ResponsiveContainer width="100%" height={280}>

@@ -68,7 +68,7 @@ export function ReviewSubmitStep({ state, goToStep }: Props) {
       <h3 className="text-lg font-semibold">Review & Submit</h3>
 
       {/* Loan Details */}
-      <div className="rounded-lg border bg-card">
+      <div className="surface-card">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <span className="text-sm font-semibold">Loan Details</span>
           <button onClick={() => goToStep(2)} className="text-xs text-primary hover:underline">Edit</button>
@@ -86,7 +86,7 @@ export function ReviewSubmitStep({ state, goToStep }: Props) {
       </div>
 
       {/* Financial */}
-      <div className="rounded-lg border bg-card">
+      <div className="surface-card">
         <div className="flex items-center justify-between px-5 py-3 border-b">
           <span className="text-sm font-semibold">Financial Assessment</span>
           <button onClick={() => goToStep(3)} className="text-xs text-primary hover:underline">Edit</button>

@@ -58,7 +58,7 @@ export function EscalationPanel({ breakItem, onEscalate }: EscalationPanelProps)
   return (
     <div className="space-y-5">
       {/* Step Indicator */}
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-4 py-3 border-b bg-muted/30">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Escalation Level</p>
         </div>

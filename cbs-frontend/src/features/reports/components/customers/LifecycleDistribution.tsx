@@ -66,14 +66,14 @@ export function LifecycleDistribution({ data, isLoading }: LifecycleDistribution
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4 flex items-center justify-center h-80">
+      <div className="surface-card p-4 flex items-center justify-center h-80">
         <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <h2 className="text-sm font-semibold text-foreground">Customer Lifecycle Distribution</h2>
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>

@@ -72,7 +72,7 @@ export function SchedulePreviewStep({ state, updateField, onNext, onBack }: Prop
 
   if (!previewRequest) {
     return (
-      <div className="rounded-lg border bg-card p-8 text-center">
+      <div className="surface-card p-8 text-center">
         <h3 className="text-lg font-semibold mb-2">Repayment Schedule Preview</h3>
         <p className="text-sm text-muted-foreground">
           Complete the borrower, product, amount, tenor, and rate details before requesting a server-side schedule preview.
@@ -90,7 +90,7 @@ export function SchedulePreviewStep({ state, updateField, onNext, onBack }: Prop
       <p className="text-sm text-muted-foreground">Schedule figures are loaded from the backend preview endpoint.</p>
 
       {isLoading || isFetching ? (
-        <div className="rounded-lg border bg-card p-5 text-sm text-muted-foreground flex items-center gap-3">
+        <div className="surface-card p-5 text-sm text-muted-foreground flex items-center gap-3">
           <Loader2 className="w-4 h-4 animate-spin" />
           Generating schedule preview...
         </div>

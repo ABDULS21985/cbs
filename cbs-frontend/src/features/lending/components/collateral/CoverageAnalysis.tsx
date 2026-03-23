@@ -29,7 +29,7 @@ export function CoverageAnalysis({ collateral }: CoverageAnalysisProps) {
     : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
 
   return (
-    <div className="rounded-xl border bg-card shadow-sm p-5 space-y-4">
+    <div className="surface-card shadow-sm p-5 space-y-4">
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         Coverage Analysis
       </h3>

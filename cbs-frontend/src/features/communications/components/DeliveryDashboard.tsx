@@ -36,7 +36,7 @@ export function DeliveryDashboard() {
   return (
     <div className="space-y-6">
       {/* Row 1: 30-day delivery trend */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">30-Day Delivery Trend</h3>
         {trendLoading ? (
           <div className="h-64 rounded-lg bg-muted animate-pulse" />
@@ -57,7 +57,7 @@ export function DeliveryDashboard() {
 
       {/* Row 2: Channel breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Volume by Channel</h3>
           {channelLoading ? (
             <div className="h-48 rounded-lg bg-muted animate-pulse" />
@@ -84,7 +84,7 @@ export function DeliveryDashboard() {
           )}
         </div>
 
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-4">Delivery Rate by Channel</h3>
           {channelLoading ? (
             <div className="h-48 rounded-lg bg-muted animate-pulse" />

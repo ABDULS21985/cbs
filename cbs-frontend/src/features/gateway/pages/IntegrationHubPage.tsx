@@ -53,7 +53,7 @@ const HEALTH_DOT: Record<string, string> = {
 
 function RouteHealthCard({ route, onCheckHealth }: { route: IntegrationRoute; onCheckHealth: (code: string) => void }) {
   return (
-    <div className="rounded-xl border bg-card p-4 hover:shadow-sm transition-shadow space-y-2">
+    <div className="surface-card p-4 hover:shadow-sm transition-shadow space-y-2">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
           <span className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0', HEALTH_DOT[route.healthStatus] ?? 'bg-gray-400')} />
@@ -403,7 +403,7 @@ export function IntegrationHubPage() {
           )}
 
           {/* Circuit breaker status */}
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Circuit Breaker Status</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -471,7 +471,7 @@ export function IntegrationHubPage() {
 
         {/* Route health map */}
         {routes.length > 0 && (
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Route Health Map</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {routes.map((r) => <RouteHealthCard key={r.id} route={r} onCheckHealth={handleHealthCheck} />)}

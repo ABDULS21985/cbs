@@ -23,7 +23,7 @@ export function LevelProgressBar({ totalSaved }: Props) {
     : 100;
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-3">
+    <div className="surface-card p-5 space-y-3">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-muted-foreground">Savings Level</p>

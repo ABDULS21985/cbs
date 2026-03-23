@@ -45,7 +45,7 @@ export function FxPnlChart({ asOfDate }: FxPnlChartProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <div className="h-4 w-36 bg-muted rounded animate-pulse mb-4" />
         <div className="h-64 bg-muted/30 rounded animate-pulse" />
       </div>
@@ -53,7 +53,7 @@ export function FxPnlChart({ asOfDate }: FxPnlChartProps) {
   }
 
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className="surface-card p-4">
       <h3 className="text-sm font-semibold mb-1">FX P&amp;L by Currency</h3>
       <p className="text-xs text-muted-foreground mb-4">Realized and unrealized profit &amp; loss — NGN equivalent</p>
       <ResponsiveContainer width="100%" height={280}>

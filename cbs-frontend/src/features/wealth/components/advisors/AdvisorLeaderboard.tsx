@@ -84,7 +84,7 @@ export function AdvisorLeaderboard({ advisors }: AdvisorLeaderboardProps) {
   const top3 = sorted.slice(0, 3);
 
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-5">
+    <div className="surface-card p-5 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

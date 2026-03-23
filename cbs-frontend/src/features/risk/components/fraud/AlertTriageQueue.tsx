@@ -22,7 +22,7 @@ export function AlertTriageQueue({ alerts, isLoading, onInvestigate }: Props) {
     return (
       <div className="space-y-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className={cn('rounded-lg border bg-card p-4 animate-pulse', i === 0 && 'border-l-4 border-red-200')}>
+          <div key={i} className={cn('surface-card p-4 animate-pulse', i === 0 && 'border-l-4 border-red-200')}>
             <div className="flex items-start gap-2 mb-3">
               <div className="h-5 w-16 bg-muted rounded-full" />
               <div className="h-5 w-40 bg-muted rounded" />

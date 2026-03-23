@@ -103,7 +103,7 @@ function DocumentsTab({ lcId }: { lcId: number }) {
       ) : (
         <div className="space-y-2">
           {docs.map((d: any, i: number) => (
-            <div key={i} className="flex items-center gap-3 rounded-lg border bg-card p-3">
+            <div key={i} className="flex items-center gap-3 surface-card p-3">
               <FileText className="w-5 h-5 text-primary" />
               <div className="flex-1">
                 <p className="text-sm font-medium">{String(d.fileName ?? `Document ${i + 1}`)}</p>
@@ -208,7 +208,7 @@ function AmendmentsTab({ lcId }: { lcId: number }) {
       ) : (
         <div className="space-y-3">
           {amendments.map((a) => (
-            <div key={a.id} className="rounded-lg border bg-card p-4 space-y-2">
+            <div key={a.id} className="surface-card p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-muted-foreground">#{a.amendmentNumber}</span>
@@ -299,7 +299,7 @@ function PresentationsTab({ lcId }: { lcId: number }) {
       ) : (
         <div className="space-y-3">
           {presentations.map((p) => (
-            <div key={p.id} className="rounded-lg border bg-card p-4 space-y-2">
+            <div key={p.id} className="surface-card p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-muted-foreground">Presentation #{p.presentationNumber}</span>

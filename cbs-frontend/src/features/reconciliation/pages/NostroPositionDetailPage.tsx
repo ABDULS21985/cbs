@@ -112,7 +112,7 @@ function UpdateStatementModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-xl border bg-card p-6 shadow-xl">
+      <div className="relative w-full max-w-md surface-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold">Update Statement Balance</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -198,7 +198,7 @@ function AddReconItemModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-xl border bg-card p-6 shadow-xl">
+      <div className="relative w-full max-w-lg surface-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold">Add Reconciliation Item</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -330,7 +330,7 @@ function MatchItemModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-xl border bg-card p-6 shadow-xl">
+      <div className="relative w-full max-w-md surface-card p-6 shadow-xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold">Match Reconciliation Item</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -584,11 +584,11 @@ export function NostroPositionDetailPage() {
       <div className="page-container space-y-6">
         {/* Position Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Book Balance</p>
             <p className="text-xl font-bold tabular-nums">{formatCurrency(position.bookBalance, currency)}</p>
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Statement Balance</p>
             <p className="text-xl font-bold tabular-nums">{formatCurrency(position.statementBalance, currency)}</p>
             <p className="text-xs text-muted-foreground mt-1">
@@ -603,7 +603,7 @@ export function NostroPositionDetailPage() {
               {formatCurrency(difference, currency)}
             </p>
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Status</p>
             <div className="flex items-center gap-2 mt-1">
               <StatusIcon className={cn('w-5 h-5', statusCfg.color)} />

@@ -57,7 +57,7 @@ export function FxExposureTable({ asOfDate }: FxExposureTableProps) {
   );
 
   return (
-    <div className="rounded-lg border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-4 py-3 border-b bg-muted/30">
         <h3 className="text-sm font-semibold">FX Net Open Positions</h3>
         <p className="text-xs text-muted-foreground mt-0.5">All amounts in NGN equivalent</p>

@@ -187,7 +187,7 @@ export function StatementImportPage() {
         {/* Upload Tab */}
         {activeTab === 'upload' && (
           <div className="max-w-2xl mx-auto space-y-6">
-            <div className="rounded-xl border bg-card p-6">
+            <div className="surface-card p-6">
               <h2 className="text-sm font-semibold mb-1">Upload Bank Statement</h2>
               <p className="text-xs text-muted-foreground mb-4">
                 Supports CSV, MT940 (.txt), SWIFT XML, and camt.053 formats. Max 10 MB per file.
@@ -204,7 +204,7 @@ export function StatementImportPage() {
             </div>
 
             {/* Format Guide */}
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                 Supported Formats
               </h3>
@@ -313,7 +313,7 @@ export function StatementImportPage() {
                 <p className="text-xs mt-1">Configure SFTP or SWIFT connections for automatic statement retrieval.</p>
               </div>
             ) : (
-              <div className="rounded-xl border bg-card overflow-hidden">
+              <div className="surface-card overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>

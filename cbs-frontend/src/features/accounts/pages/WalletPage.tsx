@@ -424,7 +424,7 @@ function WalletCard({ wallet, accountId, wallets, onFund, onWithdraw, onConvert 
   const meta = CURRENCY_META[wallet.currencyCode];
 
   return (
-    <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+    <div className="surface-card shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b bg-muted/30">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

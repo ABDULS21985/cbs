@@ -81,7 +81,7 @@ export function TopAccountsTable({
   };
 
   return (
-    <div className="rounded-xl border bg-card p-5">
+    <div className="surface-card p-5">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold text-foreground">Top Accounts by Activity</h2>

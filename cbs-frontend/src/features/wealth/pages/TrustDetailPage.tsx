@@ -23,7 +23,7 @@ function OverviewTab({ trust }: { trust: any }) {
           { label: 'Distributions YTD', value: formatMoney(trust.distributionsYtd, trust.currency), color: 'text-amber-600 dark:text-amber-400' },
           { label: 'Annual Fee', value: trust.annualFeePct ? `${trust.annualFeePct}%` : '—', color: 'text-foreground' },
         ].map((c) => (
-          <div key={c.label} className="rounded-xl border bg-card p-4">
+          <div key={c.label} className="surface-card p-4">
             <p className="text-xs text-muted-foreground">{c.label}</p>
             <p className={cn('text-xl font-bold font-mono mt-1', c.color)}>{c.value}</p>
           </div>
@@ -31,7 +31,7 @@ function OverviewTab({ trust }: { trust: any }) {
       </div>
 
       {/* Trust Details Grid */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Trust Details</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
           {[
@@ -54,7 +54,7 @@ function OverviewTab({ trust }: { trust: any }) {
 
       {/* Investment Policy */}
       {trust.investmentPolicy && (
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3">Investment Policy</h3>
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{trust.investmentPolicy}</p>
         </div>
@@ -62,7 +62,7 @@ function OverviewTab({ trust }: { trust: any }) {
 
       {/* Distribution Rules */}
       {trust.distributionRules && Object.keys(trust.distributionRules).length > 0 && (
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3">Distribution Rules</h3>
           <div className="space-y-2">
             {Object.entries(trust.distributionRules).map(([key, value]) => (
@@ -131,7 +131,7 @@ function DocumentsTab({ trustCode }: { trustCode: string }) {
           <p className="text-sm text-muted-foreground">No documents uploaded yet</p>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card divide-y">
+        <div className="surface-card divide-y">
           {documents.map((doc) => (
             <div key={doc.id} className="px-5 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -206,7 +206,7 @@ export function TrustDetailPage() {
 
       <div className="page-container space-y-6">
         {/* Quick Stats */}
-        <div className="rounded-xl border bg-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+        <div className="surface-card p-5 flex flex-col sm:flex-row items-start sm:items-center gap-5">
           <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
             <Shield className="w-7 h-7" />
           </div>

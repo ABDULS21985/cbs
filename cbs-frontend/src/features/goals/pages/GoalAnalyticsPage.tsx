@@ -60,11 +60,11 @@ export function GoalAnalyticsPage() {
 
         {/* Row 2: Inflow + Completion Rate */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Monthly Savings Inflow</h3>
             <MonthlyInflowChart contributions={allContributions} />
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Goal Completion Rate</h3>
             <GoalCompletionRateChart goals={goals} />
           </div>
@@ -72,18 +72,18 @@ export function GoalAnalyticsPage() {
 
         {/* Row 3: Distribution + Auto-Debit */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Goal Type Distribution</h3>
             <GoalTypeDistribution goals={goals} />
           </div>
-          <div className="rounded-xl border bg-card p-5">
+          <div className="surface-card p-5">
             <h3 className="text-sm font-semibold mb-3">Auto-Debit Success Rate</h3>
             <AutoDebitSuccessRate contributions={allContributions} />
           </div>
         </div>
 
         {/* Row 4: Top Savers */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3">Top Savers</h3>
           <TopSaversTable goals={goals} />
         </div>

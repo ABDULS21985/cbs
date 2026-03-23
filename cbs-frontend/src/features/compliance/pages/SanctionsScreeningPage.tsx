@@ -494,7 +494,7 @@ export function SanctionsScreeningPage() {
               Batch-screening jobs could not be loaded from the backend.
             </div>
           )}
-          <div className="rounded-lg border bg-card p-5 space-y-4">
+          <div className="surface-card p-5 space-y-4">
             <h3 className="text-sm font-semibold">Batch Screen Names</h3>
             <p className="text-xs text-muted-foreground">Enter names to screen, one per line. Format: Name|TYPE|DOB|NATIONALITY</p>
             <textarea
@@ -514,7 +514,7 @@ export function SanctionsScreeningPage() {
           </div>
 
           {batchJobs.length > 0 && (
-            <div className="rounded-lg border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-3">Batch Jobs</h3>
               <div className="space-y-2">
                 {batchJobs.map((job, i) => (
@@ -542,7 +542,7 @@ export function SanctionsScreeningPage() {
             </div>
           )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Screenings by Outcome</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
@@ -554,7 +554,7 @@ export function SanctionsScreeningPage() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="rounded-xl border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="text-sm font-semibold mb-4">Matches by Watchlist</h3>
               {sourceData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>

@@ -147,7 +147,7 @@ export function GoalListPage() {
               {recurringDeposits.slice(0, 5).map((rd) => {
                 const pct = rd.totalInstallments > 0 ? (rd.completedInstallments / rd.totalInstallments) * 100 : 0;
                 return (
-                  <div key={rd.id} onClick={() => navigate(`/accounts/recurring-deposits/${rd.id}`)} className="flex-shrink-0 w-56 rounded-xl border bg-card p-4 cursor-pointer hover:shadow-sm transition-shadow">
+                  <div key={rd.id} onClick={() => navigate(`/accounts/recurring-deposits/${rd.id}`)} className="flex-shrink-0 w-56 surface-card p-4 cursor-pointer hover:shadow-sm transition-shadow">
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-mono text-xs text-primary font-medium">{rd.depositNumber?.slice(-6) ?? `RD-${rd.id}`}</span>
                       <span className={cn('text-[10px] font-medium px-1.5 py-0.5 rounded-full',

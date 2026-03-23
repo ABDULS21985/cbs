@@ -56,7 +56,7 @@ export function FeeImpactSimulator() {
   }, [impact, monthlyTxns]);
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="surface-card overflow-hidden">
       <div className="px-5 py-4 border-b bg-muted/30">
         <h3 className="text-sm font-semibold">Fee Impact Simulator</h3>
         <p className="text-xs text-muted-foreground">Compare current vs proposed fee structure</p>

@@ -153,7 +153,7 @@ export function CaseListPage() {
           {statCards.map((stat) => (
             <div
               key={stat.label}
-              className={`rounded-xl border bg-card p-4 ${stat.danger ? 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10' : ''}`}
+              className={`surface-card p-4 ${stat.danger ? 'border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-900/10' : ''}`}
             >
               <div className={`text-xs font-medium mb-1 ${stat.danger ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}`}>{stat.label}</div>
               <div className={`text-2xl font-semibold font-mono ${stat.danger ? 'text-red-600 dark:text-red-400' : ''}`}>{stat.value}</div>
@@ -163,7 +163,7 @@ export function CaseListPage() {
 
         {/* Filters panel */}
         {showFilters && (
-          <div className="rounded-xl border bg-card p-4 space-y-4">
+          <div className="surface-card p-4 space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">Filter Cases</p>
               {hasActiveFilters(filters) && (

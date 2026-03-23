@@ -170,7 +170,7 @@ export function StatementPreview({ data, loading, onDownload, onEmail }: Stateme
   // Empty state
   if (!loading && !data) {
     return (
-      <div className="rounded-lg border bg-card h-full min-h-[400px] flex items-center justify-center">
+      <div className="surface-card h-full min-h-[400px] flex items-center justify-center">
         <EmptyState
           icon={FileText}
           title="No statement generated"

@@ -37,7 +37,7 @@ export function DspmDashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {cards.map(c => (
             <button key={c.label} onClick={() => navigate(c.path)}
-              className="rounded-xl border bg-card p-5 text-left hover:shadow-md hover:border-primary/30 transition-all">
+              className="surface-card p-5 text-left hover:shadow-md hover:border-primary/30 transition-all">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                   <c.icon className="w-4.5 h-4.5 text-primary" />
@@ -51,7 +51,7 @@ export function DspmDashboardPage() {
         </div>
 
         {/* Recent scans */}
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold">Recent Scans</h3>
             <button onClick={() => navigate('/dspm/scans')} className="text-xs text-primary hover:underline">View all</button>

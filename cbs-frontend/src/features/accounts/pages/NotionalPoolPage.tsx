@@ -419,7 +419,7 @@ function PoolCard({ pool, onAddMember }: PoolCardProps) {
 
   return (
     <>
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+      <div className="surface-card shadow-sm overflow-hidden">
         {/* Pool header */}
         <div className="px-5 py-4 border-b bg-muted/30">
           <div className="flex items-center justify-between">

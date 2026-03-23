@@ -33,7 +33,7 @@ export function ProfitabilityDashboard({ data, currency = 'NGN' }: Props) {
     <div className="space-y-6">
       {/* P&L Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold text-green-700 dark:text-green-400 mb-3">Revenue</h3>
           <InfoGrid items={revenueItems} columns={2} />
           <div className="mt-3 pt-3 border-t flex justify-between text-sm font-semibold">
@@ -41,7 +41,7 @@ export function ProfitabilityDashboard({ data, currency = 'NGN' }: Props) {
             <span className="text-green-600">{formatMoney(data.totalRevenue, currency)}</span>
           </div>
         </div>
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold text-red-700 dark:text-red-400 mb-3">Cost</h3>
           <InfoGrid items={costItems} columns={2} />
           <div className="mt-3 pt-3 border-t flex justify-between text-sm font-semibold">
@@ -53,19 +53,19 @@ export function ProfitabilityDashboard({ data, currency = 'NGN' }: Props) {
 
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-card p-5 text-center">
+        <div className="surface-card p-5 text-center">
           <p className="text-xs text-muted-foreground">Net Contribution</p>
           <p className={cn('text-2xl font-bold mt-1', data.netContribution >= 0 ? 'text-green-600' : 'text-red-600')}>
             {formatMoney(data.netContribution, currency)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">{data.marginPct.toFixed(1)}% margin</p>
         </div>
-        <div className="rounded-xl border bg-card p-5 text-center">
+        <div className="surface-card p-5 text-center">
           <p className="text-xs text-muted-foreground">Lifetime Value</p>
           <p className="text-2xl font-bold text-primary mt-1">{formatMoney(data.lifetimeValue, currency)}</p>
           <p className="text-xs text-muted-foreground mt-1">over {data.tenureMonths}mo tenure</p>
         </div>
-        <div className="rounded-xl border bg-card p-5 text-center">
+        <div className="surface-card p-5 text-center">
           <p className="text-xs text-muted-foreground">Total Balance</p>
           <p className="text-2xl font-bold mt-1">{formatMoney(data.totalBalance, currency)}</p>
           <p className="text-xs text-muted-foreground mt-1">{data.accountCount} accounts</p>
@@ -74,7 +74,7 @@ export function ProfitabilityDashboard({ data, currency = 'NGN' }: Props) {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3">Monthly Revenue Trend</h3>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={data.monthlyTrend}>
@@ -87,7 +87,7 @@ export function ProfitabilityDashboard({ data, currency = 'NGN' }: Props) {
           </ResponsiveContainer>
         </div>
 
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <h3 className="text-sm font-semibold mb-3">Revenue Breakdown</h3>
           <div className="flex items-center gap-4">
             <ResponsiveContainer width={160} height={160}>

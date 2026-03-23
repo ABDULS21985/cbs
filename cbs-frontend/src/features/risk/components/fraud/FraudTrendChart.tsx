@@ -20,7 +20,7 @@ interface Props {
 export function FraudTrendChart({ data, isLoading }: Props) {
   if (isLoading) {
     return (
-      <div className="mx-6 rounded-lg border bg-card p-4">
+      <div className="mx-6 surface-card p-4">
         <div className="h-4 w-40 bg-muted rounded animate-pulse mb-4" />
         <div className="h-[200px] bg-muted/40 rounded animate-pulse" />
       </div>
@@ -34,7 +34,7 @@ export function FraudTrendChart({ data, isLoading }: Props) {
 
   if (formatted.length === 0) {
     return (
-      <div className="mx-6 rounded-lg border bg-card p-4">
+      <div className="mx-6 surface-card p-4">
         <div className="text-sm font-semibold mb-1">Fraud Alert Trend</div>
         <div className="text-sm text-muted-foreground">No recent fraud alerts were returned for the selected period.</div>
       </div>
@@ -42,7 +42,7 @@ export function FraudTrendChart({ data, isLoading }: Props) {
   }
 
   return (
-    <div className="mx-6 rounded-lg border bg-card p-4">
+    <div className="mx-6 surface-card p-4">
       <div className="text-sm font-semibold mb-3">Fraud Alert Trend</div>
       <ResponsiveContainer width="100%" height={200}>
         <ComposedChart data={formatted} margin={{ top: 4, right: 40, left: 0, bottom: 0 }}>

@@ -68,7 +68,7 @@ function RankingsSection({ data, isLoading }: { data: BranchPerformance[]; isLoa
   }));
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-4">
+    <div className="surface-card p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Branch Rankings</h3>
         <div className="flex rounded-lg border overflow-hidden">
@@ -214,7 +214,7 @@ function KpiDashboard({ data, isLoading }: { data: BranchPerformance[]; isLoadin
   ];
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3">
+    <div className="surface-card p-4 space-y-3">
       <h3 className="text-sm font-semibold">KPI Dashboard</h3>
       <DataTable
         columns={columns}
@@ -253,7 +253,7 @@ function TrendAnalysis({ data, isLoading }: { data: BranchPerformance[]; isLoadi
   [branchData]);
 
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-4">
+    <div className="surface-card p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Trend Analysis</h3>
         <select

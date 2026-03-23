@@ -202,11 +202,11 @@ export function DistributionScheduler({ trustCode, currency }: DistributionSched
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <p className="text-xs text-muted-foreground mb-2">Total Distributions YTD</p>
           <p className="text-2xl font-bold font-mono">{formatMoney(totalYtd, currency)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <p className="text-xs text-muted-foreground mb-2">Last Distribution</p>
           {lastDistribution ? (
             <>
@@ -221,7 +221,7 @@ export function DistributionScheduler({ trustCode, currency }: DistributionSched
             <p className="text-sm text-muted-foreground">No distributions</p>
           )}
         </div>
-        <div className="rounded-xl border bg-card p-5">
+        <div className="surface-card p-5">
           <p className="text-xs text-muted-foreground mb-2">Next Scheduled</p>
           {nextScheduled ? (
             <>
@@ -265,7 +265,7 @@ export function DistributionScheduler({ trustCode, currency }: DistributionSched
       </div>
 
       {/* Distribution Trend Chart */}
-      <div className="rounded-xl border bg-card p-5">
+      <div className="surface-card p-5">
         <h3 className="text-sm font-semibold mb-4">Distribution Trend (24 Months)</h3>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={trendData} margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
@@ -289,7 +289,7 @@ export function DistributionScheduler({ trustCode, currency }: DistributionSched
       </div>
 
       {/* Distribution History Table */}
-      <div className="rounded-xl border bg-card">
+      <div className="surface-card">
         <div className="px-5 pt-4 pb-2">
           <h3 className="text-sm font-semibold">Distribution History</h3>
         </div>
@@ -306,7 +306,7 @@ export function DistributionScheduler({ trustCode, currency }: DistributionSched
       {/* Record Distribution Modal */}
       {showRecordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
-          <div className="w-full max-w-md rounded-2xl border bg-card shadow-xl">
+          <div className="w-full max-w-md surface-card shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-base font-semibold">Record Distribution</h2>
               <button
@@ -406,7 +406,7 @@ export function DistributionScheduler({ trustCode, currency }: DistributionSched
       {/* Schedule Distribution Modal */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm bg-black/50">
-          <div className="w-full max-w-md rounded-2xl border bg-card shadow-xl">
+          <div className="w-full max-w-md surface-card shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-base font-semibold">Schedule Distribution</h2>
               <button

@@ -1109,7 +1109,7 @@ function PoolCard({ pool, participantCount, onClick }: PoolCardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left rounded-xl border bg-card shadow-sm overflow-hidden hover:border-primary/50 hover:shadow-md transition-all group"
+      className="w-full text-left surface-card shadow-sm overflow-hidden hover:border-primary/50 hover:shadow-md transition-all group"
     >
       <div className="px-5 py-4">
         <div className="flex items-center justify-between mb-3">

@@ -128,7 +128,7 @@ export default function PartyRoutingPage() {
       <PageHeader title="Customer Routing Profiles" icon={Phone} />
 
       {/* ── Search Bar ─────────────────────────────────────────────────────────── */}
-      <div className="rounded-lg border bg-card p-4">
+      <div className="surface-card p-4">
         <label className="mb-2 block text-sm font-medium text-muted-foreground">
           Look up by Customer ID
         </label>
@@ -174,7 +174,7 @@ export default function PartyRoutingPage() {
           {/* Left column */}
           <div className="space-y-6">
             {/* Channel & Language */}
-            <div className="rounded-lg border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 <Phone className="h-4 w-4" /> Channel Preferences
               </h3>
@@ -217,7 +217,7 @@ export default function PartyRoutingPage() {
             </div>
 
             {/* Risk & Tier */}
-            <div className="rounded-lg border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 <Shield className="h-4 w-4" /> Risk & Service Tier
               </h3>
@@ -263,7 +263,7 @@ export default function PartyRoutingPage() {
           {/* Right column */}
           <div className="space-y-6">
             {/* Consents */}
-            <div className="rounded-lg border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 <User className="h-4 w-4" /> Consents
               </h3>
@@ -290,7 +290,7 @@ export default function PartyRoutingPage() {
             </div>
 
             {/* Contact Preferences */}
-            <div className="rounded-lg border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Contact Preferences
               </h3>
@@ -310,7 +310,7 @@ export default function PartyRoutingPage() {
             </div>
 
             {/* Special Handling */}
-            <div className="rounded-lg border bg-card p-5">
+            <div className="surface-card p-5">
               <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Special Handling
               </h3>

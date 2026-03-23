@@ -50,5 +50,7 @@ public class SecuritiesPositionService {
         return movementRepository.findByPositionIdOrderByTradeDateDesc(positionId);
     }
 
+    public List<SecuritiesPosition> getAll() { return positionRepository.findAll(); }
+
     public List<SecuritiesMovement> getAllMovements() { return movementRepository.findAll(); }
 }

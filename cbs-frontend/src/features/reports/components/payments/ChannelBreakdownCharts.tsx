@@ -71,7 +71,7 @@ export function ChannelBreakdownCharts({ data, isLoading }: ChannelBreakdownChar
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {[0, 1].map((i) => (
-          <div key={i} className="rounded-lg border bg-card p-4 h-72 flex items-center justify-center">
+          <div key={i} className="surface-card p-4 h-72 flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           </div>
         ))}
@@ -82,7 +82,7 @@ export function ChannelBreakdownCharts({ data, isLoading }: ChannelBreakdownChar
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Donut — Volume by Channel */}
-      <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="surface-card p-4 space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Volume by Channel</h2>
         <div className="flex flex-col items-center">
           <div className="relative">
@@ -125,7 +125,7 @@ export function ChannelBreakdownCharts({ data, isLoading }: ChannelBreakdownChar
       </div>
 
       {/* Bar — Success Rate by Channel */}
-      <div className="rounded-lg border bg-card p-4 space-y-3">
+      <div className="surface-card p-4 space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Success Rate by Channel</h2>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart

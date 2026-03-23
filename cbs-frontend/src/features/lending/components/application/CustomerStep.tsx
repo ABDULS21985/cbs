@@ -83,7 +83,7 @@ export function CustomerStep({ state, updateField, onNext, onBack }: CustomerSte
   const allEligible = kycVerified && notBlacklisted && (state.customerId ? dtiOk : true);
 
   return (
-    <div className="rounded-xl border bg-card p-6 space-y-6">
+    <div className="surface-card p-6 space-y-6">
       <div>
         <h3 className="text-lg font-semibold mb-1">Customer Selection</h3>
         <p className="text-sm text-muted-foreground">Search and verify the borrower</p>
@@ -101,7 +101,7 @@ export function CustomerStep({ state, updateField, onNext, onBack }: CustomerSte
         {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />}
 
         {searchResults.length > 0 && searchQuery.length >= 2 && (
-          <div className="absolute z-10 w-full mt-1 rounded-lg border bg-card shadow-lg max-h-60 overflow-auto">
+          <div className="absolute z-10 w-full mt-1 surface-card shadow-lg max-h-60 overflow-auto">
             {searchResults.map((c) => (
               <button key={c.id} onClick={() => selectCustomer(c)} className="w-full px-4 py-3 text-left hover:bg-muted/50 border-b last:border-0">
                 <p className="text-sm font-medium">{c.fullName}</p>

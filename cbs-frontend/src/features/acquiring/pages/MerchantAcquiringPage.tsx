@@ -735,7 +735,7 @@ function MerchantsTab() {
         )}
       </div>
 
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-40">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -935,7 +935,7 @@ function SettlementsTab() {
       {showProcessForm && (
         <form
           onSubmit={handleProcess}
-          className="rounded-xl border bg-card p-4 flex flex-wrap items-end gap-3"
+          className="surface-card p-4 flex flex-wrap items-end gap-3"
         >
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Settlement Date</label>
@@ -965,7 +965,7 @@ function SettlementsTab() {
         </form>
       )}
 
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         <div className="px-5 py-4 border-b">
           <h3 className="text-sm font-semibold">Settlement History</h3>
         </div>
@@ -1134,7 +1134,7 @@ function ChargebacksTab() {
         </button>
       </div>
 
-      <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="surface-card overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-40">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -1353,7 +1353,7 @@ function PciComplianceTab() {
       {/* Facility Details by Status */}
       {Object.entries(report).map(([status, facilities]) => (
         facilities.length > 0 && (
-          <div key={status} className="rounded-xl border bg-card overflow-hidden">
+          <div key={status} className="surface-card overflow-hidden">
             <div className="px-5 py-3 border-b bg-muted/30">
               <h4 className="text-sm font-semibold">{status.replace(/_/g, ' ')} ({facilities.length})</h4>
             </div>

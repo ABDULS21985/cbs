@@ -49,7 +49,7 @@ export function ApiProductCard({ product, onViewDetails, onSubscribe }: ApiProdu
   const categoryColor = CATEGORY_COLORS[product.category] || 'bg-muted text-muted-foreground';
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden hover:shadow-md transition-shadow">
+    <div className="surface-card overflow-hidden hover:shadow-md transition-shadow">
       <div className="p-5">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
