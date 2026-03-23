@@ -40,7 +40,7 @@ export function ReviewSubmitStep({
         <div className="opening-hero-shell p-8">
           <div className="flex flex-col items-center text-center py-2">
             <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
-            <CheckCircle2 className="w-9 h-9 text-green-600 dark:text-green-400" />
+              <CheckCircle2 className="w-9 h-9 text-green-600 dark:text-green-400" />
             </div>
             <h2 className="text-xl font-bold text-green-700 dark:text-green-300">Account Opened Successfully!</h2>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm">

@@ -59,7 +59,7 @@ function Stepper({ currentStep, totalSteps }: StepperProps) {
       </div>
 
       <div className="hidden lg:grid gap-2">
-        {STEPS.map((step, index) => {
+        {STEPS.map((step) => {
           const isDone = currentStep > step.number;
           const isCurrent = currentStep === step.number;
           return (

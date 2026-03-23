@@ -52,22 +52,22 @@ export function ProductSelectionStep({ customerId, onNext, onBack }: ProductSele
       {/* Filter tabs */}
       <div className="opening-section-card p-2">
         <div className="flex gap-1.5 flex-wrap">
-        {(['ALL', 'SAVINGS', 'CURRENT', 'DOMICILIARY'] as ProductTypeFilter[]).map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => {
-              setFilter(f);
-              setSelectedProductId(null);
-            }}
-            className={cn(
-              'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
-              filter === f ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-background/80 text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {filterLabels[f]}
-          </button>
-        ))}
+          {(['ALL', 'SAVINGS', 'CURRENT', 'DOMICILIARY'] as ProductTypeFilter[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => {
+                setFilter(f);
+                setSelectedProductId(null);
+              }}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
+                filter === f ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-background/80 text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {filterLabels[f]}
+            </button>
+          ))}
         </div>
       </div>
 
