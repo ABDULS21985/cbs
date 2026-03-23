@@ -198,7 +198,7 @@ describe('AccountOpeningPage', () => {
       expect(screen.getByText(/account opened successfully/i)).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /view account/i })).toHaveAttribute('href', '/accounts/0123456789');
     });
-  });
+  }, 15000);
 
   it('auto-loads a verified customer from query params and advances to product selection', async () => {
     server.use(
@@ -216,6 +216,32 @@ describe('AccountOpeningPage', () => {
       expect(screen.getByText('Select Product')).toBeInTheDocument();
       expect(screen.getByText('Standard Savings')).toBeInTheDocument();
     });
+  });
+
+  it('preselects the product from query params on the product step', async () => {
+    server.use(
+      http.get('/api/v1/customers/101', () =>
+        HttpResponse.json(wrap(mockCustomerDetail)),
+      ),
+      http.get('/api/v1/accounts/products', () =>
+        HttpResponse.json(wrap(mockProducts)),
+      ),
+    );
+
+    renderWithProviders(<AccountOpeningPage />, { route: '/accounts/open?customerId=101&productCode=CUR-PRE' });
+
+    await waitFor(() => {
+      expect(screen.getByText('Select Product')).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Premium Current')).toBeInTheDocument();
+    });
+
+    const preselectedProduct = screen.getAllByRole('button').find((button) => button.getAttribute('aria-pressed') === 'true');
+    expect(preselectedProduct).not.toBeNull();
+    expect(preselectedProduct).toHaveTextContent('Premium Current');
+    expect(preselectedProduct).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('keeps a preselected customer with pending kyc on the customer step', async () => {

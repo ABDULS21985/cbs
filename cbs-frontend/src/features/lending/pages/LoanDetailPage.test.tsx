@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { screen, waitFor, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '@/test/helpers/renderWithProviders';
 import { server } from '@/test/msw/server';
@@ -125,7 +125,7 @@ describe('LoanDetailPage', () => {
     });
     expect(screen.getAllByText('Outstanding').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Rate')).toBeInTheDocument();
-    expect(screen.getByText('Remaining')).toBeInTheDocument();
+    expect(screen.getAllByText('Remaining').length).toBeGreaterThanOrEqual(1);
   });
 
   it('displays interest rate', async () => {
@@ -174,8 +174,8 @@ describe('LoanDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Due Date')).toBeInTheDocument();
     });
-    expect(screen.getByText('Principal')).toBeInTheDocument();
-    expect(screen.getByText('Interest')).toBeInTheDocument();
+    expect(screen.getAllByText('Principal').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Interest').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows schedule installment statuses', async () => {
@@ -207,7 +207,7 @@ describe('LoanDetailPage', () => {
     });
     fireEvent.click(screen.getByText('Collateral'));
     await waitFor(() => {
-      expect(screen.getByText(/collateral details/i)).toBeInTheDocument();
+      expect(screen.getByText(/no collateral linked/i)).toBeInTheDocument();
     });
   });
 

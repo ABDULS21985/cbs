@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ interface ProductSelectionStepProps {
   customerId: string;
   onNext: (product: Product, currency: string) => void;
   onBack: () => void;
+  preselectedProductCode?: string | null;
 }
 
 type ProductTypeFilter = 'ALL' | 'SAVINGS' | 'CURRENT' | 'DOMICILIARY';
@@ -23,10 +24,11 @@ const filterLabels: Record<ProductTypeFilter, string> = {
   DOMICILIARY: 'Domiciliary',
 };
 
-export function ProductSelectionStep({ customerId, onNext, onBack }: ProductSelectionStepProps) {
+export function ProductSelectionStep({ customerId, onNext, onBack, preselectedProductCode }: ProductSelectionStepProps) {
   const [filter, setFilter] = useState<ProductTypeFilter>('ALL');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [domCurrency, setDomCurrency] = useState('USD');
+  const [hasAppliedPreselection, setHasAppliedPreselection] = useState(false);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products', 'eligible', customerId],
@@ -35,6 +37,26 @@ export function ProductSelectionStep({ customerId, onNext, onBack }: ProductSele
 
   const filtered = filter === 'ALL' ? products : products.filter((p) => p.type === filter);
   const selectedProduct = products.find((p) => p.id === selectedProductId) || null;
+
+  useEffect(() => {
+    if (hasAppliedPreselection || !preselectedProductCode || products.length === 0) {
+      return;
+    }
+
+    const matchedProduct = products.find(
+      (product) => product.id === preselectedProductCode || product.code === preselectedProductCode,
+    );
+
+    if (matchedProduct) {
+      setSelectedProductId(matchedProduct.id);
+      setFilter(matchedProduct.type);
+      if (matchedProduct.type === 'DOMICILIARY') {
+        setDomCurrency(matchedProduct.currency);
+      }
+    }
+
+    setHasAppliedPreselection(true);
+  }, [hasAppliedPreselection, preselectedProductCode, products]);
 
   const handleNext = () => {
     if (!selectedProduct) return;

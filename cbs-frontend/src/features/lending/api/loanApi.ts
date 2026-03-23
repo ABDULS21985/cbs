@@ -77,23 +77,32 @@ interface BackendLoanAccountResponse {
   loanNumber: string;
   customerId: number;
   customerDisplayName?: string | null;
+  customerName?: string | null;
   loanProductCode: string;
   loanProductName?: string | null;
+  productName?: string | null;
   currencyCode?: string | null;
+  currency?: string | null;
   disbursedAmount: number;
   outstandingPrincipal: number;
   interestRate: number;
   accruedInterest?: number | null;
+  outstandingInterest?: number | null;
+  totalOutstanding?: number | null;
   repaymentScheduleType?: string | null;
   repaymentFrequency?: string | null;
   tenureMonths: number;
   paidInstallments?: number | null;
   nextDueDate?: string | null;
   emiAmount?: number | null;
+  monthlyPayment?: number | null;
+  nextPaymentAmount?: number | null;
   daysPastDue?: number | null;
   delinquencyBucket?: string | null;
+  classification?: string | null;
   provisionAmount?: number | null;
   disbursementDate?: string | null;
+  disbursedDate?: string | null;
   maturityDate?: string | null;
   lastPaymentDate?: string | null;
   status: string;
@@ -183,44 +192,85 @@ function mapAccountStatus(backendStatus: string): LoanAccount['status'] {
   return map[backendStatus] ?? 'ACTIVE';
 }
 
-function mapDelinquencyBucket(bucket?: string | null): LoanAccount['classification'] {
-  if (!bucket || bucket === 'CURRENT' || bucket === 'STAGE_1') return 'CURRENT';
-  if (bucket === 'WATCH' || bucket === 'STAGE_2') return 'WATCH';
-  if (bucket === 'SUBSTANDARD' || bucket === 'STAGE_3') return 'SUBSTANDARD';
-  if (bucket === 'DOUBTFUL') return 'DOUBTFUL';
-  if (bucket === 'LOST') return 'LOST';
+function normalizeClassification(value?: string | null): LoanAccount['classification'] | null {
+  const normalized = value?.trim().toUpperCase();
+
+  if (!normalized || normalized === 'CURRENT' || normalized === 'STAGE_1') return normalized ? 'CURRENT' : null;
+  if (normalized === 'WATCH' || normalized === 'WATCHLIST' || normalized === 'STAGE_2') return 'WATCH';
+  if (normalized === 'SUBSTANDARD' || normalized === 'STAGE_3') return 'SUBSTANDARD';
+  if (normalized === 'DOUBTFUL') return 'DOUBTFUL';
+  if (normalized === 'LOSS' || normalized === 'LOST') return 'LOST';
+
+  return null;
+}
+
+function mapDelinquencyBucket(
+  bucket?: string | null,
+  classification?: string | null,
+  daysPastDue?: number | null,
+): LoanAccount['classification'] {
+  const explicitClassification = normalizeClassification(classification);
+  if (explicitClassification) {
+    return explicitClassification;
+  }
+
+  const normalizedBucket = bucket?.trim().toUpperCase();
+  const mappedBucket = normalizeClassification(normalizedBucket);
+  if (mappedBucket) {
+    return mappedBucket;
+  }
+
+  if (normalizedBucket === '1-30' || normalizedBucket === '31-60') return 'WATCH';
+  if (normalizedBucket === '61-90') return 'SUBSTANDARD';
+  if (normalizedBucket === '91-180') return 'DOUBTFUL';
+  if (normalizedBucket === '180+') return 'LOST';
+
+  if (typeof daysPastDue === 'number') {
+    if (daysPastDue >= 181) return 'LOST';
+    if (daysPastDue >= 91) return 'DOUBTFUL';
+    if (daysPastDue >= 61) return 'SUBSTANDARD';
+    if (daysPastDue > 0) return 'WATCH';
+  }
+
   return 'CURRENT';
 }
 
 function mapLoanAccount(a: BackendLoanAccountResponse): LoanAccount {
-  const accruedInterest = a.accruedInterest ?? 0;
+  const disbursedAmount = a.disbursedAmount ?? 0;
+  const outstandingPrincipal = a.outstandingPrincipal ?? 0;
+  const accruedInterest = a.accruedInterest ?? a.outstandingInterest ?? 0;
+  const totalOutstanding = a.totalOutstanding ?? outstandingPrincipal + accruedInterest;
+  const tenureMonths = a.tenureMonths ?? 0;
+  const paidInstallments = a.paidInstallments ?? 0;
+  const scheduledPayment = a.emiAmount ?? a.monthlyPayment ?? 0;
+
   return {
     id: a.id,
     loanNumber: a.loanNumber,
     applicationId: 0,
-    customerId: a.customerId,
-    customerName: a.customerDisplayName ?? '',
-    productCode: a.loanProductCode,
-    productName: a.loanProductName ?? '',
-    disbursedAmount: a.disbursedAmount,
-    outstandingPrincipal: a.outstandingPrincipal,
+    customerId: a.customerId ?? 0,
+    customerName: a.customerDisplayName ?? a.customerName ?? '',
+    productCode: a.loanProductCode ?? '',
+    productName: a.loanProductName ?? a.productName ?? '',
+    disbursedAmount,
+    outstandingPrincipal,
     outstandingInterest: accruedInterest,
-    totalOutstanding: a.outstandingPrincipal + accruedInterest,
-    interestRate: a.interestRate,
-    tenorMonths: a.tenureMonths,
-    remainingMonths: a.tenureMonths - (a.paidInstallments ?? 0),
-    monthlyPayment: a.emiAmount ?? 0,
+    totalOutstanding,
+    interestRate: a.interestRate ?? 0,
+    tenorMonths: tenureMonths,
+    remainingMonths: Math.max(tenureMonths - paidInstallments, 0),
+    monthlyPayment: scheduledPayment,
     nextPaymentDate: a.nextDueDate ?? '',
-    nextPaymentAmount: a.emiAmount ?? 0,
+    nextPaymentAmount: a.nextPaymentAmount ?? scheduledPayment,
     daysPastDue: a.daysPastDue ?? 0,
-    classification: mapDelinquencyBucket(a.delinquencyBucket),
+    classification: mapDelinquencyBucket(a.delinquencyBucket, a.classification, a.daysPastDue),
     provisionAmount: a.provisionAmount ?? 0,
-    currency: a.currencyCode ?? 'NGN',
-    disbursedDate: a.disbursementDate ?? '',
+    currency: a.currencyCode ?? a.currency ?? 'NGN',
+    disbursedDate: a.disbursementDate ?? a.disbursedDate ?? '',
     maturityDate: a.maturityDate ?? '',
     lastPaymentDate: a.lastPaymentDate ?? undefined,
     restructureCount: 0,
-    status: mapAccountStatus(a.status),
+    status: mapAccountStatus(a.status ?? 'ACTIVE'),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     version: 0,

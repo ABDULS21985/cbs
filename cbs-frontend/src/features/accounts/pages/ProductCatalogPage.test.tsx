@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
+import { Route, Routes } from 'react-router-dom';
 import { renderWithProviders } from '@/test/helpers/renderWithProviders';
 import { server } from '@/test/msw/server';
 import { ProductCatalogPage } from './ProductCatalogPage';
@@ -15,157 +16,166 @@ const mockProducts = [
   {
     id: 1,
     code: 'SA-STD',
-    productCode: 'SA-STD',
     name: 'Standard Savings',
-    productName: 'Standard Savings',
+    description: 'Everyday savings product for retail customers.',
     productCategory: 'SAVINGS',
     currencyCode: 'NGN',
-    currency: 'NGN',
     minOpeningBalance: 5000,
-    minimumBalance: 5000,
+    minOperatingBalance: 5000,
+    maxBalance: 10000000,
     baseInterestRate: 3.5,
-    interestRate: 3.5,
+    monthlyMaintenanceFee: 0,
+    smsAlertFee: 4,
     allowsDebitCard: true,
-    debitCardAllowed: true,
     allowsChequeBook: false,
     allowsMobile: true,
-    mobileEnabled: true,
     allowsInternet: true,
-    internetEnabled: true,
     allowsOverdraft: false,
+    allowsSweep: false,
+    dormancyDays: 365,
     isActive: true,
-    monthlyMaintenanceFee: 0,
+    interestTiers: [
+      { id: 1, tierName: 'Tier 1', minBalance: 5000, maxBalance: 500000, interestRate: 3.5, isActive: true },
+    ],
   },
   {
     id: 2,
     code: 'CA-BIZ',
-    productCode: 'CA-BIZ',
     name: 'Business Current Account',
-    productName: 'Business Current Account',
+    description: 'Current account tailored for operating businesses.',
     productCategory: 'CURRENT',
     currencyCode: 'NGN',
-    currency: 'NGN',
     minOpeningBalance: 50000,
-    minimumBalance: 50000,
+    minOperatingBalance: 50000,
+    maxBalance: null,
     baseInterestRate: 0,
-    interestRate: 0,
-    allowsDebitCard: true,
-    debitCardAllowed: true,
-    allowsChequeBook: true,
-    chequeBookAllowed: true,
-    allowsMobile: true,
-    mobileEnabled: true,
-    allowsInternet: true,
-    internetEnabled: true,
-    allowsOverdraft: true,
-    overdraftAllowed: true,
-    isActive: true,
     monthlyMaintenanceFee: 2500,
+    smsAlertFee: 4,
+    allowsDebitCard: true,
+    allowsChequeBook: true,
+    allowsMobile: true,
+    allowsInternet: true,
+    allowsOverdraft: true,
+    maxOverdraftLimit: 5000000,
+    allowsSweep: false,
+    dormancyDays: 180,
+    isActive: true,
+    interestTiers: [],
   },
   {
     id: 3,
     code: 'FD-180',
-    productCode: 'FD-180',
     name: '180-Day Fixed Deposit',
-    productName: '180-Day Fixed Deposit',
+    description: 'Fixed tenor placement account for medium-term deposits.',
     productCategory: 'FIXED_DEPOSIT',
     currencyCode: 'NGN',
-    currency: 'NGN',
     minOpeningBalance: 100000,
-    minimumBalance: 100000,
+    minOperatingBalance: 100000,
+    maxBalance: null,
     baseInterestRate: 12.5,
-    interestRate: 12.5,
+    monthlyMaintenanceFee: 0,
+    smsAlertFee: 0,
     allowsDebitCard: false,
     allowsChequeBook: false,
     allowsMobile: false,
     allowsInternet: false,
     allowsOverdraft: false,
+    allowsSweep: false,
+    dormancyDays: 30,
     isActive: true,
-    monthlyMaintenanceFee: 0,
+    interestTiers: [],
   },
 ];
+
+function setupHandlers(products = mockProducts) {
+  server.use(
+    http.get('/api/v1/accounts/products', () => HttpResponse.json(wrap(products))),
+    http.get('/api/v1/accounts/products/category/:category', ({ params }) => {
+      const category = String(params.category);
+      return HttpResponse.json(wrap(products.filter((product) => product.productCategory === category)));
+    }),
+    http.get('/api/v1/accounts/products/:code', ({ params }) => {
+      const product = products.find((entry) => entry.code === params.code);
+      return HttpResponse.json(wrap(product ?? products[0]));
+    }),
+  );
+}
 
 describe('ProductCatalogPage', () => {
   afterEach(() => {
     server.resetHandlers();
   });
 
-  beforeEach(() => {
-    server.use(
-      http.get('/api/v1/accounts/products', () =>
-        HttpResponse.json(wrap(mockProducts)),
-      ),
-      http.get('/api/v1/accounts/products/category/:category', ({ params }) => {
-        const cat = params.category;
-        const filtered = mockProducts.filter(p => p.productCategory === cat);
-        return HttpResponse.json(wrap(filtered));
-      }),
-    );
-  });
-
-  it('renders the page title', async () => {
+  it('renders the page title', () => {
+    setupHandlers();
     renderWithProviders(<ProductCatalogPage />);
     expect(screen.getByText('Account Products')).toBeInTheDocument();
   });
 
   it('shows product cards after loading', async () => {
+    setupHandlers();
     renderWithProviders(<ProductCatalogPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Standard Savings')).toBeInTheDocument();
     });
+
     expect(screen.getByText('Business Current Account')).toBeInTheDocument();
     expect(screen.getByText('180-Day Fixed Deposit')).toBeInTheDocument();
   });
 
-  it('shows product codes', async () => {
+  it('derives category filters from the live product feed', async () => {
+    setupHandlers();
     renderWithProviders(<ProductCatalogPage />);
 
-    await waitFor(() => {
-      expect(screen.getByText('SA-STD')).toBeInTheDocument();
-    });
-    expect(screen.getByText('CA-BIZ')).toBeInTheDocument();
-    expect(screen.getByText('FD-180')).toBeInTheDocument();
-  });
-
-  it('shows category filter buttons', () => {
-    renderWithProviders(<ProductCatalogPage />);
-    expect(screen.getByText('All')).toBeInTheDocument();
-    expect(screen.getByText('SAVINGS')).toBeInTheDocument();
-    expect(screen.getByText('CURRENT')).toBeInTheDocument();
-    expect(screen.getByText('FIXED DEPOSIT')).toBeInTheDocument();
-  });
-
-  it('filters by category when category button is clicked', async () => {
-    renderWithProviders(<ProductCatalogPage />);
+    const categoryNav = screen.getByRole('navigation', { name: /product categories/i });
 
     await waitFor(() => {
       expect(screen.getByText('Standard Savings')).toBeInTheDocument();
     });
 
-    // Click SAVINGS filter button (use getAllByText and pick the button element)
-    const savingsButtons = screen.getAllByText('SAVINGS');
-    const filterButton = savingsButtons.find(el => el.tagName === 'BUTTON');
-    if (filterButton) fireEvent.click(filterButton);
+    expect(within(categoryNav).getByRole('button', { name: /all products/i })).toBeInTheDocument();
+    expect(within(categoryNav).getByRole('button', { name: /savings/i })).toBeInTheDocument();
+    expect(within(categoryNav).getByRole('button', { name: /current/i })).toBeInTheDocument();
+    expect(within(categoryNav).getByRole('button', { name: /fixed deposit/i })).toBeInTheDocument();
+  });
+
+  it('filters by category when a category button is clicked', async () => {
+    setupHandlers();
+    renderWithProviders(<ProductCatalogPage />);
+
+    const categoryNav = screen.getByRole('navigation', { name: /product categories/i });
 
     await waitFor(() => {
       expect(screen.getByText('Standard Savings')).toBeInTheDocument();
     });
+
+    fireEvent.click(within(categoryNav).getByRole('button', { name: /current/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Business Current Account')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Standard Savings')).not.toBeInTheDocument();
+    expect(screen.queryByText('180-Day Fixed Deposit')).not.toBeInTheDocument();
   });
 
   it('supports search filtering', async () => {
+    setupHandlers();
     renderWithProviders(<ProductCatalogPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Standard Savings')).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByPlaceholderText('Search products...'), {
+    fireEvent.change(screen.getByPlaceholderText('Search by code, name, category, or currency'), {
       target: { value: 'Business' },
     });
 
-    // Only Business product should remain
-    expect(screen.getByText('Business Current Account')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Business Current Account')).toBeInTheDocument();
+    });
+
     expect(screen.queryByText('Standard Savings')).not.toBeInTheDocument();
     expect(screen.queryByText('180-Day Fixed Deposit')).not.toBeInTheDocument();
   });
@@ -173,70 +183,85 @@ describe('ProductCatalogPage', () => {
   it('shows loading skeletons while loading', () => {
     server.use(
       http.get('/api/v1/accounts/products', async () => {
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 5000));
         return HttpResponse.json(wrap([]));
       }),
     );
 
     renderWithProviders(<ProductCatalogPage />);
-    // Loading skeletons are rendered as animate-pulse divs
+
     const skeletons = document.querySelectorAll('.animate-pulse');
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
-  it('shows empty state when no products found', async () => {
-    server.use(
-      http.get('/api/v1/accounts/products', () =>
-        HttpResponse.json(wrap([])),
-      ),
+  it('shows empty state when no products match', async () => {
+    setupHandlers([]);
+    renderWithProviders(<ProductCatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No products match this view')).toBeInTheDocument();
+    });
+  });
+
+  it('expands product details and shows live detail fields', async () => {
+    setupHandlers();
+    renderWithProviders(<ProductCatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Standard Savings')).toBeInTheDocument();
+    });
+
+    const savingsCard = screen.getByText('Standard Savings').closest('article');
+    expect(savingsCard).not.toBeNull();
+
+    fireEvent.click(within(savingsCard as HTMLElement).getByRole('button', { name: /view details/i }));
+
+    await waitFor(() => {
+      expect(within(savingsCard as HTMLElement).getByText('Operating Balance')).toBeInTheDocument();
+    });
+
+    expect(within(savingsCard as HTMLElement).getByText('SMS Alert Fee')).toBeInTheDocument();
+    expect(within(savingsCard as HTMLElement).getByText('Interest Tiers')).toBeInTheDocument();
+    expect(within(savingsCard as HTMLElement).getByText('Tier 1')).toBeInTheDocument();
+  });
+
+  it('shows capability chips on product cards', async () => {
+    setupHandlers();
+    renderWithProviders(<ProductCatalogPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Business Current Account')).toBeInTheDocument();
+    });
+
+    const businessCard = screen.getByText('Business Current Account').closest('article');
+    expect(businessCard).not.toBeNull();
+
+    expect(within(businessCard as HTMLElement).getByText('Cheque book')).toBeInTheDocument();
+    expect(within(businessCard as HTMLElement).getByText('Debit card')).toBeInTheDocument();
+    expect(within(businessCard as HTMLElement).getByText('Internet banking')).toBeInTheDocument();
+  });
+
+  it('navigates to account opening with the selected product code', async () => {
+    setupHandlers();
+    renderWithProviders(
+      <Routes>
+        <Route path="/accounts/products" element={<ProductCatalogPage />} />
+        <Route path="/accounts/open" element={<div>Open Workflow</div>} />
+      </Routes>,
+      { route: '/accounts/products' },
     );
 
-    renderWithProviders(<ProductCatalogPage />);
-
     await waitFor(() => {
-      expect(screen.getByText('No products found.')).toBeInTheDocument();
-    });
-  });
-
-  it('expands product details when clicked', async () => {
-    renderWithProviders(<ProductCatalogPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('SA-STD')).toBeInTheDocument();
+      expect(screen.getByText('Standard Savings')).toBeInTheDocument();
     });
 
-    // Click on the first product to expand
-    const productButton = screen.getByText('Standard Savings').closest('button');
-    if (productButton) fireEvent.click(productButton);
+    const savingsCard = screen.getByText('Standard Savings').closest('article');
+    expect(savingsCard).not.toBeNull();
+
+    fireEvent.click(within(savingsCard as HTMLElement).getByRole('button', { name: /open with product/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Min Balance')).toBeInTheDocument();
-      expect(screen.getByText('Interest Rate')).toBeInTheDocument();
-      expect(screen.getByText(/Open account with this product/)).toBeInTheDocument();
+      expect(screen.getByText('Open Workflow')).toBeInTheDocument();
     });
-  });
-
-  it('shows feature badges for expanded product', async () => {
-    renderWithProviders(<ProductCatalogPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText('CA-BIZ')).toBeInTheDocument();
-    });
-
-    // Click on Business Current Account to expand
-    const productButton = screen.getByText('Business Current Account').closest('button');
-    if (productButton) fireEvent.click(productButton);
-
-    await waitFor(() => {
-      expect(screen.getByText('Cheque Book')).toBeInTheDocument();
-      expect(screen.getByText('Debit Card')).toBeInTheDocument();
-      expect(screen.getByText('Mobile')).toBeInTheDocument();
-      expect(screen.getByText('Internet')).toBeInTheDocument();
-    });
-  });
-
-  it('shows search input', () => {
-    renderWithProviders(<ProductCatalogPage />);
-    expect(screen.getByPlaceholderText('Search products...')).toBeInTheDocument();
   });
 });

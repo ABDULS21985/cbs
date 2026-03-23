@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { screen, waitFor, within, fireEvent } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { screen, waitFor, within } from '@testing-library/react';
 
 import { renderWithProviders } from '@/test/helpers/renderWithProviders';
 import { server } from '@/test/msw/server';
@@ -19,8 +19,38 @@ const mockStats = {
 };
 
 const mockWatchList = [
-  { id: 1, loanNumber: 'LN-000001', customerName: 'Risk Corp', productName: 'Commercial Loan', outstandingPrincipal: 50000000, daysPastDue: 45, classification: 'WATCH', provisionAmount: 5000000, status: 'ACTIVE' },
-  { id: 2, loanNumber: 'LN-000002', customerName: 'Shaky Ltd', productName: 'Term Loan', outstandingPrincipal: 30000000, daysPastDue: 95, classification: 'SUBSTANDARD', provisionAmount: 6000000, status: 'ACTIVE' },
+  {
+    id: 1,
+    customerId: 71,
+    loanNumber: 'LN-000001',
+    customerDisplayName: 'Risk Corp',
+    loanProductCode: 'COMM',
+    loanProductName: 'Commercial Loan',
+    disbursedAmount: 80000000,
+    outstandingPrincipal: 50000000,
+    interestRate: 18,
+    tenureMonths: 24,
+    daysPastDue: 45,
+    delinquencyBucket: '31-60',
+    provisionAmount: 5000000,
+    status: 'ACTIVE',
+  },
+  {
+    id: 2,
+    customerId: 72,
+    loanNumber: 'LN-000002',
+    customerDisplayName: 'Shaky Ltd',
+    loanProductCode: 'TERM',
+    loanProductName: 'Term Loan',
+    disbursedAmount: 45000000,
+    outstandingPrincipal: 30000000,
+    interestRate: 22,
+    tenureMonths: 18,
+    daysPastDue: 75,
+    delinquencyBucket: '61-90',
+    provisionAmount: 6000000,
+    status: 'ACTIVE',
+  },
 ];
 
 function setupHandlers(stats = mockStats, watchList = mockWatchList) {
@@ -65,9 +95,9 @@ describe('LoanDashboardPage', () => {
     setupHandlers();
     renderWithProviders(<LoanDashboardPage />);
     await waitFor(() => {
-      expect(screen.getByText('Risk Corp')).toBeInTheDocument();
+      expect(within(screen.getByRole('table')).getByText('Risk Corp')).toBeInTheDocument();
     });
-    expect(screen.getByText('Shaky Ltd')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getByText('Shaky Ltd')).toBeInTheDocument();
   });
 
   it('displays loan numbers', async () => {
@@ -83,9 +113,9 @@ describe('LoanDashboardPage', () => {
     setupHandlers();
     renderWithProviders(<LoanDashboardPage />);
     await waitFor(() => {
-      expect(screen.getByText('WATCH')).toBeInTheDocument();
+      expect(within(screen.getByRole('table')).getByText('WATCH')).toBeInTheDocument();
     });
-    expect(screen.getByText('SUBSTANDARD')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getByText('SUBSTANDARD')).toBeInTheDocument();
   });
 
   it('displays DPD values', async () => {
@@ -94,7 +124,7 @@ describe('LoanDashboardPage', () => {
     await waitFor(() => {
       expect(screen.getByText('45')).toBeInTheDocument();
     });
-    expect(screen.getByText('95')).toBeInTheDocument();
+    expect(screen.getByText('75')).toBeInTheDocument();
   });
 
   it('shows empty watch list when no loans returned', async () => {
@@ -158,9 +188,9 @@ describe('LoanDashboardPage', () => {
     setupHandlers();
     renderWithProviders(<LoanDashboardPage />);
     await waitFor(() => {
-      expect(screen.getByText('Commercial Loan')).toBeInTheDocument();
+      expect(within(screen.getByRole('table')).getByText('Commercial Loan')).toBeInTheDocument();
     });
-    expect(screen.getByText('Term Loan')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getByText('Term Loan')).toBeInTheDocument();
   });
 
   it('shows stat card default values when stats are loading', () => {
@@ -175,20 +205,52 @@ describe('LoanDashboardPage', () => {
   it('renders multiple watch list entries', async () => {
     const bigList = Array.from({ length: 5 }, (_, i) => ({
       id: i + 1,
+      customerId: i + 1,
       loanNumber: `LN-${String(i + 1).padStart(6, '0')}`,
-      customerName: `Client ${i + 1}`,
-      productName: 'Term Loan',
+      customerDisplayName: `Client ${i + 1}`,
+      loanProductCode: 'TERM',
+      loanProductName: 'Term Loan',
+      disbursedAmount: 15000000,
       outstandingPrincipal: 10000000,
+      interestRate: 18,
+      tenureMonths: 12,
       daysPastDue: 30 + i * 10,
-      classification: 'WATCH',
+      delinquencyBucket: i < 3 ? '31-60' : '61-90',
       provisionAmount: 1000000,
       status: 'ACTIVE',
     }));
     setupHandlers(mockStats, bigList);
     renderWithProviders(<LoanDashboardPage />);
     await waitFor(() => {
-      expect(screen.getByText('Client 1')).toBeInTheDocument();
+      expect(within(screen.getByRole('table')).getByText('Client 1')).toBeInTheDocument();
     });
-    expect(screen.getByText('Client 5')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getByText('Client 5')).toBeInTheDocument();
+  });
+
+  it('maps live delinquency buckets into classification badges', async () => {
+    setupHandlers(mockStats, [
+      {
+        id: 9,
+        customerId: 99,
+        loanNumber: 'LN-000009',
+        customerDisplayName: 'Late Borrower',
+        loanProductCode: 'TERM',
+        loanProductName: 'Term Loan',
+        disbursedAmount: 12000000,
+        outstandingPrincipal: 9000000,
+        interestRate: 19,
+        tenureMonths: 12,
+        daysPastDue: 120,
+        delinquencyBucket: '91-180',
+        provisionAmount: 1800000,
+        status: 'ACTIVE',
+      },
+    ]);
+
+    renderWithProviders(<LoanDashboardPage />);
+
+    await waitFor(() => {
+      expect(within(screen.getByRole('table')).getByText('DOUBTFUL')).toBeInTheDocument();
+    });
   });
 });

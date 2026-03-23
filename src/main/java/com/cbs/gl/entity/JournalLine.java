@@ -1,5 +1,6 @@
 package com.cbs.gl.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -13,6 +14,7 @@ public class JournalLine {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "journal_id", nullable = false)
+    @JsonIgnore
     private JournalEntry journal;
 
     @Column(name = "line_number", nullable = false) private Integer lineNumber;

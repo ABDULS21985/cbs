@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared';
-import { formatMoney, formatDate } from '@/lib/formatters';
+import { formatDate, formatMoney } from '@/lib/formatters';
 import type { CollectionCase } from '../../types/collections';
 
 interface CollectionCaseTableProps {
@@ -9,22 +9,27 @@ interface CollectionCaseTableProps {
   onRowClick?: (row: CollectionCase) => void;
 }
 
-const bucketColor = (b: string): string =>
+const bucketColor = (bucket: string): string =>
   ({
-    '1-30': 'bg-blue-100 text-blue-800',
+    '1-30': 'bg-sky-100 text-sky-800',
     '31-60': 'bg-amber-100 text-amber-800',
     '61-90': 'bg-orange-100 text-orange-800',
-    '91-180': 'bg-red-100 text-red-800',
+    '91-180': 'bg-rose-100 text-rose-800',
     '180+': 'bg-red-900 text-white',
-  }[b] ?? 'bg-gray-100 text-gray-800');
+  }[bucket] ?? 'bg-gray-100 text-gray-800');
 
-const classificationColor = (c: string): string => {
-  switch (c) {
-    case 'WATCH': return 'bg-yellow-100 text-yellow-800';
-    case 'SUBSTANDARD': return 'bg-orange-100 text-orange-800';
-    case 'DOUBTFUL': return 'bg-red-100 text-red-800';
-    case 'LOSS': return 'bg-red-900 text-white';
-    default: return 'bg-gray-100 text-gray-800';
+const classificationColor = (classification: string): string => {
+  switch (classification) {
+    case 'WATCH':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'SUBSTANDARD':
+      return 'bg-orange-100 text-orange-800';
+    case 'DOUBTFUL':
+      return 'bg-rose-100 text-rose-800';
+    case 'LOSS':
+      return 'bg-red-900 text-white';
+    default:
+      return 'bg-gray-100 text-gray-800';
   }
 };
 
@@ -33,7 +38,10 @@ const columns: ColumnDef<CollectionCase>[] = [
     accessorKey: 'loanNumber',
     header: 'Loan #',
     cell: ({ row }) => (
-      <span className="font-mono text-sm font-semibold">{row.original.loanNumber}</span>
+      <div>
+        <span className="font-mono text-sm font-semibold">{row.original.loanNumber}</span>
+        {row.original.caseNumber ? <p className="mt-1 text-xs text-muted-foreground">{row.original.caseNumber}</p> : null}
+      </div>
     ),
   },
   {
@@ -51,7 +59,7 @@ const columns: ColumnDef<CollectionCase>[] = [
     accessorKey: 'dpd',
     header: 'DPD',
     cell: ({ row }) => (
-      <span className="font-semibold text-red-600">{row.original.dpd}d</span>
+      <span className="font-semibold text-rose-600">{row.original.dpd}d</span>
     ),
   },
   {
@@ -83,9 +91,9 @@ const columns: ColumnDef<CollectionCase>[] = [
     cell: ({ row }) => (
       <div>
         <p className="text-sm">{row.original.lastAction ?? '—'}</p>
-        {row.original.lastActionDate && (
+        {row.original.lastActionDate ? (
           <p className="text-xs text-muted-foreground">{formatDate(row.original.lastActionDate)}</p>
-        )}
+        ) : null}
       </div>
     ),
   },
@@ -102,16 +110,39 @@ const columns: ColumnDef<CollectionCase>[] = [
 ];
 
 export function CollectionCaseTable({ data = [], isLoading, onRowClick }: CollectionCaseTableProps) {
+  const urgentCases = data.filter((item) => item.bucket === '91-180' || item.bucket === '180+').length;
+  const unassignedCases = data.filter((item) => !item.assignedTo).length;
+
   return (
-    <DataTable
-      columns={columns}
-      data={data}
-      isLoading={isLoading}
-      onRowClick={onRowClick}
-      enableExport
-      exportFilename="collection-cases"
-      emptyMessage="No collection cases found"
-      pageSize={15}
-    />
+    <div className="space-y-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Case Pipeline</p>
+          <h3 className="mt-2 text-lg font-semibold">Active Collection Cases</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Review delinquent accounts, ownership, and the next action due for each case.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <div className="lending-hero-chip">{data.length} cases</div>
+          <div className="lending-hero-chip">{urgentCases} urgent</div>
+          <div className="lending-hero-chip">{unassignedCases} unassigned</div>
+        </div>
+      </div>
+
+      <DataTable
+        columns={columns}
+        data={data}
+        isLoading={isLoading}
+        onRowClick={onRowClick}
+        enableExport
+        exportFilename="collection-cases"
+        emptyMessage="No collection cases found"
+        pageSize={15}
+        getRowClassName={(row) =>
+          row.bucket === '91-180' || row.bucket === '180+'
+            ? 'bg-rose-500/[0.03]'
+            : undefined
+        }
+      />
+    </div>
   );
 }

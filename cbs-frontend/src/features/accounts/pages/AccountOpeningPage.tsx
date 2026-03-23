@@ -137,6 +137,7 @@ export function AccountOpeningPage() {
     discardDraft,
   } = useAccountOpening();
   const preselectedCustomerId = searchParams.get('customerId');
+  const preselectedProductCode = searchParams.get('productCode');
   const currentStepMeta = STEPS[currentStep - 1];
   const completedSteps = STEPS.filter((step) => step.number < currentStep).length;
   const progress = totalSteps > 1 ? Math.round(((currentStep - 1) / (totalSteps - 1)) * 100) : 0;
@@ -362,6 +363,7 @@ export function AccountOpeningPage() {
           {currentStep === 2 && selectedCustomer && (
             <ProductSelectionStep
               customerId={selectedCustomer.id}
+              preselectedProductCode={preselectedProductCode}
               onNext={handleProductSelected}
               onBack={prevStep}
             />

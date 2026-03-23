@@ -101,7 +101,7 @@ function normalizePortfolioSnapshot(rawStats: Record<string, unknown> | undefine
   const activeLoans = loans.filter((loan) => loan.status === 'ACTIVE');
   const totalOutstanding = activeLoans.reduce((sum, loan) => sum + (loan.outstandingPrincipal || 0), 0);
   const totalProvision = activeLoans.reduce((sum, loan) => sum + (loan.provisionAmount || 0), 0);
-  const nplCount = activeLoans.filter((loan) => (loan.daysPastDue || 0) > 90 || ['SUBSTANDARD', 'DOUBTFUL', 'LOSS'].includes(loan.classification)).length;
+  const nplCount = activeLoans.filter((loan) => (loan.daysPastDue || 0) > 90 || ['SUBSTANDARD', 'DOUBTFUL', 'LOST'].includes(loan.classification)).length;
   const nplRatio = activeLoans.length > 0 ? (nplCount / activeLoans.length) * 100 : 0;
   const avgDpd = activeLoans.length > 0 ? activeLoans.reduce((sum, loan) => sum + (loan.daysPastDue || 0), 0) / activeLoans.length : 0;
   const provisionCoverage = totalOutstanding > 0 ? (totalProvision / totalOutstanding) * 100 : 0;
@@ -170,7 +170,7 @@ function buildClassificationBreakdown(rawStats: Record<string, unknown> | undefi
         exposure: parseNumber(data.amount) ?? 0,
         color: CLASS_COLORS[classification] ?? '#64748b',
       };
-    });
+    }).sort((left, right) => right.value - left.value || right.exposure - left.exposure);
   }
 
   const grouped = new Map<string, { count: number; amount: number }>();
@@ -183,12 +183,14 @@ function buildClassificationBreakdown(rawStats: Record<string, unknown> | undefi
     });
   });
 
-  return Array.from(grouped.entries()).map(([name, data]) => ({
-    name,
-    value: data.count,
-    exposure: data.amount,
-    color: CLASS_COLORS[name] ?? '#64748b',
-  }));
+  return Array.from(grouped.entries())
+    .map(([name, data]) => ({
+      name,
+      value: data.count,
+      exposure: data.amount,
+      color: CLASS_COLORS[name] ?? '#64748b',
+    }))
+    .sort((left, right) => right.value - left.value || right.exposure - left.exposure);
 }
 
 function MetricCard({
@@ -283,7 +285,7 @@ export function LoanDashboardPage() {
   const classificationData = useMemo(() => buildClassificationBreakdown(rawStats, loans), [rawStats, loans]);
 
   const watchList = useMemo(
-    () => loans.filter((loan) => (loan.daysPastDue || 0) >= 30 || ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOSS'].includes(loan.classification)),
+    () => loans.filter((loan) => (loan.daysPastDue || 0) >= 30 || ['WATCH', 'SUBSTANDARD', 'DOUBTFUL', 'LOST'].includes(loan.classification)),
     [loans],
   );
 
@@ -446,7 +448,7 @@ export function LoanDashboardPage() {
                   </div>
                   <div className="mt-5 h-[260px]">
                     {dpdDistribution.some((bucket) => bucket.count > 0) ? (
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={280} minHeight={260}>
                         <BarChart data={dpdDistribution}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
                           <XAxis dataKey="bucket" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -478,7 +480,7 @@ export function LoanDashboardPage() {
                   </div>
                   <div className="mt-5 h-[260px]">
                     {classificationData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={280} minHeight={260}>
                         <PieChart>
                           <Pie data={classificationData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={54} outerRadius={84} label={({ name, value }) => `${name}: ${value}`}>
                             {classificationData.map((entry) => (

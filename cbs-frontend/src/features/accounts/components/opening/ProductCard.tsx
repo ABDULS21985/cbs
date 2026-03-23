@@ -14,6 +14,7 @@ export function ProductCard({ product, selected, onClick }: ProductCardProps) {
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={selected}
       className={cn(
         'opening-selection-card relative w-full focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2',
         selected && 'opening-selection-card-active',
