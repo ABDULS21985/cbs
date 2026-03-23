@@ -28,6 +28,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -36,6 +37,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 
 @Configuration
@@ -77,9 +80,15 @@ public class SecurityConfig {
             http.addFilterBefore(new DevModeAuthenticationFilter(),
                     org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
         } else {
+            // Configure OAuth2 resource server first, then add dev-token filter before it.
+            // The dev filter intercepts dev-* tokens from the frontend dev-login shortcut
+            // before they reach BearerTokenAuthenticationFilter (which would reject them as invalid JWTs).
+            // Real Keycloak JWTs pass through to the standard OAuth2 resource server filter.
             http.oauth2ResourceServer(oauth2 -> oauth2
                     .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
             );
+            http.addFilterBefore(new DevModeAuthenticationFilter(/* hybridMode */ true),
+                    org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class);
         }
         return http.build();
     }
@@ -108,6 +117,12 @@ public class SecurityConfig {
         private static final org.slf4j.Logger flog =
                 org.slf4j.LoggerFactory.getLogger(DevModeAuthenticationFilter.class);
 
+        /** When true, only intercept dev-* tokens and let real JWTs pass through. */
+        private final boolean hybridMode;
+
+        DevModeAuthenticationFilter() { this(false); }
+        DevModeAuthenticationFilter(boolean hybridMode) { this.hybridMode = hybridMode; }
+
         @Override
         protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
                 throws ServletException, IOException {
@@ -118,6 +133,13 @@ public class SecurityConfig {
             }
 
             String authHeader = request.getHeader("Authorization");
+
+            // In hybrid mode, only handle dev-* tokens; let real JWTs pass to OAuth2 resource server
+            if (hybridMode && !isDevToken(authHeader)) {
+                chain.doFilter(request, response);
+                return;
+            }
+
             List<SimpleGrantedAuthority> authorities = resolveDevAuthorities(authHeader);
 
             String principalName = derivePrincipal(authHeader);
@@ -127,7 +149,18 @@ public class SecurityConfig {
             flog.debug("Dev mode: injected principal '{}' with authorities {} for {} {}",
                     principalName, authorities, request.getMethod(), request.getRequestURI());
 
-            chain.doFilter(request, response);
+            if (hybridMode && isDevToken(authHeader)) {
+                // Wrap the request to hide the dev Authorization header from the downstream
+                // BearerTokenAuthenticationFilter, which would otherwise try to parse the
+                // dev token as a JWT and overwrite our authentication with a failure.
+                chain.doFilter(new DevTokenStrippingRequestWrapper(request), response);
+            } else {
+                chain.doFilter(request, response);
+            }
+        }
+
+        private boolean isDevToken(String authHeader) {
+            return authHeader != null && authHeader.startsWith("Bearer dev-");
         }
 
         /**
@@ -164,6 +197,36 @@ public class SecurityConfig {
                 if (token.contains("teller"))  return "dev-teller";
             }
             return "dev-user";
+        }
+    }
+
+    /**
+     * Request wrapper that hides the Authorization header from downstream filters.
+     * Used in hybrid mode to prevent BearerTokenAuthenticationFilter from trying
+     * to parse a dev-* token as a JWT after DevModeAuthenticationFilter has already
+     * established the security context.
+     */
+    static class DevTokenStrippingRequestWrapper extends HttpServletRequestWrapper {
+        DevTokenStrippingRequestWrapper(HttpServletRequest request) { super(request); }
+
+        @Override
+        public String getHeader(String name) {
+            if ("Authorization".equalsIgnoreCase(name)) return null;
+            return super.getHeader(name);
+        }
+
+        @Override
+        public Enumeration<String> getHeaders(String name) {
+            if ("Authorization".equalsIgnoreCase(name)) return Collections.emptyEnumeration();
+            return super.getHeaders(name);
+        }
+
+        @Override
+        public Enumeration<String> getHeaderNames() {
+            List<String> names = Collections.list(super.getHeaderNames()).stream()
+                    .filter(n -> !"Authorization".equalsIgnoreCase(n))
+                    .toList();
+            return Collections.enumeration(names);
         }
     }
 

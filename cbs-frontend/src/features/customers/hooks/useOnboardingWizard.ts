@@ -232,6 +232,19 @@ export function useOnboardingWizard() {
 
   const submit = useCallback(() => submitMutation.mutate(formData), [formData, submitMutation]);
 
+  // Start fresh – reset all wizard state so the user begins a blank onboarding
+  const [freshStarted, setFreshStarted] = useState(false);
+  const startFresh = useCallback(() => {
+    setFormData({});
+    setCurrentStep(1);
+    setDraftId(null);
+    setLastSavedAt(null);
+    setIsDirty(false);
+    setVisitedSteps(new Set([1]));
+    setFieldErrors({});
+    setFreshStarted(true);
+  }, []);
+
   const saveDraft = useCallback(() => {
     saveDraftFn();
     toast.success('Draft saved');
@@ -291,10 +304,10 @@ export function useOnboardingWizard() {
 
   return {
     currentStep, totalSteps: TOTAL_STEPS, formData, visitedSteps,
-    nextStep, prevStep, goToStep, updateStep, submit, saveDraft, resumeDraft,
+    nextStep, prevStep, goToStep, updateStep, submit, saveDraft, resumeDraft, startFresh,
     isSubmitting: submitMutation.isPending, isSubmitSuccess: submitMutation.isSuccess,
     submittedCustomer: submitMutation.data,
-    isSavingDraft: false, draftId, lastSavedAt, existingDrafts,
+    isSavingDraft: false, draftId, lastSavedAt, existingDrafts, freshStarted,
     getStepValidation, getValidationIssues,
     fieldErrors, onFieldBlur, setFieldError, validateField,
   };

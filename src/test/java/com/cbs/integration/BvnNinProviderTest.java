@@ -9,6 +9,7 @@ import com.cbs.customer.validation.CustomerValidator;
 import com.cbs.customer.entity.Customer;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.account.service.TransactionService;
 import com.cbs.lending.repository.LoanAccountRepository;
 import com.cbs.provider.kyc.InternalKycProvider;
 import com.cbs.provider.kyc.KycProvider;
@@ -43,6 +44,7 @@ class BvnNinProviderTest {
     @Mock private AccountRepository accountRepository;
     @Mock private LoanAccountRepository loanAccountRepository;
     @Mock private TransactionJournalRepository transactionJournalRepository;
+    @Mock private TransactionService transactionService;
     @Mock private SegmentRepository segmentRepository;
 
     private CustomerService customerService;
@@ -65,6 +67,7 @@ class BvnNinProviderTest {
                 accountRepository,
                 loanAccountRepository,
                 transactionJournalRepository,
+                transactionService,
                 segmentRepository
         );
 

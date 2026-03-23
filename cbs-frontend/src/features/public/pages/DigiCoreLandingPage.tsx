@@ -8,29 +8,22 @@ import {
   Building2,
   ChevronRight,
   CreditCard,
-  FileText,
   Globe2,
-  Headphones,
-  HelpCircle,
   Home,
   Landmark,
   LockKeyhole,
   Network,
-  Phone,
   Scale,
-  Settings2,
   Shield,
   ShieldCheck,
   Smartphone,
   Sparkles,
-  UserCircle,
   Users,
   WalletCards,
-  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { navigationItems, type NavItem, type NavSection } from '@/components/layout/navigation';
+import { navigationItems, type NavItem } from '@/components/layout/navigation';
 import coreBankingHero from '@/assets/auth/core-banking-hero.svg';
 import coreBankingLoginPhoto from '@/assets/auth/core-banking-login-photo.jpg';
 
@@ -60,66 +53,66 @@ const sectionToneMap: Record<string, SectionTone> = {
   BANKING: {
     eyebrow: 'Core Banking',
     description: 'Retail, corporate, lending, deposits, payments, cards, and trade finance operations across the core balance sheet.',
-    accentBorder: 'border-sky-400/25',
-    accentBadge: 'border-sky-400/30 bg-sky-400/10 text-sky-100',
-    accentIcon: 'border-sky-300/25 bg-sky-400/10 text-sky-100',
-    accentChip: 'border-sky-300/18 bg-sky-400/10 text-sky-50',
+    accentBorder: 'border-sky-200',
+    accentBadge: 'border-sky-200 bg-sky-50 text-sky-700',
+    accentIcon: 'border-sky-200 bg-sky-50 text-sky-700',
+    accentChip: 'border-sky-200 bg-sky-50 text-sky-700',
   },
   'CUSTOMER SERVICE': {
     eyebrow: 'Experience Layer',
     description: 'Case management, agreements, communications, and contact center journeys built around customer service resolution.',
-    accentBorder: 'border-cyan-400/25',
-    accentBadge: 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100',
-    accentIcon: 'border-cyan-300/25 bg-cyan-400/10 text-cyan-100',
-    accentChip: 'border-cyan-300/18 bg-cyan-400/10 text-cyan-50',
+    accentBorder: 'border-cyan-200',
+    accentBadge: 'border-cyan-200 bg-cyan-50 text-cyan-700',
+    accentIcon: 'border-cyan-200 bg-cyan-50 text-cyan-700',
+    accentChip: 'border-cyan-200 bg-cyan-50 text-cyan-700',
   },
   WEALTH: {
     eyebrow: 'Advisory & Wealth',
     description: 'Wealth advisory, trusts, portfolios, funds, and analytics for relationship-led banking and investment services.',
-    accentBorder: 'border-emerald-400/25',
-    accentBadge: 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100',
-    accentIcon: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100',
-    accentChip: 'border-emerald-300/18 bg-emerald-400/10 text-emerald-50',
+    accentBorder: 'border-emerald-200',
+    accentBadge: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    accentIcon: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    accentChip: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   },
   ADVISORY: {
     eyebrow: 'Capital & Corporate Advisory',
     description: 'M&A, tax, corporate finance, project finance, suitability, and advisory wealth offerings in one deal workspace.',
-    accentBorder: 'border-lime-400/25',
-    accentBadge: 'border-lime-400/30 bg-lime-400/10 text-lime-100',
-    accentIcon: 'border-lime-300/25 bg-lime-400/10 text-lime-100',
-    accentChip: 'border-lime-300/18 bg-lime-400/10 text-lime-50',
+    accentBorder: 'border-lime-200',
+    accentBadge: 'border-lime-200 bg-lime-50 text-lime-800',
+    accentIcon: 'border-lime-200 bg-lime-50 text-lime-800',
+    accentChip: 'border-lime-200 bg-lime-50 text-lime-800',
   },
   TREASURY: {
     eyebrow: 'Treasury & Markets',
     description: 'Treasury, fixed income, investments, market data, capital markets, custody, and ALM command surfaces.',
-    accentBorder: 'border-violet-400/25',
-    accentBadge: 'border-violet-400/30 bg-violet-400/10 text-violet-100',
-    accentIcon: 'border-violet-300/25 bg-violet-400/10 text-violet-100',
-    accentChip: 'border-violet-300/18 bg-violet-400/10 text-violet-50',
+    accentBorder: 'border-violet-200',
+    accentBadge: 'border-violet-200 bg-violet-50 text-violet-700',
+    accentIcon: 'border-violet-200 bg-violet-50 text-violet-700',
+    accentChip: 'border-violet-200 bg-violet-50 text-violet-700',
   },
   INTELLIGENCE: {
     eyebrow: 'Intelligence',
     description: 'Behaviour analytics, document intelligence, cash-flow forecasting, and BI orchestration embedded into operations.',
-    accentBorder: 'border-fuchsia-400/25',
-    accentBadge: 'border-fuchsia-400/30 bg-fuchsia-400/10 text-fuchsia-100',
-    accentIcon: 'border-fuchsia-300/25 bg-fuchsia-400/10 text-fuchsia-100',
-    accentChip: 'border-fuchsia-300/18 bg-fuchsia-400/10 text-fuchsia-50',
+    accentBorder: 'border-fuchsia-200',
+    accentBadge: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+    accentIcon: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+    accentChip: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
   },
   'RISK & COMPLIANCE': {
     eyebrow: 'Risk & Governance',
     description: 'Risk, compliance, AML, fraud, sanctions, DSPM, regulatory reporting, and audit visibility for regulated banking.',
-    accentBorder: 'border-amber-400/25',
-    accentBadge: 'border-amber-400/30 bg-amber-400/10 text-amber-100',
-    accentIcon: 'border-amber-300/25 bg-amber-400/10 text-amber-100',
-    accentChip: 'border-amber-300/18 bg-amber-400/10 text-amber-50',
+    accentBorder: 'border-amber-200',
+    accentBadge: 'border-amber-200 bg-amber-50 text-amber-800',
+    accentIcon: 'border-amber-200 bg-amber-50 text-amber-800',
+    accentChip: 'border-amber-200 bg-amber-50 text-amber-800',
   },
   OPERATIONS: {
     eyebrow: 'Operations & Ecosystem',
     description: 'Back-office operations, gateway, channels, open banking, notifications, reporting, and administration.',
-    accentBorder: 'border-rose-400/25',
-    accentBadge: 'border-rose-400/30 bg-rose-400/10 text-rose-100',
-    accentIcon: 'border-rose-300/25 bg-rose-400/10 text-rose-100',
-    accentChip: 'border-rose-300/18 bg-rose-400/10 text-rose-50',
+    accentBorder: 'border-rose-200',
+    accentBadge: 'border-rose-200 bg-rose-50 text-rose-700',
+    accentIcon: 'border-rose-200 bg-rose-50 text-rose-700',
+    accentChip: 'border-rose-200 bg-rose-50 text-rose-700',
   },
 };
 
@@ -260,12 +253,12 @@ function HeroModuleBadge({
 }) {
   return (
     <div className={cn('landing-mini-panel', className)}>
-      <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white/90">
+      <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/90 text-slate-700 shadow-[0_10px_24px_hsl(220_30%_24%_/_0.08)]">
         <Icon className="h-4 w-4" />
       </div>
       <div>
-        <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">{title}</p>
-        <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+        <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{title}</p>
+        <p className="mt-1 text-sm font-semibold text-slate-950">{value}</p>
       </div>
     </div>
   );
@@ -289,8 +282,8 @@ function CapabilityModuleCard({
             <Icon className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-base font-semibold text-white">{module.label}</p>
-            <p className="mt-1 text-sm leading-6 text-slate-300">
+            <p className="text-base font-semibold text-slate-950">{module.label}</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
               {formatRole(module.roles?.[0])}
             </p>
           </div>
@@ -314,20 +307,20 @@ function CapabilityModuleCard({
 function PortalModuleCard({ module }: { module: PortalModule }) {
   const Icon = module.icon;
   return (
-    <article className="landing-module-card border-emerald-400/20">
+    <article className="landing-module-card border-emerald-200">
       <div className="flex items-start gap-3">
-        <div className="landing-module-icon border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
+        <div className="landing-module-icon border-emerald-200 bg-emerald-50 text-emerald-700">
           <Icon className="h-4 w-4" />
         </div>
         <div>
-          <p className="text-base font-semibold text-white">{module.title}</p>
-          <p className="mt-1 text-sm leading-6 text-slate-300">{module.description}</p>
+          <p className="text-base font-semibold text-slate-950">{module.title}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{module.description}</p>
         </div>
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
         {module.capabilities.map((capability) => (
-          <span key={capability} className="landing-chip border-emerald-300/18 bg-emerald-400/10 text-emerald-50">
+          <span key={capability} className="landing-chip border-emerald-200 bg-emerald-50 text-emerald-700">
             {capability}
           </span>
         ))}
@@ -425,8 +418,8 @@ export function DigiCoreLandingPage() {
           <Link to="/" className="flex items-center gap-3">
             <div className="landing-brand-mark">DC</div>
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/78">DigiCore CBS</p>
-              <p className="text-xs text-slate-400">Unified core banking operating fabric</p>
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-900">DigiCore CBS</p>
+              <p className="text-xs text-slate-600">Unified core banking operating fabric</p>
             </div>
           </Link>
 
@@ -461,10 +454,10 @@ export function DigiCoreLandingPage() {
             <div className="space-y-5">
               <span className="landing-kicker">Public Product Front Door</span>
               <div className="space-y-5">
-                <h1 className="max-w-5xl text-5xl font-semibold leading-[0.92] tracking-tight text-white sm:text-6xl xl:text-7xl">
+                <h1 className="max-w-5xl text-5xl font-semibold leading-[0.92] tracking-tight text-slate-950 sm:text-6xl xl:text-7xl">
                   The operating system for modern core banking, treasury, compliance, intelligence, and self-service.
                 </h1>
-                <p className="max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
+                <p className="max-w-3xl text-base leading-8 text-slate-600 sm:text-lg">
                   DigiCore CBS unifies customer onboarding, deposits, lending, payments, cards, trade finance,
                   treasury, capital markets, operations, open banking, analytics, and digital self-service into one
                   enterprise-grade banking platform.
@@ -491,12 +484,12 @@ export function DigiCoreLandingPage() {
               {platformHighlights.map(({ icon: Icon, title, description }) => (
                 <article key={title} className="landing-panel p-5">
                   <div className="flex items-start gap-4">
-                    <div className="landing-module-icon border-white/10 bg-white/6 text-white">
+                    <div className="landing-module-icon">
                       <Icon className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="text-base font-semibold text-white">{title}</p>
-                      <p className="mt-2 text-sm leading-6 text-slate-300">{description}</p>
+                      <p className="text-base font-semibold text-slate-950">{title}</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
                     </div>
                   </div>
                 </article>
@@ -512,7 +505,7 @@ export function DigiCoreLandingPage() {
                 See platform coverage
               </a>
               <div className="landing-inline-proof">
-                <ShieldCheck className="h-4 w-4 text-cyan-300" />
+                <ShieldCheck className="h-4 w-4 text-cyan-600" />
                 <span>{totalRoutes}+ routed surfaces mapped from the live product shell</span>
               </div>
             </div>
@@ -550,10 +543,10 @@ export function DigiCoreLandingPage() {
                     className={cn('landing-mini-nav', section.tone.accentBorder)}
                   >
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/55">{section.tone.eyebrow}</p>
-                      <p className="mt-1 text-sm font-semibold text-white">{section.title}</p>
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">{section.tone.eyebrow}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-950">{section.title}</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-white/60" />
+                    <ChevronRight className="h-4 w-4 text-slate-400" />
                   </a>
                 ))}
               </div>
@@ -564,10 +557,10 @@ export function DigiCoreLandingPage() {
         <section id="platform" className="mt-20 space-y-8">
           <div className="max-w-4xl space-y-4">
             <span className="landing-kicker">Platform Coverage</span>
-            <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            <h2 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
               Every major banking domain, stitched into one platform surface.
             </h2>
-            <p className="text-base leading-8 text-slate-300">
+            <p className="text-base leading-8 text-slate-600">
               The sections below come from the live product navigation and portal journeys. This landing page is not
               a concept board; it is a public map of the real DigiCore CBS capability footprint.
             </p>
@@ -581,15 +574,15 @@ export function DigiCoreLandingPage() {
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className={cn('landing-pill', section.tone.accentBadge)}>{section.tone.eyebrow}</span>
-                  <span className="text-sm font-semibold text-white/78">{section.moduleCount} workspaces</span>
+                  <span className="text-sm font-semibold text-slate-700">{section.moduleCount} workspaces</span>
                 </div>
-                <h3 className="mt-5 text-2xl font-semibold text-white">{section.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-300">{section.tone.description}</p>
+                <h3 className="mt-5 text-2xl font-semibold text-slate-950">{section.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{section.tone.description}</p>
 
                 <div className="mt-6 flex items-center gap-6">
                   <div>
                     <p className="landing-stat-label">Capabilities</p>
-                    <p className="mt-1 text-2xl font-semibold text-white">{section.capabilityCount}</p>
+                    <p className="mt-1 text-2xl font-semibold text-slate-950">{section.capabilityCount}</p>
                   </div>
                   <a href={`#${section.sectionId}`} className="landing-inline-link">
                     Open section
@@ -604,10 +597,10 @@ export function DigiCoreLandingPage() {
         <section id="capability-atlas" className="mt-20 space-y-8">
           <div className="max-w-4xl space-y-4">
             <span className="landing-kicker">Capability Atlas</span>
-            <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            <h2 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
               A capability-by-capability view of the DigiCore CBS operating estate.
             </h2>
-            <p className="text-base leading-8 text-slate-300">
+            <p className="text-base leading-8 text-slate-600">
               Every module card below enumerates the named journeys currently surfaced in the product shell. This is
               how DigiCore spans front-office, middle-office, back-office, treasury, and customer self-service.
             </p>
@@ -627,8 +620,8 @@ export function DigiCoreLandingPage() {
                   <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                     <div className="max-w-4xl">
                       <span className={cn('landing-pill', tone.accentBadge)}>{tone.eyebrow}</span>
-                      <h3 className="mt-4 text-3xl font-semibold tracking-tight text-white">{section.title}</h3>
-                      <p className="mt-3 text-base leading-8 text-slate-300">{tone.description}</p>
+                      <h3 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">{section.title}</h3>
+                      <p className="mt-3 text-base leading-8 text-slate-600">{tone.description}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-3 sm:w-auto">
                       <div className="landing-stat-card min-w-[140px]">
@@ -656,10 +649,10 @@ export function DigiCoreLandingPage() {
         <section id="digital-portal" className="mt-20 space-y-8">
           <div className="max-w-4xl space-y-4">
             <span className="landing-kicker">Digital Self-Service</span>
-            <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            <h2 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
               Customer-facing banking journeys sit beside the internal banking core.
             </h2>
-            <p className="text-base leading-8 text-slate-300">
+            <p className="text-base leading-8 text-slate-600">
               DigiCore is not only an operator workstation. It also ships a real customer portal for accounts,
               payments, cards, notifications, requests, and profile management.
             </p>
@@ -675,18 +668,18 @@ export function DigiCoreLandingPage() {
         <section id="trust-layer" className="mt-20 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
           <div className="landing-panel p-7">
             <span className="landing-kicker">Security, Control, and Ecosystem</span>
-            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
               A banking platform built for control planes, not demo shells.
             </h2>
             <div className="mt-8 grid gap-4">
               {trustPillars.map(({ icon: Icon, title, description }) => (
                 <article key={title} className="landing-trust-row">
-                  <div className="landing-module-icon border-white/10 bg-white/6 text-white">
+                  <div className="landing-module-icon">
                     <Icon className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-white">{title}</p>
-                    <p className="mt-2 text-sm leading-7 text-slate-300">{description}</p>
+                    <p className="text-base font-semibold text-slate-950">{title}</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-600">{description}</p>
                   </div>
                 </article>
               ))}
@@ -703,15 +696,15 @@ export function DigiCoreLandingPage() {
                 return (
                   <article key={role} className="landing-role-card">
                     <div className="flex items-start gap-3">
-                      <div className="landing-module-icon border-white/10 bg-white/6 text-white">
+                      <div className="landing-module-icon">
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-white/78">{meta.label}</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-300">{meta.description}</p>
+                        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-700">{meta.label}</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">{meta.description}</p>
                       </div>
                     </div>
-                    <div className="mt-4 flex items-center gap-5 text-sm text-white/78">
+                    <div className="mt-4 flex items-center gap-5 text-sm text-slate-700">
                       <span>{moduleCount} workspaces</span>
                       <span>{capabilityCount} capabilities</span>
                     </div>
@@ -726,10 +719,10 @@ export function DigiCoreLandingPage() {
           <div className="landing-cta-panel">
             <div className="max-w-4xl space-y-4">
               <span className="landing-kicker">DigiCore CBS</span>
-              <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-5xl">
+              <h2 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
                 From branch core to open banking ecosystem, DigiCore is ready to operate the whole bank.
               </h2>
-              <p className="text-base leading-8 text-slate-300">
+              <p className="text-base leading-8 text-slate-600">
                 Explore the secure workspace for operations, treasury, compliance, risk, wealth, capital markets,
                 and customer-facing digital banking on one platform fabric.
               </p>

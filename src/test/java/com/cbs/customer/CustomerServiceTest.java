@@ -1,5 +1,12 @@
 package com.cbs.customer;
 
+import com.cbs.account.dto.TransactionResponse;
+import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionJournal;
+import com.cbs.account.entity.TransactionType;
+import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.account.service.TransactionService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.DuplicateResourceException;
@@ -10,8 +17,10 @@ import com.cbs.customer.mapper.CustomerMapper;
 import com.cbs.customer.repository.*;
 import com.cbs.customer.service.CustomerService;
 import com.cbs.customer.validation.CustomerValidator;
+import com.cbs.lending.repository.LoanAccountRepository;
 import com.cbs.provider.kyc.KycProvider;
 import com.cbs.provider.numbering.AccountNumberGenerator;
+import com.cbs.segmentation.repository.SegmentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -26,6 +35,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +58,11 @@ class CustomerServiceTest {
     @Mock private KycProvider kycProvider;
     @Mock private AccountNumberGenerator numberGenerator;
     @Mock private CbsProperties cbsProperties;
+    @Mock private AccountRepository accountRepository;
+    @Mock private LoanAccountRepository loanAccountRepository;
+    @Mock private TransactionJournalRepository transactionJournalRepository;
+    @Mock private TransactionService transactionService;
+    @Mock private SegmentRepository segmentRepository;
 
     @InjectMocks
     private CustomerService customerService;
@@ -342,6 +357,45 @@ class CustomerServiceTest {
     @Nested
     @DisplayName("Capability 4: Flexible Account Structures")
     class AccountStructureTests {
+
+        @Test
+        @DisplayName("Should return mapped transaction responses for customer accounts")
+        void getCustomerTransactions_ReturnsMappedResponses() {
+            Account account = Account.builder()
+                    .id(11L)
+                    .accountNumber("0001234567")
+                    .accountName("Amina Savings")
+                    .customer(testCustomer)
+                    .currencyCode("NGN")
+                    .build();
+            TransactionJournal transaction = TransactionJournal.builder()
+                    .id(21L)
+                    .account(account)
+                    .transactionRef("TXN-123")
+                    .transactionType(TransactionType.CREDIT)
+                    .amount(new BigDecimal("1500.00"))
+                    .currencyCode("NGN")
+                    .runningBalance(new BigDecimal("1500.00"))
+                    .narration("Initial funding")
+                    .build();
+            TransactionResponse response = TransactionResponse.builder()
+                    .id(21L)
+                    .transactionRef("TXN-123")
+                    .accountNumber("0001234567")
+                    .amount(new BigDecimal("1500.00"))
+                    .build();
+
+            when(customerRepository.findById(1L)).thenReturn(Optional.of(testCustomer));
+            when(accountRepository.findByCustomerId(1L)).thenReturn(List.of(account));
+            when(transactionJournalRepository.findByAccountIdsOrderByCreatedAtDesc(eq(List.of(11L)), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(transaction)));
+            when(transactionService.toResponse(transaction)).thenReturn(response);
+
+            Page<TransactionResponse> result = customerService.getCustomerTransactions(1L, 0, 50);
+
+            assertThat(result.getContent()).containsExactly(response);
+            verify(transactionService).toResponse(transaction);
+        }
 
         @Test
         @DisplayName("Should add address to customer")

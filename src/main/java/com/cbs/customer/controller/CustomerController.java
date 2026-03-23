@@ -1,7 +1,7 @@
 package com.cbs.customer.controller;
 
+import com.cbs.account.dto.TransactionResponse;
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.TransactionJournal;
 import com.cbs.card.entity.Card;
 import com.cbs.card.service.CardService;
 import com.cbs.common.audit.CurrentActorProvider;
@@ -551,11 +551,11 @@ public class CustomerController {
     @GetMapping("/{customerId}/transactions")
     @Operation(summary = "Get recent transactions for all customer accounts")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
-    public ResponseEntity<ApiResponse<List<TransactionJournal>>> getCustomerTransactions(
+    public ResponseEntity<ApiResponse<List<TransactionResponse>>> getCustomerTransactions(
             @PathVariable Long customerId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<TransactionJournal> transactions = customerService.getCustomerTransactions(customerId, page, Math.min(size, 100));
+        Page<TransactionResponse> transactions = customerService.getCustomerTransactions(customerId, page, Math.min(size, 100));
         return ResponseEntity.ok(ApiResponse.ok(transactions.getContent(), PageMeta.from(transactions)));
     }
 

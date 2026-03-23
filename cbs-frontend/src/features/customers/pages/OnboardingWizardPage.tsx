@@ -196,10 +196,10 @@ export default function OnboardingWizardPage() {
   }, [navigate, returnUrl, wizard.isSubmitSuccess, wizard.submittedCustomer]);
 
   useEffect(() => {
-    if (wizard.existingDrafts.length > 0 && wizard.currentStep === 1 && !wizard.draftId) {
+    if (wizard.existingDrafts.length > 0 && wizard.currentStep === 1 && !wizard.draftId && !wizard.freshStarted) {
       setShowDraftPicker(true);
     }
-  }, [wizard.existingDrafts, wizard.currentStep, wizard.draftId]);
+  }, [wizard.existingDrafts, wizard.currentStep, wizard.draftId, wizard.freshStarted]);
 
   const { currentStep, formData, nextStep, prevStep, updateStep, goToStep, submit, saveDraft, isSubmitting, getStepValidation, getValidationIssues, fieldErrors } = wizard;
   const isCorp = formData.customerType === 'CORPORATE' || formData.customerType === 'SME';
@@ -642,7 +642,7 @@ export default function OnboardingWizardPage() {
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowDraftPicker(false)} className="w-full px-4 py-2.5 rounded-lg border text-sm font-medium hover:bg-muted">Start Fresh</button>
+            <button onClick={() => { wizard.startFresh(); setShowDraftPicker(false); }} className="w-full px-4 py-2.5 rounded-lg border text-sm font-medium hover:bg-muted">Start Fresh</button>
           </div>
         </div>
       )}

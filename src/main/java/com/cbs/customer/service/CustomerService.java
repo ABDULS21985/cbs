@@ -1,10 +1,12 @@
 package com.cbs.customer.service;
 
+import com.cbs.account.dto.TransactionResponse;
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.AccountStatus;
 import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.account.service.TransactionService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.DuplicateResourceException;
@@ -60,6 +62,7 @@ public class CustomerService {
     private final AccountRepository accountRepository;
     private final LoanAccountRepository loanAccountRepository;
     private final TransactionJournalRepository transactionJournalRepository;
+    private final TransactionService transactionService;
     private final SegmentRepository segmentRepository;
 
     // ========================================================================
@@ -548,7 +551,7 @@ public class CustomerService {
     /**
      * Get recent transactions across all customer accounts.
      */
-    public Page<TransactionJournal> getCustomerTransactions(Long customerId, int page, int size) {
+    public Page<TransactionResponse> getCustomerTransactions(Long customerId, int page, int size) {
         findCustomerOrThrow(customerId);
         List<Account> accounts = accountRepository.findByCustomerId(customerId);
         if (accounts.isEmpty()) {
@@ -557,7 +560,8 @@ public class CustomerService {
 
         List<Long> accountIds = accounts.stream().map(Account::getId).toList();
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return transactionJournalRepository.findByAccountIdsOrderByCreatedAtDesc(accountIds, pageable);
+        return transactionJournalRepository.findByAccountIdsOrderByCreatedAtDesc(accountIds, pageable)
+                .map(transactionService::toResponse);
     }
 
     /**
