@@ -71,18 +71,18 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     <aside className="app-sidebar-surface">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-8 top-0 h-40 w-40 rounded-full bg-sky-400/16 blur-3xl" />
-        <div className="absolute bottom-10 left-8 h-32 w-32 rounded-full bg-amber-300/10 blur-3xl" />
+        <div className="absolute bottom-10 left-8 h-32 w-32 rounded-full bg-amber-300/12 blur-3xl" />
       </div>
 
-      <div className="relative flex h-14 flex-shrink-0 items-center border-b border-white/10 px-4">
+      <div className="relative flex h-16 flex-shrink-0 items-center border-b border-border/70 px-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className="app-sidebar-brand-mark">
             BB
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <span className="block text-base font-semibold tracking-tight text-slate-50">DigiCore</span>
-              <span className="block text-[10px] uppercase tracking-[0.3em] text-slate-400">Core Banking</span>
+              <span className="app-sidebar-glossy-title block text-base font-semibold tracking-tight">DigiCore</span>
+              <span className="app-sidebar-glossy-sub block text-[10px] uppercase tracking-[0.3em]">Core Banking</span>
             </div>
           )}
         </div>
@@ -92,7 +92,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {filteredSections.map((section) => (
           <div key={section.title} className="mb-4">
             {!collapsed && (
-              <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.32em] text-slate-500">
+              <div className="app-sidebar-section-label">
                 {section.title}
               </div>
             )}
@@ -112,16 +112,16 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="relative flex-shrink-0 border-t border-white/10 p-2">
+      <div className="app-sidebar-footer">
         <ThemeToggle collapsed={collapsed} />
         {!collapsed && (
-          <div className="px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-slate-600">v1.0.0</div>
+          <div className="px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">v1.0.0</div>
         )}
       </div>
 
       <button
         onClick={onToggle}
-        className="relative hidden h-9 flex-shrink-0 items-center justify-center border-t border-white/10 text-slate-500 transition-colors hover:text-white lg:flex"
+        className="app-sidebar-toggle"
         title={collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
       >
         {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -197,15 +197,15 @@ function SidebarItem({
             expanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0',
           )}
         >
-          <div className="mt-1 ml-5 space-y-0.5 border-l border-white/10 pl-4">
+          <div className="app-sidebar-subnav">
             {item.children!.map((child) => (
               <NavLink
                 key={child.path}
                 to={child.path}
                 end={child.path === item.path}
                 className={({ isActive: childActive }) => cn(
-                  'block rounded-lg px-3 py-1.5 text-sm transition-colors',
-                  childActive ? 'bg-white/7 text-white' : 'text-slate-500 hover:text-slate-300',
+                  'app-sidebar-subnav-item',
+                  childActive && 'app-sidebar-subnav-item-active',
                 )}
               >
                 {child.label}

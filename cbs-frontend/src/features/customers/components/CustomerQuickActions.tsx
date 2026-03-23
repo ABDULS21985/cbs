@@ -26,13 +26,17 @@ export function CustomerQuickActions({ customerId, customerStatus, customerName 
   const canSendComms = usePermission('communications', 'create');
   const canEditCustomer = usePermission('customers', 'update');
   const canAdminCustomer = usePermission('customers', 'delete');
+  const createCaseQuery = new URLSearchParams({
+    customerId: String(customerId),
+    ...(customerName ? { customerName } : {}),
+  }).toString();
 
   const primaryActions = [
     { label: 'Open Account', icon: Landmark, show: canCreateAccount, onClick: () => navigate(`/accounts/open?customerId=${customerId}`) },
-    { label: 'Apply for Loan', icon: HandCoins, show: canCreateLoan, onClick: () => navigate(`/lending/applications/new?customerId=${customerId}`) },
+    { label: 'Apply for Loan', icon: HandCoins, show: canCreateLoan, onClick: () => navigate(`/lending/applications/new?customerId=${customerId}${customerName ? `&customerName=${encodeURIComponent(customerName)}` : ''}`) },
     { label: 'Request Card', icon: CreditCard, show: canCreateCard, onClick: () => navigate(`/cards?action=request&customerId=${customerId}`) },
     { label: 'Send Message', icon: MessageSquare, show: canSendComms, onClick: () => navigate(`/communications?customerId=${customerId}`) },
-    { label: 'Create Case', icon: FileText, show: canCreateCase, onClick: () => navigate(`/cases/new?customerId=${customerId}`) },
+    { label: 'Create Case', icon: FileText, show: canCreateCase, onClick: () => navigate(`/cases/new?${createCaseQuery}`) },
     { label: 'Add Note', icon: StickyNote, show: canEditCustomer, onClick: () => setActiveDialog('note') },
   ].filter((a) => a.show);
 

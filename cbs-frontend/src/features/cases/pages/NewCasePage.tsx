@@ -1,41 +1,40 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { FormSection } from '@/components/shared/FormSection';
 import { caseApi, type CustomerCase } from '../api/caseApi';
 
-const subCategories: Record<string, string[]> = {
-  COMPLAINT: ['Service Quality', 'Charges/Fees', 'Account Issues', 'Card Issues', 'ATM/POS', 'Online Banking', 'Staff Behaviour'],
-  SERVICE_REQUEST: ['Account Update', 'Card Request', 'Statement', 'Reference Letter', 'Cheque Book', 'Token/OTP'],
-  INQUIRY: ['Product Information', 'Balance Inquiry', 'Rate Inquiry', 'General'],
-  DISPUTE: ['Transaction Dispute', 'Charge Dispute', 'Interest Dispute'],
-  FRAUD_REPORT: ['Unauthorized Transaction', 'Phishing', 'Card Fraud', 'Identity Theft'],
-  ACCOUNT_ISSUE: ['Account Lock', 'Account Update', 'Dormant Account', 'KYC Update'],
-  PAYMENT_ISSUE: ['Failed Transfer', 'Delayed Payment', 'Wrong Beneficiary', 'Reversal'],
-  CARD_ISSUE: ['Card Blocked', 'Card Replacement', 'PIN Reset', 'Card Activation'],
-  LOAN_ISSUE: ['Repayment Issue', 'Disbursement Delay', 'Interest Query', 'Early Settlement'],
-  FEE_REVERSAL: ['Maintenance Fee', 'SMS Fee', 'Transaction Fee', 'Penalty Fee'],
-  DOCUMENT_REQUEST: ['Statement', 'Reference Letter', 'Audit Confirmation', 'Tax Certificate'],
-  PRODUCT_CHANGE: ['Account Upgrade', 'Account Downgrade', 'Product Switch'],
-  CLOSURE: ['Account Closure', 'Card Closure', 'Loan Closure'],
-  REGULATORY: ['CBN Directive', 'Compliance Issue', 'AML/CFT'],
-  ESCALATION: ['Management Escalation', 'Regulatory Escalation', 'Ombudsman'],
-};
-
 export function NewCasePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState({
-    customerId: '',
-    customerName: '',
+    customerId: searchParams.get('customerId') ?? '',
+    customerName: searchParams.get('customerName') ?? '',
     caseType: '' as CustomerCase['caseType'] | '',
     subCategory: '',
-    priority: 'MEDIUM' as CustomerCase['priority'],
+    priority: '' as CustomerCase['priority'] | '',
     subject: '',
     description: '',
     assignedTo: '',
   });
+  const metadataQuery = useQuery({
+    queryKey: ['cases', 'metadata'],
+    queryFn: () => caseApi.getMetadata(),
+    staleTime: 5 * 60_000,
+  });
+
+  const selectedCaseType = useMemo(
+    () => metadataQuery.data?.caseTypes.find((item) => item.value === form.caseType),
+    [form.caseType, metadataQuery.data?.caseTypes],
+  );
+
+  useEffect(() => {
+    if (!form.priority && metadataQuery.data?.priorities?.length) {
+      update('priority', metadataQuery.data.priorities[0]);
+    }
+  }, [form.priority, metadataQuery.data?.priorities]);
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<CustomerCase>) => caseApi.create(data),
@@ -82,42 +81,37 @@ export function NewCasePage() {
           </FormSection>
 
           <FormSection title="Case Details">
+            {metadataQuery.isError ? (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                Case metadata could not be loaded from the backend.
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Case Type</label>
-                <select value={form.caseType} onChange={(e) => { update('caseType', e.target.value); update('subCategory', ''); }} className="w-full px-3 py-2 border rounded-md text-sm" required>
+                <select value={form.caseType} onChange={(e) => { update('caseType', e.target.value); update('subCategory', ''); }} className="w-full px-3 py-2 border rounded-md text-sm" required disabled={metadataQuery.isLoading || metadataQuery.isError}>
                   <option value="">Select type...</option>
-                  <option value="COMPLAINT">Complaint</option>
-                  <option value="SERVICE_REQUEST">Service Request</option>
-                  <option value="INQUIRY">Inquiry</option>
-                  <option value="DISPUTE">Dispute</option>
-                  <option value="FRAUD_REPORT">Fraud Report</option>
-                  <option value="ACCOUNT_ISSUE">Account Issue</option>
-                  <option value="PAYMENT_ISSUE">Payment Issue</option>
-                  <option value="CARD_ISSUE">Card Issue</option>
-                  <option value="LOAN_ISSUE">Loan Issue</option>
-                  <option value="FEE_REVERSAL">Fee Reversal</option>
-                  <option value="DOCUMENT_REQUEST">Document Request</option>
-                  <option value="PRODUCT_CHANGE">Product Change</option>
-                  <option value="CLOSURE">Closure</option>
-                  <option value="REGULATORY">Regulatory</option>
-                  <option value="ESCALATION">Escalation</option>
+                  {metadataQuery.data?.caseTypes.map((caseType) => (
+                    <option key={caseType.value} value={caseType.value}>{caseType.label}</option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Sub-Category</label>
-                <select value={form.subCategory} onChange={(e) => update('subCategory', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" disabled={!form.caseType}>
+                <select value={form.subCategory} onChange={(e) => update('subCategory', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" disabled={!selectedCaseType}>
                   <option value="">Select...</option>
-                  {form.caseType && subCategories[form.caseType]?.map((sub) => <option key={sub} value={sub}>{sub}</option>)}
+                  {selectedCaseType?.subCategories.map((sub) => <option key={sub} value={sub}>{sub}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Priority</label>
-                <select value={form.priority} onChange={(e) => update('priority', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm">
-                  <option value="LOW">Low</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="HIGH">High</option>
-                  <option value="CRITICAL">Critical</option>
+                <select value={form.priority} onChange={(e) => update('priority', e.target.value)} className="w-full px-3 py-2 border rounded-md text-sm" disabled={metadataQuery.isLoading || metadataQuery.isError}>
+                  <option value="">Select priority...</option>
+                  {(metadataQuery.data?.priorities ?? []).map((priority) => (
+                    <option key={priority} value={priority}>
+                      {priority.charAt(0) + priority.slice(1).toLowerCase()}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

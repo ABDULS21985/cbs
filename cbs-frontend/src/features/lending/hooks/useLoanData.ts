@@ -16,6 +16,14 @@ export function useLoanApplications(filters?: LoanFilters) {
   });
 }
 
+export function useLoanProducts(filters?: LoanFilters) {
+  return useQuery({
+    queryKey: queryKeys.loans.products(filters as Record<string, unknown> | undefined),
+    queryFn: () => loanApi.getProducts(filters),
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useLoanApplication(id: number) {
   return useQuery({
     queryKey: ['loans', 'application', id],
@@ -125,6 +133,18 @@ export function useSettlementCalculation(loanId: number) {
 export function usePreviewSchedule() {
   return useMutation({
     mutationFn: (data: LoanApplicationRequest) => loanApi.previewSchedule(data),
+  });
+}
+
+export function useLoanSchedulePreview(
+  data: LoanApplicationRequest | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.loans.schedulePreview(data as Record<string, unknown> | undefined),
+    queryFn: () => loanApi.previewSchedule(data as LoanApplicationRequest),
+    enabled: enabled && !!data,
+    staleTime: 30_000,
   });
 }
 

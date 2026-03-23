@@ -73,6 +73,18 @@ export interface CaseStats {
   avgResolutionHours: number;
 }
 
+export interface CaseTypeMetadata {
+  value: CustomerCase['caseType'];
+  label: string;
+  category: string;
+  subCategories: string[];
+}
+
+export interface CaseMetadata {
+  caseTypes: CaseTypeMetadata[];
+  priorities: CustomerCase['priority'][];
+}
+
 // Backend uses caseNumber (String) as path variable for all operations.
 // The backend controller: @RequestMapping("/v1/cases") with context-path /api
 // Operations use /{caseNumber}/assign, /{caseNumber}/resolve, etc.
@@ -109,6 +121,8 @@ export const caseApi = {
     apiPost<CustomerCase>(`/api/v1/cases/${caseNumber}/compensation/reject${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`),
   getStats: () =>
     apiGet<CaseStats>('/api/v1/cases/stats'),
+  getMetadata: () =>
+    apiGet<CaseMetadata>('/api/v1/cases/metadata'),
   getMyCases: () =>
     apiGet<CustomerCase[]>('/api/v1/cases/my'),
   getUnassigned: () =>

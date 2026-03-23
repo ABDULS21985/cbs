@@ -4,13 +4,15 @@ export interface LoanProduct {
   id: number;
   productCode: string;
   productName: string;
-  productType: 'PERSONAL' | 'SME_WORKING_CAPITAL' | 'SME_ASSET' | 'MORTGAGE' | 'OVERDRAFT' | 'POS_LOAN';
+  productType: string;
+  currency?: string;
   minAmount: number;
   maxAmount: number;
   minTenorMonths: number;
   maxTenorMonths: number;
   interestRateMin: number;
   interestRateMax: number;
+  defaultInterestRate?: number;
   requiresCollateral: boolean;
   description?: string;
 }

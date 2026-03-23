@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/formatters';
@@ -70,12 +70,17 @@ export function CustomerStep({ state, updateField, onNext, onBack }: CustomerSte
     setSearchQuery('');
   };
 
+  useEffect(() => {
+    if (customer?.fullName && state.customerName !== customer.fullName) {
+      updateField('customerName', customer.fullName);
+    }
+  }, [customer?.fullName, state.customerName, updateField]);
+
   const kycVerified = customer?.kycStatus === 'VERIFIED';
   const notBlacklisted = customer?.status !== 'BLACKLISTED' && customer?.status !== 'SUSPENDED';
-  const noAmlAlerts = true; // Would check from AML endpoint
   const totalOutstanding = existingLoans.reduce((s, l) => s + l.outstandingPrincipal, 0);
   const dtiOk = state.monthlyIncome > 0 ? (totalOutstanding / state.monthlyIncome) < 0.5 : true;
-  const allEligible = kycVerified && notBlacklisted && noAmlAlerts && (state.customerId ? dtiOk : true);
+  const allEligible = kycVerified && notBlacklisted && (state.customerId ? dtiOk : true);
 
   return (
     <div className="rounded-xl border bg-card p-6 space-y-6">
@@ -137,7 +142,6 @@ export function CustomerStep({ state, updateField, onNext, onBack }: CustomerSte
         <div className="rounded-lg border p-4 space-y-2">
           <p className="text-sm font-semibold mb-2">Eligibility Checks</p>
           <EligibilityCheck label="KYC verified" passed={kycVerified} />
-          <EligibilityCheck label="No blocking AML alerts" passed={noAmlAlerts} />
           <EligibilityCheck label="Debt-to-income within limits" passed={dtiOk} />
           <EligibilityCheck label="No blacklisted status" passed={notBlacklisted} />
         </div>

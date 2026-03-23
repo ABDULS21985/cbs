@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Building2, ShieldCheck, Sparkles } from 'lucide-react';
 import { TabsPage } from '@/components/shared';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useCustomer, useCustomerAccounts, useCustomerLoans, useCustomerCards, useCustomerCases } from '../hooks/useCustomers';
 import { useRecommendations } from '../hooks/useCustomerIntelligence';
+import { useCustomerProfitability } from '../hooks/useCustomerAnalytics';
 import { CustomerHeader } from '../components/CustomerHeader';
 import { ComposeMessageDialog } from '../components/ComposeMessageDialog';
 import { CustomerOverviewTab } from '../components/CustomerOverviewTab';
@@ -22,19 +23,34 @@ import { usePermission } from '@/hooks/usePermission';
 
 // Portfolio components
 import { RelationshipSummary } from '../components/portfolio/RelationshipSummary';
+import { ProfitabilityAnalysis } from '../components/portfolio/ProfitabilityAnalysis';
 import { ProductHoldingsGrid } from '../components/portfolio/ProductHoldingsGrid';
 import { CrossSellRecommendations } from '../components/portfolio/CrossSellRecommendations';
 
 // ── Portfolio Tab ────────────────────────────────────────────────────────────
 
 function PortfolioTab({ customerId, customerName }: { customerId: number; customerName: string }) {
+  const navigate = useNavigate();
   const { data: accounts = [] } = useCustomerAccounts(customerId);
   const { data: loans = [] } = useCustomerLoans(customerId, true);
   const { data: cards = [] } = useCustomerCards(customerId, true);
   const {
+    data: profitabilityData,
+    isLoading: profitabilityLoading,
+    isError: profitabilityError,
+  } = useCustomerProfitability(customerId);
+  const {
     data: apiRecommendations = [],
     isError: recommendationsError,
   } = useRecommendations(customerId);
+
+  const profitability =
+    profitabilityData &&
+    typeof profitabilityData === 'object' &&
+    'totalRevenue' in profitabilityData
+      ? profitabilityData
+      : null;
+  const latestMonthlyRevenue = profitability?.monthlyTrend?.at(-1)?.revenue ?? null;
 
   const totalBalance = accounts.reduce((s, a) => s + (a.availableBalance ?? a.ledgerBalance ?? 0), 0);
   const loanOutstanding = loans.reduce((s, l) => s + (l.outstandingBalance ?? 0), 0);
@@ -72,21 +88,60 @@ function PortfolioTab({ customerId, customerName }: { customerId: number; custom
       <RelationshipSummary
         totalBalance={totalBalance + loanOutstanding}
         productsHeld={productsHeld}
-        monthlyRevenue={null}
-        lifetimeValue={null}
+        monthlyRevenue={latestMonthlyRevenue}
+        lifetimeValue={profitability?.lifetimeValue ?? null}
       />
 
-      <div className="rounded-xl border border-dashed bg-muted/20 p-5">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5" />
-          <div>
-            <h3 className="text-sm font-semibold">Portfolio analytics unavailable</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Historical trend, revenue, and profitability figures are hidden until backend analytics endpoints are available.
-            </p>
+      {profitabilityLoading ? (
+        <div className="rounded-xl border bg-card p-5">
+          <div className="animate-pulse space-y-3">
+            <div className="h-4 w-40 rounded bg-muted" />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="h-16 rounded bg-muted" />
+              <div className="h-16 rounded bg-muted" />
+              <div className="h-16 rounded bg-muted" />
+            </div>
           </div>
         </div>
-      </div>
+      ) : profitabilityError || !profitability ? (
+        <div className="rounded-xl border border-dashed bg-muted/20 p-5">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold">Portfolio analytics unavailable</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Profitability data could not be loaded for this customer right now.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4">
+            <div>
+              <p className="text-sm font-semibold">Live Portfolio Analytics</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Revenue, cost, and relationship value are loaded from the customer profitability service.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(`/customers/${customerId}/analytics?tab=profitability`)}
+              className="shrink-0 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted"
+            >
+              Open Full Analytics
+            </button>
+          </div>
+          <ProfitabilityAnalysis
+            revenue={profitability.totalRevenue}
+            costOfFunds={profitability.costOfFunds}
+            operatingCost={profitability.operatingCost}
+            provisions={profitability.provisions}
+            netProfit={profitability.netContribution}
+            roc={profitability.marginPct}
+          />
+        </div>
+      )}
 
       <ProductHoldingsGrid holdings={holdings} />
 
@@ -133,7 +188,13 @@ function RelationshipStrip({ customerId, customer }: { customerId: number; custo
   return (
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
       {items.map((item) => (
-        <div key={item.label} className={cn('rounded-lg border p-3 text-center', item.highlight && 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/10')}>
+        <div
+          key={item.label}
+          className={cn(
+            'customer-kpi-card',
+            item.highlight && 'customer-kpi-card-highlight',
+          )}
+        >
           <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{item.label}</div>
           <div className={cn('text-sm font-semibold mt-0.5', item.highlight && 'text-red-600')}>{item.value}</div>
         </div>
@@ -165,10 +226,14 @@ export default function Customer360Page() {
 
   if (isLoading) {
     return (
-      <div className="page-container space-y-4">
-        <div className="h-32 bg-muted rounded-xl animate-pulse" />
-        <div className="h-10 bg-muted rounded-lg animate-pulse" />
-        <div className="h-64 bg-muted rounded-xl animate-pulse" />
+      <div className="page-container space-y-6">
+        <div className="h-64 rounded-[28px] bg-muted animate-pulse" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="h-20 rounded-[18px] bg-muted/70 animate-pulse" />
+          ))}
+        </div>
+        <div className="h-[30rem] rounded-[28px] bg-muted/70 animate-pulse" />
       </div>
     );
   }
@@ -193,28 +258,49 @@ export default function Customer360Page() {
     { id: 'portfolio', label: 'Portfolio', content: <PortfolioTab customerId={customerId} customerName={customer.fullName} /> },
     { id: 'timeline', label: 'Timeline', content: <CustomerTimeline customerId={customerId} /> },
     { id: 'accounts', label: 'Accounts', badge: accounts.length || undefined, content: <CustomerAccountsTab customerId={customerId} /> },
-    { id: 'loans', label: 'Loans', badge: loans.length || undefined, content: <CustomerLoansTab customerId={customerId} active /> },
+    { id: 'loans', label: 'Loans', badge: loans.length || undefined, content: <CustomerLoansTab customerId={customerId} customerName={customer.fullName} active /> },
     { id: 'cards', label: 'Cards', badge: cards.length || undefined, content: <CustomerCardsTab customerId={customerId} /> },
     { id: 'documents', label: 'Documents', content: <CustomerDocumentsTab customerId={customerId} active /> },
     { id: 'transactions', label: 'Transactions', content: <CustomerTransactionsTab customerId={customerId} active /> },
-    ...(canViewCases ? [{ id: 'cases', label: 'Cases', content: <CustomerCasesTab customerId={customerId} active /> }] : []),
+    ...(canViewCases ? [{ id: 'cases', label: 'Cases', content: <CustomerCasesTab customerId={customerId} customerName={customer.fullName} active /> }] : []),
     ...(canViewCommunications ? [{ id: 'communications', label: 'Communications', content: <CustomerCommunicationsTab customerId={customerId} active /> }] : []),
     ...(canViewAudit ? [{ id: 'audit', label: 'Audit Trail', content: <CustomerAuditTab customerId={customerId} active /> }] : []),
   ];
 
   return (
-    <div className="page-container space-y-4">
-      <button onClick={() => navigate(-1)}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="h-4 w-4" /> Back to Customers
-      </button>
+    <div className="page-container space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <button onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card/80 px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back to Customers
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="customer-hero-chip"><Building2 className="h-3.5 w-3.5 text-primary" /> {customer.branchCode ? `Branch ${customer.branchCode}` : 'No branch'}</div>
+          <div className="customer-hero-chip"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> {customer.status}</div>
+        </div>
+      </div>
 
       <CustomerHeader customer={customer} accountCount={accounts.length} loanCount={loans.length} cardCount={cards.length} onContactCustomer={() => setShowCompose(true)} />
       {showCompose && <ComposeMessageDialog customer={customer} onClose={() => setShowCompose(false)} />}
 
       <RelationshipStrip customerId={customerId} customer={customer} />
 
-      <div className="card overflow-hidden">
+      <div className="customer-workspace-shell">
+        <div className="customer-workspace-banner">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary/80">Customer Workspace</p>
+              <h2 className="mt-2 text-lg font-semibold">Profile, portfolio, and servicing actions</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Manage relationship insights, active products, documents, communications, and customer servicing from one view.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="customer-hero-chip"><Sparkles className="h-3.5 w-3.5 text-primary" /> {accounts.length + loans.length + cards.length} active products</div>
+              <div className="customer-hero-chip">{customer.riskRating ?? 'Unrated'} risk</div>
+            </div>
+          </div>
+        </div>
         <TabsPage tabs={tabs} syncWithUrl />
       </div>
     </div>

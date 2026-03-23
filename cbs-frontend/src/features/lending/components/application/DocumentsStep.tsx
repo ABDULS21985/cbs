@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { FileText, Check, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Check, FileText, Loader2 } from 'lucide-react';
+import { useCustomerDocuments } from '@/features/customers/hooks/useCustomers';
 import type { LoanApplicationState } from '../../hooks/useLoanApplication';
 
 interface DocumentsStepProps {
@@ -10,154 +11,141 @@ interface DocumentsStepProps {
   onBack: () => void;
 }
 
-interface DocRequirement {
-  name: string;
-  required: boolean;
-  category: string;
-}
-
-function getRequiredDocuments(productType: string): DocRequirement[] {
-  const base: DocRequirement[] = [
-    { name: 'Government-issued ID', required: true, category: 'Identity' },
-    { name: 'Proof of Address', required: true, category: 'Identity' },
-    { name: 'Bank Statements (3 months)', required: true, category: 'Financial' },
-  ];
-
-  if (productType === 'MORTGAGE') {
-    base.push(
-      { name: 'Property Valuation Report', required: true, category: 'Property' },
-      { name: 'Title Deed / C of O', required: true, category: 'Property' },
-      { name: 'Sale Agreement', required: true, category: 'Property' },
-    );
-  }
-
-  if (productType === 'POS_LOAN') {
-    base.push(
-      { name: 'Vehicle Registration', required: true, category: 'Vehicle' },
-      { name: 'Comprehensive Insurance', required: true, category: 'Vehicle' },
-      { name: 'Proforma Invoice', required: true, category: 'Vehicle' },
-    );
-  }
-
-  if (['SME_WORKING_CAPITAL', 'SME_ASSET'].includes(productType)) {
-    base.push(
-      { name: 'Audited Financial Statements', required: true, category: 'Business' },
-      { name: 'Tax Clearance Certificate', required: true, category: 'Business' },
-      { name: 'Business Registration (CAC)', required: true, category: 'Business' },
-    );
-  }
-
-  return base;
-}
+const STATUS_STYLES: Record<string, string> = {
+  VERIFIED: 'bg-green-100 text-green-800',
+  PENDING: 'bg-amber-100 text-amber-800',
+  EXPIRED: 'bg-red-100 text-red-800',
+  REJECTED: 'bg-red-100 text-red-800',
+};
 
 export function DocumentsStep({ state, updateField, onNext, onBack }: DocumentsStepProps) {
-  const productType = state.product?.productType ?? 'PERSONAL';
-  const requiredDocs = useMemo(() => getRequiredDocuments(productType), [productType]);
+  const customerId = state.customerId ?? 0;
+  const { data: customerDocs = [], isLoading, isError } = useCustomerDocuments(customerId, !!customerId);
+  const [selectedDocs, setSelectedDocs] = useState<Set<number>>(
+    () => new Set(state.documents.map((document) => Number(document.fileRef)).filter(Number.isFinite)),
+  );
 
-  const [checkedDocs, setCheckedDocs] = useState<Set<string>>(() => {
-    const set = new Set<string>();
-    state.documents.forEach((d) => { if (d.uploaded) set.add(d.name); });
-    return set;
-  });
+  const syncSelectedDocuments = (nextSelected: Set<number>) => {
+    updateField(
+      'documents',
+      customerDocs
+        .filter((document) => nextSelected.has(document.id))
+        .map((document) => ({
+          name: document.documentName || document.documentType,
+          required: false,
+          uploaded: true,
+          fileRef: String(document.id),
+        })),
+    );
+  };
 
-  const toggleDoc = (name: string) => {
-    setCheckedDocs((prev) => {
+  const toggleDocument = (documentId: number) => {
+    setSelectedDocs((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
-      // Update state
-      updateField('documents', requiredDocs.map((d) => ({
-        name: d.name,
-        required: d.required,
-        uploaded: next.has(d.name),
-      })));
+      if (next.has(documentId)) next.delete(documentId);
+      else next.add(documentId);
+      syncSelectedDocuments(next);
       return next;
     });
   };
 
-  const receivedCount = checkedDocs.size;
-  const totalRequired = requiredDocs.filter((d) => d.required).length;
-  const allRequiredReceived = requiredDocs.filter((d) => d.required).every((d) => checkedDocs.has(d.name));
-  const completionPct = totalRequired > 0 ? (receivedCount / totalRequired) * 100 : 100;
+  const attachedCount = selectedDocs.size;
 
-  // Group by category
-  const categories = useMemo(() => {
-    const map = new Map<string, DocRequirement[]>();
-    requiredDocs.forEach((d) => {
-      const list = map.get(d.category) ?? [];
-      list.push(d);
-      map.set(d.category, list);
-    });
-    return Array.from(map.entries());
-  }, [requiredDocs]);
+  if (!customerId) {
+    return (
+      <div className="rounded-xl border bg-card p-6 space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold mb-1">Application Documents</h3>
+          <p className="text-sm text-muted-foreground">Select a customer first before attaching live documents.</p>
+        </div>
+        <div className="flex gap-3 justify-end pt-2">
+          <button onClick={onBack} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Back</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border bg-card p-6 space-y-6">
       <div>
-        <h3 className="text-lg font-semibold mb-1">Document Checklist</h3>
-        <p className="text-sm text-muted-foreground">Verify required documents have been received</p>
+        <h3 className="text-lg font-semibold mb-1">Application Documents</h3>
+        <p className="text-sm text-muted-foreground">Attach live customer documents returned by the backend.</p>
       </div>
 
-      {/* Progress */}
-      <div className="rounded-lg border p-4">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium">Document Completeness</p>
-          <span className={cn('text-sm font-bold', allRequiredReceived ? 'text-green-600' : 'text-amber-600')}>
-            {receivedCount}/{totalRequired} received
-          </span>
+      {isLoading ? (
+        <div className="rounded-lg border p-4 text-sm text-muted-foreground flex items-center gap-3">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Loading customer documents...
         </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div className={cn('h-full rounded-full transition-all', allRequiredReceived ? 'bg-green-500' : 'bg-amber-500')} style={{ width: `${completionPct}%` }} />
-        </div>
-      </div>
+      ) : null}
 
-      {/* Document List by Category */}
-      {categories.map(([category, docs]) => (
-        <div key={category}>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{category}</p>
-          <div className="space-y-1">
-            {docs.map((doc) => {
-              const isChecked = checkedDocs.has(doc.name);
-              return (
-                <div key={doc.name} className={cn('flex items-center justify-between rounded-lg border p-3 transition-colors', isChecked && 'bg-green-50/50 dark:bg-green-950/10 border-green-200 dark:border-green-800')}>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => toggleDoc(doc.name)}
-                      className={cn(
-                        'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
-                        isChecked ? 'bg-green-500 border-green-500 text-white' : 'border-muted-foreground/30',
-                      )}
-                    >
-                      {isChecked && <Check className="w-3 h-3" />}
-                    </button>
+      {isError ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 flex items-center gap-3">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          Customer documents could not be loaded from the backend.
+        </div>
+      ) : null}
+
+      {!isLoading && !isError && customerDocs.length === 0 ? (
+        <div className="rounded-lg border p-5 text-sm text-muted-foreground flex items-center gap-3">
+          <FileText className="w-4 h-4 flex-shrink-0" />
+          No customer documents are currently available to attach.
+        </div>
+      ) : null}
+
+      {!isLoading && !isError && customerDocs.length > 0 ? (
+        <div className="space-y-2">
+          {customerDocs.map((document) => {
+            const selected = selectedDocs.has(document.id);
+            return (
+              <button
+                key={document.id}
+                type="button"
+                onClick={() => toggleDocument(document.id)}
+                className={cn(
+                  'w-full rounded-lg border p-4 text-left transition-colors',
+                  selected ? 'border-primary bg-primary/5' : 'hover:bg-muted/30',
+                )}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      'mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center',
+                      selected ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30',
+                    )}>
+                      {selected ? <Check className="w-3 h-3" /> : null}
+                    </div>
                     <div>
-                      <span className={cn('text-sm', isChecked && 'line-through text-muted-foreground')}>{doc.name}</span>
-                      {doc.required && !isChecked && <span className="text-red-500 text-xs ml-1">*</span>}
+                      <p className="text-sm font-medium">{document.documentName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {document.documentType} {document.documentNumber ? `• ${document.documentNumber}` : ''}
+                      </p>
                     </div>
                   </div>
-                  <span className="text-xs text-muted-foreground">
-                    {isChecked ? 'Received' : 'Awaiting document'}
+                  <span className={cn('px-2 py-1 rounded-full text-xs font-medium', STATUS_STYLES[document.status] ?? 'bg-muted text-foreground')}>
+                    {document.status}
                   </span>
                 </div>
-              );
-            })}
-          </div>
+              </button>
+            );
+          })}
         </div>
-      ))}
+      ) : null}
 
-      {/* Warning if incomplete */}
-      {!allRequiredReceived && (
-        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-          <p className="text-xs text-amber-800 dark:text-amber-300">
-            Not all required documents have been received. You may continue, but the application may be flagged for incomplete documentation.
-          </p>
+      <div className="rounded-lg border p-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Attached documents</p>
+          <span className="text-sm font-semibold">{attachedCount}</span>
         </div>
-      )}
+        <p className="text-xs text-muted-foreground mt-1">
+          Attach the customer records that should accompany this application into credit review.
+        </p>
+      </div>
 
       <div className="flex gap-3 justify-end pt-2">
         <button onClick={onBack} className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted">Back</button>
         <button onClick={onNext} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
-          {allRequiredReceived ? 'Continue' : 'Continue with Warning'}
+          {attachedCount > 0 ? 'Continue' : 'Continue Without Attachments'}
         </button>
       </div>
     </div>

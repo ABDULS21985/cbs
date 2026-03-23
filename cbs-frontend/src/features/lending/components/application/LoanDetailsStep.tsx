@@ -8,7 +8,6 @@ interface Props {
   onBack: () => void;
 }
 
-const PURPOSES = ['Business Expansion', 'Working Capital', 'Asset Purchase', 'Education', 'Medical', 'Home Improvement', 'Debt Consolidation', 'Personal', 'Other'];
 const REPAYMENT_METHODS = [
   { value: 'EQUAL_INSTALLMENT', label: 'Equal Installment (Annuity)' },
   { value: 'REDUCING_BALANCE', label: 'Reducing Balance' },
@@ -17,31 +16,67 @@ const REPAYMENT_METHODS = [
 ];
 
 export function LoanDetailsStep({ state, updateField, onNext, onBack }: Props) {
+  const product = state.product;
+  const minAmount = product?.minAmount;
+  const maxAmount = product?.maxAmount;
+  const minTenor = product?.minTenorMonths ?? 1;
+  const maxTenor = product?.maxTenorMonths ?? 360;
+  const minRate = product?.interestRateMin;
+  const maxRate = product?.interestRateMax;
   const canProceed = state.amount > 0 && state.purpose && state.tenorMonths > 0;
 
   return (
     <div className="space-y-6 max-w-2xl">
       <h3 className="text-lg font-semibold">Loan Details</h3>
 
-      <MoneyInput label="Requested Amount" value={state.amount} onChange={(v) => updateField('amount', v)} currency="NGN" />
+      <MoneyInput
+        label="Requested Amount"
+        value={state.amount}
+        onChange={(v) => updateField('amount', v)}
+        currency={product?.currency ?? 'NGN'}
+        min={minAmount}
+        max={maxAmount}
+      />
+      {product ? (
+        <p className="text-xs text-muted-foreground">
+          Product range: {product.currency ?? 'NGN'} {product.minAmount.toLocaleString('en-NG')} to {product.maxAmount.toLocaleString('en-NG')}
+        </p>
+      ) : null}
 
       <div>
         <label className="block text-sm font-medium mb-1.5">Purpose</label>
-        <select value={state.purpose} onChange={(e) => updateField('purpose', e.target.value)} className="w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
-          <option value="">Select purpose</option>
-          {PURPOSES.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
+        <textarea
+          value={state.purpose}
+          onChange={(e) => updateField('purpose', e.target.value)}
+          rows={3}
+          placeholder="Describe the business or customer purpose for this facility"
+          className="w-full px-3 py-2 rounded-lg border bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+        />
       </div>
 
       <div>
         <label className="block text-sm font-medium mb-1.5">Tenor (months): {state.tenorMonths}</label>
-        <input type="range" min={1} max={360} value={state.tenorMonths} onChange={(e) => updateField('tenorMonths', parseInt(e.target.value))} className="w-full" />
-        <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>1 month</span><span>360 months</span></div>
+        <input type="range" min={minTenor} max={maxTenor} value={state.tenorMonths} onChange={(e) => updateField('tenorMonths', parseInt(e.target.value, 10))} className="w-full" />
+        <div className="flex justify-between text-xs text-muted-foreground mt-1"><span>{minTenor} month{minTenor === 1 ? '' : 's'}</span><span>{maxTenor} months</span></div>
       </div>
 
       <div>
         <label className="block text-sm font-medium mb-1.5">Interest Rate (% p.a.)</label>
-        <input type="number" step="0.01" value={state.interestRate || ''} onChange={(e) => updateField('interestRate', parseFloat(e.target.value) || 0)} placeholder="18.00" className="w-full px-3 py-2 rounded-lg border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring" />
+        <input
+          type="number"
+          step="0.01"
+          min={minRate}
+          max={maxRate}
+          value={state.interestRate || ''}
+          onChange={(e) => updateField('interestRate', parseFloat(e.target.value) || 0)}
+          placeholder={product?.defaultInterestRate?.toFixed(2) ?? '0.00'}
+          className="w-full px-3 py-2 rounded-lg border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        {product ? (
+          <p className="text-xs text-muted-foreground mt-1">
+            Product rate band: {product.interestRateMin.toFixed(2)}% to {product.interestRateMax.toFixed(2)}%
+          </p>
+        ) : null}
       </div>
 
       <div>

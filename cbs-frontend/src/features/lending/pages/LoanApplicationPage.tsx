@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { useLoanApplication } from '../hooks/useLoanApplication';
 import { LoanTypeStep } from '../components/application/LoanTypeStep';
@@ -19,7 +21,19 @@ const STEPS = [
 ];
 
 export function LoanApplicationPage() {
+  const [searchParams] = useSearchParams();
   const { state, updateField, nextStep, prevStep, goToStep } = useLoanApplication();
+  const prefilledCustomerId = Number(searchParams.get('customerId'));
+  const prefilledCustomerName = searchParams.get('customerName') ?? '';
+
+  useEffect(() => {
+    if (Number.isFinite(prefilledCustomerId) && prefilledCustomerId > 0 && state.customerId !== prefilledCustomerId) {
+      updateField('customerId', prefilledCustomerId);
+    }
+    if (prefilledCustomerName && state.customerName !== prefilledCustomerName) {
+      updateField('customerName', prefilledCustomerName);
+    }
+  }, [prefilledCustomerId, prefilledCustomerName, state.customerId, state.customerName, updateField]);
 
   const renderStep = () => {
     switch (state.step) {
@@ -30,7 +44,7 @@ export function LoanApplicationPage() {
       case 4: return <CollateralStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
       case 5: return <DocumentsStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
       case 6: return <CreditScoreStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
-      case 7: return <SchedulePreviewStep state={state} onNext={nextStep} onBack={prevStep} />;
+      case 7: return <SchedulePreviewStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
       case 8: return <ApprovalStep state={state} updateField={updateField} onNext={nextStep} onBack={prevStep} />;
       case 9: return <ReviewSubmitStep state={state} goToStep={goToStep} />;
       default: return <PlaceholderStep step={state.step} stepName={STEPS[state.step]} onNext={nextStep} onBack={prevStep} />;

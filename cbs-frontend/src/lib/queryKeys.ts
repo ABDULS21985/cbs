@@ -19,6 +19,8 @@ export const queryKeys = {
     detail: (id: number) => ['loans', 'detail', id] as const,
     schedule: (id: number) => ['loans', id, 'schedule'] as const,
     applications: (filters?: Record<string, unknown>) => ['loans', 'applications', filters] as const,
+    products: (filters?: Record<string, unknown>) => ['loans', 'products', filters] as const,
+    schedulePreview: (payload?: Record<string, unknown>) => ['loans', 'schedule-preview', payload] as const,
   },
   payments: {
     all: ['payments'] as const,

@@ -85,6 +85,39 @@ function setupHandlers() {
     http.get('/api/v1/customers/:id/recommendations', () =>
       HttpResponse.json(wrap([])),
     ),
+    http.get('/api/v1/customers/:id/profitability', () =>
+      HttpResponse.json(
+        wrap({
+          customerId: 1,
+          interestIncome: 120000,
+          feeIncome: 15000,
+          fxIncome: 5000,
+          otherIncome: 2000,
+          totalRevenue: 142000,
+          costOfFunds: 45000,
+          operatingCost: 20000,
+          provisions: 5000,
+          otherCost: 3000,
+          totalCost: 73000,
+          netContribution: 69000,
+          marginPct: 48.6,
+          lifetimeValue: 850000,
+          tenureMonths: 36,
+          totalBalance: 2500000,
+          accountCount: 3,
+          monthlyTrend: [
+            { month: '2024-01', revenue: 11000 },
+            { month: '2024-02', revenue: 12500 },
+          ],
+          revenueBreakdown: [
+            { name: 'Interest', value: 120000 },
+            { name: 'Fees', value: 15000 },
+            { name: 'FX', value: 5000 },
+            { name: 'Other', value: 2000 },
+          ],
+        }),
+      ),
+    ),
     http.get('/api/v1/customers/:id/timeline', () =>
       HttpResponse.json(wrap([])),
     ),
@@ -203,6 +236,11 @@ function renderPage(customerId = '1') {
   return renderWithProviders(
     <Routes>
       <Route path="/customers/:id" element={<Customer360Page />} />
+      <Route path="/cases/new" element={<div>New Case Route</div>} />
+      <Route path="/cases/:id" element={<div>Case Detail Route</div>} />
+      <Route path="/lending/applications/new" element={<div>Loan Application Route</div>} />
+      <Route path="/lending/:id" element={<div>Loan Detail Route</div>} />
+      <Route path="/customers/:id/analytics" element={<div>Customer Analytics Route</div>} />
     </Routes>,
     { route: `/customers/${customerId}` },
   );
@@ -292,6 +330,139 @@ describe('Customer360Page', () => {
     await waitFor(() => {
       expect(screen.getByText('TXN-001')).toBeInTheDocument();
       expect(screen.getByText('Opening deposit')).toBeInTheDocument();
+    });
+  });
+
+  it('loads live profitability data in the portfolio tab', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /portfolio/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /portfolio/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Profitability Analysis')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Portfolio analytics unavailable')).not.toBeInTheDocument();
+    expect(screen.getByText('Open Full Analytics')).toBeInTheDocument();
+  });
+
+  it('supports case creation and case drill-down from the customer profile', async () => {
+    server.use(
+      http.get('/api/v1/cases/customer/:id', () =>
+        HttpResponse.json(
+          wrap([
+            {
+              id: 55,
+              caseNumber: 'CASE-000055',
+              caseType: 'DISPUTE',
+              priority: 'HIGH',
+              status: 'OPEN',
+              assignedTo: 'agent-1',
+              createdAt: '2024-01-18T09:30:00Z',
+            },
+          ]),
+        ),
+      ),
+    );
+
+    const firstRender = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /cases/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /cases/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('CASE-000055')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /create case/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('New Case Route')).toBeInTheDocument();
+    });
+
+    firstRender.unmount();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /cases/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /cases/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('CASE-000055')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('CASE-000055'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Case Detail Route')).toBeInTheDocument();
+    });
+  });
+
+  it('supports loan origination and loan drill-down from the customer profile', async () => {
+    server.use(
+      http.get('/api/v1/loans/customer/:id', () =>
+        HttpResponse.json(
+          wrap([
+            {
+              id: 7,
+              loanNumber: 'LN-000007',
+              loanProductName: 'Personal Loan',
+              disbursedAmount: 500000,
+              outstandingPrincipal: 250000,
+              daysPastDue: 0,
+              status: 'ACTIVE',
+              disbursementDate: '2024-01-18',
+              maturityDate: '2025-01-18',
+            },
+          ]),
+        ),
+      ),
+    );
+
+    const firstRender = renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /loans/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /loans/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('LN-000007')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /new application/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Loan Application Route')).toBeInTheDocument();
+    });
+
+    firstRender.unmount();
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /loans/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /loans/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('LN-000007')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('LN-000007'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Loan Detail Route')).toBeInTheDocument();
     });
   });
 });

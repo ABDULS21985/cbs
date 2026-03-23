@@ -107,13 +107,15 @@ function mapLoanProduct(p: BackendLoanProductDto): LoanProduct {
     id: p.id,
     productCode: p.code,
     productName: p.name,
-    productType: (p.loanType as LoanProduct['productType']) ?? 'PERSONAL',
+    productType: p.loanType ?? p.code,
+    currency: p.currencyCode ?? 'NGN',
     minAmount: p.minLoanAmount ?? 0,
     maxAmount: p.maxLoanAmount ?? 0,
     minTenorMonths: p.minTenureMonths ?? 1,
     maxTenorMonths: p.maxTenureMonths ?? 360,
     interestRateMin: p.minInterestRate ?? 0,
     interestRateMax: p.maxInterestRate ?? 0,
+    defaultInterestRate: p.defaultInterestRate ?? undefined,
     requiresCollateral: p.requiresCollateral ?? false,
     description: p.description ?? undefined,
   };
@@ -252,6 +254,7 @@ export interface LoanApplicationRequest {
   proposedRate?: number;
   repaymentScheduleType?: string;
   repaymentFrequency?: string;
+  runCreditCheck?: boolean;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────

@@ -1,15 +1,30 @@
 import { useNavigate } from 'react-router-dom';
 import type { ColumnDef } from '@tanstack/react-table';
+import { Plus } from 'lucide-react';
 import { DataTable, StatusBadge, MoneyDisplay } from '@/components/shared';
+import { usePermission } from '@/hooks/usePermission';
 import { formatDate } from '@/lib/formatters';
 import { useCustomerLoans } from '../hooks/useCustomers';
 import type { CustomerLoan } from '../types/customer';
 
 const CLOSED_STATUSES = ['CLOSED', 'WRITTEN_OFF', 'SETTLED', 'LIQUIDATED'];
 
-export function CustomerLoansTab({ customerId, active }: { customerId: number; active: boolean }) {
+export function CustomerLoansTab({
+  customerId,
+  customerName,
+  active,
+}: {
+  customerId: number;
+  customerName?: string;
+  active: boolean;
+}) {
   const navigate = useNavigate();
+  const canCreateLoan = usePermission('lending', 'create');
   const { data: loans, isLoading } = useCustomerLoans(customerId, active);
+  const createLoanQuery = new URLSearchParams({
+    customerId: String(customerId),
+    ...(customerName ? { customerName } : {}),
+  }).toString();
 
   const activeLoans = loans?.filter(l => !CLOSED_STATUSES.includes(l.status)) ?? [];
   const closedLoans = loans?.filter(l => CLOSED_STATUSES.includes(l.status)) ?? [];
@@ -34,8 +49,21 @@ export function CustomerLoansTab({ customerId, active }: { customerId: number; a
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-        Loan origination from the customer profile is temporarily disabled until the multi-step application workflow is fully aligned with the backend contract.
+      <div className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium">Customer Loans</p>
+          <p className="text-xs text-muted-foreground">Review this customer’s facilities or start a new loan application with their profile preloaded.</p>
+        </div>
+        {canCreateLoan && (
+          <button
+            type="button"
+            onClick={() => navigate(`/lending/applications/new?${createLoanQuery}`)}
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4" />
+            New Application
+          </button>
+        )}
       </div>
       <div>
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
@@ -56,7 +84,13 @@ export function CustomerLoansTab({ customerId, active }: { customerId: number; a
             Closed / Settled Loans ({closedLoans.length})
           </summary>
           <div className="mt-3">
-            <DataTable columns={columns} data={closedLoans} pageSize={5} emptyMessage="" />
+            <DataTable
+              columns={columns}
+              data={closedLoans}
+              pageSize={5}
+              onRowClick={row => navigate(`/lending/${row.id}`)}
+              emptyMessage=""
+            />
           </div>
         </details>
       )}

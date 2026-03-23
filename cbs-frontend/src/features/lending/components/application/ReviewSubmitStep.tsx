@@ -34,6 +34,7 @@ export function ReviewSubmitStep({ state, goToStep }: Props) {
         proposedRate: state.interestRate || undefined,
         repaymentScheduleType: state.repaymentMethod || undefined,
         repaymentFrequency: state.repaymentFrequency || undefined,
+        runCreditCheck: true,
       },
       {
         onSuccess: (application) => {
@@ -56,7 +57,7 @@ export function ReviewSubmitStep({ state, goToStep }: Props) {
         </div>
         <h3 className="text-xl font-semibold">Application Submitted</h3>
         <p className="text-muted-foreground">Reference: <span className="font-mono font-medium">{applicationRef}</span></p>
-        <p className="text-sm text-muted-foreground">Your application has been routed to {state.approvalLevel} for approval.</p>
+        <p className="text-sm text-muted-foreground">The backend workflow will now score and route the application for review.</p>
         <button onClick={() => navigate('/lending/applications')} className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium">View Applications</button>
       </div>
     );
@@ -74,7 +75,7 @@ export function ReviewSubmitStep({ state, goToStep }: Props) {
         </div>
         <div className="p-5">
           <InfoGrid columns={3} items={[
-            { label: 'Product', value: state.productCode },
+            { label: 'Product', value: state.product?.productName || state.productCode },
             { label: 'Amount', value: state.amount, format: 'money' },
             { label: 'Purpose', value: state.purpose || '—' },
             { label: 'Tenor', value: `${state.tenorMonths} months` },
@@ -98,12 +99,6 @@ export function ReviewSubmitStep({ state, goToStep }: Props) {
           ]} />
         </div>
       </div>
-
-      {/* Approval */}
-      <div className="rounded-lg border bg-card p-5">
-        <div className="text-sm"><span className="text-muted-foreground">Approval Authority:</span> <span className="font-medium">{state.approvalLevel}</span></div>
-      </div>
-
       <button
         onClick={handleSubmit}
         disabled={submitting}

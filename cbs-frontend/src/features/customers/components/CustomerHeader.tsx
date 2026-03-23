@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { formatDate } from '@/lib/formatters';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { cn } from '@/lib/utils';
-import { Copy, Check, Phone, Mail, Building2, Camera, MessageSquare } from 'lucide-react';
+import { Copy, Check, Phone, Mail, Building2, Camera, MessageSquare, Sparkles, ShieldCheck, Layers3 } from 'lucide-react';
 import type { Customer } from '../types/customer';
 import { CustomerHealthGauge } from './CustomerHealthGauge';
 import { PhotoUploadDialog } from './PhotoUploadDialog';
@@ -58,100 +58,173 @@ export function CustomerHeader({ customer, accountCount, loanCount, cardCount, o
     : null;
 
   return (
-    <div className="rounded-xl border bg-card p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        {/* Avatar with photo upload */}
-        <div className="relative group">
-          {customer.profilePhotoUrl ? (
-            <img
-              src={customer.profilePhotoUrl}
-              alt={customer.fullName}
-              className="h-16 w-16 shrink-0 rounded-xl object-cover"
-            />
-          ) : (
-            <div className={cn(
-              'flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl font-bold text-white',
-              TYPE_AVATAR_COLORS[customer.type] ?? TYPE_AVATAR_COLORS.INDIVIDUAL,
-            )}>
-              {initials || '--'}
+    <div className="customer-hero-shell">
+      <div className="customer-hero-overlay" />
+      <div className="relative grid gap-6 p-6 xl:grid-cols-[minmax(0,1.3fr)_340px] xl:p-7">
+        <div className="space-y-5">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+            <div className="relative group">
+              {customer.profilePhotoUrl ? (
+                <img
+                  src={customer.profilePhotoUrl}
+                  alt={customer.fullName}
+                  className="h-20 w-20 shrink-0 rounded-2xl object-cover ring-4 ring-white/80"
+                />
+              ) : (
+                <div className={cn(
+                  'flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-2xl font-bold text-white shadow-[var(--surface-shadow-soft)]',
+                  TYPE_AVATAR_COLORS[customer.type] ?? TYPE_AVATAR_COLORS.INDIVIDUAL,
+                )}>
+                  {initials || '--'}
+                </div>
+              )}
+              <button
+                onClick={() => setShowPhotoUpload(true)}
+                className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/45 opacity-0 transition-opacity group-hover:opacity-100"
+                title="Upload photo"
+              >
+                <Camera className="w-5 h-5 text-white" />
+              </button>
             </div>
-          )}
-          <button
-            onClick={() => setShowPhotoUpload(true)}
-            className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-            title="Upload photo"
-          >
-            <Camera className="w-5 h-5 text-white" />
-          </button>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-[2rem] font-semibold tracking-tight">{customer.fullName}</h1>
+                <StatusBadge status={customer.status} dot />
+                {customer.riskRating && (
+                  <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', RISK_COLORS[customer.riskRating] ?? RISK_COLORS.MEDIUM)}>
+                    {customer.riskRating.replace(/_/g, ' ')}
+                  </span>
+                )}
+                {customer.kycStatus && (
+                  <span className={cn(
+                    'rounded-full px-2.5 py-1 text-xs font-medium',
+                    customer.kycStatus === 'VERIFIED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                    customer.kycStatus === 'EXPIRED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                    'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                  )}>
+                    KYC: {customer.kycStatus}
+                    {kycDaysLeft != null && kycDaysLeft <= 30 && kycDaysLeft > 0 && ` (${kycDaysLeft}d)`}
+                    {kycDaysLeft != null && kycDaysLeft <= 0 && ' (expired)'}
+                  </span>
+                )}
+                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{customer.type}</span>
+              </div>
+
+              <p className="mt-2 text-sm text-muted-foreground">
+                Relationship workspace for servicing, product monitoring, and customer actions.
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={copyNumber}
+                  className="customer-hero-chip font-mono hover:text-foreground transition-colors"
+                  title="Copy customer number"
+                >
+                  {customer.customerNumber}
+                  {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3 opacity-50" />}
+                </button>
+                {customer.branchCode && (
+                  <span className="customer-hero-chip"><Building2 className="h-3.5 w-3.5 text-primary" /> {customer.branchCode}</span>
+                )}
+                {accountCount != null && <span className="customer-hero-chip"><Layers3 className="h-3.5 w-3.5 text-primary" /> {accountCount} accounts</span>}
+                {loanCount != null && <span className="customer-hero-chip"><Sparkles className="h-3.5 w-3.5 text-primary" /> {loanCount} loans</span>}
+                {cardCount != null && <span className="customer-hero-chip"><ShieldCheck className="h-3.5 w-3.5 text-primary" /> {cardCount} cards</span>}
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                {customer.phone && (
+                  <a href={`tel:${customer.phone}`} className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground">
+                    <Phone className="w-3.5 h-3.5 text-primary" /> {customer.phone}
+                  </a>
+                )}
+                {customer.email && (
+                  <a href={`mailto:${customer.email}`} className="flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground">
+                    <Mail className="w-3.5 h-3.5 text-primary" /> {customer.email}
+                  </a>
+                )}
+                {customer.relationshipManager && (
+                  <span className="text-muted-foreground">RM: <span className="font-medium text-foreground">{customer.relationshipManager}</span></span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="customer-hero-panel p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Profile Reference</p>
+              <p className="mt-2 text-base font-semibold">CIF profile</p>
+              <p className="mt-1 text-sm text-muted-foreground">Reference {customer.customerNumber}</p>
+            </div>
+            <div className="customer-hero-panel p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Servicing Route</p>
+              <p className="mt-2 text-base font-semibold">{customer.preferredChannel || 'Default channel'}</p>
+              <p className="mt-1 text-sm text-muted-foreground">Onboarded via {customer.onboardedChannel || 'N/A'}</p>
+            </div>
+            <div className="customer-hero-panel p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Relationship Owner</p>
+              <p className="mt-2 text-base font-semibold">{customer.relationshipManager || 'Unassigned'}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Customer since {customer.customerSince ? formatDate(customer.customerSince) : customer.createdAt ? formatDate(customer.createdAt) : '—'}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Main info */}
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-semibold">{customer.fullName}</h1>
-            <StatusBadge status={customer.status} dot />
-            {customer.riskRating && (
-              <span className={cn('rounded px-2 py-0.5 text-xs font-medium', RISK_COLORS[customer.riskRating] ?? RISK_COLORS.MEDIUM)}>
-                {customer.riskRating.replace(/_/g, ' ')}
-              </span>
-            )}
-            {customer.kycStatus && (
-              <span className={cn('rounded px-2 py-0.5 text-xs font-medium',
-                customer.kycStatus === 'VERIFIED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                customer.kycStatus === 'EXPIRED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-              )}>
-                KYC: {customer.kycStatus}
-                {kycDaysLeft != null && kycDaysLeft <= 30 && kycDaysLeft > 0 && ` (${kycDaysLeft}d)`}
-                {kycDaysLeft != null && kycDaysLeft <= 0 && ' (expired)'}
-              </span>
-            )}
-            <span className="rounded px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground">{customer.type}</span>
+        <div className="grid gap-4">
+          <div className="customer-hero-panel p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Relationship Health</p>
+                <h2 className="mt-2 text-lg font-semibold">Engagement posture</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Live health, lifecycle status, and customer responsiveness snapshot.</p>
+              </div>
+              <CustomerHealthGauge healthScore={healthScore} isLoading={healthLoading} size="md" />
+            </div>
+            <div className="mt-5 grid gap-3">
+              <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                <span className="text-sm text-muted-foreground">Lifecycle status</span>
+                <StatusBadge status={customer.status} dot />
+              </div>
+              <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                <span className="text-sm text-muted-foreground">Risk profile</span>
+                <span className="text-sm font-medium">{customer.riskRating ?? 'Unrated'}</span>
+              </div>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <button onClick={copyNumber} className="flex items-center gap-1 font-mono hover:text-foreground transition-colors" title="Copy customer number">
-              {customer.customerNumber}
-              {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3 opacity-50" />}
-            </button>
-            {customer.branchCode && (
-              <span className="flex items-center gap-1"><Building2 className="w-3 h-3" /> {customer.branchCode}</span>
-            )}
-            {accountCount != null && <span>{accountCount} accounts</span>}
-            {loanCount != null && <span>{loanCount} loans</span>}
-            {cardCount != null && <span>{cardCount} cards</span>}
-          </div>
-
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            {customer.phone && (
-              <a href={`tel:${customer.phone}`} className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-                <Phone className="w-3.5 h-3.5" /> {customer.phone}
-              </a>
-            )}
-            {customer.email && (
-              <a href={`mailto:${customer.email}`} className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">
-                <Mail className="w-3.5 h-3.5" /> {customer.email}
-              </a>
-            )}
-            {customer.relationshipManager && (
-              <span className="text-muted-foreground">RM: <span className="font-medium text-foreground">{customer.relationshipManager}</span></span>
-            )}
-          </div>
-        </div>
-
-        {/* Right: Actions + Health Gauge + Customer Since */}
-        <div className="shrink-0 flex items-center gap-4">
-          {onContactCustomer && (
-            <button onClick={onContactCustomer}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-              <MessageSquare className="w-4 h-4" /> Contact
-            </button>
-          )}
-          <CustomerHealthGauge healthScore={healthScore} isLoading={healthLoading} size="md" />
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground">Customer Since</div>
-            <div className="text-base font-semibold tabular-nums">
-              {customer.customerSince ? formatDate(customer.customerSince) : customer.createdAt ? formatDate(customer.createdAt) : '—'}
+          <div className="customer-hero-panel p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Service Actions</p>
+                <h2 className="mt-2 text-lg font-semibold">Reach and response</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Fast access to communication and customer tenure context.</p>
+              </div>
+              <div className="rounded-2xl border border-primary/15 bg-primary/10 p-2.5 text-primary">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-5 space-y-3">
+              {onContactCustomer && (
+                <button
+                  onClick={onContactCustomer}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  <MessageSquare className="w-4 h-4" /> Contact Customer
+                </button>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Customer Since</p>
+                  <p className="mt-2 text-sm font-semibold tabular-nums">
+                    {customer.customerSince ? formatDate(customer.customerSince) : customer.createdAt ? formatDate(customer.createdAt) : '—'}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Preferred Channel</p>
+                  <p className="mt-2 text-sm font-semibold">{customer.preferredChannel || 'Not set'}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

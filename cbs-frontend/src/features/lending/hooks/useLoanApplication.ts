@@ -34,7 +34,6 @@ export interface LoanApplicationState {
   // Documents
   documents: { name: string; required: boolean; uploaded: boolean; fileRef?: string }[];
   // Approval
-  approvalLevel: string;
   officerNotes: string;
 }
 
@@ -64,7 +63,6 @@ const INITIAL_STATE: LoanApplicationState = {
   totalInterest: 0,
   totalRepayment: 0,
   documents: [],
-  approvalLevel: '',
   officerNotes: '',
 };
 
@@ -84,14 +82,6 @@ export function useLoanApplication() {
         const totalVal = (value as CollateralItem[]).reduce((sum, c) => sum + (c.estimatedValue || 0), 0);
         next.totalCollateralValue = totalVal;
         next.ltvRatio = totalVal > 0 ? (next.amount / totalVal) * 100 : 0;
-      }
-      // Determine approval level
-      if (field === 'amount') {
-        const amt = value as number;
-        if (amt <= 500_000) next.approvalLevel = 'Branch Officer';
-        else if (amt <= 5_000_000) next.approvalLevel = 'Branch Manager';
-        else if (amt <= 50_000_000) next.approvalLevel = 'Regional Credit Committee';
-        else next.approvalLevel = 'Board Credit Committee';
       }
       return next;
     });

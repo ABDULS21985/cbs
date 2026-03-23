@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Save, CheckCircle, Loader2, AlertTriangle,
   FileText, Clock, X, User, Building2, Upload, Eye, Briefcase,
-  CreditCard, Globe, Shield, Sparkles, ChevronDown, ChevronRight,
+  CreditCard, Shield, Sparkles, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -13,14 +13,25 @@ import { customerApi } from '../api/customerApi';
 import { useUploadIdentification } from '../hooks/useCustomers';
 import type { OnboardingFormData } from '../types/customer';
 
-const STEP_LABELS = ['Type', 'Personal', 'Contact', 'ID/KYC', 'Verify', 'Employment', 'Account', 'Review'];
+const STEP_META = [
+  { label: 'Type', description: 'Choose the onboarding path for an individual, corporate, or SME customer.' },
+  { label: 'Personal', description: 'Capture legal identity and the core customer profile details.' },
+  { label: 'Contact', description: 'Record address, phone, and email channels for servicing.' },
+  { label: 'ID/KYC', description: 'Collect documents and identification data for compliance screening.' },
+  { label: 'Verify', description: 'Run BVN validation and confirm identity readiness.' },
+  { label: 'Employment', description: 'Document income, employer, or business activity context.' },
+  { label: 'Account', description: 'Select the opening product and acknowledge onboarding terms.' },
+  { label: 'Review', description: 'Review the onboarding payload and submit the customer record.' },
+] as const;
+
+const STEP_LABELS = STEP_META.map((step) => step.label);
 
 // ─── Validated Field ────────────────────────────────────────────────────────
 
 function ValidatedField({ name, label, required, type = 'text', value, defaultValue, onChange, onBlur, error, placeholder, className, ...props }: {
   name: string; label: string; required?: boolean; type?: string; value?: string; defaultValue?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; onBlur?: () => void;
-  error?: string; placeholder?: string; className?: string; maxLength?: number; min?: string;
+  error?: string; placeholder?: string; className?: string; maxLength?: number; min?: string; ariaLabel?: string;
 }) {
   const id = `field-${name}`;
   const errorId = `${id}-error`;
@@ -35,10 +46,11 @@ function ValidatedField({ name, label, required, type = 'text', value, defaultVa
           value={value} defaultValue={defaultValue}
           onChange={onChange} onBlur={onBlur}
           placeholder={placeholder}
+          aria-label={props.ariaLabel}
           aria-invalid={!!error} aria-describedby={error ? errorId : undefined}
           className={cn(
-            'w-full px-3 py-2.5 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 transition-colors',
-            error ? 'border-red-400 focus:ring-red-400/30' : 'border-border focus:ring-primary/30',
+            'onboarding-field-input',
+            error ? 'border-red-400 focus:ring-red-400/30' : 'focus:ring-primary/30',
             className,
           )}
           {...props}
@@ -65,12 +77,12 @@ function NavButtons({ onBack, onNext, nextLabel, nextDisabled, isFirst }: {
   return (
     <div className="flex justify-between pt-6">
       {!isFirst ? (
-        <button type="button" onClick={onBack} className="flex items-center gap-1.5 px-4 py-2.5 text-sm border rounded-lg hover:bg-muted transition-colors" aria-label="Go to previous step">
+        <button type="button" onClick={onBack} className="btn-secondary" aria-label="Go to previous step">
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
       ) : <div />}
       <button type={onNext ? 'button' : 'submit'} onClick={onNext} disabled={nextDisabled}
-        className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="btn-primary"
         aria-label={nextLabel || 'Go to next step'}>
         {nextLabel || 'Next'} <ArrowRight className="h-4 w-4" />
       </button>
@@ -88,8 +100,8 @@ function ReviewAccordion({ title, items, validation, onEdit, defaultOpen }: {
   const iconColor = validation === 'complete' ? 'text-green-500' : validation === 'error' ? 'text-amber-500' : 'text-muted-foreground';
 
   return (
-    <div className={cn('rounded-lg border overflow-hidden', validation === 'error' && 'border-amber-300 dark:border-amber-800/40')}>
-      <button type="button" onClick={() => setOpen(!open)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+    <div className={cn('onboarding-review-card', validation === 'error' && 'onboarding-review-card-error')}>
+      <button type="button" onClick={() => setOpen(!open)} className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30">
         <Icon className={cn('w-4 h-4 flex-shrink-0', iconColor)} />
         <span className="flex-1 text-sm font-semibold">{title}</span>
         {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
@@ -115,38 +127,47 @@ function ReviewAccordion({ title, items, validation, onEdit, defaultOpen }: {
 
 function SuccessScreen({ customerId }: { customerId: number }) {
   return (
-    <div className="max-w-lg mx-auto py-12 text-center space-y-8">
-      {/* Animated check */}
-      <div className="relative mx-auto w-20 h-20">
-        <div className="absolute inset-0 rounded-full bg-green-100 dark:bg-green-900/30 animate-ping opacity-30" />
-        <div className="relative w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-          <CheckCircle className="w-10 h-10 text-green-600" />
+    <div className="page-container">
+      <div className="mx-auto max-w-4xl space-y-6 py-4">
+        <div className="onboarding-hero-shell p-8 text-center">
+          <div className="relative space-y-6">
+            <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+              <div className="absolute inset-0 rounded-full bg-green-100/70 animate-ping opacity-30" />
+              <CheckCircle className="relative z-10 h-10 w-10 text-green-600" />
+            </div>
+
+            <div>
+              <h2 className="text-3xl font-semibold tracking-tight text-green-700 dark:text-green-300">Customer Created!</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Customer ID: <span className="font-mono text-lg font-bold text-foreground">{customerId}</span>
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div>
-        <h2 className="text-2xl font-bold text-green-700 dark:text-green-300">Customer Created!</h2>
-        <p className="text-sm text-muted-foreground mt-2">Customer ID: <span className="font-mono font-bold text-lg text-foreground">{customerId}</span></p>
-      </div>
-
-      {/* What's Next card */}
-      <div className="rounded-xl border bg-card p-6 text-left">
-        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" /> What's Next?
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
-          <Link to={`/accounts/open?customerId=${customerId}`} className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted/50 transition-colors text-sm font-medium">
-            <CreditCard className="w-4 h-4 text-primary" /> Open Account
-          </Link>
-          <Link to={`/customers/${customerId}`} className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted/50 transition-colors text-sm font-medium">
-            <Eye className="w-4 h-4 text-primary" /> View Customer 360
-          </Link>
-          <Link to="/customers/onboarding" className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted/50 transition-colors text-sm font-medium">
-            <User className="w-4 h-4 text-primary" /> Onboard Another
-          </Link>
-          <Link to="/customers" className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted/50 transition-colors text-sm font-medium">
-            <ArrowLeft className="w-4 h-4 text-primary" /> Customer List
-          </Link>
+        <div className="onboarding-workspace-shell">
+          <div className="onboarding-step-banner">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> What’s Next?
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">Continue servicing, open the first product, or start a new onboarding cycle.</p>
+          </div>
+          <div className="onboarding-content-shell">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link to={`/accounts/open?customerId=${customerId}`} className="onboarding-section-card flex items-center gap-2 text-sm font-medium">
+                <CreditCard className="w-4 h-4 text-primary" /> Open Account
+              </Link>
+              <Link to={`/customers/${customerId}`} className="onboarding-section-card flex items-center gap-2 text-sm font-medium">
+                <Eye className="w-4 h-4 text-primary" /> View Customer 360
+              </Link>
+              <Link to="/customers/onboarding" className="onboarding-section-card flex items-center gap-2 text-sm font-medium">
+                <User className="w-4 h-4 text-primary" /> Onboard Another
+              </Link>
+              <Link to="/customers" className="onboarding-section-card flex items-center gap-2 text-sm font-medium">
+                <ArrowLeft className="w-4 h-4 text-primary" /> Customer List
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -165,7 +186,6 @@ export default function OnboardingWizardPage() {
   const [bvn, setBvn] = useState(wizard.formData.bvn ?? '');
   const [bvnResult, setBvnResult] = useState<{ matched: boolean; status?: string; failureReason?: string | null } | null>(null);
   const [bvnVerifying, setBvnVerifying] = useState(false);
-  const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
   const [idDocError, setIdDocError] = useState<string | null>(null);
   const uploadId = useUploadIdentification();
@@ -191,6 +211,8 @@ export default function OnboardingWizardPage() {
       if (returnUrl) {
         const sep = returnUrl.includes('?') ? '&' : '?';
         navigate(`${returnUrl}${sep}customerId=${wizard.submittedCustomer.id}`);
+      } else {
+        navigate(`/customers/${wizard.submittedCustomer.id}`);
       }
     }
   }, [navigate, returnUrl, wizard.isSubmitSuccess, wizard.submittedCustomer]);
@@ -203,8 +225,11 @@ export default function OnboardingWizardPage() {
 
   const { currentStep, formData, nextStep, prevStep, updateStep, goToStep, submit, saveDraft, isSubmitting, getStepValidation, getValidationIssues, fieldErrors } = wizard;
   const isCorp = formData.customerType === 'CORPORATE' || formData.customerType === 'SME';
+  const currentStepMeta = STEP_META[currentStep - 1];
+  const issuesCount = getValidationIssues().length;
+  const completedSteps = STEP_LABELS.filter((_, index) => getStepValidation(index + 1) === 'complete').length;
 
-  const fc = 'w-full px-3 py-2.5 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 border-border';
+  const fc = 'onboarding-field-input focus:ring-primary/30';
 
   // BVN verification
   const handleVerifyBvn = async () => {
@@ -259,8 +284,10 @@ export default function OnboardingWizardPage() {
                 { type: 'SME' as const, icon: Briefcase, desc: 'Small business account', sub: 'SMEs, sole proprietors' },
               ]).map(({ type, icon: Icon, desc, sub }) => (
                 <button key={type} type="button" onClick={() => nextStep({ customerType: type })} role="radio" aria-checked={formData.customerType === type}
-                  className={cn('p-5 border-2 rounded-xl text-left transition-all hover:border-primary/60 hover:shadow-sm group',
-                    formData.customerType === type ? 'border-primary bg-primary/5 dark:bg-primary/10 shadow-sm' : 'border-border')}>
+                  className={cn(
+                    'onboarding-choice-card group',
+                    formData.customerType === type && 'onboarding-choice-card-active',
+                  )}>
                   <div className="flex items-center gap-2.5 mb-2">
                     <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center', formData.customerType === type ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground group-hover:text-primary')}>
                       <Icon className="w-5 h-5" />
@@ -284,9 +311,9 @@ export default function OnboardingWizardPage() {
               <>
                 <ValidatedField name="registeredName" label="Registered Name" required defaultValue={formData.registeredName} error={fieldErrors.registeredName} onBlur={() => wizard.onFieldBlur('registeredName', formData.registeredName ?? '')} />
                 <ValidatedField name="tradingName" label="Trading Name" defaultValue={formData.tradingName} />
-                <ValidatedField name="registrationNumber" label="Registration Number" required defaultValue={formData.registrationNumber} />
+                <ValidatedField name="registrationNumber" label="Registration Number" required defaultValue={formData.registrationNumber} ariaLabel="Registration Number" />
                 <ValidatedField name="registrationDate" label="Registration Date" type="date" defaultValue={formData.registrationDate} />
-                <ValidatedField name="nationality" label="Country of Registration" required defaultValue={formData.nationality ?? 'NGA'} />
+                <ValidatedField name="nationality" label="Country of Registration" required defaultValue={formData.nationality ?? 'NGA'} ariaLabel="Country of Registration" />
               </>
             ) : (
               <>
@@ -310,7 +337,7 @@ export default function OnboardingWizardPage() {
           <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.target as HTMLFormElement); nextStep(Object.fromEntries(fd.entries()) as Partial<OnboardingFormData>); }}
             className="grid grid-cols-1 sm:grid-cols-2 gap-4" noValidate>
             <div className="sm:col-span-2">
-              <ValidatedField name="residentialAddress" label="Residential/Business Address" required defaultValue={formData.residentialAddress} error={fieldErrors.residentialAddress} placeholder="Full street address" />
+              <ValidatedField name="residentialAddress" label="Residential Address" required defaultValue={formData.residentialAddress} error={fieldErrors.residentialAddress} placeholder="Full street address" />
             </div>
             <ValidatedField name="city" label="City" defaultValue={formData.city} placeholder="e.g. Lagos" />
             <ValidatedField name="state" label="State" defaultValue={formData.state} placeholder="e.g. Lagos" />
@@ -350,9 +377,9 @@ export default function OnboardingWizardPage() {
               </label>
               <label
                 className={cn(
-                  'flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center cursor-pointer transition-colors hover:bg-muted/40',
-                  idDocFile ? 'border-primary/50 bg-primary/5' : 'border-border bg-muted/20',
-                  idDocError ? 'border-red-400' : '',
+                  'onboarding-upload-dropzone cursor-pointer hover:bg-muted/40',
+                  idDocFile && 'onboarding-upload-dropzone-active',
+                  idDocError && 'onboarding-upload-dropzone-error',
                 )}
               >
                 <input
@@ -394,7 +421,7 @@ export default function OnboardingWizardPage() {
         );
         return (
           <div className="space-y-6">
-            <div className="rounded-xl border bg-card p-5">
+            <div className="onboarding-section-card">
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Shield className="w-4 h-4 text-primary" /> BVN Verification</h3>
               <p className="text-xs text-muted-foreground mb-4">Enter the customer's Bank Verification Number for identity validation.</p>
               <div className="flex gap-2">
@@ -482,8 +509,10 @@ export default function OnboardingWizardPage() {
                 { code: 'DOMICILIARY', label: 'Domiciliary', desc: 'Hold foreign currencies', icon: '🌍' },
               ]).map(({ code, label, desc, icon }) => (
                 <button key={code} type="button" onClick={() => updateStep({ accountProduct: code })} role="radio" aria-checked={formData.accountProduct === code}
-                  className={cn('p-5 border-2 rounded-xl text-left transition-all hover:border-primary/60',
-                    formData.accountProduct === code ? 'border-primary bg-primary/5 dark:bg-primary/10 shadow-sm' : 'border-border')}>
+                  className={cn(
+                    'onboarding-choice-card',
+                    formData.accountProduct === code && 'onboarding-choice-card-active',
+                  )}>
                   <span className="text-2xl mb-2 block">{icon}</span>
                   <div className="font-semibold mb-1">{label}</div>
                   <div className="text-xs text-muted-foreground">{desc}</div>
@@ -514,7 +543,7 @@ export default function OnboardingWizardPage() {
         return (
           <div className="space-y-5">
             {/* Pre-submission checks */}
-            <div className={cn('rounded-xl border p-4', issues.length > 0 ? 'border-amber-300 bg-amber-50/30 dark:bg-amber-900/5' : 'border-green-300 bg-green-50/30 dark:bg-green-900/5')}>
+            <div className={cn('onboarding-section-card', issues.length > 0 ? 'border-amber-300 bg-amber-50/30 dark:bg-amber-900/5' : 'border-green-300 bg-green-50/30 dark:bg-green-900/5')}>
               <div className="flex items-center gap-2 mb-3">
                 {issues.length > 0 ? <AlertTriangle className="w-5 h-5 text-amber-600" /> : <CheckCircle className="w-5 h-5 text-green-600" />}
                 <span className="text-sm font-semibold">{issues.length > 0 ? `${issues.length} issue(s) to resolve` : 'All checks passed — ready to submit'}</span>
@@ -580,13 +609,13 @@ export default function OnboardingWizardPage() {
 
             {/* Actions */}
             <div className="flex gap-3 justify-between pt-4 border-t">
-              <button type="button" onClick={prevStep} className="flex items-center gap-1.5 px-4 py-2.5 text-sm border rounded-lg hover:bg-muted"><ArrowLeft className="h-4 w-4" /> Back</button>
+              <button type="button" onClick={prevStep} className="btn-secondary"><ArrowLeft className="h-4 w-4" /> Back</button>
               <div className="flex gap-2">
-                <button type="button" onClick={saveDraft} className="flex items-center gap-1.5 px-4 py-2.5 text-sm border rounded-lg hover:bg-muted">
+                <button type="button" onClick={saveDraft} className="btn-secondary">
                   <Save className="h-4 w-4" /> Save Draft
                 </button>
-                <button type="button" onClick={() => setShowConfirmSubmit(true)} disabled={isSubmitting || issues.length > 0}
-                  className="flex items-center gap-1.5 px-6 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50">
+                <button type="button" onClick={() => submit()} disabled={isSubmitting || issues.length > 0}
+                  className="btn-primary disabled:opacity-50">
                   {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</> : 'Submit Application'}
                 </button>
               </div>
@@ -599,38 +628,135 @@ export default function OnboardingWizardPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 py-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" aria-label="Go back">
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <h1 className="text-xl font-semibold">New Customer Onboarding</h1>
-        </div>
-        {wizard.lastSavedAt && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
-            <Clock className="w-3.5 h-3.5" /> Draft saved at {wizard.lastSavedAt}
+    <div className="page-container space-y-6">
+      <section className="onboarding-hero-shell">
+        <div className="relative grid gap-6 p-6 xl:grid-cols-[minmax(0,1.25fr)_360px] xl:p-7">
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => navigate(-1)} className="onboarding-hero-chip" aria-label="Go back">
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+              <div className="onboarding-hero-chip">
+                <Sparkles className="h-3.5 w-3.5 text-primary" /> Guided onboarding
+              </div>
+              {returnUrl && (
+                <div className="onboarding-hero-chip">
+                  Return target {returnUrl}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight sm:text-[2.5rem]">New Customer Onboarding</h1>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                Capture identity, contact, compliance, and product setup in one guided workflow built for operations teams.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="onboarding-section-card p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Current Step</p>
+                <p className="mt-2 text-lg font-semibold">{currentStepMeta.label}</p>
+                <p className="mt-1 text-sm text-muted-foreground">Step {currentStep} of {STEP_LABELS.length}</p>
+              </div>
+              <div className="onboarding-section-card p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Completion</p>
+                <p className="mt-2 text-lg font-semibold">{completedSteps}/{STEP_LABELS.length}</p>
+                <p className="mt-1 text-sm text-muted-foreground">Sections fully completed</p>
+              </div>
+              <div className="onboarding-section-card p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Drafts</p>
+                <p className="mt-2 text-lg font-semibold">{wizard.existingDrafts.length}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {wizard.lastSavedAt ? `Last saved ${wizard.lastSavedAt}` : 'Autosaves after progress'}
+                </p>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
 
-      {/* Stepper */}
-      <WizardStepper steps={STEP_LABELS} currentStep={currentStep} onStepClick={goToStep} getStepValidation={getStepValidation} />
+          <div className="grid gap-4">
+            <div className="onboarding-section-card p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Step Brief</p>
+              <h2 className="mt-2 text-lg font-semibold">{currentStepMeta.label}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{currentStepMeta.description}</p>
+              <div className="mt-5 grid gap-3">
+                <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Open issues</span>
+                  <span className={cn('text-sm font-semibold', issuesCount > 0 ? 'text-amber-600' : 'text-emerald-600')}>
+                    {issuesCount}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                  <span className="text-sm text-muted-foreground">Customer type</span>
+                  <span className="text-sm font-semibold">{formData.customerType ?? 'Not selected'}</span>
+                </div>
+              </div>
+            </div>
 
-      {/* Step content */}
-      <div className="rounded-xl border bg-card">
-        <div className="px-6 py-4 border-b">
-          <h2 className="text-base font-semibold">Step {currentStep} of {STEP_LABELS.length}: {STEP_LABELS[currentStep - 1]}</h2>
+            <div className="onboarding-section-card p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Workflow Notes</p>
+              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                <li>Drafts are autosaved while you progress through the journey.</li>
+                <li>Compliance validation is surfaced before final submission.</li>
+                <li>Customer creation can route back into account opening when needed.</li>
+              </ul>
+            </div>
+          </div>
         </div>
-        <div className="p-6">{renderStep()}</div>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="space-y-4 xl:sticky xl:top-6 self-start">
+          <WizardStepper
+            steps={STEP_LABELS}
+            currentStep={currentStep}
+            onStepClick={goToStep}
+            getStepValidation={getStepValidation}
+            descriptions={STEP_META.map((step) => step.description)}
+          />
+          <div className="onboarding-sidebar-shell p-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">Progress Snapshot</p>
+            <div className="mt-4 space-y-3">
+              <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Completed</p>
+                <p className="mt-2 text-lg font-semibold">{completedSteps} sections</p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Pending attention</p>
+                <p className="mt-2 text-lg font-semibold">{issuesCount} issue(s)</p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Draft state</p>
+                <p className="mt-2 text-sm font-semibold">{wizard.lastSavedAt ? `Saved ${wizard.lastSavedAt}` : 'Not yet saved'}</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="onboarding-workspace-shell">
+          <div className="onboarding-step-banner">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary/80">Step {currentStep} of {STEP_LABELS.length}</p>
+                <h2 className="mt-2 text-xl font-semibold">{currentStepMeta.label}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{currentStepMeta.description}</p>
+              </div>
+              {wizard.lastSavedAt && (
+                <div className="onboarding-hero-chip" aria-live="polite">
+                  <Clock className="w-3.5 h-3.5" /> Draft saved at {wizard.lastSavedAt}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="onboarding-content-shell">{renderStep()}</div>
+        </div>
       </div>
 
       {/* Draft picker */}
       {showDraftPicker && wizard.existingDrafts.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-label="Resume draft">
           <div className="absolute inset-0 modal-scrim" onClick={() => setShowDraftPicker(false)} />
-          <div className="relative z-10 w-full max-w-md mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
+          <div className="onboarding-modal-shell relative z-10 mx-4 max-w-md space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-semibold">Resume Draft?</h3><button onClick={() => setShowDraftPicker(false)} className="p-1 rounded hover:bg-muted" aria-label="Close"><X className="w-4 h-4" /></button></div>
             <p className="text-sm text-muted-foreground">You have saved drafts. Resume one or start fresh.</p>
             <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -647,23 +773,6 @@ export default function OnboardingWizardPage() {
         </div>
       )}
 
-      {/* Confirm submit */}
-      {showConfirmSubmit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-label="Confirm submission">
-          <div className="absolute inset-0 modal-scrim" onClick={() => setShowConfirmSubmit(false)} />
-          <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl bg-background border shadow-xl p-6 space-y-4">
-            <h3 className="font-semibold">Confirm Submission</h3>
-            <p className="text-sm text-muted-foreground">This will create a new customer record in the system. This action cannot be undone.</p>
-            <div className="flex gap-2">
-              <button onClick={() => setShowConfirmSubmit(false)} className="flex-1 px-4 py-2.5 rounded-lg border text-sm font-medium hover:bg-muted">Cancel</button>
-              <button onClick={() => { submit(); setShowConfirmSubmit(false); }} disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
-                {isSubmitting ? 'Submitting...' : 'Submit'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

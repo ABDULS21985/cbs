@@ -28,6 +28,26 @@ const mockCases = Array.from({ length: 5 }, (_, i) =>
 export const caseHandlers = [
   // ── Case CRUD ────────────────────────────────────────────
   http.get('/api/v1/cases', () => HttpResponse.json(wrap(mockCases))),
+  http.get('/api/v1/cases/metadata', () => HttpResponse.json(wrap({
+    caseTypes: [
+      { value: 'COMPLAINT', label: 'Complaint', category: 'GENERAL', subCategories: ['Service Quality', 'Charges/Fees', 'Account Issues', 'Card Issues', 'ATM/POS', 'Online Banking', 'Staff Behaviour'] },
+      { value: 'SERVICE_REQUEST', label: 'Service Request', category: 'GENERAL', subCategories: ['Account Update', 'Card Request', 'Statement', 'Reference Letter', 'Cheque Book', 'Token/OTP'] },
+      { value: 'INQUIRY', label: 'Inquiry', category: 'GENERAL', subCategories: ['Product Information', 'Balance Inquiry', 'Rate Inquiry', 'General'] },
+      { value: 'DISPUTE', label: 'Dispute', category: 'PAYMENTS', subCategories: ['Transaction Dispute', 'Charge Dispute', 'Interest Dispute'] },
+      { value: 'FRAUD_REPORT', label: 'Fraud Report', category: 'GENERAL', subCategories: ['Unauthorized Transaction', 'Phishing', 'Card Fraud', 'Identity Theft'] },
+      { value: 'ACCOUNT_ISSUE', label: 'Account Issue', category: 'ACCOUNTS', subCategories: ['Account Lock', 'Account Update', 'Dormant Account', 'KYC Update'] },
+      { value: 'PAYMENT_ISSUE', label: 'Payment Issue', category: 'PAYMENTS', subCategories: ['Failed Transfer', 'Delayed Payment', 'Wrong Beneficiary', 'Reversal'] },
+      { value: 'CARD_ISSUE', label: 'Card Issue', category: 'CARDS', subCategories: ['Card Blocked', 'Card Replacement', 'PIN Reset', 'Card Activation'] },
+      { value: 'LOAN_ISSUE', label: 'Loan Issue', category: 'LOANS', subCategories: ['Repayment Issue', 'Disbursement Delay', 'Interest Query', 'Early Settlement'] },
+      { value: 'FEE_REVERSAL', label: 'Fee Reversal', category: 'FEES', subCategories: ['Maintenance Fee', 'SMS Fee', 'Transaction Fee', 'Penalty Fee'] },
+      { value: 'DOCUMENT_REQUEST', label: 'Document Request', category: 'GENERAL', subCategories: ['Statement', 'Reference Letter', 'Audit Confirmation', 'Tax Certificate'] },
+      { value: 'PRODUCT_CHANGE', label: 'Product Change', category: 'GENERAL', subCategories: ['Account Upgrade', 'Account Downgrade', 'Product Switch'] },
+      { value: 'CLOSURE', label: 'Closure', category: 'ACCOUNTS', subCategories: ['Account Closure', 'Card Closure', 'Loan Closure'] },
+      { value: 'REGULATORY', label: 'Regulatory', category: 'GENERAL', subCategories: ['CBN Directive', 'Compliance Issue', 'AML/CFT'] },
+      { value: 'ESCALATION', label: 'Escalation', category: 'GENERAL', subCategories: ['Management Escalation', 'Regulatory Escalation', 'Ombudsman'] },
+    ],
+    priorities: ['MEDIUM', 'HIGH', 'LOW', 'CRITICAL'],
+  }))),
 
   http.get('/api/v1/cases/stats', () => HttpResponse.json(wrap(createMockCaseStats()))),
 

@@ -129,6 +129,11 @@ public class CaseManagementController {
         return ResponseEntity.ok(ApiResponse.ok(stats));
     }
 
+    @GetMapping("/metadata") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> metadata() {
+        return ResponseEntity.ok(ApiResponse.ok(caseService.getCaseMetadata()));
+    }
+
     // Fix #2: GET /v1/cases/my now returns cases assigned to the authenticated user
     @GetMapping("/my") @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
     public ResponseEntity<ApiResponse<List<CustomerCase>>> myCases() {

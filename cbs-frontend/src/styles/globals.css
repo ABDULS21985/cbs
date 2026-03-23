@@ -216,37 +216,465 @@
   }
   .data-table td { @apply text-sm py-3; }
   .data-table tr { @apply border-b border-border/60 hover:bg-white/5 transition-colors; }
+  .account-surface {
+    @apply border border-border/70 bg-card/85 backdrop-blur;
+    box-shadow: var(--surface-shadow-soft);
+    border-radius: 1.5rem;
+  }
+  .account-surface-strong {
+    @apply border border-border/70 bg-card/85 backdrop-blur-xl;
+    box-shadow: var(--surface-shadow);
+    border-radius: 1.75rem;
+  }
+  .account-icon-badge {
+    @apply rounded-2xl border border-primary/15 bg-primary/10 p-2.5 text-primary;
+  }
+  .account-inline-fact {
+    @apply rounded-2xl border border-border/60 bg-background/60;
+  }
+  .account-detail-panel {
+    @apply border border-border/70 bg-card/85 backdrop-blur;
+    box-shadow: var(--surface-shadow-soft);
+    border-radius: 1.5rem;
+  }
+  .account-workspace-shell {
+    @apply overflow-hidden border border-border/70 bg-card/85 backdrop-blur-xl;
+    box-shadow: var(--surface-shadow);
+    border-radius: 1.75rem;
+  }
+  .account-workspace-banner {
+    @apply border-b border-border/70 px-6 py-5;
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.16), transparent 48%),
+      linear-gradient(90deg, hsl(var(--background) / 0.42), transparent);
+  }
+  .account-hero-shell {
+    @apply relative overflow-hidden border text-foreground;
+    border-color: hsl(var(--border));
+    border-radius: 1.875rem;
+    padding: 1.5rem;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.98), hsl(214 38% 96% / 0.98));
+    box-shadow:
+      0 24px 48px hsl(220 36% 24% / 0.12),
+      inset 0 1px 0 hsl(0 0% 100% / 0.88);
+  }
+  @media (min-width: 640px) {
+    .account-hero-shell {
+      padding: 1.75rem;
+    }
+  }
+  .account-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.13), transparent 34%),
+      radial-gradient(circle at bottom right, hsl(var(--accent) / 0.1), transparent 26%);
+  }
+  .account-hero-orb-left {
+    position: absolute;
+    top: 2rem;
+    left: -5rem;
+    height: 11rem;
+    width: 11rem;
+    border-radius: 9999px;
+    background: hsl(var(--primary) / 0.12);
+    filter: blur(48px);
+  }
+  .account-hero-orb-right {
+    position: absolute;
+    right: 1.5rem;
+    bottom: 1rem;
+    height: 8rem;
+    width: 8rem;
+    border-radius: 9999px;
+    background: hsl(var(--accent) / 0.1);
+    filter: blur(48px);
+  }
+  .account-hero-chip {
+    @apply inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur;
+    border-color: hsl(var(--border));
+    background: hsl(0 0% 100% / 0.88);
+    color: hsl(var(--muted-foreground));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .account-hero-chip-compact {
+    @apply px-3 py-1 text-[11px] font-semibold uppercase;
+    letter-spacing: 0.22em;
+    border-color: hsl(var(--primary) / 0.18);
+    background: hsl(var(--primary) / 0.08);
+    color: hsl(var(--primary));
+  }
+  .account-hero-panel {
+    @apply border backdrop-blur;
+    border-color: hsl(var(--border));
+    background: linear-gradient(180deg, hsl(215 55% 97% / 0.95), hsl(0 0% 100% / 0.96));
+    border-radius: 1.625rem;
+  }
+  .account-hero-inset {
+    @apply border px-4 py-3;
+    border-color: hsl(var(--border));
+    background: linear-gradient(180deg, hsl(0 0% 100% / 0.94), hsl(215 36% 96% / 0.94));
+    border-radius: 1rem;
+  }
+  .account-hero-metric {
+    @apply border p-4 backdrop-blur;
+    border-color: hsl(var(--border));
+    background: linear-gradient(180deg, hsl(216 44% 97% / 0.95), hsl(213 34% 94% / 0.95));
+    border-radius: 1.375rem;
+  }
+  .account-hero-action {
+    @apply inline-flex items-center gap-2 border px-4 py-2.5 text-sm font-medium transition-all;
+    border-color: hsl(var(--border));
+    background: hsl(0 0% 100% / 0.9);
+    color: hsl(var(--foreground));
+    border-radius: 1rem;
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .account-hero-action:hover {
+    transform: translateY(-2px);
+    background: hsl(var(--primary) / 0.08);
+  }
+  .account-hero-callout {
+    @apply rounded-2xl border px-4 py-3 text-sm;
+    border-color: hsl(160 84% 39% / 0.18);
+    background: linear-gradient(180deg, hsl(160 84% 39% / 0.08), hsl(0 0% 100% / 0.92));
+  }
+  .account-hero-mini-icon {
+    @apply rounded-2xl border p-3;
+    border-color: hsl(var(--primary) / 0.14);
+    background: hsl(var(--primary) / 0.08);
+    color: hsl(var(--primary));
+  }
+  .account-flag-card {
+    @apply flex gap-3 border px-4 py-3.5;
+    border-radius: 1.25rem;
+  }
+  .account-flag-card-danger {
+    border-color: hsl(0 84% 60% / 0.2);
+    background: hsl(0 84% 60% / 0.1);
+  }
+  .account-flag-card-warning {
+    border-color: hsl(38 92% 50% / 0.2);
+    background: hsl(38 92% 50% / 0.1);
+  }
+  .account-flag-card-info {
+    border-color: hsl(212 95% 60% / 0.2);
+    background: hsl(212 95% 60% / 0.1);
+  }
+  .account-flag-card-success {
+    border-color: hsl(160 84% 39% / 0.2);
+    background: hsl(160 84% 39% / 0.1);
+  }
+  .account-flag-icon {
+    @apply mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-2xl;
+  }
+  .account-flag-icon-danger {
+    background: hsl(0 84% 60% / 0.15);
+    color: hsl(0 84% 78%);
+  }
+  .account-flag-icon-warning {
+    background: hsl(38 92% 50% / 0.15);
+    color: hsl(38 92% 74%);
+  }
+  .account-flag-icon-info {
+    background: hsl(212 95% 60% / 0.15);
+    color: hsl(212 95% 76%);
+  }
+  .account-flag-icon-success {
+    background: hsl(160 84% 39% / 0.15);
+    color: hsl(160 84% 74%);
+  }
+  .customer-hero-shell {
+    @apply relative overflow-hidden border backdrop-blur;
+    border-color: hsl(var(--border));
+    border-radius: 1.875rem;
+    background: hsl(var(--card) / 0.9);
+    box-shadow: var(--surface-shadow-strong);
+  }
+  .customer-hero-overlay {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.14), transparent 34%),
+      radial-gradient(circle at bottom right, hsl(var(--accent) / 0.08), transparent 24%),
+      linear-gradient(180deg, hsl(0 0% 100% / 0.98), hsl(214 38% 96% / 0.98));
+  }
+  .customer-hero-chip {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium;
+    border-color: hsl(var(--border));
+    background: hsl(0 0% 100% / 0.88);
+    color: hsl(var(--muted-foreground));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .customer-hero-panel {
+    @apply border border-border/70;
+    border-radius: 1.5rem;
+    background: hsl(var(--card) / 0.9);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .customer-kpi-card {
+    @apply border border-border/70 p-4 text-center backdrop-blur;
+    border-radius: 1.125rem;
+    background: hsl(var(--card) / 0.88);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .customer-kpi-card-highlight {
+    border-color: hsl(0 84% 60% / 0.2);
+    background: linear-gradient(180deg, hsl(0 84% 60% / 0.08), hsl(var(--card) / 0.92));
+  }
+  .customer-workspace-shell {
+    @apply overflow-hidden border border-border/70 backdrop-blur-xl;
+    border-radius: 1.75rem;
+    background: hsl(var(--card) / 0.88);
+    box-shadow: var(--surface-shadow);
+  }
+  .customer-workspace-banner {
+    @apply border-b border-border/70 px-6 py-5;
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.14), transparent 44%),
+      linear-gradient(90deg, hsl(var(--background) / 0.3), transparent);
+  }
+  .onboarding-hero-shell {
+    @apply relative overflow-hidden border;
+    border-color: hsl(var(--border));
+    border-radius: 2rem;
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.16), transparent 28%),
+      radial-gradient(circle at bottom right, hsl(var(--accent) / 0.1), transparent 24%),
+      linear-gradient(180deg, hsl(0 0% 100% / 0.98), hsl(214 42% 96% / 0.98));
+    box-shadow: var(--surface-shadow-strong);
+  }
+  .onboarding-hero-chip {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium;
+    border-color: hsl(var(--border));
+    background: hsl(0 0% 100% / 0.88);
+    color: hsl(var(--muted-foreground));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .onboarding-sidebar-shell {
+    @apply border border-border/70 backdrop-blur-xl;
+    border-radius: 1.5rem;
+    background: hsl(var(--card) / 0.9);
+    box-shadow: var(--surface-shadow);
+  }
+  .onboarding-stepper-shell {
+    @apply border border-border/70 p-5 backdrop-blur-xl;
+    border-radius: 1.5rem;
+    background: linear-gradient(180deg, hsl(0 0% 100% / 0.94), hsl(214 34% 96% / 0.95));
+    box-shadow: var(--surface-shadow);
+  }
+  .onboarding-progress-track {
+    @apply h-2 overflow-hidden rounded-full;
+    background: hsl(var(--muted));
+  }
+  .onboarding-progress-fill {
+    @apply h-full rounded-full;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(199 92% 60%));
+  }
+  .onboarding-stepper-item {
+    @apply flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all duration-200;
+  }
+  .onboarding-stepper-item-idle {
+    border-color: transparent;
+    background: transparent;
+    color: hsl(var(--muted-foreground));
+  }
+  .onboarding-stepper-item-idle:hover {
+    background: hsl(var(--primary) / 0.06);
+    color: hsl(var(--foreground));
+  }
+  .onboarding-stepper-item-active {
+    border-color: hsl(var(--primary) / 0.22);
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.14), hsl(var(--primary) / 0.07));
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.78),
+      0 12px 24px hsl(var(--primary) / 0.12);
+  }
+  .onboarding-stepper-item-complete {
+    border-color: hsl(160 84% 39% / 0.18);
+    background: linear-gradient(180deg, hsl(160 84% 39% / 0.12), hsl(0 0% 100% / 0.88));
+  }
+  .onboarding-stepper-item-error {
+    border-color: hsl(38 92% 50% / 0.18);
+    background: linear-gradient(180deg, hsl(38 92% 50% / 0.12), hsl(0 0% 100% / 0.88));
+  }
+  .onboarding-stepper-index {
+    @apply flex h-10 w-10 items-center justify-center rounded-2xl border text-sm font-semibold;
+    border-color: hsl(var(--border));
+    background: hsl(0 0% 100% / 0.9);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .onboarding-workspace-shell {
+    @apply overflow-hidden border border-border/70 backdrop-blur-xl;
+    border-radius: 1.75rem;
+    background: hsl(var(--card) / 0.9);
+    box-shadow: var(--surface-shadow);
+  }
+  .onboarding-step-banner {
+    @apply border-b border-border/70 px-6 py-5;
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.14), transparent 44%),
+      linear-gradient(90deg, hsl(var(--background) / 0.3), transparent);
+  }
+  .onboarding-content-shell {
+    @apply p-6 md:p-7;
+    background: linear-gradient(180deg, hsl(var(--card) / 0.72), hsl(var(--card) / 0.9));
+  }
+  .onboarding-section-card {
+    @apply rounded-2xl border p-5;
+    border-color: hsl(var(--border));
+    background: linear-gradient(180deg, hsl(0 0% 100% / 0.92), hsl(214 34% 96% / 0.92));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .onboarding-choice-card {
+    @apply border-2 p-5 text-left transition-all duration-200;
+    border-color: hsl(var(--border));
+    border-radius: 1.25rem;
+    background: linear-gradient(180deg, hsl(0 0% 100% / 0.92), hsl(214 30% 96% / 0.9));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .onboarding-choice-card:hover {
+    border-color: hsl(var(--primary) / 0.32);
+    transform: translateY(-2px);
+  }
+  .onboarding-choice-card-active {
+    border-color: hsl(var(--primary));
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.12), hsl(0 0% 100% / 0.95));
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.72),
+      0 14px 28px hsl(var(--primary) / 0.14);
+  }
+  .onboarding-field-input {
+    @apply w-full rounded-2xl border px-3 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2;
+    border-color: hsl(var(--border));
+    background: linear-gradient(180deg, hsl(0 0% 100% / 0.94), hsl(214 34% 97% / 0.94));
+  }
+  .onboarding-upload-dropzone {
+    @apply flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition-colors;
+    border-color: hsl(var(--border));
+    background: linear-gradient(180deg, hsl(var(--card) / 0.5), hsl(var(--muted) / 0.36));
+  }
+  .onboarding-upload-dropzone-active {
+    border-color: hsl(var(--primary) / 0.5);
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.08), hsl(0 0% 100% / 0.92));
+  }
+  .onboarding-upload-dropzone-error {
+    border-color: hsl(0 84% 60% / 0.55);
+  }
+  .onboarding-review-card {
+    @apply overflow-hidden rounded-2xl border;
+    border-color: hsl(var(--border));
+    background: hsl(var(--card) / 0.9);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .onboarding-review-card-error {
+    border-color: hsl(38 92% 50% / 0.32);
+  }
+  .onboarding-modal-shell {
+    @apply w-full border p-6 backdrop-blur-xl;
+    border-color: hsl(var(--border));
+    border-radius: 1.5rem;
+    background: linear-gradient(180deg, hsl(0 0% 100% / 0.98), hsl(214 36% 96% / 0.98));
+    box-shadow: var(--surface-shadow-strong);
+  }
   .app-topbar {
     @apply relative z-40 flex h-14 flex-shrink-0 items-center justify-between overflow-visible border-b border-white/10 px-4 backdrop-blur-xl;
     background: linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.62));
     box-shadow: var(--surface-shadow-soft);
   }
   .app-sidebar-surface {
-    @apply relative flex h-full w-full flex-col overflow-hidden border-r border-white/10 text-white;
+    @apply relative flex h-full w-full flex-col overflow-hidden border-r text-foreground;
+    border-color: hsl(var(--border));
     background:
-      linear-gradient(180deg, hsl(221 48% 11% / 0.98), hsl(228 44% 8% / 0.95));
-    box-shadow: 22px 0 52px hsl(224 58% 6% / 0.28);
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.12), transparent 26%),
+      radial-gradient(circle at bottom left, hsl(var(--accent) / 0.08), transparent 20%),
+      linear-gradient(180deg, hsl(0 0% 100% / 0.98), hsl(214 32% 95% / 0.98));
+    box-shadow:
+      22px 0 52px hsl(220 36% 24% / 0.12),
+      inset -1px 0 0 hsl(0 0% 100% / 0.68);
   }
   .app-sidebar-brand-mark {
-    @apply flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl border border-white/10 text-sm font-extrabold text-slate-950;
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.92), hsl(var(--accent) / 0.82));
-    box-shadow: 0 10px 28px hsl(var(--primary) / 0.22);
+    @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl border text-sm font-extrabold text-primary-foreground;
+    border-color: hsl(var(--primary) / 0.15);
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(199 92% 60%));
+    box-shadow:
+      0 14px 28px hsl(var(--primary) / 0.24),
+      inset 0 1px 0 hsl(0 0% 100% / 0.24);
   }
   .app-sidebar-item {
-    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200;
+    @apply flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-200;
   }
   .app-sidebar-item-active {
-    @apply text-white;
-    background: linear-gradient(180deg, hsl(0 0% 100% / 0.12), hsl(0 0% 100% / 0.08));
+    @apply font-semibold text-foreground;
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.16), hsl(var(--primary) / 0.08));
     box-shadow:
-      inset 0 1px 0 hsl(0 0% 100% / 0.08),
-      0 10px 24px hsl(var(--primary) / 0.08);
+      inset 0 1px 0 hsl(0 0% 100% / 0.72),
+      0 10px 24px hsl(var(--primary) / 0.14);
   }
   .app-sidebar-item-idle {
-    @apply text-slate-400 hover:text-white;
+    color: hsl(var(--muted-foreground));
   }
   .app-sidebar-item-idle:hover {
-    background: hsl(0 0% 100% / 0.06);
+    @apply text-foreground;
+    background: hsl(var(--primary) / 0.07);
+  }
+  .app-sidebar-glossy-title {
+    background: linear-gradient(180deg, hsl(var(--foreground)) 0%, hsl(215 30% 22%) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: none;
+  }
+  .app-sidebar-glossy-sub {
+    background: linear-gradient(180deg, hsl(var(--primary)) 0%, hsl(203 89% 38%) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: none;
+  }
+  .app-sidebar-section-label {
+    @apply mb-2 px-3 text-[10px] font-semibold uppercase;
+    letter-spacing: 0.32em;
+    color: hsl(var(--muted-foreground));
+  }
+  .app-sidebar-subnav {
+    @apply mt-1 ml-5 space-y-1 pl-4;
+    border-left: 1px solid hsl(var(--border));
+  }
+  .app-sidebar-subnav-item {
+    @apply block rounded-xl px-3 py-2 text-sm transition-all duration-200;
+    color: hsl(var(--muted-foreground));
+  }
+  .app-sidebar-subnav-item:hover {
+    @apply text-foreground;
+    background: hsl(var(--primary) / 0.06);
+  }
+  .app-sidebar-subnav-item-active {
+    @apply font-semibold text-foreground;
+    background: linear-gradient(180deg, hsl(var(--primary) / 0.14), hsl(var(--primary) / 0.07));
+    box-shadow:
+      inset 0 1px 0 hsl(0 0% 100% / 0.74),
+      0 8px 20px hsl(var(--primary) / 0.1);
+  }
+  .app-sidebar-footer {
+    @apply relative flex-shrink-0 border-t p-2;
+    border-color: hsl(var(--border));
+    background: linear-gradient(180deg, hsl(var(--card) / 0.35), hsl(var(--card) / 0.7));
+  }
+  .app-sidebar-toggle {
+    @apply relative hidden h-10 flex-shrink-0 items-center justify-center border-t text-muted-foreground transition-colors hover:text-foreground lg:flex;
+    border-color: hsl(var(--border));
+    background: linear-gradient(180deg, hsl(var(--card) / 0.35), hsl(var(--card) / 0.72));
+  }
+  .app-sidebar-theme-toggle {
+    @apply flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-sm text-muted-foreground transition-all hover:text-foreground;
+    border-color: hsl(var(--border));
+    background: hsl(0 0% 100% / 0.82);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .app-sidebar-theme-toggle:hover {
+    background: hsl(var(--primary) / 0.06);
   }
   .btn-primary,
   .btn-secondary,

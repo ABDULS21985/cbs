@@ -6,36 +6,67 @@ interface WizardStepperProps {
   currentStep: number;
   onStepClick?: (step: number) => void;
   getStepValidation?: (step: number) => 'complete' | 'error' | 'unvisited';
+  descriptions?: string[];
 }
 
-export function WizardStepper({ steps, currentStep, onStepClick, getStepValidation }: WizardStepperProps) {
+export function WizardStepper({ steps, currentStep, onStepClick, getStepValidation, descriptions }: WizardStepperProps) {
   const progress = Math.round(((currentStep - 1) / (steps.length - 1)) * 100);
   const completedSteps = steps.filter((_, i) => getStepValidation?.(i + 1) === 'complete').length;
 
   return (
-    <div className="space-y-3" role="navigation" aria-label="Onboarding wizard progress">
-      {/* Progress bar */}
-      <div className="flex items-center gap-3">
-        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label={`${progress}% complete`}>
-          <div className="h-full bg-primary rounded-full transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
+    <div className="onboarding-stepper-shell space-y-5" role="navigation" aria-label="Onboarding wizard progress">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary/80">Journey Map</p>
+          <h2 className="mt-2 text-base font-semibold">Customer Onboarding</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Track completion and jump back to reviewed sections.</p>
         </div>
-        <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">{completedSteps}/{steps.length}</span>
+        <div className="onboarding-hero-chip font-mono">{completedSteps}/{steps.length}</div>
       </div>
 
-      {/* Desktop stepper */}
-      <div className="hidden sm:flex items-center w-full overflow-x-auto pb-1 gap-0">
+      <div className="space-y-2">
+        <div
+          className="onboarding-progress-track"
+          role="progressbar"
+          aria-valuenow={progress}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${progress}% complete`}
+        >
+          <div className="onboarding-progress-fill transition-all duration-500 ease-out" style={{ width: `${progress}%` }} />
+        </div>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>{progress}% complete</span>
+          <span>Step {currentStep} of {steps.length}</span>
+        </div>
+      </div>
+
+      <div className="hidden lg:grid gap-2">
         {steps.map((label, i) => {
           const stepNum = i + 1;
           const isDone = stepNum < currentStep;
           const isCurrent = stepNum === currentStep;
           const validation = getStepValidation?.(stepNum) ?? 'unvisited';
-          const canClick = isDone || validation !== 'unvisited';
+          const canClick = isCurrent || isDone || validation !== 'unvisited';
+          const statusLabel = validation === 'complete'
+            ? 'Complete'
+            : validation === 'error'
+              ? 'Needs attention'
+              : isCurrent
+                ? 'In progress'
+                : 'Not started';
 
           return (
-            <div key={stepNum} className="flex items-center flex-1 min-w-0">
+            <div key={stepNum}>
               <button
                 type="button"
-                className="flex flex-col items-center gap-1 shrink-0 group"
+                className={cn(
+                  'onboarding-stepper-item',
+                  isCurrent && 'onboarding-stepper-item-active',
+                  validation === 'complete' && !isCurrent && 'onboarding-stepper-item-complete',
+                  validation === 'error' && !isCurrent && 'onboarding-stepper-item-error',
+                  validation === 'unvisited' && !isCurrent && 'onboarding-stepper-item-idle',
+                )}
                 onClick={() => canClick && onStepClick?.(stepNum)}
                 disabled={!canClick}
                 title={`Step ${stepNum}: ${label}${validation === 'complete' ? ' (Complete)' : validation === 'error' ? ' (Needs attention)' : ''}`}
@@ -43,17 +74,10 @@ export function WizardStepper({ steps, currentStep, onStepClick, getStepValidati
                 aria-current={isCurrent ? 'step' : undefined}
               >
                 <div className={cn(
-                  'w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all duration-200',
-                  // Complete
-                  validation === 'complete' && !isCurrent && 'bg-green-500 border-green-500 text-white cursor-pointer group-hover:bg-green-600 group-hover:scale-105',
-                  // Error
-                  validation === 'error' && !isCurrent && 'bg-amber-500 border-amber-500 text-white cursor-pointer group-hover:bg-amber-600 group-hover:scale-105',
-                  // Current
-                  isCurrent && 'border-primary text-primary bg-background ring-2 ring-primary/30 scale-110',
-                  // Unvisited
-                  validation === 'unvisited' && !isCurrent && 'border-border text-muted-foreground bg-background',
-                  // Done but unvisited validation
-                  isDone && validation === 'unvisited' && 'bg-primary border-primary text-primary-foreground cursor-pointer',
+                  'onboarding-stepper-index',
+                  isCurrent && 'border-primary/30 bg-primary/10 text-primary',
+                  validation === 'complete' && !isCurrent && 'border-emerald-500/20 bg-emerald-500/12 text-emerald-600',
+                  validation === 'error' && !isCurrent && 'border-amber-500/20 bg-amber-500/12 text-amber-600',
                 )}>
                   {validation === 'complete' && !isCurrent ? (
                     <Check className="h-4 w-4" aria-hidden="true" />
@@ -65,38 +89,40 @@ export function WizardStepper({ steps, currentStep, onStepClick, getStepValidati
                     stepNum
                   )}
                 </div>
-                <span className={cn(
-                  'text-[10px] whitespace-nowrap transition-colors',
-                  isCurrent && 'text-primary font-bold',
-                  validation === 'complete' && !isCurrent && 'text-green-600 dark:text-green-400 font-medium',
-                  validation === 'error' && !isCurrent && 'text-amber-600 dark:text-amber-400 font-medium',
-                  validation === 'unvisited' && !isCurrent && 'text-muted-foreground',
-                )}>
-                  {label}
-                </span>
-                {/* Validation status text for screen readers */}
-                <span className="sr-only">
-                  {validation === 'complete' ? 'Complete' : validation === 'error' ? 'Needs attention' : isCurrent ? 'Current step' : 'Not started'}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={cn('text-sm font-semibold', isCurrent && 'text-primary')}>{label}</span>
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em]',
+                        validation === 'complete' && 'bg-emerald-500/12 text-emerald-600',
+                        validation === 'error' && 'bg-amber-500/12 text-amber-600',
+                        isCurrent && 'bg-primary/12 text-primary',
+                        validation === 'unvisited' && !isCurrent && 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {descriptions?.[i] ?? `Complete the ${label.toLowerCase()} details.`}
+                  </p>
+                  <span className="sr-only">{statusLabel}</span>
+                </div>
               </button>
-              {i < steps.length - 1 && (
-                <div className={cn(
-                  'h-0.5 flex-1 mx-1.5 rounded-full transition-colors duration-300',
-                  stepNum < currentStep && validation === 'complete' ? 'bg-green-500' :
-                  stepNum < currentStep ? 'bg-primary' : 'bg-muted',
-                )} aria-hidden="true" />
-              )}
             </div>
           );
         })}
       </div>
 
-      {/* Mobile stepper */}
-      <div className="sm:hidden">
-        <div className="flex items-center justify-between">
+      <div className="lg:hidden rounded-2xl border border-border/70 bg-background/70 px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-semibold">Step {currentStep} of {steps.length}</span>
           <span className="text-sm text-muted-foreground">{steps[currentStep - 1]}</span>
         </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {descriptions?.[currentStep - 1] ?? 'Complete the current onboarding step to continue.'}
+        </p>
       </div>
     </div>
   );

@@ -36,6 +36,13 @@ public class CaseManagementService {
     private static final Map<String, Integer> SLA_HOURS = Map.of(
             "CRITICAL", 4, "HIGH", 8, "MEDIUM", 24, "LOW", 72);
 
+    private static final List<String> CASE_TYPE_ORDER = List.of(
+            "COMPLAINT", "SERVICE_REQUEST", "INQUIRY", "DISPUTE", "FRAUD_REPORT",
+            "ACCOUNT_ISSUE", "PAYMENT_ISSUE", "CARD_ISSUE", "LOAN_ISSUE", "FEE_REVERSAL",
+            "DOCUMENT_REQUEST", "PRODUCT_CHANGE", "CLOSURE", "REGULATORY", "ESCALATION");
+
+    private static final List<String> CASE_PRIORITIES = List.of("MEDIUM", "HIGH", "LOW", "CRITICAL");
+
     private static final Map<String, String> CASE_TYPE_TO_CATEGORY = Map.ofEntries(
             Map.entry("COMPLAINT", "GENERAL"), Map.entry("SERVICE_REQUEST", "GENERAL"),
             Map.entry("INQUIRY", "GENERAL"), Map.entry("DISPUTE", "PAYMENTS"),
@@ -45,6 +52,23 @@ public class CaseManagementService {
             Map.entry("DOCUMENT_REQUEST", "GENERAL"), Map.entry("PRODUCT_CHANGE", "GENERAL"),
             Map.entry("CLOSURE", "ACCOUNTS"), Map.entry("REGULATORY", "GENERAL"),
             Map.entry("ESCALATION", "GENERAL"));
+
+    private static final Map<String, List<String>> CASE_TYPE_SUBCATEGORIES = Map.ofEntries(
+            Map.entry("COMPLAINT", List.of("Service Quality", "Charges/Fees", "Account Issues", "Card Issues", "ATM/POS", "Online Banking", "Staff Behaviour")),
+            Map.entry("SERVICE_REQUEST", List.of("Account Update", "Card Request", "Statement", "Reference Letter", "Cheque Book", "Token/OTP")),
+            Map.entry("INQUIRY", List.of("Product Information", "Balance Inquiry", "Rate Inquiry", "General")),
+            Map.entry("DISPUTE", List.of("Transaction Dispute", "Charge Dispute", "Interest Dispute")),
+            Map.entry("FRAUD_REPORT", List.of("Unauthorized Transaction", "Phishing", "Card Fraud", "Identity Theft")),
+            Map.entry("ACCOUNT_ISSUE", List.of("Account Lock", "Account Update", "Dormant Account", "KYC Update")),
+            Map.entry("PAYMENT_ISSUE", List.of("Failed Transfer", "Delayed Payment", "Wrong Beneficiary", "Reversal")),
+            Map.entry("CARD_ISSUE", List.of("Card Blocked", "Card Replacement", "PIN Reset", "Card Activation")),
+            Map.entry("LOAN_ISSUE", List.of("Repayment Issue", "Disbursement Delay", "Interest Query", "Early Settlement")),
+            Map.entry("FEE_REVERSAL", List.of("Maintenance Fee", "SMS Fee", "Transaction Fee", "Penalty Fee")),
+            Map.entry("DOCUMENT_REQUEST", List.of("Statement", "Reference Letter", "Audit Confirmation", "Tax Certificate")),
+            Map.entry("PRODUCT_CHANGE", List.of("Account Upgrade", "Account Downgrade", "Product Switch")),
+            Map.entry("CLOSURE", List.of("Account Closure", "Card Closure", "Loan Closure")),
+            Map.entry("REGULATORY", List.of("CBN Directive", "Compliance Issue", "AML/CFT")),
+            Map.entry("ESCALATION", List.of("Management Escalation", "Regulatory Escalation", "Ombudsman")));
 
     @Transactional
     public CustomerCase createCase(CustomerCase customerCase) {
@@ -130,6 +154,22 @@ public class CaseManagementService {
 
     public List<CustomerCase> getAllCases() {
         return caseRepository.findAll();
+    }
+
+    public Map<String, Object> getCaseMetadata() {
+        List<Map<String, Object>> caseTypes = CASE_TYPE_ORDER.stream().map(caseType -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("value", caseType);
+            item.put("label", humanize(caseType));
+            item.put("category", CASE_TYPE_TO_CATEGORY.getOrDefault(caseType, "GENERAL"));
+            item.put("subCategories", CASE_TYPE_SUBCATEGORIES.getOrDefault(caseType, List.of()));
+            return item;
+        }).toList();
+
+        return Map.of(
+                "caseTypes", caseTypes,
+                "priorities", CASE_PRIORITIES
+        );
     }
 
     public List<CustomerCase> getEscalatedCases() {
@@ -251,6 +291,13 @@ public class CaseManagementService {
     private String sanitizeFileName(String originalName) {
         String safe = originalName == null || originalName.isBlank() ? "attachment" : originalName;
         return safe.replaceAll("[^A-Za-z0-9._-]", "_");
+    }
+
+    private String humanize(String value) {
+        return Arrays.stream(value.split("_"))
+                .map(part -> part.substring(0, 1) + part.substring(1).toLowerCase())
+                .reduce((left, right) -> left + " " + right)
+                .orElse(value);
     }
 
     private String sha256(byte[] bytes) {

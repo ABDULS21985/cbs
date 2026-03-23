@@ -15,7 +15,7 @@ export function ThemeToggle({ collapsed }: ThemeToggleProps) {
     <button
       onClick={() => setTheme(next)}
       className={cn(
-        'gloss-pill flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 transition-colors hover:text-white',
+        'app-sidebar-theme-toggle',
       )}
       title={`Theme: ${theme} (click for ${next})`}
     >

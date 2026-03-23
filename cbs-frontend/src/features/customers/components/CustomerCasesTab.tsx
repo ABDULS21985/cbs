@@ -1,5 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table';
+import { Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { DataTable, StatusBadge } from '@/components/shared';
+import { usePermission } from '@/hooks/usePermission';
 import { formatDate } from '@/lib/formatters';
 import { useCustomerCases } from '../hooks/useCustomers';
 import type { CustomerCase } from '../types/customer';
@@ -11,8 +14,22 @@ const PRIORITY_CLASSES: Record<string, string> = {
   LOW: 'text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-400',
 };
 
-export function CustomerCasesTab({ customerId, active }: { customerId: number; active: boolean }) {
+export function CustomerCasesTab({
+  customerId,
+  customerName,
+  active,
+}: {
+  customerId: number;
+  customerName?: string;
+  active: boolean;
+}) {
+  const navigate = useNavigate();
+  const canCreateCase = usePermission('cases', 'create');
   const { data: cases, isLoading } = useCustomerCases(customerId, active);
+  const createCaseQuery = new URLSearchParams({
+    customerId: String(customerId),
+    ...(customerName ? { customerName } : {}),
+  }).toString();
 
   const columns: ColumnDef<CustomerCase>[] = [
     {
@@ -51,13 +68,27 @@ export function CustomerCasesTab({ customerId, active }: { customerId: number; a
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
-        Case creation and drill-down are unavailable from the customer profile until the case-management module is aligned to the live backend contract.
+      <div className="flex flex-col gap-3 rounded-lg border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium">Customer Cases</p>
+          <p className="text-xs text-muted-foreground">Open a case to continue the workflow, or create a new case for this customer.</p>
+        </div>
+        {canCreateCase && (
+          <button
+            type="button"
+            onClick={() => navigate(`/cases/new?${createCaseQuery}`)}
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4" />
+            Create Case
+          </button>
+        )}
       </div>
       <DataTable
         columns={columns}
         data={cases ?? []}
         isLoading={isLoading}
+        onRowClick={(customerCase) => navigate(`/cases/${customerCase.caseNumber}`)}
         emptyMessage="No cases found for this customer"
       />
     </div>
