@@ -40,6 +40,9 @@ export function WebhookDeliveryLog({
   onRetry,
   retryingId,
 }: WebhookDeliveryLogProps) {
+  const successCount = deliveries.filter((delivery) => delivery.status === 'SUCCESS').length;
+  const retryableCount = deliveries.filter((delivery) => delivery.status !== 'SUCCESS').length;
+
   const columns = useMemo<ColumnDef<WebhookDelivery, unknown>[]>(
     () => [
       {
@@ -129,8 +132,23 @@ export function WebhookDeliveryLog({
   );
 
   return (
-    <div>
-      <h3 className="text-sm font-semibold mb-3">Delivery Log</h3>
+    <div className="ob-page-panel space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Delivery Log</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Review HTTP outcomes and replay failed attempts directly from the ledger.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium text-foreground">
+            {successCount} successful
+          </span>
+          <span className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium text-foreground">
+            {retryableCount} retryable
+          </span>
+        </div>
+      </div>
       <DataTable
         columns={columns}
         data={deliveries}

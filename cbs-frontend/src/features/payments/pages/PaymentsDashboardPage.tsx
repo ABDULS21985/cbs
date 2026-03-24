@@ -10,7 +10,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { StatCard, StatusBadge, EmptyState } from '@/components/shared';
+import { StatusBadge } from '@/components/shared';
 import { apiGet } from '@/lib/api';
 import { useRecentTransfers } from '../hooks/useTransfer';
 import { formatMoney, formatRelative } from '@/lib/formatters';
@@ -34,6 +34,15 @@ const quickActionsGrid = [
   { label: 'QR Payment', icon: QrCode, path: '/payments/qr' },
 ];
 
+const paymentChannels = [
+  { label: 'Payment History', path: '/payments/history' },
+  { label: 'Standing Orders', path: '/payments/standing-orders' },
+  { label: 'Cheques', path: '/payments/cheques' },
+  { label: 'QR Payments', path: '/payments/qr' },
+  { label: 'Mobile Money', path: '/payments/mobile-money' },
+  { label: 'ACH Operations', path: '/operations/ach' },
+];
+
 export function PaymentsDashboardPage() {
   const navigate = useNavigate();
 
@@ -52,7 +61,7 @@ export function PaymentsDashboardPage() {
   }, [navigate]);
 
   // Dashboard stats query (existing)
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ['payments', 'dashboard-stats'],
     queryFn: () =>
       apiGet<PaymentStats>('/api/v1/dashboard/stats').catch(() => ({
@@ -93,103 +102,194 @@ export function PaymentsDashboardPage() {
     };
   }, [recentTransfers]);
 
-  const isLoading = statsLoading || transfersLoading;
+  const completedCount = stats?.completedPayments ?? recentTransfers?.filter((t) => t.status === 'COMPLETED').length ?? 0;
+  const pendingCount = stats?.pendingPayments ?? recentTransfers?.filter((t) => t.status === 'PENDING').length ?? 0;
+  const processingTimeLabel = stats ? `${stats.avgProcessingTimeSecs.toFixed(1)}s` : '\u2014';
+  const heroMetrics = [
+    { label: 'Payments Today', value: String(stats?.totalPaymentsToday ?? todayCount) },
+    { label: 'Total Amount', value: formatMoney(stats?.totalAmountToday ?? todayValue, 'NGN') },
+    { label: 'Pending', value: String(pendingCount) },
+  ];
+  const operationalHighlights = [
+    { label: 'Completed', value: String(completedCount), icon: CheckCircle2 },
+    { label: 'Failed', value: String(stats?.failedPayments ?? failedCount), icon: AlertTriangle },
+    { label: 'Avg Processing', value: processingTimeLabel, icon: Clock },
+  ];
 
   return (
     <>
       <PageHeader title="Payments Dashboard" subtitle="Overview of payment operations and quick actions" />
       <div className="page-container space-y-6">
+        <section className="payment-hero-shell">
+          <div className="payment-hero-grid">
+            <div>
+              <p className="payment-hero-kicker">Payments command center</p>
+              <h2 className="payment-hero-title">Move funds, watch queues, and act on exceptions faster</h2>
+              <p className="payment-hero-description">
+                Monitor today&apos;s volume, route into the most-used payment rails, and pick up operator actions from a single workspace.
+              </p>
+              <div className="payment-step-chip-row">
+                <span className="payment-step-chip">{recentTransfers?.length ?? 0} recent transfers</span>
+                <span className="payment-step-chip">
+                  {volumeData.length > 0 ? '7-day trend available' : 'Awaiting trend data'}
+                </span>
+                <span className="payment-step-chip">{processingTimeLabel} average processing</span>
+              </div>
+            </div>
 
-        {/* Failed transactions alert */}
-        {failedCount > 0 && (
-          <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900 dark:bg-red-950/40">
-            <span className="text-sm font-medium text-red-700 dark:text-red-400">
-              {'\u26A0'} {failedCount} failed transaction{failedCount > 1 ? 's' : ''}
-            </span>
+            <div className="space-y-3">
+              <div className="payment-metrics-grid">
+                {heroMetrics.map((metric) => (
+                  <div key={metric.label} className="payment-metric-card">
+                    <p className="payment-metric-label">{metric.label}</p>
+                    <p className="payment-metric-value">{metric.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {operationalHighlights.map((highlight) => (
+                  <div key={highlight.label} className="payment-panel px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="payment-metric-label">{highlight.label}</p>
+                        <p className="mt-2 text-lg font-semibold text-foreground">{highlight.value}</p>
+                      </div>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <highlight.icon className="h-4 w-4" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {failedCount > 0 ? (
+          <div className="payment-panel flex flex-col gap-3 border-red-200 bg-red-50/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-300">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+                  {failedCount} failed transaction{failedCount > 1 ? 's' : ''}
+                </p>
+                <p className="text-sm text-red-600/80 dark:text-red-300/80">
+                  Review failed items before they age into manual follow-up queues.
+                </p>
+              </div>
+            </div>
             <button
               onClick={() => navigate('/payments/history?status=FAILED')}
-              className="text-sm font-medium text-red-700 underline hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+              className="payment-action-button justify-center border-red-200 bg-white/90 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/60"
             >
               View Details
             </button>
           </div>
-        )}
+        ) : null}
 
-        {/* KPI cards — wired to real data from useRecentTransfers */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            label="Payments Today"
-            value={stats?.totalPaymentsToday ?? todayCount}
-            format="number"
-            icon={TrendingUp}
-            loading={isLoading}
-          />
-          <StatCard
-            label="Total Amount"
-            value={stats?.totalAmountToday ?? todayValue}
-            format="money"
-            compact
-            icon={TrendingUp}
-            loading={isLoading}
-          />
-          <StatCard
-            label="Pending"
-            value={stats?.pendingPayments ?? 0}
-            format="number"
-            icon={Clock}
-            loading={isLoading}
-          />
-          <StatCard
-            label="Completed"
-            value={stats?.completedPayments ?? 0}
-            format="number"
-            icon={CheckCircle2}
-            loading={isLoading}
-          />
-        </div>
+        <div className="payment-workspace-shell space-y-6">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.95fr)]">
+            <section className="payment-panel p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">Payment Volume (Last 7 Days)</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Transaction counts from recent transfer activity, useful for spotting late-day spikes.
+                  </p>
+                </div>
+                <div className="payment-step-chip-row mt-0">
+                  <span className="payment-step-chip">{volumeData.length || 0} plotted day{volumeData.length === 1 ? '' : 's'}</span>
+                </div>
+              </div>
 
-        {/* Failed + Avg Processing */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            label="Failed"
-            value={stats?.failedPayments ?? failedCount}
-            format="number"
-            icon={AlertTriangle}
-            loading={isLoading}
-          />
-          <StatCard
-            label="Avg Processing"
-            value={stats ? `${stats.avgProcessingTimeSecs.toFixed(1)}s` : '\u2014'}
-            icon={Clock}
-            loading={isLoading}
-          />
-        </div>
+              <div className="mt-5">
+                {volumeData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <AreaChart data={volumeData}>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} />
+                      <Tooltip contentStyle={{ fontSize: 12 }} />
+                      <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.12} name="Transactions" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="payment-empty-state min-h-[260px]">
+                    <TrendingUp className="h-10 w-10 text-muted-foreground/40" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">No transaction data available</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Recent transfer volume will render here once activity starts flowing through the module.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
 
-        {/* Payment Volume Chart */}
-        <div className="surface-card p-4">
-          <p className="text-sm font-medium mb-3">Payment Volume (Last 7 Days)</p>
-          {volumeData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={volumeData}>
-                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ fontSize: 12 }} />
-                <Area type="monotone" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} name="Transactions" />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-60 flex items-center justify-center text-sm text-muted-foreground">No transaction data available</div>
-          )}
-        </div>
+            <div className="space-y-6">
+              <section className="payment-panel p-5">
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold text-foreground">Quick Actions</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Jump straight into the most common payment operations.
+                  </p>
+                </div>
 
-        {/* Recent Activity + Quick Actions two-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="grid grid-cols-2 gap-3">
+                  {quickActionsGrid.map((action) => (
+                    <button
+                      key={action.path}
+                      onClick={() => navigate(action.path)}
+                      className="payment-selection-card flex h-full flex-col items-start gap-3"
+                    >
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <action.icon className="h-5 w-5" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-foreground">{action.label}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Open workflow</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
 
-          {/* LEFT: Recent Activity */}
-          <div className="lg:col-span-8 surface-card">
+              <section className="payment-panel p-5">
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold text-foreground">Payment Channels</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Supporting rails, history views, and settlement tools.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                  {paymentChannels.map((link) => (
+                    <button
+                      key={link.path}
+                      onClick={() => navigate(link.path)}
+                      className="payment-selection-card flex items-center justify-between gap-3"
+                    >
+                      <span className="text-sm font-medium text-foreground">{link.label}</span>
+                      <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <section className="payment-panel overflow-hidden">
             <div className="flex items-center justify-between border-b px-5 py-4">
-              <h2 className="text-lg font-semibold">Recent Activity</h2>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Latest transfer activity across inbound and outbound flows.
+                </p>
+              </div>
               <Link
                 to="/payments/history"
                 className="text-sm font-medium text-primary hover:underline"
@@ -205,14 +305,21 @@ export function PaymentsDashboardPage() {
                 ))}
               </div>
             ) : !recentTransfers?.length ? (
-              <EmptyState title="No recent transactions" className="py-12" />
+              <div className="payment-empty-state border-0 bg-transparent py-14 shadow-none">
+                <Clock className="h-10 w-10 text-muted-foreground/40" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">No recent transactions</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    New transfer activity will appear here once payments are initiated.
+                  </p>
+                </div>
+              </div>
             ) : (
               <ul className="divide-y">
                 {recentTransfers.slice(0, 8).map((txn) => {
                   const isCredit = txn.direction === 'CREDIT';
                   return (
                     <li key={txn.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
-                      {/* Direction icon */}
                       <div className={cn(
                         'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
                         isCredit ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
@@ -221,7 +328,6 @@ export function PaymentsDashboardPage() {
                         {isCredit ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                       </div>
 
-                      {/* Description + reference */}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{txn.beneficiaryName}</p>
                         <p className="truncate text-xs text-muted-foreground">
@@ -229,7 +335,6 @@ export function PaymentsDashboardPage() {
                         </p>
                       </div>
 
-                      {/* Amount + status + time */}
                       <div className="flex flex-col items-end gap-0.5 shrink-0">
                         <span className={cn(
                           'text-sm font-semibold',
@@ -247,47 +352,7 @@ export function PaymentsDashboardPage() {
                 })}
               </ul>
             )}
-          </div>
-
-          {/* RIGHT: Quick Actions */}
-          <div className="lg:col-span-4">
-            <h2 className="text-lg font-semibold mb-3">Quick Actions</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {quickActionsGrid.map((action) => (
-                <button
-                  key={action.path}
-                  onClick={() => navigate(action.path)}
-                  className="flex flex-col items-center gap-2 surface-card p-4 text-center transition-colors hover:bg-muted/50"
-                >
-                  <action.icon className="h-6 w-6 text-muted-foreground" />
-                  <span className="text-xs font-medium">{action.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Channels */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">Payment Channels</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Payment History', path: '/payments/history' },
-              { label: 'Standing Orders', path: '/payments/standing-orders' },
-              { label: 'Cheques', path: '/payments/cheques' },
-              { label: 'QR Payments', path: '/payments/qr' },
-              { label: 'Mobile Money', path: '/payments/mobile-money' },
-              { label: 'ACH Operations', path: '/operations/ach' },
-            ].map((link) => (
-              <button
-                key={link.path}
-                onClick={() => navigate(link.path)}
-                className="surface-card p-4 text-left hover:bg-muted/40 transition-colors"
-              >
-                <span className="text-sm font-medium">{link.label}</span>
-              </button>
-            ))}
-          </div>
+          </section>
         </div>
       </div>
     </>

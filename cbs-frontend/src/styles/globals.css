@@ -217,6 +217,580 @@
       linear-gradient(180deg, hsl(var(--card) / 0.96), hsl(var(--card) / 0.88));
     box-shadow: var(--surface-shadow-soft);
   }
+  .portal-app-shell {
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.1), transparent 28%),
+      radial-gradient(circle at top right, hsl(var(--accent) / 0.08), transparent 24%),
+      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background)) 100%);
+  }
+  .portal-topbar {
+    @apply sticky top-0 z-40 border-b backdrop-blur-xl;
+    border-color: hsl(var(--border) / 0.66);
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.94), hsl(var(--card) / 0.88));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .portal-topbar-button {
+    @apply inline-flex items-center justify-center rounded-2xl border text-muted-foreground transition-colors hover:text-foreground;
+    border-color: hsl(var(--border) / 0.64);
+    background: hsl(var(--background) / 0.72);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .portal-brand-mark {
+    @apply flex h-10 w-10 items-center justify-center rounded-[1.1rem] border text-sm font-semibold;
+    border-color: hsl(var(--primary) / 0.18);
+    background:
+      linear-gradient(135deg, hsl(var(--primary) / 0.92), hsl(var(--primary) / 0.72));
+    color: hsl(var(--primary-foreground));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .portal-sidebar-shell {
+    @apply hidden md:block w-64 shrink-0 border-r;
+    min-height: calc(100vh - 3.5rem);
+    border-color: hsl(var(--border) / 0.66);
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.9), hsl(var(--card) / 0.76));
+  }
+  .portal-sidebar-link {
+    @apply flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition-all duration-200;
+    color: hsl(var(--muted-foreground));
+  }
+  .portal-sidebar-link:hover {
+    background: hsl(var(--background) / 0.72);
+    color: hsl(var(--foreground));
+  }
+  .portal-sidebar-link[data-active='true'] {
+    color: hsl(var(--primary));
+    background:
+      linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.04));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .portal-main-shell {
+    @apply flex-1 min-w-0 px-4 py-6 pb-24 md:px-6 md:pb-8;
+  }
+  .portal-mobile-nav {
+    @apply md:hidden fixed bottom-0 left-0 right-0 z-40 border-t backdrop-blur-xl;
+    border-color: hsl(var(--border) / 0.66);
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.96), hsl(var(--card) / 0.9));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .portal-mobile-sheet {
+    @apply absolute bottom-0 left-0 right-0 rounded-t-[1.75rem] border px-6 py-6;
+    border-color: hsl(var(--border) / 0.72);
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--card) / 0.92));
+    box-shadow: var(--surface-shadow-strong);
+  }
+  .portal-page-shell {
+    @apply space-y-6;
+  }
+  .portal-page-hero {
+    @apply relative overflow-hidden border px-6 py-6;
+    border-color: hsl(var(--border) / 0.72);
+    border-radius: 1.875rem;
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.12), transparent 32%),
+      radial-gradient(circle at bottom right, hsl(var(--accent) / 0.08), transparent 28%),
+      linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--card) / 0.92));
+    box-shadow: var(--surface-shadow);
+  }
+  .portal-page-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.22), transparent 34%);
+  }
+  .portal-page-hero-main {
+    @apply relative flex items-start gap-4;
+  }
+  .portal-page-hero-icon {
+    @apply flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-[1.45rem] border text-primary;
+    border-color: hsl(var(--primary) / 0.14);
+    background:
+      linear-gradient(180deg, hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.06));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .portal-page-hero-copy {
+    @apply min-w-0 flex-1 space-y-3;
+  }
+  .portal-page-hero-eyebrow {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-primary;
+  }
+  .portal-page-hero-title {
+    @apply text-3xl font-semibold tracking-tight text-foreground sm:text-[2.45rem];
+  }
+  .portal-page-hero-description {
+    @apply max-w-3xl text-sm text-muted-foreground sm:text-base;
+  }
+  .portal-page-hero-chip-row {
+    @apply flex flex-wrap gap-2;
+  }
+  .portal-page-hero-chip {
+    @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground;
+    border-color: hsl(var(--border) / 0.64);
+    background: hsl(var(--background) / 0.72);
+  }
+  .portal-page-hero-side {
+    @apply relative mt-6 flex flex-col gap-4 lg:mt-0;
+  }
+  .portal-page-hero-actions {
+    @apply flex flex-wrap gap-2;
+  }
+  .portal-page-hero-metrics {
+    @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-3;
+  }
+  .portal-page-hero-metric {
+    @apply border px-4 py-3;
+    border-color: hsl(var(--border) / 0.66);
+    border-radius: 1.25rem;
+    background: hsl(var(--background) / 0.72);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .portal-page-hero-metric-label {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground;
+  }
+  .portal-page-hero-metric-value {
+    @apply mt-2 text-xl font-semibold tracking-tight;
+  }
+  .portal-panel {
+    @apply relative overflow-hidden border;
+    border-color: hsl(var(--border) / 0.72);
+    border-radius: 1.5rem;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.97), hsl(var(--card) / 0.9));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .portal-panel-muted {
+    background: hsl(var(--background) / 0.72);
+  }
+  .portal-filter-chip {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors;
+    border-color: hsl(var(--border) / 0.66);
+    background: hsl(var(--background) / 0.7);
+    color: hsl(var(--muted-foreground));
+  }
+  .portal-filter-chip:hover {
+    color: hsl(var(--foreground));
+  }
+  .portal-filter-chip[data-active='true'] {
+    border-color: hsl(var(--primary) / 0.18);
+    background:
+      linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.04));
+    color: hsl(var(--primary));
+  }
+  .portal-inline-input {
+    @apply w-full rounded-xl border px-3 py-2 text-sm transition focus:outline-none;
+    border-color: hsl(var(--border) / 0.7);
+    background: hsl(var(--background) / 0.78);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .portal-inline-input:focus {
+    border-color: hsl(var(--primary) / 0.34);
+    box-shadow:
+      0 0 0 3px hsl(var(--primary) / 0.14),
+      var(--surface-shadow-soft);
+  }
+  .portal-action-button {
+    @apply inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors;
+    border-color: hsl(var(--border) / 0.68);
+    background: hsl(var(--background) / 0.72);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .portal-action-button:hover {
+    background: hsl(var(--secondary) / 0.84);
+  }
+  .portal-empty-state {
+    @apply flex flex-col items-center justify-center gap-3 border border-dashed px-6 py-12 text-center;
+    border-color: hsl(var(--border) / 0.7);
+    border-radius: 1.5rem;
+    background: hsl(var(--background) / 0.48);
+  }
+  .portal-modal-shell {
+    @apply w-full border px-6 py-6;
+    max-width: 28rem;
+    border-color: hsl(var(--border) / 0.72);
+    border-radius: 1.5rem;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.99), hsl(var(--card) / 0.94));
+    box-shadow: var(--surface-shadow-strong);
+  }
+  .payment-hero-shell {
+    @apply relative overflow-hidden border px-6 py-6;
+    border-color: hsl(var(--border) / 0.72);
+    border-radius: 1.875rem;
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.12), transparent 34%),
+      radial-gradient(circle at bottom right, hsl(var(--accent) / 0.08), transparent 28%),
+      linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--card) / 0.92));
+    box-shadow: var(--surface-shadow);
+  }
+  .payment-hero-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.24), transparent 34%);
+  }
+  .payment-hero-grid {
+    @apply relative grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.95fr)] lg:items-start;
+  }
+  .payment-hero-kicker {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-primary;
+  }
+  .payment-hero-title {
+    @apply mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.45rem];
+  }
+  .payment-hero-description {
+    @apply mt-3 max-w-3xl text-sm text-muted-foreground sm:text-base;
+  }
+  .payment-step-chip-row {
+    @apply mt-4 flex flex-wrap gap-2;
+  }
+  .payment-step-chip {
+    @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground;
+    border-color: hsl(var(--border) / 0.64);
+    background: hsl(var(--background) / 0.72);
+  }
+  .payment-metrics-grid {
+    @apply grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3;
+  }
+  .payment-metric-card {
+    @apply border px-4 py-3;
+    border-color: hsl(var(--border) / 0.68);
+    border-radius: 1.25rem;
+    background: hsl(var(--background) / 0.72);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .payment-metric-label {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground;
+  }
+  .payment-metric-value {
+    @apply mt-2 text-xl font-semibold tracking-tight text-foreground;
+  }
+  .payment-workspace-shell {
+    @apply border p-4 sm:p-5;
+    border-color: hsl(var(--border) / 0.72);
+    border-radius: 1.75rem;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--card) / 0.92));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .payment-tab-strip {
+    @apply inline-flex rounded-full border p-1;
+    border-color: hsl(var(--border) / 0.66);
+    background: hsl(var(--background) / 0.68);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .payment-tab-button {
+    @apply inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors;
+    color: hsl(var(--muted-foreground));
+  }
+  .payment-tab-button:hover {
+    color: hsl(var(--foreground));
+  }
+  .payment-tab-button[data-active='true'] {
+    color: hsl(var(--foreground));
+    background: hsl(var(--card));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .payment-panel {
+    @apply border;
+    border-color: hsl(var(--border) / 0.7);
+    border-radius: 1.4rem;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.97), hsl(var(--card) / 0.9));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .payment-panel-muted {
+    background: hsl(var(--background) / 0.72);
+  }
+  .payment-command-input {
+    @apply w-full rounded-[1.05rem] border px-4 py-3 text-sm transition focus:outline-none;
+    border-color: hsl(var(--border) / 0.68);
+    background: hsl(var(--background) / 0.78);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .payment-command-input:focus {
+    border-color: hsl(var(--primary) / 0.34);
+    box-shadow:
+      0 0 0 3px hsl(var(--primary) / 0.14),
+      var(--surface-shadow-soft);
+  }
+  .payment-selection-card {
+    @apply w-full text-left border p-4 transition-all;
+    border-color: hsl(var(--border) / 0.68);
+    border-radius: 1.25rem;
+    background: hsl(var(--background) / 0.58);
+  }
+  .payment-selection-card:hover {
+    border-color: hsl(var(--primary) / 0.24);
+    background: hsl(var(--background) / 0.8);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .payment-empty-state {
+    @apply flex flex-col items-center justify-center gap-3 border border-dashed px-6 py-14 text-center;
+    border-color: hsl(var(--border) / 0.7);
+    border-radius: 1.45rem;
+    background: hsl(var(--background) / 0.52);
+  }
+  .payment-action-button {
+    @apply inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors;
+    border-color: hsl(var(--border) / 0.68);
+    background: hsl(var(--background) / 0.72);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .payment-action-button:hover {
+    background: hsl(var(--secondary) / 0.84);
+  }
+  .payment-favorite-card {
+    @apply relative border p-4 text-left transition-all;
+    border-color: hsl(var(--border) / 0.68);
+    border-radius: 1.25rem;
+    background: hsl(var(--background) / 0.58);
+  }
+  .payment-favorite-card:hover {
+    border-color: hsl(var(--primary) / 0.24);
+    background: hsl(var(--background) / 0.8);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-monitor-hero {
+    @apply relative overflow-hidden border px-6 py-6;
+    border-color: hsl(var(--border) / 0.72);
+    border-radius: 1.875rem;
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.12), transparent 34%),
+      radial-gradient(circle at bottom right, hsl(var(--accent) / 0.08), transparent 30%),
+      linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--card) / 0.92));
+    box-shadow: var(--surface-shadow);
+  }
+  .ob-monitor-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.24), transparent 34%);
+  }
+  .ob-monitor-hero-grid {
+    @apply relative grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.95fr)] lg:items-start;
+  }
+  .ob-monitor-kicker {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-primary;
+  }
+  .ob-monitor-title {
+    @apply mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.45rem];
+  }
+  .ob-monitor-description {
+    @apply mt-3 max-w-3xl text-sm text-muted-foreground sm:text-base;
+  }
+  .ob-monitor-chip-row {
+    @apply mt-4 flex flex-wrap gap-2;
+  }
+  .ob-monitor-chip {
+    @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground;
+    border-color: hsl(var(--border) / 0.64);
+    background: hsl(var(--background) / 0.72);
+  }
+  .ob-monitor-hero-side {
+    @apply grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3;
+  }
+  .ob-monitor-metric-card {
+    @apply border px-4 py-3;
+    border-color: hsl(var(--border) / 0.68);
+    border-radius: 1.25rem;
+    background: hsl(var(--background) / 0.72);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-monitor-metric-label {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground;
+  }
+  .ob-monitor-metric-value {
+    @apply mt-2 text-xl font-semibold tracking-tight text-foreground;
+  }
+  .ob-monitor-workspace {
+    @apply border p-4 sm:p-5;
+    border-color: hsl(var(--border) / 0.72);
+    border-radius: 1.75rem;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--card) / 0.92));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-monitor-panel {
+    @apply border;
+    border-color: hsl(var(--border) / 0.7);
+    border-radius: 1.4rem;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.97), hsl(var(--card) / 0.9));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-monitor-panel-muted {
+    background: hsl(var(--background) / 0.72);
+  }
+  .ob-monitor-action-button {
+    @apply inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors;
+    border-color: hsl(var(--border) / 0.68);
+    background: hsl(var(--background) / 0.72);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-monitor-action-button:hover {
+    background: hsl(var(--secondary) / 0.84);
+  }
+  .ob-monitor-empty-state {
+    @apply flex flex-col items-center justify-center gap-3 border border-dashed px-6 py-14 text-center;
+    border-color: hsl(var(--border) / 0.7);
+    border-radius: 1.45rem;
+    background: hsl(var(--background) / 0.52);
+  }
+  .ob-monitor-table-shell {
+    @apply overflow-hidden border;
+    border-color: hsl(var(--border) / 0.72);
+    border-radius: 1.5rem;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.97), hsl(var(--card) / 0.9));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-monitor-table-shell thead {
+    background: linear-gradient(180deg, hsl(var(--secondary) / 0.96), hsl(var(--secondary) / 0.8));
+  }
+  .ob-monitor-table-shell th {
+    @apply text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground;
+  }
+  .ob-monitor-table-shell td {
+    @apply py-3 text-sm;
+  }
+  .ob-page-hero {
+    @apply relative overflow-hidden border px-6 py-6;
+    border-color: hsl(var(--border) / 0.72);
+    border-radius: 1.875rem;
+    background:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.12), transparent 34%),
+      radial-gradient(circle at bottom right, hsl(var(--accent) / 0.08), transparent 30%),
+      linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--card) / 0.92));
+    box-shadow: var(--surface-shadow);
+  }
+  .ob-page-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, hsl(0 0% 100% / 0.24), transparent 34%);
+  }
+  .ob-page-hero-grid {
+    @apply relative grid gap-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.95fr)] lg:items-start;
+  }
+  .ob-page-kicker {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-primary;
+  }
+  .ob-page-title {
+    @apply mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-[2.45rem];
+  }
+  .ob-page-description {
+    @apply mt-3 max-w-3xl text-sm text-muted-foreground sm:text-base;
+  }
+  .ob-page-chip-row {
+    @apply mt-4 flex flex-wrap gap-2;
+  }
+  .ob-page-chip {
+    @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground;
+    border-color: hsl(var(--border) / 0.64);
+    background: hsl(var(--background) / 0.72);
+  }
+  .ob-page-hero-side {
+    @apply grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3;
+  }
+  .ob-page-kpi-card {
+    @apply border px-4 py-3;
+    border-color: hsl(var(--border) / 0.68);
+    border-radius: 1.25rem;
+    background: hsl(var(--background) / 0.72);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-page-kpi-label {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-muted-foreground;
+  }
+  .ob-page-kpi-value {
+    @apply mt-2 text-xl font-semibold tracking-tight text-foreground;
+  }
+  .ob-page-workspace {
+    @apply border p-4 sm:p-5;
+    border-color: hsl(var(--border) / 0.72);
+    border-radius: 1.75rem;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(var(--card) / 0.92));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-page-panel {
+    @apply border;
+    border-color: hsl(var(--border) / 0.7);
+    border-radius: 1.4rem;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.97), hsl(var(--card) / 0.9));
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-page-panel-muted {
+    background: hsl(var(--background) / 0.72);
+  }
+  .ob-page-filter-chip {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors;
+    border-color: hsl(var(--border) / 0.66);
+    background: hsl(var(--background) / 0.7);
+    color: hsl(var(--muted-foreground));
+  }
+  .ob-page-filter-chip:hover {
+    color: hsl(var(--foreground));
+  }
+  .ob-page-filter-chip[data-active='true'] {
+    border-color: hsl(var(--primary) / 0.18);
+    background:
+      linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.04));
+    color: hsl(var(--primary));
+  }
+  .ob-page-input {
+    @apply w-full rounded-xl border px-3 py-2.5 text-sm transition focus:outline-none;
+    border-color: hsl(var(--border) / 0.7);
+    background: hsl(var(--background) / 0.78);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-page-input:focus {
+    border-color: hsl(var(--primary) / 0.34);
+    box-shadow:
+      0 0 0 3px hsl(var(--primary) / 0.14),
+      var(--surface-shadow-soft);
+  }
+  .ob-page-action-button {
+    @apply inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors;
+    border-color: hsl(var(--border) / 0.68);
+    background: hsl(var(--background) / 0.72);
+    box-shadow: var(--surface-shadow-soft);
+  }
+  .ob-page-action-button:hover {
+    background: hsl(var(--secondary) / 0.84);
+  }
+  .ob-page-empty-state {
+    @apply flex flex-col items-center justify-center gap-3 border border-dashed px-6 py-14 text-center;
+    border-color: hsl(var(--border) / 0.7);
+    border-radius: 1.45rem;
+    background: hsl(var(--background) / 0.52);
+  }
+  .ob-page-soft-card {
+    @apply border p-4;
+    border-color: hsl(var(--border) / 0.65);
+    border-radius: 1.25rem;
+    background: hsl(var(--background) / 0.65);
+  }
+  .ob-page-sheet {
+    @apply fixed inset-y-0 right-0 z-50 w-full border-l px-0;
+    max-width: 28rem;
+    border-color: hsl(var(--border) / 0.72);
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.99), hsl(var(--card) / 0.95));
+    box-shadow: var(--surface-shadow-strong);
+  }
   .page-header-shell {
     @apply relative overflow-hidden border;
     border-color: hsl(var(--border) / 0.74);

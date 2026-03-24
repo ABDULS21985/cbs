@@ -13,4 +13,5 @@ public interface BillPaymentRepository extends JpaRepository<BillPayment, Long> 
     Optional<BillPayment> findByPaymentRef(String paymentRef);
     Page<BillPayment> findByCustomerIdOrderByCreatedAtDesc(Long customerId, Pageable pageable);
     Page<BillPayment> findByDebitAccountIdOrderByCreatedAtDesc(Long accountId, Pageable pageable);
+    Page<BillPayment> findByCustomerIdAndStatusOrderByCreatedAtDesc(Long customerId, String status, Pageable pageable);
 }

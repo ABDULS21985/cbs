@@ -34,10 +34,9 @@ export function SlaComplianceGauge({
       : 'text-red-600 dark:text-red-400';
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="ob-monitor-panel-muted flex flex-col items-center gap-3 rounded-[1.4rem] border border-border/60 px-4 py-5">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90">
-          {/* Background ring */}
           <circle
             cx={center}
             cy={center}
@@ -59,7 +58,6 @@ export function SlaComplianceGauge({
             className={cn('transition-all duration-700 ease-out', strokeColor)}
           />
         </svg>
-        {/* Center text */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className={cn('text-lg font-bold tabular-nums', textColor)}>
             {actualUptime.toFixed(2)}%

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, Printer, Share2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatMoney } from '@/lib/formatters';
+import { APP_NAME } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import type { QrCode } from '../../api/qrApi';
 
@@ -85,6 +86,7 @@ function formatCountdown(seconds: number): string {
 
 export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
   const qrRef = useRef<HTMLDivElement>(null);
+  const appSlug = APP_NAME.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'cbs';
   const [secondsLeft, setSecondsLeft] = useState(() => {
     const diff = new Date(qr.expiresAt).getTime() - Date.now();
     return Math.max(0, Math.floor(diff / 1000));
@@ -136,14 +138,14 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
       ctx.fillStyle = '#111827';
       ctx.font = 'bold 16px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('BellBank', canvas.width / 2, svgSize + padding + 24);
+      ctx.fillText(APP_NAME, canvas.width / 2, svgSize + padding + 24);
       ctx.font = '13px sans-serif';
       ctx.fillStyle = '#6b7280';
       ctx.fillText(qr.accountName, canvas.width / 2, svgSize + padding + 44);
       ctx.fillText(qr.accountNumber, canvas.width / 2, svgSize + padding + 62);
       URL.revokeObjectURL(url);
       const link = document.createElement('a');
-      link.download = `bellbank-qr-${qr.qrId}.png`;
+      link.download = `${appSlug}-qr-${qr.qrId}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
       toast.success('QR code downloaded');
@@ -156,7 +158,7 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
   };
 
   const handleShare = async () => {
-    const shareText = `Pay ${qr.accountName} via BellBank QR\nAccount: ${qr.accountNumber}${qr.amount ? `\nAmount: ${formatMoney(qr.amount, qr.currency)}` : ''}`;
+    const shareText = `Pay ${qr.accountName} via ${APP_NAME} QR\nAccount: ${qr.accountNumber}${qr.amount ? `\nAmount: ${formatMoney(qr.amount, qr.currency)}` : ''}`;
     try {
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
@@ -168,16 +170,22 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
   };
 
   return (
-    <div className="surface-card p-6 flex flex-col items-center gap-4">
+    <div className="payment-panel h-full p-6 flex flex-col items-center gap-5">
       <div className="text-center">
-        <h3 className="text-base font-semibold">Scan to Pay</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">Use any mobile banking or payment app</p>
+        <p className="payment-hero-kicker">Live QR artifact</p>
+        <h3 className="mt-2 text-xl font-semibold text-foreground">Scan to Pay</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Use any mobile banking or payment app.</p>
+      </div>
+
+      <div className="payment-step-chip-row mt-0">
+        <span className="payment-step-chip font-mono">{qr.qrId}</span>
+        <span className="payment-step-chip">{qr.amount ? 'Fixed amount' : 'Open amount'}</span>
       </div>
 
       <div
         ref={qrRef}
         className={cn(
-          'p-4 rounded-xl border-2 bg-white shadow-sm transition-opacity',
+          'rounded-[1.75rem] border-2 bg-white p-5 shadow-sm transition-opacity',
           isExpired && 'opacity-40',
         )}
       >
@@ -185,7 +193,7 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
       </div>
 
       <div className="text-center space-y-1">
-        <p className="text-lg font-bold text-foreground">BellBank</p>
+        <p className="text-lg font-bold text-foreground">{APP_NAME}</p>
         <p className="text-sm font-medium">{qr.accountName}</p>
         <p className="text-xs text-muted-foreground font-mono">{qr.accountNumber}</p>
         {qr.amount ? (
@@ -199,7 +207,7 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
 
       <div
         className={cn(
-          'flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full',
+          'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium',
           isExpired
             ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
             : isWarning
@@ -216,12 +224,12 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
         {isExpired ? 'QR Code Expired' : `Expires in ${formatCountdown(secondsLeft)}`}
       </div>
 
-      <div className="flex gap-2 w-full">
+      <div className="grid w-full gap-2 sm:grid-cols-3">
         <button
           onClick={handleDownload}
           disabled={isExpired}
           aria-label="Download QR code as image"
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 border rounded-lg text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
+          className="payment-action-button w-full justify-center disabled:opacity-50"
         >
           <Download className="w-3.5 h-3.5" />
           Download
@@ -230,7 +238,7 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
           onClick={handlePrint}
           disabled={isExpired}
           aria-label="Print QR code"
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 border rounded-lg text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50"
+          className="payment-action-button w-full justify-center disabled:opacity-50"
         >
           <Printer className="w-3.5 h-3.5" />
           Print
@@ -238,7 +246,7 @@ export function QrCodeDisplay({ qr }: QrCodeDisplayProps) {
         <button
           onClick={handleShare}
           aria-label="Share payment details"
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 border rounded-lg text-xs font-medium hover:bg-muted transition-colors"
+          className="payment-action-button w-full justify-center"
         >
           {copied ? (
             <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />

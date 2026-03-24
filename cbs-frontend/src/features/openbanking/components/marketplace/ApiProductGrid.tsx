@@ -1,5 +1,4 @@
 import { Inbox } from 'lucide-react';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { ApiProductCard } from './ApiProductCard';
 import type { ApiProduct } from '../../api/marketplaceApi';
 
@@ -12,26 +11,27 @@ interface ApiProductGridProps {
 
 function SkeletonCard() {
   return (
-    <div className="surface-card overflow-hidden animate-pulse">
-      <div className="p-5 space-y-3">
+    <div className="ob-page-panel animate-pulse">
+      <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-muted" />
+          <div className="h-11 w-11 rounded-2xl bg-muted" />
           <div className="space-y-1.5">
-            <div className="w-32 h-4 rounded bg-muted" />
-            <div className="w-20 h-3 rounded bg-muted" />
+            <div className="h-4 w-36 rounded bg-muted" />
+            <div className="h-3 w-24 rounded bg-muted" />
           </div>
         </div>
-        <div className="w-full h-3 rounded bg-muted" />
-        <div className="w-3/4 h-3 rounded bg-muted" />
+        <div className="h-3 w-full rounded bg-muted" />
+        <div className="h-3 w-3/4 rounded bg-muted" />
         <div className="grid grid-cols-2 gap-3">
-          <div className="w-full h-3 rounded bg-muted" />
-          <div className="w-full h-3 rounded bg-muted" />
-          <div className="w-full h-3 rounded bg-muted" />
-          <div className="w-full h-3 rounded bg-muted" />
+          <div className="h-16 rounded-2xl bg-muted/70" />
+          <div className="h-16 rounded-2xl bg-muted/70" />
+          <div className="h-16 rounded-2xl bg-muted/70" />
+          <div className="h-16 rounded-2xl bg-muted/70" />
         </div>
-      </div>
-      <div className="px-5 py-3 border-t bg-muted/20">
-        <div className="w-full h-7 rounded bg-muted" />
+        <div className="grid grid-cols-2 gap-3 border-t border-border/60 pt-4">
+          <div className="h-10 rounded-full bg-muted/70" />
+          <div className="h-10 rounded-full bg-muted/70" />
+        </div>
       </div>
     </div>
   );
@@ -50,16 +50,20 @@ export function ApiProductGrid({ products, isLoading, onViewDetails, onSubscribe
 
   if (products.length === 0) {
     return (
-      <EmptyState
-        icon={Inbox}
-        title="No API products found"
-        description="Try adjusting your search or category filter."
-      />
+      <div className="ob-page-empty-state">
+        <Inbox className="h-8 w-8 text-muted-foreground" />
+        <div>
+          <p className="text-base font-semibold text-foreground">No API products found</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Try adjusting the live search or category filters.
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {products.map((product) => (
         <ApiProductCard
           key={product.id}

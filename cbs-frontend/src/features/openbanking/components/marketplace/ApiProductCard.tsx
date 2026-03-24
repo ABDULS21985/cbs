@@ -1,15 +1,18 @@
 import { cn } from '@/lib/utils';
 import {
+  ArrowUpRight,
+  BadgeCheck,
+  BookOpen,
   Globe,
   CreditCard,
   Banknote,
   Users,
   ShieldCheck,
   BarChart3,
-  Link2,
-  Zap,
   Clock,
   Eye,
+  Link2,
+  Zap,
 } from 'lucide-react';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import type { ApiProduct } from '../../api/marketplaceApi';
@@ -47,81 +50,148 @@ const AUTH_LABELS: Record<string, string> = {
 export function ApiProductCard({ product, onViewDetails, onSubscribe }: ApiProductCardProps) {
   const CategoryIcon = CATEGORY_ICONS[product.category] || Globe;
   const categoryColor = CATEGORY_COLORS[product.category] || 'bg-muted text-muted-foreground';
+  const authLabel = AUTH_LABELS[product.authMethod] ?? product.authMethod;
 
   return (
-    <div className="surface-card overflow-hidden hover:shadow-md transition-shadow">
-      <div className="p-5">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-3">
+    <div className="ob-page-panel h-full transition-transform duration-200 hover:-translate-y-0.5">
+      <div className="flex h-full flex-col gap-5">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', categoryColor)}>
-              <CategoryIcon className="w-5 h-5" />
+            <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl', categoryColor)}>
+              <CategoryIcon className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold">{product.name}</h3>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium', categoryColor)}>
+              <h3 className="text-base font-semibold tracking-tight text-foreground">
+                {product.name}
+              </h3>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]',
+                    categoryColor,
+                  )}
+                >
                   {product.category}
                 </span>
-                <span className="text-[10px] text-muted-foreground font-mono">v{product.version}</span>
+                <span className="text-[11px] font-medium text-muted-foreground">
+                  {product.productCode}
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">v{product.version}</span>
               </div>
             </div>
           </div>
-          <StatusBadge status={product.status} />
+          <StatusBadge status={product.status} dot />
         </div>
 
-        {/* Description */}
-        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-4">
+        <p className="text-sm leading-6 text-muted-foreground">
           {product.description}
         </p>
 
-        {/* Stats grid */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="flex items-center gap-2 text-xs">
-            <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">Endpoints:</span>
-            <span className="font-semibold tabular-nums">{product.endpointCount}</span>
+        <div className="rounded-[1.1rem] border border-border/60 bg-background/70 p-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Base path
+          </p>
+          <p className="mt-2 truncate font-mono text-sm text-foreground">{product.basePath}</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="ob-page-soft-card">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              <Link2 className="h-3.5 w-3.5" />
+              Methods
+            </div>
+            <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">
+              {product.supportedMethods.length}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {product.supportedMethods.join(', ') || 'Not specified'}
+            </p>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <Users className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">Subscribers:</span>
-            <span className="font-semibold tabular-nums">{product.subscriberCount}</span>
+          <div className="ob-page-soft-card">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
+              Subscribers
+            </div>
+            <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">
+              {product.subscriberCount.toLocaleString()}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">Active consuming partners</p>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <Zap className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">Rate:</span>
-            <span className="font-semibold tabular-nums">{product.rateLimitPerMin}/min</span>
+          <div className="ob-page-soft-card">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              <Zap className="h-3.5 w-3.5" />
+              Rate limit
+            </div>
+            <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">
+              {product.rateLimitPerMin.toLocaleString()}/min
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{product.rateLimitTier}</p>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-muted-foreground">SLA:</span>
-            <span className="font-semibold tabular-nums">{product.slaUptimePct}%</span>
+          <div className="ob-page-soft-card">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              SLA uptime
+            </div>
+            <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">
+              {product.slaUptimePct}%
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              P95 latency {product.slaLatencyP95Ms} ms
+            </p>
           </div>
         </div>
 
-        {/* Auth method */}
-        <div className="text-xs text-muted-foreground mb-4">
-          Auth: <span className="font-medium text-foreground">{AUTH_LABELS[product.authMethod]}</span>
+        <div className="flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            {authLabel}
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+            <BadgeCheck className="h-3.5 w-3.5 text-primary" />
+            {product.requiresApproval ? 'Approval required' : 'Self-service eligible'}
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+            <BookOpen className="h-3.5 w-3.5 text-primary" />
+            {product.sandboxAvailable ? 'Sandbox ready' : 'Production only'}
+          </span>
         </div>
-      </div>
 
-      {/* Actions footer */}
-      <div className="flex items-center gap-2 px-5 py-3 border-t bg-muted/20">
-        <button
-          onClick={() => onViewDetails?.(product)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted transition-colors flex-1 justify-center"
-        >
-          <Eye className="w-3.5 h-3.5" />
-          View Details
-        </button>
-        {product.status === 'PUBLISHED' && (
-          <button
-            onClick={() => onSubscribe?.(product)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors flex-1 justify-center"
-          >
-            Subscribe
-          </button>
-        )}
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
+          <div className="text-xs text-muted-foreground">
+            {product.documentationUrl ? 'Documentation linked' : 'Documentation pending'}{' '}
+            <span className="font-medium text-foreground">
+              {product.pricingModel.replace(/_/g, ' ')}
+            </span>
+          </div>
+          <div className="flex flex-1 flex-wrap justify-end gap-2">
+            {product.documentationUrl && (
+              <a
+                href={product.documentationUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                <ArrowUpRight className="h-3.5 w-3.5" />
+                Docs
+              </a>
+            )}
+            <button
+              onClick={() => onViewDetails?.(product)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border/70 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            >
+              <Eye className="h-3.5 w-3.5" />
+              View Details
+            </button>
+            {product.status === 'PUBLISHED' && (
+              <button
+                onClick={() => onSubscribe?.(product)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Subscribe
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

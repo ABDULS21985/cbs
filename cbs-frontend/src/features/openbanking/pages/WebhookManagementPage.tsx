@@ -1,10 +1,19 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
-import { Plus, ArrowLeft, Loader2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Activity,
+  BellRing,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { Webhook, WebhookDelivery } from '../api/marketplaceApi';
+import type { Webhook } from '../api/marketplaceApi';
 import {
   useWebhooks,
   useCreateWebhook,
@@ -27,8 +36,9 @@ import { WebhookTestPanel } from '../components/webhooks/WebhookTestPanel';
 export function WebhookManagementPage() {
   const [showRegister, setShowRegister] = useState(false);
   const [selectedWebhook, setSelectedWebhook] = useState<Webhook | null>(null);
+  const [retryingDeliveryId, setRetryingDeliveryId] = useState<number | null>(null);
 
-  const { data: webhooks = [], isLoading } = useWebhooks();
+  const { data: webhooks = [], isLoading, refetch, isFetching } = useWebhooks();
   const createWebhookMutation = useCreateWebhook();
   const updateWebhookMutation = useUpdateWebhook();
   const deleteWebhookMutation = useDeleteWebhook();
@@ -39,25 +49,41 @@ export function WebhookManagementPage() {
     selectedWebhook?.id ?? 0,
   );
 
+  const stats = useMemo(() => {
+    const active = webhooks.filter((webhook) => webhook.status === 'ACTIVE').length;
+    const failed = webhooks.filter((webhook) => webhook.status === 'FAILED').length;
+    const disabled = webhooks.filter((webhook) => webhook.status === 'DISABLED').length;
+    const avgSuccessRate =
+      webhooks.length > 0
+        ? webhooks.reduce((sum, webhook) => sum + webhook.successRate, 0) / webhooks.length
+        : 0;
+
+    return {
+      total: webhooks.length,
+      active,
+      failed,
+      disabled,
+      avgSuccessRate,
+      liveEndpoints: webhooks.filter((webhook) => Boolean(webhook.lastDeliveredAt)).length,
+    };
+  }, [webhooks]);
+
   // ─── Handlers ─────────────────────────────────────────────────────────
 
   const handleRegister = useCallback(
     async (data: WebhookFormData) => {
-      createWebhookMutation.mutate(
-        {
+      try {
+        await createWebhookMutation.mutateAsync({
           url: data.url,
           events: data.events,
           authType: data.authType,
           secretKey: data.secretKey,
-        },
-        {
-          onSuccess: () => {
-            setShowRegister(false);
-            toast.success('Webhook registered successfully');
-          },
-          onError: () => toast.error('Failed to register webhook'),
-        },
-      );
+        });
+        setShowRegister(false);
+        toast.success('Webhook registered successfully');
+      } catch {
+        toast.error('Failed to register webhook');
+      }
     },
     [createWebhookMutation],
   );
@@ -97,11 +123,13 @@ export function WebhookManagementPage() {
   const handleRetry = useCallback(
     async (deliveryId: number) => {
       if (!selectedWebhook) return;
+      setRetryingDeliveryId(deliveryId);
       retryDeliveryMutation.mutate(
         { webhookId: selectedWebhook.id, deliveryId },
         {
           onSuccess: () => toast.success('Delivery retried'),
           onError: () => toast.error('Failed to retry delivery'),
+          onSettled: () => setRetryingDeliveryId(null),
         },
       );
     },
@@ -131,60 +159,101 @@ export function WebhookManagementPage() {
     return (
       <>
         <PageHeader
-          title={selectedWebhook.url}
-          subtitle={`Webhook #${selectedWebhook.id} - ${selectedWebhook.tppClientName ?? 'Unknown TPP'}`}
-          backTo="#"
+          title="Webhook Delivery Monitor"
+          subtitle={`Inspect delivery health and test endpoint responsiveness for webhook #${selectedWebhook.id}.`}
           actions={
-            <button
-              onClick={() => setSelectedWebhook(null)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to List
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleToggleStatus(selectedWebhook)}
+                className="ob-page-action-button"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                {selectedWebhook.status === 'ACTIVE' ? 'Disable endpoint' : 'Enable endpoint'}
+              </button>
+              <button
+                onClick={() => setSelectedWebhook(null)}
+                className="ob-page-action-button"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to List
+              </button>
+            </div>
           }
         />
 
-        <div className="page-container space-y-6">
-          {/* Webhook Info Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            <div className="surface-card p-4">
-              <p className="text-xs text-muted-foreground">Status</p>
-              <p className={cn(
-                'text-sm font-semibold mt-1',
-                selectedWebhook.status === 'ACTIVE' ? 'text-green-600' : selectedWebhook.status === 'FAILED' ? 'text-red-600' : 'text-muted-foreground',
-              )}>
-                {selectedWebhook.status}
-              </p>
+        <div className="page-container space-y-6 pb-6 pt-6">
+          <section className="ob-page-hero">
+            <div className="ob-page-hero-grid">
+              <div className="space-y-5">
+                <div className="space-y-3">
+                  <p className="ob-page-kicker">Webhook detail</p>
+                  <h2 className="ob-page-title">{selectedWebhook.url}</h2>
+                  <p className="ob-page-description">
+                    {selectedWebhook.tppClientName ?? `TPP #${selectedWebhook.tppClientId}`} is
+                    subscribed to {selectedWebhook.events.length} live event
+                    {selectedWebhook.events.length === 1 ? '' : 's'}.
+                  </p>
+                </div>
+                <div className="ob-page-chip-row">
+                  <span className="ob-page-chip">{selectedWebhook.status}</span>
+                  <span className="ob-page-chip">{selectedWebhook.authType}</span>
+                  <span className="ob-page-chip">
+                    {deliveriesLoading ? 'Loading deliveries' : `${deliveries.length} deliveries`}
+                  </span>
+                </div>
+              </div>
+              <div className="ob-page-hero-side grid gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    label: 'Success rate',
+                    value: `${selectedWebhook.successRate.toFixed(1)}%`,
+                    description: 'Recent delivery success performance.',
+                  },
+                  {
+                    label: 'Subscribed events',
+                    value: selectedWebhook.events.length.toString(),
+                    description: 'Event topics bound to this endpoint.',
+                  },
+                  {
+                    label: 'Deliveries',
+                    value: deliveriesLoading ? '...' : deliveries.length.toString(),
+                    description: 'Recorded attempts on this registration.',
+                  },
+                  {
+                    label: 'Last delivery',
+                    value: selectedWebhook.lastDeliveredAt ? 'Live' : 'Pending',
+                    description: selectedWebhook.lastDeliveredAt ?? 'No delivery recorded yet.',
+                  },
+                ].map((item) => (
+                  <div key={item.label} className="ob-page-kpi-card">
+                    <p className="ob-page-kpi-label">{item.label}</p>
+                    <p className="ob-page-kpi-value">{item.value}</p>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                      {item.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="surface-card p-4">
-              <p className="text-xs text-muted-foreground">Auth Type</p>
-              <p className="text-sm font-semibold mt-1">{selectedWebhook.authType}</p>
-            </div>
-            <div className="surface-card p-4">
-              <p className="text-xs text-muted-foreground">Success Rate</p>
-              <p className="text-sm font-semibold mt-1 tabular-nums">{selectedWebhook.successRate}%</p>
-            </div>
-            <div className="surface-card p-4">
-              <p className="text-xs text-muted-foreground">Events</p>
-              <p className="text-sm font-semibold mt-1">{selectedWebhook.events.length}</p>
-            </div>
-            <div className="surface-card p-4">
-              <p className="text-xs text-muted-foreground">Deliveries</p>
-              <p className="text-sm font-semibold mt-1 tabular-nums">
-                {deliveriesLoading ? '...' : deliveries.length}
-              </p>
-            </div>
-          </div>
+          </section>
 
-          {/* Events */}
-          <div className="surface-card p-5">
-            <h3 className="text-sm font-semibold mb-3">Subscribed Events</h3>
-            <div className="flex flex-wrap gap-2">
+          <div className="ob-page-panel">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Subscribed events</p>
+                <p className="text-sm text-muted-foreground">
+                  These event keys are currently configured on the live registration.
+                </p>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Delivery identity: #{selectedWebhook.id}
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
               {selectedWebhook.events.map((event) => (
                 <span
                   key={event}
-                  className="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
+                  className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-foreground"
                 >
                   {event}
                 </span>
@@ -192,7 +261,6 @@ export function WebhookManagementPage() {
             </div>
           </div>
 
-          {/* Test Panel + Delivery Log */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
               <WebhookTestPanel
@@ -203,14 +271,14 @@ export function WebhookManagementPage() {
             </div>
             <div className="lg:col-span-2">
               {deliveriesLoading ? (
-                <div className="flex items-center justify-center py-12 surface-card">
+                <div className="ob-page-panel flex items-center justify-center py-12">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
               ) : (
                 <WebhookDeliveryLog
                   deliveries={deliveries}
                   onRetry={handleRetry}
-                  retryingId={retryDeliveryMutation.isPending ? -1 : null}
+                  retryingId={retryingDeliveryId}
                 />
               )}
             </div>
@@ -228,62 +296,114 @@ export function WebhookManagementPage() {
         title="Webhook Management"
         subtitle="Configure and monitor webhook endpoints for real-time event delivery."
         actions={
-          <button
-            onClick={() => setShowRegister(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Register Webhook
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="ob-page-action-button disabled:opacity-50"
+            >
+              <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowRegister(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+            >
+              <Plus className="w-4 h-4" />
+              Register Webhook
+            </button>
+          </div>
         }
       />
 
-      <div className="page-container space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="surface-card p-5">
-            <p className="text-xs text-muted-foreground">Total Webhooks</p>
-            <p className="text-2xl font-bold mt-1 tabular-nums">
-              {isLoading ? '...' : webhooks.length}
-            </p>
-          </div>
-          <div className="surface-card p-5">
-            <p className="text-xs text-muted-foreground">Active</p>
-            <p className="text-2xl font-bold mt-1 tabular-nums text-green-600">
-              {isLoading ? '...' : webhooks.filter((w) => w.status === 'ACTIVE').length}
-            </p>
-          </div>
-          <div className="surface-card p-5">
-            <p className="text-xs text-muted-foreground">Failed</p>
-            <p className="text-2xl font-bold mt-1 tabular-nums text-red-600">
-              {isLoading ? '...' : webhooks.filter((w) => w.status === 'FAILED').length}
-            </p>
-          </div>
-          <div className="surface-card p-5">
-            <p className="text-xs text-muted-foreground">Avg Success Rate</p>
-            <p className="text-2xl font-bold mt-1 tabular-nums">
-              {isLoading
-                ? '...'
-                : webhooks.length > 0
-                  ? (webhooks.reduce((s, w) => s + w.successRate, 0) / webhooks.length).toFixed(1)
-                  : '0'}
-              %
-            </p>
-          </div>
-        </div>
+      <div className="page-container space-y-6 pb-6 pt-6">
+        <section className="ob-page-hero">
+          <div className="ob-page-hero-grid">
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <p className="ob-page-kicker">Event delivery control</p>
+                <h2 className="ob-page-title">Operate webhook endpoints from one surface</h2>
+                <p className="ob-page-description">
+                  Review endpoint health, toggle delivery posture, and drill into delivery logs
+                  without leaving the live open-banking operations flow.
+                </p>
+              </div>
+              <div className="ob-page-chip-row">
+                <span className="ob-page-chip">
+                  <Activity className="h-4 w-4 text-primary" />
+                  {stats.active} active endpoints
+                </span>
+                <span className="ob-page-chip">
+                  <BellRing className="h-4 w-4 text-primary" />
+                  {stats.failed} failing endpoints
+                </span>
+                <span className="ob-page-chip">
+                  <Send className="h-4 w-4 text-primary" />
+                  {stats.liveEndpoints} recently delivered
+                </span>
+              </div>
+            </div>
 
-        {/* Table */}
+            <div className="ob-page-hero-side grid gap-3 sm:grid-cols-2">
+              {[
+                {
+                  label: 'Total webhooks',
+                  value: isLoading ? '...' : stats.total.toString(),
+                  description: 'Registered real-time delivery endpoints.',
+                },
+                {
+                  label: 'Active',
+                  value: isLoading ? '...' : stats.active.toString(),
+                  description: 'Endpoints currently accepting deliveries.',
+                },
+                {
+                  label: 'Disabled',
+                  value: isLoading ? '...' : stats.disabled.toString(),
+                  description: 'Registrations intentionally paused.',
+                },
+                {
+                  label: 'Avg success rate',
+                  value: isLoading ? '...' : `${stats.avgSuccessRate.toFixed(1)}%`,
+                  description: 'Average success rate across current webhooks.',
+                },
+              ].map((item) => (
+                <div key={item.label} className="ob-page-kpi-card">
+                  <p className="ob-page-kpi-label">{item.label}</p>
+                  <p className="ob-page-kpi-value">{item.value}</p>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {item.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {isLoading ? (
-          <div className="flex items-center justify-center py-12 surface-card">
+          <div className="ob-page-panel flex items-center justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <WebhookTable
-            webhooks={webhooks}
-            onSelect={setSelectedWebhook}
-            onToggleStatus={handleToggleStatus}
-            onDelete={handleDelete}
-          />
+          <div className="ob-page-workspace space-y-5">
+            <div className="ob-page-panel flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Webhook registry</p>
+                <p className="text-sm text-muted-foreground">
+                  Select any registration to inspect deliveries, replay failed events, or test the
+                  endpoint against the live contract.
+                </p>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {stats.total} registered endpoint{stats.total === 1 ? '' : 's'}
+              </div>
+            </div>
+            <WebhookTable
+              webhooks={webhooks}
+              onSelect={setSelectedWebhook}
+              onToggleStatus={handleToggleStatus}
+              onDelete={handleDelete}
+            />
+          </div>
         )}
       </div>
 

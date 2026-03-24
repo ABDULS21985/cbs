@@ -1,13 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeftRight, ArrowUpRight, ArrowDownLeft, Loader2, Send, Search, Download } from 'lucide-react';
-import { formatMoney, formatDate, formatRelative } from '@/lib/formatters';
+import {
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  Download,
+  Loader2,
+  Search,
+  Send,
+} from 'lucide-react';
+
 import { cn } from '@/lib/utils';
+import { formatDate, formatMoney, formatRelative } from '@/lib/formatters';
+
+import { PortalPageHero } from '../components/PortalPageHero';
 import { portalApi, type PortalTransaction } from '../api/portalApi';
 
 export function PortalTransferHistoryPage() {
-  useEffect(() => { document.title = 'Transfer History | BellBank'; }, []);
+  useEffect(() => {
+    document.title = 'Transfer History | BellBank';
+  }, []);
+
   const [page, setPage] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const pageSize = 20;
@@ -19,18 +33,23 @@ export function PortalTransferHistoryPage() {
   });
 
   const filtered = searchTerm
-    ? transactions.filter((tx: PortalTransaction) =>
-        tx.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tx.reference?.toLowerCase().includes(searchTerm.toLowerCase()))
+    ? transactions.filter((transaction: PortalTransaction) =>
+        transaction.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.reference?.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
     : transactions;
+
+  const creditCount = filtered.filter((transaction) => transaction.type === 'CREDIT').length;
+  const debitCount = filtered.filter((transaction) => transaction.type === 'DEBIT').length;
 
   const handleExportCsv = () => {
     const csv = [
       ['Date', 'Description', 'Type', 'Amount', 'Reference'].join(','),
-      ...filtered.map((tx: PortalTransaction) =>
-        [tx.date, `"${tx.description}"`, tx.type, tx.amount, tx.reference ?? ''].join(',')
+      ...filtered.map((transaction: PortalTransaction) =>
+        [transaction.date, `"${transaction.description}"`, transaction.type, transaction.amount, transaction.reference ?? ''].join(','),
       ),
     ].join('\n');
+
     const blob = new Blob([csv], { type: 'text/csv' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -40,99 +59,150 @@ export function PortalTransferHistoryPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Transfer History</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">View your recent transfer transactions</p>
-        </div>
-        <Link to="/portal/transfer"
-          className="inline-flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90">
-          <Send className="w-4 h-4" /> New Transfer
-        </Link>
-      </div>
+    <div className="portal-page-shell">
+      <PortalPageHero
+        icon={ArrowLeftRight}
+        eyebrow="Portal Transfers"
+        title="Transfer History"
+        description="Search, export, and review your latest transfer movements with a cleaner transaction ledger."
+        chips={[
+          searchTerm ? `Filter "${searchTerm}"` : 'All recent transfers',
+          isFetching ? 'Refreshing feed' : 'Live transaction history',
+        ]}
+        metrics={[
+          { label: 'Visible transfers', value: String(filtered.length) },
+          { label: 'Credits', value: String(creditCount), tone: 'positive' },
+          { label: 'Debits', value: String(debitCount), tone: debitCount > 0 ? 'warning' : 'default' },
+        ]}
+        actions={
+          <Link
+            to="/portal/transfer"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <Send className="h-4 w-4" />
+            New Transfer
+          </Link>
+        }
+      />
 
-      {/* Search and Export */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by description or reference..."
-            className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/50" />
-        </div>
-        <button onClick={handleExportCsv} disabled={filtered.length === 0}
-          className="flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm font-medium hover:bg-muted disabled:opacity-50">
-          <Download className="w-3.5 h-3.5" /> Export
-        </button>
-      </div>
-
-      {/* Transactions List */}
-      {isLoading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <ArrowLeftRight className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">
-            {searchTerm ? 'No transfers match your search' : 'No recent transfers'}
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="surface-card overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/30">
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Date</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Description</th>
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Reference</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filtered.map((tx: PortalTransaction) => {
-                  const isCredit = tx.type === 'CREDIT';
-                  return (
-                    <tr key={tx.id} className="hover:bg-muted/10">
-                      <td className="px-4 py-3 text-sm whitespace-nowrap">{formatDate(tx.date)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className={cn('w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0',
-                            isCredit ? 'bg-green-50' : 'bg-red-50')}>
-                            {isCredit ? <ArrowDownLeft className="w-3.5 h-3.5 text-green-500" /> : <ArrowUpRight className="w-3.5 h-3.5 text-red-500" />}
-                          </div>
-                          <span className="text-sm truncate">{tx.description}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs font-mono text-muted-foreground">{tx.reference || '-'}</td>
-                      <td className={cn('px-4 py-3 text-sm text-right font-mono font-medium',
-                        isCredit ? 'text-green-600' : 'text-foreground')}>
-                        {isCredit ? '+' : '-'}{formatMoney(tx.amount, 'NGN')}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      <section className="portal-panel p-5 space-y-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search by description or reference"
+              className="portal-inline-input pl-10"
+            />
           </div>
 
-          {/* Pagination */}
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">
-              Showing {filtered.length} transfers {isFetching && '(updating...)'}
-            </p>
-            <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="px-3 py-1.5 border rounded-md text-sm hover:bg-muted disabled:opacity-50">
-                Previous
-              </button>
-              <button onClick={() => setPage(p => p + 1)} disabled={transactions.length < pageSize}
-                className="px-3 py-1.5 border rounded-md text-sm hover:bg-muted disabled:opacity-50">
-                Next
-              </button>
+          <button
+            onClick={handleExportCsv}
+            disabled={filtered.length === 0}
+            className="portal-action-button disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" />
+            Export CSV
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="portal-empty-state">
+            <ArrowLeftRight className="h-10 w-10 text-muted-foreground/40" />
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {searchTerm ? 'No transfers match your search' : 'No recent transfers'}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {searchTerm ? 'Try a different description or reference.' : 'Your transfer history will appear here after the first transaction.'}
+              </p>
             </div>
           </div>
-        </>
-      )}
+        ) : (
+          <>
+            <div className="overflow-x-auto rounded-[1.35rem] border border-border/70">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b border-border/70 bg-muted/20">
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Date</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Description</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Reference</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/70">
+                  {filtered.map((transaction: PortalTransaction) => {
+                    const isCredit = transaction.type === 'CREDIT';
+
+                    return (
+                      <tr key={transaction.id} className="bg-card/35 transition-colors hover:bg-muted/10">
+                        <td className="px-5 py-4 text-sm text-foreground">
+                          <div className="space-y-1">
+                            <p>{formatDate(transaction.date)}</p>
+                            <p className="text-xs text-muted-foreground">{formatRelative(transaction.date)}</p>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={cn(
+                                'flex h-8 w-8 items-center justify-center rounded-full',
+                                isCredit ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600',
+                              )}
+                            >
+                              {isCredit ? <ArrowDownLeft className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
+                            </div>
+                            <span className="text-sm text-foreground">{transaction.description}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-xs font-medium text-muted-foreground">
+                          <span className="font-mono">{transaction.reference || '-'}</span>
+                        </td>
+                        <td
+                          className={cn(
+                            'px-5 py-4 text-right text-sm font-semibold',
+                            isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground',
+                          )}
+                        >
+                          {isCredit ? '+' : '-'}
+                          {formatMoney(transaction.amount, 'NGN')}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                Showing {filtered.length} transfers {isFetching ? '(updating...)' : ''}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                  disabled={page === 0}
+                  className="portal-action-button disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPage((current) => current + 1)}
+                  disabled={transactions.length < pageSize}
+                  className="portal-action-button disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }

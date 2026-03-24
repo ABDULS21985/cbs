@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { X, Loader2, Plus, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
@@ -45,8 +45,7 @@ const RETRY_POLICY = [
   { attempt: 5, delay: '2 hours' },
 ];
 
-const inputCls =
-  'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
+const inputCls = 'ob-page-input';
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -58,6 +57,17 @@ export function WebhookConfigForm({ open, onClose, onSubmit, isPending }: Webhoo
     secretKey: '',
   });
   const [showSecret, setShowSecret] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      url: '',
+      events: [],
+      authType: 'NONE',
+      secretKey: '',
+    });
+    setShowSecret(false);
+  }, [open]);
 
   if (!open) return null;
 
@@ -94,172 +104,195 @@ export function WebhookConfigForm({ open, onClose, onSubmit, isPending }: Webhoo
 
   return (
     <>
-      {/* Overlay */}
-      <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Slide-over sheet */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-card border-l shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-base font-semibold">Register Webhook</h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-md hover:bg-muted transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Register Webhook"
+        className="ob-page-sheet flex animate-in flex-col slide-in-from-right duration-300"
+      >
+        <div className="border-b border-border/70 px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="ob-page-kicker">New registration</p>
+              <h2 className="mt-2 text-lg font-semibold tracking-tight text-foreground">
+                Register Webhook
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Configure the live endpoint, delivery events, and authentication policy used for
+                outbound notifications.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-border/70 p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* URL */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Webhook URL
-            </label>
-            <input
-              required
-              type="url"
-              className={inputCls}
-              value={form.url}
-              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-              placeholder="https://api.example.com/webhooks"
-            />
-          </div>
-
-          {/* Events */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-2 block">
-              Events ({form.events.length} selected)
-            </label>
-            <div className="space-y-3">
-              {Object.entries(groupedEvents).map(([group, events]) => (
-                <div key={group}>
-                  <p className="text-[10px] font-semibold uppercase text-muted-foreground mb-1.5">
-                    {group}
-                  </p>
-                  <div className="space-y-1">
-                    {events.map((event) => (
-                      <label
-                        key={event.id}
-                        className={cn(
-                          'flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-colors',
-                          form.events.includes(event.id)
-                            ? 'bg-primary/5 border-primary/30'
-                            : 'hover:bg-muted',
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={form.events.includes(event.id)}
-                          onChange={() => toggleEvent(event.id)}
-                          className="rounded border-border"
-                        />
-                        <div>
-                          <span className="text-sm font-medium">{event.label}</span>
-                          <span className="text-xs text-muted-foreground ml-2 font-mono">
-                            {event.id}
-                          </span>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Auth Type */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              Authentication Type
-            </label>
-            <select
-              className={inputCls}
-              value={form.authType}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  authType: e.target.value as WebhookFormData['authType'],
-                }))
-              }
-            >
-              {AUTH_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Secret Key */}
-          {form.authType !== 'NONE' && (
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">
-                Secret Key
+        <form id="webhook-config-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="space-y-5">
+            <div className="ob-page-soft-card">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Webhook URL
               </label>
-              <div className="relative">
-                <input
-                  type={showSecret ? 'text' : 'password'}
-                  className={cn(inputCls, 'pr-10')}
-                  value={form.secretKey}
-                  onChange={(e) => setForm((f) => ({ ...f, secretKey: e.target.value }))}
-                  placeholder="Enter secret key"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowSecret(!showSecret)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-muted"
-                >
-                  {showSecret ? (
-                    <EyeOff className="w-4 h-4 text-muted-foreground" />
-                  ) : (
-                    <Eye className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </button>
+              <input
+                required
+                type="url"
+                className={inputCls}
+                value={form.url}
+                onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+                placeholder="https://api.example.com/webhooks"
+              />
+              <p className="mt-2 text-sm text-muted-foreground">
+                The destination must accept signed event payloads from the live marketplace service.
+              </p>
+            </div>
+
+            <div className="ob-page-soft-card space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Event coverage
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {form.events.length} event{form.events.length === 1 ? '' : 's'} selected.
+                  </p>
+                </div>
+                <div className="rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium text-foreground">
+                  Live topics
+                </div>
+              </div>
+              <div className="space-y-4">
+                {Object.entries(groupedEvents).map(([group, events]) => (
+                  <div key={group}>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      {group}
+                    </p>
+                    <div className="space-y-2">
+                      {events.map((event) => (
+                        <label
+                          key={event.id}
+                          className={cn(
+                            'flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition-colors',
+                            form.events.includes(event.id)
+                              ? 'border-primary/30 bg-primary/6'
+                              : 'border-border/70 bg-background/70 hover:bg-muted/60',
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={form.events.includes(event.id)}
+                            onChange={() => toggleEvent(event.id)}
+                            className="mt-1 rounded border-border"
+                          />
+                          <div className="min-w-0">
+                            <span className="text-sm font-medium text-foreground">{event.label}</span>
+                            <span className="ml-2 font-mono text-xs text-muted-foreground">
+                              {event.id}
+                            </span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          )}
 
-          {/* Retry Policy */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-2 block">
-              Retry Policy
-            </label>
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-muted-foreground">
-                    <th className="text-left pb-1.5 font-medium">Attempt</th>
-                    <th className="text-left pb-1.5 font-medium">Delay</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {RETRY_POLICY.map((r) => (
-                    <tr key={r.attempt} className="border-t border-border/50">
-                      <td className="py-1.5 tabular-nums">{r.attempt}</td>
-                      <td className="py-1.5">{r.delay}</td>
-                    </tr>
+            <div className="ob-page-soft-card space-y-4">
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Authentication type
+                </label>
+                <select
+                  className={inputCls}
+                  value={form.authType}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      authType: e.target.value as WebhookFormData['authType'],
+                    }))
+                  }
+                >
+                  {AUTH_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
                   ))}
-                </tbody>
-              </table>
+                </select>
+              </div>
+
+              {form.authType !== 'NONE' && (
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Secret key
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSecret ? 'text' : 'password'}
+                      className={cn(inputCls, 'pr-10')}
+                      value={form.secretKey}
+                      onChange={(e) => setForm((f) => ({ ...f, secretKey: e.target.value }))}
+                      placeholder="Enter secret key"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSecret(!showSecret)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    >
+                      {showSecret ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-[1.1rem] border border-border/70 bg-background/70 p-4">
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Retry policy
+                </label>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      <th className="pb-2">Attempt</th>
+                      <th className="pb-2">Delay</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {RETRY_POLICY.map((r) => (
+                      <tr key={r.attempt} className="border-t border-border/60">
+                        <td className="py-2 tabular-nums text-foreground">{r.attempt}</td>
+                        <td className="py-2 text-muted-foreground">{r.delay}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </form>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t">
+        <div className="flex items-center justify-end gap-3 border-t border-border/70 px-6 py-4">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-muted transition-colors"
+            className="rounded-full border border-border/70 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             Cancel
           </button>
           <button
-            onClick={handleSubmit}
+            type="submit"
+            form="webhook-config-form"
             disabled={isPending || form.events.length === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             {isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />

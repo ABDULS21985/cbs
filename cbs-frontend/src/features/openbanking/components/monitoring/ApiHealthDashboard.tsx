@@ -21,6 +21,7 @@ interface HealthMetrics {
 interface ApiHealthDashboardProps {
   metrics: HealthMetrics;
   loading?: boolean;
+  hasData?: boolean;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -54,16 +55,30 @@ const STATUS_CONFIG = {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export function ApiHealthDashboard({ metrics, loading }: ApiHealthDashboardProps) {
+export function ApiHealthDashboard({ metrics, loading, hasData = true }: ApiHealthDashboardProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="surface-card p-4 animate-pulse">
+          <div key={i} className="ob-monitor-panel p-4 animate-pulse">
             <div className="h-3 w-20 bg-muted rounded mb-3" />
             <div className="h-7 w-24 bg-muted rounded" />
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (!hasData) {
+    return (
+      <div className="ob-monitor-empty-state">
+        <Activity className="h-10 w-10 text-muted-foreground/40" />
+        <div>
+          <p className="text-sm font-medium text-foreground">No monitoring feed yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            API health cards will populate when marketplace usage aggregates arrive.
+          </p>
+        </div>
       </div>
     );
   }
@@ -108,20 +123,20 @@ export function ApiHealthDashboard({ metrics, loading }: ApiHealthDashboardProps
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
           <div
             key={card.label}
             className={cn(
-              'surface-card p-4 flex flex-col gap-1',
+              'ob-monitor-panel flex flex-col gap-2 p-4',
               card.label === 'API Status' && statusCfg.bg,
               card.label === 'API Status' && statusCfg.border,
             )}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">
+              <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 {card.label}
               </span>
               <Icon className="w-4 h-4 text-muted-foreground/50" />

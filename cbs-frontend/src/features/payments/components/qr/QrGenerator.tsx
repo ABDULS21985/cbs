@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, QrCode } from 'lucide-react';
-import { FormSection, MoneyInput } from '@/components/shared';
+import { MoneyInput } from '@/components/shared';
+import { cn } from '@/lib/utils';
 import { qrApi, type QrCode as QrCodeType } from '../../api/qrApi';
 
 interface QrGeneratorProps {
@@ -63,7 +64,19 @@ export function QrGenerator({ onGenerated }: QrGeneratorProps) {
   };
 
   return (
-    <FormSection title="Generate QR Code" description="Create a QR code for receiving payments">
+    <div className="payment-panel h-full p-5">
+      <div className="mb-5">
+        <p className="payment-hero-kicker">Collection setup</p>
+        <h3 className="mt-2 text-xl font-semibold text-foreground">Generate QR Code</h3>
+        <p className="mt-2 text-sm text-muted-foreground">Create a QR code for receiving payments.</p>
+      </div>
+
+      <div className="payment-step-chip-row mt-0">
+        <span className="payment-step-chip">10-digit settlement account</span>
+        <span className="payment-step-chip">{amountType === 'fixed' ? 'Fixed amount' : 'Dynamic amount'}</span>
+        <span className="payment-step-chip">{currency}</span>
+      </div>
+
       <div className="space-y-4">
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">Account Number</label>
@@ -77,7 +90,7 @@ export function QrGenerator({ onGenerated }: QrGeneratorProps) {
               setErrors((p) => ({ ...p, accountNumber: '' }));
             }}
             placeholder="0000000000"
-            className="w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+            className="payment-command-input font-mono"
           />
           {errors.accountNumber && <p className="text-xs text-red-500 mt-1">{errors.accountNumber}</p>}
         </div>
@@ -92,7 +105,7 @@ export function QrGenerator({ onGenerated }: QrGeneratorProps) {
               setErrors((p) => ({ ...p, accountName: '' }));
             }}
             placeholder="Enter account holder name"
-            className="w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            className="payment-command-input"
           />
           {errors.accountName && <p className="text-xs text-red-500 mt-1">{errors.accountName}</p>}
         </div>
@@ -103,22 +116,20 @@ export function QrGenerator({ onGenerated }: QrGeneratorProps) {
             <button
               type="button"
               onClick={() => setAmountType('dynamic')}
-              className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
-                amountType === 'dynamic'
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background hover:bg-muted'
-              }`}
+              className={cn(
+                'payment-selection-card flex-1 px-3 py-3 text-center text-sm font-medium',
+                amountType === 'dynamic' && 'border-primary/40 bg-primary/10 text-primary shadow-none',
+              )}
             >
               Dynamic (any amount)
             </button>
             <button
               type="button"
               onClick={() => setAmountType('fixed')}
-              className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
-                amountType === 'fixed'
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'bg-background hover:bg-muted'
-              }`}
+              className={cn(
+                'payment-selection-card flex-1 px-3 py-3 text-center text-sm font-medium',
+                amountType === 'fixed' && 'border-primary/40 bg-primary/10 text-primary shadow-none',
+              )}
             >
               Fixed amount
             </button>
@@ -144,7 +155,7 @@ export function QrGenerator({ onGenerated }: QrGeneratorProps) {
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg text-sm bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            className="payment-command-input"
           >
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>{c}</option>
@@ -156,7 +167,7 @@ export function QrGenerator({ onGenerated }: QrGeneratorProps) {
           type="button"
           onClick={handleGenerate}
           disabled={isGenerating}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
         >
           {isGenerating ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -166,6 +177,6 @@ export function QrGenerator({ onGenerated }: QrGeneratorProps) {
           {isGenerating ? 'Generating...' : 'Generate QR Code'}
         </button>
       </div>
-    </FormSection>
+    </div>
   );
 }

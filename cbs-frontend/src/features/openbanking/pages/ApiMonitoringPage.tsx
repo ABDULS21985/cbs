@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabsPage } from '@/components/shared/TabsPage';
 import { formatDate } from '@/lib/formatters';
@@ -13,8 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { useApiUsage } from '../hooks/useMarketplace';
-import { useApiProducts } from '../hooks/useMarketplace';
+import { useApiProducts, useApiUsage } from '../hooks/useMarketplace';
 
 import { ApiHealthDashboard } from '../components/monitoring/ApiHealthDashboard';
 import { RequestVolumeChart } from '../components/monitoring/RequestVolumeChart';
@@ -27,216 +26,298 @@ import {
 } from '../components/monitoring/AlertsPanel';
 import { SlaComplianceGauge } from '../components/monitoring/SlaComplianceGauge';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+function formatShortDate(date: string) {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
 
-function generateTimeLabels(count: number): string[] {
-  const now = new Date();
-  return Array.from({ length: count }, (_, i) => {
-    const d = new Date(now.getTime() - (count - 1 - i) * 60_000);
-    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-  });
+  return new Intl.DateTimeFormat('en-NG', {
+    month: 'short',
+    day: 'numeric',
+  }).format(parsed);
 }
 
-// ─── Page ───────────────────────────────────────────────────────────────────
+interface DailyUsageSummary {
+  date: string;
+  totalCalls: number;
+  successCalls: number;
+  errorCalls: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+}
 
 export function ApiMonitoringPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [alertStates, setAlertStates] = useState<Record<number, Partial<MonitoringAlert>>>({});
 
   const {
     data: usageData = [],
     isLoading: usageLoading,
+    refetch: refetchUsage,
   } = useApiUsage(undefined);
 
   const {
     data: products = [],
     isLoading: productsLoading,
+    refetch: refetchProducts,
   } = useApiProducts();
 
-  // ─── Computed Metrics ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (!autoRefresh || /jsdom/i.test(window.navigator.userAgent)) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refetchUsage();
+      void refetchProducts();
+    }, 30_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [autoRefresh, refetchProducts, refetchUsage]);
+
+  const usageByDay = useMemo<DailyUsageSummary[]>(() => {
+    const grouped = new Map<string, DailyUsageSummary & { latencyWeight: number }>();
+
+    for (const item of usageData) {
+      const existing = grouped.get(item.date) ?? {
+        date: item.date,
+        totalCalls: 0,
+        successCalls: 0,
+        errorCalls: 0,
+        avgLatencyMs: 0,
+        p95LatencyMs: 0,
+        latencyWeight: 0,
+      };
+
+      existing.totalCalls += item.totalCalls;
+      existing.successCalls += item.successCalls;
+      existing.errorCalls += item.errorCalls;
+      existing.latencyWeight += item.avgLatencyMs * item.totalCalls;
+      existing.p95LatencyMs = Math.max(existing.p95LatencyMs, item.p95LatencyMs);
+      grouped.set(item.date, existing);
+    }
+
+    return Array.from(grouped.values())
+      .map((entry) => ({
+        date: entry.date,
+        totalCalls: entry.totalCalls,
+        successCalls: entry.successCalls,
+        errorCalls: entry.errorCalls,
+        avgLatencyMs: entry.totalCalls > 0 ? Math.round(entry.latencyWeight / entry.totalCalls) : 0,
+        p95LatencyMs: entry.p95LatencyMs,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [usageData]);
 
   const healthMetrics = useMemo(() => {
     if (usageData.length === 0) {
       return {
         status: 'healthy' as const,
-        uptimePct: 99.99,
+        uptimePct: 0,
         avgLatencyMs: 0,
         errorRate: 0,
         requestsPerMin: 0,
       };
     }
 
-    const totalCalls = usageData.reduce((s, d) => s + d.totalCalls, 0);
-    const totalErrors = usageData.reduce((s, d) => s + d.errorCalls, 0);
+    const totalCalls = usageData.reduce((sum, item) => sum + item.totalCalls, 0);
+    const totalErrors = usageData.reduce((sum, item) => sum + item.errorCalls, 0);
     const avgLatency =
-      usageData.reduce((s, d) => s + d.avgLatencyMs * d.totalCalls, 0) / Math.max(totalCalls, 1);
+      usageData.reduce((sum, item) => sum + item.avgLatencyMs * item.totalCalls, 0) / Math.max(totalCalls, 1);
     const errorRate = totalCalls > 0 ? (totalErrors / totalCalls) * 100 : 0;
-    const days = new Set(usageData.map((d) => d.date)).size || 1;
-    const reqPerMin = totalCalls / (days * 24 * 60);
+    const dayCount = new Set(usageData.map((item) => item.date)).size || 1;
+    const requestsPerMin = totalCalls / (dayCount * 24 * 60);
 
     const status: 'healthy' | 'degraded' | 'down' =
       errorRate > 10 ? 'down' : errorRate > 5 || avgLatency > 500 ? 'degraded' : 'healthy';
 
     return {
       status,
-      uptimePct: Math.max(100 - errorRate * 0.1, 95),
+      uptimePct: Math.max(0, 100 - errorRate * 0.1),
       avgLatencyMs: avgLatency,
       errorRate,
-      requestsPerMin: Math.round(reqPerMin),
+      requestsPerMin: Math.round(requestsPerMin),
     };
   }, [usageData]);
 
-  // ─── Chart Data ─────────────────────────────────────────────────────────
+  const latestSnapshot = usageByDay[usageByDay.length - 1];
+  const latestSampleLabel = latestSnapshot ? formatDate(latestSnapshot.date) : 'Awaiting feed';
+  const chartSeries = usageByDay.slice(-14);
+  const peakDailyVolume = usageByDay.length > 0 ? Math.max(...usageByDay.map((entry) => entry.totalCalls)) : 0;
+  const latestSuccessRate = latestSnapshot && latestSnapshot.totalCalls > 0
+    ? `${((latestSnapshot.successCalls / latestSnapshot.totalCalls) * 100).toFixed(2)}%`
+    : 'Awaiting feed';
+  const latestErrorRate = latestSnapshot && latestSnapshot.totalCalls > 0
+    ? `${((latestSnapshot.errorCalls / latestSnapshot.totalCalls) * 100).toFixed(2)}%`
+    : 'Awaiting feed';
 
-  const timeLabels = useMemo(() => generateTimeLabels(60), []);
+  const volumeData = useMemo(
+    () =>
+      chartSeries.map((entry) => ({
+        label: formatShortDate(entry.date),
+        successCalls: entry.successCalls,
+        errorCalls: entry.errorCalls,
+      })),
+    [chartSeries],
+  );
 
-  const volumeData = useMemo(() => {
-    if (usageData.length === 0) {
-      return timeLabels.map((time) => ({
-        time,
-        success: Math.floor(Math.random() * 100 + 50),
-        error: Math.floor(Math.random() * 5),
-      }));
+  const latencyData = useMemo(
+    () =>
+      chartSeries.map((entry) => ({
+        label: formatShortDate(entry.date),
+        avgLatencyMs: entry.avgLatencyMs,
+        p95LatencyMs: entry.p95LatencyMs,
+      })),
+    [chartSeries],
+  );
+
+  const errorData = useMemo(
+    () =>
+      chartSeries.map((entry) => ({
+        label: formatShortDate(entry.date),
+        errorRate: entry.totalCalls > 0 ? Number(((entry.errorCalls / entry.totalCalls) * 100).toFixed(2)) : 0,
+      })),
+    [chartSeries],
+  );
+
+  const productUsageSummaries = useMemo(() => {
+    const grouped = new Map<number, { totalCalls: number; errorCalls: number }>();
+
+    for (const item of usageData) {
+      const existing = grouped.get(item.productId) ?? { totalCalls: 0, errorCalls: 0 };
+      existing.totalCalls += item.totalCalls;
+      existing.errorCalls += item.errorCalls;
+      grouped.set(item.productId, existing);
     }
-    return timeLabels.map((time, i) => {
-      const item = usageData[i % usageData.length];
-      return {
-        time,
-        success: item ? Math.round(item.successCalls / 60) : 0,
-        error: item ? Math.round(item.errorCalls / 60) : 0,
-      };
-    });
-  }, [usageData, timeLabels]);
 
-  const latencyData = useMemo(() => {
-    return timeLabels.map((time, i) => {
-      const item = usageData[i % Math.max(usageData.length, 1)];
-      const base = item?.avgLatencyMs ?? 120;
-      return {
-        time,
-        p50: Math.round(base * 0.7),
-        p95: Math.round(item?.p95LatencyMs ?? base * 1.5),
-        p99: Math.round((item?.p95LatencyMs ?? base * 1.5) * 1.4),
-      };
-    });
-  }, [usageData, timeLabels]);
+    return grouped;
+  }, [usageData]);
 
-  const errorData = useMemo(() => {
-    return timeLabels.map((time, i) => {
-      const item = usageData[i % Math.max(usageData.length, 1)];
-      const errors = item?.errorCalls ?? Math.floor(Math.random() * 5);
-      return {
-        time,
-        client4xx: Math.round(errors * 0.7),
-        server5xx: Math.round(errors * 0.3),
-      };
-    });
-  }, [usageData, timeLabels]);
+  const slaData = useMemo(
+    () =>
+      products.map((product) => {
+        const summary = productUsageSummaries.get(product.id);
+        const errorRate = summary && summary.totalCalls > 0 ? (summary.errorCalls / summary.totalCalls) * 100 : 0;
 
-  // ─── Alerts (mock state) ────────────────────────────────────────────────
+        return {
+          productName: product.name,
+          targetUptime: product.slaUptimePct,
+          actualUptime: summary
+            ? Math.max(95, 100 - errorRate * 0.1)
+            : healthMetrics.uptimePct,
+        };
+      }),
+    [healthMetrics.uptimePct, productUsageSummaries, products],
+  );
 
-  const [alerts, setAlerts] = useState<MonitoringAlert[]>(() => [
-    {
-      id: 1,
-      type: 'HIGH_LATENCY',
-      severity: 'warning',
-      message: 'Average latency exceeds 500ms on /api/v1/accounts',
-      currentValue: '523 ms',
-      threshold: '500 ms',
-      status: 'active',
-      createdAt: new Date(Date.now() - 3_600_000).toISOString(),
-    },
-    {
-      id: 2,
-      type: 'HIGH_ERROR_RATE',
-      severity: 'critical',
-      message: 'Error rate spike on payment initiation endpoints',
-      currentValue: '8.2%',
-      threshold: '5%',
-      status: 'active',
-      createdAt: new Date(Date.now() - 1_800_000).toISOString(),
-    },
-    {
-      id: 3,
-      type: 'RATE_LIMIT_BREACH',
-      severity: 'info',
-      message: 'TPP "FinTech App" approaching rate limit on /api/v1/transactions',
-      currentValue: '95/100 req/min',
-      threshold: '100 req/min',
-      status: 'acknowledged',
-      createdAt: new Date(Date.now() - 7_200_000).toISOString(),
-      acknowledgedAt: new Date(Date.now() - 5_400_000).toISOString(),
-    },
-  ]);
+  const baseAlerts = useMemo<MonitoringAlert[]>(() => {
+    if (usageByDay.length === 0) {
+      return [];
+    }
 
-  const handleAcknowledge = useCallback(async (id: number) => {
-    await new Promise((r) => setTimeout(r, 500));
-    setAlerts((prev) =>
-      prev.map((a) =>
-        a.id === id
-          ? { ...a, status: 'acknowledged' as AlertStatus, acknowledgedAt: new Date().toISOString() }
-          : a,
+    const createdAt = latestSnapshot
+      ? new Date(`${latestSnapshot.date}T00:00:00Z`).toISOString()
+      : new Date().toISOString();
+
+    const alerts: MonitoringAlert[] = [];
+
+    if (healthMetrics.avgLatencyMs > 500) {
+      alerts.push({
+        id: 1,
+        type: 'HIGH_LATENCY',
+        severity: healthMetrics.avgLatencyMs > 800 ? 'critical' : 'warning',
+        message: 'Average API latency is above the operational threshold for the current feed window.',
+        currentValue: `${healthMetrics.avgLatencyMs.toFixed(0)} ms`,
+        threshold: '500 ms',
+        status: 'active',
+        createdAt,
+      });
+    }
+
+    if (healthMetrics.errorRate > 5) {
+      alerts.push({
+        id: 2,
+        type: 'HIGH_ERROR_RATE',
+        severity: healthMetrics.errorRate > 10 ? 'critical' : 'warning',
+        message: 'Failed-call ratio is above tolerance and needs operator attention.',
+        currentValue: `${healthMetrics.errorRate.toFixed(2)}%`,
+        threshold: '5.00%',
+        status: 'active',
+        createdAt,
+      });
+    }
+
+    if (healthMetrics.status === 'down') {
+      alerts.push({
+        id: 3,
+        type: 'DOWNTIME',
+        severity: 'critical',
+        message: 'Platform health is currently classified as down based on observed latency and error trends.',
+        currentValue: `${healthMetrics.uptimePct.toFixed(2)}% uptime`,
+        threshold: 'Healthy service state',
+        status: 'active',
+        createdAt,
+      });
+    }
+
+    return alerts;
+  }, [healthMetrics, latestSnapshot, usageByDay.length]);
+
+  useEffect(() => {
+    setAlertStates((previous) =>
+      Object.fromEntries(
+        Object.entries(previous).filter(([id]) => baseAlerts.some((alert) => alert.id === Number(id))),
       ),
     );
+  }, [baseAlerts]);
+
+  const alerts = useMemo(
+    () =>
+      baseAlerts.map((alert) => ({
+        ...alert,
+        ...alertStates[alert.id],
+      })),
+    [alertStates, baseAlerts],
+  );
+
+  const activeAlerts = alerts.filter((alert) => alert.status !== 'resolved');
+  const activeAlertCount = alerts.filter((alert) => alert.status === 'active').length;
+
+  const handleAcknowledge = useCallback(async (id: number) => {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    setAlertStates((previous) => ({
+      ...previous,
+      [id]: {
+        ...previous[id],
+        status: 'acknowledged' as AlertStatus,
+        acknowledgedAt: new Date().toISOString(),
+      },
+    }));
   }, []);
 
   const handleResolve = useCallback(async (id: number) => {
-    await new Promise((r) => setTimeout(r, 500));
-    setAlerts((prev) =>
-      prev.map((a) =>
-        a.id === id
-          ? { ...a, status: 'resolved' as AlertStatus, resolvedAt: new Date().toISOString() }
-          : a,
-      ),
-    );
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    setAlertStates((previous) => ({
+      ...previous,
+      [id]: {
+        ...previous[id],
+        status: 'resolved' as AlertStatus,
+        resolvedAt: new Date().toISOString(),
+      },
+    }));
   }, []);
 
-  const activeAlerts = alerts.filter((a) => a.status !== 'resolved');
-
-  // ─── Active Connections ─────────────────────────────────────────────────
-
-  const activeConnections = useMemo(() => {
-    return Math.round(healthMetrics.requestsPerMin * 0.3 + 12);
-  }, [healthMetrics.requestsPerMin]);
-
-  // ─── SLA Data ───────────────────────────────────────────────────────────
-
-  const slaData = useMemo(() => {
-    return products.map((p) => ({
-      productName: p.name,
-      targetUptime: p.slaUptimePct || 99.9,
-      actualUptime: Math.max(
-        (p.slaUptimePct || 99.9) - Math.random() * 0.5 + 0.2,
-        98,
-      ),
-    }));
-  }, [products]);
-
-  // ─── Historical Aggregates ──────────────────────────────────────────────
-
-  const historicalData = useMemo(() => {
-    const grouped = new Map<string, { total: number; success: number; errors: number; latency: number; count: number }>();
-    for (const item of usageData) {
-      const existing = grouped.get(item.date) || { total: 0, success: 0, errors: 0, latency: 0, count: 0 };
-      existing.total += item.totalCalls;
-      existing.success += item.successCalls;
-      existing.errors += item.errorCalls;
-      existing.latency += item.avgLatencyMs;
-      existing.count += 1;
-      grouped.set(item.date, existing);
-    }
-    return Array.from(grouped.entries())
-      .map(([date, d]) => ({
-        date,
-        totalCalls: d.total,
-        successCalls: d.success,
-        errorCalls: d.errors,
-        avgLatencyMs: Math.round(d.latency / Math.max(d.count, 1)),
-        errorRate: d.total > 0 ? ((d.errors / d.total) * 100).toFixed(2) : '0.00',
-      }))
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [usageData]);
-
-  // ─── Tabs ───────────────────────────────────────────────────────────────
+  const historicalData = useMemo(
+    () =>
+      [...usageByDay]
+        .reverse()
+        .map((entry) => ({
+          ...entry,
+          errorRate: entry.totalCalls > 0 ? ((entry.errorCalls / entry.totalCalls) * 100).toFixed(2) : '0.00',
+        })),
+    [usageByDay],
+  );
 
   const tabs = [
     {
@@ -245,40 +326,48 @@ export function ApiMonitoringPage() {
       icon: Activity,
       content: (
         <div className="p-6 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <RequestVolumeChart data={volumeData} loading={usageLoading} />
-            <EndpointLatencyChart data={latencyData} loading={usageLoading} />
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ErrorRateChart data={errorData} loading={usageLoading} />
-            <div className="surface-card p-5">
-              <h3 className="text-sm font-semibold mb-4">Active Connections</h3>
-              <div className="flex flex-col items-center justify-center py-8">
-                <Wifi className="w-8 h-8 text-blue-500 mb-3" />
-                <span className="text-4xl font-bold tabular-nums">{activeConnections}</span>
-                <span className="text-sm text-muted-foreground mt-1">connections</span>
-              </div>
-              <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t text-center">
-                <div>
-                  <p className="text-xs text-muted-foreground">AISP</p>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {Math.round(activeConnections * 0.5)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">PISP</p>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {Math.round(activeConnections * 0.35)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Other</p>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {Math.round(activeConnections * 0.15)}
-                  </p>
-                </div>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(19rem,0.85fr)]">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <RequestVolumeChart data={volumeData} loading={usageLoading} />
+              <EndpointLatencyChart data={latencyData} loading={usageLoading} />
+              <div className="xl:col-span-2">
+                <ErrorRateChart data={errorData} loading={usageLoading} />
               </div>
             </div>
+
+            <section className="ob-monitor-panel p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold">Telemetry Snapshot</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Live-operating summary from the most recent aggregate window.
+                  </p>
+                </div>
+                <span className="ob-monitor-chip">
+                  <Wifi className="mr-1 h-3.5 w-3.5" />
+                  Feed-based
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                <div className="ob-monitor-panel-muted rounded-[1.25rem] border border-border/60 px-4 py-3">
+                  <p className="ob-monitor-metric-label">Latest Sample</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">{latestSampleLabel}</p>
+                </div>
+                <div className="ob-monitor-panel-muted rounded-[1.25rem] border border-border/60 px-4 py-3">
+                  <p className="ob-monitor-metric-label">Peak Daily Volume</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">{peakDailyVolume.toLocaleString()}</p>
+                </div>
+                <div className="ob-monitor-panel-muted rounded-[1.25rem] border border-border/60 px-4 py-3">
+                  <p className="ob-monitor-metric-label">Latest Success Rate</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">{latestSuccessRate}</p>
+                </div>
+                <div className="ob-monitor-panel-muted rounded-[1.25rem] border border-border/60 px-4 py-3">
+                  <p className="ob-monitor-metric-label">Latest Error Rate</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">{latestErrorRate}</p>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
       ),
@@ -289,44 +378,54 @@ export function ApiMonitoringPage() {
       icon: Clock,
       content: (
         <div className="p-6">
-          <div className="surface-card overflow-hidden">
-            <div className="px-5 py-4 border-b flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Daily Aggregates</h3>
-              <span className="text-xs text-muted-foreground">
+          <div className="ob-monitor-table-shell">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div>
+                <h3 className="text-sm font-semibold">Daily Aggregates</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Day-level summaries from the marketplace usage aggregation endpoint.
+                </p>
+              </div>
+              <span className="ob-monitor-chip">
                 {historicalData.length} day{historicalData.length !== 1 ? 's' : ''}
               </span>
             </div>
+
             {usageLoading ? (
-              <div className="p-5 space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="h-8 bg-muted/30 rounded animate-pulse" />
+              <div className="space-y-2 p-5">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="h-8 rounded bg-muted/30 animate-pulse" />
                 ))}
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
+                <table className="w-full">
+                  <thead>
                     <tr>
-                      <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Date</th>
-                      <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Total Calls</th>
-                      <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Success</th>
-                      <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Errors</th>
-                      <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Avg Latency</th>
-                      <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Error Rate</th>
+                      <th className="px-5 py-3 text-left">Date</th>
+                      <th className="px-5 py-3 text-right">Total Calls</th>
+                      <th className="px-5 py-3 text-right">Success</th>
+                      <th className="px-5 py-3 text-right">Errors</th>
+                      <th className="px-5 py-3 text-right">Avg Latency</th>
+                      <th className="px-5 py-3 text-right">Error Rate</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {historicalData.map((row) => (
-                      <tr key={row.date} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-5 py-3 font-medium">{formatDate(row.date)}</td>
-                        <td className="px-5 py-3 text-right tabular-nums">{row.totalCalls.toLocaleString()}</td>
-                        <td className="px-5 py-3 text-right tabular-nums text-green-600">{row.successCalls.toLocaleString()}</td>
-                        <td className="px-5 py-3 text-right tabular-nums text-red-600">{row.errorCalls.toLocaleString()}</td>
-                        <td className="px-5 py-3 text-right tabular-nums">{row.avgLatencyMs} ms</td>
-                        <td className="px-5 py-3 text-right tabular-nums">
+                      <tr key={row.date} className="transition-colors hover:bg-muted/30">
+                        <td className="px-5 font-medium">{formatDate(row.date)}</td>
+                        <td className="px-5 text-right tabular-nums">{row.totalCalls.toLocaleString()}</td>
+                        <td className="px-5 text-right tabular-nums text-green-600">{row.successCalls.toLocaleString()}</td>
+                        <td className="px-5 text-right tabular-nums text-red-600">{row.errorCalls.toLocaleString()}</td>
+                        <td className="px-5 text-right tabular-nums">{row.avgLatencyMs} ms</td>
+                        <td className="px-5 text-right tabular-nums">
                           <span
                             className={cn(
-                              parseFloat(row.errorRate) <= 1 ? 'text-green-600' : parseFloat(row.errorRate) <= 5 ? 'text-amber-600' : 'text-red-600',
+                              Number(row.errorRate) <= 1
+                                ? 'text-green-600'
+                                : Number(row.errorRate) <= 5
+                                  ? 'text-amber-600'
+                                  : 'text-red-600',
                             )}
                           >
                             {row.errorRate}%
@@ -334,13 +433,14 @@ export function ApiMonitoringPage() {
                         </td>
                       </tr>
                     ))}
-                    {historicalData.length === 0 && (
+
+                    {historicalData.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
                           No historical data available.
                         </td>
                       </tr>
-                    )}
+                    ) : null}
                   </tbody>
                 </table>
               </div>
@@ -353,14 +453,16 @@ export function ApiMonitoringPage() {
       id: 'alerts',
       label: 'Alerts',
       icon: AlertTriangle,
-      badge: activeAlerts.filter((a) => a.status === 'active').length,
+      badge: activeAlertCount,
       content: (
-        <AlertsPanel
-          alerts={alerts}
-          onAcknowledge={handleAcknowledge}
-          onResolve={handleResolve}
-          loading={false}
-        />
+        <div className="p-6">
+          <AlertsPanel
+            alerts={activeAlerts}
+            onAcknowledge={handleAcknowledge}
+            onResolve={handleResolve}
+            loading={false}
+          />
+        </div>
       ),
     },
     {
@@ -370,22 +472,27 @@ export function ApiMonitoringPage() {
       content: (
         <div className="p-6">
           {productsLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex flex-col items-center gap-2 animate-pulse">
-                  <div className="w-[120px] h-[120px] rounded-full bg-muted" />
-                  <div className="h-3 w-24 bg-muted rounded" />
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="ob-monitor-panel p-5 animate-pulse">
+                  <div className="mx-auto h-[120px] w-[120px] rounded-full bg-muted" />
+                  <div className="mx-auto mt-4 h-3 w-28 rounded bg-muted" />
                 </div>
               ))}
             </div>
           ) : slaData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-              <Shield className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm">No API products to show SLA data for.</p>
+            <div className="ob-monitor-empty-state">
+              <Shield className="h-10 w-10 text-muted-foreground/40" />
+              <div>
+                <p className="text-sm font-medium text-foreground">No API products to report on</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  SLA gauges appear when marketplace products are available.
+                </p>
+              </div>
             </div>
           ) : (
-            <div>
-              <div className="flex flex-wrap gap-8 justify-center">
+            <div className="space-y-6">
+              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
                 {slaData.map((sla) => (
                   <SlaComplianceGauge
                     key={sla.productName}
@@ -395,30 +502,31 @@ export function ApiMonitoringPage() {
                   />
                 ))}
               </div>
-              <div className="mt-8 surface-card overflow-hidden">
-                <div className="px-5 py-4 border-b">
+
+              <div className="ob-monitor-table-shell">
+                <div className="border-b px-5 py-4">
                   <h3 className="text-sm font-semibold">SLA Summary</h3>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
+                  <table className="w-full">
+                    <thead>
                       <tr>
-                        <th className="text-left px-5 py-3 text-xs font-medium text-muted-foreground">Product</th>
-                        <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Target</th>
-                        <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Actual</th>
-                        <th className="text-right px-5 py-3 text-xs font-medium text-muted-foreground">Status</th>
+                        <th className="px-5 py-3 text-left">Product</th>
+                        <th className="px-5 py-3 text-right">Target</th>
+                        <th className="px-5 py-3 text-right">Actual</th>
+                        <th className="px-5 py-3 text-right">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {slaData.map((sla) => (
-                        <tr key={sla.productName} className="hover:bg-muted/30 transition-colors">
-                          <td className="px-5 py-3 font-medium">{sla.productName}</td>
-                          <td className="px-5 py-3 text-right tabular-nums">{sla.targetUptime.toFixed(2)}%</td>
-                          <td className="px-5 py-3 text-right tabular-nums">{sla.actualUptime.toFixed(2)}%</td>
-                          <td className="px-5 py-3 text-right">
+                        <tr key={sla.productName} className="transition-colors hover:bg-muted/30">
+                          <td className="px-5 font-medium">{sla.productName}</td>
+                          <td className="px-5 text-right tabular-nums">{sla.targetUptime.toFixed(2)}%</td>
+                          <td className="px-5 text-right tabular-nums">{sla.actualUptime.toFixed(2)}%</td>
+                          <td className="px-5 text-right">
                             <span
                               className={cn(
-                                'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                                'inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
                                 sla.actualUptime >= sla.targetUptime
                                   ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                                   : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -440,8 +548,6 @@ export function ApiMonitoringPage() {
     },
   ];
 
-  // ─── Render ─────────────────────────────────────────────────────────────
-
   return (
     <>
       <PageHeader
@@ -450,25 +556,66 @@ export function ApiMonitoringPage() {
         actions={
           <button
             onClick={() => {
-              setAutoRefresh(!autoRefresh);
-              toast.success(autoRefresh ? 'Auto-refresh disabled' : 'Auto-refresh enabled (30s)');
+              setAutoRefresh((current) => {
+                const next = !current;
+                toast.success(next ? 'Auto-refresh enabled (30s)' : 'Auto-refresh disabled');
+                return next;
+              });
             }}
             className={cn(
-              'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors',
+              'ob-monitor-action-button',
               autoRefresh
-                ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/10 dark:border-green-800 dark:text-green-400'
-                : 'hover:bg-muted',
+                ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-300'
+                : 'text-foreground',
             )}
           >
-            <RefreshCw className={cn('w-4 h-4', autoRefresh && 'animate-spin')} style={autoRefresh ? { animationDuration: '3s' } : undefined} />
+            <RefreshCw
+              className={cn('h-4 w-4', autoRefresh && 'animate-spin')}
+              style={autoRefresh ? { animationDuration: '3s' } : undefined}
+            />
             {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
           </button>
         }
       />
 
       <div className="page-container space-y-6">
-        <ApiHealthDashboard metrics={healthMetrics} loading={usageLoading} />
-        <TabsPage tabs={tabs} defaultTab="realtime" />
+        <section className="ob-monitor-hero">
+          <div className="ob-monitor-hero-grid">
+            <div>
+              <p className="ob-monitor-kicker">Runtime monitoring</p>
+              <h2 className="ob-monitor-title">Open Banking performance observatory</h2>
+              <p className="ob-monitor-description">
+                Watch the published usage feed, track health thresholds, and stay ahead of latency or failure spikes from a single operator view.
+              </p>
+              <div className="ob-monitor-chip-row">
+                <span className="ob-monitor-chip">{products.length} monitored products</span>
+                <span className="ob-monitor-chip">{usageByDay.length} usage windows</span>
+                <span className="ob-monitor-chip">{activeAlertCount} active alerts</span>
+                <span className="ob-monitor-chip">{autoRefresh ? 'Refresh every 30s' : 'Manual refresh mode'}</span>
+              </div>
+            </div>
+
+            <div className="ob-monitor-hero-side">
+              <div className="ob-monitor-metric-card">
+                <p className="ob-monitor-metric-label">Latest Sample</p>
+                <p className="ob-monitor-metric-value">{latestSampleLabel}</p>
+              </div>
+              <div className="ob-monitor-metric-card">
+                <p className="ob-monitor-metric-label">Peak Daily Volume</p>
+                <p className="ob-monitor-metric-value">{peakDailyVolume.toLocaleString()}</p>
+              </div>
+              <div className="ob-monitor-metric-card">
+                <p className="ob-monitor-metric-label">Published SLA Targets</p>
+                <p className="ob-monitor-metric-value">{slaData.length}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="ob-monitor-workspace space-y-6">
+          <ApiHealthDashboard metrics={healthMetrics} loading={usageLoading} hasData={usageByDay.length > 0} />
+          <TabsPage tabs={tabs} defaultTab="realtime" syncWithUrl />
+        </div>
       </div>
     </>
   );

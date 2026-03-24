@@ -75,13 +75,41 @@ export interface BillFavorite {
   lastPaidAt: string;
 }
 
+export interface BillPaymentRecord {
+  id: number;
+  transactionRef: string;
+  billerName: string;
+  billerCode: string;
+  categoryCode: string;
+  amount: number;
+  fee: number;
+  totalDebit: number;
+  status: 'SUCCESSFUL' | 'FAILED' | 'PENDING';
+  token?: string;
+  confirmationNumber?: string;
+  customerReference: string;
+  paidAt: string;
+}
+
+export interface BillFeePreview {
+  billerCode: string;
+  amount: number;
+  fee: number;
+  commission: number;
+  totalDebit: number;
+}
+
 export const billPaymentApi = {
   getCategories: () =>
     apiGet<BillerCategory[]>('/api/v1/bills/categories'),
   getBillersByCategory: (categoryCode: string) =>
     apiGet<Biller[]>(`/api/v1/bills/categories/${categoryCode}/billers`),
+  searchBillers: (query: string) =>
+    apiGet<Biller[]>('/api/v1/bills/billers/search', { q: query }),
   validateReference: (billerCode: string, fields: Record<string, string>) =>
     apiPost<BillValidationResult>('/api/v1/bills/validate', { billerCode, customerId: fields['customerId'] ?? '', ...fields }),
+  getFeePreview: (billerCode: string, amount: number) =>
+    apiGet<BillFeePreview>('/api/v1/bills/fee-preview', { billerCode, amount }),
   payBill: (data: BillPaymentRequest) =>
     apiPost<BillPaymentResponse>('/api/v1/bills/pay', {
       debitAccountId: data.sourceAccountId,
@@ -90,12 +118,18 @@ export const billPaymentApi = {
       billerCustomerName: data.fields['customerName'] ?? '',
       amount: data.amount,
     }),
+  getPaymentHistory: (params?: { page?: number; size?: number; status?: string }) =>
+    apiGet<BillPaymentRecord[]>('/api/v1/bills/history', params),
+  getPaymentDetail: (id: number) =>
+    apiGet<BillPaymentRecord>(`/api/v1/bills/${id}`),
   getFavorites: () =>
     apiGet<BillFavorite[]>('/api/v1/bills/favorites'),
   saveFavorite: (data: Partial<BillFavorite>) =>
     apiPost<BillFavorite>('/api/v1/bills/favorites', data),
   removeFavorite: (id: number) =>
     apiPost<void>(`/api/v1/bills/favorites/${id}/remove`, {}),
+  updateFavoriteAlias: (id: number, alias: string) =>
+    apiPut<BillFavorite>(`/api/v1/bills/favorites/${id}`, { alias }),
   // Admin
   getAllBillers: (filters?: Record<string, unknown>) =>
     apiGet<Biller[]>('/api/v1/bills/admin/billers', filters),

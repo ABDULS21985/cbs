@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Send, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, Loader2, Send, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -58,21 +58,22 @@ export function WebhookTestPanel({
     }
   };
 
-  const inputCls =
-    'w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40';
-
   return (
-    <div className="surface-card p-5">
-      <h3 className="text-sm font-semibold mb-4">Test Webhook</h3>
+    <div className="ob-page-panel space-y-4">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">Test Webhook</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Send a controlled sample event to validate endpoint reachability and auth posture.
+        </p>
+      </div>
 
       <div className="space-y-4">
-        {/* Event Selector */}
         <div>
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Event Type
           </label>
           <select
-            className={inputCls}
+            className="ob-page-input"
             value={selectedEvent}
             onChange={(e) => {
               setSelectedEvent(e.target.value);
@@ -87,11 +88,10 @@ export function WebhookTestPanel({
           </select>
         </div>
 
-        {/* Send Button */}
         <button
           onClick={handleSendTest}
           disabled={sending || !selectedEvent}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 w-full justify-center"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
           {sending ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -101,14 +101,13 @@ export function WebhookTestPanel({
           Send Test
         </button>
 
-        {/* Result */}
         {result && (
           <div
             className={cn(
-              'rounded-lg border p-4 space-y-2',
+              'space-y-3 rounded-[1.15rem] border p-4',
               result.success
-                ? 'bg-green-50 border-green-200 dark:bg-green-900/10 dark:border-green-800'
-                : 'bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800',
+                ? 'border-green-200 bg-green-50/80 dark:border-green-800 dark:bg-green-900/10'
+                : 'border-red-200 bg-red-50/80 dark:border-red-800 dark:bg-red-900/10',
             )}
           >
             <div className="flex items-center gap-2">
@@ -126,16 +125,16 @@ export function WebhookTestPanel({
                 {result.success ? 'Success' : 'Failed'}
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded-2xl border border-white/60 bg-white/70 p-3 dark:border-white/10 dark:bg-background/40">
                 <span className="text-muted-foreground">Status Code</span>
-                <p className="font-mono font-medium mt-0.5">
+                <p className="mt-1 font-mono font-medium text-foreground">
                   {result.statusCode || 'N/A'}
                 </p>
               </div>
-              <div>
+              <div className="rounded-2xl border border-white/60 bg-white/70 p-3 dark:border-white/10 dark:bg-background/40">
                 <span className="text-muted-foreground">Response Time</span>
-                <p className="font-mono font-medium mt-0.5">
+                <p className="mt-1 font-mono font-medium text-foreground">
                   {result.responseTimeMs > 0 ? `${result.responseTimeMs} ms` : 'N/A'}
                 </p>
               </div>

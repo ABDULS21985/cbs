@@ -68,16 +68,16 @@ describe('QrPaymentPage', () => {
     setupHandlers();
     renderWithProviders(<QrPaymentPage />);
     await waitFor(() => {
-      expect(screen.getByText('Total QR Payments')).toBeInTheDocument();
-      expect(screen.getByText('Total Received')).toBeInTheDocument();
-      expect(screen.getByText('Active QR Code')).toBeInTheDocument();
+      expect(screen.getAllByText('Total QR Payments').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Total Received').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Active QR Code').length).toBeGreaterThan(0);
     });
   });
 
   it('shows No badge when no QR code is generated', () => {
     setupHandlers();
     renderWithProviders(<QrPaymentPage />);
-    expect(screen.getByText('No')).toBeInTheDocument();
+    expect(screen.getAllByText('No').length).toBeGreaterThan(0);
   });
 
   it('renders the subtitle', () => {

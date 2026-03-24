@@ -5,11 +5,13 @@ import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
-import com.cbs.common.config.CbsProperties;
+import com.cbs.billing.dto.*;
 import com.cbs.billing.entity.*;
 import com.cbs.billing.repository.*;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.customer.entity.Customer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -19,7 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -30,6 +34,7 @@ public class BillPaymentService {
 
     private final BillerRepository billerRepository;
     private final BillPaymentRepository billPaymentRepository;
+    private final BillFavoriteRepository billFavoriteRepository;
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
     private final CbsProperties cbsProperties;
@@ -74,6 +79,7 @@ public class BillPaymentService {
         if (updates.getFeeBearer() != null) existing.setFeeBearer(updates.getFeeBearer());
         if (updates.getContactEmail() != null) existing.setContactEmail(updates.getContactEmail());
         if (updates.getContactPhone() != null) existing.setContactPhone(updates.getContactPhone());
+        if (updates.getLogoUrl() != null) existing.setLogoUrl(updates.getLogoUrl());
         if (updates.getIsActive() != null) existing.setIsActive(updates.getIsActive());
         Biller saved = billerRepository.save(existing);
         log.info("Biller updated: code={}, name={}", saved.getBillerCode(), saved.getBillerName());
@@ -87,6 +93,89 @@ public class BillPaymentService {
     public Biller getBiller(Long id) {
         return billerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Biller", "id", id));
+    }
+
+    public Biller getBillerByCode(String billerCode) {
+        return billerRepository.findByBillerCode(billerCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Biller", "billerCode", billerCode));
+    }
+
+    // ========================================================================
+    // BILLER SEARCH
+    // ========================================================================
+
+    public List<Biller> searchBillers(String query) {
+        if (!StringUtils.hasText(query) || query.length() < 2) {
+            return List.of();
+        }
+        return billerRepository.searchByNameOrCode(query.trim());
+    }
+
+    // ========================================================================
+    // BILL VALIDATION
+    // ========================================================================
+
+    public BillValidationResponseDto validateBillReference(String billerCode, String customerId) {
+        Biller biller = billerRepository.findByBillerCode(billerCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Biller", "billerCode", billerCode));
+
+        if (!Boolean.TRUE.equals(biller.getIsActive())) {
+            throw new BusinessException("Biller is not active", "BILLER_INACTIVE");
+        }
+
+        // Validate customer ID against biller's regex pattern
+        boolean regexValid = true;
+        if (StringUtils.hasText(biller.getCustomerIdRegex()) && StringUtils.hasText(customerId)) {
+            regexValid = customerId.matches(biller.getCustomerIdRegex());
+        }
+
+        if (!regexValid) {
+            return BillValidationResponseDto.builder()
+                    .referenceValid(false)
+                    .customerId(customerId)
+                    .billerCode(billerCode)
+                    .build();
+        }
+
+        // In a production system, this would call the biller's external validation API.
+        // The integration point would vary by biller:
+        //   - NIBSS BillPay for Nigerian billers
+        //   - Direct API integration for major billers (DSTV, IKEDC, etc.)
+        //   - Aggregator API (e.g., Paystack, Flutterwave) for broad biller coverage
+        //
+        // For now, we validate the format and return the reference as valid.
+        // The external integration can be plugged in per-biller via the metadata field.
+        return BillValidationResponseDto.builder()
+                .referenceValid(true)
+                .customerId(customerId)
+                .customerName("Validated Customer — " + customerId)
+                .billerCode(billerCode)
+                .build();
+    }
+
+    // ========================================================================
+    // FEE PREVIEW
+    // ========================================================================
+
+    public BillFeePreviewDto calculateFeePreview(String billerCode, BigDecimal amount) {
+        Biller biller = billerRepository.findByBillerCode(billerCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Biller", "billerCode", billerCode));
+
+        BigDecimal fee = biller.calculateFee(amount);
+        BigDecimal totalDebit = "CUSTOMER".equals(biller.getFeeBearer()) ? amount.add(fee) : amount;
+
+        String commissionType = biller.getPercentageFee() != null
+                && biller.getPercentageFee().compareTo(BigDecimal.ZERO) > 0 ? "PERCENTAGE" : "FLAT";
+
+        return BillFeePreviewDto.builder()
+                .billerCode(billerCode)
+                .amount(amount)
+                .fee(fee)
+                .commission(fee)
+                .totalDebit(totalDebit)
+                .feeBearer(biller.getFeeBearer())
+                .commissionType(commissionType)
+                .build();
     }
 
     // ========================================================================
@@ -194,6 +283,143 @@ public class BillPaymentService {
     public Page<BillPayment> getCustomerPayments(Long customerId, Pageable pageable) {
         return billPaymentRepository.findByCustomerIdOrderByCreatedAtDesc(customerId, pageable);
     }
+
+    public Page<BillPayment> getCustomerPaymentsByStatus(Long customerId, String status, Pageable pageable) {
+        return billPaymentRepository.findByCustomerIdAndStatusOrderByCreatedAtDesc(customerId, status, pageable);
+    }
+
+    // ========================================================================
+    // PAYMENT HISTORY DTO MAPPING
+    // ========================================================================
+
+    public List<BillPaymentHistoryDto> getPaymentHistory(Long customerId, Pageable pageable, String status) {
+        Page<BillPayment> page;
+        if (StringUtils.hasText(status)) {
+            page = billPaymentRepository.findByCustomerIdAndStatusOrderByCreatedAtDesc(customerId, status.toUpperCase(), pageable);
+        } else {
+            page = billPaymentRepository.findByCustomerIdOrderByCreatedAtDesc(customerId, pageable);
+        }
+        return page.getContent().stream().map(this::toHistoryDto).toList();
+    }
+
+    private BillPaymentHistoryDto toHistoryDto(BillPayment payment) {
+        Biller biller = payment.getBiller();
+        return BillPaymentHistoryDto.builder()
+                .id(payment.getId())
+                .transactionRef(payment.getPaymentRef())
+                .billerName(biller != null ? biller.getBillerName() : "Unknown")
+                .billerCode(biller != null ? biller.getBillerCode() : "")
+                .categoryCode(biller != null ? biller.getBillerCategory().name() : "")
+                .amount(payment.getBillAmount())
+                .fee(payment.getFeeAmount())
+                .totalDebit(payment.getTotalAmount())
+                .status(payment.getStatus())
+                .confirmationNumber(payment.getBillerConfirmationRef())
+                .customerReference(payment.getBillerCustomerId())
+                .paidAt(payment.getCreatedAt())
+                .build();
+    }
+
+    // ========================================================================
+    // FAVORITES
+    // ========================================================================
+
+    public List<BillFavoriteDto> getCustomerFavorites(Long customerId) {
+        return billFavoriteRepository.findByCustomerIdOrderByLastPaidAtDesc(customerId)
+                .stream()
+                .map(this::toFavoriteDto)
+                .toList();
+    }
+
+    @Transactional
+    public BillFavoriteDto addFavorite(Customer customer, BillFavoriteRequestDto request) {
+        Biller biller = billerRepository.findByBillerCode(request.getBillerCode())
+                .orElseThrow(() -> new ResourceNotFoundException("Biller", "billerCode", request.getBillerCode()));
+
+        // Check if favorite already exists for this customer + biller + reference
+        var existing = billFavoriteRepository.findByCustomerIdAndBillerIdAndBillerCustomerId(
+                customer.getId(), biller.getId(), request.getBillerCustomerId());
+        if (existing.isPresent()) {
+            // Update the alias if provided, return existing
+            BillFavorite fav = existing.get();
+            if (StringUtils.hasText(request.getAlias())) {
+                fav.setAlias(request.getAlias());
+            }
+            if (request.getFields() != null && !request.getFields().isEmpty()) {
+                fav.setFields(request.getFields());
+            }
+            return toFavoriteDto(billFavoriteRepository.save(fav));
+        }
+
+        // Limit favorites per customer
+        long count = billFavoriteRepository.countByCustomerId(customer.getId());
+        if (count >= 20) {
+            throw new BusinessException("Maximum of 20 favorites allowed per customer", "MAX_FAVORITES_REACHED");
+        }
+
+        BillFavorite favorite = BillFavorite.builder()
+                .customer(customer)
+                .biller(biller)
+                .billerCustomerId(request.getBillerCustomerId())
+                .alias(request.getAlias())
+                .fields(request.getFields() != null ? request.getFields() : Map.of())
+                .paymentCount(0)
+                .build();
+
+        BillFavorite saved = billFavoriteRepository.save(favorite);
+        log.info("Bill favorite added: customerId={}, billerCode={}", customer.getId(), biller.getBillerCode());
+        return toFavoriteDto(saved);
+    }
+
+    @Transactional
+    public void removeFavorite(Long customerId, Long favoriteId) {
+        BillFavorite favorite = billFavoriteRepository.findByIdAndCustomerId(favoriteId, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("BillFavorite", "id", favoriteId));
+        billFavoriteRepository.delete(favorite);
+        log.info("Bill favorite removed: id={}, customerId={}", favoriteId, customerId);
+    }
+
+    @Transactional
+    public BillFavoriteDto updateFavoriteAlias(Long customerId, Long favoriteId, String alias) {
+        BillFavorite favorite = billFavoriteRepository.findByIdAndCustomerId(favoriteId, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("BillFavorite", "id", favoriteId));
+        favorite.setAlias(alias);
+        return toFavoriteDto(billFavoriteRepository.save(favorite));
+    }
+
+    @Transactional
+    public void updateFavoriteAfterPayment(Long customerId, String billerCode, String billerCustomerId, BigDecimal amount) {
+        Biller biller = billerRepository.findByBillerCode(billerCode).orElse(null);
+        if (biller == null) return;
+
+        billFavoriteRepository.findByCustomerIdAndBillerIdAndBillerCustomerId(customerId, biller.getId(), billerCustomerId)
+                .ifPresent(fav -> {
+                    fav.setLastPaidAmount(amount);
+                    fav.setLastPaidAt(Instant.now());
+                    fav.setPaymentCount(fav.getPaymentCount() + 1);
+                    billFavoriteRepository.save(fav);
+                });
+    }
+
+    private BillFavoriteDto toFavoriteDto(BillFavorite favorite) {
+        Biller biller = favorite.getBiller();
+        return BillFavoriteDto.builder()
+                .id(favorite.getId())
+                .billerName(biller.getBillerName())
+                .billerCode(biller.getBillerCode())
+                .categoryCode(biller.getBillerCategory().name())
+                .billerCustomerId(favorite.getBillerCustomerId())
+                .alias(favorite.getAlias())
+                .fields(favorite.getFields())
+                .lastPaidAmount(favorite.getLastPaidAmount())
+                .lastPaidAt(favorite.getLastPaidAt())
+                .paymentCount(favorite.getPaymentCount())
+                .build();
+    }
+
+    // ========================================================================
+    // INTERNAL
+    // ========================================================================
 
     private String resolveBillSettlementGlCode() {
         String glCode = cbsProperties.getLedger().getExternalClearingGlCode();

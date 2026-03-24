@@ -95,9 +95,9 @@ export function AlertsPanel({ alerts, onAcknowledge, onResolve, loading }: Alert
 
   if (loading) {
     return (
-      <div className="space-y-3 p-6">
+      <div className="space-y-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="rounded-lg border p-4 animate-pulse">
+          <div key={i} className="ob-monitor-panel p-4 animate-pulse">
             <div className="h-4 w-48 bg-muted rounded mb-2" />
             <div className="h-3 w-72 bg-muted rounded" />
           </div>
@@ -108,16 +108,18 @@ export function AlertsPanel({ alerts, onAcknowledge, onResolve, loading }: Alert
 
   if (alerts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <CheckCircle2 className="w-10 h-10 mb-3 opacity-30" />
-        <p className="text-sm font-medium">No active alerts</p>
-        <p className="text-xs mt-1">All systems are operating normally.</p>
+      <div className="ob-monitor-empty-state">
+        <CheckCircle2 className="w-10 h-10 text-muted-foreground/40" />
+        <div>
+          <p className="text-sm font-medium text-foreground">No active alerts</p>
+          <p className="mt-1 text-sm text-muted-foreground">All monitored thresholds are within their expected range.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 p-6">
+    <div className="space-y-3">
       {alerts.map((alert) => {
         const Icon = TYPE_ICONS[alert.type];
         const severity = SEVERITY_STYLES[alert.severity];
@@ -127,7 +129,7 @@ export function AlertsPanel({ alerts, onAcknowledge, onResolve, loading }: Alert
           <div
             key={alert.id}
             className={cn(
-              'rounded-lg border p-4 transition-colors',
+              'ob-monitor-panel p-5 transition-colors',
               severity.bg,
               severity.border,
             )}
@@ -142,7 +144,7 @@ export function AlertsPanel({ alerts, onAcknowledge, onResolve, loading }: Alert
                     </span>
                     <span
                       className={cn(
-                        'ui-chip uppercase',
+                        'inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]',
                         STATUS_STYLES[alert.status],
                       )}
                     >
@@ -167,7 +169,7 @@ export function AlertsPanel({ alerts, onAcknowledge, onResolve, loading }: Alert
                   <button
                     onClick={() => handleAction(alert.id, 'acknowledge')}
                     disabled={isProcessing}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium hover:bg-background/50 transition-colors disabled:opacity-50"
+                    className="ob-monitor-action-button px-3 py-1.5 text-xs disabled:opacity-50"
                   >
                     {isProcessing ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -181,7 +183,7 @@ export function AlertsPanel({ alerts, onAcknowledge, onResolve, loading }: Alert
                   <button
                     onClick={() => handleAction(alert.id, 'resolve')}
                     disabled={isProcessing}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 text-white text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-green-700 disabled:opacity-50"
                   >
                     {isProcessing ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
