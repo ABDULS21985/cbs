@@ -6,6 +6,7 @@ import com.cbs.shariah.entity.FatwaStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,10 @@ public interface FatwaRecordRepository extends JpaRepository<FatwaRecord, Long> 
     List<FatwaRecord> findByFatwaCategoryOrderByCreatedAtDesc(FatwaCategory category);
 
     List<FatwaRecord> findByStatusInOrderByCreatedAtDesc(List<FatwaStatus> statuses);
+
+    List<FatwaRecord> findByStatusAndExpiryDateLessThanEqual(FatwaStatus status, LocalDate expiryDate);
+
+    List<FatwaRecord> findByStatusAndExpiryDateBetween(FatwaStatus status, LocalDate fromDate, LocalDate toDate);
 
     long countByStatus(FatwaStatus status);
 
