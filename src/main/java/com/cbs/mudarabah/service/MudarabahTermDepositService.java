@@ -32,10 +32,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.cbs.mudarabah.dto.MudarabahTDSearchCriteria;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -323,6 +331,17 @@ public class MudarabahTermDepositService {
             BigDecimal reducedProfit = profit.multiply(td.getEarlyWithdrawalReducedPsr())
                     .divide(td.getPsrCustomer(), 4, RoundingMode.HALF_UP);
             payoutAmount = principal.add(reducedProfit);
+        } else if (penaltyType == EarlyWithdrawalPenalty.FLAT_FEE) {
+            // Deduct a flat fee from principal + profit
+            BigDecimal profit = td.getAccumulatedProfit() != null ? td.getAccumulatedProfit() : BigDecimal.ZERO;
+            BigDecimal totalBeforeFee = principal.add(profit);
+            // Flat fee is stored in earlyWithdrawalReducedPsr field (reused as fee amount) or use a fixed deduction
+            BigDecimal flatFee = td.getEarlyWithdrawalReducedPsr() != null ? td.getEarlyWithdrawalReducedPsr() : BigDecimal.ZERO;
+            payoutAmount = totalBeforeFee.subtract(flatFee);
+            if (payoutAmount.compareTo(BigDecimal.ZERO) < 0) {
+                payoutAmount = BigDecimal.ZERO;
+            }
+            log.info("Early withdrawal with flat fee {} for TD {}", flatFee, td.getDepositRef());
         } else {
             // NONE or default - full profit
             payoutAmount = principal.add(td.getAccumulatedProfit() != null ? td.getAccumulatedProfit() : BigDecimal.ZERO);
@@ -403,6 +422,39 @@ public class MudarabahTermDepositService {
     public List<MudarabahTermDepositResponse> getMaturingDeposits(LocalDate from, LocalDate to) {
         return termDepositRepository.findByMaturityDateBetween(from, to).stream()
                 .map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MudarabahTermDepositResponse> searchTermDeposits(MudarabahTDSearchCriteria criteria, Pageable pageable) {
+        Specification<MudarabahTermDeposit> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (criteria.getStatus() != null) {
+                predicates.add(cb.equal(root.get("status"), MudarabahTDStatus.valueOf(criteria.getStatus())));
+            }
+            if (criteria.getInvestmentPoolId() != null) {
+                predicates.add(cb.equal(root.get("investmentPoolId"), criteria.getInvestmentPoolId()));
+            }
+            if (criteria.getMaturityDateFrom() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("maturityDate"), criteria.getMaturityDateFrom()));
+            }
+            if (criteria.getMaturityDateTo() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("maturityDate"), criteria.getMaturityDateTo()));
+            }
+            if (criteria.getMinAmount() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("principalAmount"), criteria.getMinAmount()));
+            }
+            if (criteria.getMaxAmount() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("principalAmount"), criteria.getMaxAmount()));
+            }
+            if (criteria.getMinTenorDays() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("tenorDays"), criteria.getMinTenorDays()));
+            }
+            if (criteria.getMaxTenorDays() != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("tenorDays"), criteria.getMaxTenorDays()));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        return termDepositRepository.findAll(spec, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)

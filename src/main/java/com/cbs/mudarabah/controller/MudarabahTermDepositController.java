@@ -11,6 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -98,6 +101,13 @@ public class MudarabahTermDepositController {
         log.info("Fetching maturing deposits from {} to {}", from, to);
         List<MudarabahTermDepositResponse> response = mudarabahTermDepositService.getMaturingDeposits(from, to);
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<Page<MudarabahTermDepositResponse>>> searchTermDeposits(
+            MudarabahTDSearchCriteria criteria, Pageable pageable) {
+        Page<MudarabahTermDepositResponse> results = mudarabahTermDepositService.searchTermDeposits(criteria, pageable);
+        return ResponseEntity.ok(ApiResponse.ok(results));
     }
 
     @GetMapping("/portfolio-summary")

@@ -52,6 +52,15 @@ public class PsrController {
                 .body(ApiResponse.ok(response, "PSR schedule created successfully"));
     }
 
+    @PutMapping("/schedules/{id}")
+    public ResponseEntity<ApiResponse<PsrScheduleResponse>> updateSchedule(
+            @PathVariable Long id,
+            @Valid @RequestBody CreatePsrScheduleRequest request) {
+        log.info("Updating PSR schedule: {}", id);
+        PsrScheduleResponse response = psrService.updateSchedule(id, request);
+        return ResponseEntity.ok(ApiResponse.ok(response, "PSR schedule updated successfully"));
+    }
+
     @PostMapping("/change-requests")
     public ResponseEntity<ApiResponse<PsrChangeRequestResponse>> initiateChangeRequest(
             @Valid @RequestBody InitiatePsrChangeRequest request) {

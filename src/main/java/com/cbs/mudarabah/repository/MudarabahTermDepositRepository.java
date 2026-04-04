@@ -3,6 +3,7 @@ package com.cbs.mudarabah.repository;
 import com.cbs.mudarabah.entity.MudarabahTDStatus;
 import com.cbs.mudarabah.entity.MudarabahTermDeposit;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,7 +14,8 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface MudarabahTermDepositRepository extends JpaRepository<MudarabahTermDeposit, Long> {
+public interface MudarabahTermDepositRepository extends JpaRepository<MudarabahTermDeposit, Long>,
+        JpaSpecificationExecutor<MudarabahTermDeposit> {
 
     Optional<MudarabahTermDeposit> findByDepositRef(String depositRef);
 
