@@ -1,0 +1,28 @@
+package com.cbs.ijarah.repository;
+
+import com.cbs.ijarah.entity.IjarahDomainEnums;
+import com.cbs.ijarah.entity.IjarahRentalInstallment;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface IjarahRentalInstallmentRepository extends JpaRepository<IjarahRentalInstallment, Long> {
+
+    List<IjarahRentalInstallment> findByContractIdOrderByInstallmentNumberAsc(Long contractId);
+
+    Optional<IjarahRentalInstallment> findFirstByContractIdAndStatusInOrderByInstallmentNumberAsc(
+            Long contractId, List<IjarahDomainEnums.InstallmentStatus> statuses);
+
+    List<IjarahRentalInstallment> findByContractIdAndStatusInOrderByInstallmentNumberAsc(
+            Long contractId, List<IjarahDomainEnums.InstallmentStatus> statuses);
+
+    List<IjarahRentalInstallment> findByStatusInAndDueDateBefore(
+            List<IjarahDomainEnums.InstallmentStatus> statuses, LocalDate dueDate);
+
+    List<IjarahRentalInstallment> findByContractIdAndDueDateBetweenOrderByInstallmentNumberAsc(
+            Long contractId, LocalDate from, LocalDate to);
+}
