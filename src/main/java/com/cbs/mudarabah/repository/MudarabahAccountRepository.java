@@ -39,4 +39,7 @@ public interface MudarabahAccountRepository extends JpaRepository<MudarabahAccou
 
     @Query("SELECT m FROM MudarabahAccount m JOIN m.account a WHERE a.customer.id = :customerId")
     List<MudarabahAccount> findByCustomerId(@Param("customerId") Long customerId);
+
+    @Query("SELECT m FROM MudarabahAccount m JOIN m.account a WHERE a.accountNumber = :accountNumber")
+    Optional<MudarabahAccount> findByAccountNumber(@Param("accountNumber") String accountNumber);
 }

@@ -232,6 +232,25 @@ public class PsrService {
         return toScheduleResponse(schedule);
     }
 
+    public PsrScheduleResponse updateSchedule(Long scheduleId, CreatePsrScheduleRequest request) {
+        ProfitSharingRatioSchedule schedule = scheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new ResourceNotFoundException("PSR schedule not found: " + scheduleId));
+        schedule.setScheduleName(request.getScheduleName());
+        schedule.setScheduleType(PsrScheduleType.valueOf(request.getScheduleType()));
+        schedule.setFlatPsrCustomer(request.getFlatPsrCustomer());
+        schedule.setFlatPsrBank(request.getFlatPsrBank());
+        schedule.setDecisionTableCode(request.getDecisionTableCode());
+        schedule.setEffectiveFrom(request.getEffectiveFrom());
+        schedule.setEffectiveTo(request.getEffectiveTo());
+        if (request.getApprovedBy() != null) {
+            schedule.setApprovedBy(request.getApprovedBy());
+            schedule.setApprovedAt(LocalDateTime.now());
+        }
+        schedule = scheduleRepository.save(schedule);
+        log.info("PSR schedule updated: id={}", scheduleId);
+        return toScheduleResponse(schedule);
+    }
+
     @Transactional(readOnly = true)
     public List<PsrScheduleResponse> getSchedules() {
         return scheduleRepository.findAll().stream().map(this::toScheduleResponse).toList();

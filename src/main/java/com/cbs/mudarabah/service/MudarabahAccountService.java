@@ -159,6 +159,13 @@ public class MudarabahAccountService {
     }
 
     @Transactional(readOnly = true)
+    public MudarabahAccountResponse getByAccountNumber(String accountNumber) {
+        MudarabahAccount ma = mudarabahAccountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Mudarabah account not found for accountNumber: " + accountNumber));
+        return toResponse(ma);
+    }
+
+    @Transactional(readOnly = true)
     public MudarabahAccountResponse getByContractReference(String contractRef) {
         MudarabahAccount ma = mudarabahAccountRepository.findByContractReference(contractRef)
                 .orElseThrow(() -> new ResourceNotFoundException("Mudarabah account not found: " + contractRef));

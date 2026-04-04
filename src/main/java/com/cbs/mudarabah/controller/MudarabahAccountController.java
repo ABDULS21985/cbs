@@ -10,7 +10,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.cbs.mudarabah.service.PoolWeightageService;
+import org.springframework.format.annotation.DateTimeFormat;
+
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -20,6 +24,7 @@ import java.util.List;
 public class MudarabahAccountController {
 
     private final MudarabahAccountService mudarabahAccountService;
+    private final PoolWeightageService poolWeightageService;
 
     @PostMapping("/savings")
     public ResponseEntity<ApiResponse<MudarabahAccountResponse>> openMudarabahSavingsAccount(
@@ -35,6 +40,13 @@ public class MudarabahAccountController {
             @PathVariable Long accountId) {
         log.info("Fetching Mudarabah account: {}", accountId);
         MudarabahAccountResponse response = mudarabahAccountService.getMudarabahAccount(accountId);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @GetMapping("/accounts/number/{accountNumber}")
+    public ResponseEntity<ApiResponse<MudarabahAccountResponse>> getByAccountNumber(
+            @PathVariable String accountNumber) {
+        MudarabahAccountResponse response = mudarabahAccountService.getByAccountNumber(accountNumber);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
@@ -78,6 +90,15 @@ public class MudarabahAccountController {
         log.info("Calculating current weight for Mudarabah account: {}", accountId);
         BigDecimal weight = mudarabahAccountService.calculateCurrentWeight(accountId);
         return ResponseEntity.ok(ApiResponse.ok(weight));
+    }
+
+    @GetMapping("/accounts/{accountId}/profit-history")
+    public ResponseEntity<ApiResponse<List<PoolProfitAllocationResponse>>> getProfitHistory(
+            @PathVariable Long accountId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        List<PoolProfitAllocationResponse> history = poolWeightageService.getProfitAllocationHistory(accountId, from, to);
+        return ResponseEntity.ok(ApiResponse.ok(history));
     }
 
     @GetMapping("/portfolio-summary")
