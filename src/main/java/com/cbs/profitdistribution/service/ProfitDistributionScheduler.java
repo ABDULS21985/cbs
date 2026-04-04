@@ -26,7 +26,7 @@ public class ProfitDistributionScheduler {
         poolWeightageService.recordDailyWeightagesForAllPools(today);
     }
 
-    @Scheduled(cron = "0 0 6 1 * * *")
+    @Scheduled(cron = "0 0 6 1 * *")
     public void triggerMonthlyDistributions() {
         LocalDate previousMonthEnd = LocalDate.now().withDayOfMonth(1).minusDays(1);
         LocalDate previousMonthStart = previousMonthEnd.withDayOfMonth(1);

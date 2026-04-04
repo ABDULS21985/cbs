@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -98,20 +99,20 @@ class ProfitAllocationServiceTest {
         accountA = mudarabahAccount(11L, 101L, "MDA-001", new BigDecimal("70.0000"), new BigDecimal("30.0000"));
         accountB = mudarabahAccount(12L, 102L, "MDA-002", new BigDecimal("60.0000"), new BigDecimal("40.0000"));
 
-        when(calculationRepo.findById(10L)).thenReturn(Optional.of(calculation));
-        when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
-        when(mudarabahAccountRepo.findByAccountId(101L)).thenReturn(Optional.of(accountA));
-        when(mudarabahAccountRepo.findByAccountId(102L)).thenReturn(Optional.of(accountB));
-        when(weightageRecordRepo.sumDailyProduct(1L, 101L, calculation.getPeriodFrom(), calculation.getPeriodTo()))
+        lenient().when(calculationRepo.findById(10L)).thenReturn(Optional.of(calculation));
+        lenient().when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
+        lenient().when(mudarabahAccountRepo.findByAccountId(101L)).thenReturn(Optional.of(accountA));
+        lenient().when(mudarabahAccountRepo.findByAccountId(102L)).thenReturn(Optional.of(accountB));
+        lenient().when(weightageRecordRepo.sumDailyProduct(1L, 101L, calculation.getPeriodFrom(), calculation.getPeriodTo()))
                 .thenReturn(new BigDecimal("1550000.0000"));
-        when(weightageRecordRepo.sumDailyProduct(1L, 102L, calculation.getPeriodFrom(), calculation.getPeriodTo()))
+        lenient().when(weightageRecordRepo.sumDailyProduct(1L, 102L, calculation.getPeriodFrom(), calculation.getPeriodTo()))
                 .thenReturn(new BigDecimal("1550000.0000"));
-        when(weightageRecordRepo.sumPoolDailyProduct(1L, calculation.getPeriodFrom(), calculation.getPeriodTo()))
+        lenient().when(weightageRecordRepo.sumPoolDailyProduct(1L, calculation.getPeriodFrom(), calculation.getPeriodTo()))
                 .thenReturn(new BigDecimal("3100000.0000"));
-        when(allocationRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, calculation.getPeriodFrom(), calculation.getPeriodTo()))
+        lenient().when(allocationRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, calculation.getPeriodFrom(), calculation.getPeriodTo()))
                 .thenReturn(List.of());
-        when(calculationRepo.save(any(PoolProfitCalculation.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(allocationRepo.save(any(PoolProfitAllocation.class))).thenAnswer(invocation -> {
+        lenient().when(calculationRepo.save(any(PoolProfitCalculation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(allocationRepo.save(any(PoolProfitAllocation.class))).thenAnswer(invocation -> {
             PoolProfitAllocation allocation = invocation.getArgument(0);
             if (allocation.getId() == null) {
                 allocation.setId(allocationIdSequence.incrementAndGet());

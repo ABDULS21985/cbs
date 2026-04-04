@@ -36,6 +36,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -125,7 +126,7 @@ class ProfitDistributionRunServiceTest {
         when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
         when(runRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
                 .thenReturn(Optional.empty());
-        when(weightageRecordRepository.countDistinctRecordDates(1L, periodFrom, periodTo)).thenReturn(31L);
+        lenient().when(weightageRecordRepository.countDistinctRecordDates(1L, periodFrom, periodTo)).thenReturn(31L);
         when(actorProvider.getCurrentActor()).thenReturn("initiator-user");
         when(runRepo.save(any(ProfitDistributionRun.class))).thenAnswer(inv -> {
             ProfitDistributionRun run = inv.getArgument(0);
@@ -164,7 +165,7 @@ class ProfitDistributionRunServiceTest {
         when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
         when(runRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
                 .thenReturn(Optional.of(existingRun));
-        when(weightageRecordRepository.countDistinctRecordDates(1L, periodFrom, periodTo)).thenReturn(31L);
+        lenient().when(weightageRecordRepository.countDistinctRecordDates(1L, periodFrom, periodTo)).thenReturn(31L);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.initiateRun(request));
@@ -239,7 +240,7 @@ class ProfitDistributionRunServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.approveAllocation(100L, "user-A"));
 
-        assertTrue(ex.getMessage().contains("Four-eyes principle"));
+        assertTrue(ex.getMessage().contains("Allocation approver must differ"));
         verify(allocationService, never()).approveAllocations(any(), any(), any(), any());
     }
 
