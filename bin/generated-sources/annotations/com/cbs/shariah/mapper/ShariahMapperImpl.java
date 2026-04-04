@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2026-04-04T15:14:32+0100",
+    date = "2026-04-04T15:44:03+0100",
     comments = "version: 1.6.2, compiler: Eclipse JDT (IDE) 3.45.0.v20260224-0835, environment: Java 21.0.10 (Eclipse Adoptium)"
 )
 @Component
@@ -32,8 +32,13 @@ public class ShariahMapperImpl implements ShariahMapper {
 
         SsbBoardMember.SsbBoardMemberBuilder ssbBoardMember = SsbBoardMember.builder();
 
+        ssbBoardMember.appointmentDate( request.getAppointmentDate() );
+        ssbBoardMember.contactEmail( request.getContactEmail() );
+        ssbBoardMember.contactPhone( request.getContactPhone() );
+        ssbBoardMember.expiryDate( request.getExpiryDate() );
         ssbBoardMember.fullName( request.getFullName() );
-        ssbBoardMember.title( request.getTitle() );
+        ssbBoardMember.isChairman( request.getIsChairman() );
+        ssbBoardMember.nationality( request.getNationality() );
         List<String> list = request.getQualifications();
         if ( list != null ) {
             ssbBoardMember.qualifications( new ArrayList<String>( list ) );
@@ -42,13 +47,8 @@ public class ShariahMapperImpl implements ShariahMapper {
         if ( list1 != null ) {
             ssbBoardMember.specializations( new ArrayList<String>( list1 ) );
         }
-        ssbBoardMember.appointmentDate( request.getAppointmentDate() );
-        ssbBoardMember.expiryDate( request.getExpiryDate() );
-        ssbBoardMember.isChairman( request.getIsChairman() );
+        ssbBoardMember.title( request.getTitle() );
         ssbBoardMember.votingWeight( request.getVotingWeight() );
-        ssbBoardMember.contactEmail( request.getContactEmail() );
-        ssbBoardMember.contactPhone( request.getContactPhone() );
-        ssbBoardMember.nationality( request.getNationality() );
 
         return ssbBoardMember.build();
     }
@@ -61,10 +61,17 @@ public class ShariahMapperImpl implements ShariahMapper {
 
         SsbMemberResponse.SsbMemberResponseBuilder ssbMemberResponse = SsbMemberResponse.builder();
 
-        ssbMemberResponse.id( entity.getId() );
-        ssbMemberResponse.memberId( entity.getMemberId() );
+        ssbMemberResponse.appointmentDate( entity.getAppointmentDate() );
+        ssbMemberResponse.contactEmail( entity.getContactEmail() );
+        ssbMemberResponse.contactPhone( entity.getContactPhone() );
+        ssbMemberResponse.createdAt( entity.getCreatedAt() );
+        ssbMemberResponse.expiryDate( entity.getExpiryDate() );
         ssbMemberResponse.fullName( entity.getFullName() );
-        ssbMemberResponse.title( entity.getTitle() );
+        ssbMemberResponse.id( entity.getId() );
+        ssbMemberResponse.isActive( entity.getIsActive() );
+        ssbMemberResponse.isChairman( entity.getIsChairman() );
+        ssbMemberResponse.memberId( entity.getMemberId() );
+        ssbMemberResponse.nationality( entity.getNationality() );
         List<String> list = entity.getQualifications();
         if ( list != null ) {
             ssbMemberResponse.qualifications( new ArrayList<String>( list ) );
@@ -73,16 +80,9 @@ public class ShariahMapperImpl implements ShariahMapper {
         if ( list1 != null ) {
             ssbMemberResponse.specializations( new ArrayList<String>( list1 ) );
         }
-        ssbMemberResponse.appointmentDate( entity.getAppointmentDate() );
-        ssbMemberResponse.expiryDate( entity.getExpiryDate() );
-        ssbMemberResponse.isActive( entity.getIsActive() );
-        ssbMemberResponse.isChairman( entity.getIsChairman() );
-        ssbMemberResponse.votingWeight( entity.getVotingWeight() );
-        ssbMemberResponse.contactEmail( entity.getContactEmail() );
-        ssbMemberResponse.contactPhone( entity.getContactPhone() );
-        ssbMemberResponse.nationality( entity.getNationality() );
-        ssbMemberResponse.createdAt( entity.getCreatedAt() );
+        ssbMemberResponse.title( entity.getTitle() );
         ssbMemberResponse.updatedAt( entity.getUpdatedAt() );
+        ssbMemberResponse.votingWeight( entity.getVotingWeight() );
 
         return ssbMemberResponse.build();
     }
@@ -109,10 +109,6 @@ public class ShariahMapperImpl implements ShariahMapper {
 
         FatwaRecord.FatwaRecordBuilder fatwaRecord = FatwaRecord.builder();
 
-        fatwaRecord.fatwaTitle( request.getFatwaTitle() );
-        fatwaRecord.fatwaCategory( request.getFatwaCategory() );
-        fatwaRecord.subject( request.getSubject() );
-        fatwaRecord.fullText( request.getFullText() );
         List<String> list = request.getAaoifiReferences();
         if ( list != null ) {
             fatwaRecord.aaoifiReferences( new ArrayList<String>( list ) );
@@ -124,6 +120,10 @@ public class ShariahMapperImpl implements ShariahMapper {
         fatwaRecord.conditions( request.getConditions() );
         fatwaRecord.effectiveDate( request.getEffectiveDate() );
         fatwaRecord.expiryDate( request.getExpiryDate() );
+        fatwaRecord.fatwaCategory( request.getFatwaCategory() );
+        fatwaRecord.fatwaTitle( request.getFatwaTitle() );
+        fatwaRecord.fullText( request.getFullText() );
+        fatwaRecord.subject( request.getSubject() );
 
         return fatwaRecord.build();
     }
@@ -136,12 +136,6 @@ public class ShariahMapperImpl implements ShariahMapper {
 
         FatwaResponse.FatwaResponseBuilder fatwaResponse = FatwaResponse.builder();
 
-        fatwaResponse.id( entity.getId() );
-        fatwaResponse.fatwaNumber( entity.getFatwaNumber() );
-        fatwaResponse.fatwaTitle( entity.getFatwaTitle() );
-        fatwaResponse.fatwaCategory( entity.getFatwaCategory() );
-        fatwaResponse.subject( entity.getSubject() );
-        fatwaResponse.fullText( entity.getFullText() );
         List<String> list = entity.getAaoifiReferences();
         if ( list != null ) {
             fatwaResponse.aaoifiReferences( new ArrayList<String>( list ) );
@@ -150,17 +144,23 @@ public class ShariahMapperImpl implements ShariahMapper {
         if ( list1 != null ) {
             fatwaResponse.applicableContractTypes( new ArrayList<String>( list1 ) );
         }
+        fatwaResponse.approvedAt( entity.getApprovedAt() );
         fatwaResponse.conditions( entity.getConditions() );
+        fatwaResponse.createdAt( entity.getCreatedAt() );
+        fatwaResponse.createdBy( entity.getCreatedBy() );
         fatwaResponse.effectiveDate( entity.getEffectiveDate() );
         fatwaResponse.expiryDate( entity.getExpiryDate() );
-        fatwaResponse.supersededByFatwaId( entity.getSupersededByFatwaId() );
-        fatwaResponse.status( entity.getStatus() );
+        fatwaResponse.fatwaCategory( entity.getFatwaCategory() );
+        fatwaResponse.fatwaNumber( entity.getFatwaNumber() );
+        fatwaResponse.fatwaTitle( entity.getFatwaTitle() );
+        fatwaResponse.fullText( entity.getFullText() );
+        fatwaResponse.id( entity.getId() );
         fatwaResponse.issuedByBoardId( entity.getIssuedByBoardId() );
-        fatwaResponse.approvedAt( entity.getApprovedAt() );
-        fatwaResponse.createdBy( entity.getCreatedBy() );
-        fatwaResponse.updatedBy( entity.getUpdatedBy() );
-        fatwaResponse.createdAt( entity.getCreatedAt() );
+        fatwaResponse.status( entity.getStatus() );
+        fatwaResponse.subject( entity.getSubject() );
+        fatwaResponse.supersededByFatwaId( entity.getSupersededByFatwaId() );
         fatwaResponse.updatedAt( entity.getUpdatedAt() );
+        fatwaResponse.updatedBy( entity.getUpdatedBy() );
         fatwaResponse.version( entity.getVersion() );
 
         return fatwaResponse.build();
@@ -186,18 +186,6 @@ public class ShariahMapperImpl implements ShariahMapper {
             return;
         }
 
-        if ( request.getFatwaTitle() != null ) {
-            entity.setFatwaTitle( request.getFatwaTitle() );
-        }
-        if ( request.getFatwaCategory() != null ) {
-            entity.setFatwaCategory( request.getFatwaCategory() );
-        }
-        if ( request.getSubject() != null ) {
-            entity.setSubject( request.getSubject() );
-        }
-        if ( request.getFullText() != null ) {
-            entity.setFullText( request.getFullText() );
-        }
         if ( entity.getAaoifiReferences() != null ) {
             List<String> list = request.getAaoifiReferences();
             if ( list != null ) {
@@ -233,6 +221,18 @@ public class ShariahMapperImpl implements ShariahMapper {
         if ( request.getExpiryDate() != null ) {
             entity.setExpiryDate( request.getExpiryDate() );
         }
+        if ( request.getFatwaCategory() != null ) {
+            entity.setFatwaCategory( request.getFatwaCategory() );
+        }
+        if ( request.getFatwaTitle() != null ) {
+            entity.setFatwaTitle( request.getFatwaTitle() );
+        }
+        if ( request.getFullText() != null ) {
+            entity.setFullText( request.getFullText() );
+        }
+        if ( request.getSubject() != null ) {
+            entity.setSubject( request.getSubject() );
+        }
     }
 
     @Override
@@ -243,31 +243,31 @@ public class ShariahMapperImpl implements ShariahMapper {
 
         ReviewRequestResponse.ReviewRequestResponseBuilder reviewRequestResponse = ReviewRequestResponse.builder();
 
-        reviewRequestResponse.id( entity.getId() );
-        reviewRequestResponse.requestCode( entity.getRequestCode() );
-        reviewRequestResponse.requestType( entity.getRequestType() );
-        reviewRequestResponse.title( entity.getTitle() );
-        reviewRequestResponse.description( entity.getDescription() );
-        reviewRequestResponse.submittedBy( entity.getSubmittedBy() );
-        reviewRequestResponse.submittedAt( entity.getSubmittedAt() );
         List<Long> list = entity.getAssignedMemberIds();
         if ( list != null ) {
             reviewRequestResponse.assignedMemberIds( new ArrayList<Long>( list ) );
         }
-        reviewRequestResponse.requiredQuorum( entity.getRequiredQuorum() );
+        reviewRequestResponse.createdAt( entity.getCreatedAt() );
         reviewRequestResponse.currentApprovals( entity.getCurrentApprovals() );
         reviewRequestResponse.currentRejections( entity.getCurrentRejections() );
+        reviewRequestResponse.description( entity.getDescription() );
+        reviewRequestResponse.id( entity.getId() );
         reviewRequestResponse.linkedFatwaId( entity.getLinkedFatwaId() );
         reviewRequestResponse.linkedProductCode( entity.getLinkedProductCode() );
         reviewRequestResponse.linkedTransactionRef( entity.getLinkedTransactionRef() );
-        reviewRequestResponse.reviewNotes( entity.getReviewNotes() );
+        reviewRequestResponse.priority( entity.getPriority() );
+        reviewRequestResponse.requestCode( entity.getRequestCode() );
+        reviewRequestResponse.requestType( entity.getRequestType() );
+        reviewRequestResponse.requiredQuorum( entity.getRequiredQuorum() );
         reviewRequestResponse.resolutionNotes( entity.getResolutionNotes() );
         reviewRequestResponse.resolvedAt( entity.getResolvedAt() );
         reviewRequestResponse.resolvedBy( entity.getResolvedBy() );
-        reviewRequestResponse.status( entity.getStatus() );
-        reviewRequestResponse.priority( entity.getPriority() );
+        reviewRequestResponse.reviewNotes( entity.getReviewNotes() );
         reviewRequestResponse.slaDeadline( entity.getSlaDeadline() );
-        reviewRequestResponse.createdAt( entity.getCreatedAt() );
+        reviewRequestResponse.status( entity.getStatus() );
+        reviewRequestResponse.submittedAt( entity.getSubmittedAt() );
+        reviewRequestResponse.submittedBy( entity.getSubmittedBy() );
+        reviewRequestResponse.title( entity.getTitle() );
         reviewRequestResponse.updatedAt( entity.getUpdatedAt() );
 
         return reviewRequestResponse.build();
@@ -295,11 +295,11 @@ public class ShariahMapperImpl implements ShariahMapper {
 
         VoteResponse.VoteResponseBuilder voteResponse = VoteResponse.builder();
 
-        voteResponse.id( entity.getId() );
-        voteResponse.reviewRequestId( entity.getReviewRequestId() );
-        voteResponse.memberId( entity.getMemberId() );
-        voteResponse.vote( entity.getVote() );
         voteResponse.comments( entity.getComments() );
+        voteResponse.id( entity.getId() );
+        voteResponse.memberId( entity.getMemberId() );
+        voteResponse.reviewRequestId( entity.getReviewRequestId() );
+        voteResponse.vote( entity.getVote() );
         voteResponse.votedAt( entity.getVotedAt() );
 
         return voteResponse.build();
