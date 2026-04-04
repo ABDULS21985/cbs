@@ -1,0 +1,263 @@
+package com.cbs.mudarabah.service;
+
+import com.cbs.account.entity.Account;
+import com.cbs.account.entity.AccountStatus;
+import com.cbs.account.entity.AccountType;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
+import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.exception.BusinessException;
+import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.mudarabah.dto.OpenWakalaAccountRequest;
+import com.cbs.mudarabah.dto.WakalaDepositResponse;
+import com.cbs.mudarabah.dto.WakalaFeeDistributionResponse;
+import com.cbs.mudarabah.entity.PreferredLanguage;
+import com.cbs.mudarabah.entity.RiskLevel;
+import com.cbs.mudarabah.entity.StatementFrequency;
+import com.cbs.mudarabah.entity.WakalaAccountSubType;
+import com.cbs.mudarabah.entity.WakalaDepositAccount;
+import com.cbs.mudarabah.entity.WakalaType;
+import com.cbs.mudarabah.repository.WakalaDepositAccountRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+@Transactional
+public class WakalaDepositService {
+
+    private final WakalaDepositAccountRepository wakalaRepository;
+    private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+
+    private static final String WAKALA_INVESTMENT_GL = "3200-WKL-001";
+    private static final String CASH_GL = "1001-000-001";
+    private static final String WAKALA_FEE_INCOME_GL = "4200-WKL-001";
+    private static final AtomicLong WKL_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+
+    public WakalaDepositResponse openWakalaAccount(OpenWakalaAccountRequest request) {
+        if (!request.isLossDisclosureAccepted()) {
+            throw new BusinessException("Loss disclosure must be accepted for Wakala accounts", "LOSS_DISCLOSURE_REQUIRED");
+        }
+
+        WakalaType wakalaType = WakalaType.valueOf(request.getWakalaType());
+        // Validate fee structure
+        if (wakalaType == WakalaType.FIXED_FEE && (request.getWakalahFeeAmount() == null || request.getWakalahFeeAmount().compareTo(BigDecimal.ZERO) <= 0)) {
+            throw new BusinessException("Fixed fee amount must be positive for FIXED_FEE Wakala", "INVALID_FEE");
+        }
+        if ((wakalaType == WakalaType.PERCENTAGE_FEE || wakalaType == WakalaType.PERFORMANCE_FEE)
+                && (request.getWakalahFeeRate() == null || request.getWakalahFeeRate().compareTo(BigDecimal.ZERO) <= 0)) {
+            throw new BusinessException("Fee rate must be positive for " + wakalaType + " Wakala", "INVALID_FEE");
+        }
+
+        // Create base Account
+        Account account = Account.builder()
+                .accountNumber("WKL" + System.currentTimeMillis() % 10000000000L)
+                .accountName("Wakala Investment Deposit")
+                .currencyCode(request.getCurrencyCode() != null ? request.getCurrencyCode() : "SAR")
+                .accountType(AccountType.INDIVIDUAL)
+                .status(AccountStatus.ACTIVE)
+                .bookBalance(BigDecimal.ZERO)
+                .availableBalance(BigDecimal.ZERO)
+                .lienAmount(BigDecimal.ZERO)
+                .overdraftLimit(BigDecimal.ZERO)
+                .openedDate(LocalDate.now())
+                .activatedDate(LocalDate.now())
+                .build();
+        account = accountRepository.save(account);
+
+        String contractRef = "WKL-DEP-" + LocalDate.now().getYear() + "-" + String.format("%06d", WKL_SEQ.incrementAndGet());
+
+        WakalaAccountSubType subType = WakalaAccountSubType.valueOf(request.getAccountSubType());
+        LocalDate maturityDate = null;
+        if (subType == WakalaAccountSubType.TERM_WAKALA && request.getTenorDays() != null) {
+            maturityDate = LocalDate.now().plusDays(request.getTenorDays());
+        }
+
+        WakalaDepositAccount wakala = WakalaDepositAccount.builder()
+                .account(account)
+                .contractReference(contractRef)
+                .contractSignedDate(LocalDate.now())
+                .contractTypeCode("WAKALAH")
+                .wakalaType(wakalaType)
+                .wakalahFeeRate(request.getWakalahFeeRate())
+                .wakalahFeeAmount(request.getWakalahFeeAmount())
+                .feeFrequency(request.getFeeFrequency() != null
+                        ? StatementFrequency.valueOf(request.getFeeFrequency())
+                        : StatementFrequency.ANNUALLY)
+                .feeAccrued(BigDecimal.ZERO)
+                .totalFeesCharged(BigDecimal.ZERO)
+                .investmentMandate(request.getInvestmentMandate())
+                .investmentMandateAr(request.getInvestmentMandateAr())
+                .riskLevel(request.getRiskLevel() != null ? RiskLevel.valueOf(request.getRiskLevel()) : RiskLevel.MEDIUM)
+                .accountSubType(subType)
+                .tenorDays(request.getTenorDays())
+                .maturityDate(maturityDate)
+                .maturityInstruction(request.getMaturityInstruction())
+                .poolJoinDate(LocalDate.now())
+                .cumulativeProfitReceived(BigDecimal.ZERO)
+                .cumulativeFeesDeducted(BigDecimal.ZERO)
+                .lossExposure(true)
+                .lossDisclosureAccepted(true)
+                .bankNegligenceLiability(true)
+                .earlyWithdrawalAllowed(true)
+                .preferredLanguage(PreferredLanguage.EN)
+                .statementFrequency(StatementFrequency.MONTHLY)
+                .build();
+
+        wakala = wakalaRepository.save(wakala);
+
+        // Post initial deposit
+        if (request.getInitialDeposit() != null && request.getInitialDeposit().compareTo(BigDecimal.ZERO) > 0) {
+            accountPostingService.postCreditAgainstGl(account, TransactionType.CREDIT,
+                    request.getInitialDeposit(),
+                    "Wakala investment deposit opening",
+                    TransactionChannel.SYSTEM, contractRef,
+                    CASH_GL, "WAKALA", contractRef);
+        }
+
+        log.info("Wakala account opened: ref={}, type={}, feeRate={}", contractRef, wakalaType, request.getWakalahFeeRate());
+        return toResponse(wakala);
+    }
+
+    @Transactional(readOnly = true)
+    public WakalaDepositResponse getAccount(Long accountId) {
+        WakalaDepositAccount w = wakalaRepository.findByAccountId(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wakala account not found for accountId: " + accountId));
+        return toResponse(w);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WakalaDepositResponse> getCustomerWakalaAccounts(Long customerId) {
+        return wakalaRepository.findByCustomerId(customerId).stream()
+                .map(this::toResponse).toList();
+    }
+
+    public WakalaFeeDistributionResponse calculateFeeAndDistribute(Long accountId, BigDecimal grossProfit,
+                                                                     LocalDate periodFrom, LocalDate periodTo) {
+        WakalaDepositAccount w = wakalaRepository.findByAccountId(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wakala account not found"));
+        Account account = w.getAccount();
+
+        BigDecimal wakalahFee;
+        switch (w.getWakalaType()) {
+            case FIXED_FEE -> {
+                // Pro-rate fixed fee for the period
+                long periodDays = ChronoUnit.DAYS.between(periodFrom, periodTo);
+                wakalahFee = w.getWakalahFeeAmount()
+                        .multiply(BigDecimal.valueOf(periodDays))
+                        .divide(BigDecimal.valueOf(365), 4, RoundingMode.HALF_UP);
+            }
+            case PERCENTAGE_FEE -> {
+                // Fee = rate% of invested amount
+                wakalahFee = account.getBookBalance()
+                        .multiply(w.getWakalahFeeRate())
+                        .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+                long days = ChronoUnit.DAYS.between(periodFrom, periodTo);
+                wakalahFee = wakalahFee.multiply(BigDecimal.valueOf(days))
+                        .divide(BigDecimal.valueOf(365), 4, RoundingMode.HALF_UP);
+            }
+            case PERFORMANCE_FEE -> {
+                // Fee = rate% of profit earned
+                wakalahFee = grossProfit.multiply(w.getWakalahFeeRate())
+                        .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+            }
+            default -> wakalahFee = BigDecimal.ZERO;
+        }
+
+        // Customer gets everything above the fee
+        BigDecimal customerProfit = grossProfit.subtract(wakalahFee);
+        if (customerProfit.compareTo(BigDecimal.ZERO) < 0) {
+            customerProfit = BigDecimal.ZERO; // If profit < fee, customer gets nothing, bank gets partial fee
+            wakalahFee = grossProfit; // Bank can only take what's available
+        }
+
+        // Credit customer profit
+        if (customerProfit.compareTo(BigDecimal.ZERO) > 0) {
+            accountPostingService.postCreditAgainstGl(account, TransactionType.CREDIT,
+                    customerProfit, "Wakala investment profit",
+                    TransactionChannel.SYSTEM, null,
+                    WAKALA_FEE_INCOME_GL, "WAKALA", w.getContractReference());
+        }
+
+        // Update Wakala account
+        w.setTotalFeesCharged(w.getTotalFeesCharged().add(wakalahFee));
+        w.setCumulativeFeesDeducted(w.getCumulativeFeesDeducted().add(wakalahFee));
+        w.setCumulativeProfitReceived(w.getCumulativeProfitReceived().add(customerProfit));
+        w.setLastProfitDistributionDate(LocalDate.now());
+        wakalaRepository.save(w);
+
+        // Effective rate
+        long periodDays = ChronoUnit.DAYS.between(periodFrom, periodTo);
+        BigDecimal effectiveRate = BigDecimal.ZERO;
+        if (account.getBookBalance().compareTo(BigDecimal.ZERO) > 0 && periodDays > 0) {
+            effectiveRate = customerProfit.multiply(BigDecimal.valueOf(365))
+                    .divide(account.getBookBalance().multiply(BigDecimal.valueOf(periodDays)), 4, RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"));
+        }
+
+        log.info("Wakala fee distribution: account={}, gross={}, fee={}, customer={}", accountId, grossProfit, wakalahFee, customerProfit);
+
+        return WakalaFeeDistributionResponse.builder()
+                .accountId(accountId)
+                .accountNumber(account.getAccountNumber())
+                .grossProfit(grossProfit)
+                .wakalahFee(wakalahFee)
+                .customerProfit(customerProfit)
+                .effectiveRate(effectiveRate)
+                .periodFrom(periodFrom)
+                .periodTo(periodTo)
+                .build();
+    }
+
+    private WakalaDepositResponse toResponse(WakalaDepositAccount w) {
+        Account account = w.getAccount();
+        return WakalaDepositResponse.builder()
+                .id(w.getId())
+                .accountId(account.getId())
+                .accountNumber(account.getAccountNumber())
+                .contractReference(w.getContractReference())
+                .contractSignedDate(w.getContractSignedDate())
+                .contractTypeCode(w.getContractTypeCode())
+                .wakalaType(w.getWakalaType().name())
+                .wakalahFeeRate(w.getWakalahFeeRate())
+                .wakalahFeeAmount(w.getWakalahFeeAmount())
+                .feeFrequency(w.getFeeFrequency() != null ? w.getFeeFrequency().name() : null)
+                .feeAccrued(w.getFeeAccrued())
+                .totalFeesCharged(w.getTotalFeesCharged())
+                .investmentMandate(w.getInvestmentMandate())
+                .investmentMandateAr(w.getInvestmentMandateAr())
+                .targetReturnRate(w.getTargetReturnRate())
+                .expectedProfitRate(w.getExpectedProfitRate())
+                .riskLevel(w.getRiskLevel() != null ? w.getRiskLevel().name() : null)
+                .accountSubType(w.getAccountSubType().name())
+                .tenorDays(w.getTenorDays())
+                .maturityDate(w.getMaturityDate())
+                .maturityInstruction(w.getMaturityInstruction())
+                .investmentPoolId(w.getInvestmentPoolId())
+                .poolJoinDate(w.getPoolJoinDate())
+                .lastProfitDistributionDate(w.getLastProfitDistributionDate())
+                .cumulativeProfitReceived(w.getCumulativeProfitReceived())
+                .cumulativeFeesDeducted(w.getCumulativeFeesDeducted())
+                .lossExposure(w.isLossExposure())
+                .lossDisclosureAccepted(w.isLossDisclosureAccepted())
+                .bankNegligenceLiability(w.isBankNegligenceLiability())
+                .earlyWithdrawalAllowed(w.isEarlyWithdrawalAllowed())
+                .bookBalance(account.getBookBalance())
+                .availableBalance(account.getAvailableBalance())
+                .status(account.getStatus() != null ? account.getStatus().name() : null)
+                .openedDate(account.getOpenedDate())
+                .build();
+    }
+}

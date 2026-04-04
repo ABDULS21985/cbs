@@ -397,7 +397,7 @@ public class IslamicGlController {
         if (txnType != null) {
             return ResponseEntity.ok(ApiResponse.ok(postingRuleService.getRulesByTransactionType(txnType)));
         }
-        return ResponseEntity.ok(ApiResponse.ok(postingRuleService.getRulesByContractType("ALL")));
+        return ResponseEntity.ok(ApiResponse.ok(postingRuleService.getAllRules()));
     }
 
     @GetMapping("/posting-rules/{ruleCode}")

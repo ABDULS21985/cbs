@@ -137,6 +137,15 @@ public class IslamicPostingRuleService {
         return postingRuleRepository.findByTransactionTypeOrderByPriorityDescRuleCodeAsc(txnType);
     }
 
+    public List<IslamicPostingRule> getAllRules() {
+        return postingRuleRepository.findAll().stream()
+                .sorted((left, right) -> {
+                    int priorityCompare = Integer.compare(right.getPriority(), left.getPriority());
+                    return priorityCompare != 0 ? priorityCompare : left.getRuleCode().compareTo(right.getRuleCode());
+                })
+                .toList();
+    }
+
     public IslamicPostingRule resolveRule(String contractTypeCode, IslamicTransactionType txnType, Map<String, Object> context) {
         IslamicContractSupport.validate(contractTypeCode);
         String normalizedContractType = IslamicContractSupport.normalize(contractTypeCode);
