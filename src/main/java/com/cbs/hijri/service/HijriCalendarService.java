@@ -191,7 +191,7 @@ public class HijriCalendarService {
         validateImportRequest(request, tenantId);
 
         List<HijriDateMapping> entities = request.getMappings().stream()
-                .map(item -> HijriDateMapping.builder()
+                .map(item -> (HijriDateMapping) HijriDateMapping.builder()
                         .hijriYear(request.getHijriYear())
                         .hijriMonth(item.getHijriMonth())
                         .hijriDay(item.getHijriDay())

@@ -26,7 +26,6 @@ public abstract class TestContainersConfig {
                     .withDatabaseName("cbs")
                     .withUsername("cbs_admin")
                     .withPassword("cbs_password")
-                    .withInitScript("init-schema.sql")
                     .withReuse(true);
 
     @DynamicPropertySource
@@ -37,5 +36,6 @@ public abstract class TestContainersConfig {
         registry.add("spring.flyway.url", POSTGRES::getJdbcUrl);
         registry.add("spring.flyway.user", POSTGRES::getUsername);
         registry.add("spring.flyway.password", POSTGRES::getPassword);
+        registry.add("spring.flyway.create-schemas", () -> "true");
     }
 }
