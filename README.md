@@ -177,7 +177,7 @@ After Keycloak starts at `http://localhost:8180`:
    - **Standard flow:** Enabled
    - **Valid redirect URIs:** `http://localhost:3001/*`
    - **Web origins:** `*`
-4. Create realm roles: `CBS_ADMIN`, `CBS_OFFICER`, `TELLER`, `BRANCH_MANAGER`, `COMPLIANCE`, `TREASURY`
+4. Create realm roles: `CBS_ADMIN`, `CBS_OFFICER`, `TELLER`, `BRANCH_MANAGER`, `COMPLIANCE`, `TREASURY`, `SHARIAH_OFFICER`
 5. Create a user and assign the `CBS_ADMIN` role
 
 > If the realm and users already exist (e.g. from a previous setup), skip to step 5 and reset the password.
@@ -332,6 +332,7 @@ DigiCore CBS uses **Keycloak** as its OpenID Connect provider. The frontend impl
 | `BRANCH_MANAGER` | Branch operations, staff oversight |
 | `COMPLIANCE` | Compliance monitoring, AML, regulatory reports |
 | `TREASURY` | Treasury operations, FX, ALM |
+| `SHARIAH_OFFICER` | SSB reviews, fatwa workflows, and Shariah governance operations |
 | `LOAN_OFFICER` | Loan origination, credit assessment |
 | `RISK_OFFICER` | Risk monitoring and reporting |
 
