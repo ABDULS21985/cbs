@@ -79,6 +79,9 @@ public class CommodityMurabahaService {
 
     public CommodityMurabahaTrade executePurchase(Long tradeId, ExecutePurchaseRequest request) {
         CommodityMurabahaTrade trade = getTrade(tradeId);
+        if (trade.getOverallStatus() != MurabahaDomainEnums.CommodityTradeStatus.INITIATED) {
+            throw new BusinessException("Purchase can only be executed on INITIATED trades. Current: " + trade.getOverallStatus(), "INVALID_TRADE_STATE");
+        }
         MurabahaContract contract = getCommodityContract(trade.getContractId());
 
         trade.setPurchaseBrokerName(request.getPurchaseBrokerName());
@@ -120,6 +123,10 @@ public class CommodityMurabahaService {
 
     public CommodityMurabahaTrade recordOwnership(Long tradeId, OwnershipEvidenceRequest evidence) {
         CommodityMurabahaTrade trade = getTrade(tradeId);
+        if (trade.getPurchaseStatus() != MurabahaDomainEnums.CommodityPurchaseStatus.CONFIRMED
+                && trade.getPurchaseStatus() != MurabahaDomainEnums.CommodityPurchaseStatus.SETTLED) {
+            throw new BusinessException("Purchase must be confirmed before recording ownership", "PURCHASE_NOT_CONFIRMED");
+        }
         if (trade.getPurchaseDate() == null) {
             throw new BusinessException("Commodity purchase must be recorded before ownership evidence",
                     "PURCHASE_NOT_RECORDED");

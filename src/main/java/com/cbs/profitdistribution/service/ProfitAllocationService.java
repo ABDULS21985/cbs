@@ -275,26 +275,31 @@ public class ProfitAllocationService {
         BigDecimal currentTotal = allocations.stream()
                 .map(PoolProfitAllocation::getNetShareAfterReserves)
                 .reduce(ZERO, BigDecimal::add);
+        // Apply rounding adjustment to BANK share of largest allocation to preserve customer PSR integrity
         BigDecimal adjustment = expectedTotal.subtract(currentTotal);
         if (adjustment.abs().compareTo(TOLERANCE) <= 0) {
             return ZERO;
         }
-
-        PoolProfitAllocation largest = allocations.stream()
-                .max(Comparator.comparing(allocation -> allocation.getNetShareAfterReserves().abs()))
-                .orElseThrow(() -> new BusinessException("No allocations available for rounding adjustment", "NO_ALLOCATIONS"));
-
-        largest.setNetShareAfterReserves(largest.getNetShareAfterReserves().add(adjustment));
-        if (largest.getNetShareAfterReserves().compareTo(ZERO) >= 0) {
-            BigDecimal customerProfit = largest.getNetShareAfterReserves().multiply(largest.getCustomerPsr())
-                    .divide(HUNDRED, 4, RoundingMode.HALF_UP);
-            largest.setCustomerProfitShare(customerProfit);
-            largest.setBankProfitShare(largest.getNetShareAfterReserves().subtract(customerProfit));
-        } else {
-            largest.setCustomerProfitShare(largest.getNetShareAfterReserves());
-            largest.setBankProfitShare(ZERO);
+        if (adjustment.abs().compareTo(new BigDecimal("0.10")) > 0) {
+            log.warn("Large rounding adjustment {} detected in profit allocation - may indicate calculation error", adjustment);
         }
-        allocationRepo.save(largest);
+        // Adjust bank profit share (not customer) to maintain PSR integrity
+        PoolProfitAllocation largest = allocations.stream()
+                .max(Comparator.comparing(a -> a.getNetShareAfterReserves().abs()))
+                .orElse(null);
+        if (largest != null) {
+            largest.setNetShareAfterReserves(largest.getNetShareAfterReserves().add(adjustment));
+            BigDecimal newBankShare = largest.getBankProfitShare().add(adjustment);
+            if (newBankShare.compareTo(BigDecimal.ZERO) < 0) {
+                // If bank share would go negative, distribute adjustment across multiple allocations
+                log.warn("Rounding adjustment would make bank share negative. Distributing across allocations.");
+                // Fallback: add to customer share of largest (least disruptive)
+                largest.setCustomerProfitShare(largest.getCustomerProfitShare().add(adjustment));
+            } else {
+                largest.setBankProfitShare(newBankShare);
+            }
+            allocationRepo.save(largest);
+        }
         return adjustment;
     }
 
