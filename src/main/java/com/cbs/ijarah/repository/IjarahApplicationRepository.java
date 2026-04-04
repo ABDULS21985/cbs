@@ -13,9 +13,7 @@ public interface IjarahApplicationRepository extends JpaRepository<IjarahApplica
 
     Optional<IjarahApplication> findByApplicationRef(String applicationRef);
 
-    List<IjarahApplication> findByCustomerId(Long customerId);
+    List<IjarahApplication> findByCustomerIdAndStatusIn(Long customerId, List<IjarahDomainEnums.ApplicationStatus> statuses);
 
-    List<IjarahApplication> findByAssignedOfficerId(Long assignedOfficerId);
-
-    List<IjarahApplication> findByStatus(IjarahDomainEnums.ApplicationStatus status);
+    List<IjarahApplication> findByAssignedOfficerIdAndStatus(Long assignedOfficerId, IjarahDomainEnums.ApplicationStatus status);
 }

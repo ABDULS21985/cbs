@@ -4,6 +4,7 @@ import com.cbs.ijarah.entity.IjarahContract;
 import com.cbs.ijarah.entity.IjarahDomainEnums;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
@@ -33,5 +34,5 @@ public interface IjarahContractRepository extends JpaRepository<IjarahContract, 
     List<IjarahContract> findByInvestmentPoolId(Long investmentPoolId);
 
     @Query("select coalesce(sum(c.assetAcquisitionCost), 0) from IjarahContract c where c.status = :status")
-    BigDecimal sumAssetAcquisitionCostByStatus(IjarahDomainEnums.ContractStatus status);
+    BigDecimal sumAssetAcquisitionCostByStatus(@Param("status") IjarahDomainEnums.ContractStatus status);
 }

@@ -26,15 +26,6 @@ public final class IjarahDomainEnums {
         OTHER
     }
 
-    public enum Purpose {
-        VEHICLE,
-        HOME,
-        OFFICE_SPACE,
-        EQUIPMENT,
-        MACHINERY,
-        OTHER
-    }
-
     public enum RentalFrequency {
         MONTHLY,
         QUARTERLY,
@@ -48,17 +39,41 @@ public final class IjarahDomainEnums {
         STEPPED
     }
 
+    public enum RentalReviewFrequency {
+        NONE,
+        ANNUAL,
+        BI_ANNUAL,
+        AS_PER_SCHEDULE,
+        AS_PER_CONTRACT
+    }
+
+    public enum Purpose {
+        VEHICLE,
+        HOME,
+        OFFICE_SPACE,
+        EQUIPMENT,
+        MACHINERY,
+        OTHER
+    }
+
     public enum InsuranceResponsibility {
         BANK,
         CUSTOMER_ON_BEHALF
+    }
+
+    public enum MajorMaintenanceResponsibility {
+        BANK
     }
 
     public enum MinorMaintenanceResponsibility {
         CUSTOMER
     }
 
-    public enum MajorMaintenanceResponsibility {
-        BANK
+    public enum TransferType {
+        GIFT_HIBAH,
+        SALE_AT_NOMINAL,
+        SALE_AT_FAIR_VALUE,
+        GRADUAL_TRANSFER
     }
 
     public enum ContractStatus {
@@ -85,76 +100,7 @@ public final class IjarahDomainEnums {
         APPROVED,
         REJECTED,
         CANCELLED,
-        CONVERTED,
-        EXPIRED
-    }
-
-    public enum AssetAcquisitionMethod {
-        DIRECT_PURCHASE,
-        AUCTION,
-        TRANSFER_FROM_CUSTOMER,
-        CONSTRUCTION
-    }
-
-    public enum DepreciationMethod {
-        STRAIGHT_LINE,
-        DECLINING_BALANCE,
-        UNITS_OF_PRODUCTION
-    }
-
-    public enum AssetCondition {
-        NEW,
-        EXCELLENT,
-        GOOD,
-        FAIR,
-        POOR,
-        DAMAGED,
-        TOTAL_LOSS
-    }
-
-    public enum AssetStatus {
-        UNDER_PROCUREMENT,
-        OWNED_UNLEASED,
-        LEASED,
-        RETURNED,
-        TRANSFERRED_TO_CUSTOMER,
-        DISPOSED,
-        TOTAL_LOSS
-    }
-
-    public enum DisposalMethod {
-        SOLD,
-        GIFTED_IMB,
-        SCRAPPED,
-        INSURANCE_WRITE_OFF
-    }
-
-    public enum MaintenanceType {
-        MAJOR_STRUCTURAL,
-        MAJOR_MECHANICAL,
-        ROUTINE_SCHEDULED,
-        EMERGENCY_REPAIR,
-        REPLACEMENT_PART,
-        INSURANCE_CLAIM
-    }
-
-    public enum ResponsibleParty {
-        BANK,
-        CUSTOMER
-    }
-
-    public enum MaintenanceRecordStatus {
-        SCHEDULED,
-        IN_PROGRESS,
-        COMPLETED,
-        CANCELLED
-    }
-
-    public enum TransferType {
-        GIFT_HIBAH,
-        SALE_AT_NOMINAL,
-        SALE_AT_FAIR_VALUE,
-        GRADUAL_TRANSFER
+        CONVERTED
     }
 
     public enum TransferDocumentType {
@@ -186,6 +132,84 @@ public final class IjarahDomainEnums {
         TRANSFERRED,
         OVERDUE,
         WAIVED
+    }
+
+    public enum AssetStatus {
+        UNDER_PROCUREMENT,
+        OWNED_UNLEASED,
+        LEASED,
+        RETURNED,
+        TRANSFERRED_TO_CUSTOMER,
+        DISPOSED,
+        TOTAL_LOSS
+    }
+
+    public enum AcquisitionMethod {
+        DIRECT_PURCHASE,
+        AUCTION,
+        TRANSFER_FROM_CUSTOMER,
+        CONSTRUCTION
+    }
+
+    public enum AssetAcquisitionMethod {
+        DIRECT_PURCHASE,
+        AUCTION,
+        TRANSFER_FROM_CUSTOMER,
+        CONSTRUCTION
+    }
+
+    public enum DepreciationMethod {
+        STRAIGHT_LINE,
+        DECLINING_BALANCE,
+        UNITS_OF_PRODUCTION
+    }
+
+    public enum AssetCondition {
+        NEW,
+        EXCELLENT,
+        GOOD,
+        FAIR,
+        POOR,
+        DAMAGED,
+        TOTAL_LOSS
+    }
+
+    public enum MaintenanceType {
+        MAJOR_STRUCTURAL,
+        MAJOR_MECHANICAL,
+        ROUTINE_SCHEDULED,
+        EMERGENCY_REPAIR,
+        REPLACEMENT_PART,
+        INSURANCE_CLAIM
+    }
+
+    public enum ResponsibleParty {
+        BANK,
+        CUSTOMER
+    }
+
+    public enum MaintenanceStatus {
+        SCHEDULED,
+        IN_PROGRESS,
+        COMPLETED,
+        CANCELLED
+    }
+
+    public enum DisposalMethod {
+        SOLD,
+        GIFTED_IMB,
+        SCRAPPED,
+        INSURANCE_WRITE_OFF
+    }
+
+    public enum RentalInstallmentStatus {
+        SCHEDULED,
+        DUE,
+        PAID,
+        PARTIAL,
+        OVERDUE,
+        WAIVED,
+        CANCELLED
     }
 
     public enum InstallmentStatus {

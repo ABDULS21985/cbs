@@ -45,6 +45,8 @@ public final class IjarahRequests {
         private IjarahDomainEnums.Purpose purpose;
         private BigDecimal monthlyIncome;
         private BigDecimal existingObligations;
+        private Integer proposedAdvanceRentals;
+        private BigDecimal proposedSecurityDeposit;
         private Long branchId;
     }
 
@@ -58,6 +60,7 @@ public final class IjarahRequests {
         private BigDecimal existingObligations;
         private Integer creditScore;
         private BigDecimal proposedMonthlyRental;
+        private BigDecimal dsrLimit;
         private Long assignedOfficerId;
     }
 
@@ -85,6 +88,18 @@ public final class IjarahRequests {
         private BigDecimal rentalEscalationRate;
         private Integer advanceRentals;
         private BigDecimal securityDeposit;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class CreateApplicationRequest extends CreateIjarahApplicationRequest {
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class PricingRequest extends IjarahPricingRequest {
     }
 
     @Getter
@@ -268,6 +283,52 @@ public final class IjarahRequests {
         private String registrationAuthority;
         private String newRegistrationNumber;
         private String assetConditionAtTransfer;
+    }
+
+    @Getter
+    @Setter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RegisterAssetRequest {
+        private Long contractId;
+        private IjarahDomainEnums.AssetCategory assetCategory;
+        private String assetDescription;
+        private Map<String, Object> detailedSpecification;
+        private LocalDate acquisitionDate;
+        private BigDecimal acquisitionCost;
+        private String supplierName;
+        private String supplierInvoiceRef;
+        private String currencyCode;
+        private Integer usefulLifeMonths;
+        private BigDecimal residualValue;
+        private IjarahDomainEnums.DepreciationMethod depreciationMethod;
+        private String registeredOwner;
+        private String ownershipEvidenceRef;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class AssetOwnershipConfirmationRequest extends AssetOwnershipConfirmation {
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class AssetDamageReportRequest extends AssetDamageReport {
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class InsuranceRenewalRequest extends InsuranceRenewalDetails {
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    public static class SignatureDetailsRequest extends SignatureDetails {
     }
 
     @Getter

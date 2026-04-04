@@ -51,10 +51,10 @@ public class IjarahAssetMaintenanceRecord extends AuditableEntity {
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
-    @Column(name = "vendor_name", length = 255)
+    @Column(name = "vendor_name", length = 200)
     private String vendorName;
 
-    @Column(name = "invoice_ref", length = 120)
+    @Column(name = "invoice_ref", length = 100)
     private String invoiceRef;
 
     @Column(name = "maintenance_date", nullable = false)
@@ -68,5 +68,5 @@ public class IjarahAssetMaintenanceRecord extends AuditableEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private IjarahDomainEnums.MaintenanceRecordStatus status;
+    private IjarahDomainEnums.MaintenanceStatus status;
 }

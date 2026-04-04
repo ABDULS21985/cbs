@@ -1,7 +1,7 @@
 package com.cbs.ijarah.repository;
 
-import com.cbs.ijarah.entity.IjarahDomainEnums;
 import com.cbs.ijarah.entity.IjarahGradualTransferUnit;
+import com.cbs.ijarah.entity.IjarahDomainEnums;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -16,6 +16,5 @@ public interface IjarahGradualTransferUnitRepository extends JpaRepository<Ijara
 
     Optional<IjarahGradualTransferUnit> findByTransferMechanismIdAndUnitNumber(Long transferMechanismId, Integer unitNumber);
 
-    List<IjarahGradualTransferUnit> findByStatusAndScheduledDateLessThanEqual(
-            IjarahDomainEnums.UnitTransferStatus status, LocalDate scheduledDate);
+    List<IjarahGradualTransferUnit> findByScheduledDateLessThanEqualAndStatus(LocalDate scheduledDate, IjarahDomainEnums.UnitTransferStatus status);
 }

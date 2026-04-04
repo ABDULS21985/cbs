@@ -38,7 +38,7 @@ public class IjarahAsset extends AuditableEntity {
     @Column(name = "asset_ref", nullable = false, unique = true, length = 50)
     private String assetRef;
 
-    @Column(name = "ijarah_contract_id", nullable = false, unique = true)
+    @Column(name = "ijarah_contract_id", unique = true)
     private Long ijarahContractId;
 
     @Enumerated(EnumType.STRING)
@@ -66,19 +66,19 @@ public class IjarahAsset extends AuditableEntity {
     @Column(name = "supplier_name", length = 255)
     private String supplierName;
 
-    @Column(name = "supplier_invoice_ref", length = 120)
+    @Column(name = "supplier_invoice_ref", length = 100)
     private String supplierInvoiceRef;
 
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
-    @Column(name = "registered_owner", nullable = false, length = 255)
+    @Column(name = "registered_owner", length = 255)
     private String registeredOwner;
 
     @Column(name = "registration_number", length = 120)
     private String registrationNumber;
 
-    @Column(name = "registration_authority", length = 200)
+    @Column(name = "registration_authority", length = 120)
     private String registrationAuthority;
 
     @Column(name = "registration_date")
@@ -88,27 +88,29 @@ public class IjarahAsset extends AuditableEntity {
     private String ownershipEvidenceRef;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "depreciation_method", nullable = false, length = 30)
+    @Column(name = "depreciation_method", length = 30)
     private IjarahDomainEnums.DepreciationMethod depreciationMethod;
 
-    @Column(name = "useful_life_months", nullable = false)
+    @Column(name = "useful_life_months")
     private Integer usefulLifeMonths;
 
-    @Column(name = "residual_value", nullable = false, precision = 18, scale = 2)
+    @Column(name = "residual_value", precision = 18, scale = 2)
     private BigDecimal residualValue;
 
-    @Column(name = "depreciable_amount", nullable = false, precision = 18, scale = 2)
+    @Column(name = "depreciable_amount", precision = 18, scale = 2)
     private BigDecimal depreciableAmount;
 
-    @Column(name = "monthly_depreciation", nullable = false, precision = 18, scale = 2)
+    @Column(name = "monthly_depreciation", precision = 18, scale = 2)
     private BigDecimal monthlyDepreciation;
 
-    @Column(name = "accumulated_depreciation", nullable = false, precision = 18, scale = 2)
-    @lombok.Builder.Default
-    private BigDecimal accumulatedDepreciation = BigDecimal.ZERO;
+    @Column(name = "accumulated_depreciation", precision = 18, scale = 2)
+    private BigDecimal accumulatedDepreciation;
 
-    @Column(name = "net_book_value", nullable = false, precision = 18, scale = 2)
+    @Column(name = "net_book_value", precision = 18, scale = 2)
     private BigDecimal netBookValue;
+
+    @Column(name = "impairment_provision_balance", precision = 18, scale = 2)
+    private BigDecimal impairmentProvisionBalance;
 
     @Column(name = "last_depreciation_date")
     private LocalDate lastDepreciationDate;
@@ -145,9 +147,8 @@ public class IjarahAsset extends AuditableEntity {
     @Column(name = "insurance_expiry_date")
     private LocalDate insuranceExpiryDate;
 
-    @Column(name = "total_maintenance_cost", nullable = false, precision = 18, scale = 2)
-    @lombok.Builder.Default
-    private BigDecimal totalMaintenanceCost = BigDecimal.ZERO;
+    @Column(name = "total_maintenance_cost", precision = 18, scale = 2)
+    private BigDecimal totalMaintenanceCost;
 
     @Column(name = "last_maintenance_date")
     private LocalDate lastMaintenanceDate;
@@ -187,7 +188,7 @@ public class IjarahAsset extends AuditableEntity {
     @Column(name = "valuation_method", length = 120)
     private String valuationMethod;
 
-    @Column(name = "appraiser_name", length = 200)
+    @Column(name = "appraiser_name", length = 120)
     private String appraiserName;
 
     @Column(name = "tenant_id")

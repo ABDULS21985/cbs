@@ -44,6 +44,7 @@ public final class IjarahResponses {
         private String approvedBy;
         private Instant approvedAt;
         private Long contractId;
+        private List<String> warnings;
     }
 
     @Getter
@@ -85,6 +86,9 @@ public final class IjarahResponses {
         private Boolean assetOwnedByBank;
         private String insurancePolicyRef;
         private LocalDate insuranceExpiryDate;
+        private Boolean latePenaltyToCharity;
+        private Long imbTransferMechanismId;
+        private IjarahDomainEnums.TransferType imbTransferType;
         private Boolean imbTransferScheduled;
         private Boolean imbTransferCompleted;
         private LocalDate imbTransferDate;
@@ -93,6 +97,7 @@ public final class IjarahResponses {
         private String executedBy;
         private Long investmentPoolId;
         private Long poolAssetAssignmentId;
+        private String lastScreeningRef;
     }
 
     @Getter
@@ -117,6 +122,7 @@ public final class IjarahResponses {
     public static class IjarahAssetDashboard {
         private int totalAssets;
         private BigDecimal totalCost;
+        private BigDecimal totalAcquisitionCost;
         private BigDecimal totalNetBookValue;
         private BigDecimal totalAccumulatedDepreciation;
         private Map<String, Long> byCategory;
@@ -133,10 +139,12 @@ public final class IjarahResponses {
     @AllArgsConstructor
     public static class MaintenanceObligationSummary {
         private Long contractId;
+        private Long assetId;
         private LocalDate nextMajorMaintenanceDueDate;
         private LocalDate insuranceExpiryDate;
         private BigDecimal totalMaintenanceSpend;
         private List<String> alerts;
+        private List<String> obligations;
     }
 
     @Getter
@@ -150,6 +158,8 @@ public final class IjarahResponses {
         private BigDecimal totalReceived;
         private BigDecimal totalOutstanding;
         private BigDecimal totalOverdue;
+        private LocalDate nextDueDate;
+        private BigDecimal nextDueAmount;
     }
 
     @Getter

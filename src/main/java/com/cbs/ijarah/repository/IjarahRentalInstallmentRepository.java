@@ -15,14 +15,14 @@ public interface IjarahRentalInstallmentRepository extends JpaRepository<IjarahR
     List<IjarahRentalInstallment> findByContractIdOrderByInstallmentNumberAsc(Long contractId);
 
     Optional<IjarahRentalInstallment> findFirstByContractIdAndStatusInOrderByInstallmentNumberAsc(
-            Long contractId, List<IjarahDomainEnums.InstallmentStatus> statuses);
+            Long contractId,
+            List<IjarahDomainEnums.RentalInstallmentStatus> statuses);
 
     List<IjarahRentalInstallment> findByContractIdAndStatusInOrderByInstallmentNumberAsc(
-            Long contractId, List<IjarahDomainEnums.InstallmentStatus> statuses);
+            Long contractId,
+            List<IjarahDomainEnums.RentalInstallmentStatus> statuses);
 
     List<IjarahRentalInstallment> findByStatusInAndDueDateBefore(
-            List<IjarahDomainEnums.InstallmentStatus> statuses, LocalDate dueDate);
-
-    List<IjarahRentalInstallment> findByContractIdAndDueDateBetweenOrderByInstallmentNumberAsc(
-            Long contractId, LocalDate from, LocalDate to);
+            List<IjarahDomainEnums.RentalInstallmentStatus> statuses,
+            LocalDate dueDate);
 }

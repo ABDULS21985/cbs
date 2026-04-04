@@ -48,10 +48,10 @@ public class IjarahTransferMechanism extends AuditableEntity {
     @Column(name = "transfer_type", nullable = false, length = 30)
     private IjarahDomainEnums.TransferType transferType;
 
-    @Column(name = "transfer_description", columnDefinition = "TEXT")
+    @Column(name = "transfer_description", nullable = false, columnDefinition = "TEXT")
     private String transferDescription;
 
-    @Column(name = "transfer_description_ar", columnDefinition = "TEXT")
+    @Column(name = "transfer_description_ar", nullable = false, columnDefinition = "TEXT")
     private String transferDescriptionAr;
 
     @Column(name = "is_separate_document", nullable = false)
@@ -60,7 +60,7 @@ public class IjarahTransferMechanism extends AuditableEntity {
     @Column(name = "document_date", nullable = false)
     private LocalDate documentDate;
 
-    @Column(name = "document_reference", nullable = false, length = 80)
+    @Column(name = "document_reference", nullable = false, length = 100)
     private String documentReference;
 
     @Enumerated(EnumType.STRING)
@@ -99,10 +99,10 @@ public class IjarahTransferMechanism extends AuditableEntity {
     @Column(name = "sale_condition", columnDefinition = "TEXT")
     private String saleCondition;
 
-    @Column(name = "fair_value_determination_method", length = 200)
+    @Column(name = "fair_value_determination_method", length = 255)
     private String fairValueDeterminationMethod;
 
-    @Column(name = "fair_value_appraiser", length = 200)
+    @Column(name = "fair_value_appraiser", length = 120)
     private String fairValueAppraiser;
 
     @Column(name = "estimated_fair_value", precision = 18, scale = 2)
@@ -118,8 +118,7 @@ public class IjarahTransferMechanism extends AuditableEntity {
     private Integer totalTransferUnits;
 
     @Column(name = "units_transferred_to_date")
-    @lombok.Builder.Default
-    private Integer unitsTransferredToDate = 0;
+    private Integer unitsTransferredToDate;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "unit_transfer_frequency", length = 20)

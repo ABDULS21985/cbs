@@ -56,15 +56,15 @@ public class IjarahRentalInstallment extends AuditableEntity {
     @lombok.Builder.Default
     private Boolean isAdvanceRental = false;
 
-    @Column(name = "rental_period_from", nullable = false)
+    @Column(name = "rental_period_from")
     private LocalDate rentalPeriodFrom;
 
-    @Column(name = "rental_period_to", nullable = false)
+    @Column(name = "rental_period_to")
     private LocalDate rentalPeriodTo;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private IjarahDomainEnums.InstallmentStatus status;
+    private IjarahDomainEnums.RentalInstallmentStatus status;
 
     @Column(name = "paid_amount", precision = 18, scale = 2)
     private BigDecimal paidAmount;
@@ -78,13 +78,11 @@ public class IjarahRentalInstallment extends AuditableEntity {
     @Column(name = "journal_ref", length = 40)
     private String journalRef;
 
-    @Column(name = "days_overdue", nullable = false)
-    @lombok.Builder.Default
-    private Integer daysOverdue = 0;
+    @Column(name = "days_overdue")
+    private Integer daysOverdue;
 
-    @Column(name = "late_penalty_amount", nullable = false, precision = 18, scale = 2)
-    @lombok.Builder.Default
-    private BigDecimal latePenaltyAmount = BigDecimal.ZERO;
+    @Column(name = "late_penalty_amount", precision = 18, scale = 2)
+    private BigDecimal latePenaltyAmount;
 
     @Column(name = "late_penalty_charity_journal_ref", length = 40)
     private String latePenaltyCharityJournalRef;

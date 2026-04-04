@@ -5,6 +5,7 @@ import com.cbs.ijarah.entity.IjarahDomainEnums;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
@@ -12,6 +13,7 @@ public interface IjarahAssetMaintenanceRecordRepository extends JpaRepository<Ij
 
     List<IjarahAssetMaintenanceRecord> findByAssetIdOrderByMaintenanceDateDesc(Long assetId);
 
-    List<IjarahAssetMaintenanceRecord> findByAssetIdAndResponsiblePartyOrderByMaintenanceDateDesc(
-            Long assetId, IjarahDomainEnums.ResponsibleParty responsibleParty);
+    List<IjarahAssetMaintenanceRecord> findByAssetIdAndResponsibleParty(Long assetId, IjarahDomainEnums.ResponsibleParty responsibleParty);
+
+    List<IjarahAssetMaintenanceRecord> findByMaintenanceDateBetween(LocalDate from, LocalDate to);
 }

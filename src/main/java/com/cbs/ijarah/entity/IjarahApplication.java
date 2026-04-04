@@ -44,11 +44,11 @@ public class IjarahApplication extends AuditableEntity {
     @Column(name = "ijarah_type", nullable = false, length = 40)
     private IjarahDomainEnums.IjarahType ijarahType;
 
-    @Column(name = "requested_asset_description", columnDefinition = "TEXT")
+    @Column(name = "requested_asset_description", nullable = false, columnDefinition = "TEXT")
     private String requestedAssetDescription;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "requested_asset_category", length = 40)
+    @Column(name = "requested_asset_category", nullable = false, length = 40)
     private IjarahDomainEnums.AssetCategory requestedAssetCategory;
 
     @Column(name = "estimated_asset_cost", nullable = false, precision = 18, scale = 2)
@@ -60,9 +60,8 @@ public class IjarahApplication extends AuditableEntity {
     @Column(name = "currency_code", nullable = false, length = 3)
     private String currencyCode;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "purpose", length = 30)
-    private IjarahDomainEnums.Purpose purpose;
+    @Column(name = "purpose", length = 60)
+    private String purpose;
 
     @Column(name = "monthly_income", precision = 18, scale = 2)
     private BigDecimal monthlyIncome;

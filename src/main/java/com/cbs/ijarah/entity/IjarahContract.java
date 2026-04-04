@@ -70,10 +70,10 @@ public class IjarahContract extends AuditableEntity {
     @Column(name = "asset_serial_number", length = 120)
     private String assetSerialNumber;
 
-    @Column(name = "asset_location", columnDefinition = "TEXT")
+    @Column(name = "asset_location", length = 255)
     private String assetLocation;
 
-    @Column(name = "asset_acquisition_cost", nullable = false, precision = 18, scale = 2)
+    @Column(name = "asset_acquisition_cost", precision = 18, scale = 2)
     private BigDecimal assetAcquisitionCost;
 
     @Column(name = "asset_fair_value_at_inception", precision = 18, scale = 2)
@@ -91,21 +91,21 @@ public class IjarahContract extends AuditableEntity {
     @Column(name = "lease_end_date")
     private LocalDate leaseEndDate;
 
-    @Column(name = "tenor_months", nullable = false)
+    @Column(name = "tenor_months")
     private Integer tenorMonths;
 
-    @Column(name = "total_lease_periods", nullable = false)
+    @Column(name = "total_lease_periods")
     private Integer totalLeasePeriods;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "rental_frequency", nullable = false, length = 20)
+    @Column(name = "rental_frequency", length = 20)
     private IjarahDomainEnums.RentalFrequency rentalFrequency;
 
-    @Column(name = "base_rental_amount", nullable = false, precision = 18, scale = 2)
+    @Column(name = "base_rental_amount", precision = 18, scale = 2)
     private BigDecimal baseRentalAmount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "rental_type", nullable = false, length = 20)
+    @Column(name = "rental_type", length = 20)
     private IjarahDomainEnums.RentalType rentalType;
 
     @Column(name = "variable_rental_benchmark", length = 40)
@@ -114,8 +114,9 @@ public class IjarahContract extends AuditableEntity {
     @Column(name = "variable_rental_margin", precision = 10, scale = 4)
     private BigDecimal variableRentalMargin;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "rental_review_frequency", length = 20)
-    private String rentalReviewFrequency;
+    private IjarahDomainEnums.RentalReviewFrequency rentalReviewFrequency;
 
     @Column(name = "next_rental_review_date")
     private LocalDate nextRentalReviewDate;
@@ -124,8 +125,7 @@ public class IjarahContract extends AuditableEntity {
     private BigDecimal rentalEscalationRate;
 
     @Column(name = "advance_rentals")
-    @lombok.Builder.Default
-    private Integer advanceRentals = 0;
+    private Integer advanceRentals;
 
     @Column(name = "advance_rental_amount", precision = 18, scale = 2)
     private BigDecimal advanceRentalAmount;
@@ -137,12 +137,10 @@ public class IjarahContract extends AuditableEntity {
     private BigDecimal totalRentalsExpected;
 
     @Column(name = "total_rentals_received", precision = 18, scale = 2)
-    @lombok.Builder.Default
-    private BigDecimal totalRentalsReceived = BigDecimal.ZERO;
+    private BigDecimal totalRentalsReceived;
 
     @Column(name = "total_rental_arrears", precision = 18, scale = 2)
-    @lombok.Builder.Default
-    private BigDecimal totalRentalArrears = BigDecimal.ZERO;
+    private BigDecimal totalRentalArrears;
 
     @Column(name = "bank_return_on_asset", precision = 10, scale = 4)
     private BigDecimal bankReturnOnAsset;
@@ -182,24 +180,21 @@ public class IjarahContract extends AuditableEntity {
     private LocalDate nextMajorMaintenanceDueDate;
 
     @Column(name = "grace_period_days")
-    @lombok.Builder.Default
-    private Integer gracePeriodDays = 0;
+    private Integer gracePeriodDays;
 
     @Column(name = "late_penalty_applicable", nullable = false)
     @lombok.Builder.Default
-    private Boolean latePenaltyApplicable = false;
+    private Boolean latePenaltyApplicable = true;
 
     @Column(name = "late_penalty_to_charity", nullable = false)
     @lombok.Builder.Default
     private Boolean latePenaltyToCharity = true;
 
     @Column(name = "total_late_penalties", precision = 18, scale = 2)
-    @lombok.Builder.Default
-    private BigDecimal totalLatePenalties = BigDecimal.ZERO;
+    private BigDecimal totalLatePenalties;
 
     @Column(name = "total_charity_from_late_penalties", precision = 18, scale = 2)
-    @lombok.Builder.Default
-    private BigDecimal totalCharityFromLatePenalties = BigDecimal.ZERO;
+    private BigDecimal totalCharityFromLatePenalties;
 
     @Column(name = "imb_transfer_mechanism_id")
     private Long imbTransferMechanismId;
@@ -240,6 +235,9 @@ public class IjarahContract extends AuditableEntity {
 
     @Column(name = "pool_asset_assignment_id")
     private Long poolAssetAssignmentId;
+
+    @Column(name = "last_screening_ref", length = 50)
+    private String lastScreeningRef;
 
     @Column(name = "tenant_id")
     private Long tenantId;
