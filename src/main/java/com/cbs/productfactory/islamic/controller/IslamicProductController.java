@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/v1/islamic-products")
+@RequestMapping("/api/v1/islamic-products")
 @RequiredArgsConstructor
 public class IslamicProductController {
 

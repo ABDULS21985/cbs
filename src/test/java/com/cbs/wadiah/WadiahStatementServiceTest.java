@@ -108,4 +108,71 @@ class WadiahStatementServiceTest {
         assertThat(statement.getTransactions().get(0).getDescription()).doesNotContainIgnoringCase("interest");
         assertThat(statement.getHibahDisclaimer()).contains("not guaranteed");
     }
+
+    @Test
+    void generateStatement_arabicOnly_usesArabicPrimaryPresentation() {
+        Account account = Account.builder()
+                .id(6L)
+                .accountNumber("00056790")
+                .accountName("Wadiah A/C")
+                .customer(com.cbs.customer.entity.Customer.builder().id(2L).firstName("Maryam").lastName("Ali").build())
+                .product(Product.builder().code("WAD-CUR-SAR-001").name("Wadiah Current").productCategory(ProductCategory.CURRENT).glAccountCode("2100-WAD-001").build())
+                .currencyCode("SAR")
+                .accountType(AccountType.INDIVIDUAL)
+                .status(AccountStatus.ACTIVE)
+                .bookBalance(new BigDecimal("210.00"))
+                .availableBalance(new BigDecimal("210.00"))
+                .branchCode("HEAD")
+                .openedDate(LocalDate.now().minusMonths(3))
+                .build();
+        WadiahAccount wadiahAccount = WadiahAccount.builder()
+                .id(16L)
+                .account(account)
+                .islamicProductTemplateId(100L)
+                .preferredLanguage(WadiahDomainEnums.PreferredLanguage.AR)
+                .statementFrequency(WadiahDomainEnums.StatementFrequency.MONTHLY)
+                .build();
+        WadiahStatementConfig config = WadiahStatementConfig.builder()
+                .wadiahAccountId(16L)
+                .language(WadiahDomainEnums.PreferredLanguage.AR)
+                .includeHibahDisclaimer(true)
+                .includeZakatSummary(true)
+                .includeIslamicDates(true)
+                .showAverageBalance(true)
+                .build();
+        TransactionJournal withdrawalTxn = TransactionJournal.builder()
+                .id(2L)
+                .transactionRef("TXN-WDR")
+                .account(account)
+                .transactionType(TransactionType.DEBIT)
+                .amount(new BigDecimal("15.00"))
+                .currencyCode("SAR")
+                .runningBalance(new BigDecimal("210.00"))
+                .narration("Cash withdrawal")
+                .postingDate(LocalDate.now())
+                .valueDate(LocalDate.now())
+                .status("POSTED")
+                .build();
+
+        when(wadiahAccountRepository.findByAccountId(6L)).thenReturn(Optional.of(wadiahAccount));
+        when(wadiahStatementConfigRepository.findByWadiahAccountId(16L)).thenReturn(Optional.of(config));
+        when(transactionJournalRepository.findByAccountIdAndDateRange(any(Long.class), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of(withdrawalTxn));
+        when(transactionJournalRepository.findAverageBalanceInPeriod(any(Long.class), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(new BigDecimal("200.00"));
+        when(hijriCalendarService.toHijri(any(LocalDate.class)))
+                .thenReturn(HijriDateResponse.builder().hijriDay(2).hijriMonthName("Shawwal").hijriYear(1448).build());
+        when(wadiahAccountService.calculateZakatableBalance(6L, LocalDate.now())).thenReturn(new BigDecimal("200.00"));
+        when(islamicProductTemplateRepository.findById(100L))
+                .thenReturn(Optional.of(IslamicProductTemplate.builder().id(100L).nameAr("حساب وديعة").build()));
+
+        WadiahStatement statement = wadiahStatementService.generateWadiahStatement(
+                6L, LocalDate.now().minusDays(1), LocalDate.now(), "AR");
+
+        assertThat(statement.getContractType()).startsWith("\u200F").contains("الوديعة");
+        assertThat(statement.getBankName()).startsWith("\u200F").contains("الإسلامية");
+        assertThat(statement.getTransactions()).hasSize(1);
+        assertThat(statement.getTransactions().get(0).getDescription()).startsWith("\u200F").contains("سحب وديعة");
+        assertThat(statement.getTransactions().get(0).getDescriptionAr()).startsWith("\u200F").contains("سحب وديعة");
+    }
 }

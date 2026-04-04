@@ -44,7 +44,6 @@ class HibahDistributionServiceTest {
 
     @Test
     void analyzeHibahPatterns_flagsHighlySystematicDistributions() {
-        when(currentTenantResolver.getCurrentTenantId()).thenReturn(null);
         when(hibahDistributionBatchRepository.findAll()).thenReturn(List.of(
                 batch(LocalDate.now().minusDays(360), "0.2500"),
                 batch(LocalDate.now().minusDays(270), "0.2501"),

@@ -1,0 +1,14 @@
+package com.cbs.profitdistribution.entity;
+
+public enum AssetType {
+    MURABAHA_FINANCING,
+    IJARAH_CONTRACT,
+    MUSHARAKAH_INVESTMENT,
+    MUDARABAH_INVESTMENT,
+    SUKUK_HOLDING,
+    SALAM_CONTRACT,
+    ISTISNA_CONTRACT,
+    INTERBANK_PLACEMENT,
+    REAL_ESTATE,
+    OTHER
+}

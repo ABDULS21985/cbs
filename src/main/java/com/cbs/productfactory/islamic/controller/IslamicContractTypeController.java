@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/v1/islamic-contract-types")
+@RequestMapping("/api/v1/islamic-contract-types")
 @RequiredArgsConstructor
 public class IslamicContractTypeController {
 

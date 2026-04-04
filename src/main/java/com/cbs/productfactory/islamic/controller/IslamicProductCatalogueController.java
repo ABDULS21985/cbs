@@ -21,7 +21,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
-@RequestMapping("/v1/product-catalogue")
+@RequestMapping("/api/v1/product-catalogue")
 @RequiredArgsConstructor
 public class IslamicProductCatalogueController {
 

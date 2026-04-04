@@ -1269,7 +1269,7 @@ public class IslamicProductService {
         snapshot.put("charityGl", product.getCharityGl());
         snapshot.put("takafulPoolGl", product.getTakafulPoolGl());
         snapshot.put("suspenseGl", product.getSuspenseGl());
-        snapshot.put("baseTemplateCategory", resolveBaseTemplateCategory(snapshotToRequest(Map.copyOf(snapshot))));
+            snapshot.put("baseTemplateCategory", resolveBaseTemplateCategory(snapshotToRequest(new LinkedHashMap<>(snapshot))));
         snapshot.put("status", product.getStatus());
         snapshot.put("shariahComplianceStatus", product.getShariahComplianceStatus());
         snapshot.put("lastShariahReviewDate", product.getLastShariahReviewDate());

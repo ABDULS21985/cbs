@@ -91,8 +91,8 @@ public class WadiahStatementService {
             lines.add(WadiahStatement.WadiahStatementLine.builder()
                     .date(formatDate(transaction.getPostingDate()))
                     .dateHijri(Boolean.TRUE.equals(config.getIncludeIslamicDates()) ? formatHijri(transaction.getPostingDate()) : null)
-                    .description(resolveEnglishDescription(view))
-                    .descriptionAr(resolveArabicDescription(view))
+                    .description(resolvePrimaryDescription(view, preferredLanguage))
+                    .descriptionAr(includeArabic(preferredLanguage) ? rtl(resolveArabicDescription(view)) : null)
                     .reference(transaction.getTransactionRef())
                     .debit(view.debit() ? transaction.getAmount() : null)
                     .credit(view.credit() || view.hibah() ? transaction.getAmount() : null)
@@ -107,22 +107,35 @@ public class WadiahStatementService {
         }
 
         String statementRef = generateStatementReference(accountId);
+        String productName = account.getProduct() != null ? account.getProduct().getName() : null;
+        String productNameAr = islamicProductTemplateRepository.findById(wadiahAccount.getIslamicProductTemplateId())
+                .map(item -> item.getNameAr())
+                .orElse(productName);
+        String hibahDisclaimerEn = "Hibah (Gift) distributions are at the bank's sole discretion and are not guaranteed. Past distributions do not indicate future distributions.";
+        String hibahDisclaimerAr = "توزيعات الهبة تكون وفقاً لتقدير البنك وحده ولا يضمنها. التوزيعات السابقة لا تشير إلى توزيعات مستقبلية.";
+        String shariahDisclosureEn = "This account operates under Wadiah Yad Dhamanah principles and carries no contractual return.";
+        String shariahDisclosureAr = "يعمل هذا الحساب وفق مبادئ الوديعة يد الضمانة ولا يترتب عليه عائد تعاقدي.";
         WadiahStatement statement = WadiahStatement.builder()
                 .statementRef(statementRef)
                 .accountNumber(account.getAccountNumber())
                 .accountName(account.getAccountName())
                 .customerName(account.getCustomer() != null ? account.getCustomer().getDisplayName() : null)
-                .customerNameAr(null)
+                .customerNameAr(includeArabic(preferredLanguage) && account.getCustomer() != null
+                        ? rtl(account.getCustomer().getDisplayName())
+                        : null)
                 .branchName(account.getBranchCode())
-                .statementPeriod(formatDate(start) + " - " + formatDate(end))
-                .statementPeriodAr(formatArabicDate(start) + " - " + formatArabicDate(end))
+                .statementPeriod(resolvePrimaryText(
+                        formatDate(start) + " - " + formatDate(end),
+                        formatArabicDate(start) + " - " + formatArabicDate(end),
+                        preferredLanguage))
+                .statementPeriodAr(includeArabic(preferredLanguage)
+                        ? rtl(formatArabicDate(start) + " - " + formatArabicDate(end))
+                        : null)
                 .statementPeriodHijri(formatHijri(start) + " - " + formatHijri(end))
-                .contractType("Wadiah Yad Dhamanah")
-                .contractTypeAr("الوديعة يد الضمانة")
-                .productName(account.getProduct() != null ? account.getProduct().getName() : null)
-                .productNameAr(islamicProductTemplateRepository.findById(wadiahAccount.getIslamicProductTemplateId())
-                        .map(item -> item.getNameAr())
-                        .orElse(account.getProduct() != null ? account.getProduct().getName() : null))
+                .contractType(resolvePrimaryText("Wadiah Yad Dhamanah", "الوديعة يد الضمانة", preferredLanguage))
+                .contractTypeAr(includeArabic(preferredLanguage) ? rtl("الوديعة يد الضمانة") : null)
+                .productName(resolvePrimaryText(productName, productNameAr, preferredLanguage))
+                .productNameAr(includeArabic(preferredLanguage) && productNameAr != null ? rtl(productNameAr) : null)
                 .currencyCode(account.getCurrencyCode())
                 .openingBalance(openingBalance)
                 .closingBalance(closingBalance)
@@ -136,16 +149,16 @@ public class WadiahStatementService {
                 .transactions(lines)
                 .zakatSummary(Boolean.TRUE.equals(config.getIncludeZakatSummary()) ? buildZakatSummary(accountId) : null)
                 .hibahDisclaimer(Boolean.TRUE.equals(config.getIncludeHibahDisclaimer())
-                        ? "Hibah (Gift) distributions are at the bank's sole discretion and are not guaranteed. Past distributions do not indicate future distributions."
+                        ? resolvePrimaryText(hibahDisclaimerEn, hibahDisclaimerAr, preferredLanguage)
                         : null)
                 .hibahDisclaimerAr(Boolean.TRUE.equals(config.getIncludeHibahDisclaimer())
-                        ? "توزيعات الهبة تكون وفقاً لتقدير البنك وحده ولا يضمنها. التوزيعات السابقة لا تشير إلى توزيعات مستقبلية."
+                        ? rtl(hibahDisclaimerAr)
                         : null)
-                .bankName("CBS Islamic Banking")
-                .bankNameAr("الخدمات المصرفية الإسلامية - سي بي إس")
-                .shariahDisclosure("This account operates under Wadiah Yad Dhamanah principles and carries no contractual return.")
-                .shariahDisclosureAr("يعمل هذا الحساب وفق مبادئ الوديعة يد الضمانة ولا يترتب عليه عائد تعاقدي.")
-                .generatedDate(formatDate(LocalDate.now()))
+                .bankName(resolvePrimaryText("CBS Islamic Banking", "الخدمات المصرفية الإسلامية - سي بي إس", preferredLanguage))
+                .bankNameAr(includeArabic(preferredLanguage) ? rtl("الخدمات المصرفية الإسلامية - سي بي إس") : null)
+                .shariahDisclosure(resolvePrimaryText(shariahDisclosureEn, shariahDisclosureAr, preferredLanguage))
+                .shariahDisclosureAr(includeArabic(preferredLanguage) ? rtl(shariahDisclosureAr) : null)
+                .generatedDate(resolvePrimaryText(formatDate(LocalDate.now()), formatArabicDate(LocalDate.now()), preferredLanguage))
                 .generatedDateHijri(formatHijri(LocalDate.now()))
                 .build();
 
@@ -237,7 +250,9 @@ public class WadiahStatementService {
         return wadiahStatementConfigRepository.findByWadiahAccountId(wadiahAccount.getId())
                 .orElseGet(() -> wadiahStatementConfigRepository.save(WadiahStatementConfig.builder()
                         .wadiahAccountId(wadiahAccount.getId())
-                        .language(wadiahAccount.getPreferredLanguage())
+                        .language(wadiahAccount.getPreferredLanguage() != null
+                                ? wadiahAccount.getPreferredLanguage()
+                                : WadiahDomainEnums.PreferredLanguage.EN)
                         .tenantId(wadiahAccount.getTenantId())
                         .build()));
     }
@@ -322,6 +337,26 @@ public class WadiahStatementService {
             case "DEPOSIT" -> "إيداع وديعة - نقدي";
             default -> "سحب وديعة - نقدي";
         };
+    }
+
+    private String resolvePrimaryDescription(TransactionView view, WadiahDomainEnums.PreferredLanguage language) {
+        return resolvePrimaryText(resolveEnglishDescription(view), resolveArabicDescription(view), language);
+    }
+
+    private String resolvePrimaryText(String english, String arabic, WadiahDomainEnums.PreferredLanguage language) {
+        if (language == WadiahDomainEnums.PreferredLanguage.AR) {
+            return rtl(arabic != null ? arabic : english);
+        }
+        return english;
+    }
+
+    private boolean includeArabic(WadiahDomainEnums.PreferredLanguage language) {
+        return language == WadiahDomainEnums.PreferredLanguage.AR
+                || language == WadiahDomainEnums.PreferredLanguage.EN_AR;
+    }
+
+    private String rtl(String text) {
+        return text != null ? "\u200F" + text : null;
     }
 
     private String formatDate(LocalDate date) {
