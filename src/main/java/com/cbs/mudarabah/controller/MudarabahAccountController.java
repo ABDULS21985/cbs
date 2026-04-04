@@ -101,6 +101,15 @@ public class MudarabahAccountController {
         return ResponseEntity.ok(ApiResponse.ok(history));
     }
 
+    @PostMapping("/accounts/{accountId}/change-pool")
+    public ResponseEntity<ApiResponse<Void>> changePool(
+            @PathVariable Long accountId,
+            @RequestParam Long newPoolId,
+            @RequestParam String reason) {
+        mudarabahAccountService.changePool(accountId, newPoolId, reason);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Pool changed successfully"));
+    }
+
     @GetMapping("/portfolio-summary")
     public ResponseEntity<ApiResponse<MudarabahPortfolioSummary>> getPortfolioSummary() {
         log.info("Fetching Mudarabah portfolio summary");

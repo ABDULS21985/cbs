@@ -21,6 +21,8 @@ import com.cbs.mudarabah.entity.PreferredLanguage;
 import com.cbs.mudarabah.entity.StatementFrequency;
 import com.cbs.mudarabah.entity.WeightageMethod;
 import com.cbs.mudarabah.repository.MudarabahAccountRepository;
+import com.cbs.gl.islamic.entity.InvestmentPool;
+import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
 import com.cbs.rulesengine.service.DecisionTableEvaluator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +46,7 @@ public class MudarabahAccountService {
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
     private final DecisionTableEvaluator decisionTableEvaluator;
+    private final InvestmentPoolRepository investmentPoolRepository;
 
     // GL codes for Mudarabah
     private static final String MUDARABAH_INVESTMENT_GL = "3100-MDR-001";
@@ -342,6 +345,31 @@ public class MudarabahAccountService {
 
     private MudarabahAccountResponse toResponse(MudarabahAccount ma) {
         Account account = ma.getAccount();
+
+        // Populate pool info
+        String poolCode = null;
+        String poolName = null;
+        BigDecimal poolTotalBalance = null;
+        if (ma.getInvestmentPoolId() != null) {
+            var poolOpt = investmentPoolRepository.findById(ma.getInvestmentPoolId());
+            if (poolOpt.isPresent()) {
+                InvestmentPool pool = poolOpt.get();
+                poolCode = pool.getPoolCode();
+                poolName = pool.getName();
+                poolTotalBalance = pool.getTotalPoolBalance();
+            }
+        }
+
+        // Calculate weight in pool
+        BigDecimal accountWeight = BigDecimal.ZERO;
+        if (ma.getInvestmentPoolId() != null) {
+            BigDecimal poolTotal = mudarabahAccountRepository.sumBalanceByPoolId(ma.getInvestmentPoolId());
+            if (poolTotal != null && poolTotal.compareTo(BigDecimal.ZERO) > 0) {
+                accountWeight = account.getBookBalance().multiply(new BigDecimal("100"))
+                        .divide(poolTotal, 4, RoundingMode.HALF_UP);
+            }
+        }
+
         return MudarabahAccountResponse.builder()
                 .id(ma.getId())
                 .accountId(account.getId())
@@ -357,12 +385,18 @@ public class MudarabahAccountService {
                 .profitSharingRatioBank(ma.getProfitSharingRatioBank())
                 .psrAgreedAt(ma.getPsrAgreedAt())
                 .investmentPoolId(ma.getInvestmentPoolId())
+                .poolCode(poolCode)
+                .poolName(poolName)
+                .poolTotalBalance(poolTotalBalance)
+                .accountWeightInPool(accountWeight)
                 .poolJoinDate(ma.getPoolJoinDate())
                 .weightageMethod(ma.getWeightageMethod() != null ? ma.getWeightageMethod().name() : null)
                 .lastProfitDistributionDate(ma.getLastProfitDistributionDate())
                 .lastProfitDistributionAmount(ma.getLastProfitDistributionAmount())
                 .cumulativeProfitReceived(ma.getCumulativeProfitReceived())
                 .indicativeProfitRate(ma.getIndicativeProfitRate())
+                .lastDistributionRate(ma.getIndicativeProfitRate())
+                .hasActiveFatwa(ma.getIslamicProductTemplateId() != null)
                 .profitReinvest(ma.isProfitReinvest())
                 .lossExposure(ma.isLossExposure())
                 .lossDisclosureAccepted(ma.isLossDisclosureAccepted())

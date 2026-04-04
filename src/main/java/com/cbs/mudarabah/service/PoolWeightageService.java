@@ -7,6 +7,10 @@ import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
+import com.cbs.gl.islamic.dto.PerCalculationResult;
+import com.cbs.gl.islamic.dto.IrrRetentionResult;
+import com.cbs.gl.islamic.service.PerService;
+import com.cbs.gl.islamic.service.IrrService;
 import com.cbs.mudarabah.dto.PoolPerformanceReport;
 import com.cbs.mudarabah.dto.PoolProfitAllocationResponse;
 import com.cbs.mudarabah.dto.PoolWeightageSummary;
@@ -43,6 +47,8 @@ public class PoolWeightageService {
     private final MudarabahAccountRepository mudarabahAccountRepository;
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
+    private final PerService perService;
+    private final IrrService irrService;
 
     private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";
     private static final String BANK_MUDARIB_INCOME_GL = "4200-MDR-001";
@@ -142,10 +148,27 @@ public class PoolWeightageService {
             BigDecimal weight = accountDP.multiply(new BigDecimal("100")).divide(poolDP, 8, RoundingMode.HALF_UP);
             BigDecimal grossShare = poolGrossProfit.multiply(weight).divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
 
-            // PER/IRR adjustments — simplified (in full impl, call PerService/IrrService)
+            // PER/IRR adjustments — call actual PerService/IrrService
             BigDecimal perAdj = BigDecimal.ZERO;
             BigDecimal irrDed = BigDecimal.ZERO;
-            BigDecimal netShare = grossShare.add(perAdj).subtract(irrDed);
+            try {
+                PerCalculationResult perResult = perService.calculatePerAdjustment(poolId, grossShare, periodFrom, periodTo);
+                if ("RETENTION".equals(perResult.getAdjustmentType())) {
+                    perAdj = perResult.getAdjustmentAmount().negate(); // negative = reduces distribution
+                } else if ("RELEASE".equals(perResult.getAdjustmentType())) {
+                    perAdj = perResult.getAdjustmentAmount(); // positive = increases distribution
+                }
+            } catch (Exception e) {
+                log.warn("PER calculation skipped for pool {} account {}: {}", poolId, accountId, e.getMessage());
+            }
+            BigDecimal afterPer = grossShare.add(perAdj);
+            try {
+                IrrRetentionResult irrResult = irrService.calculateIrrRetention(poolId, afterPer, periodFrom, periodTo);
+                irrDed = irrResult.getAdjustmentAmount();
+            } catch (Exception e) {
+                log.warn("IRR calculation skipped for pool {} account {}: {}", poolId, accountId, e.getMessage());
+            }
+            BigDecimal netShare = afterPer.subtract(irrDed);
 
             // Look up the Mudarabah account to get PSR
             MudarabahAccount ma = mudarabahAccountRepository.findByAccountId(accountId).orElse(null);

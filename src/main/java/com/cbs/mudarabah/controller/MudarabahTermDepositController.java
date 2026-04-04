@@ -110,6 +110,13 @@ public class MudarabahTermDepositController {
         return ResponseEntity.ok(ApiResponse.ok(results));
     }
 
+    @PostMapping("/process-maturity-batch")
+    public ResponseEntity<ApiResponse<Void>> processMaturityBatch() {
+        log.info("Processing maturity batch for all active term deposits");
+        mudarabahTermDepositService.processMaturityBatch();
+        return ResponseEntity.ok(ApiResponse.ok(null, "Maturity batch processing completed"));
+    }
+
     @GetMapping("/portfolio-summary")
     public ResponseEntity<ApiResponse<MudarabahTDPortfolioSummary>> getTDPortfolioSummary() {
         log.info("Fetching Mudarabah term deposit portfolio summary");

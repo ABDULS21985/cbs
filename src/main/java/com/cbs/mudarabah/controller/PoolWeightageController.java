@@ -22,6 +22,14 @@ public class PoolWeightageController {
 
     private final PoolWeightageService poolWeightageService;
 
+    @PostMapping("/record-all-weightages")
+    public ResponseEntity<ApiResponse<Void>> recordDailyWeightagesForAllPools(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        log.info("Recording daily weightages for all pools on date: {}", date);
+        poolWeightageService.recordDailyWeightagesForAllPools(date);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Daily weightages recorded for all pools"));
+    }
+
     @PostMapping("/{poolId}/record-weightages")
     public ResponseEntity<ApiResponse<Void>> recordDailyWeightages(
             @PathVariable Long poolId,

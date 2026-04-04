@@ -33,9 +33,13 @@ public class MudarabahAccountResponse {
     private BigDecimal lastProfitDistributionAmount;
     private BigDecimal cumulativeProfitReceived;
     private BigDecimal indicativeProfitRate;
+    private BigDecimal lastDistributionRate;
 
     @Builder.Default
     private String lastDistributionRateDisclaimer = "Past performance does not indicate future returns";
+
+    private boolean hasActiveFatwa;
+    private String fatwaReference;
 
     private boolean profitReinvest;
     private boolean lossExposure;

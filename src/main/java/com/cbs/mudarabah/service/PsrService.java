@@ -212,6 +212,29 @@ public class PsrService {
         }
     }
 
+    public void validatePsrBounds(BigDecimal psrCustomer, BigDecimal psrBank, Long productTemplateId) {
+        // Check against product minimum/maximum PSR bounds if a schedule exists
+        var scheduleOpt = scheduleRepository.findActiveSchedule(productTemplateId, LocalDate.now());
+        if (scheduleOpt.isPresent()) {
+            ProfitSharingRatioSchedule schedule = scheduleOpt.get();
+            if (schedule.getFlatPsrCustomer() != null) {
+                // For flat schedules, the product defines the exact PSR — any deviation needs justification
+                BigDecimal minCustomer = schedule.getFlatPsrCustomer().multiply(new BigDecimal("0.80")); // allow 20% below flat
+                BigDecimal maxCustomer = schedule.getFlatPsrCustomer().multiply(new BigDecimal("1.20")); // allow 20% above flat
+                if (psrCustomer.compareTo(minCustomer) < 0 || psrCustomer.compareTo(maxCustomer) > 0) {
+                    log.warn("PSR {}% is outside bounds [{}-{}%] for product template {}",
+                            psrCustomer, minCustomer, maxCustomer, productTemplateId);
+                }
+            }
+        }
+        // Always validate the ratio constraints
+        validatePsrIsRatioNotFixedAmount(psrCustomer, psrBank);
+        BigDecimal sum = psrCustomer.add(psrBank);
+        if (sum.compareTo(new BigDecimal("100.0000")) != 0) {
+            throw new BusinessException("PSR customer + bank must equal 100. Got: " + sum, "PSR_SUM_INVALID");
+        }
+    }
+
     // Schedule management
     public PsrScheduleResponse createSchedule(CreatePsrScheduleRequest request) {
         ProfitSharingRatioSchedule schedule = ProfitSharingRatioSchedule.builder()
