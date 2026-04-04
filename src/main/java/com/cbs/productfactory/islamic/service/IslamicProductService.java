@@ -1678,7 +1678,17 @@ public class IslamicProductService {
     }
 
     private IslamicProductRequest snapshotToRequest(Map<String, Object> snapshot) {
-        return objectMapper.convertValue(snapshot, IslamicProductRequest.class);
+        LinkedHashMap<String, Object> requestSnapshot = new LinkedHashMap<>(snapshot);
+        requestSnapshot.remove("status");
+        requestSnapshot.remove("shariahComplianceStatus");
+        requestSnapshot.remove("lastShariahReviewDate");
+        requestSnapshot.remove("nextShariahReviewDate");
+        requestSnapshot.remove("approvedBy");
+        requestSnapshot.remove("approvedAt");
+        requestSnapshot.remove("productVersion");
+        requestSnapshot.remove("currentVersionId");
+        requestSnapshot.remove("baseTemplateCategory");
+        return objectMapper.convertValue(requestSnapshot, IslamicProductRequest.class);
     }
 
     private void validateProductCode(String productCode) {

@@ -1,7 +1,7 @@
 SET search_path TO cbs;
 
 -- ============================================================================
--- V90: Wadiah current accounts, Qard Hasan, Hibah distributions, and statements
+-- V93: Wadiah current accounts, Qard Hasan, Hibah distributions, and statements
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
