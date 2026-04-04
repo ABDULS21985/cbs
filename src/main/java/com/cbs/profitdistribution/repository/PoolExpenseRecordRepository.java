@@ -13,11 +13,38 @@ import java.util.List;
 @Repository
 public interface PoolExpenseRecordRepository extends JpaRepository<PoolExpenseRecord, Long> {
 
-    List<PoolExpenseRecord> findByPoolIdAndPeriodFromAndPeriodTo(Long poolId, LocalDate periodFrom, LocalDate periodTo);
+    List<PoolExpenseRecord> findByPoolId(Long poolId);
 
-    @Query("SELECT COALESCE(SUM(e.amount), 0) FROM PoolExpenseRecord e " +
-           "WHERE e.poolId = :poolId AND e.periodFrom = :periodFrom AND e.periodTo = :periodTo")
-    BigDecimal sumExpensesByPoolAndPeriod(@Param("poolId") Long poolId,
-                                          @Param("periodFrom") LocalDate periodFrom,
-                                          @Param("periodTo") LocalDate periodTo);
+    @Query("""
+            SELECT e FROM PoolExpenseRecord e
+            WHERE e.poolId = :poolId
+            AND e.periodFrom >= :periodFrom
+            AND e.periodTo <= :periodTo
+            """)
+    List<PoolExpenseRecord> findByPoolIdAndPeriodFromAndPeriodTo(
+            @Param("poolId") Long poolId,
+            @Param("periodFrom") LocalDate periodFrom,
+            @Param("periodTo") LocalDate periodTo);
+
+    @Query("""
+            SELECT COALESCE(SUM(e.amount), 0)
+            FROM PoolExpenseRecord e
+            WHERE e.poolId = :poolId
+            AND e.periodFrom >= :periodFrom
+            AND e.periodTo <= :periodTo
+            """)
+    BigDecimal sumExpensesByPoolAndPeriod(
+            @Param("poolId") Long poolId,
+            @Param("periodFrom") LocalDate periodFrom,
+            @Param("periodTo") LocalDate periodTo);
+
+    @Query("""
+            SELECT e FROM PoolExpenseRecord e
+            WHERE e.poolId = :poolId
+            AND e.expenseDate BETWEEN :from AND :to
+            """)
+    List<PoolExpenseRecord> findByPoolIdAndExpenseDateBetween(
+            @Param("poolId") Long poolId,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to);
 }

@@ -3,8 +3,6 @@ package com.cbs.profitdistribution.repository;
 import com.cbs.profitdistribution.entity.CalculationStatus;
 import com.cbs.profitdistribution.entity.PoolProfitCalculation;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -16,16 +14,10 @@ public interface PoolProfitCalculationRepository extends JpaRepository<PoolProfi
 
     Optional<PoolProfitCalculation> findByCalculationRef(String calculationRef);
 
-    Optional<PoolProfitCalculation> findByPoolIdAndPeriodFromAndPeriodTo(Long poolId, LocalDate periodFrom, LocalDate periodTo);
+    List<PoolProfitCalculation> findByPoolId(Long poolId);
 
-    List<PoolProfitCalculation> findByPoolIdAndCalculationStatus(Long poolId, CalculationStatus calculationStatus);
+    List<PoolProfitCalculation> findByPoolIdAndCalculationStatus(Long poolId, CalculationStatus status);
 
-    @Query("SELECT p FROM PoolProfitCalculation p " +
-           "WHERE p.poolId = :poolId AND p.periodFrom = :periodFrom AND p.periodTo = :periodTo " +
-           "AND p.calculationStatus = 'APPROVED'")
-    Optional<PoolProfitCalculation> findApproved(@Param("poolId") Long poolId,
-                                                  @Param("periodFrom") LocalDate periodFrom,
-                                                  @Param("periodTo") LocalDate periodTo);
-
-    List<PoolProfitCalculation> findByPoolIdOrderByPeriodFromDesc(Long poolId);
+    Optional<PoolProfitCalculation> findByPoolIdAndPeriodFromAndPeriodToAndCalculationStatus(
+            Long poolId, LocalDate periodFrom, LocalDate periodTo, CalculationStatus status);
 }
