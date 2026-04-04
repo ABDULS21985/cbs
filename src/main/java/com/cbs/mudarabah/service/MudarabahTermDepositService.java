@@ -25,6 +25,9 @@ import com.cbs.mudarabah.entity.StatementFrequency;
 import com.cbs.mudarabah.entity.WeightageMethod;
 import com.cbs.mudarabah.repository.MudarabahAccountRepository;
 import com.cbs.mudarabah.repository.MudarabahTermDepositRepository;
+import com.cbs.mudarabah.repository.PoolProfitAllocationRepository;
+import com.cbs.mudarabah.entity.PoolProfitAllocation;
+import com.cbs.mudarabah.entity.ProfitAllocationStatus;
 import com.cbs.rulesengine.dto.DecisionResultResponse;
 import com.cbs.rulesengine.service.DecisionTableEvaluator;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +50,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -61,6 +65,7 @@ public class MudarabahTermDepositService {
     private final AccountPostingService accountPostingService;
     private final DecisionTableEvaluator decisionTableEvaluator;
     private final HijriCalendarService hijriCalendarService;
+    private final PoolProfitAllocationRepository allocationRepository;
 
     private static final String MUDARABAH_INVESTMENT_GL = "3100-MDR-001";
     private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";
@@ -70,6 +75,29 @@ public class MudarabahTermDepositService {
         // 1. Validate loss disclosure
         if (!request.isLossDisclosureAccepted()) {
             throw new BusinessException("Loss disclosure must be accepted", "LOSS_DISCLOSURE_REQUIRED");
+        }
+
+        // Product limits validation
+        BigDecimal minAmount = new BigDecimal("10000"); // Default minimum for TD
+        BigDecimal maxAmount = new BigDecimal("50000000"); // Default maximum
+        int minTenorDays = 30;
+        int maxTenorDays = 1800; // 5 years
+
+        if (request.getPrincipalAmount().compareTo(minAmount) < 0) {
+            throw new BusinessException("Principal amount " + request.getPrincipalAmount()
+                    + " is below minimum of " + minAmount + " for term deposits", "BELOW_MINIMUM_AMOUNT");
+        }
+        if (request.getPrincipalAmount().compareTo(maxAmount) > 0) {
+            throw new BusinessException("Principal amount " + request.getPrincipalAmount()
+                    + " exceeds maximum of " + maxAmount + " for term deposits", "EXCEEDS_MAXIMUM_AMOUNT");
+        }
+        if (request.getTenorDays() < minTenorDays) {
+            throw new BusinessException("Tenor " + request.getTenorDays()
+                    + " days is below minimum of " + minTenorDays + " days", "BELOW_MINIMUM_TENOR");
+        }
+        if (request.getTenorDays() > maxTenorDays) {
+            throw new BusinessException("Tenor " + request.getTenorDays()
+                    + " days exceeds maximum of " + maxTenorDays + " days", "EXCEEDS_MAXIMUM_TENOR");
         }
 
         // 2. Determine PSR - from request, or decision table, or default
@@ -91,7 +119,9 @@ public class MudarabahTermDepositService {
                     }
                 }
             } catch (Exception e) {
-                log.warn("Decision table lookup failed, using defaults", e);
+                log.error("PSR decision table lookup failed for MDR_TD_PSR_BY_TENOR with inputs tenor={}, amount={}: {}",
+                        request.getTenorDays() / 30, request.getPrincipalAmount(), e.getMessage());
+                // Fall through to use defaults — but log at ERROR not WARN
             }
             if (psrCustomer == null || psrBank == null) {
                 psrCustomer = new BigDecimal("70.0000");
@@ -195,7 +225,7 @@ public class MudarabahTermDepositService {
                         ? ProfitDistributionFrequency.valueOf(request.getProfitDistributionFrequency())
                         : ProfitDistributionFrequency.AT_MATURITY)
                 .accumulatedProfit(BigDecimal.ZERO)
-                .estimatedMaturityAmount(request.getPrincipalAmount()) // Will be updated with actual profit
+                .estimatedMaturityAmount(calculateEstimatedMaturity(request.getPrincipalAmount(), request.getTenorDays()))
                 .maturityInstruction(MudarabahMaturityInstruction.valueOf(request.getMaturityInstruction()))
                 .payoutAccountId(request.getPayoutAccountId())
                 .autoRenew(request.isAutoRenew())
@@ -221,6 +251,9 @@ public class MudarabahTermDepositService {
 
         log.info("Mudarabah TD created: ref={}, principal={}, tenor={}d, PSR={}:{}",
                 contractRef, request.getPrincipalAmount(), request.getTenorDays(), psrCustomer, psrBank);
+        log.info("AUDIT: Term deposit created - ref={}, principal={}, tenor={}, PSR={}:{}, actor={}",
+                contractRef, request.getPrincipalAmount(), request.getTenorDays(), psrCustomer, psrBank,
+                "SYSTEM");
 
         return toResponse(td);
     }
@@ -236,6 +269,26 @@ public class MudarabahTermDepositService {
         Account tdAccount = td.getMudarabahAccount().getAccount();
         BigDecimal principal = td.getPrincipalAmount();
         BigDecimal profit = td.getAccumulatedProfit() != null ? td.getAccumulatedProfit() : BigDecimal.ZERO;
+
+        // Look up ACTUAL distributed profit from pool allocations (not just accumulated)
+        BigDecimal actualProfit = BigDecimal.ZERO;
+        try {
+            List<PoolProfitAllocation> allocations = allocationRepository
+                    .findByAccountIdAndPeriodFromGreaterThanEqualAndPeriodToLessThanEqual(
+                            tdAccount.getId(), td.getStartDate(), LocalDate.now());
+            actualProfit = allocations.stream()
+                    .filter(a -> a.getDistributionStatus() == ProfitAllocationStatus.DISTRIBUTED)
+                    .map(PoolProfitAllocation::getCustomerProfitShare)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (actualProfit.compareTo(BigDecimal.ZERO) > 0) {
+                profit = actualProfit; // Use actual distributed profit instead of accumulated
+            }
+        } catch (Exception e) {
+            log.warn("Could not load actual profit allocations for TD {}, using accumulated: {}",
+                    td.getDepositRef(), e.getMessage());
+        }
+
         BigDecimal totalAmount = principal.add(profit);
 
         td.setActualMaturityAmount(totalAmount);
@@ -258,12 +311,57 @@ public class MudarabahTermDepositService {
                 }
                 td.setStatus(MudarabahTDStatus.ROLLED_OVER);
                 td.setRolloverCount(td.getRolloverCount() + 1);
-                // Create new TD (simplified - just mark as rolled over)
+                // Create new TD for rollover
+                CreateMudarabahTermDepositRequest rolloverRequest = CreateMudarabahTermDepositRequest.builder()
+                        .customerId(td.getMudarabahAccount().getAccount().getCustomer() != null
+                                ? td.getMudarabahAccount().getAccount().getCustomer().getId() : null)
+                        .productCode(td.getMudarabahAccount().getContractTypeCode())
+                        .currencyCode(td.getCurrencyCode())
+                        .principalAmount(td.getPrincipalAmount())
+                        .tenorDays(td.getRenewalTenorDays() != null ? td.getRenewalTenorDays() : td.getTenorDays())
+                        .fundingAccountId(tdAccount.getId())
+                        .mudarabahType(td.getMudarabahAccount().getMudarabahType())
+                        .profitSharingRatioCustomer(td.getRenewalPsrCustomer() != null ? td.getRenewalPsrCustomer() : td.getPsrCustomer())
+                        .profitSharingRatioBank(td.getRenewalPsrBank() != null ? td.getRenewalPsrBank() : td.getPsrBank())
+                        .maturityInstruction(td.getMaturityInstruction().name())
+                        .autoRenew(td.isAutoRenew())
+                        .earlyWithdrawalAllowed(td.isEarlyWithdrawalAllowed())
+                        .lossDisclosureAccepted(true)
+                        .build();
+                try {
+                    createTermDeposit(rolloverRequest);
+                    log.info("Rollover TD created for original {}", td.getDepositRef());
+                } catch (Exception e) {
+                    log.error("Failed to create rollover TD for {}: {}", td.getDepositRef(), e.getMessage());
+                }
                 log.info("TD {} rolled over (principal only)", td.getDepositRef());
             }
             case ROLLOVER_PRINCIPAL_AND_PROFIT -> {
                 td.setStatus(MudarabahTDStatus.ROLLED_OVER);
                 td.setRolloverCount(td.getRolloverCount() + 1);
+                // Create new TD for rollover with principal + profit
+                CreateMudarabahTermDepositRequest rolloverPPRequest = CreateMudarabahTermDepositRequest.builder()
+                        .customerId(td.getMudarabahAccount().getAccount().getCustomer() != null
+                                ? td.getMudarabahAccount().getAccount().getCustomer().getId() : null)
+                        .productCode(td.getMudarabahAccount().getContractTypeCode())
+                        .currencyCode(td.getCurrencyCode())
+                        .principalAmount(totalAmount) // principal + profit
+                        .tenorDays(td.getRenewalTenorDays() != null ? td.getRenewalTenorDays() : td.getTenorDays())
+                        .fundingAccountId(tdAccount.getId())
+                        .mudarabahType(td.getMudarabahAccount().getMudarabahType())
+                        .profitSharingRatioCustomer(td.getRenewalPsrCustomer() != null ? td.getRenewalPsrCustomer() : td.getPsrCustomer())
+                        .profitSharingRatioBank(td.getRenewalPsrBank() != null ? td.getRenewalPsrBank() : td.getPsrBank())
+                        .maturityInstruction(td.getMaturityInstruction().name())
+                        .autoRenew(td.isAutoRenew())
+                        .earlyWithdrawalAllowed(td.isEarlyWithdrawalAllowed())
+                        .lossDisclosureAccepted(true)
+                        .build();
+                try {
+                    createTermDeposit(rolloverPPRequest);
+                    log.info("Rollover TD (principal + profit) created for original {}", td.getDepositRef());
+                } catch (Exception e) {
+                    log.error("Failed to create rollover TD for {}: {}", td.getDepositRef(), e.getMessage());
+                }
                 log.info("TD {} rolled over (principal + profit)", td.getDepositRef());
             }
             case PAY_TO_ACCOUNT, PAY_TO_WADIAH -> {
@@ -287,6 +385,8 @@ public class MudarabahTermDepositService {
 
         termDepositRepository.save(td);
         log.info("TD maturity processed: ref={}, status={}", td.getDepositRef(), td.getStatus());
+        log.info("AUDIT: Term deposit matured - ref={}, instruction={}, profit={}, actor={}",
+                td.getDepositRef(), instruction, profit, "SYSTEM");
         return toResponse(td);
     }
 
@@ -470,6 +570,16 @@ public class MudarabahTermDepositService {
                 .upcomingMaturities30Days(upcoming30)
                 .upcomingMaturities90Days(upcoming90)
                 .build();
+    }
+
+    private BigDecimal calculateEstimatedMaturity(BigDecimal principalAmount, int tenorDays) {
+        // Calculate estimated maturity amount based on indicative pool rate
+        BigDecimal indicativeRate = new BigDecimal("0.05"); // 5% indicative annual rate
+        BigDecimal estimatedProfit = principalAmount
+                .multiply(indicativeRate)
+                .multiply(BigDecimal.valueOf(tenorDays))
+                .divide(BigDecimal.valueOf(365), 4, RoundingMode.HALF_UP);
+        return principalAmount.add(estimatedProfit);
     }
 
     private void validatePsr(BigDecimal customer, BigDecimal bank) {

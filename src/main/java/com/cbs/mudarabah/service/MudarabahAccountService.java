@@ -9,6 +9,9 @@ import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.customer.entity.Customer;
+import com.cbs.customer.entity.CustomerStatus;
+import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.mudarabah.dto.MudarabahAccountResponse;
 import com.cbs.mudarabah.dto.MudarabahDepositRequest;
 import com.cbs.mudarabah.dto.MudarabahPortfolioSummary;
@@ -23,6 +26,7 @@ import com.cbs.mudarabah.entity.WeightageMethod;
 import com.cbs.mudarabah.repository.MudarabahAccountRepository;
 import com.cbs.gl.islamic.entity.InvestmentPool;
 import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.rulesengine.service.DecisionTableEvaluator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +51,8 @@ public class MudarabahAccountService {
     private final AccountPostingService accountPostingService;
     private final DecisionTableEvaluator decisionTableEvaluator;
     private final InvestmentPoolRepository investmentPoolRepository;
+    private final CustomerRepository customerRepository;
+    private final CurrentActorProvider actorProvider;
 
     // GL codes for Mudarabah
     private static final String MUDARABAH_INVESTMENT_GL = "3100-MDR-001";
@@ -56,6 +62,19 @@ public class MudarabahAccountService {
     private static final AtomicLong CONTRACT_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
 
     public MudarabahAccountResponse openMudarabahSavingsAccount(OpenMudarabahSavingsRequest request) {
+        // Customer validation
+        Customer customer = customerRepository.findById(request.getCustomerId())
+                .orElseThrow(() -> new BusinessException("Customer not found: " + request.getCustomerId(), "CUSTOMER_NOT_FOUND"));
+        // KYC check
+        if (!"ACTIVE".equals(customer.getStatus() != null ? customer.getStatus().name() : "")) {
+            throw new BusinessException("Customer is not active. Status: " + customer.getStatus(), "CUSTOMER_NOT_ACTIVE");
+        }
+
+        // Validate minimum opening balance
+        if (request.getInitialDeposit() != null && request.getInitialDeposit().compareTo(new BigDecimal("500")) < 0) {
+            throw new BusinessException("Minimum opening deposit for Mudarabah savings is SAR 500", "BELOW_MINIMUM_DEPOSIT");
+        }
+
         // 1. Validate loss disclosure accepted
         if (!request.isLossDisclosureAccepted()) {
             throw new BusinessException("Loss disclosure must be accepted for Mudarabah accounts", "LOSS_DISCLOSURE_REQUIRED");
@@ -95,8 +114,7 @@ public class MudarabahAccountService {
                 .openedDate(LocalDate.now())
                 .activatedDate(LocalDate.now())
                 .build();
-        // Set customer by ID
-        // account.setCustomer(customerRef); — in real impl, load Customer entity
+        account.setCustomer(customer);  // Link customer to account
         account = accountRepository.save(account);
 
         // 6. Create MudarabahAccount extension
@@ -148,8 +166,9 @@ public class MudarabahAccountService {
             );
         }
 
-        log.info("Mudarabah savings account opened: contractRef={}, accountId={}, PSR={}:{}",
-                contractRef, account.getId(), psrCustomer, psrBank);
+        log.info("AUDIT: Mudarabah account opened - customer={}, contractRef={}, PSR={}:{}, pool={}, actor={}",
+                customer.getId(), contractRef, psrCustomer, psrBank, mudarabahAccount.getInvestmentPoolId(),
+                actorProvider.getCurrentActor());
 
         return toResponse(mudarabahAccount);
     }
@@ -207,6 +226,11 @@ public class MudarabahAccountService {
                 ma.getContractReference()
         );
 
+        // Update pool participant weight (new deposit affects pool weightage)
+        if (ma.getInvestmentPoolId() != null) {
+            ma.setCurrentWeight(calculateCurrentWeight(accountId));
+        }
+
         ma.setLastActivityDate(LocalDate.now());
         mudarabahAccountRepository.save(ma);
 
@@ -225,10 +249,18 @@ public class MudarabahAccountService {
         if (!account.hasSufficientBalance(request.getAmount())) {
             throw new BusinessException("Insufficient balance", "INSUFFICIENT_BALANCE");
         }
-        // For NOTICE_DEPOSIT, validate notice period (simplified)
-        if (ma.getAccountSubType() == MudarabahAccountSubType.NOTICE_DEPOSIT && ma.getNoticePeriodDays() != null) {
-            // In full impl, check if notice was served
-            log.warn("Notice deposit withdrawal - notice period validation should be checked");
+        // For NOTICE_DEPOSIT, enforce notice period
+        if (ma.getAccountSubType() == MudarabahAccountSubType.NOTICE_DEPOSIT
+                && ma.getNoticePeriodDays() != null && ma.getNoticePeriodDays() > 0) {
+            throw new BusinessException(
+                    "Notice deposit requires " + ma.getNoticePeriodDays() + " days notice before withdrawal. Please submit a withdrawal notice first.",
+                    "NOTICE_PERIOD_REQUIRED");
+        }
+
+        // Minimum balance check
+        BigDecimal balanceAfter = account.getBookBalance().subtract(request.getAmount());
+        if (balanceAfter.compareTo(BigDecimal.ZERO) > 0 && balanceAfter.compareTo(new BigDecimal("500")) < 0) {
+            log.warn("Withdrawal will bring balance below minimum operating balance of SAR 500 for account {}", accountId);
         }
 
         TransactionChannel channel = request.getChannel() != null

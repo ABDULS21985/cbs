@@ -76,7 +76,13 @@ public class PsrService {
             throw new BusinessException("Decision table code not configured for tiered PSR schedule", "PSR_DT_MISSING");
         }
 
-        DecisionResultResponse dtResult = decisionTableEvaluator.evaluateByRuleCode(dtCode, context);
+        DecisionResultResponse dtResult;
+        try {
+            dtResult = decisionTableEvaluator.evaluateByRuleCode(dtCode, context);
+        } catch (Exception e) {
+            log.error("Decision table evaluation failed for PSR resolution: productTemplate={}, context={}", productTemplateId, context, e);
+            throw new BusinessException("Failed to resolve PSR from decision table: " + e.getMessage(), "PSR_RESOLUTION_FAILED");
+        }
         if (!Boolean.TRUE.equals(dtResult.getMatched())) {
             throw new BusinessException("No PSR tier matched for inputs: " + context, "PSR_NO_MATCH");
         }

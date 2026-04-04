@@ -12,8 +12,14 @@ import com.cbs.shariahcompliance.entity.NonComplianceType;
 import com.cbs.shariahcompliance.entity.QuarantineStatus;
 import com.cbs.shariahcompliance.entity.ShariahComplianceAlert;
 import com.cbs.shariahcompliance.entity.SnciRecord;
+import com.cbs.shariahcompliance.entity.ShariahExclusionList;
+import com.cbs.shariahcompliance.entity.ShariahExclusionListEntry;
 import com.cbs.shariahcompliance.repository.ShariahComplianceAlertRepository;
+import com.cbs.shariahcompliance.repository.ShariahExclusionListEntryRepository;
+import com.cbs.shariahcompliance.repository.ShariahExclusionListRepository;
 import com.cbs.shariahcompliance.repository.SnciRecordRepository;
+import com.cbs.profitdistribution.entity.PoolIncomeRecord;
+import com.cbs.profitdistribution.repository.PoolIncomeRecordRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +37,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +49,9 @@ public class SnciService {
 
     private final SnciRecordRepository snciRepository;
     private final ShariahComplianceAlertRepository alertRepository;
+    private final PoolIncomeRecordRepository poolIncomeRecordRepository;
+    private final ShariahExclusionListEntryRepository exclusionListEntryRepository;
+    private final ShariahExclusionListRepository exclusionListRepository;
     private final CurrentActorProvider actorProvider;
 
     private static final AtomicLong SNCI_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
@@ -101,11 +112,75 @@ public class SnciService {
 
     public List<SnciRecordResponse> runAutomatedDetection(LocalDate fromDate, LocalDate toDate) {
         log.info("Running automated SNCI detection for period {} to {}", fromDate, toDate);
-        // Placeholder — in production, this would scan PoolIncomeRecord, fee income,
-        // and cross-reference against current exclusion lists and fatwa statuses
-        // to identify non-compliant income that requires quarantine.
-        log.info("Automated detection complete for period {} to {} — no integrated income sources configured yet", fromDate, toDate);
-        return List.of();
+        List<SnciRecordResponse> detectedRecords = new ArrayList<>();
+
+        // 1. Query all income records from pools for the period
+        List<PoolIncomeRecord> allIncome = new ArrayList<>();
+        try {
+            allIncome = poolIncomeRecordRepository.findAll().stream()
+                    .filter(r -> r.getIncomeDate() != null)
+                    .filter(r -> !r.getIncomeDate().isBefore(fromDate) && !r.getIncomeDate().isAfter(toDate))
+                    .filter(r -> !r.isCharityIncome()) // skip already-flagged charity income
+                    .toList();
+        } catch (Exception e) {
+            log.warn("Could not load pool income records: {}", e.getMessage());
+        }
+
+        // 2. For each income record, check against Shariah exclusion lists
+        ShariahExclusionList haramMccList = exclusionListRepository.findByListCode("HARAM_MCC").orElse(null);
+        List<ShariahExclusionListEntry> exclusionEntries = new ArrayList<>();
+        if (haramMccList != null) {
+            exclusionEntries = exclusionListEntryRepository.findByListIdAndStatus(haramMccList.getId(), "ACTIVE");
+        }
+        Set<String> excludedValues = exclusionEntries.stream()
+                .map(ShariahExclusionListEntry::getEntryValue)
+                .collect(Collectors.toSet());
+
+        for (PoolIncomeRecord income : allIncome) {
+            boolean flagged = false;
+            String reason = null;
+            NonComplianceType nonComplianceType = null;
+
+            // Check if contract type or asset reference matches exclusion criteria
+            if (income.getContractTypeCode() != null && excludedValues.contains(income.getContractTypeCode())) {
+                flagged = true;
+                reason = "Income from contract type on Shariah exclusion list: " + income.getContractTypeCode();
+                nonComplianceType = NonComplianceType.PRODUCT_NON_COMPLIANT;
+            }
+
+            // Check for LATE_PAYMENT type that wasn't flagged as charity
+            if (income.getIncomeType() != null && income.getIncomeType().name().contains("LATE_PAYMENT")) {
+                flagged = true;
+                reason = "Late payment income not directed to charity fund";
+                nonComplianceType = NonComplianceType.RIBA_ELEMENT;
+            }
+
+            if (flagged && income.getAmount() != null && income.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+                try {
+                    CreateSnciRecordRequest snciRequest = CreateSnciRecordRequest.builder()
+                            .detectionMethod(DetectionMethod.AUTOMATED_MONITORING.name())
+                            .detectionSource("AUTOMATED_DETECTION_RUN_" + fromDate + "_" + toDate)
+                            .sourceTransactionRef(income.getJournalRef())
+                            .sourceContractRef(income.getAssetReferenceCode())
+                            .sourceContractType(income.getContractTypeCode())
+                            .incomeType(income.getIncomeType() != null ? income.getIncomeType().name() : "OTHER")
+                            .amount(income.getAmount())
+                            .currencyCode(income.getCurrencyCode())
+                            .incomeDate(income.getIncomeDate())
+                            .nonComplianceType(nonComplianceType.name())
+                            .nonComplianceDescription(reason)
+                            .build();
+                    SnciRecordResponse created = createSnciRecord(snciRequest);
+                    detectedRecords.add(created);
+                } catch (Exception e) {
+                    log.warn("Failed to create SNCI for income record {}: {}", income.getId(), e.getMessage());
+                }
+            }
+        }
+
+        log.info("Automated SNCI detection complete: {} records detected from {} to {}",
+                detectedRecords.size(), fromDate, toDate);
+        return detectedRecords;
     }
 
     // ── Quarantine ─────────────────────────────────────────────────────────────
@@ -141,6 +216,9 @@ public class SnciService {
 
         log.info("Quarantined SNCI record {} — amount {} {} moved to quarantine GL {}",
                 record.getSnciRef(), record.getAmount(), record.getCurrencyCode(), SNCI_QUARANTINE_GL);
+        log.info("AUDIT: SNCI quarantined - ref={}, amount={}, type={}, actor={}",
+                record.getSnciRef(), record.getAmount(), record.getNonComplianceType(),
+                actorProvider.getCurrentActor());
     }
 
     public void batchQuarantine(List<Long> snciIds) {

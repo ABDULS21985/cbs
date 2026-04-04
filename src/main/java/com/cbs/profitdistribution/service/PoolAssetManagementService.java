@@ -216,7 +216,36 @@ public class PoolAssetManagementService {
             }
         }
 
-        boolean isSegregated = mismatchPct.abs().compareTo(new BigDecimal("5.0000")) <= 0 && !hasOverAssigned;
+        // Currency validation: all assets must match pool currency
+        String poolCurrency = pool.getCurrencyCode();
+        List<String> currencyMismatches = activeAssignments.stream()
+                .filter(a -> a.getCurrencyCode() != null && !a.getCurrencyCode().equals(poolCurrency))
+                .map(a -> a.getAssetReferenceCode() + " (" + a.getCurrencyCode() + ")")
+                .toList();
+        boolean hasCurrencyMismatch = !currencyMismatches.isEmpty();
+        if (hasCurrencyMismatch) {
+            log.warn("Pool {} has {} assets with currency mismatch: {}", poolId, currencyMismatches.size(), currencyMismatches);
+        }
+
+        // Maturity check: flag assets matured but still marked ACTIVE
+        List<String> overdueAssets = activeAssignments.stream()
+                .filter(a -> a.getMaturityDate() != null && a.getMaturityDate().isBefore(LocalDate.now()))
+                .map(PoolAssetAssignment::getAssetReferenceCode)
+                .toList();
+        boolean hasOverdueAssets = !overdueAssets.isEmpty();
+        if (hasOverdueAssets) {
+            log.warn("Pool {} has {} overdue (matured but still ACTIVE) assets: {}", poolId, overdueAssets.size(), overdueAssets);
+        }
+
+        // Defaulted asset check
+        long defaultedCount = activeAssignments.stream()
+                .filter(a -> a.getAssignmentStatus() == AssignmentStatus.DEFAULTED)
+                .count();
+        if (defaultedCount > 0) {
+            log.warn("Pool {} has {} defaulted assets still in active assignments", poolId, defaultedCount);
+        }
+
+        boolean isSegregated = mismatchPct.abs().compareTo(new BigDecimal("5.0000")) <= 0 && !hasOverAssigned && !hasCurrencyMismatch;
 
         return SegregationValidationResult.builder()
                 .poolId(poolId)
@@ -228,6 +257,11 @@ public class PoolAssetManagementService {
                 .mismatchPercentage(mismatchPct)
                 .hasOverAssignedAssets(hasOverAssigned)
                 .overAssignments(overAssignments)
+                .hasCurrencyMismatch(hasCurrencyMismatch)
+                .currencyMismatches(currencyMismatches)
+                .hasOverdueAssets(hasOverdueAssets)
+                .overdueAssets(overdueAssets)
+                .defaultedAssetCount(defaultedCount)
                 .validatedAt(LocalDateTime.now().toString())
                 .build();
     }

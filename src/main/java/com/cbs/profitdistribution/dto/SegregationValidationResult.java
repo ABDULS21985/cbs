@@ -17,6 +17,11 @@ public class SegregationValidationResult {
     private BigDecimal mismatchPercentage;
     private boolean hasOverAssignedAssets;
     private List<OverAssignmentAlert> overAssignments;
+    private boolean hasCurrencyMismatch;
+    private List<String> currencyMismatches;
+    private boolean hasOverdueAssets;
+    private List<String> overdueAssets;
+    private long defaultedAssetCount;
     private String validatedAt;
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder

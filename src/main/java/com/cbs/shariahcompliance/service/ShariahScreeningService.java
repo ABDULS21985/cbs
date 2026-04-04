@@ -13,6 +13,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -36,6 +39,8 @@ public class ShariahScreeningService {
     private final ShariahComplianceAlertRepository alertRepository;
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
+
+    private final ExpressionParser spelParser = new SpelExpressionParser();
 
     private static final AtomicLong SCREENING_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
     private static final AtomicLong ALERT_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
@@ -125,6 +130,11 @@ public class ShariahScreeningService {
         result = resultRepository.save(result);
         log.info("Screening completed: ref={}, result={}, action={}, time={}ms",
                 result.getScreeningRef(), overall, actionTaken, result.getProcessingTimeMs());
+        if (overall == ScreeningOverallResult.FAIL) {
+            log.warn("AUDIT: Transaction BLOCKED by Shariah screening - txnRef={}, rule={}, reason={}, actor={}",
+                    request.getTransactionRef(), blockReason, result.getBlockReason(),
+                    actorProvider.getCurrentActor());
+        }
         return toResultResponse(result);
     }
 
@@ -505,7 +515,7 @@ public class ShariahScreeningService {
                     }
                     yield false;
                 }
-                case COMPOSITE -> false; // not implemented in v1
+                case COMPOSITE -> evaluateCompositeRule(rule, request);
                 default -> {
                     log.warn("Unhandled rule type {} for rule {} — defaulting to pass", rule.getRuleType(), rule.getRuleCode());
                     yield false;
@@ -553,25 +563,69 @@ public class ShariahScreeningService {
     }
 
     private boolean evaluateCondition(ShariahScreeningRule rule, ShariahScreeningRequest request) {
-        // Simplified condition evaluation — check known patterns
         String expr = rule.getConditionExpression();
-        if (expr == null) return false;
-        // Example: "product.shariahComplianceStatus != 'COMPLIANT'"
-        if (expr.contains("shariahComplianceStatus") && request.getAdditionalContext() != null) {
-            Object status = request.getAdditionalContext().get("shariahComplianceStatus");
-            if (status != null && !"COMPLIANT".equals(status.toString())) return true;
+        if (expr == null || expr.isBlank()) return false;
+
+        try {
+            StandardEvaluationContext context = new StandardEvaluationContext();
+            // Populate context with request fields
+            context.setVariable("transactionRef", request.getTransactionRef());
+            context.setVariable("transactionType", request.getTransactionType());
+            context.setVariable("amount", request.getAmount() != null ? request.getAmount() : BigDecimal.ZERO);
+            context.setVariable("currencyCode", request.getCurrencyCode());
+            context.setVariable("contractRef", request.getContractRef());
+            context.setVariable("contractTypeCode", request.getContractTypeCode());
+            context.setVariable("customerId", request.getCustomerId());
+            context.setVariable("counterpartyName", request.getCounterpartyName());
+            context.setVariable("merchantCategoryCode", request.getMerchantCategoryCode());
+            context.setVariable("purpose", request.getPurpose());
+
+            // Populate additional context fields
+            if (request.getAdditionalContext() != null) {
+                request.getAdditionalContext().forEach(context::setVariable);
+            }
+
+            // Evaluate SpEL expression
+            Boolean result = spelParser.parseExpression(expr).getValue(context, Boolean.class);
+            return Boolean.TRUE.equals(result);
+        } catch (Exception e) {
+            log.warn("SpEL evaluation failed for rule {} expression '{}': {}",
+                    rule.getRuleCode(), expr, e.getMessage());
+            return false; // fail-open on evaluation error
         }
-        // Example: "latePenalty.compounded == true"
-        if (expr.contains("compounded") && request.getAdditionalContext() != null) {
-            Object compounded = request.getAdditionalContext().get("compounded");
-            if (Boolean.TRUE.equals(compounded) || "true".equals(String.valueOf(compounded))) return true;
+    }
+
+    private boolean evaluateCompositeRule(ShariahScreeningRule rule, ShariahScreeningRequest request) {
+        // Composite rules encode sub-rule codes in the conditionExpression field
+        // Format: "AND:RULE_CODE_1,RULE_CODE_2,RULE_CODE_3" or "OR:RULE_CODE_1,RULE_CODE_2"
+        String expr = rule.getConditionExpression();
+        if (expr == null || expr.isBlank()) return false;
+
+        boolean isAnd = true;
+        String codesPart = expr;
+
+        if (expr.startsWith("OR:")) {
+            isAnd = false;
+            codesPart = expr.substring(3);
+        } else if (expr.startsWith("AND:")) {
+            codesPart = expr.substring(4);
         }
-        // Example: profit guarantee check
-        if (expr.contains("profitContractuallyPromised") && request.getAdditionalContext() != null) {
-            Object promised = request.getAdditionalContext().get("profitContractuallyPromised");
-            if (Boolean.TRUE.equals(promised) || "true".equals(String.valueOf(promised))) return true;
+
+        List<String> codes = Arrays.stream(codesPart.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+
+        if (codes.isEmpty()) return false;
+
+        for (String code : codes) {
+            var subRule = ruleRepository.findByRuleCode(code).orElse(null);
+            if (subRule == null) continue;
+            boolean triggered = evaluateRule(subRule, request);
+            if (isAnd && !triggered) return false; // AND: all must trigger
+            if (!isAnd && triggered) return true;  // OR: any trigger is enough
         }
-        return false;
+        return isAnd; // AND: all passed; OR: none passed
     }
 
     private BigDecimal getFieldValue(ShariahScreeningRequest request, String fieldName) {

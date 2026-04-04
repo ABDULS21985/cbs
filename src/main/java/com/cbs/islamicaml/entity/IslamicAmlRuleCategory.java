@@ -1,0 +1,13 @@
+package com.cbs.islamicaml.entity;
+
+public enum IslamicAmlRuleCategory {
+    TAWARRUQ_ABUSE,
+    POOL_LAYERING,
+    ASSET_VALUE_MANIPULATION,
+    RAPID_CYCLING,
+    PARTNERSHIP_LAYERING,
+    CHARITY_MISUSE,
+    CROSS_BORDER_ISLAMIC,
+    SMURFING_ISLAMIC,
+    CONVENTIONAL_TYPOLOGY
+}

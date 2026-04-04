@@ -327,6 +327,9 @@ public class ProfitDistributionRunService {
             if (bankShareJournal != null) {
                 attachJournalToLatestStep(run.getId(), 7, bankShareJournal.getJournalNumber());
             }
+            log.info("AUDIT: Profit distribution completed - runRef={}, pool={}, participants={}, totalDistributed={}, actor={}",
+                    run.getRunRef(), run.getPoolCode(), run.getParticipantCount(),
+                    run.getTotalDistributedToDepositors(), actorProvider.getCurrentActor());
             return toResponse(run);
         } catch (Exception exception) {
             failRun(run, "DISTRIBUTE_PROFIT", exception);

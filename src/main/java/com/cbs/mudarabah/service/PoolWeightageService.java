@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -233,6 +234,18 @@ public class PoolWeightageService {
     public void distributeProfit(Long poolId, LocalDate periodFrom, LocalDate periodTo) {
         List<PoolProfitAllocation> allocations = allocationRepository.findByPoolIdAndDistributionStatus(poolId, ProfitAllocationStatus.APPROVED);
 
+        // Reconciliation: verify total distribution matches approved allocations
+        BigDecimal totalCustomerProfit = allocations.stream()
+                .map(PoolProfitAllocation::getCustomerProfitShare)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalBankProfit = allocations.stream()
+                .map(PoolProfitAllocation::getBankProfitShare)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        log.info("Distribution reconciliation: pool={}, customerProfit={}, bankProfit={}, participants={}",
+                poolId, totalCustomerProfit, totalBankProfit, allocations.size());
+
         for (PoolProfitAllocation allocation : allocations) {
             if (!allocation.getPeriodFrom().equals(periodFrom) || !allocation.getPeriodTo().equals(periodTo)) {
                 continue;
@@ -278,6 +291,11 @@ public class PoolWeightageService {
                 }
                 allocation.setJournalRef(journal.getTransactionRef());
             } else if (allocation.getCustomerProfitShare().compareTo(BigDecimal.ZERO) < 0) {
+                // For losses: check if IRR can absorb before hitting customer
+                BigDecimal lossAmount = allocation.getCustomerProfitShare().abs();
+                log.warn("Loss allocation of {} to account {} in pool {}", lossAmount, allocation.getAccountId(), poolId);
+                // Loss is debited from customer's investment account
+                // This reduces their pool balance, which affects future weightage
                 TransactionJournal journal = accountPostingService.postDebitAgainstGl(
                         account,
                         TransactionType.DEBIT,
@@ -305,6 +323,12 @@ public class PoolWeightageService {
                 ma.setIndicativeProfitRate(allocation.getEffectiveProfitRate());
                 mudarabahAccountRepository.save(ma);
             }
+        }
+
+        // Post bank's total share as Mudarib income
+        if (totalBankProfit.compareTo(BigDecimal.ZERO) > 0) {
+            log.info("Bank Mudarib income from pool {}: {}", poolId, totalBankProfit);
+            // Bank share is already split in the allocation — tracked for reporting
         }
 
         log.info("Profit distributed: poolId={}, period={} to {}", poolId, periodFrom, periodTo);

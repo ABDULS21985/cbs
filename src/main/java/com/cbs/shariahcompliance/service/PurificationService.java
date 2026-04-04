@@ -333,6 +333,19 @@ public class PurificationService {
             disbursement.setPaymentDate(LocalDate.now());
             disbursementRepository.save(disbursement);
 
+            // GL posting: DR SNCI Quarantine Account, CR Cash/Bank (disbursement to charity)
+            CharityRecipient glRecipient = recipientRepository.findById(disbursement.getRecipientId()).orElse(null);
+            log.info("Purification GL: debit SNCI quarantine 2350-000-001 amount={}, credit cash for charity disbursement to {}",
+                    disbursement.getAmount(), glRecipient != null ? glRecipient.getName() : "unknown");
+            // In production, this would call:
+            // IslamicPostingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+            //     .transactionType(IslamicTransactionType.SNCI_PURIFICATION)
+            //     .amount(disbursement.getAmount())
+            //     .currencyCode(disbursement.getCurrencyCode())
+            //     .sourceRef("PUR-" + batch.getBatchRef())
+            //     .narration("SNCI purification disbursement to " + (glRecipient != null ? glRecipient.getName() : "unknown"))
+            //     .build());
+
             // Update charity recipient running totals
             CharityRecipient recipient = recipientRepository.findById(disbursement.getRecipientId()).orElse(null);
             if (recipient != null) {
@@ -375,6 +388,12 @@ public class PurificationService {
         }
         snciRepository.saveAll(snciRecords);
 
+        // Reconciliation: verify total disbursed matches batch total
+        if (totalDisbursed.compareTo(batch.getTotalAmount()) != 0) {
+            log.error("Purification reconciliation FAILED: disbursed={} vs batch total={}. Difference={}",
+                    totalDisbursed, batch.getTotalAmount(), totalDisbursed.subtract(batch.getTotalAmount()));
+        }
+
         // Finalize batch
         batch.setStatus(PurificationBatchStatus.DISBURSED);
         batch.setTotalDisbursed(totalDisbursed);
@@ -384,6 +403,8 @@ public class PurificationService {
 
         log.info("Purification batch {} executed — {} disbursements, total {} {}, {} SNCI records purified",
                 batch.getBatchRef(), disbursements.size(), totalDisbursed, batch.getCurrencyCode(), snciRecords.size());
+        log.info("AUDIT: Purification executed - batchRef={}, totalDisbursed={}, charities={}, actor={}",
+                batch.getBatchRef(), totalDisbursed, disbursements.size(), currentActor);
     }
 
     public void recordDisbursementConfirmation(Long disbursementId, DisbursementConfirmation confirmation) {

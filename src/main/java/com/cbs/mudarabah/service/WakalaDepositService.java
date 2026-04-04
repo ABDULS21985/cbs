@@ -61,6 +61,22 @@ public class WakalaDepositService {
             throw new BusinessException("Fee rate must be positive for " + wakalaType + " Wakala", "INVALID_FEE");
         }
 
+        // Fee cap validation per AAOIFI standards
+        if (wakalaType == WakalaType.PERCENTAGE_FEE && request.getWakalahFeeRate() != null) {
+            BigDecimal maxFeeRate = new BigDecimal("5.0000"); // 5% annual cap per AAOIFI
+            if (request.getWakalahFeeRate().compareTo(maxFeeRate) > 0) {
+                throw new BusinessException("Wakala fee rate " + request.getWakalahFeeRate()
+                        + "% exceeds maximum of " + maxFeeRate + "% per annum (AAOIFI limit)", "FEE_RATE_EXCEEDS_CAP");
+            }
+        }
+        if (wakalaType == WakalaType.PERFORMANCE_FEE && request.getWakalahFeeRate() != null) {
+            BigDecimal maxPerfFee = new BigDecimal("30.0000"); // 30% of profit cap
+            if (request.getWakalahFeeRate().compareTo(maxPerfFee) > 0) {
+                throw new BusinessException("Wakala performance fee rate " + request.getWakalahFeeRate()
+                        + "% exceeds maximum of " + maxPerfFee + "% of profit", "PERFORMANCE_FEE_EXCEEDS_CAP");
+            }
+        }
+
         // Create base Account
         Account account = Account.builder()
                 .accountNumber("WKL" + System.currentTimeMillis() % 10000000000L)
@@ -174,6 +190,13 @@ public class WakalaDepositService {
                         .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
             }
             default -> wakalahFee = BigDecimal.ZERO;
+        }
+
+        // Validate fee doesn't exceed gross profit (bank can't charge more than what was earned)
+        if (wakalahFee.compareTo(grossProfit) > 0) {
+            log.warn("Wakala fee {} exceeds gross profit {} for account {}. Capping fee to gross profit.",
+                    wakalahFee, grossProfit, accountId);
+            wakalahFee = grossProfit;
         }
 
         // Customer gets everything above the fee
