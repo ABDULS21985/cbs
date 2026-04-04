@@ -194,7 +194,7 @@ class WakalaDepositServiceTest {
 
         BigDecimal grossProfit = new BigDecimal("5000.00");
         LocalDate from = LocalDate.of(2026, 1, 1);
-        LocalDate to = LocalDate.of(2026, 12, 31);
+        LocalDate to = LocalDate.of(2027, 1, 1); // exactly 365 days
 
         var response = service.calculateFeeAndDistribute(1L, grossProfit, from, to);
 
@@ -203,10 +203,11 @@ class WakalaDepositServiceTest {
 
         // Fee = bookBalance * rate / 100 * days / 365
         // = 100000 * 2 / 100 * 365 / 365 = 2000.0000
+        long periodDays = java.time.temporal.ChronoUnit.DAYS.between(from, to);
         BigDecimal expectedFee = new BigDecimal("100000.00")
                 .multiply(new BigDecimal("2.0000"))
                 .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(365))
+                .multiply(BigDecimal.valueOf(periodDays))
                 .divide(BigDecimal.valueOf(365), 4, RoundingMode.HALF_UP);
 
         assertThat(response.getWakalahFee()).isEqualByComparingTo(expectedFee);
