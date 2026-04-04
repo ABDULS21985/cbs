@@ -77,17 +77,17 @@ public class MudarabahTermDepositController {
             @PathVariable Long id,
             @Valid @RequestBody PlaceLienRequest request) {
         log.info("Placing lien on term deposit: {}", id);
-        MudarabahTermDepositResponse response = mudarabahTermDepositService.placeLien(id, request.getReference(), request.getAmount());
+        MudarabahTermDepositResponse response = mudarabahTermDepositService.placeLien(id, request.getFinancingReference(), request.getLienAmount());
         return ResponseEntity.ok(ApiResponse.ok(response, "Lien placed successfully"));
     }
 
     @DeleteMapping("/{id}/lien")
-    public ResponseEntity<ApiResponse<MudarabahTermDepositResponse>> releaseLien(
+    public ResponseEntity<ApiResponse<Void>> releaseLien(
             @PathVariable Long id,
             @RequestParam String reason) {
         log.info("Releasing lien on term deposit: {}, reason: {}", id, reason);
-        MudarabahTermDepositResponse response = mudarabahTermDepositService.releaseLien(id, reason);
-        return ResponseEntity.ok(ApiResponse.ok(response, "Lien released successfully"));
+        mudarabahTermDepositService.releaseLien(id, reason);
+        return ResponseEntity.ok(ApiResponse.ok(null, "Lien released successfully"));
     }
 
     @GetMapping("/maturing")
