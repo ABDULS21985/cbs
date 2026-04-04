@@ -13,6 +13,7 @@ import java.util.List;
 @Builder
 public class WadiahStatement {
 
+    private String statementRef;
     private String accountNumber;
     private String accountName;
     private String customerName;

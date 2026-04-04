@@ -73,13 +73,24 @@ public class WadiahAccountService {
         IslamicProductTemplate islamicProduct = resolveActiveWadiahProduct(request.getProductCode());
         Product baseProduct = productRepository.findByCode(request.getProductCode())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "code", request.getProductCode()));
+        BigDecimal openingBalance = defaultBigDecimal(request.getOpeningBalance());
+
+        if (openingBalance.compareTo(defaultBigDecimal(islamicProduct.getMinAmount())) < 0) {
+            throw new BusinessException("Opening balance is below the configured minimum for this Wadiah product",
+                    "BELOW_MIN_OPENING_BALANCE");
+        }
+        validateCurrency(islamicProduct, request.getCurrencyCode(), baseProduct.getCurrencyCode());
 
         if (request.isHibahEligible() && !request.isHibahDisclosureSigned()) {
             throw new BusinessException("Hibah disclosure must be signed before Hibah eligibility is enabled",
                     "HIBAH_DISCLOSURE_REQUIRED");
         }
-        if (request.getWadiahType() == WadiahDomainEnums.WadiahType.YAD_DHAMANAH && Boolean.FALSE.equals(Boolean.TRUE)) {
-            throw new BusinessException("Unreachable state", "INVALID_WADIAH_STATE");
+        if (request.getWadiahType() == WadiahDomainEnums.WadiahType.YAD_AMANAH && request.isSweepEnabled()) {
+            throw new BusinessException("Sweep is not allowed for Yad Amanah accounts",
+                    "YAD_AMANAH_SWEEP_NOT_ALLOWED");
+        }
+        if (request.isSweepEnabled()) {
+            validateSweepTarget(request.getSweepTargetAccountId());
         }
 
         OpenAccountRequest openAccountRequest = OpenAccountRequest.builder()
@@ -135,9 +146,9 @@ public class WadiahAccountService {
 
         wadiahAccount = wadiahAccountRepository.save(wadiahAccount);
 
-        if (request.getOpeningBalance() != null && request.getOpeningBalance().compareTo(BigDecimal.ZERO) > 0) {
+        if (openingBalance.compareTo(BigDecimal.ZERO) > 0) {
             deposit(account.getId(), WadiahDepositRequest.builder()
-                    .amount(request.getOpeningBalance())
+                    .amount(openingBalance)
                     .narration("Wadiah opening deposit")
                     .channel(TransactionChannel.BRANCH.name())
                     .externalRef(wadiahAccount.getContractReference())
@@ -372,6 +383,14 @@ public class WadiahAccountService {
                 && product.getShariahComplianceStatus() != IslamicDomainEnums.ShariahComplianceStatus.FATWA_ISSUED) {
             throw new BusinessException("Islamic product is not Shariah compliant", "PRODUCT_NOT_COMPLIANT");
         }
+        if (Boolean.TRUE.equals(product.getFatwaRequired()) && product.getActiveFatwaId() == null) {
+            throw new BusinessException("Islamic product requires an active fatwa before it can be used",
+                    "ACTIVE_FATWA_REQUIRED");
+        }
+        if (product.getProfitCalculationMethod() != IslamicDomainEnums.ProfitCalculationMethod.NONE) {
+            throw new BusinessException("Wadiah product must not use any contractual profit calculation method",
+                    "INVALID_WADIAH_PROFIT_METHOD");
+        }
         if (parameterAsBoolean(product.getId(), "profitContractuallyPromised", false)) {
             throw new BusinessException("Wadiah product cannot contractually promise returns",
                     "SHARIAH_WAD_001");
@@ -384,6 +403,15 @@ public class WadiahAccountService {
                 .map(IslamicProductParameter::getParameterValue)
                 .map(value -> "true".equalsIgnoreCase(value))
                 .orElse(defaultValue);
+    }
+
+    private void validateCurrency(IslamicProductTemplate product, String requestedCurrency, String fallbackCurrency) {
+        String currency = StringUtils.hasText(requestedCurrency) ? requestedCurrency : fallbackCurrency;
+        if (product.getCurrencies() != null && !product.getCurrencies().isEmpty()
+                && product.getCurrencies().stream().noneMatch(currency::equalsIgnoreCase)) {
+            throw new BusinessException("Selected currency is not enabled for this Wadiah product",
+                    "INVALID_PRODUCT_CURRENCY");
+        }
     }
 
     private void validateSweepTarget(Long targetInvestmentAccountId) {

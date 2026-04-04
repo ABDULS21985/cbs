@@ -135,6 +135,12 @@ public class WadiahOnboardingService {
             throw new BusinessException("Shariah disclosure must be presented before acceptance",
                     "DISCLOSURE_NOT_PRESENTED");
         }
+        if (!request.isShariahDisclosureAccepted()
+                || !request.isHibahNonGuaranteeAcknowledged()
+                || !request.isZakatObligationAcknowledged()) {
+            throw new BusinessException("All Wadiah Shariah acknowledgements must be explicitly accepted",
+                    "DISCLOSURE_INCOMPLETE");
+        }
         application.setShariahDisclosureAccepted(request.isShariahDisclosureAccepted());
         application.setShariahDisclosureAcceptedAt(LocalDateTime.now());
         application.setHibahNonGuaranteeAcknowledged(request.isHibahNonGuaranteeAcknowledged());
@@ -184,7 +190,7 @@ public class WadiahOnboardingService {
         application.setAmlScreeningPassed(compliance.isAmlClear());
         application.setDuplicateCheckPassed(!compliance.isDuplicateFound());
         application.setComplianceNotes(buildComplianceNotes(compliance));
-        if (!compliance.isAmlClear() || compliance.isDuplicateFound()) {
+        if (!compliance.isKycVerified() || !compliance.isAmlClear() || compliance.isDuplicateFound()) {
             application.setStatus(WadiahDomainEnums.ApplicationStatus.REJECTED);
             application.setRejectionReason(application.getComplianceNotes());
         } else {
@@ -407,14 +413,14 @@ public class WadiahOnboardingService {
     }
 
     private String buildComplianceNotes(AccountComplianceCheckResponse compliance) {
+        if (!compliance.isKycVerified()) {
+            return "KYC verification is pending";
+        }
         if (!compliance.isAmlClear()) {
             return "AML screening failed";
         }
         if (compliance.isDuplicateFound()) {
             return "Duplicate active account found for the same product";
-        }
-        if (!compliance.isKycVerified()) {
-            return "KYC verification is pending";
         }
         return "Compliance checks passed";
     }
