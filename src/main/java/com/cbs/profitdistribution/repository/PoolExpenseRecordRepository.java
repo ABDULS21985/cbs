@@ -15,6 +15,8 @@ public interface PoolExpenseRecordRepository extends JpaRepository<PoolExpenseRe
 
     List<PoolExpenseRecord> findByPoolId(Long poolId);
 
+    List<PoolExpenseRecord> findByPoolIdAndExpenseType(Long poolId, com.cbs.profitdistribution.entity.ExpenseType expenseType);
+
     @Query("""
             SELECT e FROM PoolExpenseRecord e
             WHERE e.poolId = :poolId

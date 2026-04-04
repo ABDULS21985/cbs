@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +30,7 @@ public class ProfitCalculationController {
     private final ProfitCalculationService profitCalculationService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY')")
     public ResponseEntity<ApiResponse<PoolProfitCalculationResponse>> calculatePoolProfit(
             @Valid @RequestBody CalculatePoolProfitRequest request) {
         log.info("Calculating pool profit for pool: {} from: {} to: {}",
@@ -39,6 +41,7 @@ public class ProfitCalculationController {
     }
 
     @PostMapping("/batch")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY')")
     public ResponseEntity<ApiResponse<List<PoolProfitCalculationResponse>>> calculateAllPoolProfits(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
@@ -48,6 +51,7 @@ public class ProfitCalculationController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<PoolProfitCalculationResponse>> getCalculation(
             @PathVariable Long id) {
         log.info("Getting calculation: {}", id);
@@ -56,6 +60,7 @@ public class ProfitCalculationController {
     }
 
     @GetMapping("/ref/{ref}")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<PoolProfitCalculationResponse>> getCalculationByRef(
             @PathVariable String ref) {
         log.info("Getting calculation by reference: {}", ref);
@@ -64,6 +69,7 @@ public class ProfitCalculationController {
     }
 
     @PostMapping("/{id}/recalculate")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY')")
     public ResponseEntity<ApiResponse<PoolProfitCalculationResponse>> recalculatePoolProfit(
             @PathVariable Long id) {
         log.info("Recalculating pool profit for calculation: {}", id);
@@ -72,6 +78,7 @@ public class ProfitCalculationController {
     }
 
     @PostMapping("/{id}/validate")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','FINANCE')")
     public ResponseEntity<ApiResponse<Void>> validateCalculation(
             @PathVariable Long id,
             @RequestParam String validatedBy) {
@@ -81,6 +88,7 @@ public class ProfitCalculationController {
     }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','FINANCE')")
     public ResponseEntity<ApiResponse<Void>> approveCalculation(
             @PathVariable Long id,
             @RequestParam String approvedBy) {
@@ -90,10 +98,27 @@ public class ProfitCalculationController {
     }
 
     @GetMapping("/pool/{poolId}")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<List<PoolProfitCalculationResponse>>> getCalculationsByPool(
             @PathVariable Long poolId) {
         log.info("Getting calculations for pool: {}", poolId);
         List<PoolProfitCalculationResponse> response = profitCalculationService.getCalculationsByPool(poolId);
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @GetMapping("/pool/{poolId}/trend")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<com.cbs.profitdistribution.dto.PoolProfitTrend>> getProfitTrend(
+            @PathVariable Long poolId,
+            @RequestParam(defaultValue = "6") int periods) {
+        return ResponseEntity.ok(ApiResponse.ok(profitCalculationService.getProfitTrend(poolId, periods)));
+    }
+
+    @GetMapping("/compare")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<com.cbs.profitdistribution.dto.PoolPerformanceComparison>> comparePoolPerformance(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(profitCalculationService.comparePoolPerformance(from, to)));
     }
 }

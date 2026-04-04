@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Repository
@@ -18,6 +19,12 @@ public interface PoolAssetAssignmentRepository extends JpaRepository<PoolAssetAs
     List<PoolAssetAssignment> findByPoolId(Long poolId);
 
     List<PoolAssetAssignment> findByAssetReferenceId(Long assetReferenceId);
+
+    List<PoolAssetAssignment> findByPoolIdAndContractTypeCode(Long poolId, String contractTypeCode);
+
+    List<PoolAssetAssignment> findByPoolIdAndMaturityDateBetween(Long poolId, LocalDate from, LocalDate to);
+
+    boolean existsByPoolIdAndAssetReferenceIdAndAssignmentStatus(Long poolId, Long assetReferenceId, AssignmentStatus status);
 
     @Query("""
             SELECT COALESCE(SUM(a.assignedAmount), 0)

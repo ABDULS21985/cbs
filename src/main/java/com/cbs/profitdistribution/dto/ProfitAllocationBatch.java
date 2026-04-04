@@ -1,9 +1,11 @@
 package com.cbs.profitdistribution.dto;
 
+import com.cbs.mudarabah.dto.PoolProfitAllocationResponse;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ProfitAllocationBatch {
@@ -28,4 +30,5 @@ public class ProfitAllocationBatch {
     private boolean isLoss;
     private String status;
     private ConservationCheck conservationCheck;
+    private List<PoolProfitAllocationResponse> allocations;
 }

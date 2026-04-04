@@ -7,7 +7,9 @@ import com.cbs.gl.islamic.entity.InvestmentPool;
 import com.cbs.gl.islamic.entity.PoolStatus;
 import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
 import com.cbs.mudarabah.repository.PoolWeightageRecordRepository;
+import com.cbs.profitdistribution.dto.PoolPerformanceComparison;
 import com.cbs.profitdistribution.dto.PoolProfitCalculationResponse;
+import com.cbs.profitdistribution.dto.PoolProfitTrend;
 import com.cbs.profitdistribution.entity.CalculationStatus;
 import com.cbs.profitdistribution.entity.PeriodType;
 import com.cbs.profitdistribution.entity.PoolExpenseRecord;
@@ -58,11 +60,7 @@ public class ProfitCalculationService {
                 .map(PoolIncomeRecord::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal charityIncome = incomeRepo.sumCharityIncome(poolId, periodFrom, periodTo);
-        if (charityIncome == null) {
-            charityIncome = BigDecimal.ZERO;
-        }
-
+        BigDecimal charityIncome = defaultAmount(incomeRepo.sumCharityIncome(poolId, periodFrom, periodTo));
         BigDecimal distributableGross = grossIncome.subtract(charityIncome);
 
         Map<String, BigDecimal> incomeBreakdown = incomes.stream()
@@ -71,10 +69,7 @@ public class ProfitCalculationService {
                         Collectors.reducing(BigDecimal.ZERO, PoolIncomeRecord::getAmount, BigDecimal::add)));
 
         // 2. Aggregate expenses
-        BigDecimal totalExpenses = expenseRepo.sumExpensesByPoolAndPeriod(poolId, periodFrom, periodTo);
-        if (totalExpenses == null) {
-            totalExpenses = BigDecimal.ZERO;
-        }
+        BigDecimal totalExpenses = defaultAmount(expenseRepo.sumExpensesByPoolAndPeriod(poolId, periodFrom, periodTo));
 
         List<PoolExpenseRecord> expenses = expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(poolId, periodFrom, periodTo);
         Map<String, BigDecimal> expenseBreakdown = expenses.stream()
@@ -95,10 +90,7 @@ public class ProfitCalculationService {
         BigDecimal depositorPool = isLoss ? ndp : ndp.subtract(bankShare);
 
         // 5. Pool metrics
-        long periodDays = ChronoUnit.DAYS.between(periodFrom, periodTo);
-        if (periodDays == 0) {
-            periodDays = 1;
-        }
+        long periodDays = Math.max(ChronoUnit.DAYS.between(periodFrom, periodTo) + 1, 1);
 
         BigDecimal avgPoolBalance = BigDecimal.ZERO;
         try {
@@ -196,6 +188,28 @@ public class ProfitCalculationService {
             throw new BusinessException(
                     "Only DRAFT calculations can be validated, current status: " + calc.getCalculationStatus(),
                     "INVALID_STATE");
+        }
+
+        BigDecimal incomeSum = defaultAmount(incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(
+                calc.getPoolId(), calc.getPeriodFrom(), calc.getPeriodTo()).stream()
+                .map(PoolIncomeRecord::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        if (incomeSum.compareTo(calc.getGrossIncome()) != 0) {
+            throw new BusinessException(
+                    "Income mismatch: income records total " + incomeSum.toPlainString()
+                            + " but calculation stores " + calc.getGrossIncome().toPlainString(),
+                    "INCOME_MISMATCH");
+        }
+
+        BigDecimal expenseSum = defaultAmount(expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(
+                calc.getPoolId(), calc.getPeriodFrom(), calc.getPeriodTo()).stream()
+                .map(PoolExpenseRecord::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        if (expenseSum.compareTo(calc.getTotalExpenses()) != 0) {
+            throw new BusinessException(
+                    "Expense mismatch: expense records total " + expenseSum.toPlainString()
+                            + " but calculation stores " + calc.getTotalExpenses().toPlainString(),
+                    "EXPENSE_MISMATCH");
         }
 
         // Arithmetic check: ndp = distributableGross - totalExpenses
@@ -302,9 +316,80 @@ public class ProfitCalculationService {
     public List<PoolProfitCalculationResponse> getCalculationsByPool(Long poolId) {
         InvestmentPool pool = poolRepo.findById(poolId)
                 .orElseThrow(() -> new ResourceNotFoundException("InvestmentPool", "id", poolId));
-        return calculationRepo.findByPoolId(poolId).stream()
+        return calculationRepo.findByPoolIdOrderByPeriodFromDesc(poolId).stream()
                 .map(calc -> toResponse(calc, pool))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PoolProfitTrend getProfitTrend(Long poolId, int periods) {
+        InvestmentPool pool = poolRepo.findById(poolId)
+                .orElseThrow(() -> new ResourceNotFoundException("InvestmentPool", "id", poolId));
+        List<PoolProfitCalculation> calculations = calculationRepo.findTop12ByPoolIdOrderByPeriodFromDesc(poolId).stream()
+                .limit(Math.max(periods, 1))
+                .toList();
+
+        List<PoolProfitTrend.PeriodProfit> periodProfits = new java.util.ArrayList<>();
+        BigDecimal previous = null;
+        for (int i = calculations.size() - 1; i >= 0; i--) {
+            PoolProfitCalculation calculation = calculations.get(i);
+            String trend = "FLAT";
+            if (previous != null) {
+                int compare = calculation.getNetDistributableProfit().compareTo(previous);
+                trend = compare > 0 ? "UP" : compare < 0 ? "DOWN" : "FLAT";
+            }
+            periodProfits.add(PoolProfitTrend.PeriodProfit.builder()
+                    .periodFrom(calculation.getPeriodFrom())
+                    .periodTo(calculation.getPeriodTo())
+                    .netDistributableProfit(calculation.getNetDistributableProfit())
+                    .effectiveRate(calculation.getEffectiveReturnRate())
+                    .trend(trend)
+                    .build());
+            previous = calculation.getNetDistributableProfit();
+        }
+
+        return PoolProfitTrend.builder()
+                .poolId(poolId)
+                .poolCode(pool.getPoolCode())
+                .periods(periodProfits)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public PoolPerformanceComparison comparePoolPerformance(LocalDate periodFrom, LocalDate periodTo) {
+        List<PoolPerformanceComparison.PoolPerformanceEntry> entries = poolRepo.findByStatus(PoolStatus.ACTIVE).stream()
+                .map(pool -> calculationRepo.findByPoolIdAndPeriodFromAndPeriodToAndCalculationStatus(
+                                pool.getId(), periodFrom, periodTo, CalculationStatus.APPROVED)
+                        .orElseGet(() -> calculationRepo.findByPoolIdAndPeriodFromAndPeriodToAndCalculationStatus(
+                                        pool.getId(), periodFrom, periodTo, CalculationStatus.USED_IN_DISTRIBUTION)
+                                .orElse(null)))
+                .filter(java.util.Objects::nonNull)
+                .sorted((left, right) -> right.getNetDistributableProfit().compareTo(left.getNetDistributableProfit()))
+                .map(calc -> PoolPerformanceComparison.PoolPerformanceEntry.builder()
+                        .poolId(calc.getPoolId())
+                        .poolCode(poolRepo.findById(calc.getPoolId()).map(InvestmentPool::getPoolCode).orElse(null))
+                        .netDistributableProfit(calc.getNetDistributableProfit())
+                        .effectiveRate(calc.getEffectiveReturnRate())
+                        .build())
+                .toList();
+
+        List<PoolPerformanceComparison.PoolPerformanceEntry> ranked = new java.util.ArrayList<>();
+        for (int i = 0; i < entries.size(); i++) {
+            PoolPerformanceComparison.PoolPerformanceEntry entry = entries.get(i);
+            ranked.add(PoolPerformanceComparison.PoolPerformanceEntry.builder()
+                    .poolId(entry.getPoolId())
+                    .poolCode(entry.getPoolCode())
+                    .netDistributableProfit(entry.getNetDistributableProfit())
+                    .effectiveRate(entry.getEffectiveRate())
+                    .rank(i + 1)
+                    .build());
+        }
+
+        return PoolPerformanceComparison.builder()
+                .periodFrom(periodFrom)
+                .periodTo(periodTo)
+                .pools(ranked)
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -364,5 +449,9 @@ public class ProfitCalculationService {
                 .notes(c.getNotes())
                 .tenantId(c.getTenantId())
                 .build();
+    }
+
+    private BigDecimal defaultAmount(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 }

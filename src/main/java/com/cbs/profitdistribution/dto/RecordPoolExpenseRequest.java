@@ -31,6 +31,8 @@ public class RecordPoolExpenseRequest {
     @NotNull(message = "Period to is required")
     private LocalDate periodTo;
 
+    private String journalRef;
+
     private String description;
 
     private String allocationMethod;

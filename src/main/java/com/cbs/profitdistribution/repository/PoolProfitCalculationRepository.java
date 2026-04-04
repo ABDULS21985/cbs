@@ -16,7 +16,11 @@ public interface PoolProfitCalculationRepository extends JpaRepository<PoolProfi
 
     List<PoolProfitCalculation> findByPoolId(Long poolId);
 
+    List<PoolProfitCalculation> findByPoolIdOrderByPeriodFromDesc(Long poolId);
+
     List<PoolProfitCalculation> findByPoolIdAndCalculationStatus(Long poolId, CalculationStatus status);
+
+    List<PoolProfitCalculation> findTop12ByPoolIdOrderByPeriodFromDesc(Long poolId);
 
     Optional<PoolProfitCalculation> findByPoolIdAndPeriodFromAndPeriodToAndCalculationStatus(
             Long poolId, LocalDate periodFrom, LocalDate periodTo, CalculationStatus status);

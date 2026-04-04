@@ -13,9 +13,7 @@ import com.cbs.profitdistribution.dto.PoolExpenseRecordResponse;
 import com.cbs.profitdistribution.dto.PoolIncomeRecordResponse;
 import com.cbs.profitdistribution.dto.PoolPortfolio;
 import com.cbs.profitdistribution.dto.RecordPoolExpenseRequest;
-import com.cbs.profitdistribution.dto.PoolExpenseRecordResponse;
 import com.cbs.profitdistribution.dto.RecordPoolIncomeRequest;
-import com.cbs.profitdistribution.dto.PoolIncomeRecordResponse;
 import com.cbs.profitdistribution.dto.SegregationValidationResult;
 import com.cbs.profitdistribution.entity.AssetType;
 import com.cbs.profitdistribution.entity.AssignmentStatus;
@@ -37,6 +35,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +61,10 @@ public class PoolAssetManagementService {
 
         // Segregation check: total assigned across all pools for this asset must not exceed outstanding
         if (request.getAssetReferenceId() != null) {
+            if (assetRepo.existsByPoolIdAndAssetReferenceIdAndAssignmentStatus(
+                    poolId, request.getAssetReferenceId(), AssignmentStatus.ACTIVE)) {
+                throw new BusinessException("Asset is already actively assigned to this pool", "DUPLICATE_ACTIVE_ASSIGNMENT");
+            }
             List<PoolAssetAssignment> existing = assetRepo.findByAssetReferenceId(request.getAssetReferenceId());
             BigDecimal totalAssigned = existing.stream()
                     .filter(a -> a.getAssignmentStatus() == AssignmentStatus.ACTIVE)
@@ -92,9 +95,11 @@ public class PoolAssetManagementService {
                 .expectedReturnRate(request.getExpectedReturnRate())
                 .contractTypeCode(request.getContractTypeCode())
                 .maturityDate(request.getMaturityDate())
+                .tenantId(pool.getTenantId())
                 .build();
 
         assignment = assetRepo.save(assignment);
+        refreshPoolBalance(poolId);
         log.info("Asset assigned to pool {}: assignmentId={}, assetRef={}, amount={}",
                 pool.getPoolCode(), assignment.getId(), request.getAssetReferenceCode(), request.getAssignedAmount());
 
@@ -114,6 +119,7 @@ public class PoolAssetManagementService {
         assignment.setAssignmentStatus(AssignmentStatus.UNASSIGNED);
         assignment.setUnassignedDate(LocalDate.now());
         assetRepo.save(assignment);
+        refreshPoolBalance(assignment.getPoolId());
 
         log.info("Asset unassigned from pool: assignmentId={}, reason={}", assignmentId, reason);
     }
@@ -163,9 +169,12 @@ public class PoolAssetManagementService {
                 .riskWeight(original.getRiskWeight())
                 .contractTypeCode(original.getContractTypeCode())
                 .maturityDate(original.getMaturityDate())
+                .tenantId(targetPool.getTenantId())
                 .build();
 
         assetRepo.save(newAssignment);
+        refreshPoolBalance(original.getPoolId());
+        refreshPoolBalance(newPoolId);
 
         log.info("Asset transferred: assignmentId={} -> pool={}, amount={}, reason={}",
                 assignmentId, targetPool.getPoolCode(), transferAmount, reason);
@@ -187,6 +196,7 @@ public class PoolAssetManagementService {
 
         // Check for over-assigned assets across pools
         boolean hasOverAssigned = false;
+        List<SegregationValidationResult.OverAssignmentAlert> overAssignments = new ArrayList<>();
         List<PoolAssetAssignment> activeAssignments = assetRepo
                 .findByPoolIdAndAssignmentStatus(poolId, AssignmentStatus.ACTIVE);
         for (PoolAssetAssignment assignment : activeAssignments) {
@@ -195,7 +205,13 @@ public class PoolAssetManagementService {
                         .sumAssignedAmountByAssetReferenceId(assignment.getAssetReferenceId());
                 if (totalAcrossPools.compareTo(assignment.getCurrentOutstanding()) > 0) {
                     hasOverAssigned = true;
-                    break;
+                    overAssignments.add(SegregationValidationResult.OverAssignmentAlert.builder()
+                            .assetReferenceId(assignment.getAssetReferenceId())
+                            .assetReferenceCode(assignment.getAssetReferenceCode())
+                            .assignedAcrossPools(totalAcrossPools)
+                            .currentOutstanding(assignment.getCurrentOutstanding())
+                            .excessAmount(totalAcrossPools.subtract(assignment.getCurrentOutstanding()))
+                            .build());
                 }
             }
         }
@@ -211,14 +227,36 @@ public class PoolAssetManagementService {
                 .mismatchAmount(mismatch)
                 .mismatchPercentage(mismatchPct)
                 .hasOverAssignedAssets(hasOverAssigned)
+                .overAssignments(overAssignments)
                 .validatedAt(LocalDateTime.now().toString())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SegregationValidationResult> validateAllPoolSegregation() {
+        return poolRepo.findByStatus(PoolStatus.ACTIVE).stream()
+                .map(InvestmentPool::getId)
+                .map(this::validatePoolSegregation)
+                .toList();
     }
 
     // ── Income Recording ───────────────────────────────────────────────
 
     public PoolIncomeRecordResponse recordIncome(Long poolId, RecordPoolIncomeRequest request) {
         InvestmentPool pool = findActivePool(poolId);
+
+        PoolAssetAssignment assignment = null;
+        if (request.getAssetAssignmentId() != null) {
+            assignment = assetRepo.findById(request.getAssetAssignmentId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "PoolAssetAssignment", "id", request.getAssetAssignmentId()));
+            if (!poolId.equals(assignment.getPoolId())) {
+                throw new BusinessException("Asset assignment does not belong to the specified pool", "ASSIGNMENT_POOL_MISMATCH");
+            }
+            if (assignment.getAssignmentStatus() != AssignmentStatus.ACTIVE) {
+                throw new BusinessException("Income can only be recorded on ACTIVE asset assignments", "INVALID_ASSIGNMENT_STATUS");
+            }
+        }
 
         IncomeType type = IncomeType.valueOf(request.getIncomeType());
         boolean isCharity = type == IncomeType.LATE_PAYMENT_CHARITY;
@@ -232,14 +270,24 @@ public class PoolAssetManagementService {
                 .incomeDate(request.getIncomeDate())
                 .periodFrom(request.getPeriodFrom())
                 .periodTo(request.getPeriodTo())
-                .assetReferenceCode(request.getAssetReferenceCode())
-                .contractTypeCode(request.getContractTypeCode())
+                .journalRef(request.getJournalRef())
+                .assetReferenceCode(request.getAssetReferenceCode() != null
+                        ? request.getAssetReferenceCode()
+                        : assignment != null ? assignment.getAssetReferenceCode() : null)
+                .contractTypeCode(request.getContractTypeCode() != null
+                        ? request.getContractTypeCode()
+                        : assignment != null ? assignment.getContractTypeCode() : null)
                 .isCharityIncome(isCharity)
                 .notes(request.getNotes())
                 .createdBy(actorProvider.getCurrentActor())
+                .tenantId(pool.getTenantId())
                 .build();
 
         record = incomeRepo.save(record);
+        if (assignment != null) {
+            assignment.setLastIncomeDate(request.getIncomeDate());
+            assetRepo.save(assignment);
+        }
         log.info("Income recorded for pool {}: type={}, amount={}, charity={}",
                 pool.getPoolCode(), type, request.getAmount(), isCharity);
 
@@ -255,24 +303,27 @@ public class PoolAssetManagementService {
         ExpenseAllocationMethod allocationMethod = request.getAllocationMethod() != null
                 ? ExpenseAllocationMethod.valueOf(request.getAllocationMethod())
                 : ExpenseAllocationMethod.DIRECT;
+        BigDecimal amount = resolveExpenseAmount(poolId, request.getAmount(), request.getPeriodFrom(), request.getPeriodTo(), allocationMethod);
 
         PoolExpenseRecord record = PoolExpenseRecord.builder()
                 .poolId(poolId)
                 .expenseType(expenseType)
-                .amount(request.getAmount())
+                .amount(amount)
                 .currencyCode(request.getCurrencyCode())
                 .expenseDate(request.getExpenseDate())
                 .periodFrom(request.getPeriodFrom())
                 .periodTo(request.getPeriodTo())
+                .journalRef(request.getJournalRef())
                 .description(request.getDescription())
                 .allocationMethod(allocationMethod)
-                .allocationBasis(request.getAllocationBasis())
+                .allocationBasis(resolveAllocationBasis(poolId, allocationMethod, request.getAllocationBasis()))
                 .createdBy(actorProvider.getCurrentActor())
+                .tenantId(pool.getTenantId())
                 .build();
 
         record = expenseRepo.save(record);
         log.info("Expense recorded for pool {}: type={}, amount={}",
-                pool.getPoolCode(), expenseType, request.getAmount());
+                pool.getPoolCode(), expenseType, amount);
 
         return toExpenseResponse(record);
     }
@@ -340,6 +391,22 @@ public class PoolAssetManagementService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public BigDecimal getPoolAssetBalance(Long poolId) {
+        return assetRepo.sumAssignedAmountByPoolId(poolId);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, BigDecimal> getPoolAssetComposition(Long poolId) {
+        return assetRepo.findByPoolIdAndAssignmentStatus(poolId, AssignmentStatus.ACTIVE).stream()
+                .collect(Collectors.groupingBy(
+                        assignment -> assignment.getContractTypeCode() != null
+                                ? assignment.getContractTypeCode()
+                                : assignment.getAssetType().name(),
+                        Collectors.reducing(BigDecimal.ZERO, PoolAssetAssignment::getAssignedAmount, BigDecimal::add)
+                ));
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────
 
     private InvestmentPool findActivePool(Long poolId) {
@@ -351,6 +418,61 @@ public class PoolAssetManagementService {
                     "POOL_NOT_ACTIVE");
         }
         return pool;
+    }
+
+    private void refreshPoolBalance(Long poolId) {
+        InvestmentPool pool = poolRepo.findById(poolId)
+                .orElseThrow(() -> new ResourceNotFoundException("InvestmentPool", "id", poolId));
+        pool.setTotalPoolBalance(assetRepo.sumAssignedAmountByPoolId(poolId));
+        poolRepo.save(pool);
+    }
+
+    private BigDecimal resolveExpenseAmount(Long poolId, BigDecimal requestedAmount,
+                                            LocalDate periodFrom, LocalDate periodTo,
+                                            ExpenseAllocationMethod method) {
+        if (requestedAmount == null || method == ExpenseAllocationMethod.DIRECT || method == ExpenseAllocationMethod.FIXED) {
+            return requestedAmount;
+        }
+
+        List<InvestmentPool> activePools = poolRepo.findByStatus(PoolStatus.ACTIVE);
+        if (activePools.size() <= 1) {
+            return requestedAmount;
+        }
+
+        BigDecimal poolBasis;
+        BigDecimal totalBasis;
+        if (method == ExpenseAllocationMethod.PRO_RATA_BY_INCOME) {
+            poolBasis = incomeRepo.sumDistributableIncome(poolId, periodFrom, periodTo);
+            totalBasis = activePools.stream()
+                    .map(InvestmentPool::getId)
+                    .map(id -> incomeRepo.sumDistributableIncome(id, periodFrom, periodTo))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        } else {
+            poolBasis = assetRepo.sumAssignedAmountByPoolId(poolId);
+            totalBasis = activePools.stream()
+                    .map(InvestmentPool::getId)
+                    .map(assetRepo::sumAssignedAmountByPoolId)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        if (totalBasis.compareTo(BigDecimal.ZERO) <= 0) {
+            return requestedAmount;
+        }
+
+        return requestedAmount.multiply(poolBasis)
+                .divide(totalBasis, 4, RoundingMode.HALF_UP);
+    }
+
+    private String resolveAllocationBasis(Long poolId, ExpenseAllocationMethod method, String requestedBasis) {
+        if (requestedBasis != null && !requestedBasis.isBlank()) {
+            return requestedBasis;
+        }
+        return switch (method) {
+            case PRO_RATA_BY_ASSET_SIZE -> "Allocated pro-rata by active pool asset balance for pool " + poolId;
+            case PRO_RATA_BY_INCOME -> "Allocated pro-rata by distributable income for pool " + poolId;
+            case FIXED -> "Fixed allocation";
+            case DIRECT -> "Direct charge to pool";
+        };
     }
 
     private PoolAssetAssignmentResponse toAssetResponse(PoolAssetAssignment a) {

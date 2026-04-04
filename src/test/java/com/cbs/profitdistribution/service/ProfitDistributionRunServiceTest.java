@@ -6,6 +6,12 @@ import com.cbs.gl.islamic.entity.InvestmentPool;
 import com.cbs.gl.islamic.entity.PoolStatus;
 import com.cbs.gl.islamic.entity.PoolType;
 import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
+import com.cbs.gl.repository.JournalEntryRepository;
+import com.cbs.gl.service.GeneralLedgerService;
+import com.cbs.account.repository.TransactionJournalRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.mudarabah.repository.PoolProfitAllocationRepository;
+import com.cbs.mudarabah.repository.PoolWeightageRecordRepository;
 import com.cbs.mudarabah.service.PoolWeightageService;
 import com.cbs.profitdistribution.dto.InitiateDistributionRunRequest;
 import com.cbs.profitdistribution.dto.PoolProfitCalculationResponse;
@@ -54,7 +60,28 @@ class ProfitDistributionRunServiceTest {
     private PoolWeightageService weightageService;
 
     @Mock
+    private PoolWeightageRecordRepository weightageRecordRepository;
+
+    @Mock
+    private PoolProfitAllocationRepository allocationRepository;
+
+    @Mock
     private InvestmentPoolRepository poolRepo;
+
+    @Mock
+    private PoolAssetManagementService poolAssetManagementService;
+
+    @Mock
+    private TransactionJournalRepository transactionJournalRepository;
+
+    @Mock
+    private AccountPostingService accountPostingService;
+
+    @Mock
+    private GeneralLedgerService generalLedgerService;
+
+    @Mock
+    private JournalEntryRepository journalEntryRepository;
 
     @Mock
     private CurrentActorProvider actorProvider;
@@ -98,6 +125,7 @@ class ProfitDistributionRunServiceTest {
         when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
         when(runRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
                 .thenReturn(Optional.empty());
+        when(weightageRecordRepository.countDistinctRecordDates(1L, periodFrom, periodTo)).thenReturn(31L);
         when(actorProvider.getCurrentActor()).thenReturn("initiator-user");
         when(runRepo.save(any(ProfitDistributionRun.class))).thenAnswer(inv -> {
             ProfitDistributionRun run = inv.getArgument(0);
@@ -136,6 +164,7 @@ class ProfitDistributionRunServiceTest {
         when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
         when(runRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
                 .thenReturn(Optional.of(existingRun));
+        when(weightageRecordRepository.countDistinctRecordDates(1L, periodFrom, periodTo)).thenReturn(31L);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.initiateRun(request));

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,4 +22,10 @@ public interface ProfitDistributionRunRepository extends JpaRepository<ProfitDis
     List<ProfitDistributionRun> findByPoolIdOrderByPeriodFromDesc(Long poolId);
 
     List<ProfitDistributionRun> findByStatus(DistributionRunStatus status);
+
+    Optional<ProfitDistributionRun> findTopByPoolIdAndStatusOrderByCompletedAtDesc(Long poolId, DistributionRunStatus status);
+
+    Optional<ProfitDistributionRun> findTopByAllocationBatchIdOrderByCreatedAtDesc(Long allocationBatchId);
+
+    List<ProfitDistributionRun> findByDistributedAtBetween(LocalDateTime start, LocalDateTime end);
 }

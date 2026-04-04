@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,6 +38,7 @@ public class PoolAssetController {
     private final PoolAssetManagementService poolAssetManagementService;
 
     @PostMapping("/{poolId}/assets")
+    @PreAuthorize("hasAnyRole('TREASURY','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<PoolAssetAssignmentResponse>> assignAssetToPool(
             @PathVariable Long poolId,
             @Valid @RequestBody AssignAssetToPoolRequest request) {
@@ -46,6 +48,7 @@ public class PoolAssetController {
     }
 
     @DeleteMapping("/{poolId}/assets/{assignmentId}")
+    @PreAuthorize("hasAnyRole('TREASURY','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> unassignAssetFromPool(
             @PathVariable Long poolId,
             @PathVariable Long assignmentId,
@@ -56,6 +59,7 @@ public class PoolAssetController {
     }
 
     @PostMapping("/{poolId}/assets/{assignmentId}/transfer")
+    @PreAuthorize("hasAnyRole('TREASURY','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> transferAssetBetweenPools(
             @PathVariable Long poolId,
             @PathVariable Long assignmentId,
@@ -67,6 +71,7 @@ public class PoolAssetController {
     }
 
     @GetMapping("/{poolId}/assets")
+    @PreAuthorize("hasAnyRole('TREASURY','CBS_ADMIN','COMPLIANCE','SHARIAH_BOARD')")
     public ResponseEntity<ApiResponse<List<PoolAssetAssignmentResponse>>> getPoolAssets(
             @PathVariable Long poolId) {
         log.info("Getting assets for pool: {}", poolId);
@@ -75,6 +80,7 @@ public class PoolAssetController {
     }
 
     @GetMapping("/{poolId}/portfolio")
+    @PreAuthorize("hasAnyRole('TREASURY','CBS_ADMIN','COMPLIANCE','SHARIAH_BOARD')")
     public ResponseEntity<ApiResponse<PoolPortfolio>> getPoolPortfolio(
             @PathVariable Long poolId) {
         log.info("Getting portfolio for pool: {}", poolId);
@@ -83,6 +89,7 @@ public class PoolAssetController {
     }
 
     @GetMapping("/{poolId}/validate-segregation")
+    @PreAuthorize("hasAnyRole('COMPLIANCE','SHARIAH_BOARD','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<SegregationValidationResult>> validatePoolSegregation(
             @PathVariable Long poolId) {
         log.info("Validating segregation for pool: {}", poolId);
@@ -90,7 +97,15 @@ public class PoolAssetController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
+    @PostMapping("/validate-all-segregation")
+    @PreAuthorize("hasAnyRole('COMPLIANCE','SHARIAH_BOARD','CBS_ADMIN')")
+    public ResponseEntity<ApiResponse<List<SegregationValidationResult>>> validateAllPoolSegregation() {
+        List<SegregationValidationResult> response = poolAssetManagementService.validateAllPoolSegregation();
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
     @PostMapping("/{poolId}/income")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY')")
     public ResponseEntity<ApiResponse<PoolIncomeRecordResponse>> recordIncome(
             @PathVariable Long poolId,
             @Valid @RequestBody RecordPoolIncomeRequest request) {
@@ -100,6 +115,7 @@ public class PoolAssetController {
     }
 
     @GetMapping("/{poolId}/income")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<List<PoolIncomeRecordResponse>>> getPoolIncome(
             @PathVariable Long poolId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -110,6 +126,7 @@ public class PoolAssetController {
     }
 
     @PostMapping("/{poolId}/expenses")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY')")
     public ResponseEntity<ApiResponse<PoolExpenseRecordResponse>> recordExpense(
             @PathVariable Long poolId,
             @Valid @RequestBody RecordPoolExpenseRequest request) {
@@ -119,6 +136,7 @@ public class PoolAssetController {
     }
 
     @GetMapping("/{poolId}/expenses")
+    @PreAuthorize("hasAnyRole('FINANCE','TREASURY','CBS_ADMIN')")
     public ResponseEntity<ApiResponse<List<PoolExpenseRecordResponse>>> getPoolExpenses(
             @PathVariable Long poolId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

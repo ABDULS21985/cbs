@@ -33,6 +33,8 @@ public class RecordPoolIncomeRequest {
     @NotNull(message = "Period to is required")
     private LocalDate periodTo;
 
+    private String journalRef;
+
     private String assetReferenceCode;
 
     private String contractTypeCode;

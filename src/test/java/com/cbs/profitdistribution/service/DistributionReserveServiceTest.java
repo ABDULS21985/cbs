@@ -4,7 +4,10 @@ import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.gl.islamic.dto.IrrReleaseResult;
 import com.cbs.gl.islamic.dto.IrrRetentionResult;
 import com.cbs.gl.islamic.dto.PerCalculationResult;
+import com.cbs.gl.islamic.entity.InvestmentPool;
+import com.cbs.gl.islamic.repository.IrrTransactionRepository;
 import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
+import com.cbs.gl.islamic.repository.PerTransactionRepository;
 import com.cbs.gl.islamic.service.IrrService;
 import com.cbs.gl.islamic.service.PerService;
 import com.cbs.profitdistribution.dto.ReserveExecutionResult;
@@ -23,6 +26,7 @@ import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +42,12 @@ class DistributionReserveServiceTest {
     private DistributionReserveTransactionRepository reserveTransactionRepo;
 
     @Mock
+    private PerTransactionRepository perTransactionRepository;
+
+    @Mock
+    private IrrTransactionRepository irrTransactionRepository;
+
+    @Mock
     private InvestmentPoolRepository poolRepo;
 
     @Mock
@@ -50,6 +60,7 @@ class DistributionReserveServiceTest {
     private Long runId;
     private LocalDate periodFrom;
     private LocalDate periodTo;
+    private InvestmentPool pool;
 
     @BeforeEach
     void setUp() {
@@ -57,6 +68,10 @@ class DistributionReserveServiceTest {
         runId = 10L;
         periodFrom = LocalDate.of(2026, 1, 1);
         periodTo = LocalDate.of(2026, 1, 31);
+        pool = InvestmentPool.builder().id(poolId).tenantId(1L).poolCode("POOL-001").build();
+        lenient().when(poolRepo.findById(poolId)).thenReturn(java.util.Optional.of(pool));
+        lenient().when(perTransactionRepository.findTopByPoolIdOrderByProcessedAtDesc(poolId)).thenReturn(java.util.Optional.empty());
+        lenient().when(irrTransactionRepository.findTopByPoolIdOrderByProcessedAtDesc(poolId)).thenReturn(java.util.Optional.empty());
     }
 
     // ── PER Tests ──────────────────────────────────────────────────────

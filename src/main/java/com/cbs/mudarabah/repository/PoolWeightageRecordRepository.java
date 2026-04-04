@@ -27,4 +27,7 @@ public interface PoolWeightageRecordRepository extends JpaRepository<PoolWeighta
     List<Long> findActiveAccountIds(@Param("poolId") Long poolId, @Param("from") LocalDate from, @Param("to") LocalDate to);
 
     boolean existsByPoolIdAndAccountIdAndRecordDate(Long poolId, Long accountId, LocalDate recordDate);
+
+    @Query("SELECT COUNT(DISTINCT r.recordDate) FROM PoolWeightageRecord r WHERE r.poolId = :poolId AND r.recordDate BETWEEN :from AND :to AND r.isActive = true")
+    long countDistinctRecordDates(@Param("poolId") Long poolId, @Param("from") LocalDate from, @Param("to") LocalDate to);
 }

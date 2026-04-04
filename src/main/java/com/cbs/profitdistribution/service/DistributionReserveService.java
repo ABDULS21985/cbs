@@ -4,9 +4,14 @@ import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.gl.islamic.dto.IrrReleaseResult;
 import com.cbs.gl.islamic.dto.IrrRetentionResult;
 import com.cbs.gl.islamic.dto.PerCalculationResult;
+import com.cbs.gl.islamic.entity.IrrTransaction;
+import com.cbs.gl.islamic.entity.PerTransaction;
+import com.cbs.gl.islamic.repository.IrrTransactionRepository;
 import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
+import com.cbs.gl.islamic.repository.PerTransactionRepository;
 import com.cbs.gl.islamic.service.IrrService;
 import com.cbs.gl.islamic.service.PerService;
+import com.cbs.profitdistribution.dto.ReserveImpactAnalysis;
 import com.cbs.profitdistribution.dto.ReserveExecutionResult;
 import com.cbs.profitdistribution.dto.ReserveExecutionSummary;
 import com.cbs.profitdistribution.entity.DistributionReserveTransaction;
@@ -33,6 +38,8 @@ public class DistributionReserveService {
 
     private final PerService perService;
     private final IrrService irrService;
+    private final PerTransactionRepository perTransactionRepository;
+    private final IrrTransactionRepository irrTransactionRepository;
     private final DistributionReserveTransactionRepository reserveTransactionRepo;
     private final InvestmentPoolRepository poolRepo;
     private final CurrentActorProvider actorProvider;
@@ -67,7 +74,10 @@ public class DistributionReserveService {
         }
 
         // Record the distribution reserve transaction
+        Long transactionId = null;
+        String journalRef = null;
         if (!"NONE".equals(txnType)) {
+            PerTransaction perTransaction = perTransactionRepository.findTopByPoolIdOrderByProcessedAtDesc(poolId).orElse(null);
             DistributionReserveTransaction drt = DistributionReserveTransaction.builder()
                     .distributionRunId(distributionRunId)
                     .poolId(poolId)
@@ -80,12 +90,19 @@ public class DistributionReserveService {
                     .balanceAfter(perResult.getPerBalanceAfter())
                     .triggerReason(String.format("PER %s: actual rate %s vs target, adjustment %s",
                             txnType, perResult.getActualProfitRate(), adjustment))
+                    .perTransactionId(perTransaction != null ? perTransaction.getId() : null)
+                    .journalRef(perTransaction != null ? perTransaction.getJournalRef() : null)
                     .amountBeforeReserve(depositorPool)
                     .amountAfterReserve(afterPer)
+                    .effectiveRateBefore(perResult.getActualProfitRate())
+                    .effectiveRateAfter(perResult.getSmoothedProfitRate())
                     .processedAt(LocalDateTime.now())
                     .processedBy(actorProvider.getCurrentActor())
+                    .tenantId(poolRepo.findById(poolId).map(pool -> pool.getTenantId()).orElse(null))
                     .build();
-            reserveTransactionRepo.save(drt);
+            drt = reserveTransactionRepo.save(drt);
+            transactionId = drt.getId();
+            journalRef = drt.getJournalRef();
         }
 
         log.info("PER executed: pool={}, type={}, adjustment={}, before={}, after={}",
@@ -97,6 +114,8 @@ public class DistributionReserveService {
                 .adjustmentAmount(adjustment)
                 .amountBeforeReserve(depositorPool)
                 .amountAfterReserve(afterPer)
+                .transactionId(transactionId)
+                .journalRef(journalRef)
                 .reserveBalanceAfter(perResult.getPerBalanceAfter())
                 .build();
     }
@@ -143,7 +162,10 @@ public class DistributionReserveService {
         }
 
         // Record the distribution reserve transaction
+        Long transactionId = null;
+        String journalRef = null;
         if (!"NONE".equals(txnType)) {
+            IrrTransaction irrTransaction = irrTransactionRepository.findTopByPoolIdOrderByProcessedAtDesc(poolId).orElse(null);
             DistributionReserveTransaction drt = DistributionReserveTransaction.builder()
                     .distributionRunId(distributionRunId)
                     .poolId(poolId)
@@ -157,12 +179,17 @@ public class DistributionReserveService {
                     .triggerReason(isLoss
                             ? "IRR release for loss absorption"
                             : "IRR retention from distributable profit")
+                    .irrTransactionId(irrTransaction != null ? irrTransaction.getId() : null)
+                    .journalRef(irrTransaction != null ? irrTransaction.getJournalRef() : null)
                     .amountBeforeReserve(depositorPoolAfterPer)
                     .amountAfterReserve(afterIrr)
                     .processedAt(LocalDateTime.now())
                     .processedBy(actorProvider.getCurrentActor())
+                    .tenantId(poolRepo.findById(poolId).map(pool -> pool.getTenantId()).orElse(null))
                     .build();
-            reserveTransactionRepo.save(drt);
+            drt = reserveTransactionRepo.save(drt);
+            transactionId = drt.getId();
+            journalRef = drt.getJournalRef();
         }
 
         log.info("IRR executed: pool={}, type={}, adjustment={}, before={}, after={}",
@@ -174,6 +201,8 @@ public class DistributionReserveService {
                 .adjustmentAmount(adjustment)
                 .amountBeforeReserve(depositorPoolAfterPer)
                 .amountAfterReserve(afterIrr)
+                .transactionId(transactionId)
+                .journalRef(journalRef)
                 .reserveBalanceAfter(balanceAfter)
                 .build();
     }
@@ -219,5 +248,59 @@ public class DistributionReserveService {
     @Transactional(readOnly = true)
     public List<DistributionReserveTransaction> getReserveTransactions(Long runId) {
         return reserveTransactionRepo.findByDistributionRunId(runId);
+    }
+
+    @Transactional(readOnly = true)
+    public ReserveImpactAnalysis getReserveImpact(Long runId) {
+        List<DistributionReserveTransaction> transactions = reserveTransactionRepo.findByDistributionRunId(runId);
+        DistributionReserveTransaction per = transactions.stream()
+                .filter(tx -> tx.getReserveType() == DistributionReserveType.PER)
+                .findFirst()
+                .orElse(null);
+        DistributionReserveTransaction irr = transactions.stream()
+                .filter(tx -> tx.getReserveType() == DistributionReserveType.IRR)
+                .findFirst()
+                .orElse(null);
+
+        BigDecimal original = per != null
+                ? per.getAmountBeforeReserve()
+                : irr != null ? irr.getAmountBeforeReserve() : BigDecimal.ZERO;
+        BigDecimal afterPer = per != null ? per.getAmountAfterReserve() : original;
+        BigDecimal afterIrr = irr != null ? irr.getAmountAfterReserve() : afterPer;
+        BigDecimal totalRetained = transactions.stream()
+                .filter(tx -> tx.getTransactionType() == ReserveTransactionType.RETENTION)
+                .map(DistributionReserveTransaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalReleased = transactions.stream()
+                .filter(tx -> tx.getTransactionType() == ReserveTransactionType.RELEASE)
+                .map(DistributionReserveTransaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return ReserveImpactAnalysis.builder()
+                .distributionRunId(runId)
+                .originalAmount(original)
+                .afterPer(afterPer)
+                .afterIrr(afterIrr)
+                .finalAmount(afterIrr)
+                .totalRetained(totalRetained)
+                .totalReleased(totalReleased)
+                .netImpact(original.subtract(afterIrr))
+                .transactions(transactions.stream()
+                        .map(this::toResult)
+                        .toList())
+                .build();
+    }
+
+    private ReserveExecutionResult toResult(DistributionReserveTransaction transaction) {
+        return ReserveExecutionResult.builder()
+                .reserveType(transaction.getReserveType().name())
+                .transactionType(transaction.getTransactionType().name())
+                .adjustmentAmount(transaction.getAmount())
+                .amountBeforeReserve(transaction.getAmountBeforeReserve())
+                .amountAfterReserve(transaction.getAmountAfterReserve())
+                .transactionId(transaction.getId())
+                .journalRef(transaction.getJournalRef())
+                .reserveBalanceAfter(transaction.getBalanceAfter())
+                .build();
     }
 }

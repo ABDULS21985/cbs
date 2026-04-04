@@ -1,14 +1,17 @@
 package com.cbs.profitdistribution.service;
 
 import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.gl.islamic.entity.InvestmentPool;
 import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
+import com.cbs.mudarabah.dto.PoolProfitAllocationResponse;
 import com.cbs.mudarabah.entity.MudarabahAccount;
 import com.cbs.mudarabah.entity.PoolProfitAllocation;
 import com.cbs.mudarabah.entity.ProfitAllocationStatus;
 import com.cbs.mudarabah.repository.MudarabahAccountRepository;
 import com.cbs.mudarabah.repository.PoolProfitAllocationRepository;
+import com.cbs.mudarabah.repository.PoolWeightageRecordRepository;
 import com.cbs.mudarabah.service.PoolWeightageService;
 import com.cbs.profitdistribution.dto.ConservationCheck;
 import com.cbs.profitdistribution.dto.ProfitAllocationBatch;
@@ -37,194 +40,379 @@ public class ProfitAllocationService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
     private static final BigDecimal HUNDRED = new BigDecimal("100");
+    private static final BigDecimal TOLERANCE = new BigDecimal("0.01");
 
     private final PoolProfitCalculationRepository calculationRepo;
     private final PoolProfitAllocationRepository allocationRepo;
     private final MudarabahAccountRepository mudarabahAccountRepo;
     private final PoolWeightageService weightageService;
+    private final PoolWeightageRecordRepository weightageRecordRepo;
     private final InvestmentPoolRepository poolRepo;
     private final CurrentActorProvider actorProvider;
 
-    /**
-     * Allocates the depositor pool from an approved profit calculation to individual participants
-     * based on their weightage and profit-sharing ratios (PSR).
-     */
     public ProfitAllocationBatch allocateProfit(Long poolId, Long profitCalculationId) {
-        PoolProfitCalculation calc = calculationRepo.findById(profitCalculationId)
-                .orElseThrow(() -> new ResourceNotFoundException("PoolProfitCalculation", "id", profitCalculationId));
+        return allocateProfit(poolId, profitCalculationId, null, ZERO, ZERO);
+    }
 
-        if (calc.getCalculationStatus() != CalculationStatus.APPROVED) {
-            throw new com.cbs.common.exception.BusinessException(
-                    "Calculation must be APPROVED before allocation, current status: " + calc.getCalculationStatus(),
-                    "INVALID_STATE");
+    public ProfitAllocationBatch allocateProfit(Long poolId,
+                                                Long profitCalculationId,
+                                                BigDecimal depositorPoolAfterReserves,
+                                                BigDecimal signedPerAdjustment,
+                                                BigDecimal signedIrrAdjustment) {
+        PoolProfitCalculation calc = getApprovedOrUsedCalculation(profitCalculationId);
+        InvestmentPool pool = getPool(poolId);
+
+        if (!poolId.equals(calc.getPoolId())) {
+            throw new BusinessException("Calculation does not belong to the specified pool", "CALCULATION_POOL_MISMATCH");
         }
 
-        InvestmentPool pool = poolRepo.findById(poolId)
-                .orElseThrow(() -> new ResourceNotFoundException("InvestmentPool", "id", poolId));
+        BigDecimal preReservePool = defaultAmount(calc.getDepositorPool());
+        BigDecimal distributablePool = depositorPoolAfterReserves != null
+                ? depositorPoolAfterReserves
+                : preReservePool;
+        long periodDays = Math.max(ChronoUnit.DAYS.between(calc.getPeriodFrom(), calc.getPeriodTo()) + 1, 1);
 
-        BigDecimal depositorPool = calc.getDepositorPool();
-        boolean isLoss = calc.isLoss();
-        long periodDays = ChronoUnit.DAYS.between(calc.getPeriodFrom(), calc.getPeriodTo());
-        if (periodDays == 0) {
-            periodDays = 1;
-        }
-
-        // Calculate weightages for all participants in the pool
         Map<Long, BigDecimal> weightages = weightageService.calculateAllWeightages(
                 poolId, calc.getPeriodFrom(), calc.getPeriodTo());
+        if (weightages.isEmpty()) {
+            throw new BusinessException("No daily weightages recorded for the allocation period", "NO_WEIGHTAGE_DATA");
+        }
 
-        // Allocate to each participant
-        List<PoolProfitAllocation> allocations = new ArrayList<>();
+        BigDecimal totalWeight = weightages.values().stream().reduce(ZERO, BigDecimal::add);
+        if (totalWeight.subtract(HUNDRED).abs().compareTo(TOLERANCE) > 0) {
+            throw new BusinessException(
+                    "Weightage conservation failed: expected 100 but found " + totalWeight.toPlainString(),
+                    "WEIGHTAGE_CONSERVATION_FAILED");
+        }
+
+        List<PoolProfitAllocation> existing = allocationRepo.findByPoolIdAndPeriodFromAndPeriodTo(
+                poolId, calc.getPeriodFrom(), calc.getPeriodTo());
+        boolean hasDistributedAllocations = existing.stream().anyMatch(
+                allocation -> allocation.getDistributionStatus() == ProfitAllocationStatus.DISTRIBUTED);
+        if (hasDistributedAllocations) {
+            throw new BusinessException(
+                    "Cannot recalculate allocations after distribution has started",
+                    "ALLOCATIONS_ALREADY_DISTRIBUTED");
+        }
+        if (!existing.isEmpty()) {
+            allocationRepo.deleteByPoolIdAndPeriodFromAndPeriodTo(poolId, calc.getPeriodFrom(), calc.getPeriodTo());
+        }
+
+        List<PoolProfitAllocation> savedAllocations = new ArrayList<>();
         BigDecimal totalCustomerProfit = ZERO;
         BigDecimal totalBankProfit = ZERO;
 
         for (Map.Entry<Long, BigDecimal> entry : weightages.entrySet()) {
             Long accountId = entry.getKey();
             BigDecimal weight = entry.getValue();
+            MudarabahAccount mudarabahAccount = mudarabahAccountRepo.findByAccountId(accountId)
+                    .orElseThrow(() -> new ResourceNotFoundException("MudarabahAccount", "accountId", accountId));
 
-            // Participant share = depositorPool * weightage%
-            BigDecimal participantShare = depositorPool
-                    .multiply(weight)
+            BigDecimal totalDailyProduct = defaultAmount(weightageRecordRepo.sumDailyProduct(
+                    poolId, accountId, calc.getPeriodFrom(), calc.getPeriodTo()));
+            BigDecimal grossShareBeforePer = preReservePool.multiply(weight)
                     .divide(HUNDRED, 4, RoundingMode.HALF_UP);
+            BigDecimal perEffect = signedPerAdjustment.negate().multiply(weight)
+                    .divide(HUNDRED, 4, RoundingMode.HALF_UP);
+            BigDecimal irrDeduction = signedIrrAdjustment.multiply(weight)
+                    .divide(HUNDRED, 4, RoundingMode.HALF_UP);
+            BigDecimal netShareAfterReserves = grossShareBeforePer.add(perEffect).subtract(irrDeduction);
 
-            // Look up the mudarabah account for PSR
-            MudarabahAccount ma = mudarabahAccountRepo.findByAccountId(accountId).orElse(null);
-            BigDecimal customerPsr = ma != null
-                    ? ma.getProfitSharingRatioCustomer()
-                    : new BigDecimal("70.0000");
-            BigDecimal bankPsr = ma != null
-                    ? ma.getProfitSharingRatioBank()
-                    : new BigDecimal("30.0000");
-
-            BigDecimal customerProfit;
-            BigDecimal bankProfit;
-            if (participantShare.compareTo(ZERO) >= 0) {
-                // Profit: split by PSR
-                customerProfit = participantShare
-                        .multiply(customerPsr)
+            BigDecimal customerProfitShare;
+            BigDecimal bankProfitShare;
+            if (netShareAfterReserves.compareTo(ZERO) >= 0) {
+                customerProfitShare = netShareAfterReserves.multiply(mudarabahAccount.getProfitSharingRatioCustomer())
                         .divide(HUNDRED, 4, RoundingMode.HALF_UP);
-                bankProfit = participantShare.subtract(customerProfit);
+                bankProfitShare = netShareAfterReserves.subtract(customerProfitShare);
             } else {
-                // Loss: full loss to customer, no bank share
-                customerProfit = participantShare;
-                bankProfit = ZERO;
+                customerProfitShare = netShareAfterReserves;
+                bankProfitShare = ZERO;
             }
-
-            totalCustomerProfit = totalCustomerProfit.add(customerProfit);
-            totalBankProfit = totalBankProfit.add(bankProfit);
 
             PoolProfitAllocation allocation = PoolProfitAllocation.builder()
                     .poolId(poolId)
                     .accountId(accountId)
-                    .mudarabahAccountId(ma != null ? ma.getId() : 0L)
+                    .mudarabahAccountId(mudarabahAccount.getId())
                     .periodFrom(calc.getPeriodFrom())
                     .periodTo(calc.getPeriodTo())
-                    .poolTotalDailyProduct(ZERO)
-                    .totalDailyProduct(ZERO)
+                    .poolTotalDailyProduct(defaultAmount(weightageRecordRepo.sumPoolDailyProduct(
+                            poolId, calc.getPeriodFrom(), calc.getPeriodTo())))
+                    .totalDailyProduct(totalDailyProduct)
                     .weightagePercentage(weight)
                     .poolGrossProfit(calc.getNetDistributableProfit())
-                    .grossShareBeforePer(participantShare)
-                    .perAdjustment(ZERO)
-                    .irrDeduction(ZERO)
-                    .netShareAfterReserves(participantShare)
-                    .customerPsr(customerPsr)
-                    .customerProfitShare(customerProfit)
-                    .bankProfitShare(bankProfit)
-                    .effectiveProfitRate(calculateEffectiveRate(customerProfit, ma, periodDays))
+                    .grossShareBeforePer(grossShareBeforePer)
+                    .perAdjustment(perEffect)
+                    .irrDeduction(irrDeduction)
+                    .netShareAfterReserves(netShareAfterReserves)
+                    .customerPsr(mudarabahAccount.getProfitSharingRatioCustomer())
+                    .customerProfitShare(customerProfitShare)
+                    .bankProfitShare(bankProfitShare)
+                    .effectiveProfitRate(calculateEffectiveRate(customerProfitShare, totalDailyProduct, periodDays))
                     .distributionStatus(ProfitAllocationStatus.CALCULATED)
+                    .tenantId(mudarabahAccount.getTenantId())
                     .build();
-
-            allocations.add(allocationRepo.save(allocation));
+            savedAllocations.add(allocationRepo.save(allocation));
+            totalCustomerProfit = totalCustomerProfit.add(customerProfitShare);
+            totalBankProfit = totalBankProfit.add(bankProfitShare);
         }
 
-        // Conservation check: sum of all allocations must equal the depositor pool
-        BigDecimal sumAllocations = allocations.stream()
-                .map(a -> a.getCustomerProfitShare().add(a.getBankProfitShare()))
+        BigDecimal roundingAdjustment = applyRoundingAdjustment(savedAllocations, distributablePool);
+        BigDecimal sumOfAllocations = savedAllocations.stream()
+                .map(PoolProfitAllocation::getNetShareAfterReserves)
                 .reduce(ZERO, BigDecimal::add);
-        BigDecimal diff = sumAllocations.subtract(depositorPool).abs();
-        boolean conservationPasses = diff.compareTo(new BigDecimal("0.01")) <= 0;
-
-        // Apply rounding adjustment to the largest allocation if needed
-        if (!conservationPasses && !allocations.isEmpty()) {
-            BigDecimal adjustment = depositorPool.subtract(sumAllocations);
-            PoolProfitAllocation largest = allocations.stream()
-                    .max(Comparator.comparing(a -> a.getCustomerProfitShare().abs()))
-                    .get();
-            largest.setCustomerProfitShare(largest.getCustomerProfitShare().add(adjustment));
-            allocationRepo.save(largest);
-        }
-
-        ConservationCheck cc = ConservationCheck.builder()
-                .inputAmount(depositorPool)
-                .sumOfAllocations(sumAllocations)
-                .difference(diff)
-                .isPassing(conservationPasses || diff.compareTo(new BigDecimal("0.10")) <= 0)
-                .tolerance(new BigDecimal("0.01"))
-                .status(conservationPasses ? "PASSED" : "ADJUSTED")
+        BigDecimal difference = distributablePool.subtract(sumOfAllocations);
+        ConservationCheck conservationCheck = ConservationCheck.builder()
+                .inputAmount(distributablePool)
+                .sumOfAllocations(sumOfAllocations)
+                .difference(difference)
+                .isPassing(difference.abs().compareTo(TOLERANCE) <= 0)
+                .tolerance(TOLERANCE)
+                .status(difference.abs().compareTo(TOLERANCE) <= 0 ? "PASSED" : "ADJUSTED")
                 .build();
 
-        BigDecimal avgRate = allocations.isEmpty()
-                ? ZERO
-                : allocations.stream()
-                        .map(PoolProfitAllocation::getEffectiveProfitRate)
-                        .filter(r -> r != null)
-                        .reduce(ZERO, BigDecimal::add)
-                        .divide(BigDecimal.valueOf(allocations.size()), 4, RoundingMode.HALF_UP);
+        calc.setCalculationStatus(CalculationStatus.USED_IN_DISTRIBUTION);
+        calculationRepo.save(calc);
 
-        log.info("Profit allocated: pool={}, participants={}, totalCustomer={}, totalBank={}, conservation={}",
-                pool.getPoolCode(), allocations.size(), totalCustomerProfit, totalBankProfit, cc.getStatus());
-
-        return ProfitAllocationBatch.builder()
-                .batchId(profitCalculationId)
-                .poolId(poolId)
-                .poolCode(pool.getPoolCode())
-                .profitCalculationId(profitCalculationId)
-                .periodFrom(calc.getPeriodFrom())
-                .periodTo(calc.getPeriodTo())
-                .depositorPoolBeforeReserves(calc.getDepositorPool())
-                .depositorPoolAfterReserves(depositorPool)
-                .participantCount(allocations.size())
-                .totalCustomerProfit(totalCustomerProfit)
-                .totalBankProfit(totalBankProfit)
-                .averageEffectiveRate(avgRate)
-                .isLoss(isLoss)
-                .status("CALCULATED")
-                .conservationCheck(cc)
-                .build();
+        return buildBatch(pool, calc, signedPerAdjustment, signedIrrAdjustment, distributablePool,
+                totalCustomerProfit, totalBankProfit, roundingAdjustment, conservationCheck, savedAllocations);
     }
 
-    /**
-     * Approves all CALCULATED allocations for the given pool and period.
-     */
+    public ProfitAllocationBatch getBatch(Long batchId) {
+        PoolProfitCalculation calc = calculationRepo.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("PoolProfitCalculation", "id", batchId));
+        InvestmentPool pool = getPool(calc.getPoolId());
+        List<PoolProfitAllocation> allocations = allocationRepo.findByPoolIdAndPeriodFromAndPeriodTo(
+                calc.getPoolId(), calc.getPeriodFrom(), calc.getPeriodTo());
+        BigDecimal totalCustomerProfit = allocations.stream()
+                .map(PoolProfitAllocation::getCustomerProfitShare)
+                .reduce(ZERO, BigDecimal::add);
+        BigDecimal totalBankProfit = allocations.stream()
+                .map(PoolProfitAllocation::getBankProfitShare)
+                .reduce(ZERO, BigDecimal::add);
+        BigDecimal sumOfAllocations = allocations.stream()
+                .map(PoolProfitAllocation::getNetShareAfterReserves)
+                .reduce(ZERO, BigDecimal::add);
+        BigDecimal difference = calc.getDepositorPool().subtract(sumOfAllocations);
+
+        return buildBatch(pool, calc, ZERO, ZERO, calc.getDepositorPool(), totalCustomerProfit, totalBankProfit,
+                ZERO, ConservationCheck.builder()
+                        .inputAmount(calc.getDepositorPool())
+                        .sumOfAllocations(sumOfAllocations)
+                        .difference(difference)
+                        .isPassing(difference.abs().compareTo(TOLERANCE) <= 0)
+                        .tolerance(TOLERANCE)
+                        .status(difference.abs().compareTo(TOLERANCE) <= 0 ? "PASSED" : "FAILED")
+                        .build(),
+                allocations);
+    }
+
+    public ProfitAllocationBatch recalculateAllocations(Long batchId) {
+        PoolProfitCalculation calc = calculationRepo.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("PoolProfitCalculation", "id", batchId));
+        if (calc.getCalculationStatus() != CalculationStatus.APPROVED
+                && calc.getCalculationStatus() != CalculationStatus.USED_IN_DISTRIBUTION) {
+            throw new BusinessException("Allocation recalculation requires an approved calculation", "INVALID_STATE");
+        }
+        calc.setCalculationStatus(CalculationStatus.APPROVED);
+        calculationRepo.save(calc);
+        return allocateProfit(calc.getPoolId(), batchId);
+    }
+
+    public void approveAllocations(Long batchId, String approvedBy) {
+        PoolProfitCalculation calc = calculationRepo.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("PoolProfitCalculation", "id", batchId));
+        approveAllocations(calc.getPoolId(), calc.getPeriodFrom(), calc.getPeriodTo(), approvedBy);
+    }
+
     public void approveAllocations(Long poolId, LocalDate periodFrom, LocalDate periodTo, String approvedBy) {
         List<PoolProfitAllocation> allocations = allocationRepo
                 .findByPoolIdAndPeriodFromAndPeriodTo(poolId, periodFrom, periodTo);
+        if (allocations.isEmpty()) {
+            throw new BusinessException("No calculated allocations found for approval", "ALLOCATIONS_NOT_FOUND");
+        }
 
-        for (PoolProfitAllocation a : allocations) {
-            if (a.getDistributionStatus() == ProfitAllocationStatus.CALCULATED) {
-                a.setDistributionStatus(ProfitAllocationStatus.APPROVED);
-                allocationRepo.save(a);
+        boolean makerCheckerViolation = allocations.stream()
+                .map(PoolProfitAllocation::getCreatedBy)
+                .filter(java.util.Objects::nonNull)
+                .anyMatch(approvedBy::equals);
+        if (makerCheckerViolation) {
+            throw new BusinessException(
+                    "Four-eyes principle violated: allocation approver cannot be the allocator",
+                    "FOUR_EYES_VIOLATION");
+        }
+
+        for (PoolProfitAllocation allocation : allocations) {
+            if (allocation.getDistributionStatus() == ProfitAllocationStatus.CALCULATED) {
+                allocation.setDistributionStatus(ProfitAllocationStatus.APPROVED);
+                allocationRepo.save(allocation);
             }
         }
 
-        log.info("Allocations approved: pool={}, period={}-{}, count={}, approvedBy={}",
-                poolId, periodFrom, periodTo, allocations.size(), approvedBy);
+        log.info("Allocations approved: pool={}, period={}-{}, approvedBy={}",
+                poolId, periodFrom, periodTo, approvedBy);
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────
+    @Transactional(readOnly = true)
+    public List<ProfitAllocationBatch> getAllocationsByPool(Long poolId) {
+        return calculationRepo.findByPoolIdOrderByPeriodFromDesc(poolId).stream()
+                .filter(calc -> !allocationRepo.findByPoolIdAndPeriodFromAndPeriodTo(
+                        poolId, calc.getPeriodFrom(), calc.getPeriodTo()).isEmpty())
+                .map(calc -> getBatch(calc.getId()))
+                .toList();
+    }
 
-    private BigDecimal calculateEffectiveRate(BigDecimal profit, MudarabahAccount ma, long periodDays) {
-        if (ma == null || ma.getAccount() == null) {
+    @Transactional(readOnly = true)
+    public List<PoolProfitAllocationResponse> getAccountAllocationHistory(Long accountId) {
+        return allocationRepo.findByAccountIdOrderByPeriodDesc(accountId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    public BigDecimal applyRoundingAdjustment(List<PoolProfitAllocation> allocations, BigDecimal expectedTotal) {
+        if (allocations.isEmpty()) {
             return ZERO;
         }
-        BigDecimal balance = ma.getAccount().getBookBalance();
-        if (balance.compareTo(ZERO) <= 0 || periodDays <= 0) {
+        BigDecimal currentTotal = allocations.stream()
+                .map(PoolProfitAllocation::getNetShareAfterReserves)
+                .reduce(ZERO, BigDecimal::add);
+        BigDecimal adjustment = expectedTotal.subtract(currentTotal);
+        if (adjustment.abs().compareTo(TOLERANCE) <= 0) {
             return ZERO;
         }
-        // Annualised effective rate = (profit / balance) * (365 / periodDays) * 100
-        return profit
-                .multiply(BigDecimal.valueOf(365))
-                .divide(balance.multiply(BigDecimal.valueOf(periodDays)), 4, RoundingMode.HALF_UP)
+
+        PoolProfitAllocation largest = allocations.stream()
+                .max(Comparator.comparing(allocation -> allocation.getNetShareAfterReserves().abs()))
+                .orElseThrow(() -> new BusinessException("No allocations available for rounding adjustment", "NO_ALLOCATIONS"));
+
+        largest.setNetShareAfterReserves(largest.getNetShareAfterReserves().add(adjustment));
+        if (largest.getNetShareAfterReserves().compareTo(ZERO) >= 0) {
+            BigDecimal customerProfit = largest.getNetShareAfterReserves().multiply(largest.getCustomerPsr())
+                    .divide(HUNDRED, 4, RoundingMode.HALF_UP);
+            largest.setCustomerProfitShare(customerProfit);
+            largest.setBankProfitShare(largest.getNetShareAfterReserves().subtract(customerProfit));
+        } else {
+            largest.setCustomerProfitShare(largest.getNetShareAfterReserves());
+            largest.setBankProfitShare(ZERO);
+        }
+        allocationRepo.save(largest);
+        return adjustment;
+    }
+
+    private PoolProfitCalculation getApprovedOrUsedCalculation(Long calculationId) {
+        PoolProfitCalculation calc = calculationRepo.findById(calculationId)
+                .orElseThrow(() -> new ResourceNotFoundException("PoolProfitCalculation", "id", calculationId));
+        if (calc.getCalculationStatus() != CalculationStatus.APPROVED
+                && calc.getCalculationStatus() != CalculationStatus.USED_IN_DISTRIBUTION) {
+            throw new BusinessException(
+                    "Calculation must be APPROVED before allocation, current status: " + calc.getCalculationStatus(),
+                    "INVALID_STATE");
+        }
+        return calc;
+    }
+
+    private InvestmentPool getPool(Long poolId) {
+        return poolRepo.findById(poolId)
+                .orElseThrow(() -> new ResourceNotFoundException("InvestmentPool", "id", poolId));
+    }
+
+    private ProfitAllocationBatch buildBatch(InvestmentPool pool,
+                                             PoolProfitCalculation calc,
+                                             BigDecimal signedPerAdjustment,
+                                             BigDecimal signedIrrAdjustment,
+                                             BigDecimal distributablePool,
+                                             BigDecimal totalCustomerProfit,
+                                             BigDecimal totalBankProfit,
+                                             BigDecimal roundingAdjustment,
+                                             ConservationCheck conservationCheck,
+                                             List<PoolProfitAllocation> allocations) {
+        List<BigDecimal> rates = allocations.stream()
+                .map(PoolProfitAllocation::getEffectiveProfitRate)
+                .filter(java.util.Objects::nonNull)
+                .sorted()
+                .toList();
+        BigDecimal averageRate = rates.isEmpty()
+                ? ZERO
+                : rates.stream().reduce(ZERO, BigDecimal::add)
+                        .divide(BigDecimal.valueOf(rates.size()), 4, RoundingMode.HALF_UP);
+
+        return ProfitAllocationBatch.builder()
+                .batchId(calc.getId())
+                .poolId(pool.getId())
+                .poolCode(pool.getPoolCode())
+                .profitCalculationId(calc.getId())
+                .periodFrom(calc.getPeriodFrom())
+                .periodTo(calc.getPeriodTo())
+                .depositorPoolBeforeReserves(calc.getDepositorPool())
+                .perAdjustment(signedPerAdjustment)
+                .irrDeduction(signedIrrAdjustment)
+                .depositorPoolAfterReserves(distributablePool)
+                .participantCount(allocations.size())
+                .totalCustomerProfit(totalCustomerProfit)
+                .totalBankProfit(totalBankProfit)
+                .averageEffectiveRate(averageRate)
+                .minimumEffectiveRate(rates.isEmpty() ? ZERO : rates.getFirst())
+                .maximumEffectiveRate(rates.isEmpty() ? ZERO : rates.getLast())
+                .roundingAdjustment(roundingAdjustment)
+                .isLoss(calc.isLoss())
+                .status(resolveBatchStatus(allocations))
+                .conservationCheck(conservationCheck)
+                .allocations(allocations.stream().map(this::toResponse).toList())
+                .build();
+    }
+
+    private String resolveBatchStatus(List<PoolProfitAllocation> allocations) {
+        if (allocations.isEmpty()) {
+            return "EMPTY";
+        }
+        if (allocations.stream().allMatch(allocation -> allocation.getDistributionStatus() == ProfitAllocationStatus.DISTRIBUTED)) {
+            return "DISTRIBUTED";
+        }
+        if (allocations.stream().allMatch(allocation -> allocation.getDistributionStatus() == ProfitAllocationStatus.APPROVED)) {
+            return "APPROVED";
+        }
+        return "CALCULATED";
+    }
+
+    private BigDecimal calculateEffectiveRate(BigDecimal profitShare, BigDecimal totalDailyProduct, long periodDays) {
+        if (totalDailyProduct == null || totalDailyProduct.compareTo(ZERO) <= 0 || periodDays <= 0) {
+            return ZERO;
+        }
+        BigDecimal averageBalance = totalDailyProduct.divide(BigDecimal.valueOf(periodDays), 4, RoundingMode.HALF_UP);
+        if (averageBalance.compareTo(ZERO) <= 0) {
+            return ZERO;
+        }
+        return profitShare.multiply(BigDecimal.valueOf(365))
+                .divide(averageBalance.multiply(BigDecimal.valueOf(periodDays)), 4, RoundingMode.HALF_UP)
                 .multiply(HUNDRED);
+    }
+
+    private PoolProfitAllocationResponse toResponse(PoolProfitAllocation allocation) {
+        MudarabahAccount account = mudarabahAccountRepo.findById(allocation.getMudarabahAccountId()).orElse(null);
+        return PoolProfitAllocationResponse.builder()
+                .id(allocation.getId())
+                .poolId(allocation.getPoolId())
+                .accountId(allocation.getAccountId())
+                .accountNumber(account != null && account.getAccount() != null ? account.getAccount().getAccountNumber() : null)
+                .periodFrom(allocation.getPeriodFrom())
+                .periodTo(allocation.getPeriodTo())
+                .totalDailyProduct(allocation.getTotalDailyProduct())
+                .weightagePercentage(allocation.getWeightagePercentage())
+                .poolGrossProfit(allocation.getPoolGrossProfit())
+                .grossShareBeforePer(allocation.getGrossShareBeforePer())
+                .perAdjustment(allocation.getPerAdjustment())
+                .irrDeduction(allocation.getIrrDeduction())
+                .netShareAfterReserves(allocation.getNetShareAfterReserves())
+                .customerPsr(allocation.getCustomerPsr())
+                .customerProfitShare(allocation.getCustomerProfitShare())
+                .bankProfitShare(allocation.getBankProfitShare())
+                .effectiveProfitRate(allocation.getEffectiveProfitRate())
+                .distributionStatus(allocation.getDistributionStatus().name())
+                .distributedAt(allocation.getDistributedAt())
+                .journalRef(allocation.getJournalRef())
+                .build();
+    }
+
+    private BigDecimal defaultAmount(BigDecimal value) {
+        return value != null ? value : ZERO;
     }
 }

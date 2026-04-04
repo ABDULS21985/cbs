@@ -3,6 +3,7 @@ package com.cbs.profitdistribution.dto;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class SegregationValidationResult {
@@ -15,5 +16,15 @@ public class SegregationValidationResult {
     private BigDecimal mismatchAmount;
     private BigDecimal mismatchPercentage;
     private boolean hasOverAssignedAssets;
+    private List<OverAssignmentAlert> overAssignments;
     private String validatedAt;
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class OverAssignmentAlert {
+        private Long assetReferenceId;
+        private String assetReferenceCode;
+        private BigDecimal assignedAcrossPools;
+        private BigDecimal currentOutstanding;
+        private BigDecimal excessAmount;
+    }
 }

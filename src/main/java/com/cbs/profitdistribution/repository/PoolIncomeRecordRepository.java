@@ -9,11 +9,16 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PoolIncomeRecordRepository extends JpaRepository<PoolIncomeRecord, Long> {
 
     List<PoolIncomeRecord> findByPoolId(Long poolId);
+
+    List<PoolIncomeRecord> findByPoolIdAndIncomeType(Long poolId, com.cbs.profitdistribution.entity.IncomeType incomeType);
+
+    Optional<PoolIncomeRecord> findTopByAssetAssignmentIdOrderByIncomeDateDesc(Long assetAssignmentId);
 
     @Query("""
             SELECT i FROM PoolIncomeRecord i
@@ -35,6 +40,19 @@ public interface PoolIncomeRecordRepository extends JpaRepository<PoolIncomeReco
             AND i.periodTo <= :periodTo
             """)
     BigDecimal sumCharityIncome(
+            @Param("poolId") Long poolId,
+            @Param("periodFrom") LocalDate periodFrom,
+            @Param("periodTo") LocalDate periodTo);
+
+    @Query("""
+            SELECT COALESCE(SUM(i.amount), 0)
+            FROM PoolIncomeRecord i
+            WHERE i.poolId = :poolId
+            AND i.isCharityIncome = false
+            AND i.periodFrom >= :periodFrom
+            AND i.periodTo <= :periodTo
+            """)
+    BigDecimal sumDistributableIncome(
             @Param("poolId") Long poolId,
             @Param("periodFrom") LocalDate periodFrom,
             @Param("periodTo") LocalDate periodTo);

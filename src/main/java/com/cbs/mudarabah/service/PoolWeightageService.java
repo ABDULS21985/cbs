@@ -2,6 +2,7 @@ package com.cbs.mudarabah.service;
 
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionJournal;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
@@ -45,6 +46,7 @@ public class PoolWeightageService {
 
     private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";
     private static final String BANK_MUDARIB_INCOME_GL = "4200-MDR-001";
+    private static final String POOL_LOSS_GL = "6300-000-001";
 
     // Daily weightage recording
     public void recordDailyWeightages(Long poolId, LocalDate date) {
@@ -220,9 +222,10 @@ public class PoolWeightageService {
 
             // Credit customer's profit share
             if (allocation.getCustomerProfitShare().compareTo(BigDecimal.ZERO) > 0) {
+                TransactionJournal journal;
                 if (ma != null && ma.isProfitReinvest()) {
                     // Profit stays in account
-                    accountPostingService.postCreditAgainstGl(account, TransactionType.CREDIT,
+                    journal = accountPostingService.postCreditAgainstGl(account, TransactionType.CREDIT,
                             allocation.getCustomerProfitShare(),
                             "Mudarabah profit distribution",
                             TransactionChannel.SYSTEM, null,
@@ -231,25 +234,39 @@ public class PoolWeightageService {
                     // Transfer to distribution account
                     Account distAccount = accountRepository.findById(ma.getProfitDistributionAccountId()).orElse(null);
                     if (distAccount != null) {
-                        accountPostingService.postTransfer(account, distAccount,
-                                allocation.getCustomerProfitShare(), allocation.getCustomerProfitShare(),
-                                "Mudarabah profit transfer", "Mudarabah profit received",
-                                TransactionChannel.SYSTEM, "PROFIT-DIST",
-                                "MUDARABAH", "PROFIT-DIST");
+                        journal = accountPostingService.postCreditAgainstGl(distAccount, TransactionType.CREDIT,
+                                allocation.getCustomerProfitShare(),
+                                "Mudarabah profit distribution",
+                                TransactionChannel.SYSTEM, null,
+                                PROFIT_DISTRIBUTION_GL, "MUDARABAH", "PROFIT-DIST");
                     } else {
-                        accountPostingService.postCreditAgainstGl(account, TransactionType.CREDIT,
+                        journal = accountPostingService.postCreditAgainstGl(account, TransactionType.CREDIT,
                                 allocation.getCustomerProfitShare(),
                                 "Mudarabah profit distribution",
                                 TransactionChannel.SYSTEM, null,
                                 PROFIT_DISTRIBUTION_GL, "MUDARABAH", "PROFIT-DIST");
                     }
                 } else {
-                    accountPostingService.postCreditAgainstGl(account, TransactionType.CREDIT,
+                    journal = accountPostingService.postCreditAgainstGl(account, TransactionType.CREDIT,
                             allocation.getCustomerProfitShare(),
                             "Mudarabah profit distribution",
                             TransactionChannel.SYSTEM, null,
                             PROFIT_DISTRIBUTION_GL, "MUDARABAH", "PROFIT-DIST");
                 }
+                allocation.setJournalRef(journal.getTransactionRef());
+            } else if (allocation.getCustomerProfitShare().compareTo(BigDecimal.ZERO) < 0) {
+                TransactionJournal journal = accountPostingService.postDebitAgainstGl(
+                        account,
+                        TransactionType.DEBIT,
+                        allocation.getCustomerProfitShare().abs(),
+                        "Mudarabah loss allocation",
+                        TransactionChannel.SYSTEM,
+                        null,
+                        POOL_LOSS_GL,
+                        "MUDARABAH",
+                        "LOSS-DIST"
+                );
+                allocation.setJournalRef(journal.getTransactionRef());
             }
 
             // Update allocation status
