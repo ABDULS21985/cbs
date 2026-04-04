@@ -272,6 +272,10 @@ public class IslamicChartOfAccountsService {
         return investmentPoolRepository.findByStatus(PoolStatus.ACTIVE);
     }
 
+    public List<InvestmentPool> getPools() {
+        return investmentPoolRepository.findAll();
+    }
+
     @Transactional
     public void addParticipant(Long poolId, Long accountId, BigDecimal amount) {
         InvestmentPool pool = getPool(poolId);
