@@ -215,6 +215,17 @@ public class IslamicContractTypeService {
                             "INVALID_WADIAH_PROFIT_SHARING");
                 }
             }
+            case "QARD" -> {
+                BigDecimal bank = decimal(values.get("profitSharingRatioBank"));
+                BigDecimal customer = decimal(values.get("profitSharingRatioCustomer"));
+                BigDecimal fixedProfitRate = decimal(values.get("fixedProfitRate"));
+                if ((bank != null && bank.compareTo(BigDecimal.ZERO) > 0)
+                        || (customer != null && customer.compareTo(BigDecimal.ZERO) > 0)
+                        || (fixedProfitRate != null && fixedProfitRate.compareTo(BigDecimal.ZERO) > 0)) {
+                    throw new BusinessException("Qard products cannot define profit sharing or fixed profit",
+                            "INVALID_QARD_PROFIT_CONFIGURATION");
+                }
+            }
             default -> {
             }
         }
