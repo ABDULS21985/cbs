@@ -50,7 +50,7 @@ public class IjarahOriginationService {
     private final CurrentTenantResolver currentTenantResolver;
     private final CurrentActorProvider actorProvider;
 
-    public IjarahResponses.IjarahApplicationResponse createApplication(IjarahRequests.CreateIjarahApplicationRequest request) {
+    public IjarahResponses.IjarahApplicationResponse createApplication(IjarahRequests.CreateApplicationRequest request) {
         Customer customer = getActiveCustomer(request.getCustomerId());
         ensureKycVerified(customer.getId());
         IslamicProductTemplate product = resolveActiveIjarahProduct(request.getProductCode());
@@ -135,7 +135,7 @@ public class IjarahOriginationService {
         return IjarahSupport.toApplicationResponse(applicationRepository.save(application), buildDsrWarnings(dsr, limit));
     }
 
-    public IjarahResponses.IjarahApplicationResponse priceApplication(Long applicationId, IjarahRequests.IjarahPricingRequest request) {
+    public IjarahResponses.IjarahApplicationResponse priceApplication(Long applicationId, IjarahRequests.PricingRequest request) {
         IjarahApplication application = getApplicationEntity(applicationId);
         ensureModifiable(application);
         IslamicProductTemplate product = resolveActiveIjarahProduct(application.getProductCode());

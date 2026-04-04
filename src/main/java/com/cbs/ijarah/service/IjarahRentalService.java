@@ -385,11 +385,15 @@ public class IjarahRentalService {
     }
 
     private LocalDate nextReviewDate(IjarahContract contract, LocalDate effectiveDate) {
+        if (contract.getRentalReviewFrequency() == null) {
+            return null;
+        }
         return switch (contract.getRentalReviewFrequency()) {
             case NONE -> null;
             case ANNUAL -> effectiveDate.plusYears(1);
             case BI_ANNUAL -> effectiveDate.plusMonths(6);
             case AS_PER_SCHEDULE -> effectiveDate.plusYears(1);
+            case AS_PER_CONTRACT -> null;
         };
     }
 

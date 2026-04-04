@@ -77,7 +77,7 @@ public class IjarahContractService {
         contract.setAssetAcquisitionCost(IjarahSupport.money(request.getAcquisitionCost()));
         contract.setAssetDescription(StringUtils.hasText(contract.getAssetDescription())
                 ? contract.getAssetDescription()
-                : request.getSupplierReference());
+                : request.getAssetDescription());
         contract.setStatus(IjarahDomainEnums.ContractStatus.ASSET_PROCUREMENT);
         contractRepository.save(contract);
         return IjarahSupport.toContractResponse(contract);
@@ -94,9 +94,10 @@ public class IjarahContractService {
                 .contractId(contract.getId())
                 .assetCategory(contract.getAssetCategory())
                 .assetDescription(contract.getAssetDescription())
-                .acquisitionDate(LocalDate.now())
+                .acquisitionDate(request.getAcquisitionDate() != null ? request.getAcquisitionDate() : LocalDate.now())
                 .acquisitionCost(contract.getAssetAcquisitionCost())
-                .supplierName(contract.getProductCode())
+                .supplierName(request.getSupplierName())
+                .supplierInvoiceRef(request.getSupplierInvoiceRef())
                 .currencyCode(contract.getCurrencyCode())
                 .usefulLifeMonths(request.getUsefulLifeMonths())
                 .residualValue(request.getResidualValue())
@@ -105,7 +106,7 @@ public class IjarahContractService {
                 .ownershipEvidenceRef(request.getOwnershipEvidenceRef())
                 .build());
 
-        if (Boolean.TRUE.equals(request.getInsured())) {
+        if (StringUtils.hasText(request.getInsurancePolicyRef())) {
             assetService.updateInsurance(asset.getId(), IjarahRequests.InsuranceUpdateRequest.builder()
                     .insured(true)
                     .insurancePolicyRef(request.getInsurancePolicyRef())
@@ -227,7 +228,7 @@ public class IjarahContractService {
                     .maintenanceType(IjarahDomainEnums.MaintenanceType.EMERGENCY_REPAIR)
                     .responsibleParty(IjarahDomainEnums.ResponsibleParty.BANK)
                     .description(request.getDescription())
-                    .cost(request.getEstimatedRepairCost() != null ? request.getEstimatedRepairCost() : BigDecimal.ZERO)
+                    .cost(request.getEstimatedCost() != null ? request.getEstimatedCost() : BigDecimal.ZERO)
                     .currencyCode("SAR")
                     .maintenanceDate(request.getEventDate() != null ? request.getEventDate() : LocalDate.now())
                     .completionDate(request.getEventDate() != null ? request.getEventDate() : LocalDate.now())
@@ -278,16 +279,16 @@ public class IjarahContractService {
         IjarahContract contract = findContract(contractId);
         contract.setInsurancePolicyRef(request.getInsurancePolicyRef());
         contract.setInsuranceProvider(request.getInsuranceProvider());
-        contract.setInsuranceCoverageAmount(IjarahSupport.money(request.getInsuranceCoverageAmount()));
-        contract.setInsuranceExpiryDate(request.getInsuranceExpiryDate());
+        contract.setInsuranceCoverageAmount(IjarahSupport.money(request.getCoverageAmount()));
+        contract.setInsuranceExpiryDate(request.getExpiryDate());
         contractRepository.save(contract);
         assetService.updateInsurance(contract.getIjarahAssetId(), IjarahRequests.InsuranceUpdateRequest.builder()
                 .insured(true)
                 .insurancePolicyRef(request.getInsurancePolicyRef())
                 .insuranceProvider(request.getInsuranceProvider())
-                .insuranceCoverageAmount(request.getInsuranceCoverageAmount())
-                .insurancePremiumAnnual(request.getAnnualPremium())
-                .insuranceExpiryDate(request.getInsuranceExpiryDate())
+                .insuranceCoverageAmount(request.getCoverageAmount())
+                .insurancePremiumAnnual(request.getPremiumAmount())
+                .insuranceExpiryDate(request.getExpiryDate())
                 .build());
     }
 
@@ -351,12 +352,11 @@ public class IjarahContractService {
         List<IjarahContract> contracts = contractRepository.findAll();
         return IjarahResponses.IjarahPortfolioSummary.builder()
                 .totalContracts(contracts.size())
-                .totalAssetCost(contracts.stream().map(c -> IjarahSupport.money(c.getAssetAcquisitionCost())).reduce(IjarahSupport.ZERO, BigDecimal::add))
-                .totalRentalsExpected(contracts.stream().map(c -> IjarahSupport.money(c.getTotalRentalsExpected())).reduce(IjarahSupport.ZERO, BigDecimal::add))
-                .totalRentalsReceived(contracts.stream().map(c -> IjarahSupport.money(c.getTotalRentalsReceived())).reduce(IjarahSupport.ZERO, BigDecimal::add))
-                .totalRentalArrears(contracts.stream().map(c -> IjarahSupport.money(c.getTotalRentalArrears())).reduce(IjarahSupport.ZERO, BigDecimal::add))
+                .totalAssetsUnderIjarah(contracts.stream().map(c -> IjarahSupport.money(c.getAssetAcquisitionCost())).reduce(IjarahSupport.ZERO, BigDecimal::add))
+                .rentalIncomeYtd(contracts.stream().map(c -> IjarahSupport.money(c.getTotalRentalsReceived())).reduce(IjarahSupport.ZERO, BigDecimal::add))
                 .byType(contracts.stream().collect(java.util.stream.Collectors.groupingBy(c -> c.getIjarahType().name(), java.util.stream.Collectors.counting())))
                 .byStatus(contracts.stream().collect(java.util.stream.Collectors.groupingBy(c -> c.getStatus().name(), java.util.stream.Collectors.counting())))
+                .upcomingMaturities(contractRepository.findByLeaseEndDateBetween(LocalDate.now(), LocalDate.now().plusDays(30)).size())
                 .build();
     }
 

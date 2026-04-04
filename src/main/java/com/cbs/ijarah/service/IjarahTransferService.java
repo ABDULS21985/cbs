@@ -46,7 +46,7 @@ public class IjarahTransferService {
         if (contract.getIjarahType() != IjarahDomainEnums.IjarahType.IJARAH_MUNTAHIA_BITTAMLEEK) {
             throw new BusinessException("Transfer mechanism is only valid for IMB contracts", "INVALID_TRANSFER_MECHANISM");
         }
-        if (!request.isSeparateDocument()) {
+        if (!Boolean.TRUE.equals(request.getIsSeparateDocument())) {
             throw new BusinessException("IMB transfer must be a separate document", "SHARIAH-IJR-004");
         }
         if (contract.getContractRef().equalsIgnoreCase(request.getDocumentReference())) {
@@ -92,12 +92,12 @@ public class IjarahTransferService {
 
     public void signTransferDocument(Long transferId, IjarahRequests.SignatureDetails request) {
         IjarahTransferMechanism mechanism = getTransferMechanism(transferId);
-        mechanism.setSignedByBank(request.isBankSigned());
-        mechanism.setSignedByBankDate(request.getBankSignedDate());
+        mechanism.setSignedByBank(request.isSignedByBank());
+        mechanism.setSignedByBankDate(request.getSignedDate());
         mechanism.setSignedByBankRepresentative(request.getBankRepresentative());
-        mechanism.setSignedByCustomer(request.isCustomerSigned());
-        mechanism.setSignedByCustomerDate(request.getCustomerSignedDate());
-        mechanism.setStatus(request.isBankSigned()
+        mechanism.setSignedByCustomer(request.isSignedByCustomer());
+        mechanism.setSignedByCustomerDate(request.getSignedDate());
+        mechanism.setStatus(request.isSignedByBank()
                 ? IjarahDomainEnums.TransferStatus.ACTIVE
                 : IjarahDomainEnums.TransferStatus.DRAFT);
         transferRepository.save(mechanism);

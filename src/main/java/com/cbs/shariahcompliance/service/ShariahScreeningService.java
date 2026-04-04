@@ -163,6 +163,18 @@ public class ShariahScreeningService {
                 .build();
     }
 
+    public ShariahScreeningResultResponse screenPreExecution(ShariahScreeningRequest request) {
+        return screenTransaction(request);
+    }
+
+    public void ensureAllowed(ShariahScreeningResultResponse result) {
+        if (result != null && result.getActionTaken() == ScreeningActionTaken.BLOCKED) {
+            throw new BusinessException(
+                    StringUtils.hasText(result.getBlockReason()) ? result.getBlockReason() : "Shariah screening blocked execution",
+                    "SHARIAH_SCREENING_BLOCKED");
+        }
+    }
+
     public List<ShariahScreeningResultResponse> batchScreen(List<ShariahScreeningRequest> requests) {
         return requests.stream().map(this::screenTransaction).toList();
     }
@@ -346,10 +358,12 @@ public class ShariahScreeningService {
                 predicates.add(cb.equal(root.get("customerId"), criteria.getCustomerId()));
             }
             if (criteria.getDateFrom() != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), criteria.getDateFrom().atStartOfDay().toInstant(java.time.ZoneOffset.UTC)));
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"),
+                        criteria.getDateFrom().atZone(java.time.ZoneId.systemDefault()).toInstant()));
             }
             if (criteria.getDateTo() != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), criteria.getDateTo().plusDays(1).atStartOfDay().toInstant(java.time.ZoneOffset.UTC)));
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"),
+                        criteria.getDateTo().atZone(java.time.ZoneId.systemDefault()).toInstant()));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

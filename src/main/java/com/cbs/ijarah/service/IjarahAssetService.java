@@ -39,6 +39,55 @@ public class IjarahAssetService {
     private final IslamicPostingRuleService postingRuleService;
     private final PoolAssetManagementService poolAssetManagementService;
 
+    public IjarahAsset registerAsset(IjarahRequests.RegisterAssetRequest request) {
+        IjarahContract contract = resolveContract(request.getContractId());
+        return assetRepository.findByIjarahContractId(contract.getId())
+                .orElseGet(() -> assetRepository.save(IjarahAsset.builder()
+                        .assetRef(IjarahSupport.nextReference("IJR-AST", ASSET_SEQUENCE))
+                        .ijarahContractId(contract.getId())
+                        .assetCategory(request.getAssetCategory() != null ? request.getAssetCategory() : contract.getAssetCategory())
+                        .assetDescription(request.getAssetDescription() != null ? request.getAssetDescription() : contract.getAssetDescription())
+                        .detailedSpecification(request.getDetailedSpecification() == null ? Map.of() : request.getDetailedSpecification())
+                        .acquisitionDate(request.getAcquisitionDate())
+                        .acquisitionCost(IjarahSupport.money(request.getAcquisitionCost() != null ? request.getAcquisitionCost() : contract.getAssetAcquisitionCost()))
+                        .acquisitionMethod(request.getAcquisitionMethod() != null
+                                ? request.getAcquisitionMethod()
+                                : IjarahDomainEnums.AssetAcquisitionMethod.DIRECT_PURCHASE)
+                        .supplierName(request.getSupplierName())
+                        .supplierInvoiceRef(request.getSupplierInvoiceRef())
+                        .currencyCode(request.getCurrencyCode() != null ? request.getCurrencyCode() : contract.getCurrencyCode())
+                        .registeredOwner(request.getRegisteredOwner())
+                        .registrationNumber(request.getRegistrationNumber())
+                        .registrationAuthority(request.getRegistrationAuthority())
+                        .registrationDate(request.getRegistrationDate())
+                        .ownershipEvidenceRef(request.getOwnershipEvidenceRef())
+                        .depreciationMethod(request.getDepreciationMethod() != null ? request.getDepreciationMethod() : IjarahDomainEnums.DepreciationMethod.STRAIGHT_LINE)
+                        .usefulLifeMonths(request.getUsefulLifeMonths() != null ? request.getUsefulLifeMonths() : 60)
+                        .residualValue(IjarahSupport.money(request.getResidualValue()))
+                        .depreciableAmount(IjarahSupport.money(IjarahSupport.money(request.getAcquisitionCost() != null ? request.getAcquisitionCost() : contract.getAssetAcquisitionCost())
+                                .subtract(IjarahSupport.money(request.getResidualValue()))))
+                        .monthlyDepreciation(computeMonthlyDepreciation(
+                                IjarahSupport.money(request.getAcquisitionCost() != null ? request.getAcquisitionCost() : contract.getAssetAcquisitionCost()),
+                                IjarahSupport.money(request.getResidualValue()),
+                                request.getUsefulLifeMonths() != null ? request.getUsefulLifeMonths() : 60))
+                        .accumulatedDepreciation(IjarahSupport.ZERO)
+                        .netBookValue(IjarahSupport.money(request.getAcquisitionCost() != null ? request.getAcquisitionCost() : contract.getAssetAcquisitionCost()))
+                        .impairmentProvisionBalance(IjarahSupport.ZERO)
+                        .currentCondition(IjarahDomainEnums.AssetCondition.NEW)
+                        .insured(request.getInsurancePolicyRef() != null && request.getInsuranceExpiryDate() != null)
+                        .insurancePolicyRef(request.getInsurancePolicyRef())
+                        .insuranceProvider(request.getInsuranceProvider())
+                        .insuranceCoverageAmount(IjarahSupport.money(request.getInsuranceCoverageAmount()))
+                        .insurancePremiumAnnual(IjarahSupport.money(request.getInsurancePremiumAnnual()))
+                        .insuranceExpiryDate(request.getInsuranceExpiryDate())
+                        .totalMaintenanceCost(IjarahSupport.ZERO)
+                        .status(IjarahDomainEnums.AssetStatus.OWNED_UNLEASED)
+                        .leasedToCustomerId(contract.getCustomerId())
+                        .leasedUnder(contract.getContractRef())
+                        .tenantId(contract.getTenantId())
+                        .build()));
+    }
+
     public IjarahAsset registerAsset(Long contractId,
                                      IjarahRequests.AssetOwnershipConfirmation request,
                                      IjarahContract contract) {
@@ -50,9 +99,10 @@ public class IjarahAssetService {
             throw new BusinessException("Ijarah asset is already registered for this contract", "DUPLICATE_IJARAH_ASSET");
         });
 
+        BigDecimal acquisitionCost = IjarahSupport.money(contract.getAssetAcquisitionCost());
         BigDecimal residualValue = IjarahSupport.money(request.getResidualValue());
         Integer life = request.getUsefulLifeMonths() != null ? request.getUsefulLifeMonths() : 60;
-        BigDecimal depreciableAmount = IjarahSupport.money(IjarahSupport.money(request.getAcquisitionCost()).subtract(residualValue));
+        BigDecimal depreciableAmount = IjarahSupport.money(acquisitionCost.subtract(residualValue));
         BigDecimal monthlyDepreciation = life > 0
                 ? depreciableAmount.divide(BigDecimal.valueOf(life), 8, RoundingMode.HALF_UP).setScale(2, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
@@ -64,7 +114,7 @@ public class IjarahAssetService {
                 .assetDescription(contract.getAssetDescription())
                 .detailedSpecification(request.getDetailedSpecification() == null ? Map.of() : request.getDetailedSpecification())
                 .acquisitionDate(request.getAcquisitionDate())
-                .acquisitionCost(IjarahSupport.money(contract.getAssetAcquisitionCost()))
+                .acquisitionCost(acquisitionCost)
                 .acquisitionMethod(request.getAcquisitionMethod() != null
                         ? request.getAcquisitionMethod()
                         : IjarahDomainEnums.AssetAcquisitionMethod.DIRECT_PURCHASE)
@@ -84,7 +134,7 @@ public class IjarahAssetService {
                 .depreciableAmount(depreciableAmount)
                 .monthlyDepreciation(monthlyDepreciation)
                 .accumulatedDepreciation(IjarahSupport.ZERO)
-                .netBookValue(IjarahSupport.money(contract.getAssetAcquisitionCost()))
+                .netBookValue(acquisitionCost)
                 .impairmentProvisionBalance(IjarahSupport.ZERO)
                 .currentCondition(IjarahDomainEnums.AssetCondition.NEW)
                 .insured(request.getInsurancePolicyRef() != null && request.getInsuranceExpiryDate() != null)
@@ -126,6 +176,17 @@ public class IjarahAssetService {
     @Transactional(readOnly = true)
     public List<IjarahAsset> getAllAssets() {
         return assetRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<IjarahAsset> getAssets(IjarahDomainEnums.AssetCategory category, IjarahDomainEnums.AssetStatus status) {
+        if (category != null) {
+            return getAssetsByCategory(category);
+        }
+        if (status != null) {
+            return getAssetsByStatus(status);
+        }
+        return getAllAssets();
     }
 
     public void processMonthlyDepreciation(Long assetId) {
@@ -217,7 +278,9 @@ public class IjarahAssetService {
             }
         }
 
-        asset.setTotalMaintenanceCost(IjarahSupport.money(asset.getTotalMaintenanceCost().add(record.getCost())));
+        if (request.getResponsibleParty() == IjarahDomainEnums.ResponsibleParty.BANK) {
+            asset.setTotalMaintenanceCost(IjarahSupport.money(asset.getTotalMaintenanceCost().add(record.getCost())));
+        }
         asset.setLastMaintenanceDate(request.getMaintenanceDate());
         assetRepository.save(asset);
         return maintenanceRecordRepository.save(record);
@@ -323,5 +386,13 @@ public class IjarahAssetService {
     private IjarahContract resolveContract(Long contractId) {
         return contractRepository.findById(contractId)
                 .orElseThrow(() -> new ResourceNotFoundException("IjarahContract", "id", contractId));
+    }
+
+    private BigDecimal computeMonthlyDepreciation(BigDecimal acquisitionCost, BigDecimal residualValue, int usefulLifeMonths) {
+        if (usefulLifeMonths <= 0) {
+            return IjarahSupport.ZERO;
+        }
+        return IjarahSupport.money(acquisitionCost.subtract(residualValue)
+                .divide(BigDecimal.valueOf(usefulLifeMonths), 8, RoundingMode.HALF_UP));
     }
 }

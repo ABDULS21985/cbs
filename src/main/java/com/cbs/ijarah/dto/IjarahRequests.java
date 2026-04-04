@@ -119,6 +119,7 @@ public final class IjarahRequests {
         private BigDecimal fairValueAtInception;
         private BigDecimal residualValue;
         private String currencyCode;
+        private String supplierReference;
     }
 
     @Getter
@@ -257,6 +258,10 @@ public final class IjarahRequests {
         private IjarahDomainEnums.UnitTransferFrequency unitTransferFrequency;
         private BigDecimal unitTransferAmount;
         private LocalDate firstUnitTransferDate;
+
+        public boolean isSeparateDocument() {
+            return Boolean.TRUE.equals(isSeparateDocument);
+        }
     }
 
     @Getter
@@ -269,6 +274,22 @@ public final class IjarahRequests {
         private boolean signedByCustomer;
         private String bankRepresentative;
         private LocalDate signedDate;
+
+        public boolean isBankSigned() {
+            return signedByBank;
+        }
+
+        public LocalDate getBankSignedDate() {
+            return signedDate;
+        }
+
+        public boolean isCustomerSigned() {
+            return signedByCustomer;
+        }
+
+        public LocalDate getCustomerSignedDate() {
+            return signedDate;
+        }
     }
 
     @Getter
@@ -297,6 +318,7 @@ public final class IjarahRequests {
         private Map<String, Object> detailedSpecification;
         private LocalDate acquisitionDate;
         private BigDecimal acquisitionCost;
+        private IjarahDomainEnums.AssetAcquisitionMethod acquisitionMethod;
         private String supplierName;
         private String supplierInvoiceRef;
         private String currencyCode;
@@ -304,25 +326,48 @@ public final class IjarahRequests {
         private BigDecimal residualValue;
         private IjarahDomainEnums.DepreciationMethod depreciationMethod;
         private String registeredOwner;
+        private String registrationNumber;
+        private String registrationAuthority;
+        private LocalDate registrationDate;
         private String ownershipEvidenceRef;
+        private String insurancePolicyRef;
+        private String insuranceProvider;
+        private BigDecimal insuranceCoverageAmount;
+        private BigDecimal insurancePremiumAnnual;
+        private LocalDate insuranceExpiryDate;
     }
 
     @Getter
     @Setter
     @NoArgsConstructor
     public static class AssetOwnershipConfirmationRequest extends AssetOwnershipConfirmation {
+        private Boolean insured;
     }
 
     @Getter
     @Setter
     @NoArgsConstructor
     public static class AssetDamageReportRequest extends AssetDamageReport {
+        public BigDecimal getEstimatedRepairCost() {
+            return getEstimatedCost();
+        }
     }
 
     @Getter
     @Setter
     @NoArgsConstructor
     public static class InsuranceRenewalRequest extends InsuranceRenewalDetails {
+        public BigDecimal getInsuranceCoverageAmount() {
+            return getCoverageAmount();
+        }
+
+        public LocalDate getInsuranceExpiryDate() {
+            return getExpiryDate();
+        }
+
+        public BigDecimal getAnnualPremium() {
+            return getPremiumAmount();
+        }
     }
 
     @Getter
