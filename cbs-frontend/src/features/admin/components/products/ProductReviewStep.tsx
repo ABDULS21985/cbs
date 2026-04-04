@@ -1,6 +1,7 @@
 import { CheckCircle, Send, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { BankingProduct, InterestType } from '../../api/productApi';
+import { formatIslamicProfitDisplay } from '../../lib/islamicProductMapper';
 
 // Comparison products for side-by-side
 const COMPARISON_PRODUCTS = [
@@ -72,7 +73,9 @@ export function ProductReviewStep({ product, onSaveDraft, onPublish }: ProductRe
         <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
         <p className="text-sm">
           Review all settings carefully. Once published, this product will be available for account opening.
-          You can still edit and publish a new version after publishing.
+          {product.category === 'ISLAMIC'
+            ? ' Islamic products are still created as controlled drafts and move into approval and fatwa workflows before activation.'
+            : ' You can still edit and publish a new version after publishing.'}
         </p>
       </div>
 
@@ -103,6 +106,18 @@ export function ProductReviewStep({ product, onSaveDraft, onPublish }: ProductRe
             <SummaryRow label="Penalty Rate" value={`${product.penaltyRate}%`} />
           )}
         </SectionCard>
+
+        {product.category === 'ISLAMIC' && product.islamicConfig && (
+          <SectionCard title="Shariah Configuration">
+            <SummaryRow label="Arabic Name" value={product.islamicConfig.nameAr ?? '—'} />
+            <SummaryRow label="Contract Type" value={product.islamicConfig.contractTypeName ?? product.islamicConfig.contractTypeCode ?? '—'} />
+            <SummaryRow label="Islamic Category" value={product.islamicConfig.productCategory ?? '—'} />
+            <SummaryRow label="Profit Model" value={formatIslamicProfitDisplay(product.islamicConfig)} />
+            <SummaryRow label="Fatwa Required" value={product.islamicConfig.fatwaRequired === false ? 'No' : 'Yes'} />
+            <SummaryRow label="Fatwa ID" value={product.islamicConfig.fatwaId ?? 'To be linked later'} />
+            <SummaryRow label="Rule Group" value={product.islamicConfig.shariahRuleGroupCode ?? '—'} />
+          </SectionCard>
+        )}
 
         {/* Eligibility */}
         <SectionCard title="Eligibility">
@@ -262,7 +277,7 @@ export function ProductReviewStep({ product, onSaveDraft, onPublish }: ProductRe
           className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <Send className="w-4 h-4" />
-          Publish Product
+          {product.category === 'ISLAMIC' ? 'Create & Submit' : 'Publish Product'}
         </button>
       </div>
     </div>

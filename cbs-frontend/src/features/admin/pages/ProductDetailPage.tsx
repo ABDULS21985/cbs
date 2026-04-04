@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api';
@@ -6,11 +6,24 @@ import { Edit2, Send, Archive, AlertTriangle, Copy, Check, X, Save } from 'lucid
 import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 import { ProductPerformanceTab } from '../components/products/ProductPerformanceTab';
+import { IslamicProductConfigStep } from '../components/products/IslamicProductConfigStep';
 import { ProductVersionDiff } from '../components/products/ProductVersionDiff';
 import { EligibilityRuleBuilder } from '../components/products/EligibilityRuleBuilder';
 import { LimitsControlsStep } from '../components/products/LimitsControlsStep';
 import { RateTierEditor } from '../components/products/RateTierEditor';
 import { FeeLinkageStep } from '../components/products/FeeLinkageStep';
+import {
+  activateIslamicProduct,
+  approveIslamicProduct,
+  getIslamicProductByCode,
+  getIslamicProductHistory,
+  linkFatwaToIslamicProduct,
+  retireIslamicProduct,
+  submitIslamicProductForApproval,
+  suspendIslamicProduct,
+  unlinkFatwaFromIslamicProduct,
+  updateIslamicProduct,
+} from '../api/islamicProductApi';
 import {
   getProductById,
   getProductVersions,
@@ -21,8 +34,15 @@ import {
   type ProductStatus,
   type ProductType,
 } from '../api/productApi';
+import {
+  formatIslamicProfitDisplay,
+  mapIslamicProductToDraft,
+  sanitizeIslamicDraft,
+  toCommaSeparated,
+} from '../lib/islamicProductMapper';
+import type { IslamicProduct, IslamicProductStatus, ShariahComplianceStatus } from '../types/islamicProduct';
 
-type DetailTab = 'configuration' | 'performance' | 'accounts' | 'amendments';
+type DetailTab = 'configuration' | 'shariah' | 'performance' | 'accounts' | 'amendments';
 
 const TYPE_LABELS: Record<ProductType, string> = {
   SAVINGS: 'Savings', CURRENT: 'Current', FIXED_DEPOSIT: 'Fixed Deposit',
@@ -37,6 +57,25 @@ const TYPE_COLORS: Record<ProductType, string> = {
 
 const STATUS_COLORS: Record<ProductStatus, string> = {
   ACTIVE: 'bg-green-100 text-green-800', DRAFT: 'bg-amber-100 text-amber-800',
+  RETIRED: 'bg-gray-100 text-gray-600',
+};
+
+const ISLAMIC_STATUS_COLORS: Record<IslamicProductStatus, string> = {
+  DRAFT: 'bg-slate-100 text-slate-700',
+  PENDING_APPROVAL: 'bg-amber-100 text-amber-800',
+  APPROVED: 'bg-sky-100 text-sky-800',
+  ACTIVE: 'bg-green-100 text-green-800',
+  SUSPENDED: 'bg-orange-100 text-orange-800',
+  RETIRED: 'bg-gray-100 text-gray-600',
+};
+
+const SHARIAH_COLORS: Record<ShariahComplianceStatus, string> = {
+  DRAFT: 'bg-slate-100 text-slate-700',
+  PENDING_FATWA: 'bg-amber-100 text-amber-800',
+  FATWA_ISSUED: 'bg-sky-100 text-sky-800',
+  COMPLIANT: 'bg-emerald-100 text-emerald-800',
+  NON_COMPLIANT: 'bg-rose-100 text-rose-800',
+  SUSPENDED: 'bg-orange-100 text-orange-800',
   RETIRED: 'bg-gray-100 text-gray-600',
 };
 
@@ -329,6 +368,306 @@ function AccountsTab({ product }: { product: BankingProduct }) {
   );
 }
 
+function ShariahTab({ product, islamicProduct }: { product: BankingProduct; islamicProduct: IslamicProduct }) {
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftProduct, setDraftProduct] = useState<Partial<BankingProduct>>({
+    ...product,
+    islamicConfig: mapIslamicProductToDraft(islamicProduct),
+  });
+  const [fatwaInput, setFatwaInput] = useState(islamicProduct.activeFatwaId ? String(islamicProduct.activeFatwaId) : '');
+  const [actionReason, setActionReason] = useState('');
+
+  useEffect(() => {
+    setDraftProduct({
+      ...product,
+      islamicConfig: mapIslamicProductToDraft(islamicProduct),
+    });
+    setFatwaInput(islamicProduct.activeFatwaId ? String(islamicProduct.activeFatwaId) : '');
+  }, [product, islamicProduct]);
+
+  const updateMutation = useMutation({
+    mutationFn: () => updateIslamicProduct(islamicProduct.id, sanitizeIslamicDraft(draftProduct.islamicConfig ?? {})),
+    onSuccess: async () => {
+      setIsEditing(false);
+      await queryClient.invalidateQueries({ queryKey: ['islamic-product', product.code] });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+
+  const submitMutation = useMutation({
+    mutationFn: () => submitIslamicProductForApproval(islamicProduct.id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['islamic-product', product.code] });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: () => approveIslamicProduct(islamicProduct.id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['islamic-product', product.code] });
+    },
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: () => activateIslamicProduct(islamicProduct.id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['islamic-product', product.code] });
+      await queryClient.invalidateQueries({ queryKey: ['product', product.id] });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+
+  const suspendMutation = useMutation({
+    mutationFn: () => suspendIslamicProduct(islamicProduct.id, actionReason || undefined),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['islamic-product', product.code] });
+      await queryClient.invalidateQueries({ queryKey: ['product', product.id] });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+      setActionReason('');
+    },
+  });
+
+  const retireMutation = useMutation({
+    mutationFn: () => retireIslamicProduct(islamicProduct.id, actionReason || undefined),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['islamic-product', product.code] });
+      await queryClient.invalidateQueries({ queryKey: ['product', product.id] });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+      setActionReason('');
+    },
+  });
+
+  const linkFatwaMutation = useMutation({
+    mutationFn: () => linkFatwaToIslamicProduct(islamicProduct.id, Number(fatwaInput)),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['islamic-product', product.code] });
+    },
+  });
+
+  const unlinkFatwaMutation = useMutation({
+    mutationFn: () => unlinkFatwaFromIslamicProduct(islamicProduct.id, actionReason || undefined),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['islamic-product', product.code] });
+      setFatwaInput('');
+      setActionReason('');
+    },
+  });
+
+  const currentDraft = draftProduct.islamicConfig ?? mapIslamicProductToDraft(islamicProduct);
+  const isBusy = updateMutation.isPending || submitMutation.isPending || approveMutation.isPending || activateMutation.isPending || suspendMutation.isPending || retireMutation.isPending || linkFatwaMutation.isPending || unlinkFatwaMutation.isPending;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="stat-card border-emerald-200/60 bg-emerald-50/70">
+          <div className="stat-label">Contract Type</div>
+          <div className="stat-value text-emerald-900 text-xl">{islamicProduct.contractTypeCode}</div>
+          <div className="text-xs text-muted-foreground mt-1">{islamicProduct.contractTypeName}</div>
+        </div>
+        <div className="stat-card border-sky-200/60 bg-sky-50/70">
+          <div className="stat-label">Compliance</div>
+          <div className="stat-value text-sky-900 text-xl">{islamicProduct.shariahComplianceStatus}</div>
+          <div className="text-xs text-muted-foreground mt-1">{islamicProduct.hasActiveFatwa ? 'Active fatwa linked' : 'Fatwa still required'}</div>
+        </div>
+        <div className="stat-card border-amber-200/60 bg-amber-50/70">
+          <div className="stat-label">Lifecycle</div>
+          <div className="stat-value text-amber-900 text-xl">{islamicProduct.status}</div>
+          <div className="text-xs text-muted-foreground mt-1">Version {islamicProduct.productVersion}</div>
+        </div>
+        <div className="stat-card border-violet-200/60 bg-violet-50/70">
+          <div className="stat-label">Profit Model</div>
+          <div className="stat-value text-violet-900 text-lg">{formatIslamicProfitDisplay(islamicProduct)}</div>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-lg border border-border p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+          <div>
+            <h3 className="text-sm font-semibold">Lifecycle Controls</h3>
+            <p className="text-xs text-muted-foreground mt-1">Operate the Islamic extension lifecycle with fatwa enforcement.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {(islamicProduct.status === 'DRAFT' || (islamicProduct.status === 'SUSPENDED' && !islamicProduct.hasActiveFatwa)) && (
+              <button onClick={() => submitMutation.mutate()} disabled={isBusy} className="px-3 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50">
+                Submit for Approval
+              </button>
+            )}
+            {islamicProduct.status === 'PENDING_APPROVAL' && (
+              <button onClick={() => approveMutation.mutate()} disabled={isBusy} className="px-3 py-2 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-700 disabled:opacity-50">
+                Approve
+              </button>
+            )}
+            {(islamicProduct.status === 'APPROVED' || (islamicProduct.status === 'SUSPENDED' && islamicProduct.hasActiveFatwa)) && (
+              <button onClick={() => activateMutation.mutate()} disabled={isBusy} className="px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+                Activate
+              </button>
+            )}
+            {islamicProduct.status === 'ACTIVE' && (
+              <>
+                <button onClick={() => suspendMutation.mutate()} disabled={isBusy} className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/40 disabled:opacity-50">
+                  Suspend
+                </button>
+                <button onClick={() => retireMutation.mutate()} disabled={isBusy} className="px-3 py-2 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900 disabled:opacity-50">
+                  Retire
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium mb-1">Action Note / Reason</label>
+          <input
+            type="text"
+            value={actionReason}
+            onChange={(event) => setActionReason(event.target.value)}
+            placeholder="Used for suspend, retire, or fatwa unlink actions"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
+          />
+        </div>
+      </div>
+
+      <div className="bg-card rounded-lg border border-border p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
+          <div>
+            <h3 className="text-sm font-semibold">Fatwa Linkage</h3>
+            <p className="text-xs text-muted-foreground mt-1">Link or unlink the governing fatwa without leaving the product detail flow.</p>
+          </div>
+          <span className={cn('inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold', SHARIAH_COLORS[islamicProduct.shariahComplianceStatus])}>
+            {islamicProduct.shariahComplianceStatus}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="block text-xs font-medium mb-1">Current Fatwa</label>
+            <div className="rounded-lg border border-border px-3 py-2 text-sm bg-muted/20">
+              {islamicProduct.fatwaReference ?? 'No linked fatwa'}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1">Fatwa ID</label>
+            <input
+              type="number"
+              min={1}
+              value={fatwaInput}
+              onChange={(event) => setFatwaInput(event.target.value)}
+              placeholder="Enter fatwa ID"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => linkFatwaMutation.mutate()}
+              disabled={isBusy || !fatwaInput.trim()}
+              className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+            >
+              Link Fatwa
+            </button>
+            {islamicProduct.activeFatwaId && (
+              <button
+                onClick={() => unlinkFatwaMutation.mutate()}
+                disabled={isBusy}
+                className="px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
+              >
+                Unlink
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <EditableSection
+        title="Shariah Configuration"
+        isEditing={isEditing}
+        onEdit={() => setIsEditing(true)}
+        onSave={() => updateMutation.mutate()}
+        onCancel={() => {
+          setDraftProduct({ ...product, islamicConfig: mapIslamicProductToDraft(islamicProduct) });
+          setIsEditing(false);
+        }}
+        isSaving={updateMutation.isPending}
+        editContent={
+          <div className="space-y-4">
+            <IslamicProductConfigStep product={draftProduct} onChange={setDraftProduct} />
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Change Description</label>
+              <input
+                type="text"
+                value={currentDraft.changeDescription ?? ''}
+                onChange={(event) =>
+                  setDraftProduct((previous) => ({
+                    ...previous,
+                    islamicConfig: {
+                      ...currentDraft,
+                      changeDescription: event.target.value,
+                    },
+                  }))
+                }
+                placeholder="Describe the material or non-material change"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
+              />
+            </div>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Arabic Name</p>
+            <div className="font-medium">{islamicProduct.nameAr}</div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Contract Type</p>
+            <div className="font-medium">{islamicProduct.contractTypeName}</div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Product Category</p>
+            <div className="font-medium">{islamicProduct.productCategory}</div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Profit Method</p>
+            <div className="font-medium">{formatIslamicProfitDisplay(islamicProduct)}</div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Currencies</p>
+            <div className="font-medium">{toCommaSeparated(islamicProduct.currencies)}</div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Customer Types</p>
+            <div className="font-medium">{toCommaSeparated(islamicProduct.eligibleCustomerTypes)}</div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Rule Group</p>
+            <div className="font-medium">{islamicProduct.shariahRuleGroupCode ?? '—'}</div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Last Review</p>
+            <div className="font-medium">{islamicProduct.lastShariahReviewDate ?? '—'}</div>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-0.5">Next Review</p>
+            <div className="font-medium">{islamicProduct.nextShariahReviewDate ?? '—'}</div>
+          </div>
+        </div>
+
+        {islamicProduct.applicableShariahRules.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground mb-2">Applicable Shariah Rules</p>
+            <div className="flex flex-wrap gap-2">
+              {islamicProduct.applicableShariahRules.map((rule) => (
+                <span key={rule} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground font-mono">
+                  {rule}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </EditableSection>
+    </div>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export function ProductDetailPage() {
@@ -342,6 +681,28 @@ export function ProductDetailPage() {
     queryKey: ['product', id],
     queryFn: () => getProductById(id!),
     enabled: !!id,
+  });
+
+  const isIslamicCategory = product?.category === 'ISLAMIC';
+
+  const {
+    data: islamicProduct,
+    error: islamicProductError,
+  } = useQuery({
+    queryKey: ['islamic-product', product?.code],
+    queryFn: () => getIslamicProductByCode(product!.code),
+    enabled: !!product?.code && isIslamicCategory,
+    retry: false,
+  });
+
+  const {
+    data: islamicHistory = [],
+    isError: islamicHistoryError,
+  } = useQuery({
+    queryKey: ['islamic-product-history', islamicProduct?.id],
+    queryFn: () => getIslamicProductHistory(islamicProduct!.id),
+    enabled: !!islamicProduct?.id,
+    retry: false,
   });
 
   const {
@@ -371,12 +732,18 @@ export function ProductDetailPage() {
     },
   });
 
-  const DETAIL_TABS: { key: DetailTab; label: string }[] = [
-    { key: 'configuration', label: 'Configuration' },
-    { key: 'performance', label: 'Performance' },
-    { key: 'accounts', label: 'Accounts' },
-    { key: 'amendments', label: 'Amendments' },
-  ];
+  const DETAIL_TABS: { key: DetailTab; label: string }[] = useMemo(() => {
+    const tabs: { key: DetailTab; label: string }[] = [{ key: 'configuration', label: 'Configuration' }];
+    if (isIslamicCategory) {
+      tabs.push({ key: 'shariah', label: 'Shariah' });
+    }
+    tabs.push(
+      { key: 'performance', label: 'Performance' },
+      { key: 'accounts', label: 'Accounts' },
+      { key: 'amendments', label: 'Amendments' },
+    );
+    return tabs;
+  }, [isIslamicCategory]);
 
   if (isLoading) {
     return (
@@ -418,7 +785,7 @@ export function ProductDetailPage() {
               <Copy className="w-4 h-4" />
               Clone
             </button>
-            {product.status === 'DRAFT' && (
+            {!isIslamicCategory && product.status === 'DRAFT' && (
               <button
                 onClick={() => setConfirmAction('publish')}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"
@@ -427,7 +794,7 @@ export function ProductDetailPage() {
                 Publish
               </button>
             )}
-            {product.status === 'ACTIVE' && (
+            {!isIslamicCategory && product.status === 'ACTIVE' && (
               <button
                 onClick={() => setConfirmAction('retire')}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted/40 transition-colors"
@@ -449,6 +816,19 @@ export function ProductDetailPage() {
           <span className={cn('inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold', STATUS_COLORS[product.status])}>
             {product.status}
           </span>
+          {islamicProduct && (
+            <>
+              <span className={cn('inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold', ISLAMIC_STATUS_COLORS[islamicProduct.status])}>
+                {islamicProduct.status}
+              </span>
+              <span className={cn('inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold', SHARIAH_COLORS[islamicProduct.shariahComplianceStatus])}>
+                {islamicProduct.shariahComplianceStatus}
+              </span>
+              <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                {islamicProduct.hasActiveFatwa ? islamicProduct.fatwaReference ?? 'Fatwa Active' : 'Fatwa Pending'}
+              </span>
+            </>
+          )}
           <span className="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold bg-muted text-muted-foreground font-mono">
             v{product.version}
           </span>
@@ -482,15 +862,74 @@ export function ProductDetailPage() {
             onUpdate={(data) => queryClient.invalidateQueries({ queryKey: ['product', id] })}
           />
         )}
+        {activeTab === 'shariah' && (
+          islamicProduct ? (
+            <ShariahTab product={product} islamicProduct={islamicProduct} />
+          ) : (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              {islamicProductError
+                ? 'The product is marked Islamic in the catalogue, but its Shariah extension could not be loaded.'
+                : 'Loading Islamic product extension...'}
+            </div>
+          )
+        )}
         {activeTab === 'performance' && <ProductPerformanceTab product={product} />}
         {activeTab === 'accounts' && <AccountsTab product={product} />}
         {activeTab === 'amendments' && (
-          versionsError ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              Product version history could not be loaded from the backend.
-            </div>
+          islamicProduct ? (
+            islamicHistoryError ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                Islamic product version history could not be loaded from the backend.
+              </div>
+            ) : (
+              <div className="bg-card rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-border bg-muted/40">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Version</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Change Type</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Description</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Changed By</th>
+                      <th className="px-4 py-3 text-left font-medium text-muted-foreground">Changed At</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {islamicHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                          No Islamic product history has been recorded yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      islamicHistory.map((version) => (
+                        <tr key={version.id} className="hover:bg-muted/20">
+                          <td className="px-4 py-3 font-medium">v{version.versionNumber}</td>
+                          <td className="px-4 py-3">{version.changeType}</td>
+                          <td className="px-4 py-3">
+                            <div className="font-medium">{version.changeDescription}</div>
+                            {version.changedFields.length > 0 && (
+                              <div className="mt-1 text-xs text-muted-foreground font-mono">
+                                {version.changedFields.join(', ')}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">{version.changedBy}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{new Date(version.changedAt).toLocaleString()}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )
           ) : (
-            <ProductVersionDiff versions={versions} />
+            versionsError ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                Product version history could not be loaded from the backend.
+              </div>
+            ) : (
+              <ProductVersionDiff versions={versions} />
+            )
           )
         )}
       </div>

@@ -116,6 +116,11 @@ export async function apiDelete<T>(url: string): Promise<T> {
   return data.data;
 }
 
+export async function apiDeleteParams<T>(url: string, params: Record<string, unknown>): Promise<T> {
+  const { data } = await api.delete<ApiResponse<T>>(url, { params });
+  return data.data;
+}
+
 export async function apiUpload<T>(url: string, file: File, fieldName = 'file'): Promise<T> {
   const formData = new FormData();
   formData.append(fieldName, file);

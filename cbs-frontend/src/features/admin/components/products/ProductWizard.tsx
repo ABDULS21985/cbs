@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Circle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { BankingProduct, ProductType, ProductCategory, CurrencyType, InterestType, RateTier } from '../../api/productApi';
+import { createDefaultIslamicDraft } from '../../lib/islamicProductMapper';
 import { RateTierEditor } from './RateTierEditor';
 import { FeeLinkageStep } from './FeeLinkageStep';
 import { EligibilityRuleBuilder } from './EligibilityRuleBuilder';
 import { LimitsControlsStep } from './LimitsControlsStep';
+import { IslamicProductConfigStep } from './IslamicProductConfigStep';
 import { ProductReviewStep } from './ProductReviewStep';
 
 // ─── Step Definitions ─────────────────────────────────────────────────────────
 
-const STEPS = [
+const BASE_STEPS = [
   { id: 0, label: 'Basic Definition' },
   { id: 1, label: 'Interest & Rate' },
   { id: 2, label: 'Fee Linkage' },
@@ -437,6 +439,46 @@ export function ProductWizard({ onComplete, onCancel, initialData }: ProductWiza
   const [product, setProduct] = useState<Partial<BankingProduct>>(initialData ?? DEFAULT_PRODUCT);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const steps = useMemo(() => {
+    if (product.category === 'ISLAMIC') {
+      return [
+        ...BASE_STEPS.slice(0, 5),
+        { id: 5, label: 'Shariah Configuration' },
+        { id: 6, label: 'Review & Publish' },
+      ];
+    }
+    return [...BASE_STEPS];
+  }, [product.category]);
+
+  const reviewStepIndex = steps.length - 1;
+  const islamicStepIndex = product.category === 'ISLAMIC' ? steps.length - 2 : -1;
+
+  useEffect(() => {
+    setProduct((previous) => {
+      if (previous.category !== 'ISLAMIC') {
+        if (!previous.islamicConfig) {
+          return previous;
+        }
+        const { islamicConfig: _removed, ...rest } = previous;
+        return rest;
+      }
+
+      const nextDraft = createDefaultIslamicDraft(previous, previous.islamicConfig);
+      const prevJson = JSON.stringify(previous.islamicConfig ?? {});
+      const nextJson = JSON.stringify(nextDraft);
+      if (prevJson === nextJson) {
+        return previous;
+      }
+      return { ...previous, islamicConfig: nextDraft };
+    });
+  }, [product.category]);
+
+  useEffect(() => {
+    if (currentStep > reviewStepIndex) {
+      setCurrentStep(reviewStepIndex);
+    }
+  }, [currentStep, reviewStepIndex]);
+
   const markComplete = (step: number) => {
     setCompletedSteps((prev) => new Set([...prev, step]));
   };
@@ -447,7 +489,7 @@ export function ProductWizard({ onComplete, onCancel, initialData }: ProductWiza
   };
 
   const handleNext = () => {
-    if (currentStep < STEPS.length - 1) {
+    if (currentStep < steps.length - 1) {
       goToStep(currentStep + 1);
     }
   };
@@ -525,6 +567,17 @@ export function ProductWizard({ onComplete, onCancel, initialData }: ProductWiza
           />
         );
       case 5:
+        if (islamicStepIndex === 5) {
+          return <IslamicProductConfigStep product={product} onChange={setProduct} />;
+        }
+        return (
+          <ProductReviewStep
+            product={product}
+            onSaveDraft={handleSaveDraft}
+            onPublish={handlePublish}
+          />
+        );
+      case 6:
         return (
           <ProductReviewStep
             product={product}
@@ -542,7 +595,7 @@ export function ProductWizard({ onComplete, onCancel, initialData }: ProductWiza
       {/* Step Indicator */}
       <div className="px-6 py-4 border-b border-border bg-muted/20">
         <nav className="flex items-center gap-1 overflow-x-auto">
-          {STEPS.map((step, idx) => {
+          {steps.map((step, idx) => {
             const isCompleted = completedSteps.has(idx);
             const isCurrent = currentStep === idx;
             return (
@@ -565,7 +618,7 @@ export function ProductWizard({ onComplete, onCancel, initialData }: ProductWiza
                   )}
                   <span>{step.label}</span>
                 </button>
-                {idx < STEPS.length - 1 && (
+                {idx < steps.length - 1 && (
                   <div className="w-6 h-px bg-border flex-shrink-0" />
                 )}
               </div>
@@ -577,7 +630,7 @@ export function ProductWizard({ onComplete, onCancel, initialData }: ProductWiza
       {/* Step Content */}
       <div className="p-6">
         <h2 className="text-lg font-semibold mb-1">
-          Step {currentStep + 1}: {STEPS[currentStep].label}
+          Step {currentStep + 1}: {steps[currentStep].label}
         </h2>
         <p className="text-sm text-muted-foreground mb-6">
           {currentStep === 0 && 'Set the fundamental attributes of your product.'}
@@ -585,14 +638,15 @@ export function ProductWizard({ onComplete, onCancel, initialData }: ProductWiza
           {currentStep === 2 && 'Attach and configure fee structures for this product.'}
           {currentStep === 3 && 'Define which customers are eligible to open this product.'}
           {currentStep === 4 && 'Set transaction limits, balance controls, and channel availability.'}
-          {currentStep === 5 && 'Review your product configuration before saving or publishing.'}
+          {currentStep === islamicStepIndex && 'Capture contract type, fatwa linkage, and Shariah-specific controls.'}
+          {currentStep === reviewStepIndex && 'Review your product configuration before saving or publishing.'}
         </p>
 
         {renderStep()}
       </div>
 
       {/* Navigation Footer (hidden on review step which has its own buttons) */}
-      {currentStep < 5 && (
+      {currentStep < reviewStepIndex && (
         <div className="px-6 py-4 border-t border-border bg-muted/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -629,7 +683,7 @@ export function ProductWizard({ onComplete, onCancel, initialData }: ProductWiza
       )}
 
       {/* Back button on review step */}
-      {currentStep === 5 && (
+      {currentStep === reviewStepIndex && (
         <div className="px-6 py-4 border-t border-border bg-muted/10 flex items-center justify-between">
           <button
             type="button"
@@ -639,7 +693,7 @@ export function ProductWizard({ onComplete, onCancel, initialData }: ProductWiza
             <ChevronLeft className="w-4 h-4" />
             Back
           </button>
-          <p className="text-xs text-muted-foreground">Step {currentStep + 1} of {STEPS.length}</p>
+          <p className="text-xs text-muted-foreground">Step {currentStep + 1} of {steps.length}</p>
         </div>
       )}
     </div>

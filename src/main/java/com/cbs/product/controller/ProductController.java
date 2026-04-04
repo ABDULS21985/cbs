@@ -88,6 +88,14 @@ public class ProductController {
                 .orElseThrow(() -> new EntityNotFoundException("Product not found: " + id))));
     }
 
+    @GetMapping("/code/{productCode}")
+    @Operation(summary = "Get product detail by product code")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<ProductCatalogEntry>> getProductByCode(@PathVariable String productCode) {
+        return ResponseEntity.ok(ApiResponse.ok(productCatalogEntryRepository.findByProductCode(productCode)
+                .orElseThrow(() -> new EntityNotFoundException("Product not found: " + productCode))));
+    }
+
     @PostMapping
     @Operation(summary = "Create a new product")
     @PreAuthorize("hasRole('CBS_ADMIN')")

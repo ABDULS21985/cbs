@@ -2,7 +2,22 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ProductWizard } from '../components/products/ProductWizard';
-import { createProduct, getProductById, type BankingProduct } from '../api/productApi';
+import {
+  createProduct,
+  getProductByCode,
+  getProductById,
+  type BankingProduct,
+} from '../api/productApi';
+import {
+  createIslamicProduct,
+  getIslamicProductByCode,
+  submitIslamicProductForApproval,
+} from '../api/islamicProductApi';
+import {
+  buildIslamicProductRequest,
+  isIslamicCategory,
+  mapIslamicProductToDraft,
+} from '../lib/islamicProductMapper';
 
 export function ProductCreatePage() {
   const navigate = useNavigate();
@@ -15,8 +30,27 @@ export function ProductCreatePage() {
     enabled: !!cloneId,
   });
 
+  const { data: cloneIslamicSource } = useQuery({
+    queryKey: ['islamic-product-clone', cloneSource?.code],
+    queryFn: () => getIslamicProductByCode(cloneSource!.code),
+    enabled: !!cloneSource && isIslamicCategory(cloneSource.category),
+    retry: false,
+  });
+
   const createMutation = useMutation({
-    mutationFn: (data: Partial<BankingProduct>) => createProduct(data),
+    mutationFn: async (data: Partial<BankingProduct>) => {
+      if (isIslamicCategory(data.category)) {
+        const islamicProduct = await createIslamicProduct(buildIslamicProductRequest(data));
+        if (data.status === 'ACTIVE') {
+          await submitIslamicProductForApproval(islamicProduct.id);
+        }
+        return getProductByCode(islamicProduct.productCode ?? data.code ?? '');
+      }
+
+      const conventionalPayload = { ...data };
+      delete conventionalPayload.islamicConfig;
+      return createProduct(conventionalPayload);
+    },
     onSuccess: (product) => {
       navigate(`/admin/products/${product.id}`);
     },
@@ -42,6 +76,7 @@ export function ProductCreatePage() {
         activeAccounts: 0,
         totalBalance: 0,
         revenueMTD: 0,
+          islamicConfig: cloneIslamicSource ? mapIslamicProductToDraft(cloneIslamicSource) : undefined,
       }
     : undefined;
 
@@ -55,7 +90,7 @@ export function ProductCreatePage() {
       <div className="page-container">
         {createMutation.isError && (
           <div className="mb-4 px-4 py-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-            Failed to create product. Please try again.
+            Failed to create product. Review the Islamic contract fields and fatwa linkage, then try again.
           </div>
         )}
         <ProductWizard

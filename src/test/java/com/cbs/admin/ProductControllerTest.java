@@ -20,7 +20,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -70,6 +69,18 @@ class ProductControllerTest {
         ResponseEntity<ApiResponse<ProductCatalogEntry>> response = controller.getProduct(1L);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().getData().getProductCode()).isEqualTo("SAV-001");
+    }
+
+    @Test
+    @DisplayName("GET /v1/products/code/{productCode} returns product detail")
+    void getProductByCode_ReturnsProduct() {
+        ProductCatalogEntry product = createMockProduct(1L, "ISL-MRB-001", "Murabaha Home Finance", "DRAFT");
+        when(productCatalogEntryRepository.findByProductCode("ISL-MRB-001")).thenReturn(Optional.of(product));
+
+        ResponseEntity<ApiResponse<ProductCatalogEntry>> response = controller.getProductByCode("ISL-MRB-001");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody().getData().getProductName()).isEqualTo("Murabaha Home Finance");
     }
 
     @Test

@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { cn } from '@/lib/utils';
 import { ProductTable } from '../components/products/ProductTable';
 import { BundleBuilder } from '../components/products/BundleBuilder';
+import { getFatwaComplianceSummary, searchIslamicProducts } from '../api/islamicProductApi';
 import {
   getProducts,
   getBundles,
@@ -179,6 +180,18 @@ export function ProductFactoryPage() {
     queryFn: getBundles,
   });
 
+  const { data: islamicSearch } = useQuery({
+    queryKey: ['admin-islamic-products', 'factory'],
+    queryFn: () => searchIslamicProducts({ page: 0, size: 200 }),
+    staleTime: 60_000,
+  });
+
+  const { data: fatwaComplianceSummary } = useQuery({
+    queryKey: ['admin-islamic-products', 'fatwa-summary'],
+    queryFn: getFatwaComplianceSummary,
+    staleTime: 60_000,
+  });
+
   const createBundleMutation = useMutation({
     mutationFn: createBundle,
     onSuccess: () => {
@@ -223,6 +236,11 @@ export function ProductFactoryPage() {
   const totalAccounts = products.reduce((sum, p) => sum + (p.activeAccounts || 0), 0);
 
   const selectCls = 'px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring transition-colors';
+  const islamicProducts = islamicSearch?.data ?? [];
+  const islamicByCode = useMemo(
+    () => Object.fromEntries(islamicProducts.map((product) => [product.productCode, product])),
+    [islamicProducts],
+  );
 
   return (
     <>
@@ -264,6 +282,29 @@ export function ProductFactoryPage() {
             <div className="stat-value">{totalAccounts.toLocaleString()}</div>
           </div>
         </div>
+
+        {fatwaComplianceSummary && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="stat-card border-emerald-200/60 bg-emerald-50/70">
+              <div className="stat-label">Islamic Products</div>
+              <div className="stat-value text-emerald-800">{fatwaComplianceSummary.totalIslamicProducts}</div>
+            </div>
+            <div className="stat-card border-green-200/60 bg-green-50/70">
+              <div className="stat-label">Active Fatwas</div>
+              <div className="stat-value text-green-800">{fatwaComplianceSummary.productsWithActiveFatwa}</div>
+            </div>
+            <div className="stat-card border-amber-200/60 bg-amber-50/70">
+              <div className="stat-label">Pending Fatwa</div>
+              <div className="stat-value text-amber-800">{fatwaComplianceSummary.productsPendingFatwa}</div>
+            </div>
+            <div className="stat-card border-rose-200/60 bg-rose-50/70">
+              <div className="stat-label">Expiring / Suspended</div>
+              <div className="stat-value text-rose-800">
+                {fatwaComplianceSummary.productsWithExpiredFatwa + fatwaComplianceSummary.productsSuspendedDueToFatwa}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="border-b border-border">
@@ -336,6 +377,7 @@ export function ProductFactoryPage() {
             ) : (
               <ProductTable
                 products={filteredProducts}
+                islamicByCode={islamicByCode}
                 onRowClick={(id) => navigate(`/admin/products/${id}`)}
                 renderActions={(product) => (
                   <ActionsDropdown

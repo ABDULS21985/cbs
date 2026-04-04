@@ -1,4 +1,5 @@
 import { apiGet, apiPost } from '@/lib/api';
+import type { IslamicProductDraft } from '../types/islamicProduct';
 
 export type ProductType = 'SAVINGS' | 'CURRENT' | 'FIXED_DEPOSIT' | 'LOAN' | 'CARD' | 'INVESTMENT';
 export type ProductCategory = 'RETAIL' | 'SME' | 'CORPORATE' | 'ISLAMIC' | 'STAFF';
@@ -71,6 +72,7 @@ export interface BankingProduct {
   revenueMTD: number;
   createdAt: string;
   updatedAt: string;
+  islamicConfig?: IslamicProductDraft;
 }
 
 export interface ProductBundle {
@@ -101,6 +103,10 @@ export function getProducts(params?: {
 
 export function getProductById(id: string): Promise<BankingProduct> {
   return apiGet<BankingProduct>(`/api/v1/products/${id}`);
+}
+
+export function getProductByCode(code: string): Promise<BankingProduct> {
+  return apiGet<BankingProduct>(`/api/v1/products/code/${encodeURIComponent(code)}`);
 }
 
 export function createProduct(data: Partial<BankingProduct>): Promise<BankingProduct> {

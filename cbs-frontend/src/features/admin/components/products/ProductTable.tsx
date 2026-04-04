@@ -1,6 +1,7 @@
 import type React from 'react';
 import { cn } from '@/lib/utils';
 import type { BankingProduct, ProductType, ProductCategory, ProductStatus } from '../../api/productApi';
+import type { IslamicProduct } from '../../types/islamicProduct';
 
 const TYPE_COLORS: Record<ProductType, string> = {
   SAVINGS: 'bg-blue-100 text-blue-800',
@@ -34,6 +35,16 @@ const STATUS_COLORS: Record<ProductStatus, string> = {
   RETIRED: 'bg-gray-100 text-gray-600',
 };
 
+const SHARIAH_COLORS: Record<string, string> = {
+  COMPLIANT: 'bg-emerald-100 text-emerald-800',
+  FATWA_ISSUED: 'bg-sky-100 text-sky-800',
+  PENDING_FATWA: 'bg-amber-100 text-amber-800',
+  NON_COMPLIANT: 'bg-rose-100 text-rose-800',
+  DRAFT: 'bg-slate-100 text-slate-700',
+  SUSPENDED: 'bg-orange-100 text-orange-800',
+  RETIRED: 'bg-gray-100 text-gray-600',
+};
+
 function formatRevenue(amount: number): string {
   if (amount >= 1_000_000) return `₦${(amount / 1_000_000).toFixed(1)}M`;
   if (amount >= 1_000) return `₦${(amount / 1_000).toFixed(0)}K`;
@@ -57,9 +68,12 @@ interface ProductTableProps {
   products: BankingProduct[];
   onRowClick: (id: string) => void;
   renderActions?: (product: BankingProduct) => React.ReactNode;
+  islamicByCode?: Record<string, IslamicProduct>;
 }
 
-export function ProductTable({ products, onRowClick, renderActions }: ProductTableProps) {
+export function ProductTable({ products, onRowClick, renderActions, islamicByCode = {} }: ProductTableProps) {
+  const showShariahColumn = products.some((product) => islamicByCode[product.code]);
+
   if (products.length === 0) {
     return (
       <div className="bg-card rounded-lg border border-border p-12 text-center text-muted-foreground">
@@ -78,6 +92,7 @@ export function ProductTable({ products, onRowClick, renderActions }: ProductTab
             <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
             <th className="px-4 py-3 text-left font-medium text-muted-foreground">Type</th>
             <th className="px-4 py-3 text-left font-medium text-muted-foreground">Category</th>
+            {showShariahColumn && <th className="px-4 py-3 text-left font-medium text-muted-foreground">Shariah</th>}
             <th className="px-4 py-3 text-left font-medium text-muted-foreground">Currency</th>
             <th className="px-4 py-3 text-left font-medium text-muted-foreground">Rate</th>
             <th className="px-4 py-3 text-right font-medium text-muted-foreground">Accounts</th>
@@ -87,7 +102,9 @@ export function ProductTable({ products, onRowClick, renderActions }: ProductTab
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {products.map((product) => (
+          {products.map((product) => {
+            const islamic = islamicByCode[product.code];
+            return (
             <tr
               key={product.id}
               onClick={() => onRowClick(product.id)}
@@ -122,6 +139,27 @@ export function ProductTable({ products, onRowClick, renderActions }: ProductTab
                   {product.category}
                 </span>
               </td>
+              {showShariahColumn && (
+                <td className="px-4 py-3">
+                  {islamic ? (
+                    <div className="space-y-1">
+                      <span
+                        className={cn(
+                          'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                          SHARIAH_COLORS[islamic.shariahComplianceStatus] ?? 'bg-muted text-muted-foreground',
+                        )}
+                      >
+                        {islamic.shariahComplianceStatus}
+                      </span>
+                      <div className="text-xs text-muted-foreground">
+                        {islamic.hasActiveFatwa ? islamic.fatwaReference ?? 'Fatwa active' : 'Fatwa pending'}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </td>
+              )}
               <td className="px-4 py-3">
                 <span className="text-xs font-mono font-medium">{product.currency}</span>
               </td>
@@ -150,7 +188,8 @@ export function ProductTable({ products, onRowClick, renderActions }: ProductTab
                 </td>
               )}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
