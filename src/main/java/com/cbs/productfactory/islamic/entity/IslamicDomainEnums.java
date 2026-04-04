@@ -17,6 +17,7 @@ public final class IslamicDomainEnums {
     }
 
     public enum ProfitCalculationMethod {
+        NONE,
         COST_PLUS_MARKUP,
         PROFIT_SHARING_RATIO,
         RENTAL_RATE,
@@ -135,6 +136,7 @@ public final class IslamicDomainEnums {
     }
 
     public enum ContractCategory {
+        LOAN_BASED,
         SALE_BASED,
         LEASE_BASED,
         PARTNERSHIP_BASED,

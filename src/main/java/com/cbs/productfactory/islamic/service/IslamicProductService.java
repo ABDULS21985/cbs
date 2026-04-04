@@ -1456,6 +1456,7 @@ public class IslamicProductService {
 
     private String buildProfitRateDisplay(IslamicProductTemplate product) {
         return switch (product.getProfitCalculationMethod()) {
+            case NONE -> "No contractual profit";
             case COST_PLUS_MARKUP -> "Cost + " + safeDecimal(product.getMarkupRate()) + "% markup";
             case PROFIT_SHARING_RATIO -> safeDecimal(product.getProfitSharingRatioCustomer()) + ":"
                     + safeDecimal(product.getProfitSharingRatioBank()) + " profit sharing";

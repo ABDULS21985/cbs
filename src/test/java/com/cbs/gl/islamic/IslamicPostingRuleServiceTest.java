@@ -1,11 +1,11 @@
 package com.cbs.gl.islamic;
 
 import com.cbs.account.entity.Account;
-import com.cbs.account.entity.Customer;
 import com.cbs.account.entity.Product;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
+import com.cbs.customer.entity.Customer;
 import com.cbs.gl.entity.ChartOfAccounts;
 import com.cbs.gl.entity.GlCategory;
 import com.cbs.gl.entity.IslamicAccountCategory;

@@ -77,7 +77,8 @@ public class MudarabahTermDepositController {
             @PathVariable Long id,
             @Valid @RequestBody PlaceLienRequest request) {
         log.info("Placing lien on term deposit: {}", id);
-        MudarabahTermDepositResponse response = mudarabahTermDepositService.placeLien(id, request.getFinancingReference(), request.getLienAmount());
+        mudarabahTermDepositService.placeLien(id, request.getFinancingReference(), request.getLienAmount());
+        MudarabahTermDepositResponse response = mudarabahTermDepositService.getTermDeposit(id);
         return ResponseEntity.ok(ApiResponse.ok(response, "Lien placed successfully"));
     }
 
