@@ -32,6 +32,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -71,10 +72,10 @@ class PerServiceTest {
                 .maximumReserveBalance(new BigDecimal("50.00"))
                 .retentionAllocation(PerRetentionAllocation.FROM_GROSS_BEFORE_SPLIT)
                 .build();
-        when(perPolicyRepository.findByInvestmentPoolId(1L)).thenReturn(Optional.of(policy));
-        when(investmentPoolRepository.findById(1L)).thenReturn(Optional.of(pool));
-        when(participantRepository.sumParticipationBalanceByPoolId(1L)).thenReturn(new BigDecimal("1000.00"));
-        when(currentActorProvider.getCurrentActor()).thenReturn("tester");
+        lenient().when(perPolicyRepository.findByInvestmentPoolId(1L)).thenReturn(Optional.of(policy));
+        lenient().when(investmentPoolRepository.findById(1L)).thenReturn(Optional.of(pool));
+        lenient().when(participantRepository.sumParticipationBalanceByPoolId(1L)).thenReturn(new BigDecimal("1000.00"));
+        lenient().when(currentActorProvider.getCurrentActor()).thenReturn("tester");
     }
 
     @Test

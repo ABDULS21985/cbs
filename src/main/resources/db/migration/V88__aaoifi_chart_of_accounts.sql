@@ -1,4 +1,4 @@
--- V87: AAOIFI chart of accounts, Islamic GL metadata, investment pools, reserves, and posting rules
+-- V88: AAOIFI chart of accounts, Islamic GL metadata, investment pools, reserves, and posting rules
 
 SET search_path TO cbs;
 

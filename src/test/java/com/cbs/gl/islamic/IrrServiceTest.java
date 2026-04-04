@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -74,9 +75,9 @@ class IrrServiceTest {
                 .triggerThreshold(new BigDecimal("1.0000"))
                 .retentionAllocation(IrrRetentionAllocation.FROM_INVESTOR_SHARE_ONLY)
                 .build();
-        when(irrPolicyRepository.findByInvestmentPoolId(1L)).thenReturn(Optional.of(policy));
-        when(investmentPoolRepository.findById(1L)).thenReturn(Optional.of(pool));
-        when(participantRepository.sumParticipationBalanceByPoolId(1L)).thenReturn(new BigDecimal("1000.00"));
+        lenient().when(irrPolicyRepository.findByInvestmentPoolId(1L)).thenReturn(Optional.of(policy));
+        lenient().when(investmentPoolRepository.findById(1L)).thenReturn(Optional.of(pool));
+        lenient().when(participantRepository.sumParticipationBalanceByPoolId(1L)).thenReturn(new BigDecimal("1000.00"));
     }
 
     @Test

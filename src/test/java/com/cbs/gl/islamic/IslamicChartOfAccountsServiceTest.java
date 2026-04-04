@@ -34,6 +34,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -56,7 +57,7 @@ class IslamicChartOfAccountsServiceTest {
     void setUp() {
         CbsProperties.Deployment deployment = new CbsProperties.Deployment();
         deployment.setDefaultCurrency("USD");
-        when(cbsProperties.getDeployment()).thenReturn(deployment);
+        lenient().when(cbsProperties.getDeployment()).thenReturn(deployment);
     }
 
     @Test

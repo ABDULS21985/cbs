@@ -1,5 +1,7 @@
 SET search_path TO cbs;
 
+-- V89: allow notification logs to remain pending dispatch
+
 ALTER TABLE cbs.notification_log
     DROP CONSTRAINT IF EXISTS notification_log_status_check;
 

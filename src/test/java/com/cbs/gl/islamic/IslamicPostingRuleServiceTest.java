@@ -43,6 +43,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -67,8 +68,8 @@ class IslamicPostingRuleServiceTest {
         deployment.setDefaultCurrency("USD");
         CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
         ledgerConfig.setDefaultBranchCode("HEAD");
-        when(cbsProperties.getDeployment()).thenReturn(deployment);
-        when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
+        lenient().when(cbsProperties.getDeployment()).thenReturn(deployment);
+        lenient().when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
     }
 
     @Test
@@ -178,6 +179,7 @@ class IslamicPostingRuleServiceTest {
                 .glMapping(Map.of("financingAssetGl", "1200-MRB-001"))
                 .build();
         when(productTemplateRepository.findById(10L)).thenReturn(Optional.of(template));
+        when(chartOfAccountsRepository.findByGlCode("1200-MRB-001")).thenReturn(Optional.of(gl("1200-MRB-001")));
         when(chartOfAccountsRepository.findByGlCode("1100-000-001")).thenReturn(Optional.of(gl("1100-000-001")));
 
         JournalEntry preview = service.generateJournalEntries(IslamicPostingRequest.builder()
