@@ -38,7 +38,6 @@ import com.cbs.shariah.repository.FatwaRecordRepository;
 import com.cbs.shariah.repository.SsbBoardMemberRepository;
 import com.cbs.shariah.service.ShariahGovernanceService;
 import com.cbs.tenant.service.CurrentTenantResolver;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.criteria.Predicate;
@@ -85,7 +84,6 @@ public class IslamicProductService {
             "approvedBy",
             "approvedAt"
     );
-    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() { };
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     private final IslamicProductTemplateRepository productRepository;
@@ -1672,7 +1670,7 @@ public class IslamicProductService {
             }
             return;
         }
-        node.fields().forEachRemaining(entry -> {
+        node.properties().forEach(entry -> {
             String child = path.isEmpty() ? entry.getKey() : path + "." + entry.getKey();
             flattenJson(child, entry.getValue(), output);
         });

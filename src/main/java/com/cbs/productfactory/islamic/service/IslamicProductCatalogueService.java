@@ -85,9 +85,9 @@ public class IslamicProductCatalogueService {
         Map<String, Integer> byCompliance = new LinkedHashMap<>();
 
         for (IslamicProductCatalogueEntry entry : entries) {
-            byCategory.merge(entry.getCategory().name(), 1, Integer::sum);
-            byContractType.merge(entry.getContractTypeCode(), 1, Integer::sum);
-            byCompliance.merge(entry.getComplianceStatus().name(), 1, Integer::sum);
+                        byCategory.put(entry.getCategory().name(), byCategory.getOrDefault(entry.getCategory().name(), 0) + 1);
+                        byContractType.put(entry.getContractTypeCode(), byContractType.getOrDefault(entry.getContractTypeCode(), 0) + 1);
+                        byCompliance.put(entry.getComplianceStatus().name(), byCompliance.getOrDefault(entry.getComplianceStatus().name(), 0) + 1);
         }
 
         return IslamicProductCatalogueSummary.builder()
