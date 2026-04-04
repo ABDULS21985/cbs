@@ -731,6 +731,11 @@ public class BusinessRuleService {
 
     private void auditChange(String eventType, BusinessRule rule, AuditAction action,
                              Map<String, Object> beforeState, Map<String, Object> afterState) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (rule.getTenantId() != null) {
+            metadata.put("tenantId", rule.getTenantId());
+        }
+
         auditService.logEvent(
                 eventType,
                 "BusinessRule",
@@ -744,7 +749,7 @@ public class BusinessRuleService {
                 beforeState,
                 afterState,
                 changedFields(beforeState, afterState),
-                Map.of("tenantId", rule.getTenantId())
+                metadata
         );
     }
 

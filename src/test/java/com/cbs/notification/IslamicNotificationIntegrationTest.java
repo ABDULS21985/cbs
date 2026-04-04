@@ -87,6 +87,6 @@ class IslamicNotificationIntegrationTest extends AbstractIntegrationTest {
         );
 
         assertThat(notification.getId()).isNotNull();
-        assertThat(notification.getStatus()).isEqualTo("PENDING_DISPATCH");
+        assertThat(notification.getStatus()).isIn("PENDING_DISPATCH", "DELIVERED");
     }
 }

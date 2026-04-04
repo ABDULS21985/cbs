@@ -2,6 +2,8 @@ package com.cbs.gl.repository;
 
 import com.cbs.gl.entity.ChartOfAccounts;
 import com.cbs.gl.entity.GlCategory;
+import com.cbs.gl.entity.IslamicAccountCategory;
+import com.cbs.gl.entity.ShariahClassification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.*;
@@ -12,4 +14,12 @@ public interface ChartOfAccountsRepository extends JpaRepository<ChartOfAccounts
     List<ChartOfAccounts> findByGlCategoryAndIsActiveTrue(GlCategory category);
     List<ChartOfAccounts> findByParentGlCodeAndIsActiveTrue(String parentGlCode);
     List<ChartOfAccounts> findByIsPostableTrueAndIsActiveTrueOrderByGlCodeAsc();
+    List<ChartOfAccounts> findByIsIslamicAccountTrueOrderByGlCodeAsc();
+    List<ChartOfAccounts> findByIslamicAccountCategoryOrderByGlCodeAsc(IslamicAccountCategory category);
+    List<ChartOfAccounts> findByContractTypeCodeIgnoreCaseOrderByGlCodeAsc(String contractTypeCode);
+    List<ChartOfAccounts> findByInvestmentPoolIdOrderByGlCodeAsc(Long investmentPoolId);
+    List<ChartOfAccounts> findByShariahClassificationOrderByGlCodeAsc(ShariahClassification classification);
+    List<ChartOfAccounts> findByZakatApplicableTrueAndIsActiveTrueOrderByGlCodeAsc();
+    Optional<ChartOfAccounts> findFirstByIslamicAccountCategoryAndIsActiveTrueOrderByGlCodeAsc(IslamicAccountCategory category);
+    List<ChartOfAccounts> findByIslamicAccountCategoryInAndIsActiveTrueOrderByGlCodeAsc(Collection<IslamicAccountCategory> categories);
 }
