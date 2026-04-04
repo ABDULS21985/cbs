@@ -1,0 +1,5 @@
+package com.cbs.shariahcompliance.entity;
+
+public enum FindingCategory {
+    STRUCTURAL, OPERATIONAL, PRODUCT, PRICING, DISCLOSURE, DOCUMENTATION, SEGREGATION, PURIFICATION, GOVERNANCE, OTHER
+}

@@ -1,0 +1,5 @@
+package com.cbs.shariahcompliance.entity;
+
+public enum ScreeningCategory {
+    MERCHANT_CATEGORY, COUNTERPARTY, STRUCTURAL, PRODUCT_COMPLIANCE, PRICING, GHARAR, RIBA, OWNERSHIP, POOL_SEGREGATION, GENERAL_SHARIAH
+}
