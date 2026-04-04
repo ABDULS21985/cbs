@@ -126,6 +126,10 @@ public class ShariahAuditService {
     // ── Sampling ──────────────────────────────────────────────────────────────
 
     public List<ShariahAuditSample> generateSample(Long auditId, SamplingRequest request) {
+        if (request.getSampleSize() <= 0) {
+            throw new BusinessException("Sample size must be positive", "AUDIT_INVALID_SAMPLE_SIZE");
+        }
+
         ShariahAudit audit = loadAudit(auditId);
 
         SamplingMethodology methodology = SamplingMethodology.valueOf(request.getMethodology());
@@ -185,6 +189,13 @@ public class ShariahAuditService {
                 sample.getSampleNumber(), sample.getAuditId(), complianceResult, currentActor);
 
         if (complianceResult == ComplianceResult.NON_COMPLIANT) {
+            // Check if a finding already exists for this sample to avoid duplicates
+            if (findingRepository.findByAuditIdAndSampleId(sample.getAuditId(), sampleId).isPresent()) {
+                log.info("Finding already exists for sample {} in audit id={} — skipping auto-creation",
+                        sample.getSampleNumber(), sample.getAuditId());
+                return;
+            }
+
             ShariahAudit audit = loadAudit(sample.getAuditId());
             CreateAuditFindingRequest findingRequest = CreateAuditFindingRequest.builder()
                     .auditId(sample.getAuditId())
@@ -232,22 +243,27 @@ public class ShariahAuditService {
         ShariahAuditFinding saved = findingRepository.save(finding);
 
         if (request.isHasSnciImplication() && request.getSnciAmount() != null && request.getSnciAmount().compareTo(BigDecimal.ZERO) > 0) {
-            CreateSnciRecordRequest snciRequest = CreateSnciRecordRequest.builder()
-                    .detectionMethod("SHARIAH_AUDIT")
-                    .detectionSource("Audit " + audit.getAuditRef() + " — finding " + findingRef)
-                    .amount(request.getSnciAmount())
-                    .currencyCode("SAR")
-                    .nonComplianceType("OTHER")
-                    .nonComplianceDescription("SNCI from audit finding: " + request.getTitle())
-                    .shariahRuleViolated(request.getShariahRuleViolated())
-                    .build();
+            try {
+                CreateSnciRecordRequest snciRequest = CreateSnciRecordRequest.builder()
+                        .detectionMethod("SHARIAH_AUDIT")
+                        .detectionSource("Audit " + audit.getAuditRef() + " — finding " + findingRef)
+                        .amount(request.getSnciAmount())
+                        .currencyCode("SAR")
+                        .nonComplianceType("OTHER")
+                        .nonComplianceDescription("SNCI from audit finding: " + request.getTitle())
+                        .shariahRuleViolated(request.getShariahRuleViolated())
+                        .build();
 
-            SnciRecordResponse snciRecord = snciService.createSnciRecord(snciRequest);
-            saved.setSnciRecordId(snciRecord.getId());
-            findingRepository.save(saved);
+                SnciRecordResponse snciRecord = snciService.createSnciRecord(snciRequest);
+                saved.setSnciRecordId(snciRecord.getId());
+                findingRepository.save(saved);
 
-            log.info("Created linked SNCI record {} for finding {} — amount: {}",
-                    snciRecord.getSnciRef(), findingRef, request.getSnciAmount());
+                log.info("Created linked SNCI record {} for finding {} — amount: {}",
+                        snciRecord.getSnciRef(), findingRef, request.getSnciAmount());
+            } catch (Exception e) {
+                log.error("Failed to create SNCI record for finding {} — saving finding without SNCI link: {}",
+                        findingRef, e.getMessage(), e);
+            }
         }
 
         updateAuditFindingCounts(audit);
@@ -340,7 +356,17 @@ public class ShariahAuditService {
     public ShariahAuditResponse generateDraftReport(Long auditId) {
         ShariahAudit audit = loadAudit(auditId);
 
+        long reviewedSamples = sampleRepository.countByAuditIdAndReviewStatus(auditId, SampleReviewStatus.REVIEWED);
+        if (reviewedSamples == 0) {
+            throw new BusinessException(
+                    "Cannot generate draft report for audit " + audit.getAuditRef() + " — no samples have been reviewed",
+                    "AUDIT_NO_SAMPLES_REVIEWED");
+        }
+
         BigDecimal complianceScore = calculateComplianceScore(auditId);
+        if (complianceScore == null) {
+            complianceScore = BigDecimal.ZERO;
+        }
         audit.setComplianceScore(complianceScore);
 
         long critical = findingRepository.countByAuditIdAndSeverity(auditId, FindingSeverity.CRITICAL);
@@ -403,6 +429,12 @@ public class ShariahAuditService {
     public void issueFinalReport(Long auditId, String opinion) {
         ShariahAudit audit = loadAudit(auditId);
 
+        if (audit.getStatus() != ShariahAuditStatus.SSB_REVIEW) {
+            throw new BusinessException(
+                    "Audit " + audit.getAuditRef() + " cannot issue final report — current status: " + audit.getStatus(),
+                    "AUDIT_INVALID_STATUS_FOR_FINAL_REPORT");
+        }
+
         audit.setOverallOpinion(AuditOverallOpinion.valueOf(opinion));
         audit.setStatus(ShariahAuditStatus.FINAL_REPORT);
         auditRepository.save(audit);
@@ -428,7 +460,7 @@ public class ShariahAuditService {
         long totalReviewed = compliantCount + nonCompliantCount + observationCount;
 
         if (totalReviewed == 0) {
-            return BigDecimal.valueOf(100).setScale(4, RoundingMode.HALF_UP);
+            return BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
         }
 
         BigDecimal score = BigDecimal.valueOf(compliantCount)
@@ -515,7 +547,7 @@ public class ShariahAuditService {
                 .auditEndDate(a.getAuditEndDate())
                 .reportDate(a.getReportDate())
                 .leadAuditor(a.getLeadAuditor())
-                .auditTeamMembers(a.getAuditTeamMembers())
+                .auditTeamMembers(a.getAuditTeamMembers() != null ? a.getAuditTeamMembers() : List.of())
                 .ssbLiaison(a.getSsbLiaison())
                 .totalTransactionsInScope(a.getTotalTransactionsInScope())
                 .sampleSize(a.getSampleSize())

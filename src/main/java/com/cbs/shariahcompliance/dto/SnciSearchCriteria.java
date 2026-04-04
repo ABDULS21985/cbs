@@ -22,4 +22,7 @@ public class SnciSearchCriteria {
     private LocalDate dateTo;
     private BigDecimal minAmount;
     private BigDecimal maxAmount;
+    private String sourceContractRef;
+    private String sourceTransactionRef;
+    private String incomeType;
 }

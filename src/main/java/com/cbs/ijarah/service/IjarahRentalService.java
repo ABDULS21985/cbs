@@ -4,6 +4,8 @@ import com.cbs.account.entity.Account;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.fees.islamic.dto.IslamicFeeResponses;
+import com.cbs.fees.islamic.service.LatePenaltyService;
 import com.cbs.gl.islamic.dto.IslamicPostingRequest;
 import com.cbs.gl.islamic.entity.IslamicTransactionType;
 import com.cbs.gl.islamic.service.IslamicPostingRuleService;
@@ -38,6 +40,7 @@ public class IjarahRentalService {
     private final IslamicPostingRuleService postingRuleService;
     private final AccountRepository accountRepository;
     private final PoolAssetManagementService poolAssetManagementService;
+    private final LatePenaltyService latePenaltyService;
 
     public List<IjarahRentalInstallment> generateRentalSchedule(Long contractId) {
         IjarahContract contract = getContract(contractId);
@@ -197,20 +200,6 @@ public class IjarahRentalService {
             recordPoolIncomeIfApplicable(contract, totalRentalSettled, request.getPaymentDate(), journal.getJournalNumber());
         }
 
-        if (totalPenaltySettled.compareTo(BigDecimal.ZERO) > 0) {
-            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
-                    .contractTypeCode("IJARAH")
-                    .txnType(IslamicTransactionType.LATE_PAYMENT_PENALTY)
-                    .accountId(contract.getAccountId())
-                    .amount(totalPenaltySettled)
-                    .penalty(totalPenaltySettled)
-                    .valueDate(request.getPaymentDate())
-                    .reference(generatedRef + "-LATE")
-                    .build());
-            contract.setTotalLatePenalties(IjarahSupport.money(contract.getTotalLatePenalties().add(totalPenaltySettled)));
-            contract.setTotalCharityFromLatePenalties(IjarahSupport.money(contract.getTotalCharityFromLatePenalties().add(totalPenaltySettled)));
-        }
-
         contract.setTotalRentalsReceived(IjarahSupport.money(contract.getTotalRentalsReceived().add(totalRentalSettled)));
         contract.setTotalRentalArrears(calculateArrears(contractId));
         contract.setStatus(contract.getTotalRentalArrears().compareTo(BigDecimal.ZERO) > 0
@@ -241,19 +230,15 @@ public class IjarahRentalService {
             if (outstanding.compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
-            BigDecimal penalty = outstanding.multiply(new BigDecimal("0.01")).setScale(2, BigDecimal.ROUND_HALF_UP);
-            var journal = postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+            latePenaltyService.processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
+                    .contractId(contract.getId())
+                    .contractRef(contract.getContractRef())
                     .contractTypeCode("IJARAH")
-                    .txnType(IslamicTransactionType.LATE_PAYMENT_PENALTY)
-                    .accountId(contract.getAccountId())
-                    .amount(penalty)
-                    .penalty(penalty)
-                    .reference(contract.getContractRef() + "-LATE-" + installment.getInstallmentNumber())
-                    .valueDate(LocalDate.now())
+                    .installmentId(installment.getId())
+                    .overdueAmount(outstanding)
+                    .daysOverdue(installment.getDaysOverdue())
+                    .penaltyDate(LocalDate.now())
                     .build());
-            installment.setLatePenaltyAmount(IjarahSupport.money(installment.getLatePenaltyAmount().add(penalty)));
-            installment.setLatePenaltyCharityJournalRef(journal.getJournalNumber());
-            installmentRepository.save(installment);
         }
     }
 

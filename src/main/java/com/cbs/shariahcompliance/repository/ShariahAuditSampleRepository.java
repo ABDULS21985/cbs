@@ -16,4 +16,6 @@ public interface ShariahAuditSampleRepository extends JpaRepository<ShariahAudit
     List<ShariahAuditSample> findByAuditIdAndReviewStatus(Long auditId, SampleReviewStatus reviewStatus);
 
     long countByAuditIdAndComplianceResult(Long auditId, ComplianceResult complianceResult);
+
+    long countByAuditIdAndReviewStatus(Long auditId, SampleReviewStatus reviewStatus);
 }

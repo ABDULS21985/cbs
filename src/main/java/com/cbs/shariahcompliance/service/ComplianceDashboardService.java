@@ -2,6 +2,7 @@ package com.cbs.shariahcompliance.service;
 
 import com.cbs.shariahcompliance.dto.ComplianceDashboard;
 import com.cbs.shariahcompliance.entity.AlertStatus;
+import com.cbs.shariahcompliance.entity.QuarantineStatus;
 import com.cbs.shariahcompliance.entity.RemediationStatus;
 import com.cbs.shariahcompliance.entity.ScreeningOverallResult;
 import com.cbs.shariahcompliance.entity.ShariahAudit;
@@ -47,17 +48,22 @@ public class ComplianceDashboardService {
             screeningPassRate = BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP);
         }
 
-        // 2. Alert stats
+        // 2. Alert stats (guard against division by zero in any ratio calculations)
         long totalAlerts = alertRepository.count();
         long openNewAlerts = alertRepository.countByStatus(AlertStatus.NEW);
         long openUnderReviewAlerts = alertRepository.countByStatus(AlertStatus.UNDER_REVIEW);
         long openAlerts = openNewAlerts + openUnderReviewAlerts;
+        // Note: if totalAlerts == 0, avoid any ratio computation that divides by totalAlerts
+        // Currently no alert ratios are computed, but this guard is here for future safety
 
         // 3. SNCI stats
-        BigDecimal totalSnci = snciRepository.findAll().stream()
-                .map(r -> r.getAmount() != null ? r.getAmount() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal unpurifiedSnci = snciRepository.sumTotalUnpurified();
+        BigDecimal detectedSnci = Optional.ofNullable(snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.DETECTED)).orElse(BigDecimal.ZERO);
+        BigDecimal quarantinedSnci = Optional.ofNullable(snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.QUARANTINED)).orElse(BigDecimal.ZERO);
+        BigDecimal pendingSnci = Optional.ofNullable(snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.PENDING_PURIFICATION)).orElse(BigDecimal.ZERO);
+        BigDecimal purifiedSnci = Optional.ofNullable(snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.PURIFIED)).orElse(BigDecimal.ZERO);
+        BigDecimal disputedSnci = Optional.ofNullable(snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.DISPUTED)).orElse(BigDecimal.ZERO);
+        BigDecimal totalSnci = detectedSnci.add(quarantinedSnci).add(pendingSnci).add(purifiedSnci).add(disputedSnci);
+        BigDecimal unpurifiedSnci = Optional.ofNullable(snciRepository.sumTotalUnpurified()).orElse(BigDecimal.ZERO);
 
         // 4. Audit stats
         Optional<ShariahAudit> latestAuditOpt = auditRepository.findTopByOrderByPeriodToDesc();

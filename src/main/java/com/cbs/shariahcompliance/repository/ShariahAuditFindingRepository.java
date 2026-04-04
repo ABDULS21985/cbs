@@ -24,4 +24,6 @@ public interface ShariahAuditFindingRepository extends JpaRepository<ShariahAudi
     List<ShariahAuditFinding> findOverdueRemediations();
 
     long countByAuditIdAndSeverity(@Param("auditId") Long auditId, @Param("severity") FindingSeverity severity);
+
+    Optional<ShariahAuditFinding> findByAuditIdAndSampleId(Long auditId, Long sampleId);
 }

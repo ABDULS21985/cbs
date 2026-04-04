@@ -1,0 +1,466 @@
+package com.cbs.fees.islamic.service;
+
+import com.cbs.account.entity.Account;
+import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
+import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.audit.CurrentActorProvider;
+import com.cbs.common.exception.BusinessException;
+import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.fees.islamic.dto.IslamicFeeRequests;
+import com.cbs.fees.islamic.dto.IslamicFeeResponses;
+import com.cbs.fees.islamic.entity.IslamicFeeConfiguration;
+import com.cbs.fees.islamic.entity.LatePenaltyRecord;
+import com.cbs.fees.islamic.repository.LatePenaltyRecordRepository;
+import com.cbs.ijarah.entity.IjarahContract;
+import com.cbs.ijarah.entity.IjarahDomainEnums;
+import com.cbs.ijarah.entity.IjarahRentalInstallment;
+import com.cbs.ijarah.repository.IjarahContractRepository;
+import com.cbs.ijarah.repository.IjarahRentalInstallmentRepository;
+import com.cbs.murabaha.entity.MurabahaContract;
+import com.cbs.murabaha.entity.MurabahaDomainEnums;
+import com.cbs.murabaha.entity.MurabahaInstallment;
+import com.cbs.murabaha.repository.MurabahaContractRepository;
+import com.cbs.murabaha.repository.MurabahaInstallmentRepository;
+import com.cbs.musharakah.entity.MusharakahBuyoutInstallment;
+import com.cbs.musharakah.entity.MusharakahContract;
+import com.cbs.musharakah.entity.MusharakahDomainEnums;
+import com.cbs.musharakah.entity.MusharakahRentalInstallment;
+import com.cbs.musharakah.repository.MusharakahBuyoutInstallmentRepository;
+import com.cbs.musharakah.repository.MusharakahContractRepository;
+import com.cbs.musharakah.repository.MusharakahRentalInstallmentRepository;
+import com.cbs.tenant.service.CurrentTenantResolver;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+@Transactional
+public class LatePenaltyService {
+
+    private final IslamicFeeService islamicFeeService;
+    private final LatePenaltyRecordRepository latePenaltyRecordRepository;
+    private final MurabahaContractRepository murabahaContractRepository;
+    private final MurabahaInstallmentRepository murabahaInstallmentRepository;
+    private final IjarahContractRepository ijarahContractRepository;
+    private final IjarahRentalInstallmentRepository ijarahRentalInstallmentRepository;
+    private final MusharakahContractRepository musharakahContractRepository;
+    private final MusharakahRentalInstallmentRepository musharakahRentalInstallmentRepository;
+    private final MusharakahBuyoutInstallmentRepository musharakahBuyoutInstallmentRepository;
+    private final AccountRepository accountRepository;
+    private final AccountPostingService accountPostingService;
+    private final CurrentActorProvider actorProvider;
+    private final CurrentTenantResolver tenantResolver;
+
+    public IslamicFeeResponses.LatePenaltyResult processLatePenalty(IslamicFeeResponses.LatePenaltyRequest request) {
+        if (latePenaltyRecordRepository.findFirstByInstallmentIdAndStatusOrderByPenaltyDateDesc(request.getInstallmentId(), "CHARGED").isPresent()) {
+            return IslamicFeeResponses.LatePenaltyResult.builder()
+                    .penaltyCharged(false)
+                    .reason("Existing unpaid penalty - compounding prohibited")
+                    .charityRouted(true)
+                    .totalPenaltiesOnContract(IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractId(request.getContractId())))
+                    .build();
+        }
+
+        ContractContext contractContext = resolveContractContext(request.getContractTypeCode(), request.getContractId());
+        if (request.getDaysOverdue() <= contractContext.gracePeriodDays()) {
+            return IslamicFeeResponses.LatePenaltyResult.builder()
+                    .penaltyCharged(false)
+                    .reason("Grace period not yet expired")
+                    .charityRouted(true)
+                    .build();
+        }
+
+        IslamicFeeConfiguration feeConfiguration = islamicFeeService.findApplicableLatePenaltyFee(
+                request.getContractTypeCode(),
+                contractContext.productCode()
+        );
+        BigDecimal currentYearTotal = IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractIdBetween(
+                request.getContractId(),
+                IslamicFeeSupport.yearStart(request.getPenaltyDate()),
+                request.getPenaltyDate().withDayOfYear(request.getPenaltyDate().lengthOfYear())
+        ));
+        if (feeConfiguration.getAnnualPenaltyCapAmount() != null
+                && currentYearTotal.compareTo(feeConfiguration.getAnnualPenaltyCapAmount()) >= 0) {
+            return IslamicFeeResponses.LatePenaltyResult.builder()
+                    .penaltyCharged(false)
+                    .reason("Annual penalty cap reached")
+                    .charityRouted(true)
+                    .totalPenaltiesOnContract(IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractId(request.getContractId())))
+                    .build();
+        }
+
+        IslamicFeeResponses.FeeCalculationResult calculation = islamicFeeService.calculateFee(
+                feeConfiguration.getId(),
+                IslamicFeeResponses.FeeCalculationContext.builder()
+                        .transactionAmount(request.getOverdueAmount())
+                        .financingAmount(contractContext.financingAmount())
+                        .daysOverdue(request.getDaysOverdue())
+                        .currencyCode(contractContext.currencyCode())
+                        .build()
+        );
+        if (feeConfiguration.getAnnualPenaltyCapAmount() != null
+                && currentYearTotal.add(calculation.getCalculatedAmount()).compareTo(feeConfiguration.getAnnualPenaltyCapAmount()) > 0) {
+            return IslamicFeeResponses.LatePenaltyResult.builder()
+                    .penaltyCharged(false)
+                    .reason("Annual penalty cap reached")
+                    .charityRouted(true)
+                    .totalPenaltiesOnContract(IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractId(request.getContractId())))
+                    .build();
+        }
+
+        IslamicFeeResponses.FeeChargeResult chargeResult = islamicFeeService.chargeFee(
+                IslamicFeeRequests.ChargeFeeRequest.builder()
+                        .feeCode(feeConfiguration.getFeeCode())
+                        .accountId(contractContext.accountId())
+                        .transactionAmount(request.getOverdueAmount())
+                        .financingAmount(contractContext.financingAmount())
+                        .contractId(request.getContractId())
+                        .contractRef(request.getContractRef())
+                        .contractTypeCode(request.getContractTypeCode())
+                        .installmentId(request.getInstallmentId())
+                        .transactionType("LATE_PAYMENT")
+                        .triggerRef(request.getContractRef() + "-LATE-" + request.getInstallmentId())
+                        .currencyCode(contractContext.currencyCode())
+                        .customerId(contractContext.customerId())
+                        .narration("Late payment penalty routed to charity")
+                        .build()
+        );
+
+        LatePenaltyRecord record = latePenaltyRecordRepository.save(LatePenaltyRecord.builder()
+                .contractId(request.getContractId())
+                .contractRef(request.getContractRef())
+                .contractTypeCode(request.getContractTypeCode())
+                .customerId(contractContext.customerId())
+                .installmentId(request.getInstallmentId())
+                .penaltyDate(request.getPenaltyDate())
+                .overdueAmount(request.getOverdueAmount())
+                .daysOverdue(request.getDaysOverdue())
+                .penaltyAmount(chargeResult.getChargedAmount())
+                .feeConfigId(feeConfiguration.getId())
+                .calculationMethod(calculation.getCalculationBreakdown())
+                .journalRef(chargeResult.getJournalRef())
+                .feeChargeLogId(chargeResult.getFeeChargeLogId())
+                .charityFundEntryId(chargeResult.getCharityFundEntryId())
+                .status("CHARGED")
+                .tenantId(tenantResolver.getCurrentTenantId())
+                .build());
+
+        updateInstallmentPenaltyState(request.getContractTypeCode(), request.getContractId(), request.getInstallmentId(),
+                chargeResult.getChargedAmount(), chargeResult.getJournalRef());
+        updateContractTotals(request.getContractTypeCode(), request.getContractId(), chargeResult.getChargedAmount());
+
+        return IslamicFeeResponses.LatePenaltyResult.builder()
+                .penaltyCharged(true)
+                .penaltyAmount(chargeResult.getChargedAmount())
+                .reason("Penalty charged and routed to charity")
+                .journalRef(chargeResult.getJournalRef())
+                .charityRouted(true)
+                .charityFundEntryId(chargeResult.getCharityFundEntryId())
+                .totalPenaltiesOnContract(IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractId(request.getContractId())))
+                .latePenaltyRecordId(record.getId())
+                .build();
+    }
+
+    public List<IslamicFeeResponses.LatePenaltyResult> processAllOverduePenalties(LocalDate asOfDate) {
+        List<IslamicFeeResponses.LatePenaltyResult> results = new ArrayList<>();
+
+        murabahaInstallmentRepository.findByStatusInAndDueDateBefore(
+                        EnumSet.of(MurabahaDomainEnums.InstallmentStatus.SCHEDULED,
+                                MurabahaDomainEnums.InstallmentStatus.DUE,
+                                MurabahaDomainEnums.InstallmentStatus.PARTIAL),
+                        asOfDate)
+                .forEach(installment -> {
+                    MurabahaContract contract = murabahaContractRepository.findById(installment.getContractId()).orElse(null);
+                    if (contract == null) {
+                        return;
+                    }
+                    int daysOverdue = (int) ChronoUnit.DAYS.between(installment.getDueDate(), asOfDate);
+                    if (daysOverdue <= (contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays())
+                            || IslamicFeeSupport.money(installment.getLatePenaltyAmount()).compareTo(BigDecimal.ZERO) > 0) {
+                        return;
+                    }
+                    BigDecimal overdue = IslamicFeeSupport.money(installment.getTotalInstallmentAmount()
+                            .subtract(IslamicFeeSupport.nvl(installment.getPaidPrincipal()))
+                            .subtract(IslamicFeeSupport.nvl(installment.getPaidProfit())));
+                    results.add(processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
+                            .contractId(contract.getId())
+                            .contractRef(contract.getContractRef())
+                            .contractTypeCode("MURABAHA")
+                            .installmentId(installment.getId())
+                            .overdueAmount(overdue)
+                            .daysOverdue(daysOverdue)
+                            .penaltyDate(asOfDate)
+                            .build()));
+                });
+
+        ijarahRentalInstallmentRepository.findByStatusInAndDueDateBefore(
+                        List.of(IjarahDomainEnums.RentalInstallmentStatus.SCHEDULED,
+                                IjarahDomainEnums.RentalInstallmentStatus.DUE,
+                                IjarahDomainEnums.RentalInstallmentStatus.PARTIAL),
+                        asOfDate)
+                .forEach(installment -> {
+                    IjarahContract contract = ijarahContractRepository.findById(installment.getContractId()).orElse(null);
+                    if (contract == null) {
+                        return;
+                    }
+                    int daysOverdue = (int) ChronoUnit.DAYS.between(installment.getDueDate(), asOfDate);
+                    if (daysOverdue <= (contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays())
+                            || IslamicFeeSupport.money(installment.getLatePenaltyAmount()).compareTo(BigDecimal.ZERO) > 0) {
+                        return;
+                    }
+                    BigDecimal overdue = IslamicFeeSupport.money(installment.getRentalAmount().subtract(IslamicFeeSupport.nvl(installment.getPaidAmount())));
+                    results.add(processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
+                            .contractId(contract.getId())
+                            .contractRef(contract.getContractRef())
+                            .contractTypeCode("IJARAH")
+                            .installmentId(installment.getId())
+                            .overdueAmount(overdue)
+                            .daysOverdue(daysOverdue)
+                            .penaltyDate(asOfDate)
+                            .build()));
+                });
+
+        musharakahRentalInstallmentRepository.findByStatusInAndDueDateBefore(
+                        List.of(MusharakahDomainEnums.InstallmentStatus.SCHEDULED,
+                                MusharakahDomainEnums.InstallmentStatus.DUE,
+                                MusharakahDomainEnums.InstallmentStatus.PARTIAL),
+                        asOfDate)
+                .forEach(installment -> {
+                    MusharakahContract contract = musharakahContractRepository.findById(installment.getContractId()).orElse(null);
+                    if (contract == null) {
+                        return;
+                    }
+                    int daysOverdue = (int) ChronoUnit.DAYS.between(installment.getDueDate(), asOfDate);
+                    if (daysOverdue <= (contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays())
+                            || IslamicFeeSupport.money(installment.getLatePenaltyAmount()).compareTo(BigDecimal.ZERO) > 0) {
+                        return;
+                    }
+                    BigDecimal overdue = IslamicFeeSupport.money(installment.getRentalAmount().subtract(IslamicFeeSupport.nvl(installment.getPaidAmount())));
+                    results.add(processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
+                            .contractId(contract.getId())
+                            .contractRef(contract.getContractRef())
+                            .contractTypeCode("MUSHARAKAH")
+                            .installmentId(installment.getId())
+                            .overdueAmount(overdue)
+                            .daysOverdue(daysOverdue)
+                            .penaltyDate(asOfDate)
+                            .build()));
+                });
+
+        musharakahBuyoutInstallmentRepository.findByStatusInAndDueDateBefore(
+                        List.of(MusharakahDomainEnums.InstallmentStatus.SCHEDULED,
+                                MusharakahDomainEnums.InstallmentStatus.DUE,
+                                MusharakahDomainEnums.InstallmentStatus.PARTIAL),
+                        asOfDate)
+                .forEach(installment -> {
+                    MusharakahContract contract = musharakahContractRepository.findById(installment.getContractId()).orElse(null);
+                    if (contract == null) {
+                        return;
+                    }
+                    int daysOverdue = (int) ChronoUnit.DAYS.between(installment.getDueDate(), asOfDate);
+                    if (daysOverdue <= (contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays())) {
+                        return;
+                    }
+                    BigDecimal overdue = IslamicFeeSupport.money(installment.getTotalBuyoutAmount().subtract(IslamicFeeSupport.nvl(installment.getPaidAmount())));
+                    results.add(processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
+                            .contractId(contract.getId())
+                            .contractRef(contract.getContractRef())
+                            .contractTypeCode("MUSHARAKAH")
+                            .installmentId(installment.getId())
+                            .overdueAmount(overdue)
+                            .daysOverdue(daysOverdue)
+                            .penaltyDate(asOfDate)
+                            .build()));
+                });
+
+        return results;
+    }
+
+    public void reverseLatePenalty(Long penaltyId, String reason, String authorisedBy) {
+        LatePenaltyRecord record = latePenaltyRecordRepository.findById(penaltyId)
+                .orElseThrow(() -> new ResourceNotFoundException("LatePenaltyRecord", "id", penaltyId));
+        if (!"CHARGED".equals(record.getStatus())) {
+            throw new BusinessException("Only charged penalties can be reversed", "LATE_PENALTY_NOT_REVERSIBLE");
+        }
+        ContractContext context = resolveContractContext(record.getContractTypeCode(), record.getContractId());
+        Account account = accountRepository.findById(context.accountId())
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", context.accountId()));
+        var txn = accountPostingService.postCreditAgainstGl(
+                account,
+                TransactionType.ADJUSTMENT,
+                record.getPenaltyAmount(),
+                "Late penalty reversal",
+                TransactionChannel.SYSTEM,
+                record.getContractRef() + "-LATE-REV",
+                List.of(accountPostingService.balanceLeg(
+                        "2300-000-001",
+                        AccountPostingService.EntrySide.DEBIT,
+                        record.getPenaltyAmount(),
+                        account.getCurrencyCode(),
+                        BigDecimal.ONE,
+                        "Late penalty charity reversal",
+                        account.getId(),
+                        context.customerId()
+                )),
+                "ISLAMIC_FEE_ENGINE",
+                record.getContractRef() + "-LATE-REV"
+        );
+        record.setStatus("REVERSED");
+        record.setReversedAt(IslamicFeeSupport.instantNow());
+        record.setReversalReason(reason);
+        record.setReversalJournalRef(txn.getJournal() != null ? txn.getJournal().getJournalNumber() : null);
+        latePenaltyRecordRepository.save(record);
+        updateInstallmentPenaltyState(record.getContractTypeCode(), record.getContractId(), record.getInstallmentId(),
+                record.getPenaltyAmount().negate(), record.getReversalJournalRef());
+        updateContractTotals(record.getContractTypeCode(), record.getContractId(), record.getPenaltyAmount().negate());
+    }
+
+    @Transactional(readOnly = true)
+    public List<LatePenaltyRecord> getPenaltiesByContract(Long contractId) {
+        return latePenaltyRecordRepository.findByContractIdOrderByPenaltyDateDesc(contractId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<LatePenaltyRecord> getPenaltiesByCustomer(Long customerId) {
+        return latePenaltyRecordRepository.findByCustomerIdOrderByPenaltyDateDesc(customerId);
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalPenaltiesCharged(LocalDate from, LocalDate to) {
+        return IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedBetween(from, to));
+    }
+
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalPenaltiesCharged(Long contractId) {
+        return IslamicFeeSupport.money(latePenaltyRecordRepository.sumChargedByContractId(contractId));
+    }
+
+    @Transactional(readOnly = true)
+    public IslamicFeeResponses.LatePenaltySummary getLatePenaltySummary() {
+        LocalDate today = LocalDate.now();
+        List<LatePenaltyRecord> charged = latePenaltyRecordRepository.findAll().stream()
+                .filter(record -> "CHARGED".equals(record.getStatus()))
+                .toList();
+        BigDecimal total = charged.stream().map(LatePenaltyRecord::getPenaltyAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        Map<String, BigDecimal> byType = new LinkedHashMap<>();
+        charged.forEach(record -> byType.merge(record.getContractTypeCode(), record.getPenaltyAmount(), BigDecimal::add));
+        BigDecimal average = charged.isEmpty()
+                ? BigDecimal.ZERO
+                : total.divide(BigDecimal.valueOf(charged.size()), 2, BigDecimal.ROUND_HALF_UP);
+        return IslamicFeeResponses.LatePenaltySummary.builder()
+                .totalChargedToday(getTotalPenaltiesCharged(today, today))
+                .totalChargedMonthToDate(getTotalPenaltiesCharged(IslamicFeeSupport.monthStart(today), today))
+                .totalChargedYearToDate(getTotalPenaltiesCharged(IslamicFeeSupport.yearStart(today), today))
+                .averagePenaltyPerInstallment(IslamicFeeSupport.money(average))
+                .compoundingAttemptsBlockedCount(latePenaltyRecordRepository.findAll().stream()
+                        .filter(record -> "WAIVED".equals(record.getStatus()))
+                        .count())
+                .byContractType(byType)
+                .build();
+    }
+
+    private ContractContext resolveContractContext(String contractTypeCode, Long contractId) {
+        return switch (IslamicFeeSupport.normalize(contractTypeCode)) {
+            case "MURABAHA" -> {
+                MurabahaContract contract = murabahaContractRepository.findById(contractId)
+                        .orElseThrow(() -> new ResourceNotFoundException("MurabahaContract", "id", contractId));
+                yield new ContractContext(contract.getContractRef(), contract.getProductCode(), contract.getCustomerId(),
+                        contract.getAccountId(), contract.getCurrencyCode(), contract.getFinancedAmount(),
+                        contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays());
+            }
+            case "IJARAH" -> {
+                IjarahContract contract = ijarahContractRepository.findById(contractId)
+                        .orElseThrow(() -> new ResourceNotFoundException("IjarahContract", "id", contractId));
+                yield new ContractContext(contract.getContractRef(), contract.getProductCode(), contract.getCustomerId(),
+                        contract.getAccountId(), contract.getCurrencyCode(), contract.getAssetAcquisitionCost(),
+                        contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays());
+            }
+            case "MUSHARAKAH" -> {
+                MusharakahContract contract = musharakahContractRepository.findById(contractId)
+                        .orElseThrow(() -> new ResourceNotFoundException("MusharakahContract", "id", contractId));
+                yield new ContractContext(contract.getContractRef(), contract.getProductCode(), contract.getCustomerId(),
+                        contract.getAccountId(), contract.getCurrencyCode(), contract.getTotalCapital(),
+                        contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays());
+            }
+            default -> throw new BusinessException("Unsupported contract type for late penalty: " + contractTypeCode,
+                    "UNSUPPORTED_CONTRACT_TYPE");
+        };
+    }
+
+    private void updateInstallmentPenaltyState(String contractTypeCode,
+                                               Long contractId,
+                                               Long installmentId,
+                                               BigDecimal delta,
+                                               String journalRef) {
+        switch (IslamicFeeSupport.normalize(contractTypeCode)) {
+            case "MURABAHA" -> {
+                MurabahaInstallment installment = murabahaInstallmentRepository.findById(installmentId)
+                        .orElseThrow(() -> new ResourceNotFoundException("MurabahaInstallment", "id", installmentId));
+                installment.setLatePenaltyAmount(IslamicFeeSupport.money(IslamicFeeSupport.nvl(installment.getLatePenaltyAmount()).add(delta)));
+                installment.setLatePenaltyCharityJournalRef(journalRef);
+                murabahaInstallmentRepository.save(installment);
+            }
+            case "IJARAH" -> {
+                IjarahRentalInstallment installment = ijarahRentalInstallmentRepository.findById(installmentId)
+                        .orElseThrow(() -> new ResourceNotFoundException("IjarahRentalInstallment", "id", installmentId));
+                installment.setLatePenaltyAmount(IslamicFeeSupport.money(IslamicFeeSupport.nvl(installment.getLatePenaltyAmount()).add(delta)));
+                installment.setLatePenaltyCharityJournalRef(journalRef);
+                ijarahRentalInstallmentRepository.save(installment);
+            }
+            case "MUSHARAKAH" -> {
+                musharakahRentalInstallmentRepository.findById(installmentId).ifPresent(installment -> {
+                    installment.setLatePenaltyAmount(IslamicFeeSupport.money(IslamicFeeSupport.nvl(installment.getLatePenaltyAmount()).add(delta)));
+                    installment.setLatePenaltyCharityJournalRef(journalRef);
+                    musharakahRentalInstallmentRepository.save(installment);
+                });
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void updateContractTotals(String contractTypeCode, Long contractId, BigDecimal delta) {
+        switch (IslamicFeeSupport.normalize(contractTypeCode)) {
+            case "MURABAHA" -> murabahaContractRepository.findById(contractId).ifPresent(contract -> {
+                contract.setTotalLatePenaltiesCharged(IslamicFeeSupport.money(IslamicFeeSupport.nvl(contract.getTotalLatePenaltiesCharged()).add(delta)));
+                contract.setTotalCharityDonations(IslamicFeeSupport.money(IslamicFeeSupport.nvl(contract.getTotalCharityDonations()).add(delta)));
+                murabahaContractRepository.save(contract);
+            });
+            case "IJARAH" -> ijarahContractRepository.findById(contractId).ifPresent(contract -> {
+                contract.setTotalLatePenalties(IslamicFeeSupport.money(IslamicFeeSupport.nvl(contract.getTotalLatePenalties()).add(delta)));
+                contract.setTotalCharityFromLatePenalties(IslamicFeeSupport.money(IslamicFeeSupport.nvl(contract.getTotalCharityFromLatePenalties()).add(delta)));
+                ijarahContractRepository.save(contract);
+            });
+            case "MUSHARAKAH" -> musharakahContractRepository.findById(contractId).ifPresent(contract -> {
+                contract.setTotalLatePenalties(IslamicFeeSupport.money(IslamicFeeSupport.nvl(contract.getTotalLatePenalties()).add(delta)));
+                contract.setTotalCharityDonations(IslamicFeeSupport.money(IslamicFeeSupport.nvl(contract.getTotalCharityDonations()).add(delta)));
+                musharakahContractRepository.save(contract);
+            });
+            default -> {
+            }
+        }
+    }
+
+    private record ContractContext(String contractRef,
+                                   String productCode,
+                                   Long customerId,
+                                   Long accountId,
+                                   String currencyCode,
+                                   BigDecimal financingAmount,
+                                   int gracePeriodDays) {
+    }
+}

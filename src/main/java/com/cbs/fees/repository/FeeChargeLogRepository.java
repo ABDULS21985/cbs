@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
+import java.time.Instant;
 import java.util.List;
 
 @Repository
@@ -21,4 +22,12 @@ public interface FeeChargeLogRepository extends JpaRepository<FeeChargeLog, Long
 
     /** Multi-status lookup for waiver history (PENDING / WAIVED / REJECTED) */
     List<FeeChargeLog> findByStatusInOrderByChargedAtDesc(Collection<String> statuses);
+
+    List<FeeChargeLog> findByIslamicFeeConfigurationIdOrderByChargedAtDesc(Long islamicFeeConfigurationId);
+
+    List<FeeChargeLog> findByStatusAndReceivableBalanceGreaterThanOrderByChargedAtAsc(String status, java.math.BigDecimal receivableBalance);
+
+    List<FeeChargeLog> findByDeferredRemainingAmountGreaterThanOrderByChargedAtAsc(java.math.BigDecimal deferredRemainingAmount);
+
+    List<FeeChargeLog> findByChargedAtBetweenOrderByChargedAtDesc(Instant from, Instant to);
 }

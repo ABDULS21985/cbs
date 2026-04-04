@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cbs-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: cbs
+      POSTGRES_USER: cbs_admin
+      POSTGRES_PASSWORD: cbs_password
+    volumes:
+      - cbs_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: cbs-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - cbs_redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  cbs_pgdata:
+  cbs_redis_data:

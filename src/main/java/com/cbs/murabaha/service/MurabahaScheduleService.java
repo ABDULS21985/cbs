@@ -4,6 +4,8 @@ import com.cbs.account.entity.Account;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.fees.islamic.dto.IslamicFeeResponses;
+import com.cbs.fees.islamic.service.LatePenaltyService;
 import com.cbs.gl.islamic.dto.IslamicPostingRequest;
 import com.cbs.gl.islamic.entity.IslamicTransactionType;
 import com.cbs.gl.islamic.service.IslamicPostingRuleService;
@@ -45,6 +47,7 @@ public class MurabahaScheduleService {
     private final IslamicPostingRuleService postingRuleService;
     private final AccountRepository accountRepository;
     private final PoolAssetManagementService poolAssetManagementService;
+    private final LatePenaltyService latePenaltyService;
 
     public List<MurabahaInstallment> generateSchedule(Long contractId) {
         MurabahaContract contract = getContract(contractId);
@@ -213,22 +216,6 @@ public class MurabahaScheduleService {
             propagateJournalRef(contractId, generatedRef, journal.getJournalNumber());
         }
 
-        if (totalPenaltySettled.compareTo(BigDecimal.ZERO) > 0) {
-            Account referenceAccount = resolveReferenceAccount(contract, request.getDebitAccountId());
-            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
-                    .contractTypeCode("MURABAHA")
-                    .txnType(IslamicTransactionType.LATE_PAYMENT_PENALTY)
-                    .accountId(contract.getAccountId())
-                    .amount(totalPenaltySettled)
-                    .penalty(totalPenaltySettled)
-                    .valueDate(request.getPaymentDate())
-                    .reference(generatedRef + "-LATE")
-                    .additionalContext(referenceAccount != null && referenceAccount.getProduct() != null
-                            ? java.util.Map.of("customerAccountGlCode", referenceAccount.getProduct().getGlAccountCode())
-                            : java.util.Map.of())
-                    .build());
-        }
-
         contract.setRecognisedProfit(MurabahaSupport.money(contract.getRecognisedProfit().add(totalProfitSettled)));
         contract.setUnrecognisedProfit(MurabahaSupport.money(contract.getTotalDeferredProfit().subtract(contract.getRecognisedProfit())));
         if (areAllInstallmentsSettled(contractId)) {
@@ -268,27 +255,15 @@ public class MurabahaScheduleService {
                 continue;
             }
 
-            Account referenceAccount = resolveReferenceAccount(contract, contract.getSettlementAccountId());
-            var journal = postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+            latePenaltyService.processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
+                    .contractId(contract.getId())
+                    .contractRef(contract.getContractRef())
                     .contractTypeCode("MURABAHA")
-                    .txnType(IslamicTransactionType.LATE_PAYMENT_PENALTY)
-                    .accountId(contract.getAccountId())
-                    .amount(penalty)
-                    .penalty(penalty)
-                    .valueDate(LocalDate.now())
-                    .reference(contract.getContractRef() + "-LATE-" + installment.getInstallmentNumber())
-                    .additionalContext(referenceAccount != null && referenceAccount.getProduct() != null
-                            ? java.util.Map.of("customerAccountGlCode", referenceAccount.getProduct().getGlAccountCode())
-                            : java.util.Map.of())
+                    .installmentId(installment.getId())
+                    .overdueAmount(outstanding)
+                    .daysOverdue(installment.getDaysOverdue())
+                    .penaltyDate(LocalDate.now())
                     .build());
-
-            installment.setLatePenaltyAmount(MurabahaSupport.money(installment.getLatePenaltyAmount().add(penalty)));
-            installment.setLatePenaltyCharityJournalRef(journal.getJournalNumber());
-            installmentRepository.save(installment);
-
-            contract.setTotalLatePenaltiesCharged(MurabahaSupport.money(contract.getTotalLatePenaltiesCharged().add(penalty)));
-            contract.setTotalCharityDonations(MurabahaSupport.money(contract.getTotalCharityDonations().add(penalty)));
-            contractRepository.save(contract);
         }
     }
 

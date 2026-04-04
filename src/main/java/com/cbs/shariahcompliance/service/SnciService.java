@@ -49,6 +49,10 @@ public class SnciService {
     // ── Detection ──────────────────────────────────────────────────────────────
 
     public SnciRecordResponse createSnciRecord(CreateSnciRecordRequest request) {
+        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("SNCI amount must be positive", "INVALID_AMOUNT");
+        }
+
         String snciRef = "SNCI-" + Year.now().getValue() + "-" + String.format("%05d", SNCI_SEQ.incrementAndGet());
 
         SnciRecord record = SnciRecord.builder()
@@ -110,8 +114,17 @@ public class SnciService {
         SnciRecord record = loadSnciRecord(snciId);
 
         if (record.getQuarantineStatus() != QuarantineStatus.DETECTED) {
+            String detail = switch (record.getQuarantineStatus()) {
+                case QUARANTINED -> "already quarantined";
+                case PURIFIED -> "already purified — cannot revert";
+                case WAIVED_BY_SSB -> "waived by SSB — cannot quarantine";
+                case DISPUTED -> "currently under dispute — resolve dispute first";
+                case PENDING_PURIFICATION -> "already pending purification";
+                case PURIFICATION_APPROVED -> "already approved for purification";
+                default -> "current status: " + record.getQuarantineStatus();
+            };
             throw new BusinessException(
-                    "SNCI record " + record.getSnciRef() + " cannot be quarantined — current status: " + record.getQuarantineStatus(),
+                    "Cannot quarantine SNCI record " + record.getSnciRef() + " — " + detail,
                     "SNCI_INVALID_STATUS_FOR_QUARANTINE");
         }
 
@@ -190,6 +203,13 @@ public class SnciService {
                     "SNCI_NOT_DISPUTED");
         }
 
+        if (record.getDisputedBy() == null || record.getDisputeReason() == null) {
+            throw new BusinessException(
+                    "Dispute metadata is incomplete for SNCI record " + record.getSnciRef()
+                            + " — disputedBy and disputeReason must be set before resolution",
+                    "SNCI_DISPUTE_METADATA_INCOMPLETE");
+        }
+
         record.setDisputeResolvedBy(resolvedBy);
         record.setDisputeResolvedAt(LocalDateTime.now());
 
@@ -226,40 +246,38 @@ public class SnciService {
 
     @Transactional(readOnly = true)
     public SnciSummary getSnciSummary() {
-        BigDecimal detectedAmount = snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.DETECTED);
-        BigDecimal quarantinedAmount = snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.QUARANTINED);
-        BigDecimal pendingAmount = snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.PENDING_PURIFICATION);
-        BigDecimal purifiedAmount = snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.PURIFIED);
-        BigDecimal disputedAmount = snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.DISPUTED);
+        BigDecimal detectedAmount = safeSum(snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.DETECTED));
+        BigDecimal quarantinedAmount = safeSum(snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.QUARANTINED));
+        BigDecimal pendingAmount = safeSum(snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.PENDING_PURIFICATION));
+        BigDecimal purifiedAmount = safeSum(snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.PURIFIED));
+        BigDecimal disputedAmount = safeSum(snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.DISPUTED));
 
         BigDecimal totalAmount = detectedAmount.add(quarantinedAmount).add(pendingAmount)
                 .add(purifiedAmount).add(disputedAmount);
 
-        List<SnciRecord> allRecords = snciRepository.findAll();
+        // Use count queries instead of loading all records into memory
+        long detectedCount = snciRepository.countByQuarantineStatus(QuarantineStatus.DETECTED);
+        long quarantinedCount = snciRepository.countByQuarantineStatus(QuarantineStatus.QUARANTINED);
+        long pendingPurificationCount = snciRepository.countByQuarantineStatus(QuarantineStatus.PENDING_PURIFICATION);
+        long purifiedCount = snciRepository.countByQuarantineStatus(QuarantineStatus.PURIFIED);
+        long disputedCount = snciRepository.countByQuarantineStatus(QuarantineStatus.DISPUTED);
 
-        long detectedCount = 0;
-        long quarantinedCount = 0;
-        long pendingPurificationCount = 0;
-        long purifiedCount = 0;
-        long disputedCount = 0;
+        // Breakdown by non-compliance type using aggregate queries
         Map<String, BigDecimal> byType = new HashMap<>();
-        Map<String, BigDecimal> byStatus = new HashMap<>();
-
-        for (SnciRecord r : allRecords) {
-            switch (r.getQuarantineStatus()) {
-                case DETECTED -> detectedCount++;
-                case QUARANTINED -> quarantinedCount++;
-                case PENDING_PURIFICATION -> pendingPurificationCount++;
-                case PURIFIED -> purifiedCount++;
-                case DISPUTED -> disputedCount++;
-                default -> { /* PURIFICATION_APPROVED, WAIVED_BY_SSB */ }
+        for (NonComplianceType type : NonComplianceType.values()) {
+            BigDecimal amount = safeSum(snciRepository.sumAmountByNonComplianceType(type));
+            if (amount.compareTo(BigDecimal.ZERO) > 0) {
+                byType.put(type.name(), amount);
             }
+        }
 
-            String typeName = r.getNonComplianceType().name();
-            byType.merge(typeName, r.getAmount() != null ? r.getAmount() : BigDecimal.ZERO, BigDecimal::add);
-
-            String statusName = r.getQuarantineStatus().name();
-            byStatus.merge(statusName, r.getAmount() != null ? r.getAmount() : BigDecimal.ZERO, BigDecimal::add);
+        // Breakdown by quarantine status using aggregate queries
+        Map<String, BigDecimal> byStatus = new HashMap<>();
+        for (QuarantineStatus status : QuarantineStatus.values()) {
+            BigDecimal amount = safeSum(snciRepository.sumAmountByQuarantineStatus(status));
+            if (amount.compareTo(BigDecimal.ZERO) > 0) {
+                byStatus.put(status.name(), amount);
+            }
         }
 
         return SnciSummary.builder()
@@ -287,6 +305,10 @@ public class SnciService {
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+
+    private BigDecimal safeSum(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
 
     private SnciRecord loadSnciRecord(Long snciId) {
         return snciRepository.findById(snciId)
@@ -326,6 +348,18 @@ public class SnciService {
 
             if (criteria.getMaxAmount() != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.get("amount"), criteria.getMaxAmount()));
+            }
+
+            if (criteria.getSourceContractRef() != null && !criteria.getSourceContractRef().isBlank()) {
+                predicates.add(cb.equal(root.get("sourceContractRef"), criteria.getSourceContractRef()));
+            }
+
+            if (criteria.getSourceTransactionRef() != null && !criteria.getSourceTransactionRef().isBlank()) {
+                predicates.add(cb.equal(root.get("sourceTransactionRef"), criteria.getSourceTransactionRef()));
+            }
+
+            if (criteria.getIncomeType() != null && !criteria.getIncomeType().isBlank()) {
+                predicates.add(cb.equal(root.get("incomeType"), criteria.getIncomeType()));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

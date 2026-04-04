@@ -48,6 +48,51 @@ public class FeeChargeLog {
     @Column(name = "trigger_amount", precision = 18, scale = 2)
     private BigDecimal triggerAmount;
 
+    @Column(name = "journal_ref", length = 50)
+    private String journalRef;
+
+    @Column(name = "islamic_fee_configuration_id")
+    private Long islamicFeeConfigurationId;
+
+    @Column(name = "charity_routed", nullable = false)
+    @Builder.Default
+    private Boolean charityRouted = false;
+
+    @Column(name = "charity_fund_entry_id")
+    private Long charityFundEntryId;
+
+    @Column(name = "contract_id")
+    private Long contractId;
+
+    @Column(name = "contract_type_code", length = 30)
+    private String contractTypeCode;
+
+    @Column(name = "installment_id")
+    private Long installmentId;
+
+    @Column(name = "notes", columnDefinition = "TEXT")
+    private String notes;
+
+    @Column(name = "receivable_balance", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal receivableBalance = BigDecimal.ZERO;
+
+    @Column(name = "deferred_total_amount", precision = 18, scale = 2)
+    private BigDecimal deferredTotalAmount;
+
+    @Column(name = "deferred_remaining_amount", precision = 18, scale = 2)
+    private BigDecimal deferredRemainingAmount;
+
+    @Column(name = "recognised_deferred_amount", nullable = false, precision = 18, scale = 2)
+    @Builder.Default
+    private BigDecimal recognisedDeferredAmount = BigDecimal.ZERO;
+
+    @Column(name = "deferral_months")
+    private Integer deferralMonths;
+
+    @Column(name = "last_deferred_recognition_date")
+    private java.time.LocalDate lastDeferredRecognitionDate;
+
     @Column(name = "was_waived", nullable = false)
     @Builder.Default
     private Boolean wasWaived = false;

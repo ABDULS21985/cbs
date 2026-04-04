@@ -43,6 +43,10 @@ public class ShariahScreeningService {
     // ===================== CORE SCREENING =====================
 
     public ShariahScreeningResultResponse screenTransaction(ShariahScreeningRequest request) {
+        if (request == null) {
+            throw new BusinessException("Screening request must not be null", "SCREENING_REQUEST_NULL");
+        }
+
         long startTime = System.currentTimeMillis();
         List<ShariahScreeningRule> rules = loadApplicableRules(request);
 
@@ -346,13 +350,25 @@ public class ShariahScreeningService {
         Specification<ShariahComplianceAlert> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (criteria.getStatus() != null) {
-                predicates.add(cb.equal(root.get("status"), AlertStatus.valueOf(criteria.getStatus())));
+                try {
+                    predicates.add(cb.equal(root.get("status"), AlertStatus.valueOf(criteria.getStatus())));
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid alert status filter value '{}' — skipping predicate", criteria.getStatus());
+                }
             }
             if (criteria.getSeverity() != null) {
-                predicates.add(cb.equal(root.get("severity"), ScreeningSeverity.valueOf(criteria.getSeverity())));
+                try {
+                    predicates.add(cb.equal(root.get("severity"), ScreeningSeverity.valueOf(criteria.getSeverity())));
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid severity filter value '{}' — skipping predicate", criteria.getSeverity());
+                }
             }
             if (criteria.getAlertType() != null) {
-                predicates.add(cb.equal(root.get("alertType"), AlertType.valueOf(criteria.getAlertType())));
+                try {
+                    predicates.add(cb.equal(root.get("alertType"), AlertType.valueOf(criteria.getAlertType())));
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid alert type filter value '{}' — skipping predicate", criteria.getAlertType());
+                }
             }
             if (criteria.getCustomerId() != null) {
                 predicates.add(cb.equal(root.get("customerId"), criteria.getCustomerId()));
@@ -380,6 +396,16 @@ public class ShariahScreeningService {
 
     public void resolveAlert(Long alertId, ResolveAlertRequest request) {
         ShariahComplianceAlert alert = getAlert(alertId);
+
+        Set<AlertStatus> terminalStatuses = EnumSet.of(
+                AlertStatus.RESOLVED_COMPLIANT, AlertStatus.RESOLVED_NON_COMPLIANT,
+                AlertStatus.RESOLVED_FALSE_POSITIVE, AlertStatus.CLOSED);
+        if (terminalStatuses.contains(alert.getStatus())) {
+            throw new BusinessException(
+                    "Alert " + alertId + " is already in terminal status: " + alert.getStatus(),
+                    "ALERT_ALREADY_RESOLVED");
+        }
+
         alert.setResolution(request.getResolution());
         alert.setResolvedBy(actorProvider.getCurrentActor());
         alert.setResolvedAt(LocalDateTime.now());
@@ -472,8 +498,18 @@ public class ShariahScreeningService {
                 case ENTITY_LIST -> evaluateEntityList(rule, request);
                 case THRESHOLD -> evaluateThreshold(rule, request);
                 case CONDITION_EXPRESSION -> evaluateCondition(rule, request);
-                case BUSINESS_RULE_REF -> false; // delegate to business rules (pass by default if unavailable)
+                case BUSINESS_RULE_REF -> {
+                    if (StringUtils.hasText(rule.getBusinessRuleCode())) {
+                        log.warn("BUSINESS_RULE_REF evaluation not yet integrated for rule {} (businessRuleCode={}). Passing by default.",
+                                rule.getRuleCode(), rule.getBusinessRuleCode());
+                    }
+                    yield false;
+                }
                 case COMPOSITE -> false; // not implemented in v1
+                default -> {
+                    log.warn("Unhandled rule type {} for rule {} — defaulting to pass", rule.getRuleType(), rule.getRuleCode());
+                    yield false;
+                }
             };
         } catch (Exception e) {
             log.warn("Error evaluating rule {}: {}", rule.getRuleCode(), e.getMessage());
@@ -562,6 +598,9 @@ public class ShariahScreeningService {
         for (Map<String, Object> rr : ruleResults) {
             if ("FAIL".equals(rr.get("result"))) {
                 failedRuleCode = (String) rr.get("ruleCode");
+                if (rr.get("matchedValue") != null) {
+                    matchedValue = rr.get("matchedValue").toString();
+                }
                 break;
             }
         }
@@ -579,6 +618,10 @@ public class ShariahScreeningService {
             case HIGH -> 24;
             case MEDIUM -> 72;
             case LOW -> 168;
+            default -> {
+                log.warn("Unhandled severity {} for SLA calculation — defaulting to 72 hours", severity);
+                yield 72;
+            }
         };
 
         ShariahComplianceAlert alert = ShariahComplianceAlert.builder()
@@ -592,7 +635,7 @@ public class ShariahScreeningService {
                 .description(result.getBlockReason() != null ? result.getBlockReason() : "Shariah screening flagged transaction")
                 .descriptionAr(result.getBlockReasonAr())
                 .ruleCode(failedRuleCode)
-                .matchedValue(result.getMerchantCategoryCode())
+                .matchedValue(matchedValue != null ? matchedValue : result.getMerchantCategoryCode())
                 .status(AlertStatus.NEW)
                 .generatedSnciRecord(false)
                 .slaBreach(false)

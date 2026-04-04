@@ -35,6 +35,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -47,6 +48,7 @@ public class PurificationService {
     private final PurificationDisbursementRepository disbursementRepository;
     private final CharityRecipientRepository recipientRepository;
     private final SnciRecordRepository snciRepository;
+    private final CharityFundService charityFundService;
     private final CurrentActorProvider actorProvider;
 
     private static final AtomicLong BATCH_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
@@ -75,6 +77,20 @@ public class PurificationService {
         if (request.getCurrencyCode() != null && !request.getCurrencyCode().isBlank()) {
             eligibleRecords = eligibleRecords.stream()
                     .filter(r -> request.getCurrencyCode().equals(r.getCurrencyCode()))
+                    .toList();
+        }
+
+        // Filter out records with null or non-positive amounts
+        List<SnciRecord> skippedRecords = eligibleRecords.stream()
+                .filter(r -> r.getAmount() == null || r.getAmount().compareTo(BigDecimal.ZERO) <= 0)
+                .toList();
+        if (!skippedRecords.isEmpty()) {
+            for (SnciRecord skipped : skippedRecords) {
+                log.warn("Skipping SNCI record {} from purification batch — invalid amount: {}",
+                        skipped.getSnciRef(), skipped.getAmount());
+            }
+            eligibleRecords = eligibleRecords.stream()
+                    .filter(r -> r.getAmount() != null && r.getAmount().compareTo(BigDecimal.ZERO) > 0)
                     .toList();
         }
 
@@ -152,6 +168,26 @@ public class PurificationService {
         LocalDate yearStart = LocalDate.of(LocalDate.now().getYear(), 1, 1);
         LocalDate yearEnd = LocalDate.of(LocalDate.now().getYear(), 12, 31);
 
+        // Validate required fields on all plans first
+        List<String> planErrors = new java.util.ArrayList<>();
+        for (int i = 0; i < plans.size(); i++) {
+            DisbursementPlan plan = plans.get(i);
+            if (plan.getRecipientId() == null) {
+                planErrors.add("Plan[" + i + "]: recipientId is required");
+            }
+            if (plan.getPurpose() == null || plan.getPurpose().isBlank()) {
+                planErrors.add("Plan[" + i + "]: purpose is required");
+            }
+            if (plan.getAmount() == null || plan.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                planErrors.add("Plan[" + i + "]: amount must be positive");
+            }
+        }
+        if (!planErrors.isEmpty()) {
+            throw new BusinessException(
+                    "Invalid disbursement plans: " + String.join("; ", planErrors),
+                    "PURIFICATION_INVALID_PLANS");
+        }
+
         for (DisbursementPlan plan : plans) {
             CharityRecipient recipient = recipientRepository.findById(plan.getRecipientId())
                     .orElseThrow(() -> new ResourceNotFoundException("CharityRecipient", "id", plan.getRecipientId()));
@@ -168,10 +204,20 @@ public class PurificationService {
                         "PURIFICATION_RECIPIENT_NOT_SSB_APPROVED");
             }
 
+            // NOTE: Annual cap is stored without currency. If batch currency differs from the
+            // currency in which previous disbursements were made, the cap comparison may be inaccurate.
+            // Multi-currency cap enforcement requires a currency-aware cap table (future enhancement).
+            if (batch.getCurrencyCode() != null && recipient.getBankName() != null) {
+                // Heuristic: log a warning; proper currency check would require recipient disbursement currency field
+                log.warn("Annual cap check for recipient {} uses batch currency {} — ensure cap currency alignment",
+                        recipient.getRecipientCode(), batch.getCurrencyCode());
+            }
+
             // Check annual cap
             if (recipient.getMaxAnnualDisbursement() != null) {
-                BigDecimal alreadyDisbursedThisYear = disbursementRepository
-                        .sumAmountByRecipientIdAndPaymentDateBetween(recipient.getId(), yearStart, yearEnd);
+                BigDecimal alreadyDisbursedThisYear = Optional.ofNullable(
+                        disbursementRepository.sumAmountByRecipientIdAndPaymentDateBetween(recipient.getId(), yearStart, yearEnd)
+                ).orElse(BigDecimal.ZERO);
                 BigDecimal projectedTotal = alreadyDisbursedThisYear.add(plan.getAmount());
 
                 if (projectedTotal.compareTo(recipient.getMaxAnnualDisbursement()) > 0) {
@@ -257,12 +303,30 @@ public class PurificationService {
                     "PURIFICATION_BATCH_NOT_APPROVED");
         }
 
+        // Pre-validate all disbursements before making any state changes
+        List<PurificationDisbursement> disbursements = disbursementRepository.findByBatchId(batchId);
+        List<String> validationErrors = new java.util.ArrayList<>();
+        for (PurificationDisbursement disbursement : disbursements) {
+            Optional<CharityRecipient> recipientOpt = recipientRepository.findById(disbursement.getRecipientId());
+            if (recipientOpt.isEmpty()) {
+                validationErrors.add("Recipient id=" + disbursement.getRecipientId() + " not found for disbursement id=" + disbursement.getId());
+            } else if (!"ACTIVE".equals(recipientOpt.get().getStatus())) {
+                validationErrors.add("Recipient " + recipientOpt.get().getRecipientCode() + " is not ACTIVE (status: "
+                        + recipientOpt.get().getStatus() + ") for disbursement id=" + disbursement.getId());
+            }
+        }
+        if (!validationErrors.isEmpty()) {
+            throw new BusinessException(
+                    "Purification execution validation failed: " + String.join("; ", validationErrors),
+                    "PURIFICATION_EXECUTION_VALIDATION_FAILED");
+        }
+
         batch.setStatus(PurificationBatchStatus.PROCESSING);
         batchRepository.save(batch);
 
         String currentActor = actorProvider.getCurrentActor();
-        List<PurificationDisbursement> disbursements = disbursementRepository.findByBatchId(batchId);
         BigDecimal totalDisbursed = BigDecimal.ZERO;
+        charityFundService.recordSnciPurificationInflow(batch.getId(), batch.getTotalAmount(), batch.getBatchRef());
 
         for (PurificationDisbursement disbursement : disbursements) {
             disbursement.setPaymentStatus(DisbursementPaymentStatus.SENT);
@@ -278,6 +342,14 @@ public class PurificationService {
                 recipient.setTotalDisbursedLifetime(lifetime.add(disbursement.getAmount()));
                 recipientRepository.save(recipient);
             }
+
+            charityFundService.recordPurificationDisbursementOutflow(
+                    disbursement.getRecipientId(),
+                    disbursement.getAmount(),
+                    batch.getBatchRef(),
+                    batch.getBatchRef() + "-" + disbursement.getId(),
+                    disbursement.getPurpose()
+            );
 
             totalDisbursed = totalDisbursed.add(
                     disbursement.getAmount() != null ? disbursement.getAmount() : BigDecimal.ZERO);
@@ -450,7 +522,7 @@ public class PurificationService {
             byCharity.merge(charity, r.getAmount() != null ? r.getAmount() : BigDecimal.ZERO, BigDecimal::add);
         }
 
-        BigDecimal outstandingBalance = snciRepository.sumTotalUnpurified();
+        BigDecimal outstandingBalance = Optional.ofNullable(snciRepository.sumTotalUnpurified()).orElse(BigDecimal.ZERO);
 
         return PurificationReport.builder()
                 .totalPurified(totalPurified)
@@ -464,8 +536,20 @@ public class PurificationService {
 
     @Transactional(readOnly = true)
     public CharityFundReport getCharityFundReport() {
-        BigDecimal totalFromSnci = snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.PURIFIED);
-        BigDecimal totalUnpurified = snciRepository.sumTotalUnpurified();
+        BigDecimal quarantinedAmount = Optional.ofNullable(
+                snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.QUARANTINED)
+        ).orElse(BigDecimal.ZERO);
+        BigDecimal pendingAmount = Optional.ofNullable(
+                snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.PENDING_PURIFICATION)
+        ).orElse(BigDecimal.ZERO);
+        BigDecimal purifiedAmount = Optional.ofNullable(
+                snciRepository.sumAmountByQuarantineStatus(QuarantineStatus.PURIFIED)
+        ).orElse(BigDecimal.ZERO);
+        BigDecimal totalFromSnci = quarantinedAmount.add(pendingAmount).add(purifiedAmount);
+
+        BigDecimal totalUnpurified = Optional.ofNullable(
+                snciRepository.sumTotalUnpurified()
+        ).orElse(BigDecimal.ZERO);
         BigDecimal totalInFund = totalFromSnci.add(totalUnpurified);
 
         // Total disbursed across all recipients

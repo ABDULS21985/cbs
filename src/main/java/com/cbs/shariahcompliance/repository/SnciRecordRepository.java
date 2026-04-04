@@ -27,4 +27,11 @@ public interface SnciRecordRepository extends JpaRepository<SnciRecord, Long>,
 
     @Query("SELECT COALESCE(SUM(r.amount), 0) FROM SnciRecord r WHERE r.quarantineStatus IN ('QUARANTINED', 'PENDING_PURIFICATION')")
     BigDecimal sumTotalUnpurified();
+
+    long countByQuarantineStatus(QuarantineStatus status);
+
+    @Query("SELECT COALESCE(SUM(r.amount), 0) FROM SnciRecord r WHERE r.nonComplianceType = :type")
+    BigDecimal sumAmountByNonComplianceType(@Param("type") com.cbs.shariahcompliance.entity.NonComplianceType type);
+
+    long countByNonComplianceType(com.cbs.shariahcompliance.entity.NonComplianceType type);
 }
