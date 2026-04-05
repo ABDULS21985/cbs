@@ -24,6 +24,8 @@ CREATE INDEX IF NOT EXISTS idx_islamic_card_profile_active
     ON islamic_card_profile(active, profile_code);
 CREATE INDEX IF NOT EXISTS idx_islamic_card_profile_mccs
     ON islamic_card_profile USING gin (restricted_mccs);
+CREATE INDEX IF NOT EXISTS idx_islamic_card_profile_tenant
+    ON islamic_card_profile(tenant_id, profile_code);
 
 CREATE TABLE IF NOT EXISTS islamic_card_product (
     id                      BIGSERIAL PRIMARY KEY,
@@ -56,6 +58,8 @@ CREATE TABLE IF NOT EXISTS islamic_card_product (
 
 CREATE INDEX IF NOT EXISTS idx_islamic_card_product_active
     ON islamic_card_product(active, product_code);
+CREATE INDEX IF NOT EXISTS idx_islamic_card_product_tenant
+    ON islamic_card_product(tenant_id, product_code);
 
 CREATE TABLE IF NOT EXISTS islamic_card (
     id                      BIGSERIAL PRIMARY KEY,
@@ -87,6 +91,12 @@ CREATE INDEX IF NOT EXISTS idx_islamic_card_product
     ON islamic_card(islamic_card_product_id);
 CREATE INDEX IF NOT EXISTS idx_islamic_card_contract_type
     ON islamic_card(contract_type);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_islamic_card_wadiah_account
+    ON islamic_card(wadiah_account_id)
+    WHERE wadiah_account_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_islamic_card_mudarabah_account
+    ON islamic_card(mudarabah_account_id)
+    WHERE mudarabah_account_id IS NOT NULL;
 
 ALTER TABLE card_transaction
     ADD COLUMN IF NOT EXISTS islamic_card_id BIGINT REFERENCES islamic_card(id),

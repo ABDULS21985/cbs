@@ -3,7 +3,9 @@ package com.cbs.mudarabah.repository;
 import com.cbs.mudarabah.entity.MudarabahAccount;
 import com.cbs.mudarabah.entity.MudarabahAccountSubType;
 import com.cbs.mudarabah.entity.MudarabahType;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -17,6 +19,10 @@ import java.util.Optional;
 public interface MudarabahAccountRepository extends JpaRepository<MudarabahAccount, Long> {
 
     Optional<MudarabahAccount> findByAccountId(Long accountId);
+
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("select m from MudarabahAccount m join fetch m.account a where a.id = :accountId")
+        Optional<MudarabahAccount> findByAccountIdForUpdate(@Param("accountId") Long accountId);
 
     Optional<MudarabahAccount> findByContractReference(String contractReference);
 

@@ -2,10 +2,12 @@ package com.cbs.account.repository;
 
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.AccountStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -98,6 +100,10 @@ public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpec
 
     @Query("SELECT a FROM Account a JOIN FETCH a.product WHERE a.id = :id")
     Optional<Account> findByIdWithProduct(@Param("id") Long id);
+
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("SELECT a FROM Account a JOIN FETCH a.product JOIN FETCH a.customer WHERE a.id = :id")
+        Optional<Account> findByIdWithProductForUpdate(@Param("id") Long id);
 
     @Query(value = "SELECT nextval('cbs.account_number_seq')", nativeQuery = true)
     Long getNextAccountNumberSequence();
