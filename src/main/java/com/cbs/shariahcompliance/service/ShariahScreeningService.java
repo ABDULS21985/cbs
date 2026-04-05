@@ -576,6 +576,7 @@ public class ShariahScreeningService {
                 && businessRule.getApplicableProducts().stream().anyMatch(product -> product.equalsIgnoreCase(contractTypeCode));
     }
 
+    @SuppressWarnings("removal")
     private Boolean evaluateBusinessRuleCompliance(BusinessRuleResponse businessRule, ShariahScreeningRequest request) {
         if (!StringUtils.hasText(businessRule.getEvaluationExpression())) {
             return null;

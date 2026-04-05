@@ -216,6 +216,18 @@ public class PaymentService {
                                                       String sourceCurrency, String targetCurrency,
                                                       String purposeCode, String remittanceInfo,
                                                       String chargeType) {
+        return initiateSwiftTransfer(debitAccountId, creditAccountNumber, beneficiaryName, beneficiaryBankCode,
+                beneficiaryBankName, amount, sourceCurrency, targetCurrency, purposeCode, remittanceInfo,
+                chargeType, true);
+    }
+
+    @Transactional
+    public PaymentInstruction initiateSwiftTransfer(Long debitAccountId, String creditAccountNumber,
+                                                      String beneficiaryName, String beneficiaryBankCode,
+                                                      String beneficiaryBankName, BigDecimal amount,
+                                                      String sourceCurrency, String targetCurrency,
+                                                      String purposeCode, String remittanceInfo,
+                                                      String chargeType, boolean applyInternalCharges) {
         Account debitAccount = accountRepository.findById(debitAccountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", debitAccountId));
 
@@ -248,12 +260,14 @@ public class PaymentService {
         }
 
         // Calculate charges
-        BigDecimal charges = amount.multiply(new BigDecimal("0.0025"))
-                .setScale(2, RoundingMode.HALF_UP).max(new BigDecimal("25.00"));
+        BigDecimal charges = applyInternalCharges
+                ? amount.multiply(new BigDecimal("0.0025"))
+                .setScale(2, RoundingMode.HALF_UP).max(new BigDecimal("25.00"))
+                : BigDecimal.ZERO;
         payment.setChargeAmount(charges);
 
         // Debit total (amount + charges if OUR)
-        BigDecimal totalDebit = "OUR".equals(chargeType) ? amount.add(charges) : amount;
+        BigDecimal totalDebit = applyInternalCharges && "OUR".equals(chargeType) ? amount.add(charges) : amount;
         if (debitAccount.getAvailableBalance().compareTo(totalDebit) < 0) {
             throw new BusinessException("Insufficient balance including charges", "INSUFFICIENT_BALANCE");
         }
@@ -269,7 +283,7 @@ public class PaymentService {
                 null,
                 null
         ));
-        if (totalDebit.compareTo(amount) > 0) {
+        if (applyInternalCharges && totalDebit.compareTo(amount) > 0) {
             legs.add(accountPostingService.balanceLeg(
                     requiredFeeIncomeGl(debitAccount),
                     AccountPostingService.EntrySide.CREDIT,

@@ -2,8 +2,11 @@ package com.cbs.standing;
 
 import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
+import com.cbs.account.service.AccountPostingService;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
+import com.cbs.payments.islamic.service.IslamicPaymentService;
 import com.cbs.payments.repository.PaymentInstructionRepository;
 import com.cbs.standing.entity.*;
 import com.cbs.standing.repository.*;
@@ -31,6 +34,9 @@ class StandingOrderServiceTest {
     @Mock private StandingExecutionLogRepository executionLogRepository;
     @Mock private PaymentInstructionRepository paymentRepository;
     @Mock private AccountRepository accountRepository;
+    @Mock private AccountPostingService accountPostingService;
+    @Mock private CbsProperties cbsProperties;
+    @Mock private IslamicPaymentService islamicPaymentService;
 
     @InjectMocks private StandingOrderService standingOrderService;
 

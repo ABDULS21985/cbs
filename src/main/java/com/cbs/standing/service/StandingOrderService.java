@@ -9,7 +9,7 @@ import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.PaymentInstruction;
 import com.cbs.payments.entity.PaymentStatus;
-import com.cbs.payments.entity.PaymentType;
+import com.cbs.payments.islamic.service.IslamicPaymentService;
 import com.cbs.payments.repository.PaymentInstructionRepository;
 import com.cbs.standing.entity.*;
 import com.cbs.standing.repository.*;
@@ -37,6 +37,7 @@ public class StandingOrderService {
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
     private final CbsProperties cbsProperties;
+    private final IslamicPaymentService islamicPaymentService;
 
     @Transactional
     public StandingInstruction create(Long debitAccountId, InstructionType type,
@@ -129,68 +130,32 @@ public class StandingOrderService {
         String failureReason = null;
 
         if (debitAccount.getAvailableBalance().compareTo(si.getAmount()) >= 0) {
-            // Create payment instruction
-            Long seq = paymentRepository.getNextInstructionSequence();
-            String ref = String.format("PAY%015d", seq);
+            PaymentInstruction payment = islamicPaymentService.processStandingInstruction(si);
+            if (payment.getStatus() == PaymentStatus.REJECTED || payment.getStatus() == PaymentStatus.FAILED) {
+                failureReason = payment.getFailureReason();
+                StandingExecutionLog execLog = StandingExecutionLog.builder()
+                        .instruction(si).executionDate(LocalDate.now())
+                        .amount(si.getAmount()).status("FAILED")
+                        .failureReason(failureReason)
+                        .paymentInstruction(payment).build();
+                executionLogRepository.save(execLog);
 
-            PaymentInstruction payment = PaymentInstruction.builder()
-                    .instructionRef(ref)
-                    .paymentType(si.getInstructionType() == InstructionType.STANDING_ORDER ?
-                            PaymentType.STANDING_ORDER : PaymentType.DIRECT_DEBIT)
-                    .debitAccount(debitAccount).debitAccountNumber(debitAccount.getAccountNumber())
-                    .creditAccountNumber(si.getCreditAccountNumber())
-                    .beneficiaryName(si.getCreditAccountName())
-                    .beneficiaryBankCode(si.getCreditBankCode())
-                    .amount(si.getAmount()).currencyCode(si.getCurrencyCode())
-                    .paymentRail("STANDING").remittanceInfo(si.getNarration())
-                    .status(PaymentStatus.PROCESSING).build();
-
-            // Check local credit
-            Account localCredit = accountRepository.findByAccountNumber(si.getCreditAccountNumber()).orElse(null);
-            if (localCredit != null) {
-                accountPostingService.postTransfer(
-                        debitAccount,
-                        localCredit,
-                        si.getAmount(),
-                        si.getAmount(),
-                        si.getNarration(),
-                        si.getNarration(),
-                        TransactionChannel.SYSTEM,
-                        ref,
-                        "STANDING_ORDER",
-                        si.getInstructionRef()
-                );
-                payment.setCreditAccount(localCredit);
-                payment.setStatus(PaymentStatus.COMPLETED);
+                si.setTotalExecutions(si.getTotalExecutions() + 1);
+                si.setFailedExecutions(si.getFailedExecutions() + 1);
+                si.setRetryCount(0);
             } else {
-                accountPostingService.postDebitAgainstGl(
-                        debitAccount,
-                        com.cbs.account.entity.TransactionType.DEBIT,
-                        si.getAmount(),
-                        si.getNarration(),
-                        TransactionChannel.SYSTEM,
-                        ref,
-                        requiredExternalClearingGl(),
-                        "STANDING_ORDER",
-                        si.getInstructionRef()
-                );
-                payment.setStatus(PaymentStatus.SUBMITTED);
+                StandingExecutionLog execLog = StandingExecutionLog.builder()
+                        .instruction(si).executionDate(LocalDate.now())
+                        .amount(si.getAmount()).status("SUCCESS")
+                        .paymentInstruction(payment).build();
+                executionLogRepository.save(execLog);
+
+                si.setTotalExecutions(si.getTotalExecutions() + 1);
+                si.setSuccessfulExecutions(si.getSuccessfulExecutions() + 1);
+                si.setLastExecutionDate(LocalDate.now());
+                si.setRetryCount(0);
+                success = true;
             }
-            payment.setExecutionDate(LocalDate.now());
-            paymentRepository.save(payment);
-
-            // Log execution
-            StandingExecutionLog execLog = StandingExecutionLog.builder()
-                    .instruction(si).executionDate(LocalDate.now())
-                    .amount(si.getAmount()).status("SUCCESS")
-                    .paymentInstruction(payment).build();
-            executionLogRepository.save(execLog);
-
-            si.setTotalExecutions(si.getTotalExecutions() + 1);
-            si.setSuccessfulExecutions(si.getSuccessfulExecutions() + 1);
-            si.setLastExecutionDate(LocalDate.now());
-            si.setRetryCount(0);
-            success = true;
         } else {
             failureReason = "Insufficient balance";
             si.setRetryCount(si.getRetryCount() + 1);
@@ -266,58 +231,31 @@ public class StandingOrderService {
             return retryLog;
         }
 
-        // Execute the payment
-        Long seq = paymentRepository.getNextInstructionSequence();
-        String ref = String.format("PAY%015d", seq);
-
-        PaymentInstruction payment = PaymentInstruction.builder()
-                .instructionRef(ref)
-                .paymentType(instruction.getInstructionType() == InstructionType.STANDING_ORDER ?
-                        PaymentType.STANDING_ORDER : PaymentType.DIRECT_DEBIT)
-                .debitAccount(debitAccount).debitAccountNumber(debitAccount.getAccountNumber())
-                .creditAccountNumber(instruction.getCreditAccountNumber())
-                .beneficiaryName(instruction.getCreditAccountName())
-                .beneficiaryBankCode(instruction.getCreditBankCode())
-                .amount(instruction.getAmount()).currencyCode(instruction.getCurrencyCode())
-                .paymentRail("STANDING").remittanceInfo(instruction.getNarration())
-                .status(PaymentStatus.PROCESSING).build();
-
-        Account localCredit = accountRepository.findByAccountNumber(instruction.getCreditAccountNumber()).orElse(null);
-        if (localCredit != null) {
-            accountPostingService.postTransfer(
-                    debitAccount, localCredit, instruction.getAmount(), instruction.getAmount(),
-                    instruction.getNarration(), instruction.getNarration(),
-                    com.cbs.account.entity.TransactionChannel.SYSTEM, ref,
-                    "STANDING_ORDER", instruction.getInstructionRef());
-            payment.setCreditAccount(localCredit);
-            payment.setStatus(PaymentStatus.COMPLETED);
-        } else {
-            accountPostingService.postDebitAgainstGl(
-                    debitAccount, com.cbs.account.entity.TransactionType.DEBIT, instruction.getAmount(),
-                    instruction.getNarration(), com.cbs.account.entity.TransactionChannel.SYSTEM, ref,
-                    requiredExternalClearingGl(), "STANDING_ORDER", instruction.getInstructionRef());
-            payment.setStatus(PaymentStatus.SUBMITTED);
-        }
-        payment.setExecutionDate(LocalDate.now());
-        paymentRepository.save(payment);
+        PaymentInstruction payment = islamicPaymentService.processStandingInstruction(instruction);
 
         // Log successful retry
         StandingExecutionLog retryLog = StandingExecutionLog.builder()
                 .instruction(instruction)
                 .executionDate(LocalDate.now())
                 .amount(instruction.getAmount())
-                .status("SUCCESS")
+                .status(payment.getStatus() == PaymentStatus.REJECTED ? "FAILED" : "SUCCESS")
+                .failureReason(payment.getStatus() == PaymentStatus.REJECTED ? payment.getFailureReason() : null)
                 .paymentInstruction(payment)
                 .build();
         executionLogRepository.save(retryLog);
 
         instruction.setTotalExecutions(instruction.getTotalExecutions() + 1);
-        instruction.setSuccessfulExecutions(instruction.getSuccessfulExecutions() + 1);
+        if (payment.getStatus() == PaymentStatus.REJECTED) {
+            instruction.setFailedExecutions(instruction.getFailedExecutions() + 1);
+        } else {
+            instruction.setSuccessfulExecutions(instruction.getSuccessfulExecutions() + 1);
+        }
         instruction.setLastExecutionDate(LocalDate.now());
         instruction.setRetryCount(0);
         instructionRepository.save(instruction);
 
-        log.info("Standing order retry successful: ref={}, paymentRef={}", instruction.getInstructionRef(), ref);
+        log.info("Standing order retry successful: ref={}, paymentRef={}",
+                instruction.getInstructionRef(), payment.getInstructionRef());
         return retryLog;
     }
 

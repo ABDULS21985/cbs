@@ -616,9 +616,7 @@ public class ProfitDistributionRunService {
         boolean reservesWithinApprovedLimits = true;
         try {
             com.cbs.gl.islamic.service.PerService perService = reserveService.getPerService();
-            com.cbs.gl.islamic.service.IrrService irrService = reserveService.getIrrService();
             BigDecimal perBalance = perService.getPerBalance(run.getPoolId());
-                irrService.getIrrBalance(run.getPoolId());
             com.cbs.gl.islamic.entity.PerPolicy perPolicy = perService.getActivePolicies().stream()
                     .filter(p -> p.getInvestmentPoolId().equals(run.getPoolId()))
                     .findFirst().orElse(null);

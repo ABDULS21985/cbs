@@ -171,6 +171,7 @@ public class IslamicFeeService {
                 .accountBalance(request.getAccountBalance())
                 .customerSegment(request.getCustomerSegment())
                 .tenorMonths(request.getTenorMonths())
+                .transferType(request.getTransferType())
                 .currencyCode(StringUtils.hasText(request.getCurrencyCode()) ? request.getCurrencyCode() : account.getCurrencyCode())
                 .build();
         IslamicFeeResponses.FeeCalculationResult calculation = calculateFee(configuration, context);

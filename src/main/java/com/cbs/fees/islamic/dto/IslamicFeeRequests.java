@@ -114,6 +114,7 @@ public final class IslamicFeeRequests {
         private String narration;
         private String currencyCode;
         private Long customerId;
+        private String transferType;
     }
 
     @Getter

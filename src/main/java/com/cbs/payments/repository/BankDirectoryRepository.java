@@ -13,4 +13,6 @@ public interface BankDirectoryRepository extends JpaRepository<BankDirectory, Lo
     List<BankDirectory> findByIsActiveTrueOrderByBankNameAsc();
 
     Optional<BankDirectory> findByBankCode(String bankCode);
+
+    Optional<BankDirectory> findBySwiftCode(String swiftCode);
 }

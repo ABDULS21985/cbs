@@ -225,7 +225,9 @@ public class LatePenaltyService {
     }
 
     public List<IslamicFeeResponses.LatePenaltyResult> processAllOverduePenalties(LocalDate asOfDate) {
+        log.info("AUDIT: Starting batch late penalty processing for date {}", asOfDate);
         List<IslamicFeeResponses.LatePenaltyResult> results = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
 
         murabahaInstallmentRepository.findByStatusInAndDueDateBefore(
                         EnumSet.of(MurabahaDomainEnums.InstallmentStatus.SCHEDULED,
@@ -336,6 +338,19 @@ public class LatePenaltyService {
                             .penaltyDate(asOfDate)
                             .build()));
                 });
+
+        // Audit summary
+        long charged = results.stream().filter(IslamicFeeResponses.LatePenaltyResult::isPenaltyCharged).count();
+        BigDecimal totalCharged = results.stream()
+                .filter(IslamicFeeResponses.LatePenaltyResult::isPenaltyCharged)
+                .map(r -> r.getPenaltyAmount() != null ? r.getPenaltyAmount() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long skipped = results.stream().filter(r -> !r.isPenaltyCharged()).count();
+        log.info("AUDIT: Batch late penalty complete - date={}, charged={}, skipped={}, totalChargedAmount={}, errors={}",
+                asOfDate, charged, skipped, totalCharged, errors.size());
+        if (!errors.isEmpty()) {
+            log.error("AUDIT: Batch late penalty had {} errors: {}", errors.size(), errors);
+        }
 
         return results;
     }
