@@ -99,6 +99,9 @@ public class ShariahComplianceAlert extends AuditableEntity {
     @Column(name = "escalated_at")
     private LocalDateTime escalatedAt;
 
+    @Column(name = "escalation_reason", length = 1000)
+    private String escalationReason;
+
     @Column(name = "generated_snci_record", nullable = false)
     private boolean generatedSnciRecord;
 

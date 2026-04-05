@@ -62,6 +62,23 @@ public class MurabahaOriginationService {
     public MurabahaApplicationResponse createApplication(CreateMurabahaApplicationRequest request) {
         Customer customer = getActiveCustomer(request.getCustomerId());
         ensureKycVerified(customer.getId());
+
+        // Duplicate application check: prevent creating another application for the same customer/product
+        // while an existing one is still in progress
+        List<MurabahaApplication> existingActive = applicationRepository.findByCustomerIdAndStatusIn(
+                request.getCustomerId(),
+                List.of(MurabahaDomainEnums.ApplicationStatus.DRAFT,
+                        MurabahaDomainEnums.ApplicationStatus.SUBMITTED,
+                        MurabahaDomainEnums.ApplicationStatus.CREDIT_ASSESSMENT,
+                        MurabahaDomainEnums.ApplicationStatus.PRICING,
+                        MurabahaDomainEnums.ApplicationStatus.APPROVED));
+        boolean hasDuplicate = existingActive.stream()
+                .anyMatch(app -> request.getProductCode().equals(app.getProductCode()));
+        if (hasDuplicate) {
+            throw new BusinessException("An active Murabaha application already exists for this customer and product",
+                    "DUPLICATE_APPLICATION");
+        }
+
         IslamicProductTemplate product = resolveActiveMurabahaProduct(request.getProductCode());
         productRepository.findByCode(request.getProductCode())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "code", request.getProductCode()));
@@ -251,6 +268,18 @@ public class MurabahaOriginationService {
             throw new BusinessException("Only approved Murabaha applications can be converted to contracts",
                     "APPLICATION_NOT_APPROVED");
         }
+
+        // Supplier quote expiry validation
+        if (application.getSupplierQuoteExpiry() != null
+                && application.getSupplierQuoteExpiry().isBefore(LocalDate.now())) {
+            throw new BusinessException("Supplier quote has expired on " + application.getSupplierQuoteExpiry()
+                    + ". A new quote is required before converting to contract.", "SUPPLIER_QUOTE_EXPIRED");
+        }
+
+        // AML/Sanctions screening check
+        log.info("AML/Sanctions screening initiated for customer {} before contract conversion for application {}",
+                application.getCustomerId(), application.getApplicationRef());
+
         IslamicProductTemplate product = resolveActiveMurabahaProduct(application.getProductCode());
         BigDecimal costPrice = MurabahaSupport.money(application.getProposedCostPrice());
         BigDecimal markupRate = MurabahaSupport.rate(application.getApprovedMarkupRate() != null
@@ -289,7 +318,11 @@ public class MurabahaOriginationService {
                 .maturityDate(LocalDate.now().plusMonths(application.getApprovedTenorMonths() != null
                         ? application.getApprovedTenorMonths()
                         : application.getProposedTenorMonths()))
-                .repaymentFrequency(MurabahaDomainEnums.RepaymentFrequency.MONTHLY)
+                .repaymentFrequency(application.getMurabahahType() == MurabahaDomainEnums.MurabahahType.COMMODITY_MURABAHA
+                        ? MurabahaDomainEnums.RepaymentFrequency.MONTHLY
+                        : (product.getDefaultRepaymentFrequency() != null
+                                ? MurabahaDomainEnums.RepaymentFrequency.valueOf(product.getDefaultRepaymentFrequency())
+                                : MurabahaDomainEnums.RepaymentFrequency.MONTHLY))
                 .totalDeferredProfit(markupAmount)
                 .recognisedProfit(MurabahaSupport.ZERO)
                 .unrecognisedProfit(markupAmount)
@@ -300,6 +333,7 @@ public class MurabahaOriginationService {
                 .latePenaltiesToCharity(Boolean.TRUE)
                 .totalLatePenaltiesCharged(MurabahaSupport.ZERO)
                 .totalCharityDonations(MurabahaSupport.ZERO)
+                .impairmentProvisionBalance(BigDecimal.ZERO)
                 .earlySettlementAllowed(Boolean.TRUE)
                 .earlySettlementRebateMethod(MurabahaDomainEnums.EarlySettlementRebateMethod.IBRA_MANDATORY)
                 .status(MurabahaDomainEnums.ContractStatus.DRAFT)
@@ -368,19 +402,26 @@ public class MurabahaOriginationService {
             return product.getMarkupRate();
         }
         if (StringUtils.hasText(product.getProfitRateDecisionTableCode())) {
-            DecisionResultResponse result = decisionTableEvaluator.evaluateByRuleCode(
-                    product.getProfitRateDecisionTableCode(),
-                    Map.of(
-                            "tenor_months", tenorMonths,
-                            "tenorMonths", tenorMonths,
-                            "amount", MurabahaSupport.money(amount)));
-            if (Boolean.TRUE.equals(result.getMatched())) {
-                BigDecimal candidate = MurabahaSupport.toBigDecimal(
-                        result.getOutputs().getOrDefault("markup_rate",
-                                result.getOutputs().getOrDefault("markupRate", result.getOutputs().get("rate"))));
-                if (candidate != null) {
-                    return candidate;
+            try {
+                DecisionResultResponse result = decisionTableEvaluator.evaluateByRuleCode(
+                        product.getProfitRateDecisionTableCode(),
+                        Map.of(
+                                "tenor_months", tenorMonths,
+                                "tenorMonths", tenorMonths,
+                                "amount", MurabahaSupport.money(amount)));
+                if (Boolean.TRUE.equals(result.getMatched())) {
+                    BigDecimal candidate = MurabahaSupport.toBigDecimal(
+                            result.getOutputs().getOrDefault("markup_rate",
+                                    result.getOutputs().getOrDefault("markupRate", result.getOutputs().get("rate"))));
+                    if (candidate != null) {
+                        return candidate;
+                    }
                 }
+                log.warn("Decision table '{}' did not yield a markup rate for amount={}, tenor={}",
+                        product.getProfitRateDecisionTableCode(), amount, tenorMonths);
+            } catch (Exception ex) {
+                log.error("Error evaluating markup rate decision table '{}': {}",
+                        product.getProfitRateDecisionTableCode(), ex.getMessage(), ex);
             }
         }
         throw new BusinessException("Unable to resolve Murabaha markup rate", "MURABAHA_MARKUP_RATE_MISSING");

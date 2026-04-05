@@ -74,4 +74,10 @@ public class MusharakahOwnershipUnit extends AuditableEntity {
     @Column(name = "is_fully_bought_out", nullable = false)
     @lombok.Builder.Default
     private Boolean isFullyBoughtOut = false;
+
+    @Column(name = "last_appraiser", length = 200)
+    private String lastAppraiser;
+
+    @Column(name = "last_valuation_ref", length = 100)
+    private String lastValuationRef;
 }

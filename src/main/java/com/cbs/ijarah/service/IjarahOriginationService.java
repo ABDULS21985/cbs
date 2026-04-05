@@ -18,6 +18,8 @@ import com.cbs.ijarah.repository.IjarahContractRepository;
 import com.cbs.productfactory.islamic.entity.IslamicDomainEnums;
 import com.cbs.productfactory.islamic.entity.IslamicProductTemplate;
 import com.cbs.productfactory.islamic.repository.IslamicProductTemplateRepository;
+import com.cbs.shariahcompliance.dto.ShariahScreeningRequest;
+import com.cbs.shariahcompliance.service.ShariahScreeningService;
 import com.cbs.tenant.service.CurrentTenantResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -49,19 +51,40 @@ public class IjarahOriginationService {
     private final IslamicProductTemplateRepository islamicProductTemplateRepository;
     private final CurrentTenantResolver currentTenantResolver;
     private final CurrentActorProvider actorProvider;
+    private final ShariahScreeningService shariahScreeningService;
 
     public IjarahResponses.IjarahApplicationResponse createApplication(IjarahRequests.CreateApplicationRequest request) {
         Customer customer = getActiveCustomer(request.getCustomerId());
         ensureKycVerified(customer.getId());
+
+        // Duplicate application check: prevent multiple active applications for same customer and product
+        List<IjarahApplication> existingApplications = applicationRepository.findByCustomerIdAndStatusIn(
+                customer.getId(),
+                List.of(IjarahDomainEnums.ApplicationStatus.DRAFT,
+                        IjarahDomainEnums.ApplicationStatus.SUBMITTED,
+                        IjarahDomainEnums.ApplicationStatus.CREDIT_ASSESSMENT,
+                        IjarahDomainEnums.ApplicationStatus.PRICING,
+                        IjarahDomainEnums.ApplicationStatus.APPROVED));
+        boolean duplicate = existingApplications.stream()
+                .anyMatch(app -> request.getProductCode().equalsIgnoreCase(app.getProductCode())
+                        && request.getIjarahType() == app.getIjarahType());
+        if (duplicate) {
+            throw new BusinessException("An active Ijarah application already exists for this customer and product", "DUPLICATE_APPLICATION");
+        }
+
         IslamicProductTemplate product = resolveActiveIjarahProduct(request.getProductCode());
         productRepository.findByCode(product.getProductCode())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "code", product.getProductCode()));
 
         int totalPeriods = IjarahSupport.totalPeriods(request.getRequestedTenorMonths(), IjarahDomainEnums.RentalFrequency.MONTHLY);
+        // Use product template base rate for target profit instead of hardcoded 10%
+        BigDecimal profitRate = product.getBaseRate() != null && product.getBaseRate().compareTo(BigDecimal.ZERO) > 0
+                ? product.getBaseRate().divide(IjarahSupport.HUNDRED, 8, RoundingMode.HALF_UP)
+                : new BigDecimal("0.10");
         BigDecimal proposedRental = IjarahSupport.calculateRentalAmount(
                 request.getEstimatedAssetCost(),
                 BigDecimal.ZERO,
-                request.getEstimatedAssetCost().multiply(new BigDecimal("0.10")),
+                request.getEstimatedAssetCost().multiply(profitRate),
                 totalPeriods);
         BigDecimal dsr = calculateDsr(request.getMonthlyIncome(), request.getExistingObligations(), proposedRental);
 
@@ -193,7 +216,30 @@ public class IjarahOriginationService {
             throw new BusinessException("Ijarah application must be approved before conversion", "INVALID_APPLICATION_STATUS");
         }
 
+        // Application expiry check
+        if (application.getExpiresAt() != null && Instant.now().isAfter(application.getExpiresAt())) {
+            application.setStatus(IjarahDomainEnums.ApplicationStatus.CANCELLED);
+            applicationRepository.save(application);
+            throw new BusinessException("Ijarah application has expired and cannot be converted", "APPLICATION_EXPIRED");
+        }
+
         IslamicProductTemplate product = resolveActiveIjarahProduct(application.getProductCode());
+
+        // Shariah screening before conversion
+        var screening = shariahScreeningService.screenPreExecution(ShariahScreeningRequest.builder()
+                .transactionRef(application.getApplicationRef() + "-CONV")
+                .transactionType("IJARAH_APPLICATION_CONVERSION")
+                .amount(application.getEstimatedAssetCost())
+                .currencyCode(application.getCurrencyCode())
+                .contractRef(application.getApplicationRef())
+                .contractTypeCode("IJARAH")
+                .customerId(application.getCustomerId())
+                .additionalContext(java.util.Map.of(
+                        "ijarahType", application.getIjarahType().name(),
+                        "productCode", product.getProductCode(),
+                        "productCompliant", product.getShariahComplianceStatus() == IslamicDomainEnums.ShariahComplianceStatus.COMPLIANT))
+                .build());
+        shariahScreeningService.ensureAllowed(screening);
         int totalPeriods = IjarahSupport.totalPeriods(application.getRequestedTenorMonths(), application.getProposedRentalFrequency());
         BigDecimal totalExpected = IjarahSupport.money(
                 IjarahSupport.nvl(application.getProposedRentalAmount()).multiply(BigDecimal.valueOf(totalPeriods)));
@@ -209,14 +255,14 @@ public class IjarahOriginationService {
                 .assetDescription(application.getRequestedAssetDescription())
                 .assetCategory(application.getRequestedAssetCategory())
                 .assetAcquisitionCost(application.getEstimatedAssetCost())
-                .assetResidualValue(BigDecimal.ZERO)
+                .assetResidualValue(resolveResidualValue(application, product))
                 .currencyCode(application.getCurrencyCode())
                 .tenorMonths(application.getRequestedTenorMonths())
                 .totalLeasePeriods(totalPeriods)
                 .rentalFrequency(application.getProposedRentalFrequency())
                 .baseRentalAmount(application.getProposedRentalAmount())
-                .rentalType(IjarahDomainEnums.RentalType.FIXED)
-                .rentalReviewFrequency(IjarahDomainEnums.RentalReviewFrequency.NONE)
+                .rentalType(resolveRentalType(product))
+                .rentalReviewFrequency(resolveRentalReviewFrequency(product))
                 .advanceRentals(application.getProposedAdvanceRentals())
                 .securityDeposit(application.getProposedSecurityDeposit())
                 .totalRentalsExpected(totalExpected)
@@ -318,5 +364,44 @@ public class IjarahOriginationService {
             warnings.add("DSR exceeds configured threshold of " + dsrLimit.toPlainString() + "%");
         }
         return warnings;
+    }
+
+    /**
+     * Resolve residual value from pricing data. Since the application entity does not persist
+     * residualValue from the pricing step, we derive it from the estimated asset cost using
+     * a standard 10% default (consistent with createApplication's pricing logic).
+     */
+    private BigDecimal resolveResidualValue(IjarahApplication application, IslamicProductTemplate product) {
+        BigDecimal assetCost = IjarahSupport.money(application.getEstimatedAssetCost());
+        // Use 10% of asset cost as default residual value (same as initial pricing in createApplication)
+        return IjarahSupport.money(assetCost.multiply(new BigDecimal("0.10")));
+    }
+
+    /**
+     * Resolve rental type from product template instead of hardcoding FIXED.
+     * Falls back to FIXED if the product does not specify one.
+     */
+    private IjarahDomainEnums.RentalType resolveRentalType(IslamicProductTemplate product) {
+        if (product.getRentalReviewFrequency() != null
+                && product.getRentalReviewFrequency() != IslamicDomainEnums.RentalReviewFrequency.NONE) {
+            // If the product allows rental reviews, default to VARIABLE rather than FIXED
+            return IjarahDomainEnums.RentalType.VARIABLE;
+        }
+        return IjarahDomainEnums.RentalType.FIXED;
+    }
+
+    /**
+     * Resolve rental review frequency from the product template instead of hardcoding NONE.
+     */
+    private IjarahDomainEnums.RentalReviewFrequency resolveRentalReviewFrequency(IslamicProductTemplate product) {
+        if (product.getRentalReviewFrequency() == null) {
+            return IjarahDomainEnums.RentalReviewFrequency.NONE;
+        }
+        return switch (product.getRentalReviewFrequency()) {
+            case NONE -> IjarahDomainEnums.RentalReviewFrequency.NONE;
+            case ANNUAL -> IjarahDomainEnums.RentalReviewFrequency.ANNUAL;
+            case BI_ANNUAL -> IjarahDomainEnums.RentalReviewFrequency.BI_ANNUAL;
+            case AS_PER_CONTRACT -> IjarahDomainEnums.RentalReviewFrequency.AS_PER_CONTRACT;
+        };
     }
 }

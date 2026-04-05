@@ -11,6 +11,8 @@ import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.mudarabah.entity.RiskLevel;
 import com.cbs.rulesengine.dto.DecisionResultResponse;
 import com.cbs.rulesengine.service.DecisionTableEvaluator;
+import com.cbs.notification.entity.NotificationChannel;
+import com.cbs.notification.service.NotificationService;
 import com.cbs.tenant.service.CurrentTenantResolver;
 import com.cbs.wadiah.dto.CreateHibahBatchRequest;
 import com.cbs.wadiah.dto.CreateHibahPolicyRequest;
@@ -58,6 +60,7 @@ public class HibahDistributionService {
     private final TransactionJournalRepository transactionJournalRepository;
     private final AccountPostingService accountPostingService;
     private final DecisionTableEvaluator decisionTableEvaluator;
+    private final NotificationService notificationService;
     private final CurrentTenantResolver currentTenantResolver;
 
     public HibahPolicy createPolicy(CreateHibahPolicyRequest request) {
@@ -146,8 +149,13 @@ public class HibahDistributionService {
                 .sorted(Comparator.comparing(HibahDistributionBatch::getDistributionDate).reversed())
                 .toList();
 
+        String batchCurrency = StringUtils.hasText(request.getCurrencyCode())
+                ? request.getCurrencyCode()
+                : null;
         List<WadiahAccount> eligibleAccounts = wadiahAccountRepository.findHibahEligibleAccounts(tenantId).stream()
                 .filter(item -> isEligible(policy, item, request.getPeriodFrom(), request.getPeriodTo()))
+                .filter(item -> batchCurrency == null
+                        || batchCurrency.equalsIgnoreCase(item.getAccount().getCurrencyCode()))
                 .toList();
         if (eligibleAccounts.isEmpty()) {
             throw new BusinessException("No eligible Wadiah accounts found for Hibah distribution",
@@ -213,6 +221,12 @@ public class HibahDistributionService {
                 && batch.getStatus() != WadiahDomainEnums.HibahBatchStatus.DRAFT) {
             throw new BusinessException("Only draft or pending batches can be approved", "INVALID_BATCH_STATUS");
         }
+        if (StringUtils.hasText(batch.getCreatedBy())
+                && batch.getCreatedBy().equalsIgnoreCase(approvedBy)) {
+            throw new BusinessException(
+                    "Four-eyes principle violated: batch approver must differ from the batch creator",
+                    "FOUR_EYES_VIOLATION");
+        }
         batch.setStatus(WadiahDomainEnums.HibahBatchStatus.APPROVED);
         batch.setApprovedBy(approvedBy);
         batch.setApprovedAt(LocalDateTime.now());
@@ -228,6 +242,12 @@ public class HibahDistributionService {
                 && !(policy != null && !Boolean.TRUE.equals(policy.getApprovalRequired())
                 && batch.getStatus() == WadiahDomainEnums.HibahBatchStatus.DRAFT)) {
             throw new BusinessException("Batch must be approved before processing", "BATCH_NOT_APPROVED");
+        }
+        if (StringUtils.hasText(batch.getApprovedBy())
+                && batch.getApprovedBy().equalsIgnoreCase(processedBy)) {
+            throw new BusinessException(
+                    "Four-eyes principle violated: batch processor must differ from the batch approver",
+                    "FOUR_EYES_VIOLATION");
         }
 
         List<HibahDistributionItem> items = hibahDistributionItemRepository.findByBatchIdOrderByIdAsc(batchId);
@@ -267,7 +287,9 @@ public class HibahDistributionService {
         batch.setProcessedBy(processedBy);
         batch.setTotalJournalEntries(journalEntries);
         batch.setJournalBatchRef(batch.getBatchRef());
-        batch.setShariahBoardNotified(true);
+        // Send Shariah board notification and set flag based on actual delivery success
+        boolean notified = notifyShariahBoard(batch);
+        batch.setShariahBoardNotified(notified);
         hibahDistributionBatchRepository.save(batch);
 
         HibahPatternAnalysis analysis = analyzeHibahPatterns(batch.getTenantId());
@@ -421,6 +443,31 @@ public class HibahDistributionService {
                 .build();
     }
 
+    private boolean notifyShariahBoard(HibahDistributionBatch batch) {
+        try {
+            String subject = "Hibah Distribution Batch Completed - " + batch.getBatchRef();
+            String body = "Hibah distribution batch " + batch.getBatchRef()
+                    + " has been processed. Total amount: " + batch.getTotalDistributionAmount()
+                    + ", accounts: " + batch.getAccountCount()
+                    + ", average rate: " + batch.getAverageHibahRate()
+                    + ", distribution date: " + batch.getDistributionDate();
+            notificationService.sendDirect(
+                    NotificationChannel.EMAIL,
+                    "shariah-board@cbs.internal",
+                    "Shariah Supervisory Board",
+                    subject,
+                    body,
+                    null,
+                    "HIBAH_DISTRIBUTION"
+            );
+            log.info("Shariah board notification sent for batch: {}", batch.getBatchRef());
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to notify Shariah board for batch: {}", batch.getBatchRef(), e);
+            return false;
+        }
+    }
+
     private HibahDistributionBatch getBatch(Long batchId) {
         return hibahDistributionBatchRepository.findById(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("HibahDistributionBatch", "id", batchId));
@@ -541,6 +588,28 @@ public class HibahDistributionService {
                     .exclusionReason(reason)
                     .build());
         }
+
+        // For FLAT_AMOUNT method with a total budget, apply rounding residual to the last pending item
+        if (request.getDistributionMethod() == WadiahDomainEnums.HibahDistributionMethod.FLAT_AMOUNT
+                && request.getTotalDistributionAmount() != null
+                && request.getTotalDistributionAmount().compareTo(BigDecimal.ZERO) > 0
+                && (request.getFlatAmount() == null || request.getFlatAmount().compareTo(BigDecimal.ZERO) <= 0)) {
+            BigDecimal totalAllocated = items.stream()
+                    .filter(item -> item.getStatus() == WadiahDomainEnums.HibahItemStatus.PENDING)
+                    .map(HibahDistributionItem::getHibahAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal residual = request.getTotalDistributionAmount().subtract(totalAllocated);
+            if (residual.abs().compareTo(BigDecimal.ONE) < 0 && residual.compareTo(BigDecimal.ZERO) != 0) {
+                for (int i = items.size() - 1; i >= 0; i--) {
+                    if (items.get(i).getStatus() == WadiahDomainEnums.HibahItemStatus.PENDING) {
+                        HibahDistributionItem lastItem = items.get(i);
+                        lastItem.setHibahAmount(lastItem.getHibahAmount().add(residual).setScale(2, RoundingMode.HALF_UP));
+                        break;
+                    }
+                }
+            }
+        }
+
         return items;
     }
 

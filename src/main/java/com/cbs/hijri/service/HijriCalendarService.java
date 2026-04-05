@@ -129,8 +129,17 @@ public class HijriCalendarService {
 
     public LocalDate getNextIslamicBusinessDay(LocalDate from) {
         LocalDate current = from;
+        int maxIterations = 30;
+        int iterations = 0;
         while (!isIslamicBusinessDay(current)) {
             current = current.plusDays(1);
+            iterations++;
+            if (iterations >= maxIterations) {
+                throw new BusinessException(
+                        "Unable to find an Islamic business day within " + maxIterations
+                                + " days from " + from + ". Check holiday configuration.",
+                        "NO_BUSINESS_DAY_FOUND");
+            }
         }
         return current;
     }

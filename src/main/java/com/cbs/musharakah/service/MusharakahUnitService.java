@@ -79,6 +79,11 @@ public class MusharakahUnitService {
                                                 BigDecimal paymentAmount,
                                                 String paymentTransactionRef) {
         MusharakahContract contract = getContract(contractId);
+        if (contract.getStatus() != MusharakahDomainEnums.ContractStatus.ACTIVE
+                && contract.getStatus() != MusharakahDomainEnums.ContractStatus.RENTAL_ARREARS
+                && contract.getStatus() != MusharakahDomainEnums.ContractStatus.BUYOUT_ARREARS) {
+            throw new BusinessException("Unit transfers are only allowed on active Musharakah contracts", "INVALID_CONTRACT_STATUS");
+        }
         // Use optimistic locking to prevent concurrent unit transfers on the same ownership record
         MusharakahOwnershipUnit ownership = ownershipUnitRepository.findByContractIdWithLock(contractId)
                 .orElseGet(() -> initialiseUnits(contractId));
@@ -95,6 +100,10 @@ public class MusharakahUnitService {
 
         BigDecimal pricePerUnit = resolvePricePerUnit(contract, ownership);
         BigDecimal totalTransferPrice = MusharakahSupport.money(requestedUnits.multiply(pricePerUnit));
+        if (paymentAmount != null && MusharakahSupport.money(paymentAmount).compareTo(totalTransferPrice) < 0) {
+            throw new BusinessException("Payment amount " + MusharakahSupport.money(paymentAmount).toPlainString()
+                    + " is less than total transfer price " + totalTransferPrice.toPlainString(), "INSUFFICIENT_PAYMENT_AMOUNT");
+        }
         BigDecimal effectivePayment = paymentAmount != null ? MusharakahSupport.money(paymentAmount) : totalTransferPrice;
         BigDecimal bookValue = MusharakahSupport.money(requestedUnits.multiply(ownership.getUnitValueAtInception()));
         BigDecimal gain = totalTransferPrice.compareTo(bookValue) > 0
@@ -198,12 +207,23 @@ public class MusharakahUnitService {
     }
 
     public void processScheduledTransfers(LocalDate asOfDate) {
-        List<MusharakahUnitTransfer> overdueTransfers = unitTransferRepository.findByStatusInAndTransferDateBefore(
+        List<MusharakahUnitTransfer> scheduledTransfers = unitTransferRepository.findByStatusInAndTransferDateBefore(
                         List.of(MusharakahDomainEnums.InstallmentStatus.SCHEDULED, MusharakahDomainEnums.InstallmentStatus.DUE),
                         asOfDate.plusDays(1));
-        overdueTransfers.forEach(transfer -> transfer.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE));
-        if (!overdueTransfers.isEmpty()) {
-            unitTransferRepository.saveAll(overdueTransfers);
+        for (MusharakahUnitTransfer scheduled : scheduledTransfers) {
+            try {
+                transferUnits(
+                        scheduled.getContractId(),
+                        scheduled.getUnitsTransferred(),
+                        scheduled.getTransferDate(),
+                        scheduled.getPaymentAmount(),
+                        scheduled.getPaymentTransactionRef());
+                scheduled.setStatus(MusharakahDomainEnums.InstallmentStatus.PAID);
+                scheduled.setPaidDate(asOfDate);
+            } catch (BusinessException e) {
+                scheduled.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE);
+            }
+            unitTransferRepository.save(scheduled);
         }
     }
 
@@ -220,12 +240,17 @@ public class MusharakahUnitService {
         ownership.setLastUnitValueUpdateDate(LocalDate.now());
         ownership.setBankShareValue(MusharakahSupport.money(ownership.getBankUnits().multiply(currentUnitValue)));
         ownership.setCustomerShareValue(MusharakahSupport.money(ownership.getCustomerUnits().multiply(currentUnitValue)));
+        ownership.setLastAppraiser(appraiser);
+        ownership.setLastValuationRef("FV-" + contractId + "-" + LocalDate.now());
         ownershipUnitRepository.save(ownership);
 
         contract.setAssetCurrentMarketValue(MusharakahSupport.money(currentMarketValue));
         contract.setAssetLastValuationDate(LocalDate.now());
         contract.setUnitValue(currentUnitValue);
         contractRepository.save(contract);
+
+        // Trigger rental recalculation after fair value update
+        rentalService.recalculateRemainingRentals(contractId);
     }
 
     @Transactional(readOnly = true)

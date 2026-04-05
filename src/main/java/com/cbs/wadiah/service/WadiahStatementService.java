@@ -38,7 +38,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -58,9 +57,6 @@ public class WadiahStatementService {
     private final WadiahAccountService wadiahAccountService;
     private final IslamicProductTemplateRepository islamicProductTemplateRepository;
     private final ObjectMapper objectMapper;
-
-    private final Map<String, WadiahStatement> statementStore = new ConcurrentHashMap<>();
-    private final Map<Long, List<String>> statementIndexByAccount = new ConcurrentHashMap<>();
 
     public WadiahStatement generateWadiahStatement(Long accountId, LocalDate fromDate, LocalDate toDate, String language) {
         WadiahAccount wadiahAccount = getWadiahAccount(accountId);
@@ -169,8 +165,6 @@ public class WadiahStatementService {
                 .generatedDateHijri(formatHijri(LocalDate.now()))
                 .build();
 
-        statementStore.put(statementRef, statement);
-        statementIndexByAccount.computeIfAbsent(accountId, ignored -> new ArrayList<>()).add(0, statementRef);
         persistStatementRecord(statementRef, accountId, start, end, statement);
         log.info("Wadiah statement generated: accountId={}, statementRef={}, language={}",
                 accountId, statementRef, preferredLanguage);
@@ -180,13 +174,6 @@ public class WadiahStatementService {
     @Transactional(readOnly = true)
     public List<WadiahStatement> listGeneratedStatements(Long accountId) {
         getWadiahAccount(accountId);
-        List<WadiahStatement> cached = statementIndexByAccount.getOrDefault(accountId, List.of()).stream()
-                .map(statementStore::get)
-                .filter(java.util.Objects::nonNull)
-                .toList();
-        if (!cached.isEmpty()) {
-            return cached;
-        }
         return wadiahStatementRecordRepository.findByAccountIdOrderByCreatedAtDesc(accountId).stream()
                 .map(record -> deserializeStatement(record.getStatementData()))
                 .filter(java.util.Objects::nonNull)
@@ -195,10 +182,6 @@ public class WadiahStatementService {
 
     @Transactional(readOnly = true)
     public WadiahStatement getGeneratedStatement(String statementRef) {
-        WadiahStatement statement = statementStore.get(statementRef);
-        if (statement != null) {
-            return statement;
-        }
         return wadiahStatementRecordRepository.findByStatementRef(statementRef)
                 .map(record -> deserializeStatement(record.getStatementData()))
                 .orElseThrow(() -> new ResourceNotFoundException("WadiahStatement", "statementRef", statementRef));

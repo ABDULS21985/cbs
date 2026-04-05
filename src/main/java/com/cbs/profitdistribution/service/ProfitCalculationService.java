@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -47,7 +48,7 @@ public class ProfitCalculationService {
     private final PoolWeightageRecordRepository weightageRepo;
     private final CurrentActorProvider actorProvider;
 
-    private static final AtomicLong CALC_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final AtomicLong CALC_SEQ = new AtomicLong(0);
 
     // ── Pool Profit Calculation ────────────────────────────────────────
 
@@ -126,7 +127,7 @@ public class ProfitCalculationService {
         // 7. Create and persist calculation record
         String calcRef = "PPC-" + pool.getPoolCode() + "-"
                 + periodFrom.toString().replace("-", "") + "-"
-                + String.format("%04d", CALC_SEQ.incrementAndGet());
+                + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
         PoolProfitCalculation calc = PoolProfitCalculation.builder()
                 .poolId(poolId)

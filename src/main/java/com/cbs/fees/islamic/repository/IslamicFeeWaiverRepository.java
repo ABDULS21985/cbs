@@ -26,9 +26,7 @@ public interface IslamicFeeWaiverRepository extends JpaRepository<IslamicFeeWaiv
             select w
             from IslamicFeeWaiver w
             where w.feeConfigId = :feeConfigId
-              and w.feeChargeLogId is null
               and w.status = 'APPLIED'
-              and w.journalRef is null
               and (:accountId is null or w.accountId = :accountId)
               and (:contractId is null or w.contractId = :contractId)
               and (:customerId is null or w.customerId = :customerId)

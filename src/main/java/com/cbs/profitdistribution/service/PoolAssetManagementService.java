@@ -351,6 +351,18 @@ public class PoolAssetManagementService {
     public PoolExpenseRecordResponse recordExpense(Long poolId, RecordPoolExpenseRequest request) {
         InvestmentPool pool = findActivePool(poolId);
 
+        // Validate that expenseDate falls within the specified period
+        if (request.getExpenseDate() != null && request.getPeriodFrom() != null && request.getPeriodTo() != null) {
+            if (request.getExpenseDate().isBefore(request.getPeriodFrom())
+                    || request.getExpenseDate().isAfter(request.getPeriodTo())) {
+                throw new BusinessException(
+                        "Expense date (" + request.getExpenseDate()
+                                + ") must fall within the period " + request.getPeriodFrom()
+                                + " to " + request.getPeriodTo(),
+                        "EXPENSE_DATE_OUT_OF_PERIOD");
+            }
+        }
+
         ExpenseType expenseType = ExpenseType.valueOf(request.getExpenseType());
         ExpenseAllocationMethod allocationMethod = request.getAllocationMethod() != null
                 ? ExpenseAllocationMethod.valueOf(request.getAllocationMethod())

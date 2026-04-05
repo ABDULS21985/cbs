@@ -193,9 +193,24 @@ public class IslamicChartOfAccountsService {
 
         AaoifiBalanceSheet.OwnersEquitySection equity = AaoifiBalanceSheet.OwnersEquitySection.builder().build();
         BigDecimal ownersEquity = sumCategory(islamicAccounts, balances, IslamicAccountCategory.OWNERS_EQUITY);
+        // Use GL sub-category or aaoifiLineItem instead of brittle string matching on account name
         BigDecimal paidUpCapital = islamicAccounts.stream()
                 .filter(account -> account.getIslamicAccountCategory() == IslamicAccountCategory.OWNERS_EQUITY)
-                .filter(account -> account.getGlName() != null && account.getGlName().toLowerCase().contains("capital"))
+                .filter(account -> {
+                    // Prefer structured metadata over name-based matching
+                    if (account.getAaoifiLineItem() != null
+                            && account.getAaoifiLineItem().toUpperCase().contains("PAID_UP_CAPITAL")) {
+                        return true;
+                    }
+                    if (account.getGlSubCategory() != null
+                            && account.getGlSubCategory().toUpperCase().contains("PAID_UP_CAPITAL")) {
+                        return true;
+                    }
+                    // Fallback to name matching only if no structured metadata available
+                    return account.getGlName() != null
+                            && account.getGlName().toLowerCase().contains("capital")
+                            && (account.getAaoifiLineItem() == null && account.getGlSubCategory() == null);
+                })
                 .map(account -> signedPresentationAmount(account, balances.getOrDefault(account.getGlCode(), ZERO)))
                 .reduce(ZERO, BigDecimal::add);
         equity.setPaidUpCapital(paidUpCapital);

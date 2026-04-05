@@ -68,6 +68,7 @@ public class LatePenaltyService {
     private final MusharakahBuyoutInstallmentRepository musharakahBuyoutInstallmentRepository;
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
+    private final com.cbs.gl.islamic.service.IslamicGLMetadataService islamicGLMetadataService;
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
 
@@ -356,7 +357,8 @@ public class LatePenaltyService {
                 TransactionChannel.SYSTEM,
                 record.getContractRef() + "-LATE-REV",
                 List.of(accountPostingService.balanceLeg(
-                        "2300-000-001",
+                        islamicGLMetadataService.resolveAccountByCategory(
+                                com.cbs.gl.entity.IslamicAccountCategory.CHARITY_FUND, account.getCurrencyCode()),
                         AccountPostingService.EntrySide.DEBIT,
                         record.getPenaltyAmount(),
                         account.getCurrencyCode(),

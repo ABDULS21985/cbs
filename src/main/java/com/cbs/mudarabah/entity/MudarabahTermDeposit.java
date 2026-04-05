@@ -150,6 +150,9 @@ public class MudarabahTermDeposit extends AuditableEntity {
     @Column(name = "lien_amount", precision = 18, scale = 2)
     private BigDecimal lienAmount;
 
+    @Column(name = "external_reference", length = 100, unique = true)
+    private String externalReference;
+
     @Column(name = "tenant_id")
     private Long tenantId;
 }

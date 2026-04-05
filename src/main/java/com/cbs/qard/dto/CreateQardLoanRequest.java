@@ -41,4 +41,6 @@ public class CreateQardLoanRequest {
     private String adminFeeJustification;
     private QardDomainEnums.Purpose purpose;
     private String purposeDescription;
+    private String createdBy;
+    private String approvedBy;
 }

@@ -10,6 +10,8 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -61,4 +63,20 @@ public class MurabahaContractResponse {
     private Long investmentPoolId;
     private Long poolAssetAssignmentId;
     private Long settlementAccountId;
+    private String currencyCode;
+    private Integer gracePeriodDays;
+    private BigDecimal latePenaltyRate;
+    private MurabahaDomainEnums.LatePenaltyMethod latePenaltyMethod;
+    private Boolean takafulRequired;
+    private String takafulPolicyRef;
+    private Boolean collateralRequired;
+    private String collateralDescription;
+    private BigDecimal collateralValue;
+    private BigDecimal impairmentProvisionBalance;
+    private LocalDate lastProfitRecognitionDate;
+    private Long islamicProductTemplateId;
+    private String supplierName;
+    private String assetSerialNumber;
+    private List<Map<String, Object>> ownershipSequence;
+    private Boolean earlySettlementAllowed;
 }

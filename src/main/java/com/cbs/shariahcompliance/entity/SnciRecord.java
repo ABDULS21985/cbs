@@ -128,6 +128,9 @@ public class SnciRecord extends AuditableEntity {
     @Column(name = "dispute_resolved_at")
     private LocalDateTime disputeResolvedAt;
 
+    @Column(name = "dispute_resolution", length = 2000)
+    private String disputeResolution;
+
     @Column(name = "alert_id")
     private Long alertId;
 

@@ -84,6 +84,11 @@ public class AssetMurabahaService {
 
     public AssetMurabahaPurchase issuePurchaseOrder(Long purchaseId, PurchaseOrderDetailsRequest details) {
         AssetMurabahaPurchase purchase = getPurchase(purchaseId);
+        if (purchase.getPurchaseStatus() != MurabahaDomainEnums.AssetPurchaseStatus.QUOTE_RECEIVED
+                && purchase.getOverallStatus() != MurabahaDomainEnums.AssetPurchaseOverallStatus.QUOTE_PHASE) {
+            throw new BusinessException("Purchase order can only be issued when status is QUOTE_RECEIVED. Current: "
+                    + purchase.getPurchaseStatus(), "INVALID_PURCHASE_STATE");
+        }
         purchase.setPurchaseOrderRef(details.getPurchaseOrderRef());
         purchase.setPurchaseOrderDate(details.getPurchaseOrderDate());
         purchase.setPurchaseStatus(MurabahaDomainEnums.AssetPurchaseStatus.PO_ISSUED);
@@ -127,11 +132,17 @@ public class AssetMurabahaService {
 
     public AssetMurabahaPurchase recordDelivery(Long purchaseId, DeliveryDetailsRequest details) {
         AssetMurabahaPurchase purchase = getPurchase(purchaseId);
+        if (purchase.getPurchaseStatus() != MurabahaDomainEnums.AssetPurchaseStatus.PAYMENT_MADE
+                && purchase.getPurchaseStatus() != MurabahaDomainEnums.AssetPurchaseStatus.INVOICE_RECEIVED) {
+            throw new BusinessException("Delivery can only be recorded when status is PAYMENT_MADE or INVOICE_RECEIVED. Current: "
+                    + purchase.getPurchaseStatus(), "INVALID_PURCHASE_STATE");
+        }
         purchase.setPurchaseStatus(MurabahaDomainEnums.AssetPurchaseStatus.DELIVERED);
         purchase.setOverallStatus(MurabahaDomainEnums.AssetPurchaseOverallStatus.BANK_OWNS_ASSET);
         purchase.setPossessionLocation(details.getDeliveryLocation());
         purchase.setAssetInspectionDate(details.getDeliveryDate());
         purchase.setAssetInspectionNotes("Delivery reference: " + details.getDeliveryReference());
+        purchase.setAssetInspected(Boolean.TRUE);
         return purchaseRepository.save(purchase);
     }
 
@@ -139,6 +150,13 @@ public class AssetMurabahaService {
         AssetMurabahaPurchase purchase = getPurchase(purchaseId);
         if (evidence.getInsurancePolicyRef() == null || evidence.getInsurancePolicyRef().isBlank()) {
             throw new BusinessException("Insurance policy is mandatory for bank-owned assets. Provide insurance details.", "INSURANCE_REQUIRED");
+        }
+        // Temporal validation: ownershipDate must be after paymentToSupplierDate
+        if (purchase.getPaymentToSupplierDate() != null && evidence.getOwnershipDate() != null
+                && evidence.getOwnershipDate().isBefore(purchase.getPaymentToSupplierDate())) {
+            throw new BusinessException("Ownership date " + evidence.getOwnershipDate()
+                    + " must not be before payment to supplier date " + purchase.getPaymentToSupplierDate(),
+                    "INVALID_OWNERSHIP_DATE_SEQUENCE");
         }
         validatePossessionEvidence(purchase.getAssetCategory(), evidence.getEvidenceType());
 
@@ -166,6 +184,12 @@ public class AssetMurabahaService {
 
     public AssetMurabahaPurchase verifyOwnership(Long purchaseId, String verifiedBy) {
         AssetMurabahaPurchase purchase = getPurchase(purchaseId);
+        // Four-eyes check: verifier must be different from the person who recorded possession
+        if (verifiedBy != null && purchase.getCreatedBy() != null
+                && verifiedBy.equalsIgnoreCase(purchase.getCreatedBy())) {
+            throw new BusinessException("Ownership verifier must be different from the person who initiated the purchase (four-eyes principle)",
+                    "FOUR_EYES_REQUIRED");
+        }
         List<String> missingItems = buildOwnershipChecklistFailures(purchase);
         if (!missingItems.isEmpty()) {
             throw new BusinessException("Ownership verification failed: " + String.join(", ", missingItems),
@@ -206,6 +230,19 @@ public class AssetMurabahaService {
         purchase.setCustomerAcknowledgmentDate(details.getCustomerAcknowledgmentDate());
         purchase.setCustomerAcknowledgmentRef(details.getCustomerAcknowledgmentRef());
         purchase.setOverallStatus(MurabahaDomainEnums.AssetPurchaseOverallStatus.TRANSFERRED_TO_CUSTOMER);
+
+        // Post GL entry for asset transfer to customer
+        postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                .contractTypeCode("MURABAHA")
+                .txnType(IslamicTransactionType.ASSET_TRANSFER)
+                .accountId(contract.getAccountId())
+                .amount(purchase.getPurchasePrice() != null ? purchase.getPurchasePrice() : contract.getCostPrice())
+                .valueDate(details.getTransferDate())
+                .reference(purchase.getPurchaseRef() + "-TRANSFER")
+                .narration("Asset transfer to customer for Murabaha contract " + contract.getContractRef())
+                .additionalContext(Map.of("currencyCode", contract.getCurrencyCode()))
+                .build());
+
         return purchaseRepository.save(purchase);
     }
 
@@ -216,6 +253,20 @@ public class AssetMurabahaService {
                 + "Damage report on " + report.getIncidentDate() + ": " + report.getDescription());
         if (Boolean.TRUE.equals(report.getTotalLoss())) {
             purchase.setOverallStatus(MurabahaDomainEnums.AssetPurchaseOverallStatus.FAILED);
+
+            // Post GL reversal for the asset acquisition
+            if (purchase.getPurchasePrice() != null && purchase.getPurchasePrice().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                        .contractTypeCode("MURABAHA")
+                        .txnType(IslamicTransactionType.CONTRACT_CANCELLATION)
+                        .amount(purchase.getPurchasePrice())
+                        .valueDate(report.getIncidentDate())
+                        .reference(purchase.getPurchaseRef() + "-LOSS-REV")
+                        .narration("GL reversal for total loss of asset: " + report.getDescription())
+                        .additionalContext(Map.of("currencyCode", contract.getCurrencyCode()))
+                        .build());
+            }
+
             contract.setStatus(MurabahaDomainEnums.ContractStatus.CANCELLED);
             contract.appendOwnershipEvent(Map.of(
                     "event", "ASSET_TOTAL_LOSS",

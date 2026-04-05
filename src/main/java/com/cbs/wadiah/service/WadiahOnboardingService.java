@@ -172,6 +172,11 @@ public class WadiahOnboardingService {
         putIfNotNull(features, "sweepTargetAccountId", request.getSweepTargetAccountId());
         putIfNotNull(features, "sweepThreshold", request.getSweepThreshold());
         putIfNotNull(features, "initialDeposit", request.getInitialDeposit());
+        // Validate sweep target account exists and is a Mudarabah account
+        if (Boolean.TRUE.equals(request.getSweepToInvestment()) && request.getSweepTargetAccountId() != null) {
+            wadiahAccountService.validateSweepTargetAccount(
+                    Long.parseLong(String.valueOf(request.getSweepTargetAccountId())));
+        }
         application.setRequestedFeatures(features);
         application.setStatus(WadiahDomainEnums.ApplicationStatus.COMPLIANCE_CHECK);
         application.setCurrentStep(6);
@@ -233,14 +238,28 @@ public class WadiahOnboardingService {
             throw new BusinessException("Four-eyes principle violated", "FOUR_EYES_VIOLATION");
         }
         Map<String, Object> features = application.getRequestedFeatures();
+        // Resolve wadiahType from application features, falling back to product-based resolution, then default
+        WadiahDomainEnums.WadiahType resolvedWadiahType = WadiahDomainEnums.WadiahType.YAD_DHAMANAH;
+        if (features != null && features.get("wadiahType") != null) {
+            try {
+                resolvedWadiahType = WadiahDomainEnums.WadiahType.valueOf(String.valueOf(features.get("wadiahType")));
+            } catch (IllegalArgumentException ignored) {
+                // keep default
+            }
+        }
+        // Resolve hibahEligible from application features, defaulting to true
+        boolean resolvedHibahEligible = true;
+        if (features != null && features.get("hibahEligible") != null) {
+            resolvedHibahEligible = Boolean.parseBoolean(String.valueOf(features.get("hibahEligible")));
+        }
         WadiahAccountResponse opened = wadiahAccountService.openWadiahAccount(OpenWadiahAccountRequest.builder()
                 .customerId(application.getCustomerId())
                 .productCode(application.getProductCode())
                 .currencyCode(application.getCurrencyCode())
                 .openingBalance(toBigDecimal(features.get("initialDeposit")))
                 .branchCode(application.getBranchCode())
-                .wadiahType(resolveWadiahType(application.getProductTemplateId()))
-                .hibahEligible(true)
+                .wadiahType(resolvedWadiahType)
+                .hibahEligible(resolvedHibahEligible)
                 .hibahDisclosureSigned(true)
                 .hibahDisclosureDate(LocalDate.now())
                 .chequeBookEnabled(Boolean.TRUE.equals(features.get("chequeBook")))
@@ -320,8 +339,17 @@ public class WadiahOnboardingService {
     }
 
     public void expireStaleApplications() {
-        List<WadiahOnboardingApplication> stale = applicationRepository.findByStatusAndExpiresAtBefore(
-                WadiahDomainEnums.ApplicationStatus.PENDING_APPROVAL, LocalDateTime.now());
+        List<WadiahDomainEnums.ApplicationStatus> expirableStatuses = List.of(
+                WadiahDomainEnums.ApplicationStatus.INITIATED,
+                WadiahDomainEnums.ApplicationStatus.KYC_VERIFICATION,
+                WadiahDomainEnums.ApplicationStatus.PRODUCT_SELECTION,
+                WadiahDomainEnums.ApplicationStatus.SHARIAH_DISCLOSURE,
+                WadiahDomainEnums.ApplicationStatus.DOCUMENT_SIGNING,
+                WadiahDomainEnums.ApplicationStatus.COMPLIANCE_CHECK,
+                WadiahDomainEnums.ApplicationStatus.PENDING_APPROVAL
+        );
+        List<WadiahOnboardingApplication> stale = applicationRepository.findByStatusInAndExpiresAtBefore(
+                expirableStatuses, LocalDateTime.now());
         for (WadiahOnboardingApplication application : stale) {
             application.setStatus(WadiahDomainEnums.ApplicationStatus.EXPIRED);
             application.setCompletedAt(LocalDateTime.now());
@@ -369,6 +397,24 @@ public class WadiahOnboardingService {
         if (value != null) {
             map.put(key, value);
         }
+    }
+
+    private WadiahDomainEnums.WadiahType resolveWadiahType(Long productTemplateId) {
+        if (productTemplateId != null) {
+            String wadiahTypeParam = islamicProductParameterRepository
+                    .findByProductTemplateIdAndParameterNameIgnoreCase(productTemplateId, "wadiahType")
+                    .map(IslamicProductParameter::getParameterValue)
+                    .orElse(null);
+            if (wadiahTypeParam != null) {
+                try {
+                    return WadiahDomainEnums.WadiahType.valueOf(wadiahTypeParam.trim().toUpperCase());
+                } catch (IllegalArgumentException ignored) {
+                    log.warn("Invalid wadiahType parameter '{}' on product template {}. Defaulting to YAD_DHAMANAH.",
+                            wadiahTypeParam, productTemplateId);
+                }
+            }
+        }
+        return WadiahDomainEnums.WadiahType.YAD_DHAMANAH;
     }
 
     private String resolveLanguage(WadiahOnboardingApplication application) {

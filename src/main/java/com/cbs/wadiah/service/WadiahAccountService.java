@@ -119,7 +119,7 @@ public class WadiahAccountService {
                 .contractTypeCode("WADIAH")
                 .principalGuaranteed(request.getWadiahType() == WadiahDomainEnums.WadiahType.YAD_DHAMANAH)
                 .profitContractuallyPromised(false)
-                .hibahEligible(request.isHibahEligible())
+                .hibahEligible(request.getWadiahType() == WadiahDomainEnums.WadiahType.YAD_AMANAH ? false : request.isHibahEligible())
                 .hibahDisclosureSigned(request.isHibahDisclosureSigned())
                 .hibahDisclosureDate(request.getHibahDisclosureDate() != null ? request.getHibahDisclosureDate() : LocalDate.now())
                 .minimumBalance(defaultBigDecimal(request.getMinimumBalance()))
@@ -247,8 +247,7 @@ public class WadiahAccountService {
             throw new BusinessException("Yad Amanah withdrawals cannot exceed the safeguarded balance",
                     "YAD_AMANAH_LIMIT");
         }
-        if (wadiahAccount.getWadiahType() == WadiahDomainEnums.WadiahType.YAD_DHAMANAH
-                && wadiahAccount.getMinimumBalance() != null
+        if (wadiahAccount.getMinimumBalance() != null
                 && wadiahAccount.getMinimumBalance().compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal balanceAfterWithdrawal = account.getBookBalance().subtract(request.getAmount());
             if (balanceAfterWithdrawal.compareTo(wadiahAccount.getMinimumBalance()) < 0) {
@@ -372,6 +371,14 @@ public class WadiahAccountService {
                 .balancesByCurrency(balancesByCurrency)
                 .accountsByProduct(accountsByProduct)
                 .build();
+    }
+
+    /**
+     * Validates that the given account ID refers to an existing Mudarabah investment account,
+     * suitable as a sweep target.
+     */
+    public void validateSweepTargetAccount(Long targetInvestmentAccountId) {
+        validateSweepTarget(targetInvestmentAccountId);
     }
 
     private WadiahAccount findWadiahAccount(Long accountId) {

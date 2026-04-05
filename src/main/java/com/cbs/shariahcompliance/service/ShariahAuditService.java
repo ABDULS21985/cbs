@@ -98,6 +98,13 @@ public class ShariahAuditService {
                     "AUDIT_INVALID_STATUS_FOR_START");
         }
 
+        // Validate that team members are assigned before starting
+        if (audit.getAuditTeamMembers() == null || audit.getAuditTeamMembers().isEmpty()) {
+            throw new BusinessException(
+                    "Audit " + audit.getAuditRef() + " cannot be started — no audit team members assigned",
+                    "AUDIT_NO_TEAM_MEMBERS");
+        }
+
         audit.setStatus(ShariahAuditStatus.IN_PROGRESS);
         audit.setAuditStartDate(LocalDate.now());
         ShariahAudit saved = auditRepository.save(audit);

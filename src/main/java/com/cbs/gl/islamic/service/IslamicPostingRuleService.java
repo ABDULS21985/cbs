@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.expression.MapAccessor;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -474,8 +474,11 @@ public class IslamicPostingRuleService {
     }
 
     private Object evaluateExpression(String expression, Map<String, Object> evaluationContext) {
-        StandardEvaluationContext context = new StandardEvaluationContext(evaluationContext);
-        context.addPropertyAccessor(new MapAccessor());
+        // Use SimpleEvaluationContext to restrict SpEL to read-only property access (sandboxed)
+        SimpleEvaluationContext context = SimpleEvaluationContext
+                .forPropertyAccessors(new MapAccessor())
+                .withRootObject(evaluationContext)
+                .build();
         return expressionParser.parseExpression(expression).getValue(context);
     }
 

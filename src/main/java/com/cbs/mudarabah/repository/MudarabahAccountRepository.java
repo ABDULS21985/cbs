@@ -45,4 +45,23 @@ public interface MudarabahAccountRepository extends JpaRepository<MudarabahAccou
 
     @Query("SELECT DISTINCT m.investmentPoolId FROM MudarabahAccount m WHERE m.investmentPoolId IS NOT NULL")
     List<Long> findDistinctActivePoolIds();
+
+    long countByAccountSubType(MudarabahAccountSubType subType);
+
+    @Query("SELECT COALESCE(SUM(a.bookBalance), 0) FROM MudarabahAccount m JOIN m.account a WHERE m.accountSubType = :subType")
+    BigDecimal sumBalanceBySubType(@Param("subType") MudarabahAccountSubType subType);
+
+    @Query("SELECT COALESCE(AVG(m.profitSharingRatioCustomer), 0) FROM MudarabahAccount m")
+    BigDecimal averagePsrCustomer();
+
+    @Query(value = "SELECT COALESCE(SUM(wr.daily_product), 0) FROM cbs.pool_weightage_record wr " +
+            "WHERE wr.pool_id = :poolId AND wr.account_id = :accountId " +
+            "AND wr.record_date BETWEEN :periodStart AND :periodEnd", nativeQuery = true)
+    BigDecimal sumDailyProductsForAccount(@Param("poolId") Long poolId, @Param("accountId") Long accountId,
+                                           @Param("periodStart") LocalDate periodStart, @Param("periodEnd") LocalDate periodEnd);
+
+    @Query(value = "SELECT COALESCE(SUM(wr.daily_product), 0) FROM cbs.pool_weightage_record wr " +
+            "WHERE wr.pool_id = :poolId AND wr.record_date BETWEEN :periodStart AND :periodEnd", nativeQuery = true)
+    BigDecimal sumDailyProductsForPool(@Param("poolId") Long poolId,
+                                        @Param("periodStart") LocalDate periodStart, @Param("periodEnd") LocalDate periodEnd);
 }

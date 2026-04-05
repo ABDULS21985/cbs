@@ -2,6 +2,9 @@ package com.cbs.musharakah.service;
 
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.gl.islamic.dto.IslamicPostingRequest;
+import com.cbs.gl.islamic.entity.IslamicTransactionType;
+import com.cbs.gl.islamic.service.IslamicPostingRuleService;
 import com.cbs.hijri.service.HijriCalendarService;
 import com.cbs.musharakah.dto.MusharakahRequests;
 import com.cbs.musharakah.dto.MusharakahResponses;
@@ -34,6 +37,7 @@ public class MusharakahBuyoutService {
     private final MusharakahUnitService unitService;
     private final MusharakahRentalService rentalService;
     private final HijriCalendarService hijriCalendarService;
+    private final IslamicPostingRuleService postingRuleService;
 
     public List<MusharakahBuyoutInstallment> generateBuyoutSchedule(Long contractId) {
         MusharakahContract contract = getContract(contractId);
@@ -42,7 +46,10 @@ public class MusharakahBuyoutService {
 
         List<MusharakahBuyoutInstallment> existing = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId);
         if (!existing.isEmpty()) {
-            installmentRepository.deleteAll(existing);
+            List<MusharakahBuyoutInstallment> deletable = existing.stream()
+                    .filter(i -> i.getStatus() != MusharakahDomainEnums.InstallmentStatus.PAID)
+                    .toList();
+            installmentRepository.deleteAll(deletable);
         }
 
         LocalDate firstPaymentDate = contract.getFirstPaymentDate() != null ? contract.getFirstPaymentDate() : LocalDate.now().plusMonths(1);
@@ -115,6 +122,12 @@ public class MusharakahBuyoutService {
     }
 
     public MusharakahBuyoutInstallment processBuyoutPayment(Long contractId, MusharakahRequests.ProcessBuyoutPaymentRequest request) {
+        MusharakahContract contract = getContract(contractId);
+        if (contract.getStatus() != MusharakahDomainEnums.ContractStatus.ACTIVE
+                && contract.getStatus() != MusharakahDomainEnums.ContractStatus.RENTAL_ARREARS
+                && contract.getStatus() != MusharakahDomainEnums.ContractStatus.BUYOUT_ARREARS) {
+            throw new BusinessException("Buyout payments are only allowed on active Musharakah contracts", "INVALID_CONTRACT_STATUS");
+        }
         MusharakahBuyoutInstallment installment = getNextDueInstallment(contractId);
         if (installment == null) {
             throw new BusinessException("No buyout installments remain", "NO_BUYOUT_DUE");
@@ -223,6 +236,20 @@ public class MusharakahBuyoutService {
             remaining = MusharakahSupport.money(remaining.subtract(applyToBuyout));
         }
 
+        // If there is unapplied overpayment, credit it back to the customer account
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            MusharakahContract contract = getContract(contractId);
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("MUSHARAKAH")
+                    .txnType(IslamicTransactionType.FINANCING_REPAYMENT)
+                    .accountId(contract.getAccountId())
+                    .amount(remaining)
+                    .valueDate(request.getPaymentDate())
+                    .reference(request.getExternalRef() != null ? request.getExternalRef() + "-REFUND" : "MSH-REFUND-" + contractId)
+                    .narration("Musharakah combined payment overpayment refund")
+                    .build());
+        }
+
         return MusharakahResponses.CombinedPaymentResult.builder()
                 .contractId(contractId)
                 .rentalPaid(rentalPaid)
@@ -233,12 +260,20 @@ public class MusharakahBuyoutService {
     }
 
     public void processScheduledBuyouts(LocalDate asOfDate) {
-        List<MusharakahBuyoutInstallment> overdueInstallments = installmentRepository.findByStatusInAndDueDateBefore(
+        List<MusharakahBuyoutInstallment> dueInstallments = installmentRepository.findByStatusInAndDueDateBefore(
                         List.of(MusharakahDomainEnums.InstallmentStatus.SCHEDULED, MusharakahDomainEnums.InstallmentStatus.DUE),
                         asOfDate.plusDays(1));
-        overdueInstallments.forEach(installment -> installment.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE));
-        if (!overdueInstallments.isEmpty()) {
-            installmentRepository.saveAll(overdueInstallments);
+        for (MusharakahBuyoutInstallment installment : dueInstallments) {
+            try {
+                processBuyoutPayment(installment.getContractId(), MusharakahRequests.ProcessBuyoutPaymentRequest.builder()
+                        .paymentAmount(installment.getTotalBuyoutAmount())
+                        .paymentDate(asOfDate)
+                        .externalRef("AUTO-BUYOUT-" + installment.getContractId() + "-" + installment.getInstallmentNumber())
+                        .build());
+            } catch (BusinessException e) {
+                installment.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE);
+                installmentRepository.save(installment);
+            }
         }
     }
 

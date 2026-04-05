@@ -117,6 +117,19 @@ public class QardHasanService {
     }
 
     public QardHasanAccountResponse createQardLoan(CreateQardLoanRequest request) {
+        // Maker-checker: require approvedBy to differ from createdBy
+        if (!StringUtils.hasText(request.getApprovedBy())) {
+            throw new BusinessException(
+                    "Qard loan creation requires maker-checker approval. Provide approvedBy.",
+                    "APPROVAL_REQUIRED");
+        }
+        if (StringUtils.hasText(request.getCreatedBy())
+                && request.getCreatedBy().equalsIgnoreCase(request.getApprovedBy())) {
+            throw new BusinessException(
+                    "Four-eyes principle violated: Qard loan approver must differ from creator",
+                    "FOUR_EYES_VIOLATION");
+        }
+
         Customer customer = customerRepository.findById(request.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", request.getCustomerId()));
         ensureKycVerified(customer.getId());
@@ -316,6 +329,16 @@ public class QardHasanService {
         if (request.getSourceAccountId() != null) {
             Account sourceAccount = accountRepository.findById(request.getSourceAccountId())
                     .orElseThrow(() -> new ResourceNotFoundException("Account", "id", request.getSourceAccountId()));
+            // Validate source account ownership - must belong to the borrower
+            Long borrowerCustomerId = qardAccount.getAccount().getCustomer() != null
+                    ? qardAccount.getAccount().getCustomer().getId() : null;
+            Long sourceCustomerId = sourceAccount.getCustomer() != null
+                    ? sourceAccount.getCustomer().getId() : null;
+            if (borrowerCustomerId == null || !borrowerCustomerId.equals(sourceCustomerId)) {
+                throw new BusinessException(
+                        "Source account must belong to the Qard borrower or be an authorized repayment account",
+                        "UNAUTHORIZED_REPAYMENT_SOURCE");
+            }
             journal = accountPostingService.postDebitAgainstGl(
                     sourceAccount,
                     TransactionType.DEBIT,
@@ -375,6 +398,17 @@ public class QardHasanService {
         qardAccount.setQardStatus(QardDomainEnums.QardStatus.DEFAULTED);
         qardAccount.setPurposeDescription(appendReason(qardAccount.getPurposeDescription(), "Default reason", reason));
         qardHasanAccountRepository.save(qardAccount);
+
+        // Update pending and partial repayment schedule rows to OVERDUE status
+        List<QardRepaymentSchedule> scheduleRows = qardRepaymentScheduleRepository
+                .findByQardAccountIdOrderByInstallmentNumberAsc(qardAccount.getId());
+        for (QardRepaymentSchedule row : scheduleRows) {
+            if (row.getStatus() == QardDomainEnums.ScheduleStatus.PENDING
+                    || row.getStatus() == QardDomainEnums.ScheduleStatus.PARTIAL) {
+                row.setStatus(QardDomainEnums.ScheduleStatus.OVERDUE);
+            }
+        }
+        qardRepaymentScheduleRepository.saveAll(scheduleRows);
     }
 
     public void writeOffQard(Long accountId, String approvedBy, String reason) {
@@ -382,6 +416,12 @@ public class QardHasanService {
         if (qardAccount.getQardType() != QardDomainEnums.QardType.LENDING_QARD) {
             throw new BusinessException("Write-off is only available for lending Qard accounts",
                     "INVALID_QARD_OPERATION");
+        }
+        // Four-eyes check: write-off approver must differ from loan creator
+        String loanCreator = qardAccount.getCreatedBy();
+        if (StringUtils.hasText(loanCreator) && loanCreator.equalsIgnoreCase(approvedBy)) {
+            throw new BusinessException("Four-eyes principle violated: write-off approver must differ from the loan creator",
+                    "FOUR_EYES_VIOLATION");
         }
         BigDecimal outstanding = defaultAmount(qardAccount.getOutstandingPrincipal());
         if (outstanding.compareTo(BigDecimal.ZERO) <= 0) {
@@ -459,14 +499,26 @@ public class QardHasanService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
     public List<QardHasanAccountResponse> getOverdueQardLoans() {
-        List<Long> overdueAccountIds = qardRepaymentScheduleRepository
-                .findByStatusAndDueDateBefore(QardDomainEnums.ScheduleStatus.PENDING, LocalDate.now())
-                .stream()
+        List<QardRepaymentSchedule> overdueRows = qardRepaymentScheduleRepository
+                .findByStatusAndDueDateBefore(QardDomainEnums.ScheduleStatus.PENDING, LocalDate.now());
+        List<Long> overdueAccountIds = overdueRows.stream()
                 .map(QardRepaymentSchedule::getQardAccountId)
                 .distinct()
                 .toList();
+
+        // Update missedInstallments counter for each overdue account
+        for (Long qardAccountId : overdueAccountIds) {
+            QardHasanAccount qardAccount = qardHasanAccountRepository.findById(qardAccountId).orElse(null);
+            if (qardAccount != null) {
+                int missed = (int) overdueRows.stream()
+                        .filter(row -> row.getQardAccountId().equals(qardAccountId))
+                        .count();
+                qardAccount.setMissedInstallments(missed);
+                qardHasanAccountRepository.save(qardAccount);
+            }
+        }
+
         return overdueAccountIds.stream()
                 .map(id -> qardHasanAccountRepository.findById(id)
                         .orElseThrow(() -> new ResourceNotFoundException("QardHasanAccount", "id", id)))
@@ -596,6 +648,23 @@ public class QardHasanService {
     private List<QardRepaymentSchedule> buildRepaymentSchedule(QardHasanAccount qardLoan) {
         List<QardRepaymentSchedule> rows = new ArrayList<>();
         BigDecimal outstanding = defaultAmount(qardLoan.getPrincipalAmount()).setScale(2, RoundingMode.HALF_UP);
+
+        // LUMP_SUM frequency: single installment at maturity
+        if (qardLoan.getRepaymentFrequency() == QardDomainEnums.RepaymentFrequency.LUMP_SUM) {
+            LocalDate maturity = qardLoan.getMaturityDate() != null
+                    ? qardLoan.getMaturityDate()
+                    : (qardLoan.getDisbursementDate() != null ? qardLoan.getDisbursementDate().plusMonths(1) : LocalDate.now().plusMonths(1));
+            rows.add(QardRepaymentSchedule.builder()
+                    .qardAccountId(qardLoan.getId())
+                    .installmentNumber(1)
+                    .dueDate(maturity)
+                    .principalAmount(outstanding)
+                    .paidAmount(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                    .status(QardDomainEnums.ScheduleStatus.PENDING)
+                    .build());
+            return rows;
+        }
+
         BigDecimal installment = defaultAmount(qardLoan.getInstallmentAmount()).setScale(2, RoundingMode.HALF_UP);
         LocalDate dueDate = qardLoan.getDisbursementDate() != null ? qardLoan.getDisbursementDate() : LocalDate.now();
 
@@ -762,6 +831,7 @@ public class QardHasanService {
                 .qardStatus(qardAccount.getQardStatus().name())
                 .lastRepaymentDate(qardAccount.getLastRepaymentDate())
                 .lastRepaymentAmount(qardAccount.getLastRepaymentAmount())
+                .settlementAccountId(qardAccount.getSettlementAccountId())
                 .accountBalance(account.getBookBalance())
                 .build();
     }

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -34,4 +35,15 @@ public interface IslamicStrSarRepository extends JpaRepository<IslamicStrSar, Lo
     long countByStatus(SarStatus status);
 
     long countByJurisdiction(SarJurisdiction jurisdiction);
+
+    @Query("SELECT COUNT(s) FROM IslamicStrSar s WHERE s.createdAt >= :from AND s.createdAt < :to")
+    long countByCreatedAtBetween(@Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("SELECT COUNT(s) FROM IslamicStrSar s WHERE s.status = :status AND s.createdAt >= :from AND s.createdAt < :to")
+    long countByStatusAndCreatedAtBetween(@Param("status") SarStatus status,
+                                          @Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("SELECT COUNT(s) FROM IslamicStrSar s WHERE s.jurisdiction = :jurisdiction AND s.createdAt >= :from AND s.createdAt < :to")
+    long countByJurisdictionAndCreatedAtBetween(@Param("jurisdiction") SarJurisdiction jurisdiction,
+                                                @Param("from") Instant from, @Param("to") Instant to);
 }

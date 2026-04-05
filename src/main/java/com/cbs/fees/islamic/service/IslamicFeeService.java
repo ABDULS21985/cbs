@@ -329,8 +329,8 @@ public class IslamicFeeService {
         String contractType = islamicProductTemplateRepository.findByProductCodeIgnoreCase(productCode)
                 .map(template -> template.getContractType().getCode())
                 .orElse(null);
-        return configRepository.findAll().stream()
-                .filter(cfg -> "ACTIVE".equals(cfg.getStatus()))
+        // Use targeted query by status instead of loading all fee configurations
+        return configRepository.findByStatusOrderByFeeCodeAsc("ACTIVE").stream()
                 .filter(cfg -> cfg.isEffectiveOn(LocalDate.now()))
                 .filter(cfg -> IslamicFeeSupport.matchesAny(productCode, cfg.getApplicableProductCodes()))
                 .filter(cfg -> IslamicFeeSupport.matchesAny(contractType, cfg.getApplicableContractTypes()))
@@ -659,13 +659,15 @@ public class IslamicFeeService {
     }
 
     private void validateFeeRequest(IslamicFeeRequests.SaveIslamicFeeRequest request, boolean create) {
+        String classification = IslamicFeeSupport.normalize(request.getShariahClassification());
+        String feeType = IslamicFeeSupport.normalize(request.getFeeType());
         if (create && !StringUtils.hasText(request.getFeeCode())) {
             throw new BusinessException("Fee code is required", "ISLAMIC_FEE_CODE_REQUIRED");
         }
-        if (!StringUtils.hasText(request.getShariahClassification())) {
+        if (!StringUtils.hasText(classification)) {
             throw new BusinessException("Shariah classification is required", "ISLAMIC_FEE_CLASSIFICATION_REQUIRED");
         }
-        if (!StringUtils.hasText(request.getFeeType())) {
+        if (!StringUtils.hasText(feeType)) {
             throw new BusinessException("Fee type is required", "ISLAMIC_FEE_TYPE_REQUIRED");
         }
         if (!StringUtils.hasText(request.getFeeCategory())) {
@@ -678,24 +680,24 @@ public class IslamicFeeService {
                 && request.getEffectiveTo().isBefore(request.getEffectiveFrom())) {
             throw new BusinessException("Effective to date cannot be before effective from date", "ISLAMIC_FEE_EFFECTIVE_DATES_INVALID");
         }
-        if ("PENALTY_CHARITY".equals(request.getShariahClassification())) {
+        if ("PENALTY_CHARITY".equals(classification)) {
             if (!Boolean.TRUE.equals(request.getCharityRouted())) {
                 throw new BusinessException("Penalty charity fees must be charity-routed", "ISLAMIC_FEE_CHARITY_REQUIRED");
             }
             if (!StringUtils.hasText(request.getCharityGlAccount())) {
                 throw new BusinessException("Penalty charity fee requires charity GL account", "ISLAMIC_FEE_CHARITY_GL_REQUIRED");
             }
-        } else if (!"PROHIBITED".equals(request.getShariahClassification()) && !StringUtils.hasText(request.getIncomeGlAccount())) {
+        } else if (!"PROHIBITED".equals(classification) && !StringUtils.hasText(request.getIncomeGlAccount())) {
             throw new BusinessException("Active Islamic fees require an income GL account", "ISLAMIC_FEE_INCOME_GL_REQUIRED");
         }
-        if (IslamicFeeSupport.UJRAH_CLASSIFICATIONS.contains(IslamicFeeSupport.normalize(request.getShariahClassification()))
+        if (IslamicFeeSupport.UJRAH_CLASSIFICATIONS.contains(classification)
                 && !StringUtils.hasText(request.getShariahJustification())) {
             throw new BusinessException("Ujrah fees require Shariah justification", "ISLAMIC_FEE_JUSTIFICATION_REQUIRED");
         }
         if (Boolean.FALSE.equals(request.getCompoundingProhibited())) {
             throw new BusinessException("Compounding must be prohibited for Islamic fees", "ISLAMIC_FEE_COMPOUNDING_PROHIBITED");
         }
-        switch (IslamicFeeSupport.normalize(request.getFeeType())) {
+        switch (feeType) {
             case "FLAT" -> {
                 if (request.getFlatAmount() == null || request.getFlatAmount().compareTo(BigDecimal.ZERO) <= 0) {
                     throw new BusinessException("Flat fee requires a positive flat amount", "ISLAMIC_FEE_FLAT_AMOUNT_REQUIRED");

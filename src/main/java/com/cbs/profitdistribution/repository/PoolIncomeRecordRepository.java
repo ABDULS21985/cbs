@@ -66,4 +66,13 @@ public interface PoolIncomeRecordRepository extends JpaRepository<PoolIncomeReco
             @Param("poolId") Long poolId,
             @Param("from") LocalDate from,
             @Param("to") LocalDate to);
+
+    @Query("""
+            SELECT i FROM PoolIncomeRecord i
+            WHERE i.incomeDate BETWEEN :from AND :to
+            AND i.isCharityIncome = false
+            """)
+    List<PoolIncomeRecord> findNonCharityByIncomeDateBetween(
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to);
 }

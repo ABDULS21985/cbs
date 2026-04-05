@@ -55,4 +55,6 @@ public class CreateMudarabahTermDepositRequest {
 
     @AssertTrue(message = "Loss disclosure must be accepted")
     private boolean lossDisclosureAccepted;
+
+    private String externalReference;
 }

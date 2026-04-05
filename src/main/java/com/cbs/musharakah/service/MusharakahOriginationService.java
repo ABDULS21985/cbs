@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@lombok.extern.slf4j.Slf4j
 public class MusharakahOriginationService {
 
     private static final AtomicLong APPLICATION_SEQUENCE = new AtomicLong(System.currentTimeMillis() % 100000);
@@ -204,6 +205,13 @@ public class MusharakahOriginationService {
 
     public MusharakahResponses.MusharakahApplicationResponse rejectApplication(Long applicationId, String reason) {
         MusharakahApplication application = getApplicationEntity(applicationId);
+        if (application.getStatus() == MusharakahDomainEnums.ApplicationStatus.CONVERTED
+                || application.getStatus() == MusharakahDomainEnums.ApplicationStatus.CANCELLED
+                || application.getStatus() == MusharakahDomainEnums.ApplicationStatus.REJECTED) {
+            throw new BusinessException(
+                    "Cannot reject application in terminal status: " + application.getStatus(),
+                    "INVALID_APPLICATION_STATUS");
+        }
         application.setStatus(MusharakahDomainEnums.ApplicationStatus.REJECTED);
         application.setRejectionReason(reason);
         return MusharakahSupport.toApplicationResponse(applicationRepository.save(application), List.of());
@@ -375,7 +383,9 @@ public class MusharakahOriginationService {
                     return MusharakahSupport.rate(new BigDecimal(String.valueOf(candidate)));
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("Failed to resolve rental rate from decision table '{}' for amount={}, tenor={}: {}",
+                    RENTAL_RATE_DECISION_TABLE, amount, tenorMonths, e.getMessage());
         }
         return new BigDecimal("5.5000");
     }

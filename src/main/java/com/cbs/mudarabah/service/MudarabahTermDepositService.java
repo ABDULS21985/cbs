@@ -4,6 +4,7 @@ import com.cbs.account.entity.Account;
 import com.cbs.account.entity.AccountStatus;
 import com.cbs.account.entity.AccountType;
 import com.cbs.account.entity.TransactionChannel;
+import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
@@ -351,11 +352,16 @@ public class MudarabahTermDepositService {
                         .lossDisclosureAccepted(true)
                         .build();
                 // Only mark as ROLLED_OVER after successful rollover creation
-                createTermDeposit(rolloverRequest);
-                log.info("Rollover TD created for original {}", td.getDepositRef());
-                td.setStatus(MudarabahTDStatus.ROLLED_OVER);
-                td.setRolloverCount(td.getRolloverCount() + 1);
-                log.info("TD {} rolled over (principal only)", td.getDepositRef());
+                try {
+                    createTermDeposit(rolloverRequest);
+                    log.info("Rollover TD created for original {}", td.getDepositRef());
+                    td.setStatus(MudarabahTDStatus.ROLLED_OVER);
+                    td.setRolloverCount(td.getRolloverCount() + 1);
+                    log.info("TD {} rolled over (principal only)", td.getDepositRef());
+                } catch (Exception e) {
+                    log.error("Failed to create rollover TD for {}, marking as MATURED: {}", td.getDepositRef(), e.getMessage());
+                    td.setStatus(MudarabahTDStatus.MATURED);
+                }
             }
             case ROLLOVER_PRINCIPAL_AND_PROFIT -> {
                 // Create new TD for rollover with principal + profit BEFORE marking original as rolled over
@@ -376,11 +382,16 @@ public class MudarabahTermDepositService {
                         .lossDisclosureAccepted(true)
                         .build();
                 // Only mark as ROLLED_OVER after successful rollover creation
-                createTermDeposit(rolloverPPRequest);
-                log.info("Rollover TD (principal + profit) created for original {}", td.getDepositRef());
-                td.setStatus(MudarabahTDStatus.ROLLED_OVER);
-                td.setRolloverCount(td.getRolloverCount() + 1);
-                log.info("TD {} rolled over (principal + profit)", td.getDepositRef());
+                try {
+                    createTermDeposit(rolloverPPRequest);
+                    log.info("Rollover TD (principal + profit) created for original {}", td.getDepositRef());
+                    td.setStatus(MudarabahTDStatus.ROLLED_OVER);
+                    td.setRolloverCount(td.getRolloverCount() + 1);
+                    log.info("TD {} rolled over (principal + profit)", td.getDepositRef());
+                } catch (Exception e) {
+                    log.error("Failed to create rollover TD (P+P) for {}, marking as MATURED: {}", td.getDepositRef(), e.getMessage());
+                    td.setStatus(MudarabahTDStatus.MATURED);
+                }
             }
             case PAY_TO_ACCOUNT, PAY_TO_WADIAH -> {
                 if (td.getPayoutAccountId() != null) {
@@ -401,10 +412,33 @@ public class MudarabahTermDepositService {
             }
         }
 
+        // Post bank's share of profit at maturity to GL
+        BigDecimal bankProfitShare = BigDecimal.ZERO;
+        try {
+            List<PoolProfitAllocation> bankAllocations = allocationRepository
+                    .findByAccountIdAndPeriodFromGreaterThanEqualAndPeriodToLessThanEqual(
+                            tdAccount.getId(), td.getStartDate(), LocalDate.now());
+            bankProfitShare = bankAllocations.stream()
+                    .filter(a -> a.getDistributionStatus() == ProfitAllocationStatus.DISTRIBUTED)
+                    .map(PoolProfitAllocation::getBankProfitShare)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        } catch (Exception e) {
+            log.warn("Could not load bank profit allocations for TD {}: {}", td.getDepositRef(), e.getMessage());
+        }
+        if (bankProfitShare.compareTo(BigDecimal.ZERO) > 0) {
+            accountPostingService.postDebitAgainstGl(tdAccount, TransactionType.DEBIT,
+                    bankProfitShare,
+                    "Bank Mudarib share at TD maturity " + td.getDepositRef(),
+                    TransactionChannel.SYSTEM, td.getDepositRef() + ":BANK-PROFIT",
+                    BANK_MUDARIB_INCOME_GL, "MUDARABAH", td.getDepositRef());
+            log.info("Bank profit share posted for TD {}: {}", td.getDepositRef(), bankProfitShare);
+        }
+
         termDepositRepository.save(td);
         log.info("TD maturity processed: ref={}, status={}", td.getDepositRef(), td.getStatus());
-        log.info("AUDIT: Term deposit matured - ref={}, instruction={}, profit={}, actor={}",
-                td.getDepositRef(), instruction, profit, "SYSTEM");
+        log.info("AUDIT: Term deposit matured - ref={}, instruction={}, profit={}, bankProfit={}, actor={}",
+                td.getDepositRef(), instruction, profit, bankProfitShare, "SYSTEM");
         return toResponse(td);
     }
 

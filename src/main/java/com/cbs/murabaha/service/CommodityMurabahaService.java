@@ -24,6 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -46,6 +48,9 @@ public class CommodityMurabahaService {
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
 
+    @Value("${murabaha.commodity.strict-same-day-buy-sell:true}")
+    private boolean strictSameDayBuySell;
+
     public CommodityMurabahaTrade initiateTrade(Long contractId) {
         MurabahaContract contract = getCommodityContract(contractId);
         tradeRepository.findByContractId(contractId).ifPresent(existing -> {
@@ -53,12 +58,19 @@ public class CommodityMurabahaService {
                     "TRADE_ALREADY_EXISTS");
         });
 
+        if (contract.getCommodityType() == null || contract.getCommodityType().isBlank()) {
+            throw new BusinessException("Commodity type must be specified on the contract", "COMMODITY_TYPE_MISSING");
+        }
+        if (contract.getCommodityQuantity() == null || contract.getCommodityQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Commodity quantity must be specified and positive on the contract", "COMMODITY_QUANTITY_MISSING");
+        }
+
         CommodityMurabahaTrade trade = CommodityMurabahaTrade.builder()
                 .contractId(contractId)
                 .tradeRef(MurabahaSupport.nextReference("CMT", TRADE_SEQUENCE))
-                .commodityType(contract.getCommodityType() != null ? contract.getCommodityType() : "PALLADIUM")
+                .commodityType(contract.getCommodityType())
                 .commodityGrade("STANDARD")
-                .quantity(contract.getCommodityQuantity() != null ? contract.getCommodityQuantity() : BigDecimal.ONE)
+                .quantity(contract.getCommodityQuantity())
                 .unit(contract.getCommodityUnit() != null ? contract.getCommodityUnit() : "UNIT")
                 .marketReference("LME")
                 .purchaseStatus(MurabahaDomainEnums.CommodityPurchaseStatus.PENDING)
@@ -83,6 +95,10 @@ public class CommodityMurabahaService {
             throw new BusinessException("Purchase can only be executed on INITIATED trades. Current: " + trade.getOverallStatus(), "INVALID_TRADE_STATE");
         }
         MurabahaContract contract = getCommodityContract(trade.getContractId());
+
+        if (request.getQuantity() == null || request.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Commodity quantity must be positive", "INVALID_COMMODITY_QUANTITY");
+        }
 
         trade.setPurchaseBrokerName(request.getPurchaseBrokerName());
         trade.setPurchaseBrokerId(request.getPurchaseBrokerId());
@@ -113,6 +129,10 @@ public class CommodityMurabahaService {
 
     public CommodityMurabahaTrade confirmPurchase(Long tradeId, PurchaseConfirmationRequest confirmation) {
         CommodityMurabahaTrade trade = getTrade(tradeId);
+        if (trade.getOverallStatus() != MurabahaDomainEnums.CommodityTradeStatus.PURCHASE_IN_PROGRESS) {
+            throw new BusinessException("Purchase confirmation requires trade in PURCHASE_IN_PROGRESS status. Current: "
+                    + trade.getOverallStatus(), "INVALID_TRADE_STATE");
+        }
         trade.setPurchaseConfirmationRef(confirmation.getConfirmationRef());
         trade.setPurchaseConfirmationDate(confirmation.getConfirmationDate());
         trade.setPurchaseSettlementDate(confirmation.getSettlementDate());
@@ -151,6 +171,10 @@ public class CommodityMurabahaService {
         trade.setOverallStatus(MurabahaDomainEnums.CommodityTradeStatus.BANK_OWNS_COMMODITY);
         if (trade.getPurchaseDate() != null && trade.getBankOwnershipDate() != null
                 && trade.getBankOwnershipDate().equals(trade.getPurchaseDate())) {
+            if (strictSameDayBuySell) {
+                throw new BusinessException("Same-day buy-sell is not permitted under strict Shariah interpretation. "
+                        + "Minimum holding period of 1 day required.", "SHARIAH_SAME_DAY_BUY_SELL");
+            }
             log.warn("SHARIAH_WARNING: Commodity ownership recorded same day as purchase for trade {}. Minimum holding period not met.", trade.getTradeRef());
         }
         return tradeRepository.save(trade);
@@ -204,6 +228,20 @@ public class CommodityMurabahaService {
         trade.setSaleToCustConfirmationRef(contract.getContractRef() + "-SALE");
         trade.setOwnershipTransferSequenceValid(Boolean.TRUE);
         trade.setOverallStatus(MurabahaDomainEnums.CommodityTradeStatus.MURABAHA_SALE_EXECUTED);
+
+        // Post receivable establishment GL entry
+        postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                .contractTypeCode("MURABAHA")
+                .txnType(IslamicTransactionType.FINANCING_DISBURSEMENT)
+                .accountId(contract.getAccountId())
+                .amount(contract.getSellingPrice())
+                .principal(MurabahaSupport.money(contract.getCostPrice().subtract(MurabahaSupport.money(contract.getDownPayment()))))
+                .markup(contract.getMarkupAmount())
+                .valueDate(saleDate)
+                .reference(trade.getTradeRef() + "-SALE")
+                .additionalContext(Map.of("currencyCode", contract.getCurrencyCode()))
+                .build());
+
         tradeRepository.save(trade);
 
         contract.setSellingPriceLocked(Boolean.TRUE);

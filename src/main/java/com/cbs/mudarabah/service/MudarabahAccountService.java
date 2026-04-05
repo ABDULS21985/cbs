@@ -25,6 +25,7 @@ import com.cbs.mudarabah.entity.StatementFrequency;
 import com.cbs.mudarabah.entity.WeightageMethod;
 import com.cbs.mudarabah.repository.MudarabahAccountRepository;
 import com.cbs.gl.islamic.entity.InvestmentPool;
+import com.cbs.gl.islamic.entity.PoolStatus;
 import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.rulesengine.service.DecisionTableEvaluator;
@@ -146,7 +147,6 @@ public class MudarabahAccountService {
                 .lastActivityDate(LocalDate.now())
                 .preferredLanguage(PreferredLanguage.EN)
                 .statementFrequency(StatementFrequency.MONTHLY)
-                .poolJoinDate(LocalDate.now())
                 .rolloverCount(0)
                 .build();
 
@@ -208,6 +208,10 @@ public class MudarabahAccountService {
     }
 
     public MudarabahAccountResponse deposit(Long accountId, MudarabahDepositRequest request) {
+        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Deposit amount must be greater than zero", "INVALID_AMOUNT");
+        }
+
         MudarabahAccount ma = mudarabahAccountRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mudarabah account not found for accountId: " + accountId));
         Account account = ma.getAccount();
@@ -296,11 +300,11 @@ public class MudarabahAccountService {
         MudarabahAccount ma = mudarabahAccountRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mudarabah account not found"));
 
-        // Validate pool exists and is acceptable
+        // Validate pool exists and is active
         InvestmentPool pool = investmentPoolRepository.findById(poolId)
                 .orElseThrow(() -> new BusinessException("Investment pool not found: " + poolId, "POOL_NOT_FOUND"));
-        if ("CLOSED".equalsIgnoreCase(pool.getStatus())) {
-            throw new BusinessException("Cannot assign to closed pool: " + poolId, "POOL_CLOSED");
+        if (pool.getStatus() != PoolStatus.ACTIVE) {
+            throw new BusinessException("Cannot assign to pool with status " + pool.getStatus() + ": " + poolId, "POOL_NOT_ACTIVE");
         }
         String accountCurrency = ma.getAccount().getCurrencyCode();
         if (pool.getCurrencyCode() != null && !pool.getCurrencyCode().equals(accountCurrency)) {
@@ -322,8 +326,8 @@ public class MudarabahAccountService {
         // Validate new pool exists and is acceptable
         InvestmentPool newPool = investmentPoolRepository.findById(newPoolId)
                 .orElseThrow(() -> new BusinessException("Investment pool not found: " + newPoolId, "POOL_NOT_FOUND"));
-        if ("CLOSED".equalsIgnoreCase(newPool.getStatus())) {
-            throw new BusinessException("Cannot move to closed pool: " + newPoolId, "POOL_CLOSED");
+        if (newPool.getStatus() != PoolStatus.ACTIVE) {
+            throw new BusinessException("Cannot move to pool with status " + newPool.getStatus() + ": " + newPoolId, "POOL_NOT_ACTIVE");
         }
         String accountCurrency = ma.getAccount().getCurrencyCode();
         if (newPool.getCurrencyCode() != null && !newPool.getCurrencyCode().equals(accountCurrency)) {

@@ -123,6 +123,22 @@ public class WakalaDepositAccount extends AuditableEntity {
     @Column(name = "bank_negligence_liability")
     private boolean bankNegligenceLiability = true;
 
+    @Column(name = "bank_negligent")
+    @Builder.Default
+    private boolean bankNegligent = false;
+
+    @Column(name = "payout_account_id")
+    private Long payoutAccountId;
+
+    @Column(name = "matured_at")
+    private LocalDate maturedAt;
+
+    @Column(name = "early_withdrawn_at")
+    private LocalDate earlyWithdrawnAt;
+
+    @Column(name = "early_withdrawal_reason", columnDefinition = "TEXT")
+    private String earlyWithdrawalReason;
+
     @Column(name = "notice_period_days")
     private Integer noticePeriodDays;
 

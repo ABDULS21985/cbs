@@ -16,6 +16,7 @@ import com.cbs.ijarah.repository.IjarahContractRepository;
 import com.cbs.profitdistribution.dto.RecordPoolExpenseRequest;
 import com.cbs.profitdistribution.service.PoolAssetManagementService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional
 public class IjarahAssetService {
 
@@ -180,6 +182,12 @@ public class IjarahAssetService {
 
     @Transactional(readOnly = true)
     public List<IjarahAsset> getAssets(IjarahDomainEnums.AssetCategory category, IjarahDomainEnums.AssetStatus status) {
+        if (category != null && status != null) {
+            // Combined filter: filter by both category and status
+            return getAssetsByCategory(category).stream()
+                    .filter(asset -> asset.getStatus() == status)
+                    .toList();
+        }
         if (category != null) {
             return getAssetsByCategory(category);
         }
@@ -206,7 +214,16 @@ public class IjarahAssetService {
         if (nbv.compareTo(floor) <= 0) {
             return;
         }
-        BigDecimal depreciation = IjarahSupport.money(asset.getMonthlyDepreciation());
+        BigDecimal depreciation;
+        switch (asset.getDepreciationMethod() != null ? asset.getDepreciationMethod() : IjarahDomainEnums.DepreciationMethod.STRAIGHT_LINE) {
+            case DECLINING_BALANCE -> {
+                // Double declining balance: (2 / usefulLifeMonths) * NBV
+                int life = asset.getUsefulLifeMonths() != null && asset.getUsefulLifeMonths() > 0 ? asset.getUsefulLifeMonths() : 60;
+                BigDecimal rate = BigDecimal.valueOf(2).divide(BigDecimal.valueOf(life), 8, RoundingMode.HALF_UP);
+                depreciation = IjarahSupport.money(nbv.multiply(rate));
+            }
+            default -> depreciation = IjarahSupport.money(asset.getMonthlyDepreciation());
+        }
         if (nbv.subtract(depreciation).compareTo(floor) < 0) {
             depreciation = IjarahSupport.money(nbv.subtract(floor));
         }
@@ -294,19 +311,26 @@ public class IjarahAssetService {
 
     public void updateInsurance(Long assetId, IjarahRequests.InsuranceUpdateRequest request) {
         IjarahAsset asset = findAsset(assetId);
+
+        // Idempotency check: only post GL if this is a new premium or the premium amount changed
+        BigDecimal existingPremium = IjarahSupport.money(asset.getInsurancePremiumAnnual());
+        BigDecimal newPremium = IjarahSupport.money(request.getInsurancePremiumAnnual());
+        boolean premiumChanged = newPremium.compareTo(BigDecimal.ZERO) > 0
+                && newPremium.compareTo(existingPremium) != 0;
+
         asset.setInsured(request.isInsured());
         asset.setInsurancePolicyRef(request.getInsurancePolicyRef());
         asset.setInsuranceProvider(request.getInsuranceProvider());
         asset.setInsuranceCoverageAmount(IjarahSupport.money(request.getInsuranceCoverageAmount()));
-        asset.setInsurancePremiumAnnual(IjarahSupport.money(request.getInsurancePremiumAnnual()));
+        asset.setInsurancePremiumAnnual(newPremium);
         asset.setInsuranceExpiryDate(request.getInsuranceExpiryDate());
         assetRepository.save(asset);
 
-        if (request.getInsurancePremiumAnnual() != null && request.getInsurancePremiumAnnual().compareTo(BigDecimal.ZERO) > 0) {
+        if (premiumChanged) {
             postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
                     .contractTypeCode("IJARAH")
                     .txnType(IslamicTransactionType.FEE_CHARGE)
-                    .amount(IjarahSupport.money(request.getInsurancePremiumAnnual()))
+                    .amount(newPremium)
                     .valueDate(LocalDate.now())
                     .reference(asset.getAssetRef() + "-INS-" + LocalDate.now())
                     .additionalContext(Map.of("feeType", "IJARAH_INSURANCE"))
@@ -321,6 +345,16 @@ public class IjarahAssetService {
         asset.setValuationMethod(request.getValuationMethod());
         asset.setAppraiserName(request.getAppraiserName());
         assetRepository.save(asset);
+
+        // Trigger impairment warning if valuation falls below net book value
+        BigDecimal valuationAmount = IjarahSupport.money(request.getValuationAmount());
+        BigDecimal nbv = IjarahSupport.money(asset.getNetBookValue());
+        if (valuationAmount.compareTo(nbv) < 0) {
+            BigDecimal shortfall = nbv.subtract(valuationAmount);
+            log.warn("IMPAIRMENT REVIEW SUGGESTED: Asset {} (ref={}) valuation {} is below NBV {} by {}. "
+                            + "Consider posting impairment provision.",
+                    assetId, asset.getAssetRef(), valuationAmount, nbv, shortfall);
+        }
     }
 
     public void disposeAsset(Long assetId, IjarahRequests.AssetDisposalRequest request) {
@@ -355,6 +389,19 @@ public class IjarahAssetService {
         asset.setDisposalProceeds(proceeds);
         asset.setDisposalJournalRef(journal.getJournalNumber());
         assetRepository.save(asset);
+
+        // Cascade: update associated contract status when asset is disposed
+        if (asset.getIjarahContractId() != null) {
+            contractRepository.findById(asset.getIjarahContractId()).ifPresent(contract -> {
+                if (contract.getStatus() == IjarahDomainEnums.ContractStatus.ACTIVE
+                        || contract.getStatus() == IjarahDomainEnums.ContractStatus.RENTAL_ARREARS) {
+                    contract.setStatus(IjarahDomainEnums.ContractStatus.TERMINATED_EARLY);
+                    contract.setTerminatedAt(request.getDisposalDate());
+                    contract.setTerminationReason("Asset disposed: " + request.getDisposalMethod());
+                    contractRepository.save(contract);
+                }
+            });
+        }
     }
 
     @Transactional(readOnly = true)

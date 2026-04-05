@@ -3,6 +3,7 @@ package com.cbs.shariahcompliance.service;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.rulesengine.entity.BusinessRuleStatus;
 import com.cbs.rulesengine.service.BusinessRuleService;
 import com.cbs.shariahcompliance.dto.*;
 import com.cbs.shariahcompliance.entity.*;
@@ -15,8 +16,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.expression.ExpressionParser;
-import org.springframework.expression.SimpleEvaluationContext;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -324,10 +325,15 @@ public class ShariahScreeningService {
     }
 
     public void removeEntryFromList(String listCode, Long entryId, String reason) {
+        ShariahExclusionList list = listRepository.findByListCode(listCode)
+                .orElseThrow(() -> new ResourceNotFoundException("Exclusion list not found: " + listCode));
         ShariahExclusionListEntry entry = entryRepository.findById(entryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entry not found: " + entryId));
         entry.setStatus("REMOVED");
         entryRepository.save(entry);
+        list.setLastUpdatedAt(LocalDateTime.now());
+        list.setLastUpdatedBy(actorProvider.getCurrentActor());
+        listRepository.save(list);
     }
 
     @Transactional(readOnly = true)
@@ -429,11 +435,8 @@ public class ShariahScreeningService {
         ShariahComplianceAlert alert = getAlert(alertId);
         alert.setEscalatedTo(escalatedTo);
         alert.setEscalatedAt(LocalDateTime.now());
+        alert.setEscalationReason(reason);
         alert.setStatus(AlertStatus.ESCALATED);
-        if (StringUtils.hasText(reason)) {
-            String existingDesc = alert.getDescription() != null ? alert.getDescription() : "";
-            alert.setDescription(existingDesc + " [Escalation reason: " + reason + "]");
-        }
         alertRepository.save(alert);
         log.info("Alert {} escalated to {} — reason: {}", alertId, escalatedTo, reason);
     }
@@ -470,7 +473,7 @@ public class ShariahScreeningService {
                 .underReviewCount(underReview)
                 .resolvedCount(resolvedCompliant + resolvedNonCompliant + resolvedFP)
                 .escalatedCount(escalated)
-                .slaBreach(alertRepository.findOverdueAlerts().size())
+                .slaBreach(alertRepository.countOverdueAlerts())
                 .byType(byType)
                 .bySeverity(bySeverity)
                 .build();
@@ -519,7 +522,7 @@ public class ShariahScreeningService {
                     if (StringUtils.hasText(rule.getBusinessRuleCode())) {
                         try {
                             var ruleResponse = businessRuleService.getRuleByCode(rule.getBusinessRuleCode());
-                            if (ruleResponse != null && Boolean.TRUE.equals(ruleResponse.getIsActive())) {
+                            if (ruleResponse != null && ruleResponse.getStatus() == BusinessRuleStatus.ACTIVE) {
                                 // Rule exists and is active — considered triggered for screening purposes
                                 yield true;
                             }
@@ -528,17 +531,19 @@ public class ShariahScreeningService {
                                     rule.getRuleCode(), rule.getBusinessRuleCode(), e.getMessage());
                         }
                     }
-                    yield false;
+                    // Fail-closed: if business rule not found or evaluation failed, treat as triggered
+                    log.warn("BUSINESS_RULE_REF rule {} could not be resolved — failing closed.", rule.getRuleCode());
+                    yield true;
                 }
                 case COMPOSITE -> evaluateCompositeRule(rule, request);
                 default -> {
-                    log.warn("Unhandled rule type {} for rule {} — defaulting to pass", rule.getRuleType(), rule.getRuleCode());
-                    yield false;
+                    log.warn("Unhandled rule type {} for rule {} — defaulting to fail-closed", rule.getRuleType(), rule.getRuleCode());
+                    yield true;
                 }
             };
         } catch (Exception e) {
-            log.warn("Error evaluating rule {}: {}", rule.getRuleCode(), e.getMessage());
-            return false; // fail-open on error (configurable)
+            log.error("Error evaluating rule {} — failing closed for safety: {}", rule.getRuleCode(), e.getMessage());
+            return true; // fail-closed on error: treat evaluation failure as triggered (safe default)
         }
     }
 
@@ -601,7 +606,6 @@ public class ShariahScreeningService {
 
             SimpleEvaluationContext context = SimpleEvaluationContext
                     .forReadOnlyDataBinding()
-                    .withInstanceMethods()
                     .build();
             variables.forEach(context::setVariable);
 

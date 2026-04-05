@@ -3,6 +3,9 @@ package com.cbs.shariahcompliance.service;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.gl.islamic.dto.IslamicPostingRequest;
+import com.cbs.gl.islamic.entity.IslamicTransactionType;
+import com.cbs.gl.islamic.service.IslamicPostingRuleService;
 import com.cbs.shariahcompliance.dto.CreateSnciRecordRequest;
 import com.cbs.shariahcompliance.dto.SnciRecordResponse;
 import com.cbs.shariahcompliance.dto.SnciSearchCriteria;
@@ -52,6 +55,7 @@ public class SnciService {
     private final PoolIncomeRecordRepository poolIncomeRecordRepository;
     private final ShariahExclusionListEntryRepository exclusionListEntryRepository;
     private final ShariahExclusionListRepository exclusionListRepository;
+    private final IslamicPostingRuleService postingRuleService;
     private final CurrentActorProvider actorProvider;
 
     private static final AtomicLong SNCI_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
@@ -114,14 +118,10 @@ public class SnciService {
         log.info("Running automated SNCI detection for period {} to {}", fromDate, toDate);
         List<SnciRecordResponse> detectedRecords = new ArrayList<>();
 
-        // 1. Query all income records from pools for the period
+        // 1. Query income records from pools for the period using date-range query
         List<PoolIncomeRecord> allIncome = new ArrayList<>();
         try {
-            allIncome = poolIncomeRecordRepository.findAll().stream()
-                    .filter(r -> r.getIncomeDate() != null)
-                    .filter(r -> !r.getIncomeDate().isBefore(fromDate) && !r.getIncomeDate().isAfter(toDate))
-                    .filter(r -> !r.isCharityIncome()) // skip already-flagged charity income
-                    .toList();
+            allIncome = poolIncomeRecordRepository.findNonCharityByIncomeDateBetween(fromDate, toDate);
         } catch (Exception e) {
             log.warn("Could not load pool income records: {}", e.getMessage());
         }
@@ -156,6 +156,14 @@ public class SnciService {
             }
 
             if (flagged && income.getAmount() != null && income.getAmount().compareTo(BigDecimal.ZERO) > 0) {
+                // Deduplication: skip if SNCI record already exists for this income record
+                if (income.getJournalRef() != null && income.getAssetReferenceCode() != null
+                        && snciRepository.existsBySourceTransactionRefAndSourceContractRef(
+                                income.getJournalRef(), income.getAssetReferenceCode())) {
+                    log.debug("Skipping duplicate SNCI for income journalRef={}, assetRef={}",
+                            income.getJournalRef(), income.getAssetReferenceCode());
+                    continue;
+                }
                 try {
                     CreateSnciRecordRequest snciRequest = CreateSnciRecordRequest.builder()
                             .detectionMethod(DetectionMethod.AUTOMATED_MONITORING.name())
@@ -207,10 +215,25 @@ public class SnciService {
         record.setQuarantinedAt(LocalDateTime.now());
         record.setQuarantineGlAccount(SNCI_QUARANTINE_GL);
 
-        // In a full implementation, GL posting would be done here via IslamicPostingRuleService:
-        // DR source account (record.getSourceAccountCode())
-        // CR SNCI quarantine holding account (SNCI_QUARANTINE_GL)
-        // For now, record the quarantine without GL integration.
+        // GL posting: DR source account, CR SNCI quarantine holding account
+        try {
+            var journalEntry = postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .txnType(IslamicTransactionType.CHARITY_DISTRIBUTION)
+                    .contractTypeCode("SNCI_QUARANTINE")
+                    .amount(record.getAmount())
+                    .reference(record.getSnciRef())
+                    .narration("SNCI quarantine — " + record.getNonComplianceType()
+                            + " from " + (record.getSourceContractRef() != null ? record.getSourceContractRef() : "unknown"))
+                    .build());
+            if (journalEntry != null) {
+                record.setQuarantineJournalRef(journalEntry.getJournalNumber());
+            }
+        } catch (Exception e) {
+            log.error("GL posting failed for SNCI quarantine {}: {}", record.getSnciRef(), e.getMessage(), e);
+            throw new BusinessException(
+                    "GL posting failed for SNCI quarantine: " + e.getMessage(),
+                    "SNCI_GL_POSTING_FAILED");
+        }
 
         snciRepository.save(record);
 
@@ -221,29 +244,36 @@ public class SnciService {
                 actorProvider.getCurrentActor());
     }
 
-    public void batchQuarantine(List<Long> snciIds) {
-        List<String> errors = new ArrayList<>();
+    public Map<String, Object> batchQuarantine(List<Long> snciIds) {
+        List<Long> succeeded = new ArrayList<>();
+        Map<Long, String> failed = new HashMap<>();
 
         for (Long snciId : snciIds) {
             try {
                 quarantineIncome(snciId);
+                succeeded.add(snciId);
             } catch (Exception e) {
                 log.warn("Failed to quarantine SNCI record id={}: {}", snciId, e.getMessage());
-                errors.add("SNCI id=" + snciId + ": " + e.getMessage());
+                failed.put(snciId, e.getMessage());
             }
         }
 
-        if (!errors.isEmpty()) {
-            log.warn("Batch quarantine completed with {} error(s) out of {} records", errors.size(), snciIds.size());
-            if (errors.size() == snciIds.size()) {
-                throw new BusinessException(
-                        "Batch quarantine failed for all records: " + String.join("; ", errors),
-                        "SNCI_BATCH_QUARANTINE_FAILED");
-            }
+        if (!failed.isEmpty() && failed.size() == snciIds.size()) {
+            throw new BusinessException(
+                    "Batch quarantine failed for all records",
+                    "SNCI_BATCH_QUARANTINE_FAILED");
         }
 
         log.info("Batch quarantine completed: {} of {} records quarantined successfully",
-                snciIds.size() - errors.size(), snciIds.size());
+                succeeded.size(), snciIds.size());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("totalRequested", snciIds.size());
+        result.put("successCount", succeeded.size());
+        result.put("failureCount", failed.size());
+        result.put("succeededIds", succeeded);
+        result.put("failures", failed);
+        return result;
     }
 
     // ── Dispute ────────────────────────────────────────────────────────────────
@@ -290,6 +320,7 @@ public class SnciService {
 
         record.setDisputeResolvedBy(resolvedBy);
         record.setDisputeResolvedAt(LocalDateTime.now());
+        record.setDisputeResolution(resolution);
 
         if (isNonCompliant) {
             // Income confirmed as non-compliant — return to quarantine for purification

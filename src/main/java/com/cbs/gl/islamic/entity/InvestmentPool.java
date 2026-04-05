@@ -118,6 +118,9 @@ public class InvestmentPool {
     @Column(name = "gl_irr_account_code", length = 20)
     private String glIrrAccountCode;
 
+    @Column(name = "indicative_rate", precision = 8, scale = 4)
+    private BigDecimal indicativeRate;
+
     @Column(name = "tenant_id")
     private Long tenantId;
 

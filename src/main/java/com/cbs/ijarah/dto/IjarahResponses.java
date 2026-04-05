@@ -209,6 +209,14 @@ public final class IjarahResponses {
         private Instant approvedAt;
         private Long contractId;
         private List<String> warnings;
+        private String purpose;
+        private BigDecimal monthlyIncome;
+        private BigDecimal existingObligations;
+        private Long assignedOfficerId;
+        private Long branchId;
+        private String rejectionReason;
+        private Instant submittedAt;
+        private Instant expiresAt;
     }
 
     @Getter
@@ -262,6 +270,26 @@ public final class IjarahResponses {
         private Long investmentPoolId;
         private Long poolAssetAssignmentId;
         private String lastScreeningRef;
+        private LocalDate terminatedAt;
+        private String terminationReason;
+        private String variableRentalBenchmark;
+        private BigDecimal variableRentalMargin;
+        private BigDecimal rentalEscalationRate;
+        private BigDecimal bankReturnOnAsset;
+        private String assetSerialNumber;
+        private BigDecimal assetFairValueAtInception;
+        private String insuranceProvider;
+        private BigDecimal insuranceCoverageAmount;
+        private IjarahDomainEnums.InsuranceResponsibility insuranceResponsibility;
+        private IjarahDomainEnums.MajorMaintenanceResponsibility majorMaintenanceResponsibility;
+        private IjarahDomainEnums.MinorMaintenanceResponsibility minorMaintenanceResponsibility;
+        private Integer gracePeriodDays;
+        private Boolean latePenaltyApplicable;
+        private BigDecimal totalLatePenalties;
+        private BigDecimal totalCharityFromLatePenalties;
+        private Long islamicProductTemplateId;
+        private LocalDate lastMajorMaintenanceDate;
+        private LocalDate nextMajorMaintenanceDueDate;
     }
 
     @Getter

@@ -177,8 +177,33 @@ public class WakalaDepositService {
 
         // Handle negative gross profit (loss scenario)
         if (grossProfit.compareTo(BigDecimal.ZERO) < 0) {
-            log.warn("Negative gross profit {} for Wakala account {}. Loss absorbed by customer as Muwakkil.",
-                    grossProfit, accountId);
+            BigDecimal lossAmount = grossProfit.abs();
+            BigDecimal customerLoss = grossProfit;
+
+            // Bank negligence liability check: if bank (Wakeel) was negligent, bank bears the loss
+            if (w.isBankNegligenceLiability() && w.isBankNegligent()) {
+                log.warn("Bank negligence detected for Wakala account {}. Bank (Wakeel) bears the loss of {}.",
+                        accountId, lossAmount);
+                // Bank bears the loss - do not pass to customer
+                customerLoss = BigDecimal.ZERO;
+                // Post loss to bank's own account (Wakeel liability)
+                accountPostingService.postDebitAgainstGl(account, TransactionType.DEBIT,
+                        BigDecimal.ZERO, // no debit to customer
+                        "Wakala loss borne by bank due to negligence",
+                        TransactionChannel.SYSTEM, null,
+                        WAKALA_FEE_INCOME_GL, "WAKALA", w.getContractReference());
+            } else {
+                log.warn("Negative gross profit {} for Wakala account {}. Loss absorbed by customer as Muwakkil.",
+                        grossProfit, accountId);
+                // Debit the loss from customer account
+                if (lossAmount.compareTo(BigDecimal.ZERO) > 0) {
+                    accountPostingService.postDebitAgainstGl(account, TransactionType.DEBIT,
+                            lossAmount, "Wakala investment loss",
+                            TransactionChannel.SYSTEM, null,
+                            WAKALA_INVESTMENT_GL, "WAKALA", w.getContractReference());
+                }
+            }
+
             // In a loss scenario, the bank (Wakil) charges no fee
             w.setLastProfitDistributionDate(LocalDate.now());
             wakalaRepository.save(w);
@@ -188,7 +213,7 @@ public class WakalaDepositService {
                     .accountNumber(account.getAccountNumber())
                     .grossProfit(grossProfit)
                     .wakalahFee(BigDecimal.ZERO)
-                    .customerProfit(grossProfit) // negative = loss passed to customer
+                    .customerProfit(customerLoss) // negative = loss passed to customer, zero if bank bears it
                     .effectiveRate(BigDecimal.ZERO)
                     .periodFrom(periodFrom)
                     .periodTo(periodTo)
@@ -279,6 +304,117 @@ public class WakalaDepositService {
                 .periodFrom(periodFrom)
                 .periodTo(periodTo)
                 .build();
+    }
+
+    public WakalaDepositResponse withdraw(Long accountId, BigDecimal amount, String narration, String externalRef) {
+        WakalaDepositAccount w = wakalaRepository.findByAccountId(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wakala account not found"));
+        Account account = w.getAccount();
+
+        if (!account.isActive()) {
+            throw new BusinessException("Account is not active", "ACCOUNT_NOT_ACTIVE");
+        }
+        if (!account.hasSufficientBalance(amount)) {
+            throw new BusinessException("Insufficient balance for withdrawal", "INSUFFICIENT_BALANCE");
+        }
+        if (w.getAccountSubType() == WakalaAccountSubType.TERM_WAKALA) {
+            throw new BusinessException("Cannot withdraw from term Wakala before maturity. Use processEarlyWithdrawal() instead.", "TERM_WAKALA_NO_WITHDRAW");
+        }
+
+        accountPostingService.postDebitAgainstGl(account, TransactionType.DEBIT,
+                amount,
+                narration != null ? narration : "Wakala withdrawal",
+                TransactionChannel.SYSTEM, externalRef,
+                CASH_GL, "WAKALA", w.getContractReference());
+
+        log.info("Wakala withdrawal: accountId={}, amount={}", accountId, amount);
+        return toResponse(w);
+    }
+
+    public WakalaDepositResponse processMaturity(Long accountId) {
+        WakalaDepositAccount w = wakalaRepository.findByAccountId(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wakala account not found"));
+        Account account = w.getAccount();
+
+        if (w.getAccountSubType() != WakalaAccountSubType.TERM_WAKALA) {
+            throw new BusinessException("Only term Wakala accounts have maturity processing", "NOT_TERM_WAKALA");
+        }
+        if (w.getMaturityDate() != null && w.getMaturityDate().isAfter(LocalDate.now())) {
+            throw new BusinessException("Wakala account has not reached maturity date: " + w.getMaturityDate(), "NOT_YET_MATURED");
+        }
+
+        BigDecimal totalBalance = account.getBookBalance();
+
+        // Transfer to payout account or hold based on maturity instruction
+        String instruction = w.getMaturityInstruction();
+        if ("PAY_TO_ACCOUNT".equals(instruction) && w.getPayoutAccountId() != null) {
+            Account payoutAccount = accountRepository.findById(w.getPayoutAccountId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Payout account not found"));
+            if (totalBalance.compareTo(BigDecimal.ZERO) > 0) {
+                accountPostingService.postTransfer(account, payoutAccount,
+                        totalBalance, totalBalance,
+                        "Wakala maturity payout " + w.getContractReference(),
+                        "Wakala maturity received " + w.getContractReference(),
+                        TransactionChannel.SYSTEM, w.getContractReference() + ":MAT",
+                        "WAKALA", w.getContractReference());
+            }
+            account.setStatus(AccountStatus.CLOSED);
+            accountRepository.save(account);
+        } else {
+            // Hold pending instruction
+            log.info("Wakala maturity: holding balance pending instruction for account {}", accountId);
+        }
+
+        w.setMaturedAt(LocalDate.now());
+        wakalaRepository.save(w);
+
+        log.info("Wakala maturity processed: accountId={}, balance={}, instruction={}", accountId, totalBalance, instruction);
+        return toResponse(w);
+    }
+
+    public WakalaDepositResponse processEarlyWithdrawal(Long accountId, String reason) {
+        WakalaDepositAccount w = wakalaRepository.findByAccountId(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Wakala account not found"));
+        Account account = w.getAccount();
+
+        if (!account.isActive()) {
+            throw new BusinessException("Account is not active", "ACCOUNT_NOT_ACTIVE");
+        }
+        if (!w.isEarlyWithdrawalAllowed()) {
+            throw new BusinessException("Early withdrawal is not allowed for this Wakala account", "EARLY_WITHDRAWAL_NOT_ALLOWED");
+        }
+
+        BigDecimal totalBalance = account.getBookBalance();
+        BigDecimal payoutAmount = totalBalance;
+
+        // For early withdrawal, customer may forfeit accrued profit
+        BigDecimal accruedFee = w.getFeeAccrued() != null ? w.getFeeAccrued() : BigDecimal.ZERO;
+        if (accruedFee.compareTo(BigDecimal.ZERO) > 0 && payoutAmount.compareTo(accruedFee) > 0) {
+            // Deduct any outstanding Wakala fees
+            payoutAmount = payoutAmount.subtract(accruedFee);
+            log.info("Early withdrawal: deducting accrued fee {} from Wakala account {}", accruedFee, accountId);
+        }
+
+        // Transfer to payout account
+        if (w.getPayoutAccountId() != null && payoutAmount.compareTo(BigDecimal.ZERO) > 0) {
+            Account payoutAccount = accountRepository.findById(w.getPayoutAccountId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Payout account not found"));
+            accountPostingService.postTransfer(account, payoutAccount,
+                    payoutAmount, payoutAmount,
+                    "Wakala early withdrawal " + w.getContractReference(),
+                    "Wakala early withdrawal received " + w.getContractReference(),
+                    TransactionChannel.SYSTEM, w.getContractReference() + ":EW",
+                    "WAKALA", w.getContractReference());
+        }
+
+        w.setEarlyWithdrawnAt(LocalDate.now());
+        w.setEarlyWithdrawalReason(reason);
+        account.setStatus(AccountStatus.CLOSED);
+        accountRepository.save(account);
+        wakalaRepository.save(w);
+
+        log.info("Wakala early withdrawal processed: accountId={}, amount={}, reason={}", accountId, payoutAmount, reason);
+        return toResponse(w);
     }
 
     private WakalaDepositResponse toResponse(WakalaDepositAccount w) {

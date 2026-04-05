@@ -84,9 +84,10 @@ public class MusharakahContractService {
 
     public MusharakahResponses.MusharakahContractResponse initiateAssetProcurement(Long contractId) {
         MusharakahContract contract = findContract(contractId);
-        if (contract.getStatus() != MusharakahDomainEnums.ContractStatus.DRAFT) {
+        if (contract.getStatus() != MusharakahDomainEnums.ContractStatus.DRAFT
+                && contract.getStatus() != MusharakahDomainEnums.ContractStatus.PENDING_EXECUTION) {
             throw new BusinessException(
-                    "Asset procurement can only be initiated for contracts in DRAFT status, current status: " + contract.getStatus(),
+                    "Asset procurement can only be initiated for contracts in DRAFT or PENDING_EXECUTION status, current status: " + contract.getStatus(),
                     "INVALID_CONTRACT_STATUS");
         }
         postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
@@ -218,23 +219,36 @@ public class MusharakahContractService {
     }
 
     public MusharakahResponses.MusharakahContractResponse processEarlyBuyout(Long contractId, BigDecimal buyoutAmount) {
+        MusharakahContract contract = findContract(contractId);
+
+        // Shariah screening before early buyout
+        var screening = shariahScreeningService.screenPreExecution(ShariahScreeningRequest.builder()
+                .transactionRef(contract.getContractRef() + "-EARLY-BUYOUT")
+                .transactionType("MUSHARAKAH_EARLY_BUYOUT")
+                .amount(MusharakahSupport.money(buyoutAmount))
+                .currencyCode(contract.getCurrencyCode())
+                .contractRef(contract.getContractRef())
+                .contractTypeCode("MUSHARAKAH")
+                .customerId(contract.getCustomerId())
+                .additionalContext(new LinkedHashMap<>() {{
+                    put("earlyBuyoutAllowed", contract.getEarlyBuyoutAllowed());
+                    put("earlyBuyoutPricingMethod", contract.getEarlyBuyoutPricingMethod().name());
+                }})
+                .build());
+        shariahScreeningService.ensureAllowed(screening);
+
         MusharakahResponses.EarlyBuyoutQuote quote = calculateEarlyBuyout(contractId, LocalDate.now());
         if (MusharakahSupport.money(buyoutAmount).compareTo(quote.getTotalAmount()) < 0) {
             throw new BusinessException("Early buyout amount is below the quoted settlement amount", "INSUFFICIENT_EARLY_BUYOUT");
         }
-        MusharakahContract contract = findContract(contractId);
         unitService.transferUnits(contractId, quote.getRemainingBankUnits(), LocalDate.now(), quote.getBuyoutAmount(), "EARLY-BUYOUT");
 
-        // Post separate GL entry for rental arrears portion if any
+        // Actually settle rental arrears through the rental payment service
         if (quote.getRentalArrears() != null && quote.getRentalArrears().compareTo(BigDecimal.ZERO) > 0) {
-            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
-                    .contractTypeCode("MUSHARAKAH")
-                    .txnType(IslamicTransactionType.RENTAL_PAYMENT)
-                    .accountId(contract.getAccountId())
-                    .amount(quote.getRentalArrears())
-                    .rental(quote.getRentalArrears())
-                    .valueDate(LocalDate.now())
-                    .reference(contract.getContractRef() + "-EARLY-BUYOUT-ARREARS")
+            rentalService.processRentalPayment(contractId, MusharakahRequests.ProcessRentalPaymentRequest.builder()
+                    .paymentAmount(quote.getRentalArrears())
+                    .paymentDate(LocalDate.now())
+                    .externalRef(contract.getContractRef() + "-EARLY-BUYOUT-ARREARS")
                     .narration("Musharakah early buyout - rental arrears settlement")
                     .build());
         }
@@ -284,6 +298,16 @@ public class MusharakahContractService {
             }
         }
         buyoutInstallmentRepository.saveAll(buyouts);
+
+        // Post final settlement GL entry
+        postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                .contractTypeCode("MUSHARAKAH")
+                .txnType(IslamicTransactionType.EARLY_SETTLEMENT)
+                .accountId(contract.getAccountId())
+                .amount(MusharakahSupport.money(contract.getBankCapitalContribution()))
+                .reference(contract.getContractRef() + "-DISSOLVE")
+                .narration("Musharakah partnership dissolution - " + reason)
+                .build());
 
         contract.setDissolvedAt(LocalDate.now());
         contract.setStatus(MusharakahDomainEnums.ContractStatus.CLOSED);

@@ -41,5 +41,6 @@ public class QardHasanAccountResponse {
     private String qardStatus;
     private LocalDate lastRepaymentDate;
     private BigDecimal lastRepaymentAmount;
+    private Long settlementAccountId;
     private BigDecimal accountBalance;
 }

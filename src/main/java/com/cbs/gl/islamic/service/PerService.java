@@ -247,7 +247,26 @@ public class PerService {
         }
         PerPolicy policy = getActivePolicy(poolId);
         BigDecimal balanceBefore = getPerBalance(poolId);
+
+        // Validate sufficient balance before release (prevents TOCTOU race condition)
+        if (balanceBefore.compareTo(scaleMoney(amount)) < 0) {
+            throw new BusinessException(
+                    "Insufficient PER balance for release: available=" + balanceBefore.toPlainString()
+                            + ", requested=" + scaleMoney(amount).toPlainString(),
+                    "INSUFFICIENT_PER_BALANCE");
+        }
+
         JournalEntryRef journalRef = postReserveJournal(poolId, amount, IslamicTransactionType.PER_RELEASE, periodTo, "PER release");
+
+        // Post-transaction balance verification to guard against concurrent modifications
+        BigDecimal balanceAfterRelease = balanceBefore.subtract(scaleMoney(amount));
+        if (balanceAfterRelease.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException(
+                    "PER balance would go negative after release. Concurrent modification detected. "
+                            + "Balance before=" + balanceBefore + ", release amount=" + amount,
+                    "PER_BALANCE_NEGATIVE");
+        }
+
         PerTransaction transaction = PerTransaction.builder()
                 .policyId(policy.getId())
                 .poolId(poolId)

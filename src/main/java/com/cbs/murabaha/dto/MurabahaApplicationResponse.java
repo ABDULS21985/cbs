@@ -9,6 +9,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -49,6 +50,23 @@ public class MurabahaApplicationResponse {
     private String contractRef;
     private Instant submittedAt;
     private Instant expiresAt;
+
+    private String creditAssessmentNotes;
+    private String creditAssessmentBy;
+    private Instant creditAssessmentAt;
+    private BigDecimal monthlyIncome;
+    private BigDecimal existingFinancingObligations;
+    private String assetDescription;
+    private MurabahaDomainEnums.AssetCategory assetCategory;
+    private String supplierName;
+    private BigDecimal supplierQuoteAmount;
+    private String supplierQuoteRef;
+    private LocalDate supplierQuoteExpiry;
+    private Long branchId;
+    private MurabahaDomainEnums.ApplicationChannel channel;
+    private Long settlementAccountId;
+    private String rejectionReason;
+    private Long assignedOfficerId;
 
     @Builder.Default
     private List<String> warnings = new ArrayList<>();

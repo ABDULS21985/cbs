@@ -23,6 +23,9 @@ public interface ShariahComplianceAlertRepository extends JpaRepository<ShariahC
     @Query("SELECT a FROM ShariahComplianceAlert a WHERE a.status IN ('NEW', 'UNDER_REVIEW') AND a.slaDeadline < CURRENT_TIMESTAMP")
     List<ShariahComplianceAlert> findOverdueAlerts();
 
+    @Query("SELECT COUNT(a) FROM ShariahComplianceAlert a WHERE a.status IN ('NEW', 'UNDER_REVIEW') AND a.slaDeadline < CURRENT_TIMESTAMP")
+    long countOverdueAlerts();
+
     long countByStatus(AlertStatus status);
 
     long countBySeverity(ScreeningSeverity severity);

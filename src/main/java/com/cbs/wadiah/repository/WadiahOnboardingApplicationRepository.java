@@ -27,4 +27,8 @@ public interface WadiahOnboardingApplicationRepository extends JpaRepository<Wad
     List<WadiahOnboardingApplication> findByStatusAndExpiresAtBefore(
             WadiahDomainEnums.ApplicationStatus status,
             LocalDateTime expiresAt);
+
+    List<WadiahOnboardingApplication> findByStatusInAndExpiresAtBefore(
+            java.util.Collection<WadiahDomainEnums.ApplicationStatus> statuses,
+            LocalDateTime expiresAt);
 }

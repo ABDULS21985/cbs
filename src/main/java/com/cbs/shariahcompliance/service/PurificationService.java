@@ -3,6 +3,9 @@ package com.cbs.shariahcompliance.service;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.gl.islamic.dto.IslamicPostingRequest;
+import com.cbs.gl.islamic.entity.IslamicTransactionType;
+import com.cbs.gl.islamic.service.IslamicPostingRuleService;
 import com.cbs.shariahcompliance.dto.CharityFundReport;
 import com.cbs.shariahcompliance.dto.CharityRecipientResponse;
 import com.cbs.shariahcompliance.dto.CreateCharityRecipientRequest;
@@ -20,6 +23,7 @@ import com.cbs.shariahcompliance.entity.PurificationBatchStatus;
 import com.cbs.shariahcompliance.entity.PurificationDisbursement;
 import com.cbs.shariahcompliance.entity.QuarantineStatus;
 import com.cbs.shariahcompliance.entity.SnciRecord;
+import com.cbs.shariahcompliance.repository.CharityFundLedgerEntryRepository;
 import com.cbs.shariahcompliance.repository.CharityRecipientRepository;
 import com.cbs.shariahcompliance.repository.PurificationBatchRepository;
 import com.cbs.shariahcompliance.repository.PurificationDisbursementRepository;
@@ -49,6 +53,8 @@ public class PurificationService {
     private final CharityRecipientRepository recipientRepository;
     private final SnciRecordRepository snciRepository;
     private final CharityFundService charityFundService;
+    private final CharityFundLedgerEntryRepository charityFundLedgerRepository;
+    private final IslamicPostingRuleService postingRuleService;
     private final CurrentActorProvider actorProvider;
 
     private static final AtomicLong BATCH_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
@@ -337,14 +343,21 @@ public class PurificationService {
             CharityRecipient glRecipient = recipientRepository.findById(disbursement.getRecipientId()).orElse(null);
             log.info("Purification GL: debit SNCI quarantine 2350-000-001 amount={}, credit cash for charity disbursement to {}",
                     disbursement.getAmount(), glRecipient != null ? glRecipient.getName() : "unknown");
-            // In production, this would call:
-            // IslamicPostingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
-            //     .transactionType(IslamicTransactionType.SNCI_PURIFICATION)
-            //     .amount(disbursement.getAmount())
-            //     .currencyCode(disbursement.getCurrencyCode())
-            //     .sourceRef("PUR-" + batch.getBatchRef())
-            //     .narration("SNCI purification disbursement to " + (glRecipient != null ? glRecipient.getName() : "unknown"))
-            //     .build());
+            try {
+                postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                        .txnType(IslamicTransactionType.CHARITY_DISTRIBUTION)
+                        .amount(disbursement.getAmount())
+                        .contractTypeCode("SNCI_PURIFICATION")
+                        .reference("PUR-" + batch.getBatchRef() + "-" + disbursement.getId())
+                        .narration("SNCI purification disbursement to " + (glRecipient != null ? glRecipient.getName() : "unknown"))
+                        .build());
+            } catch (Exception e) {
+                log.error("GL posting failed for purification disbursement {} in batch {}: {}",
+                        disbursement.getId(), batch.getBatchRef(), e.getMessage(), e);
+                throw new BusinessException(
+                        "GL posting failed for purification disbursement: " + e.getMessage(),
+                        "PURIFICATION_GL_POSTING_FAILED");
+            }
 
             // Update charity recipient running totals
             CharityRecipient recipient = recipientRepository.findById(disbursement.getRecipientId()).orElse(null);
@@ -392,6 +405,13 @@ public class PurificationService {
         if (totalDisbursed.compareTo(batch.getTotalAmount()) != 0) {
             log.error("Purification reconciliation FAILED: disbursed={} vs batch total={}. Difference={}",
                     totalDisbursed, batch.getTotalAmount(), totalDisbursed.subtract(batch.getTotalAmount()));
+            batch.setStatus(PurificationBatchStatus.RECONCILIATION_FAILED);
+            batch.setTotalDisbursed(totalDisbursed);
+            batchRepository.save(batch);
+            throw new BusinessException(
+                    "Purification reconciliation failed: disbursed " + totalDisbursed
+                            + " does not match batch total " + batch.getTotalAmount(),
+                    "PURIFICATION_RECONCILIATION_FAILED");
         }
 
         // Finalize batch
@@ -507,10 +527,19 @@ public class PurificationService {
     // ── Late payment charity tracking ──────────────────────────────────────────
 
     public void processLatePenaltyDonation(BigDecimal amount, String contractRef, String journalRef) {
-        // Late payment penalties in Islamic finance must be donated to charity (not kept as revenue).
-        // This method logs the donation for reporting purposes.
-        // The actual GL posting is handled by IslamicPostingRuleService at the contract level.
-        log.info("Late penalty charity donation recorded — amount: {}, contract: {}, journal: {}",
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Late penalty donation amount must be positive", "INVALID_AMOUNT");
+        }
+        // Record the late penalty inflow in the charity fund ledger
+        charityFundService.recordPenaltyInflow(
+                contractRef,   // sourceReference
+                amount,
+                contractRef,
+                null,          // contractType not available here
+                null,          // customerId not available here
+                journalRef
+        );
+        log.info("Late penalty charity donation recorded and posted to charity fund — amount: {}, contract: {}, journal: {}",
                 amount, contractRef, journalRef);
     }
 
@@ -568,10 +597,16 @@ public class PurificationService {
         ).orElse(BigDecimal.ZERO);
         BigDecimal totalFromSnci = quarantinedAmount.add(pendingAmount).add(purifiedAmount);
 
-        BigDecimal totalUnpurified = Optional.ofNullable(
-                snciRepository.sumTotalUnpurified()
+        // totalInFund is totalFromSnci (all SNCI amounts across all statuses) plus late penalties.
+        // Note: totalUnpurified (QUARANTINED + PENDING_PURIFICATION) is already included in totalFromSnci,
+        // so we do NOT add it again to avoid double-counting.
+        BigDecimal totalFromLatePenaltiesForBalance = Optional.ofNullable(
+                charityFundLedgerRepository.sumNetInflowsBySourceTypeBetween(
+                        "LATE_PAYMENT_PENALTY",
+                        LocalDate.of(2000, 1, 1),
+                        LocalDate.now())
         ).orElse(BigDecimal.ZERO);
-        BigDecimal totalInFund = totalFromSnci.add(totalUnpurified);
+        BigDecimal totalInFund = totalFromSnci.add(totalFromLatePenaltiesForBalance);
 
         // Total disbursed across all recipients
         List<CharityRecipient> allRecipients = recipientRepository.findByStatus("ACTIVE");
@@ -581,9 +616,17 @@ public class PurificationService {
 
         BigDecimal currentBalance = totalInFund.subtract(totalDisbursed);
 
+        // Query the charity fund ledger for total late penalty inflows (all-time)
+        BigDecimal totalFromLatePenalties = Optional.ofNullable(
+                charityFundLedgerRepository.sumNetInflowsBySourceTypeBetween(
+                        "LATE_PAYMENT_PENALTY",
+                        LocalDate.of(2000, 1, 1),
+                        LocalDate.now())
+        ).orElse(BigDecimal.ZERO);
+
         return CharityFundReport.builder()
                 .totalInFund(totalInFund)
-                .totalFromLatePenalties(BigDecimal.ZERO) // Late penalties tracked separately; needs dedicated ledger query
+                .totalFromLatePenalties(totalFromLatePenalties)
                 .totalFromSnci(totalFromSnci)
                 .totalDisbursed(totalDisbursed)
                 .currentBalance(currentBalance)

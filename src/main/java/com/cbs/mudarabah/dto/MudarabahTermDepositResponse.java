@@ -35,6 +35,12 @@ public class MudarabahTermDepositResponse {
     private String originalDepositRef;
     private boolean earlyWithdrawalAllowed;
     private String earlyWithdrawalPenaltyType;
+    private BigDecimal earlyWithdrawalReducedPsr;
+    private String earlyWithdrawalReason;
+    private LocalDate earlyWithdrawnAt;
+    private BigDecimal renewalPsrCustomer;
+    private BigDecimal renewalPsrBank;
+    private Integer renewalTenorDays;
     private String status;
     private LocalDate maturedAt;
     private boolean hasLien;

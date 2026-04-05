@@ -115,6 +115,14 @@ final class IjarahSupport {
                 .approvedAt(application.getApprovedAt())
                 .contractId(application.getContractId())
                 .warnings(warnings == null ? new ArrayList<>() : new ArrayList<>(warnings))
+                .purpose(application.getPurpose())
+                .monthlyIncome(application.getMonthlyIncome())
+                .existingObligations(application.getExistingObligations())
+                .assignedOfficerId(application.getAssignedOfficerId())
+                .branchId(application.getBranchId())
+                .rejectionReason(application.getRejectionReason())
+                .submittedAt(application.getSubmittedAt())
+                .expiresAt(application.getExpiresAt())
                 .build();
     }
 
@@ -165,6 +173,26 @@ final class IjarahSupport {
                 .investmentPoolId(contract.getInvestmentPoolId())
                 .poolAssetAssignmentId(contract.getPoolAssetAssignmentId())
                 .lastScreeningRef(contract.getLastScreeningRef())
+                .terminatedAt(contract.getTerminatedAt())
+                .terminationReason(contract.getTerminationReason())
+                .variableRentalBenchmark(contract.getVariableRentalBenchmark())
+                .variableRentalMargin(contract.getVariableRentalMargin())
+                .rentalEscalationRate(contract.getRentalEscalationRate())
+                .bankReturnOnAsset(contract.getBankReturnOnAsset())
+                .assetSerialNumber(contract.getAssetSerialNumber())
+                .assetFairValueAtInception(contract.getAssetFairValueAtInception())
+                .insuranceProvider(contract.getInsuranceProvider())
+                .insuranceCoverageAmount(contract.getInsuranceCoverageAmount())
+                .insuranceResponsibility(contract.getInsuranceResponsibility())
+                .majorMaintenanceResponsibility(contract.getMajorMaintenanceResponsibility())
+                .minorMaintenanceResponsibility(contract.getMinorMaintenanceResponsibility())
+                .gracePeriodDays(contract.getGracePeriodDays())
+                .latePenaltyApplicable(contract.getLatePenaltyApplicable())
+                .totalLatePenalties(contract.getTotalLatePenalties())
+                .totalCharityFromLatePenalties(contract.getTotalCharityFromLatePenalties())
+                .islamicProductTemplateId(contract.getIslamicProductTemplateId())
+                .lastMajorMaintenanceDate(contract.getLastMajorMaintenanceDate())
+                .nextMajorMaintenanceDueDate(contract.getNextMajorMaintenanceDueDate())
                 .build();
     }
 

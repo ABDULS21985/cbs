@@ -34,4 +34,6 @@ public interface SnciRecordRepository extends JpaRepository<SnciRecord, Long>,
     BigDecimal sumAmountByNonComplianceType(@Param("type") com.cbs.shariahcompliance.entity.NonComplianceType type);
 
     long countByNonComplianceType(com.cbs.shariahcompliance.entity.NonComplianceType type);
+
+    boolean existsBySourceTransactionRefAndSourceContractRef(String sourceTransactionRef, String sourceContractRef);
 }

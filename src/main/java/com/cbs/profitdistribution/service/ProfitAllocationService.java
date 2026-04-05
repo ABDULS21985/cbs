@@ -125,8 +125,26 @@ public class ProfitAllocationService {
                         .divide(HUNDRED, 4, RoundingMode.HALF_UP);
                 bankProfitShare = netShareAfterReserves.subtract(customerProfitShare);
             } else {
-                customerProfitShare = netShareAfterReserves;
-                bankProfitShare = ZERO;
+                // Loss allocation: check pool type for contract-type awareness
+                // For Mudarabah: losses are 100% borne by capital provider (depositor)
+                // For Musharakah: losses are proportional to capital contribution
+                String poolType = pool.getPoolType() != null ? pool.getPoolType().name() : "";
+                if ("RESTRICTED".equals(poolType)
+                        && pool.getDescription() != null
+                        && pool.getDescription().toUpperCase().contains("MUSHARAKAH")) {
+                    // Musharakah: loss shared proportionally based on bank share percentage
+                    BigDecimal bankShareRatio = pool.getProfitSharingRatioBank() != null
+                            ? pool.getProfitSharingRatioBank().divide(HUNDRED, 4, RoundingMode.HALF_UP)
+                            : ZERO;
+                    bankProfitShare = netShareAfterReserves.multiply(bankShareRatio).setScale(4, RoundingMode.HALF_UP);
+                    customerProfitShare = netShareAfterReserves.subtract(bankProfitShare);
+                    log.info("Musharakah loss allocation: customer={}, bank={} (ratio={})",
+                            customerProfitShare, bankProfitShare, bankShareRatio);
+                } else {
+                    // Mudarabah: 100% loss to capital provider (depositor), bank bears no loss
+                    customerProfitShare = netShareAfterReserves;
+                    bankProfitShare = ZERO;
+                }
             }
 
             PoolProfitAllocation allocation = PoolProfitAllocation.builder()
@@ -231,6 +249,12 @@ public class ProfitAllocationService {
             throw new BusinessException("No calculated allocations found for approval", "ALLOCATIONS_NOT_FOUND");
         }
 
+        boolean anyCreatedByNull = allocations.stream()
+                .anyMatch(allocation -> allocation.getCreatedBy() == null);
+        if (anyCreatedByNull) {
+            log.warn("AUDIT: Some allocations have null createdBy. Four-eyes check will be skipped for those, "
+                    + "but this should be investigated. poolId={}, period={}-{}", poolId, periodFrom, periodTo);
+        }
         boolean makerCheckerViolation = allocations.stream()
                 .map(PoolProfitAllocation::getCreatedBy)
                 .filter(java.util.Objects::nonNull)
@@ -291,8 +315,12 @@ public class ProfitAllocationService {
             largest.setNetShareAfterReserves(largest.getNetShareAfterReserves().add(adjustment));
             BigDecimal newBankShare = largest.getBankProfitShare().add(adjustment);
             if (newBankShare.compareTo(BigDecimal.ZERO) < 0) {
-                // If bank share would go negative, distribute adjustment across multiple allocations
-                log.warn("Rounding adjustment would make bank share negative. Distributing across allocations.");
+                // If bank share would go negative, redirect adjustment to customer share
+                // WARNING: This silently distorts the PSR (profit sharing ratio) for this account
+                log.warn("AUDIT: Rounding adjustment of {} would make bank share negative (was {}). "
+                        + "Redirecting adjustment to customer share for account {}. "
+                        + "This distorts the contracted PSR for this allocation.",
+                        adjustment, largest.getBankProfitShare(), largest.getAccountId());
                 // Fallback: add to customer share of largest (least disruptive)
                 largest.setCustomerProfitShare(largest.getCustomerProfitShare().add(adjustment));
             } else {

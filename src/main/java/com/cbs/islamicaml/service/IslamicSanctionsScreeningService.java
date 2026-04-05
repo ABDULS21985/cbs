@@ -21,6 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -165,26 +169,39 @@ public class IslamicSanctionsScreeningService {
     // ===================== BATCH RE-SCREENING =====================
 
     public BatchScreeningResult reScreenAllCustomers() {
-        List<Customer> allCustomers = customerRepository.findAll();
         List<SanctionsScreeningResultResponse> results = new ArrayList<>();
         int newMatches = 0;
+        int totalScreened = 0;
 
-        for (Customer customer : allCustomers) {
-            try {
-                SanctionsScreeningResultResponse response = screenCustomer(customer.getId());
-                results.add(response);
-                if (response.getOverallResult() == SanctionsOverallResult.POTENTIAL_MATCH
-                        || response.getOverallResult() == SanctionsOverallResult.CONFIRMED_MATCH) {
-                    newMatches++;
+        int pageSize = 100;
+        int pageNumber = 0;
+        Page<Customer> customerPage;
+
+        do {
+            customerPage = customerRepository.findAll(
+                    PageRequest.of(pageNumber, pageSize, Sort.by("id")));
+
+            for (Customer customer : customerPage.getContent()) {
+                try {
+                    SanctionsScreeningResultResponse response = screenCustomer(customer.getId());
+                    results.add(response);
+                    totalScreened++;
+                    if (response.getOverallResult() == SanctionsOverallResult.POTENTIAL_MATCH
+                            || response.getOverallResult() == SanctionsOverallResult.CONFIRMED_MATCH) {
+                        newMatches++;
+                    }
+                } catch (Exception e) {
+                    log.warn("Error re-screening customer {}: {}", customer.getId(), e.getMessage());
+                    totalScreened++;
                 }
-            } catch (Exception e) {
-                log.warn("Error re-screening customer {}: {}", customer.getId(), e.getMessage());
             }
-        }
 
-        log.info("Batch re-screening completed: total={}, newMatches={}", allCustomers.size(), newMatches);
+            pageNumber++;
+        } while (customerPage.hasNext());
+
+        log.info("Batch re-screening completed: total={}, newMatches={}", totalScreened, newMatches);
         return BatchScreeningResult.builder()
-                .totalScreened(allCustomers.size())
+                .totalScreened(totalScreened)
                 .newMatches(newMatches)
                 .results(results)
                 .build();

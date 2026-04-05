@@ -47,18 +47,39 @@ public class IslamicFeeAccrualService {
     private final CurrentActorProvider actorProvider;
 
     public void accruePeriodicFees(LocalDate accrualDate) {
-        List<Account> activeAccounts = accountRepository.findAll().stream()
-                .filter(account -> account.getStatus() == AccountStatus.ACTIVE)
-                .toList();
-        List<IslamicFeeConfiguration> periodicFees = configRepository.findAll().stream()
-                .filter(cfg -> "ACTIVE".equals(cfg.getStatus()))
+        // Use targeted query instead of loading all fee configs
+        List<IslamicFeeConfiguration> periodicFees = configRepository.findByStatusOrderByFeeCodeAsc("ACTIVE").stream()
                 .filter(cfg -> cfg.isEffectiveOn(accrualDate))
                 .filter(cfg -> List.of("MONTHLY", "QUARTERLY", "ANNUALLY").contains(cfg.getChargeFrequency()))
                 .toList();
 
-        for (Account account : activeAccounts) {
-            for (IslamicFeeConfiguration config : periodicFees) {
+        // Use paginated queries instead of loading all accounts
+        int pageSize = 200;
+        int page = 0;
+        org.springframework.data.domain.Page<Account> accountPage;
+        do {
+            accountPage = accountRepository.findByStatus(AccountStatus.ACTIVE,
+                    org.springframework.data.domain.PageRequest.of(page, pageSize));
+            for (Account account : accountPage.getContent()) {
+                accrueFeesForSingleAccount(account, periodicFees, accrualDate);
+            }
+            page++;
+        } while (accountPage.hasNext());
+    }
+
+    private void accrueFeesForSingleAccount(Account account, List<IslamicFeeConfiguration> periodicFees, LocalDate accrualDate) {
+        for (IslamicFeeConfiguration config : periodicFees) {
+                if (account.getProduct() == null) {
+                    continue;
+                }
                 if (!IslamicFeeSupport.matchesAny(account.getProduct().getCode(), config.getApplicableProductCodes())) {
+                    continue;
+                }
+                if (!isDueForAccrual(config, accrualDate)) {
+                    continue;
+                }
+                String triggerRef = buildAccrualTriggerRef(config, account, accrualDate);
+                if (feeChargeLogRepository.existsByTriggerRef(triggerRef)) {
                     continue;
                 }
                 IslamicFeeResponses.FeeCalculationResult calculation = islamicFeeService.calculateFee(
@@ -78,7 +99,7 @@ public class IslamicFeeAccrualService {
                         "ACCRUAL",
                         "Periodic Islamic fee accrual " + config.getFeeCode(),
                         "ISLAMIC_FEE_ENGINE",
-                        config.getFeeCode() + ":" + account.getId() + ":" + accrualDate,
+                        triggerRef,
                         accrualDate,
                         actorProvider.getCurrentActor(),
                         List.of(
@@ -101,7 +122,7 @@ public class IslamicFeeAccrualService {
                         .totalAmount(calculation.getCalculatedAmount())
                         .currencyCode(account.getCurrencyCode())
                         .triggerEvent("PERIODIC_ACCRUAL")
-                        .triggerRef(config.getFeeCode() + ":" + account.getId() + ":" + accrualDate)
+                        .triggerRef(triggerRef)
                         .triggerAmount(account.getBookBalance())
                         .journalRef(journal.getJournalNumber())
                         .islamicFeeConfigurationId(config.getId())
@@ -110,7 +131,6 @@ public class IslamicFeeAccrualService {
                         .status("ACCRUED")
                         .chargedAt(Instant.now())
                         .build());
-            }
         }
     }
 
@@ -146,6 +166,9 @@ public class IslamicFeeAccrualService {
                 .orElseThrow(() -> new ResourceNotFoundException("FeeChargeLog", "id", feeChargeId));
         IslamicFeeConfiguration config = configRepository.findById(chargeLog.getIslamicFeeConfigurationId())
                 .orElseThrow(() -> new ResourceNotFoundException("IslamicFeeConfiguration", "id", chargeLog.getIslamicFeeConfigurationId()));
+        if (deferralMonths <= 0) {
+            throw new BusinessException("Deferral months must be positive", "FEE_DEFERRAL_MONTHS_REQUIRED");
+        }
         BigDecimal amount = IslamicFeeSupport.money(totalAmount);
         generalLedgerService.postJournal(
                 "ADJUSTMENT",
@@ -166,6 +189,7 @@ public class IslamicFeeAccrualService {
         chargeLog.setRecognisedDeferredAmount(BigDecimal.ZERO);
         chargeLog.setDeferralMonths(deferralMonths);
         chargeLog.setLastDeferredRecognitionDate(null);
+        chargeLog.setStatus("DEFERRED");
         feeChargeLogRepository.save(chargeLog);
     }
 
@@ -183,11 +207,15 @@ public class IslamicFeeAccrualService {
             BigDecimal monthlyPortion = chargeLog.getDeferredTotalAmount()
                     .divide(BigDecimal.valueOf(chargeLog.getDeferralMonths()), 2, RoundingMode.HALF_UP);
             BigDecimal amount = chargeLog.getDeferredRemainingAmount().min(monthlyPortion);
+            String recognitionRef = chargeLog.getTriggerRef() + ":RECOG:" + recognitionDate.withDayOfMonth(1);
+            if (feeChargeLogRepository.existsByTriggerRef(recognitionRef)) {
+                continue;
+            }
             generalLedgerService.postJournal(
                     "ADJUSTMENT",
                     "Deferred Islamic fee recognition " + chargeLog.getFeeCode(),
                     "ISLAMIC_FEE_ENGINE",
-                    chargeLog.getTriggerRef() + ":RECOG:" + recognitionDate,
+                    recognitionRef,
                     recognitionDate,
                     actorProvider.getCurrentActor(),
                     List.of(
@@ -200,7 +228,28 @@ public class IslamicFeeAccrualService {
             chargeLog.setRecognisedDeferredAmount(IslamicFeeSupport.money(chargeLog.getRecognisedDeferredAmount().add(amount)));
             chargeLog.setDeferredRemainingAmount(IslamicFeeSupport.money(chargeLog.getDeferredRemainingAmount().subtract(amount)));
             chargeLog.setLastDeferredRecognitionDate(recognitionDate);
+            if (chargeLog.getDeferredRemainingAmount().compareTo(BigDecimal.ZERO) == 0) {
+                chargeLog.setStatus("RECOGNISED");
+            }
             feeChargeLogRepository.save(chargeLog);
+            feeChargeLogRepository.save(FeeChargeLog.builder()
+                    .feeCode(chargeLog.getFeeCode())
+                    .accountId(chargeLog.getAccountId())
+                    .customerId(chargeLog.getCustomerId())
+                    .baseAmount(chargeLog.getBaseAmount())
+                    .feeAmount(amount)
+                    .taxAmount(BigDecimal.ZERO)
+                    .totalAmount(amount)
+                    .currencyCode(chargeLog.getCurrencyCode())
+                    .triggerEvent("DEFERRED_RECOGNITION")
+                    .triggerRef(recognitionRef)
+                    .triggerAmount(chargeLog.getTriggerAmount())
+                    .journalRef(recognitionRef)
+                    .islamicFeeConfigurationId(chargeLog.getIslamicFeeConfigurationId())
+                    .charityRouted(chargeLog.getCharityRouted())
+                    .status("RECOGNISED")
+                    .chargedAt(recognitionDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant())
+                    .build());
         }
     }
 
@@ -251,12 +300,16 @@ public class IslamicFeeAccrualService {
             if (config == null) {
                 continue;
             }
-            if (logEntry.getCharityRouted()) {
-                charityRouted = charityRouted.add(logEntry.getFeeAmount());
-            } else {
-                ujrahIncome = ujrahIncome.add(logEntry.getFeeAmount());
+            BigDecimal recognisedAmount = recognisedIncomeAmount(logEntry);
+            if (recognisedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
             }
-            byCategory.merge(config.getFeeCategory(), logEntry.getFeeAmount(), BigDecimal::add);
+            if (logEntry.getCharityRouted()) {
+                charityRouted = charityRouted.add(recognisedAmount);
+            } else {
+                ujrahIncome = ujrahIncome.add(recognisedAmount);
+            }
+            byCategory.merge(config.getFeeCategory(), recognisedAmount, BigDecimal::add);
         }
         BigDecimal deferredBalance = feeChargeLogRepository.findByDeferredRemainingAmountGreaterThanOrderByChargedAtAsc(BigDecimal.ZERO)
                 .stream()
@@ -276,5 +329,42 @@ public class IslamicFeeAccrualService {
                 .feeReceivableBalance(IslamicFeeSupport.money(receivableBalance))
                 .byFeeCategory(byCategory)
                 .build();
+    }
+
+    private boolean isDueForAccrual(IslamicFeeConfiguration config, LocalDate accrualDate) {
+        return switch (config.getChargeFrequency()) {
+            case "MONTHLY" -> true;
+            case "QUARTERLY" -> accrualDate.getMonthValue() == 3
+                    || accrualDate.getMonthValue() == 6
+                    || accrualDate.getMonthValue() == 9
+                    || accrualDate.getMonthValue() == 12;
+            case "ANNUALLY" -> accrualDate.getMonthValue() == 12;
+            default -> false;
+        };
+    }
+
+    private String buildAccrualTriggerRef(IslamicFeeConfiguration config, Account account, LocalDate accrualDate) {
+        String periodKey = switch (config.getChargeFrequency()) {
+            case "MONTHLY" -> accrualDate.getYear() + "-" + String.format("%02d", accrualDate.getMonthValue());
+            case "QUARTERLY" -> accrualDate.getYear() + "-Q" + ((accrualDate.getMonthValue() - 1) / 3 + 1);
+            case "ANNUALLY" -> String.valueOf(accrualDate.getYear());
+            default -> accrualDate.toString();
+        };
+        return config.getFeeCode() + ":" + account.getId() + ":" + periodKey;
+    }
+
+    private BigDecimal recognisedIncomeAmount(FeeChargeLog logEntry) {
+        if ("DEFERRED_RECOGNITION".equals(logEntry.getTriggerEvent())
+                || "PERIODIC_ACCRUAL".equals(logEntry.getTriggerEvent())) {
+            return IslamicFeeSupport.money(logEntry.getFeeAmount());
+        }
+        if ("DEFERRED".equals(logEntry.getStatus())
+                || (logEntry.getDeferredTotalAmount() != null && logEntry.getDeferredTotalAmount().compareTo(BigDecimal.ZERO) > 0)) {
+            return BigDecimal.ZERO.setScale(2);
+        }
+        if ("CHARGED".equals(logEntry.getStatus()) || "COLLECTED".equals(logEntry.getStatus())) {
+            return IslamicFeeSupport.money(logEntry.getFeeAmount());
+        }
+        return BigDecimal.ZERO.setScale(2);
     }
 }

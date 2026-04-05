@@ -113,6 +113,9 @@ public class MusharakahLossEvent extends AuditableEntity {
     @Column(name = "insurance_recovery_received", precision = 18, scale = 2)
     private BigDecimal insuranceRecoveryReceived;
 
+    @Column(name = "insurance_recovery_status", length = 30)
+    private String insuranceRecoveryStatus;
+
     @Column(name = "net_loss_after_insurance", precision = 18, scale = 2)
     private BigDecimal netLossAfterInsurance;
 

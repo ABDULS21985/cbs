@@ -71,6 +71,9 @@ public class PsrChangeRequest extends AuditableEntity {
     @Column(name = "status", nullable = false)
     private PsrChangeStatus status = PsrChangeStatus.DRAFT;
 
+    @Column(name = "initiated_by", length = 100)
+    private String initiatedBy;
+
     @Column(name = "approved_by", length = 100)
     private String approvedBy;
 

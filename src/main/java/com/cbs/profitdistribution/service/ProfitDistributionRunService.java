@@ -37,6 +37,7 @@ import com.cbs.profitdistribution.repository.DistributionRunStepLogRepository;
 import com.cbs.profitdistribution.repository.ProfitDistributionRunRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -78,6 +79,9 @@ public class ProfitDistributionRunService {
     private final JournalEntryRepository journalEntryRepository;
     private final CurrentActorProvider actorProvider;
     private final com.cbs.gl.islamic.service.IslamicGLMetadataService islamicGLMetadataService;
+
+    @Value("${cbs.profit-distribution.auto-approve-enabled:false}")
+    private boolean autoApproveEnabled;
 
     private static final AtomicLong RUN_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
 
@@ -383,13 +387,20 @@ public class ProfitDistributionRunService {
         ProfitDistributionRunResponse calculated = executeCalculation(initiated.getId());
         ProfitDistributionRunResponse current = calculated;
         if (autoApprove) {
+            if (!autoApproveEnabled) {
+                throw new BusinessException(
+                        "Auto-approve is disabled in this environment. "
+                                + "Set cbs.profit-distribution.auto-approve-enabled=true for test/dev only.",
+                        "AUTO_APPROVE_DISABLED");
+            }
             log.warn("AUDIT: Auto-approve enabled for full distribution run on pool {}. "
-                    + "This bypasses human four-eyes approval and should not be used in production.", poolId);
-            String systemApprover = "SYSTEM_AUTO_APPROVE";
-            current = approveCalculation(current.getId(), systemApprover);
+                    + "This bypasses human four-eyes approval and should only be used in test/dev environments.", poolId);
+            String calcApprover = "SYSTEM_CALC_APPROVER";
+            String allocApprover = "SYSTEM_ALLOC_APPROVER";
+            current = approveCalculation(current.getId(), calcApprover);
             current = applyReserves(current.getId());
             current = executeAllocation(current.getId());
-            current = approveAllocation(current.getId(), systemApprover);
+            current = approveAllocation(current.getId(), allocApprover);
             current = executeDistribution(current.getId());
         }
         return current;

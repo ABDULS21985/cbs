@@ -38,6 +38,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 @RequiredArgsConstructor
@@ -57,6 +59,9 @@ public class PoolWeightageService {
     private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";
     private static final String BANK_MUDARIB_INCOME_GL = "4200-MDR-001";
     private static final String POOL_LOSS_GL = "6300-000-001";
+
+    // Concurrency guard: per-pool locks to prevent duplicate allocation runs
+    private static final ConcurrentHashMap<Long, ReentrantLock> POOL_ALLOCATION_LOCKS = new ConcurrentHashMap<>();
 
     // Daily weightage recording
     public void recordDailyWeightages(Long poolId, LocalDate date) {
@@ -135,6 +140,26 @@ public class PoolWeightageService {
     // Profit allocation - THE CORE algorithm
     public List<PoolProfitAllocationResponse> allocateProfit(Long poolId, BigDecimal poolGrossProfit,
                                                               LocalDate periodFrom, LocalDate periodTo) {
+        // Concurrency guard: acquire per-pool lock to prevent duplicate allocation runs
+        ReentrantLock poolLock = POOL_ALLOCATION_LOCKS.computeIfAbsent(poolId, k -> new ReentrantLock());
+        if (!poolLock.tryLock()) {
+            throw new BusinessException("Profit allocation is already in progress for pool " + poolId, "ALLOCATION_IN_PROGRESS");
+        }
+        try {
+            return doAllocateProfit(poolId, poolGrossProfit, periodFrom, periodTo);
+        } finally {
+            poolLock.unlock();
+        }
+    }
+
+    private List<PoolProfitAllocationResponse> doAllocateProfit(Long poolId, BigDecimal poolGrossProfit,
+                                                                 LocalDate periodFrom, LocalDate periodTo) {
+        // Check for existing allocations for this pool/period to prevent duplicates
+        List<PoolProfitAllocation> existingAllocations = allocationRepository.findByPoolIdAndPeriodFromAndPeriodTo(poolId, periodFrom, periodTo);
+        if (!existingAllocations.isEmpty()) {
+            throw new BusinessException("Allocations already exist for pool " + poolId + " period " + periodFrom + " to " + periodTo, "ALLOCATION_ALREADY_EXISTS");
+        }
+
         BigDecimal poolDP = weightageRecordRepository.sumPoolDailyProduct(poolId, periodFrom, periodTo);
         if (poolDP.compareTo(BigDecimal.ZERO) == 0) {
             throw new BusinessException("No daily products recorded for the period", "NO_WEIGHTAGE_DATA");
@@ -142,11 +167,23 @@ public class PoolWeightageService {
 
         List<Long> accountIds = weightageRecordRepository.findActiveAccountIds(poolId, periodFrom, periodTo);
         List<PoolProfitAllocation> allocations = new ArrayList<>();
+        BigDecimal totalAllocatedGross = BigDecimal.ZERO;
 
-        for (Long accountId : accountIds) {
+        for (int i = 0; i < accountIds.size(); i++) {
+            Long accountId = accountIds.get(i);
             BigDecimal accountDP = weightageRecordRepository.sumDailyProduct(poolId, accountId, periodFrom, periodTo);
             BigDecimal weight = accountDP.multiply(new BigDecimal("100")).divide(poolDP, 8, RoundingMode.HALF_UP);
             BigDecimal grossShare = poolGrossProfit.multiply(weight).divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+
+            // Rounding reconciliation: adjust last allocation to match total
+            totalAllocatedGross = totalAllocatedGross.add(grossShare);
+            if (i == accountIds.size() - 1) {
+                BigDecimal roundingDiff = poolGrossProfit.subtract(totalAllocatedGross);
+                if (roundingDiff.compareTo(BigDecimal.ZERO) != 0) {
+                    log.info("Rounding reconciliation: adjusting last allocation by {} for pool {}", roundingDiff, poolId);
+                    grossShare = grossShare.add(roundingDiff);
+                }
+            }
 
             // PER/IRR adjustments — call actual PerService/IrrService
             BigDecimal perAdj = BigDecimal.ZERO;
@@ -294,23 +331,63 @@ public class PoolWeightageService {
                 }
                 allocation.setJournalRef(journal.getTransactionRef());
             } else if (allocation.getCustomerProfitShare().compareTo(BigDecimal.ZERO) < 0) {
-                // For losses: check if IRR can absorb before hitting customer
+                // AAOIFI reserve cascade for loss handling:
+                // 1. IRR (Investment Risk Reserve) absorbs first
+                // 2. PER (Profit Equalization Reserve) absorbs next
+                // 3. Remaining loss borne by customers (Rab al-Maal)
                 BigDecimal lossAmount = allocation.getCustomerProfitShare().abs();
-                log.warn("Loss allocation of {} to account {} in pool {}", lossAmount, allocation.getAccountId(), poolId);
-                // Loss is debited from customer's investment account
-                // This reduces their pool balance, which affects future weightage
-                TransactionJournal journal = accountPostingService.postDebitAgainstGl(
-                        account,
-                        TransactionType.DEBIT,
-                        allocation.getCustomerProfitShare().abs(),
-                        "Mudarabah loss allocation",
-                        TransactionChannel.SYSTEM,
-                        null,
-                        POOL_LOSS_GL,
-                        "MUDARABAH",
-                        "LOSS-DIST"
-                );
-                allocation.setJournalRef(journal.getTransactionRef());
+                BigDecimal remainingLoss = lossAmount;
+                log.warn("Loss allocation of {} to account {} in pool {} - applying AAOIFI reserve cascade",
+                        lossAmount, allocation.getAccountId(), poolId);
+
+                // Step 1: Try to absorb from IRR
+                BigDecimal irrAbsorbed = BigDecimal.ZERO;
+                try {
+                    IrrRetentionResult irrResult = irrService.calculateIrrRetention(poolId, remainingLoss.negate(), periodFrom, periodTo);
+                    if (irrResult.getAdjustmentAmount() != null && irrResult.getAdjustmentAmount().compareTo(BigDecimal.ZERO) > 0) {
+                        irrAbsorbed = irrResult.getAdjustmentAmount().min(remainingLoss);
+                        remainingLoss = remainingLoss.subtract(irrAbsorbed);
+                        log.info("IRR absorbed {} of loss for account {} in pool {}", irrAbsorbed, allocation.getAccountId(), poolId);
+                    }
+                } catch (Exception e) {
+                    log.warn("IRR loss absorption failed for pool {} account {}: {}", poolId, allocation.getAccountId(), e.getMessage());
+                }
+
+                // Step 2: Try to absorb from PER
+                BigDecimal perAbsorbed = BigDecimal.ZERO;
+                if (remainingLoss.compareTo(BigDecimal.ZERO) > 0) {
+                    try {
+                        PerCalculationResult perResult = perService.calculatePerAdjustment(poolId, remainingLoss.negate(), periodFrom, periodTo);
+                        if (perResult.getAdjustmentAmount() != null && perResult.getAdjustmentAmount().compareTo(BigDecimal.ZERO) > 0) {
+                            perAbsorbed = perResult.getAdjustmentAmount().min(remainingLoss);
+                            remainingLoss = remainingLoss.subtract(perAbsorbed);
+                            log.info("PER absorbed {} of loss for account {} in pool {}", perAbsorbed, allocation.getAccountId(), poolId);
+                        }
+                    } catch (Exception e) {
+                        log.warn("PER loss absorption failed for pool {} account {}: {}", poolId, allocation.getAccountId(), e.getMessage());
+                    }
+                }
+
+                // Step 3: Remaining loss borne by customer
+                if (remainingLoss.compareTo(BigDecimal.ZERO) > 0) {
+                    TransactionJournal journal = accountPostingService.postDebitAgainstGl(
+                            account,
+                            TransactionType.DEBIT,
+                            remainingLoss,
+                            "Mudarabah loss allocation (after reserve cascade: IRR=" + irrAbsorbed + ", PER=" + perAbsorbed + ")",
+                            TransactionChannel.SYSTEM,
+                            null,
+                            POOL_LOSS_GL,
+                            "MUDARABAH",
+                            "LOSS-DIST"
+                    );
+                    allocation.setJournalRef(journal.getTransactionRef());
+                    log.info("Customer bears remaining loss of {} (total={}, IRR absorbed={}, PER absorbed={}) for account {} in pool {}",
+                            remainingLoss, lossAmount, irrAbsorbed, perAbsorbed, allocation.getAccountId(), poolId);
+                } else {
+                    log.info("Loss of {} fully absorbed by reserves (IRR={}, PER={}) for account {} in pool {}",
+                            lossAmount, irrAbsorbed, perAbsorbed, allocation.getAccountId(), poolId);
+                }
             }
 
             // Update allocation status
@@ -414,7 +491,7 @@ public class PoolWeightageService {
                 .totalBankShare(totalBank)
                 .totalPerRetained(totalPer)
                 .totalIrrRetained(totalIrr)
-                .participantCount(allocations.size())
+                .participantCount((int) allocations.stream().map(PoolProfitAllocation::getAccountId).distinct().count())
                 .averageEffectiveRate(avgRate)
                 .allocations(allocations.stream().map(this::toAllocationResponse).toList())
                 .build();

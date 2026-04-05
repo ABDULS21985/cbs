@@ -43,6 +43,12 @@ public class IjarahTransferService {
 
     public IjarahTransferMechanism createTransferMechanism(Long contractId, IjarahRequests.CreateTransferMechanismRequest request) {
         IjarahContract contract = getContract(contractId);
+        // Contract status validation: only allow transfer mechanism creation for valid statuses
+        if (contract.getStatus() != IjarahDomainEnums.ContractStatus.DRAFT
+                && contract.getStatus() != IjarahDomainEnums.ContractStatus.ASSET_PROCUREMENT
+                && contract.getStatus() != IjarahDomainEnums.ContractStatus.ASSET_OWNED) {
+            throw new BusinessException("Transfer mechanism can only be created for contracts in DRAFT, ASSET_PROCUREMENT, or ASSET_OWNED status", "INVALID_CONTRACT_STATUS");
+        }
         if (contract.getIjarahType() != IjarahDomainEnums.IjarahType.IJARAH_MUNTAHIA_BITTAMLEEK) {
             throw new BusinessException("Transfer mechanism is only valid for IMB contracts", "INVALID_TRANSFER_MECHANISM");
         }
@@ -92,14 +98,21 @@ public class IjarahTransferService {
 
     public void signTransferDocument(Long transferId, IjarahRequests.SignatureDetails request) {
         IjarahTransferMechanism mechanism = getTransferMechanism(transferId);
-        mechanism.setSignedByBank(request.isSignedByBank());
-        mechanism.setSignedByBankDate(request.getSignedDate());
-        mechanism.setSignedByBankRepresentative(request.getBankRepresentative());
-        mechanism.setSignedByCustomer(request.isSignedByCustomer());
-        mechanism.setSignedByCustomerDate(request.getSignedDate());
-        mechanism.setStatus(request.isSignedByBank()
-                ? IjarahDomainEnums.TransferStatus.ACTIVE
-                : IjarahDomainEnums.TransferStatus.DRAFT);
+        if (request.isSignedByBank()) {
+            mechanism.setSignedByBank(true);
+            mechanism.setSignedByBankDate(request.getSignedDate());
+            mechanism.setSignedByBankRepresentative(request.getBankRepresentative());
+        }
+        if (request.isSignedByCustomer()) {
+            mechanism.setSignedByCustomer(true);
+            mechanism.setSignedByCustomerDate(request.getSignedDate());
+        }
+        // Both bank AND customer signatures required before setting ACTIVE
+        if (Boolean.TRUE.equals(mechanism.getSignedByBank()) && Boolean.TRUE.equals(mechanism.getSignedByCustomer())) {
+            mechanism.setStatus(IjarahDomainEnums.TransferStatus.ACTIVE);
+        } else {
+            mechanism.setStatus(IjarahDomainEnums.TransferStatus.DRAFT);
+        }
         transferRepository.save(mechanism);
     }
 
@@ -206,6 +219,12 @@ public class IjarahTransferService {
             contract.setImbTransferCompleted(true);
             contract.setImbTransferDate(LocalDate.now());
             contract.setStatus(IjarahDomainEnums.ContractStatus.TRANSFERRED_TO_CUSTOMER);
+            // Update asset status when all units are transferred
+            asset.setStatus(IjarahDomainEnums.AssetStatus.TRANSFERRED_TO_CUSTOMER);
+            // Unassign from investment pool on gradual transfer completion
+            if (contract.getPoolAssetAssignmentId() != null) {
+                poolAssetManagementService.unassignAssetFromPool(contract.getPoolAssetAssignmentId(), "IJARAH_GRADUAL_TRANSFER_COMPLETE");
+            }
         } else {
             mechanism.setStatus(IjarahDomainEnums.TransferStatus.PARTIALLY_TRANSFERRED);
         }
@@ -215,6 +234,9 @@ public class IjarahTransferService {
 
     public void cancelTransfer(Long transferId, String reason) {
         IjarahTransferMechanism mechanism = getTransferMechanism(transferId);
+        if (mechanism.getStatus() == IjarahDomainEnums.TransferStatus.EXECUTED) {
+            throw new BusinessException("Cannot cancel an already executed transfer", "INVALID_TRANSFER_STATUS");
+        }
         mechanism.setStatus(IjarahDomainEnums.TransferStatus.CANCELLED);
         mechanism.setCancellationReason(reason);
         transferRepository.save(mechanism);
@@ -222,6 +244,9 @@ public class IjarahTransferService {
 
     public void voidTransfer(Long transferId, String reason) {
         IjarahTransferMechanism mechanism = getTransferMechanism(transferId);
+        if (mechanism.getStatus() == IjarahDomainEnums.TransferStatus.EXECUTED) {
+            throw new BusinessException("Cannot void an already executed transfer", "INVALID_TRANSFER_STATUS");
+        }
         mechanism.setStatus(IjarahDomainEnums.TransferStatus.VOID);
         mechanism.setCancellationReason(reason);
         transferRepository.save(mechanism);
@@ -267,6 +292,7 @@ public class IjarahTransferService {
         BigDecimal unitPrice = IjarahSupport.money(mechanism.getUnitTransferAmount());
         LocalDate baseDate = contract.getLeaseStartDate() != null ? contract.getLeaseStartDate() : LocalDate.now();
 
+        BigDecimal cumulativeOwnership = BigDecimal.ZERO;
         for (int i = 1; i <= units; i++) {
             LocalDate scheduledDate = switch (mechanism.getUnitTransferFrequency() == null
                     ? IjarahDomainEnums.UnitTransferFrequency.MONTHLY
@@ -275,13 +301,18 @@ public class IjarahTransferService {
                 case QUARTERLY -> baseDate.plusMonths(i * 3L);
                 case ANNUALLY -> baseDate.plusYears(i);
             };
+            // For the last unit, use remainder to ensure cumulative ownership equals exactly 100%
+            BigDecimal thisUnitPercentage = (i == units)
+                    ? IjarahSupport.HUNDRED.subtract(cumulativeOwnership)
+                    : unitPercentage;
+            cumulativeOwnership = cumulativeOwnership.add(thisUnitPercentage);
             unitRepository.save(IjarahGradualTransferUnit.builder()
                     .transferMechanismId(mechanism.getId())
                     .unitNumber(i)
                     .scheduledDate(scheduledDate)
-                    .unitPercentage(unitPercentage)
+                    .unitPercentage(thisUnitPercentage)
                     .unitPrice(unitPrice)
-                    .cumulativeOwnership(unitPercentage.multiply(BigDecimal.valueOf(i)))
+                    .cumulativeOwnership(cumulativeOwnership)
                     .status(IjarahDomainEnums.UnitTransferStatus.SCHEDULED)
                     .build());
         }

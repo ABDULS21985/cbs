@@ -47,6 +47,8 @@ public class MusharakahLossService {
     private final MusharakahBuyoutInstallmentRepository buyoutInstallmentRepository;
     private final IslamicPostingRuleService postingRuleService;
     private final CurrentActorProvider actorProvider;
+    private final MusharakahRentalService rentalService;
+    private final MusharakahBuyoutService buyoutService;
 
     public MusharakahResponses.MusharakahLossEventResponse recordLossEvent(Long contractId,
                                                                            MusharakahRequests.RecordLossEventRequest request) {
@@ -111,8 +113,9 @@ public class MusharakahLossService {
         if (attemptedCustomerLossShare != null && MusharakahSupport.money(attemptedCustomerLossShare).compareTo(customerLossShare) != 0) {
             throw new BusinessException("ST-005 violation: customer loss share must follow current capital contribution", "SHARIAH-MSH-001");
         }
-        if (bankLossShare.add(customerLossShare).compareTo(MusharakahSupport.money(event.getTotalLossAmount())) != 0) {
-            throw new BusinessException("Loss allocation must conserve total loss amount", "LOSS_ALLOCATION_CONSERVATION_FAILED");
+        BigDecimal allocationDifference = bankLossShare.add(customerLossShare).subtract(MusharakahSupport.money(event.getTotalLossAmount())).abs();
+        if (allocationDifference.compareTo(new BigDecimal("0.01")) > 0) {
+            throw new BusinessException("Loss allocation must conserve total loss amount (tolerance 0.01)", "LOSS_ALLOCATION_CONSERVATION_FAILED");
         }
 
         event.setBankCapitalRatioAtLoss(bankCapitalRatio);
@@ -184,9 +187,7 @@ public class MusharakahLossService {
         log.warn("Loss event {} compliance verification auto-stamped by system actor '{}' during postLoss. "
                 + "Manual compliance review is recommended for loss events exceeding policy thresholds.",
                 event.getLossEventRef(), actorProvider.getCurrentActor());
-        event.setVerifiedByCompliance(true);
-        event.setVerifiedBy(actorProvider.getCurrentActor());
-        event.setVerifiedAt(LocalDateTime.now());
+        event.setVerifiedByCompliance(false);
         event.setStatus(MusharakahDomainEnums.LossStatus.POSTED);
         lossEventRepository.save(event);
     }
@@ -218,6 +219,14 @@ public class MusharakahLossService {
         allocateLoss(event.getId());
         postLoss(event.getId());
 
+        // Track insurance recovery if applicable
+        if (Boolean.TRUE.equals(event.getInsured()) && event.getInsuranceRecoveryExpected() != null
+                && event.getInsuranceRecoveryExpected().compareTo(BigDecimal.ZERO) > 0) {
+            event.setInsuranceRecoveryReceived(MusharakahSupport.ZERO);
+            event.setInsuranceRecoveryStatus("PENDING_CLAIM");
+            lossEventRepository.save(event);
+        }
+
         cancelFutureSchedules(contractId, request.getLossDate());
         contract.setStatus(MusharakahDomainEnums.ContractStatus.TERMINATED);
         contract.setDissolvedAt(request.getLossDate());
@@ -241,6 +250,10 @@ public class MusharakahLossService {
         event = lossEventRepository.save(event);
         allocateLoss(event.getId());
         postLoss(event.getId());
+
+        // Recalculate remaining rental and buyout schedules after impairment
+        rentalService.recalculateRemainingRentals(contractId);
+        buyoutService.generateBuyoutSchedule(contractId);
     }
 
     public MusharakahResponses.MusharakahLossEventResponse processForcedSaleLoss(Long contractId,

@@ -26,6 +26,9 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +44,19 @@ public class IjarahGLService {
     private final IslamicPostingRuleService postingRuleService;
     private final JournalEntryRepository journalEntryRepository;
 
+    /** Configurable GL account codes instead of hardcoded values. */
+    @Value("${ijarah.gl.customer-account-code:1620-IJR-001}")
+    private String customerAccountGlCode;
+
+    @Value("${ijarah.gl.rental-income-code:4100-IJR-001}")
+    private String rentalIncomeGlCode;
+
+    @Value("${ijarah.gl.depreciation-expense-code:5200-IJR-001}")
+    private String depreciationExpenseGlCode;
+
+    /** Tracks accrual references to prevent double-posting within a period. */
+    private final Set<String> postedAccruals = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     public void postMonthlyDepreciation(Long assetId) {
         assetService.processMonthlyDepreciation(assetId);
     }
@@ -51,6 +67,22 @@ public class IjarahGLService {
 
     public void recogniseRentalIncome(Long contractId, LocalDate periodFrom, LocalDate periodTo) {
         IjarahContract contract = getContract(contractId);
+
+        // Double-accrual prevention: check if accrual already posted for this contract and period
+        String accrualKey = contract.getContractRef() + "-ACCR-" + periodTo;
+        if (!postedAccruals.add(accrualKey)) {
+            log.warn("Accrual already posted for contract {} period ending {}, skipping", contract.getContractRef(), periodTo);
+            return;
+        }
+        // Also check if a journal entry with this reference already exists
+        boolean alreadyPosted = journalEntryRepository.findByPostingDateBetweenOrderByPostingDateDesc(periodFrom, periodTo,
+                        org.springframework.data.domain.Pageable.unpaged()).stream()
+                .anyMatch(journal -> accrualKey.equals(journal.getSourceRef()));
+        if (alreadyPosted) {
+            log.warn("Accrual journal already exists for contract {} period ending {}, skipping", contract.getContractRef(), periodTo);
+            return;
+        }
+
         BigDecimal accrual = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId).stream()
                 .filter(installment -> !installment.getDueDate().isBefore(periodFrom) && !installment.getDueDate().isAfter(periodTo))
                 .filter(installment -> installment.getStatus() != IjarahDomainEnums.RentalInstallmentStatus.PAID)
@@ -65,9 +97,9 @@ public class IjarahGLService {
                 .accountId(contract.getAccountId())
                 .amount(accrual)
                 .rental(accrual)
-                .reference(contract.getContractRef() + "-ACCR-" + periodTo)
+                .reference(accrualKey)
                 .valueDate(periodTo)
-                .additionalContext(Map.of("customerAccountGlCode", "1620-IJR-001"))
+                .additionalContext(Map.of("customerAccountGlCode", customerAccountGlCode))
                 .build());
     }
 
@@ -141,11 +173,20 @@ public class IjarahGLService {
                 .filter(installment -> !installment.getPaidDate().isBefore(fromDate) && !installment.getPaidDate().isAfter(toDate))
                 .map(installment -> IjarahSupport.money(installment.getPaidAmount()))
                 .reduce(IjarahSupport.ZERO, BigDecimal::add);
+
+        // Sum depreciation from GL journal entries for the period instead of using snapshot monthlyDepreciation
         BigDecimal depreciationExpense = assetRepository.findAll().stream()
-                .filter(asset -> asset.getLastDepreciationDate() != null)
-                .filter(asset -> !asset.getLastDepreciationDate().isBefore(fromDate) && !asset.getLastDepreciationDate().isAfter(toDate))
-                .map(asset -> IjarahSupport.money(asset.getMonthlyDepreciation()))
+                .map(asset -> {
+                    String depreciationRefPrefix = asset.getAssetRef() + "-DEPR-";
+                    // Sum depreciation journal entries that fall within the reporting period
+                    return journalEntryRepository.findByPostingDateBetweenOrderByPostingDateDesc(fromDate, toDate, Pageable.unpaged())
+                            .stream()
+                            .filter(journal -> journal.getSourceRef() != null && journal.getSourceRef().startsWith(depreciationRefPrefix))
+                            .map(journal -> IjarahSupport.money(journal.getTotalDebit()))
+                            .reduce(IjarahSupport.ZERO, BigDecimal::add);
+                })
                 .reduce(IjarahSupport.ZERO, BigDecimal::add);
+
         BigDecimal maintenanceExpense = maintenanceRecordRepository.findAll().stream()
                 .filter(record -> record.getMaintenanceDate() != null)
                 .filter(record -> !record.getMaintenanceDate().isBefore(fromDate) && !record.getMaintenanceDate().isAfter(toDate))
@@ -153,11 +194,32 @@ public class IjarahGLService {
                 .map(IjarahAssetMaintenanceRecord::getCost)
                 .map(IjarahSupport::money)
                 .reduce(IjarahSupport.ZERO, BigDecimal::add);
+
+        // Pro-rate insurance premium over the reporting period instead of filtering by expiry date
+        long reportingDays = ChronoUnit.DAYS.between(fromDate, toDate) + 1;
         BigDecimal insuranceExpense = assetRepository.findAll().stream()
-                .filter(asset -> asset.getInsuranceExpiryDate() != null)
-                .filter(asset -> !asset.getInsuranceExpiryDate().isBefore(fromDate) && !asset.getInsuranceExpiryDate().isAfter(toDate))
-                .map(asset -> IjarahSupport.money(asset.getInsurancePremiumAnnual()))
+                .filter(asset -> asset.getInsurancePremiumAnnual() != null
+                        && asset.getInsurancePremiumAnnual().compareTo(BigDecimal.ZERO) > 0
+                        && asset.getInsuranceExpiryDate() != null)
+                .map(asset -> {
+                    BigDecimal annualPremium = IjarahSupport.money(asset.getInsurancePremiumAnnual());
+                    BigDecimal dailyRate = annualPremium.divide(BigDecimal.valueOf(365), 8, RoundingMode.HALF_UP);
+                    return IjarahSupport.money(dailyRate.multiply(BigDecimal.valueOf(reportingDays)));
+                })
                 .reduce(IjarahSupport.ZERO, BigDecimal::add);
+
+        // Per-contract income filtered to the reporting period (not cumulative)
+        Map<String, BigDecimal> byContract = contractRepository.findAll().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        IjarahContract::getContractRef,
+                        contract -> installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contract.getId()).stream()
+                                .filter(installment -> installment.getPaidDate() != null)
+                                .filter(installment -> !installment.getPaidDate().isBefore(fromDate)
+                                        && !installment.getPaidDate().isAfter(toDate))
+                                .map(installment -> IjarahSupport.money(installment.getPaidAmount()))
+                                .reduce(IjarahSupport.ZERO, BigDecimal::add),
+                        BigDecimal::add,
+                        java.util.LinkedHashMap::new));
 
         return IjarahResponses.IjarahIncomeReport.builder()
                 .fromDate(fromDate)
@@ -167,11 +229,7 @@ public class IjarahGLService {
                 .maintenanceExpense(maintenanceExpense)
                 .insuranceExpense(insuranceExpense)
                 .netIncome(rentalIncome.subtract(depreciationExpense).subtract(maintenanceExpense).subtract(insuranceExpense))
-                .byContract(contractRepository.findAll().stream().collect(java.util.stream.Collectors.toMap(
-                        IjarahContract::getContractRef,
-                        contract -> IjarahSupport.money(contract.getTotalRentalsReceived()),
-                        BigDecimal::add,
-                        java.util.LinkedHashMap::new)))
+                .byContract(byContract)
                 .build();
     }
 
@@ -179,6 +237,32 @@ public class IjarahGLService {
     public BigDecimal getNetIjarahAssets(LocalDate asOfDate) {
         IjarahResponses.IjarahBalanceSheetView view = getIjarahBalanceSheetView(asOfDate);
         return view.getNetIjarahAssets();
+    }
+
+    public void reverseIjarahImpairment(Long assetId, BigDecimal reversalAmount, String reason) {
+        IjarahAsset asset = assetRepository.findById(assetId)
+                .orElseThrow(() -> new ResourceNotFoundException("IjarahAsset", "id", assetId));
+        BigDecimal amount = IjarahSupport.money(reversalAmount);
+        BigDecimal currentProvision = IjarahSupport.money(asset.getImpairmentProvisionBalance());
+        if (amount.compareTo(currentProvision) > 0) {
+            throw new IllegalArgumentException("Reversal amount cannot exceed current impairment provision of " + currentProvision);
+        }
+
+        postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                .contractTypeCode("IJARAH")
+                .txnType(IslamicTransactionType.IMPAIRMENT_REVERSAL)
+                .amount(amount)
+                .reference(asset.getAssetRef() + "-IMP-REV")
+                .valueDate(LocalDate.now())
+                .additionalContext(Map.of("impairmentType", "IJARAH_ASSET_REVERSAL"))
+                .narration(reason)
+                .build());
+        asset.setImpairmentProvisionBalance(IjarahSupport.money(currentProvision.subtract(amount)));
+        asset.setNetBookValue(IjarahSupport.money(asset.getAcquisitionCost()
+                .subtract(asset.getAccumulatedDepreciation())
+                .subtract(asset.getImpairmentProvisionBalance())));
+        assetRepository.save(asset);
+        log.info("Reversed impairment of {} for asset {} - reason: {}", amount, asset.getAssetRef(), reason);
     }
 
     private IjarahContract getContract(Long contractId) {

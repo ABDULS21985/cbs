@@ -37,4 +37,6 @@ public interface MudarabahTermDepositRepository extends JpaRepository<MudarabahT
 
     @Query("SELECT COALESCE(SUM(td.principalAmount), 0) FROM MudarabahTermDeposit td WHERE td.status = 'ACTIVE'")
     BigDecimal sumActivePrincipal();
+
+    Optional<MudarabahTermDeposit> findByExternalReference(String externalReference);
 }
