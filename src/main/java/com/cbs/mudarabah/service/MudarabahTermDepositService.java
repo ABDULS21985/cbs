@@ -78,6 +78,16 @@ public class MudarabahTermDepositService {
     private static final AtomicLong TD_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
 
     public MudarabahTermDepositResponse createTermDeposit(CreateMudarabahTermDepositRequest request) {
+        // Idempotency check: if an external reference is provided, check for duplicate
+        if (request.getExternalReference() != null && !request.getExternalReference().isBlank()) {
+            var existing = termDepositRepository.findByExternalReference(request.getExternalReference());
+            if (existing.isPresent()) {
+                log.info("Duplicate term deposit creation detected for externalReference={}, returning existing TD {}",
+                        request.getExternalReference(), existing.get().getDepositRef());
+                return toResponse(existing.get());
+            }
+        }
+
         // 1. Validate loss disclosure
         if (!request.isLossDisclosureAccepted()) {
             throw new BusinessException("Loss disclosure must be accepted", "LOSS_DISCLOSURE_REQUIRED");
@@ -165,7 +175,11 @@ public class MudarabahTermDepositService {
             throw new BusinessException("Insufficient balance in funding account", "INSUFFICIENT_BALANCE");
         }
 
-        // 6. Create base Account for the TD
+        // 6. Create base Account for the TD with customer link
+        Customer customer = null;
+        if (request.getCustomerId() != null) {
+            customer = customerRepository.findById(request.getCustomerId()).orElse(null);
+        }
         Account tdAccount = Account.builder()
                 .accountNumber("MDRTD" + System.currentTimeMillis() % 10000000000L)
                 .accountName("Mudarabah Term Deposit")
@@ -180,6 +194,9 @@ public class MudarabahTermDepositService {
                 .activatedDate(LocalDate.now())
                 .maturityDate(maturityDate)
                 .build();
+        if (customer != null) {
+            tdAccount.setCustomer(customer);
+        }
         tdAccount = accountRepository.save(tdAccount);
 
         // 7. Create MudarabahAccount extension

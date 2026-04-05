@@ -18,6 +18,7 @@ import com.cbs.fees.repository.FeeDefinitionRepository;
 import com.cbs.fees.islamic.dto.IslamicFeeRequests;
 import com.cbs.fees.islamic.dto.IslamicFeeResponses;
 import com.cbs.fees.islamic.entity.IslamicFeeConfiguration;
+import com.cbs.fees.islamic.entity.IslamicFeeWaiver;
 import com.cbs.fees.islamic.repository.IslamicFeeConfigurationRepository;
 import com.cbs.fees.islamic.repository.IslamicFeeWaiverRepository;
 import com.cbs.productfactory.islamic.entity.IslamicProductTemplate;
@@ -179,8 +180,6 @@ public class IslamicFeeService {
                     "Fee deferred until " + waiverAdjustment.deferUntil(), waiverAdjustment.waiverId(), request.getTriggerRef());
         }
         if (waiverAdjustment.convertedFeeCode() != null) {
-            consumePreChargeWaiver(waiverAdjustment.waiverId(),
-                    StringUtils.hasText(request.getTriggerRef()) ? request.getTriggerRef() : IslamicFeeSupport.nextRef("IFW"));
             IslamicFeeRequests.ChargeFeeRequest convertedRequest = IslamicFeeRequests.ChargeFeeRequest.builder()
                     .feeCode(waiverAdjustment.convertedFeeCode())
                     .accountId(request.getAccountId())
@@ -199,13 +198,18 @@ public class IslamicFeeService {
                     .currencyCode(request.getCurrencyCode())
                     .customerId(request.getCustomerId())
                     .build();
-            return chargeFee(convertedRequest);
+            IslamicFeeResponses.FeeChargeResult convertedResult = chargeFee(convertedRequest);
+            consumePreChargeWaiver(waiverAdjustment.waiverId(),
+                    convertedResult.getJournalRef() != null ? convertedResult.getJournalRef() : convertedResult.getMessage());
+            return convertedResult;
         }
         if (waiverAdjustment.overrideAmount() != null) {
             calculation = overrideCalculatedAmount(calculation, waiverAdjustment.overrideAmount(), waiverAdjustment.message());
         }
         if (calculation.getCalculatedAmount().compareTo(BigDecimal.ZERO) <= 0) {
             if (waiverAdjustment.waiverId() != null) {
+                consumePreChargeWaiver(waiverAdjustment.waiverId(),
+                        StringUtils.hasText(request.getTriggerRef()) ? request.getTriggerRef() : IslamicFeeSupport.nextRef("IFW"));
                 return buildSuppressedChargeResult(configuration, calculation,
                         waiverAdjustment.message() != null ? waiverAdjustment.message() : "Fee waived before charge",
                         waiverAdjustment.waiverId(),
@@ -516,6 +520,132 @@ public class IslamicFeeService {
         return IslamicFeeSupport.money(IslamicFeeSupport.toDecimal(result));
     }
 
+    private BigDecimal resolvePercentageBase(IslamicFeeConfiguration configuration,
+                                             IslamicFeeResponses.FeeCalculationContext context) {
+        BigDecimal transactionAmount = IslamicFeeSupport.nvl(context.getTransactionAmount());
+        BigDecimal accountBalance = IslamicFeeSupport.nvl(context.getAccountBalance());
+        BigDecimal financingAmount = IslamicFeeSupport.nvl(context.getFinancingAmount());
+        if ("ACCOUNT_MAINTENANCE".equals(configuration.getFeeCategory()) && accountBalance.compareTo(BigDecimal.ZERO) > 0) {
+            return accountBalance;
+        }
+        if (transactionAmount.compareTo(BigDecimal.ZERO) > 0) {
+            return transactionAmount;
+        }
+        if (accountBalance.compareTo(BigDecimal.ZERO) > 0) {
+            return accountBalance;
+        }
+        if (!configuration.isPercentageOfFinancingProhibited() && financingAmount.compareTo(BigDecimal.ZERO) > 0) {
+            return financingAmount;
+        }
+        if (configuration.isPercentageOfFinancingProhibited() && financingAmount.compareTo(BigDecimal.ZERO) > 0) {
+            throw new BusinessException("Fee cannot be calculated as a percentage of financing principal",
+                    "ISLAMIC_FEE_FINANCING_BASE_PROHIBITED");
+        }
+        throw new BusinessException("Percentage fee requires a non-zero transaction or balance base",
+                "ISLAMIC_FEE_PERCENTAGE_BASE_REQUIRED");
+    }
+
+    private IslamicFeeResponses.FeeCalculationResult overrideCalculatedAmount(IslamicFeeResponses.FeeCalculationResult calculation,
+                                                                              BigDecimal overrideAmount,
+                                                                              String note) {
+        return IslamicFeeResponses.FeeCalculationResult.builder()
+                .feeConfigId(calculation.getFeeConfigId())
+                .feeCode(calculation.getFeeCode())
+                .feeName(calculation.getFeeName())
+                .calculatedAmount(IslamicFeeSupport.money(overrideAmount))
+                .calculationBreakdown(note != null ? note : calculation.getCalculationBreakdown())
+                .classification(calculation.getClassification())
+                .charityRouted(calculation.isCharityRouted())
+                .glAccountCode(calculation.getGlAccountCode())
+                .currencyCode(calculation.getCurrencyCode())
+                .antiRibaCheckPassed(calculation.isAntiRibaCheckPassed())
+                .antiRibaNote(calculation.getAntiRibaNote())
+                .build();
+    }
+
+    private IslamicFeeResponses.FeeChargeResult buildSuppressedChargeResult(IslamicFeeConfiguration configuration,
+                                                                            IslamicFeeResponses.FeeCalculationResult calculation,
+                                                                            String message,
+                                                                            Long waiverId,
+                                                                            String reference) {
+        return IslamicFeeResponses.FeeChargeResult.builder()
+                .feeChargeLogId(null)
+                .chargedAmount(BigDecimal.ZERO.setScale(2))
+                .journalRef(reference)
+                .charityRouted(configuration.isCharityRouted())
+                .charityFundEntryId(null)
+                .feeCode(configuration.getFeeCode())
+                .classification(configuration.getShariahClassification())
+                .glAccountCode(calculation.getGlAccountCode())
+                .message(message)
+                .build();
+    }
+
+    private ChargeAdjustment resolvePreChargeWaiver(IslamicFeeConfiguration configuration,
+                                                    IslamicFeeRequests.ChargeFeeRequest request,
+                                                    IslamicFeeResponses.FeeCalculationResult calculation) {
+        Long effectiveCustomerId = request.getCustomerId();
+        IslamicFeeWaiver waiver = waiverRepository.findApplicablePreChargeWaivers(
+                        configuration.getId(),
+                        request.getAccountId(),
+                        request.getContractId(),
+                        effectiveCustomerId)
+                .stream()
+                .filter(candidate -> matchesChargeContext(candidate, request, effectiveCustomerId))
+                .findFirst()
+                .orElse(null);
+        if (waiver == null) {
+            return ChargeAdjustment.none();
+        }
+        return switch (IslamicFeeSupport.normalize(waiver.getWaiverType())) {
+            case "FULL_WAIVER" -> new ChargeAdjustment(waiver.getId(), BigDecimal.ZERO.setScale(2), null, null,
+                    "Fee waived before charge");
+            case "PARTIAL_WAIVER" -> new ChargeAdjustment(waiver.getId(),
+                    calculation.getCalculatedAmount().min(IslamicFeeSupport.money(waiver.getRemainingAmount())),
+                    null,
+                    null,
+                    "Partial waiver applied before charge");
+            case "DEFERRAL" -> waiver.getDeferredUntil() != null && LocalDate.now().isBefore(waiver.getDeferredUntil())
+                    ? new ChargeAdjustment(waiver.getId(), null, waiver.getDeferredUntil(), null, "Fee deferred before charge")
+                    : ChargeAdjustment.none();
+            case "CONVERSION" -> {
+                if (!StringUtils.hasText(waiver.getConvertedFeeCode())) {
+                    throw new BusinessException("Conversion waiver requires a converted fee code", "ISLAMIC_FEE_WAIVER_CONVERSION_CODE_REQUIRED");
+                }
+                if (waiver.getConvertedFeeCode().equalsIgnoreCase(configuration.getFeeCode())) {
+                    throw new BusinessException("Converted fee code must differ from original fee code", "ISLAMIC_FEE_WAIVER_CONVERSION_INVALID");
+                }
+                yield new ChargeAdjustment(waiver.getId(), null, null, waiver.getConvertedFeeCode(),
+                        "Fee converted before charge");
+            }
+            default -> ChargeAdjustment.none();
+        };
+    }
+
+    private boolean matchesChargeContext(IslamicFeeWaiver waiver,
+                                         IslamicFeeRequests.ChargeFeeRequest request,
+                                         Long effectiveCustomerId) {
+        return matchesScope(waiver.getAccountId(), request.getAccountId())
+                && matchesScope(waiver.getContractId(), request.getContractId())
+                && matchesScope(waiver.getCustomerId(), effectiveCustomerId);
+    }
+
+    private boolean matchesScope(Long waiverScope, Long requestScope) {
+        return waiverScope == null || Objects.equals(waiverScope, requestScope);
+    }
+
+    private void consumePreChargeWaiver(Long waiverId, String reference) {
+        if (waiverId == null) {
+            return;
+        }
+        waiverRepository.findById(waiverId).ifPresent(waiver -> {
+            if (waiver.getJournalRef() == null) {
+                waiver.setJournalRef(reference);
+                waiverRepository.save(waiver);
+            }
+        });
+    }
+
     private void ensureChargeable(IslamicFeeConfiguration configuration) {
         if ("PROHIBITED".equals(configuration.getShariahClassification())) {
             throw new BusinessException("Prohibited fee types cannot be charged", "ISLAMIC_FEE_PROHIBITED");
@@ -734,5 +864,15 @@ public class IslamicFeeService {
 
     private boolean changed(Object left, Object right) {
         return left != null ? !left.equals(right) : right != null;
+    }
+
+    private record ChargeAdjustment(Long waiverId,
+                                    BigDecimal overrideAmount,
+                                    LocalDate deferUntil,
+                                    String convertedFeeCode,
+                                    String message) {
+        private static ChargeAdjustment none() {
+            return new ChargeAdjustment(null, null, null, null, null);
+        }
     }
 }

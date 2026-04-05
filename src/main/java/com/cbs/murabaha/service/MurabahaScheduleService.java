@@ -297,7 +297,7 @@ public class MurabahaScheduleService {
             MurabahaContract contract = getContract(installment.getContractId());
             refreshSingleInstallment(contract, installment);
             int grace = contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays();
-            if (installment.getDaysOverdue() <= grace || installment.getLatePenaltyAmount().compareTo(BigDecimal.ZERO) > 0) {
+            if (installment.getDaysOverdue() <= grace) {
                 installmentRepository.save(installment);
                 continue;
             }
@@ -311,15 +311,28 @@ public class MurabahaScheduleService {
                 continue;
             }
 
-            latePenaltyService.processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
-                    .contractId(contract.getId())
-                    .contractRef(contract.getContractRef())
-                    .contractTypeCode("MURABAHA")
-                    .installmentId(installment.getId())
-                    .overdueAmount(outstanding)
-                    .daysOverdue(installment.getDaysOverdue())
-                    .penaltyDate(LocalDate.now())
-                    .build());
+            BigDecimal previousPenalty = MurabahaSupport.money(installment.getLatePenaltyAmount());
+            BigDecimal incrementalPenalty = MurabahaSupport.money(penalty.subtract(previousPenalty).max(BigDecimal.ZERO));
+
+            if (incrementalPenalty.compareTo(BigDecimal.ZERO) > 0) {
+                latePenaltyService.processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
+                        .contractId(contract.getId())
+                        .contractRef(contract.getContractRef())
+                        .contractTypeCode("MURABAHA")
+                        .installmentId(installment.getId())
+                        .overdueAmount(outstanding)
+                        .daysOverdue(installment.getDaysOverdue())
+                        .penaltyDate(LocalDate.now())
+                        .build());
+
+                contract.setTotalLatePenaltiesCharged(MurabahaSupport.money(
+                        contract.getTotalLatePenaltiesCharged().add(incrementalPenalty)));
+                if (Boolean.TRUE.equals(contract.getLatePenaltiesToCharity())) {
+                    contract.setTotalCharityDonations(MurabahaSupport.money(
+                            contract.getTotalCharityDonations().add(incrementalPenalty)));
+                }
+                contractRepository.save(contract);
+            }
 
             installment.setLatePenaltyAmount(penalty);
             installmentRepository.save(installment);

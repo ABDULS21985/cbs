@@ -140,6 +140,24 @@ public class IjarahRentalService {
             throw new BusinessException("Rental payments are only allowed on active Ijarah contracts", "INVALID_CONTRACT_STATUS");
         }
 
+        // Idempotency check on externalRef
+        if (request.getExternalRef() != null) {
+            boolean alreadyUsed = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId).stream()
+                    .anyMatch(inst -> request.getExternalRef().equals(inst.getTransactionRef()));
+            if (alreadyUsed || !PROCESSED_REFS.add(request.getExternalRef())) {
+                throw new BusinessException("Duplicate payment detected for externalRef: " + request.getExternalRef(), "DUPLICATE_PAYMENT");
+            }
+        }
+
+        // Account balance check before processing payment
+        if (request.getDebitAccountId() != null) {
+            Account debitAccount = resolveDebitAccount(request.getDebitAccountId());
+            if (debitAccount != null && debitAccount.getAvailableBalance() != null
+                    && debitAccount.getAvailableBalance().compareTo(request.getPaymentAmount()) < 0) {
+                throw new BusinessException("Insufficient account balance for rental payment", "INSUFFICIENT_BALANCE");
+            }
+        }
+
         refreshPastDueStatuses(contract);
         List<IjarahRentalInstallment> unpaidInstallments = installmentRepository.findByContractIdAndStatusInOrderByInstallmentNumberAsc(
                 contractId,
@@ -191,6 +209,26 @@ public class IjarahRentalService {
             installmentRepository.save(installment);
         }
 
+        // CRITICAL: Route late penalty amounts to charity GL account
+        if (totalPenaltySettled.compareTo(BigDecimal.ZERO) > 0 && Boolean.TRUE.equals(contract.getLatePenaltyToCharity())) {
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("IJARAH")
+                    .txnType(IslamicTransactionType.FEE_CHARGE)
+                    .accountId(contract.getAccountId())
+                    .amount(totalPenaltySettled)
+                    .valueDate(request.getPaymentDate())
+                    .reference(generatedRef + "-CHARITY")
+                    .narration("Late penalty routed to charity per Shariah compliance")
+                    .additionalContext(Map.of("feeType", "LATE_PENALTY_CHARITY", "charityRouting", true))
+                    .build());
+            contract.setTotalCharityFromLatePenalties(
+                    IjarahSupport.money(IjarahSupport.nvl(contract.getTotalCharityFromLatePenalties()).add(totalPenaltySettled)));
+        }
+        if (totalPenaltySettled.compareTo(BigDecimal.ZERO) > 0) {
+            contract.setTotalLatePenalties(
+                    IjarahSupport.money(IjarahSupport.nvl(contract.getTotalLatePenalties()).add(totalPenaltySettled)));
+        }
+
         if (totalRentalSettled.compareTo(BigDecimal.ZERO) > 0) {
             Account debitAccount = resolveDebitAccount(request.getDebitAccountId());
             var journal = postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
@@ -208,6 +246,23 @@ public class IjarahRentalService {
                     .build());
             propagateJournalRef(contractId, generatedRef, journal.getJournalNumber());
             recordPoolIncomeIfApplicable(contract, totalRentalSettled, request.getPaymentDate(), journal.getJournalNumber());
+        }
+
+        // CRITICAL: Handle overpayments - credit excess back to customer account
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            Account debitAccount = resolveDebitAccount(request.getDebitAccountId());
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("IJARAH")
+                    .txnType(IslamicTransactionType.RENTAL_PAYMENT)
+                    .accountId(contract.getAccountId())
+                    .amount(remaining)
+                    .valueDate(request.getPaymentDate())
+                    .reference(generatedRef + "-OVERPAY")
+                    .narration("Overpayment credit returned to customer")
+                    .additionalContext(debitAccount != null && debitAccount.getProduct() != null
+                            ? Map.of("customerAccountGlCode", debitAccount.getProduct().getGlAccountCode(), "overpayment", true)
+                            : Map.of("customerAccountGlCode", "1620-IJR-001", "overpayment", true))
+                    .build());
         }
 
         contract.setTotalRentalsReceived(IjarahSupport.money(contract.getTotalRentalsReceived().add(totalRentalSettled)));

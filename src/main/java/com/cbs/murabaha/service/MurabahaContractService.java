@@ -243,7 +243,20 @@ public class MurabahaContractService {
                 .filter(contract -> contract.getStatus() == MurabahaDomainEnums.ContractStatus.ACTIVE
                         || contract.getStatus() == MurabahaDomainEnums.ContractStatus.EXECUTED
                         || contract.getStatus() == MurabahaDomainEnums.ContractStatus.DEFAULTED)
-                .map(MurabahaContract::getFinancedAmount)
+                .map(contract -> {
+                    // Calculate actual outstanding from schedule: sum of unpaid principal + unpaid profit
+                    var schedule = scheduleService.getSchedule(contract.getId());
+                    if (schedule.isEmpty()) {
+                        return contract.getFinancedAmount();
+                    }
+                    return schedule.stream()
+                            .filter(inst -> inst.getStatus() != MurabahaDomainEnums.InstallmentStatus.PAID
+                                    && inst.getStatus() != MurabahaDomainEnums.InstallmentStatus.WAIVED)
+                            .map(inst -> MurabahaSupport.money(inst.getTotalInstallmentAmount()
+                                    .subtract(MurabahaSupport.money(inst.getPaidPrincipal()))
+                                    .subtract(MurabahaSupport.money(inst.getPaidProfit()))))
+                            .reduce(MurabahaSupport.ZERO, BigDecimal::add);
+                })
                 .reduce(MurabahaSupport.ZERO, BigDecimal::add);
         BigDecimal totalDeferred = contracts.stream()
                 .map(MurabahaContract::getUnrecognisedProfit)

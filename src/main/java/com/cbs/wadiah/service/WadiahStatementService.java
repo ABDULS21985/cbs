@@ -311,8 +311,7 @@ public class WadiahStatementService {
     private TransactionView classifyTransaction(TransactionJournal transaction) {
         String narration = transaction.getNarration() != null ? transaction.getNarration().toLowerCase(Locale.ROOT) : "";
         String externalRef = transaction.getExternalRef() != null ? transaction.getExternalRef().toLowerCase(Locale.ROOT) : "";
-        String contractType = transaction.getContractType() != null ? transaction.getContractType().toUpperCase(Locale.ROOT) : "";
-        if (narration.contains("hibah") || externalRef.contains("hib-") || "HIBAH".equals(contractType)) {
+        if (narration.contains("hibah") || externalRef.contains("hib-")) {
             return new TransactionView("HIBAH", false, false, true);
         }
         if (transaction.getTransactionType() == TransactionType.TRANSFER_IN) {

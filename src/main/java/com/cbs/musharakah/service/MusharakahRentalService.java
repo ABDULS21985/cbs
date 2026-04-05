@@ -408,8 +408,20 @@ public class MusharakahRentalService {
                     installment.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE);
                     installment.setDaysOverdue((int) overdue);
                     if (MusharakahSupport.money(installment.getLatePenaltyAmount()).compareTo(BigDecimal.ZERO) == 0) {
-                        installment.setLatePenaltyAmount(MusharakahSupport.money(
-                                MusharakahSupport.money(installment.getRentalAmount()).multiply(new BigDecimal("0.01"))));
+                        IslamicFeeResponses.LatePenaltyResult penaltyResult = latePenaltyService.processLatePenalty(
+                                IslamicFeeResponses.LatePenaltyRequest.builder()
+                                        .contractId(contract.getId())
+                                        .contractRef(contract.getContractRef())
+                                        .contractTypeCode("MUSHARAKAH")
+                                        .installmentId(installment.getId())
+                                        .overdueAmount(MusharakahSupport.money(
+                                                installment.getRentalAmount().subtract(MusharakahSupport.money(installment.getPaidAmount()))))
+                                        .daysOverdue((int) overdue)
+                                        .penaltyDate(LocalDate.now())
+                                        .build());
+                        if (penaltyResult.isPenaltyCharged() && penaltyResult.getPenaltyAmount() != null) {
+                            installment.setLatePenaltyAmount(MusharakahSupport.money(penaltyResult.getPenaltyAmount()));
+                        }
                     }
                 } else if (installment.getStatus() == MusharakahDomainEnums.InstallmentStatus.SCHEDULED) {
                     installment.setStatus(MusharakahDomainEnums.InstallmentStatus.DUE);
