@@ -123,6 +123,18 @@ public class PsrService {
             throw new BusinessException("PSR cannot be changed on term deposits (ST-006)", "PSR_IMMUTABLE_TD");
         }
 
+        // Check for existing pending change requests on this account
+        List<PsrChangeRequest> pendingRequests = changeRequestRepository.findByAccountId(request.getAccountId());
+        boolean hasPending = pendingRequests.stream()
+                .anyMatch(cr -> cr.getStatus() == PsrChangeStatus.DRAFT
+                        || cr.getStatus() == PsrChangeStatus.PENDING_CONSENT
+                        || cr.getStatus() == PsrChangeStatus.CONSENT_GIVEN
+                        || cr.getStatus() == PsrChangeStatus.APPROVED);
+        if (hasPending) {
+            throw new BusinessException("An active PSR change request already exists for this account. "
+                    + "Please complete or cancel the existing request before initiating a new one.", "PSR_CHANGE_ALREADY_PENDING");
+        }
+
         validatePsrIsRatioNotFixedAmount(request.getProposedPsrCustomer(), request.getProposedPsrBank());
 
         BigDecimal sum = request.getProposedPsrCustomer().add(request.getProposedPsrBank());
@@ -253,6 +265,18 @@ public class PsrService {
 
     // Schedule management
     public PsrScheduleResponse createSchedule(CreatePsrScheduleRequest request) {
+        // Validate flat PSR values sum to 100 for FLAT schedule type
+        if ("FLAT".equals(request.getScheduleType())) {
+            if (request.getFlatPsrCustomer() != null && request.getFlatPsrBank() != null) {
+                BigDecimal sum = request.getFlatPsrCustomer().add(request.getFlatPsrBank());
+                if (sum.compareTo(new BigDecimal("100.0000")) != 0) {
+                    throw new BusinessException("Flat PSR customer + bank must equal 100. Got: " + sum, "PSR_SUM_INVALID");
+                }
+            } else {
+                throw new BusinessException("Flat PSR customer and bank values are required for FLAT schedule type", "PSR_VALUES_REQUIRED");
+            }
+        }
+
         ProfitSharingRatioSchedule schedule = ProfitSharingRatioSchedule.builder()
                 .productTemplateId(request.getProductTemplateId())
                 .scheduleName(request.getScheduleName())

@@ -15,6 +15,7 @@ import com.cbs.fees.islamic.entity.IslamicFeeConfiguration;
 import com.cbs.fees.islamic.entity.IslamicFeeWaiver;
 import com.cbs.fees.islamic.repository.IslamicFeeConfigurationRepository;
 import com.cbs.fees.islamic.repository.IslamicFeeWaiverRepository;
+import com.cbs.fees.islamic.repository.LatePenaltyRecordRepository;
 import com.cbs.fees.repository.FeeChargeLogRepository;
 import com.cbs.shariahcompliance.service.CharityFundService;
 import com.cbs.tenant.service.CurrentTenantResolver;
@@ -40,6 +41,7 @@ public class IslamicFeeWaiverService {
     private final IslamicFeeWaiverRepository waiverRepository;
     private final IslamicFeeConfigurationRepository configurationRepository;
     private final FeeChargeLogRepository feeChargeLogRepository;
+    private final LatePenaltyRecordRepository latePenaltyRecordRepository;
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
     private final CharityFundService charityFundService;
@@ -58,11 +60,15 @@ public class IslamicFeeWaiverService {
                     .orElseThrow(() -> new ResourceNotFoundException("FeeChargeLog", "id", request.getFeeChargeLogId()));
             originalAmount = chargeLog.getTotalAmount();
         }
+        if (originalAmount == null || originalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Original fee amount must be provided for waiver requests", "WAIVER_ORIGINAL_AMOUNT_REQUIRED");
+        }
         BigDecimal waivedAmount = IslamicFeeSupport.money(request.getWaivedAmount());
         BigDecimal remainingAmount = IslamicFeeSupport.money(originalAmount.subtract(waivedAmount));
         if (remainingAmount.compareTo(BigDecimal.ZERO) < 0) {
             throw new BusinessException("Waiver amount cannot exceed original amount", "WAIVER_EXCEEDS_ORIGINAL");
         }
+        validateWaiverRequest(request);
 
         String authorityLevel = determineAuthorityLevel(waivedAmount);
         String implication = configuration.isCharityRouted()
@@ -113,7 +119,7 @@ public class IslamicFeeWaiverService {
         }
         String requiredRole = IslamicFeeSupport.requiredRoleForAuthorityLevel(waiver.getAuthorityLevel());
         if (!IslamicFeeSupport.currentUserHasRole(requiredRole) && !IslamicFeeSupport.currentUserHasRole("CBS_ADMIN")) {
-            log.debug("Waiver approval running without matching role in security context; requiredRole={}", requiredRole);
+            throw new BusinessException("Approver lacks authority for this waiver", "WAIVER_AUTHORITY_INSUFFICIENT");
         }
         waiver.setStatus("APPROVED");
         waiver.setApprovedBy(approvedBy);
@@ -129,49 +135,41 @@ public class IslamicFeeWaiverService {
         }
         IslamicFeeConfiguration configuration = configurationRepository.findById(waiver.getFeeConfigId())
                 .orElseThrow(() -> new ResourceNotFoundException("IslamicFeeConfiguration", "id", waiver.getFeeConfigId()));
+        String waiverType = IslamicFeeSupport.normalize(waiver.getWaiverType());
 
-        if (waiver.getFeeChargeLogId() != null) {
-            FeeChargeLog chargeLog = feeChargeLogRepository.findById(waiver.getFeeChargeLogId())
-                    .orElseThrow(() -> new ResourceNotFoundException("FeeChargeLog", "id", waiver.getFeeChargeLogId()));
-            Account account = accountRepository.findByIdWithProduct(chargeLog.getAccountId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Account", "id", chargeLog.getAccountId()));
-            String postingRef = chargeLog.getTriggerRef() + ":WAIVER";
-            var txn = accountPostingService.postCreditAgainstGl(
-                    account,
-                    TransactionType.ADJUSTMENT,
-                    waiver.getWaivedAmount(),
-                    "Islamic fee waiver " + chargeLog.getFeeCode(),
-                    TransactionChannel.SYSTEM,
-                    postingRef,
-                    List.of(accountPostingService.balanceLeg(
-                            configuration.isCharityRouted() ? configuration.getCharityGlAccount() : configuration.getIncomeGlAccount(),
-                            AccountPostingService.EntrySide.DEBIT,
-                            waiver.getWaivedAmount(),
-                            account.getCurrencyCode(),
-                            BigDecimal.ONE,
-                            "Islamic fee waiver reversal",
-                            account.getId(),
-                            account.getCustomer() != null ? account.getCustomer().getId() : waiver.getCustomerId()
-                    )),
-                    "ISLAMIC_FEE_ENGINE",
-                    postingRef
-            );
-            waiver.setJournalRef(txn.getJournal() != null ? txn.getJournal().getJournalNumber() : null);
+        if (waiver.getFeeChargeLogId() == null) {
+            applyPreChargeWaiver(waiver, configuration, waiverType);
+            waiver.setStatus("APPLIED");
+            waiver.setAppliedAt(Instant.now());
+            waiver.setAppliedBy(actorProvider.getCurrentActor());
+            return waiverRepository.save(waiver);
+        }
 
-            if (configuration.isCharityRouted() && chargeLog.getCharityFundEntryId() != null) {
-                charityFundService.recordReversal(chargeLog.getCharityFundEntryId(), waiver.getWaivedAmount(),
-                        waiver.getJournalRef(), "Fee waiver reversal");
+        FeeChargeLog chargeLog = feeChargeLogRepository.findById(waiver.getFeeChargeLogId())
+                .orElseThrow(() -> new ResourceNotFoundException("FeeChargeLog", "id", waiver.getFeeChargeLogId()));
+        Account account = accountRepository.findByIdWithProduct(chargeLog.getAccountId())
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", chargeLog.getAccountId()));
+        switch (waiverType) {
+            case "FULL_WAIVER", "PARTIAL_WAIVER" -> reverseChargedFee(waiver, configuration, chargeLog, account, "Islamic fee waiver");
+            case "DEFERRAL" -> {
+                if (waiver.getDeferredUntil() == null || !waiver.getDeferredUntil().isAfter(LocalDate.now())) {
+                    throw new BusinessException("Deferral waiver requires a future deferred date", "WAIVER_DEFERRAL_DATE_REQUIRED");
+                }
+                reverseChargedFee(waiver, configuration, chargeLog, account, "Islamic fee deferral");
+                chargeLog.setStatus("DEFERRED");
+                chargeLog.setNotes(appendNote(chargeLog.getNotes(), "Deferred until " + waiver.getDeferredUntil()));
+                feeChargeLogRepository.save(chargeLog);
             }
-
-            chargeLog.setWasWaived(true);
-            chargeLog.setWaivedBy(actorProvider.getCurrentActor());
-            chargeLog.setWaiverReason(waiver.getReason());
-            chargeLog.setNotes(appendNote(chargeLog.getNotes(),
-                    "Waiver " + waiver.getWaiverRef() + " applied for " + waiver.getWaivedAmount()));
-            if (waiver.getRemainingAmount().compareTo(BigDecimal.ZERO) == 0) {
-                chargeLog.setStatus("WAIVED");
+            case "CONVERSION" -> {
+                if (!StringUtils.hasText(waiver.getConvertedFeeCode())) {
+                    throw new BusinessException("Conversion waiver requires a converted fee code", "WAIVER_CONVERSION_CODE_REQUIRED");
+                }
+                reverseChargedFee(waiver, configuration, chargeLog, account, "Islamic fee conversion");
+                chargeLog.setStatus("CONVERTED");
+                chargeLog.setNotes(appendNote(chargeLog.getNotes(), "Converted to fee code " + waiver.getConvertedFeeCode()));
+                feeChargeLogRepository.save(chargeLog);
             }
-            feeChargeLogRepository.save(chargeLog);
+            default -> throw new BusinessException("Unsupported waiver type", "WAIVER_TYPE_UNSUPPORTED");
         }
 
         waiver.setStatus("APPLIED");
@@ -259,5 +257,94 @@ public class IslamicFeeWaiverService {
             return newNote;
         }
         return existingNotes + " | " + newNote;
+    }
+
+    private void validateWaiverRequest(IslamicFeeRequests.RequestFeeWaiverRequest request) {
+        String waiverType = IslamicFeeSupport.normalize(request.getWaiverType());
+        if (!StringUtils.hasText(waiverType)) {
+            throw new BusinessException("Waiver type is required", "WAIVER_TYPE_REQUIRED");
+        }
+        if ("DEFERRAL".equals(waiverType)
+                && (request.getDeferredUntil() == null || !request.getDeferredUntil().isAfter(LocalDate.now()))) {
+            throw new BusinessException("Deferral waiver requires a future deferred date", "WAIVER_DEFERRAL_DATE_REQUIRED");
+        }
+        if ("CONVERSION".equals(waiverType) && !StringUtils.hasText(request.getConvertedFeeCode())) {
+            throw new BusinessException("Conversion waiver requires a converted fee code", "WAIVER_CONVERSION_CODE_REQUIRED");
+        }
+    }
+
+    private void applyPreChargeWaiver(IslamicFeeWaiver waiver,
+                                      IslamicFeeConfiguration configuration,
+                                      String waiverType) {
+        switch (waiverType) {
+            case "FULL_WAIVER", "PARTIAL_WAIVER" -> waiver.setJournalRef(null);
+            case "DEFERRAL" -> {
+                if (waiver.getDeferredUntil() == null || !waiver.getDeferredUntil().isAfter(LocalDate.now())) {
+                    throw new BusinessException("Deferral waiver requires a future deferred date", "WAIVER_DEFERRAL_DATE_REQUIRED");
+                }
+                waiver.setJournalRef(null);
+            }
+            case "CONVERSION" -> {
+                if (!StringUtils.hasText(waiver.getConvertedFeeCode())) {
+                    throw new BusinessException("Conversion waiver requires a converted fee code", "WAIVER_CONVERSION_CODE_REQUIRED");
+                }
+                if (waiver.getConvertedFeeCode().equalsIgnoreCase(configuration.getFeeCode())) {
+                    throw new BusinessException("Converted fee code must differ from original fee code", "WAIVER_CONVERSION_CODE_INVALID");
+                }
+                waiver.setJournalRef(null);
+            }
+            default -> throw new BusinessException("Unsupported waiver type", "WAIVER_TYPE_UNSUPPORTED");
+        }
+    }
+
+    private void reverseChargedFee(IslamicFeeWaiver waiver,
+                                   IslamicFeeConfiguration configuration,
+                                   FeeChargeLog chargeLog,
+                                   Account account,
+                                   String narrationPrefix) {
+        String postingRef = chargeLog.getTriggerRef() + ":WAIVER";
+        var txn = accountPostingService.postCreditAgainstGl(
+                account,
+                TransactionType.ADJUSTMENT,
+                waiver.getWaivedAmount(),
+                narrationPrefix + " " + chargeLog.getFeeCode(),
+                TransactionChannel.SYSTEM,
+                postingRef,
+                List.of(accountPostingService.balanceLeg(
+                        configuration.isCharityRouted() ? configuration.getCharityGlAccount() : configuration.getIncomeGlAccount(),
+                        AccountPostingService.EntrySide.DEBIT,
+                        waiver.getWaivedAmount(),
+                        account.getCurrencyCode(),
+                        BigDecimal.ONE,
+                        "Islamic fee waiver reversal",
+                        account.getId(),
+                        account.getCustomer() != null ? account.getCustomer().getId() : waiver.getCustomerId()
+                )),
+                "ISLAMIC_FEE_ENGINE",
+                postingRef
+        );
+        waiver.setJournalRef(txn.getJournal() != null ? txn.getJournal().getJournalNumber() : null);
+
+        if (configuration.isCharityRouted() && chargeLog.getCharityFundEntryId() != null) {
+            charityFundService.recordReversal(chargeLog.getCharityFundEntryId(), waiver.getWaivedAmount(),
+                    waiver.getJournalRef(), "Fee waiver reversal");
+            latePenaltyRecordRepository.findFirstByFeeChargeLogId(chargeLog.getId()).ifPresent(record -> {
+                record.setStatus("WAIVED");
+                record.setOutstandingAmount(BigDecimal.ZERO.setScale(2));
+                record.setSettledAt(Instant.now());
+                record.setBlockedReason(null);
+                latePenaltyRecordRepository.save(record);
+            });
+        }
+
+        chargeLog.setWasWaived(true);
+        chargeLog.setWaivedBy(actorProvider.getCurrentActor());
+        chargeLog.setWaiverReason(waiver.getReason());
+        chargeLog.setNotes(appendNote(chargeLog.getNotes(),
+                "Waiver " + waiver.getWaiverRef() + " applied for " + waiver.getWaivedAmount()));
+        if (waiver.getRemainingAmount().compareTo(BigDecimal.ZERO) == 0) {
+            chargeLog.setStatus("WAIVED");
+        }
+        feeChargeLogRepository.save(chargeLog);
     }
 }

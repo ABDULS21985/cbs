@@ -235,10 +235,18 @@ public class WakalaDepositService {
             wakalahFee = grossProfit; // Bank can only take what's available
         }
 
-        // Credit customer profit
+        // Credit customer profit using customer profit distribution GL
         if (customerProfit.compareTo(BigDecimal.ZERO) > 0) {
             accountPostingService.postCreditAgainstGl(account, TransactionType.CREDIT,
                     customerProfit, "Wakala investment profit",
+                    TransactionChannel.SYSTEM, null,
+                    WAKALA_CUSTOMER_PROFIT_GL, "WAKALA", w.getContractReference());
+        }
+
+        // Post bank's Wakala fee income to GL
+        if (wakalahFee.compareTo(BigDecimal.ZERO) > 0) {
+            accountPostingService.postDebitAgainstGl(account, TransactionType.DEBIT,
+                    wakalahFee, "Wakala fee deduction",
                     TransactionChannel.SYSTEM, null,
                     WAKALA_FEE_INCOME_GL, "WAKALA", w.getContractReference());
         }

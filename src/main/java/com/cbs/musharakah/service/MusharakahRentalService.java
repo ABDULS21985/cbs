@@ -378,24 +378,62 @@ public class MusharakahRentalService {
         List<MusharakahResponses.CombinedInstallment> combined = new ArrayList<>();
         BigDecimal cumulativePaid = MusharakahSupport.ZERO;
 
-        int size = Math.max(rentals.size(), buyouts.size());
-        for (int index = 0; index < size; index++) {
-            MusharakahRentalInstallment rental = index < rentals.size() ? rentals.get(index) : null;
-            MusharakahBuyoutInstallment buyout = index < buyouts.size() ? buyouts.get(index) : null;
-            BigDecimal rentalPortion = rental != null ? MusharakahSupport.money(rental.getRentalAmount()) : MusharakahSupport.ZERO;
-            BigDecimal buyoutPortion = buyout != null ? MusharakahSupport.money(buyout.getTotalBuyoutAmount()) : MusharakahSupport.ZERO;
+        // Merge by due date to handle different rental and buyout frequencies
+        int rentalIdx = 0;
+        int buyoutIdx = 0;
+        int installmentNum = 0;
+        while (rentalIdx < rentals.size() || buyoutIdx < buyouts.size()) {
+            MusharakahRentalInstallment rental = rentalIdx < rentals.size() ? rentals.get(rentalIdx) : null;
+            MusharakahBuyoutInstallment buyout = buyoutIdx < buyouts.size() ? buyouts.get(buyoutIdx) : null;
+
+            LocalDate rentalDate = rental != null ? rental.getDueDate() : null;
+            LocalDate buyoutDate = buyout != null ? buyout.getDueDate() : null;
+
+            boolean includeRental;
+            boolean includeBuyout;
+            LocalDate dueDate;
+            if (rentalDate != null && buyoutDate != null) {
+                if (rentalDate.equals(buyoutDate)) {
+                    includeRental = true;
+                    includeBuyout = true;
+                    dueDate = rentalDate;
+                } else if (rentalDate.isBefore(buyoutDate)) {
+                    includeRental = true;
+                    includeBuyout = false;
+                    dueDate = rentalDate;
+                } else {
+                    includeRental = false;
+                    includeBuyout = true;
+                    dueDate = buyoutDate;
+                }
+            } else if (rentalDate != null) {
+                includeRental = true;
+                includeBuyout = false;
+                dueDate = rentalDate;
+            } else {
+                includeRental = false;
+                includeBuyout = true;
+                dueDate = buyoutDate;
+            }
+
+            BigDecimal rentalPortion = includeRental ? MusharakahSupport.money(rental.getRentalAmount()) : MusharakahSupport.ZERO;
+            BigDecimal buyoutPortion = includeBuyout ? MusharakahSupport.money(buyout.getTotalBuyoutAmount()) : MusharakahSupport.ZERO;
             BigDecimal totalPayment = MusharakahSupport.money(rentalPortion.add(buyoutPortion));
             cumulativePaid = cumulativePaid.add(totalPayment);
+            installmentNum++;
             combined.add(MusharakahResponses.CombinedInstallment.builder()
-                    .installmentNumber(index + 1)
-                    .dueDate(rental != null ? rental.getDueDate() : buyout.getDueDate())
+                    .installmentNumber(installmentNum)
+                    .dueDate(dueDate)
                     .rentalPortion(rentalPortion)
                     .buyoutPortion(buyoutPortion)
                     .totalPayment(totalPayment)
-                    .bankOwnershipBefore(rental != null ? rental.getBankOwnershipAtPeriodStart() : null)
-                    .bankOwnershipAfter(buyout != null ? buyout.getBankPercentageAfter() : null)
+                    .bankOwnershipBefore(includeRental ? rental.getBankOwnershipAtPeriodStart() : null)
+                    .bankOwnershipAfter(includeBuyout ? buyout.getBankPercentageAfter() : null)
                     .cumulativeTotalPaid(cumulativePaid)
                     .build());
+
+            if (includeRental) rentalIdx++;
+            if (includeBuyout) buyoutIdx++;
         }
 
         BigDecimal totalRental = combined.stream().map(MusharakahResponses.CombinedInstallment::getRentalPortion)

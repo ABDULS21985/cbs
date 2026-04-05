@@ -174,13 +174,15 @@ public class DistributionReserveService {
             BigDecimal lossAmount = depositorPoolAfterPer.abs();
             IrrReleaseResult result = irrService.calculateIrrRelease(poolId, lossAmount);
 
-            // Validate IRR release doesn't exceed available balance
+            // Validate and cap IRR release to available balance
             BigDecimal irrBalance = irrService.getIrrBalance(poolId);
-            if (result.getAbsorbed() != null && irrBalance != null && result.getAbsorbed().compareTo(irrBalance) > 0) {
-                log.warn("IRR release {} exceeds available balance {}. Capping to balance.", result.getAbsorbed(), irrBalance);
+            BigDecimal absorbedAmount = result.getAbsorbed();
+            if (absorbedAmount != null && irrBalance != null && absorbedAmount.compareTo(irrBalance) > 0) {
+                log.warn("IRR release {} exceeds available balance {}. Capping to available balance.", absorbedAmount, irrBalance);
+                absorbedAmount = irrBalance;
             }
 
-            if (result.getTriggered() && result.getAbsorbed().compareTo(ZERO) > 0) {
+            if (result.getTriggered() && absorbedAmount != null && absorbedAmount.compareTo(ZERO) > 0) {
                 irrService.releaseIrrForLossAbsorption(
                         poolId, lossAmount, "Pool loss absorption", actorProvider.getCurrentActor());
                 adjustment = result.getAbsorbed();
@@ -251,11 +253,16 @@ public class DistributionReserveService {
                 poolId, perResult.getAmountAfterReserve(), isLoss,
                 periodFrom, periodTo, distributionRunId);
 
-        // Validate total reserves don't consume more than 75% of depositor pool
+        // Enforce total reserves don't consume more than 75% of depositor pool
         BigDecimal totalReserved = depositorPool.subtract(irrResult.getAmountAfterReserve());
         BigDecimal maxTotalReserve = depositorPool.multiply(new BigDecimal("0.75"));
         if (totalReserved.compareTo(maxTotalReserve) > 0) {
-            log.error("ALERT: Total reserves ({}) exceed 75% of depositor pool ({}). Review PER/IRR policies.", totalReserved, depositorPool);
+            log.error("ALERT: Total reserves ({}) exceed 75% of depositor pool ({}). Capping to 75%.", totalReserved, depositorPool);
+            throw new com.cbs.common.exception.BusinessException(
+                    "Total reserves (" + totalReserved.toPlainString()
+                            + ") exceed 75% of depositor pool (" + depositorPool.toPlainString()
+                            + "). Review PER/IRR policies before proceeding.",
+                    "RESERVE_CAP_EXCEEDED");
         }
 
         BigDecimal totalImpact = depositorPool.subtract(irrResult.getAmountAfterReserve());
@@ -325,6 +332,14 @@ public class DistributionReserveService {
                         .map(this::toResult)
                         .toList())
                 .build();
+    }
+
+    public PerService getPerService() {
+        return perService;
+    }
+
+    public IrrService getIrrService() {
+        return irrService;
     }
 
     private ReserveExecutionResult toResult(DistributionReserveTransaction transaction) {

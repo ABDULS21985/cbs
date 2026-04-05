@@ -3,6 +3,7 @@ package com.cbs.shariahcompliance.service;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.rulesengine.service.BusinessRuleService;
 import com.cbs.shariahcompliance.dto.*;
 import com.cbs.shariahcompliance.entity.*;
 import com.cbs.shariahcompliance.repository.*;
@@ -37,6 +38,7 @@ public class ShariahScreeningService {
     private final ShariahExclusionListEntryRepository entryRepository;
     private final ShariahScreeningResultRepository resultRepository;
     private final ShariahComplianceAlertRepository alertRepository;
+    private final BusinessRuleService businessRuleService;
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
 
@@ -761,6 +763,12 @@ public class ShariahScreeningService {
                 .effectiveTo(r.getEffectiveTo())
                 .enabled(r.isEnabled())
                 .priority(r.getPriority())
+                .tenantId(r.getTenantId())
+                .createdAt(r.getCreatedAt())
+                .updatedAt(r.getUpdatedAt())
+                .createdBy(r.getCreatedBy())
+                .updatedBy(r.getUpdatedBy())
+                .version(r.getVersion())
                 .build();
     }
 }

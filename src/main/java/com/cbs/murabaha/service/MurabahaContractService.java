@@ -280,8 +280,15 @@ public class MurabahaContractService {
 
     @Transactional(readOnly = true)
     public MurabahaPortfolioSummary getPortfolioSummary() {
+        // Only fetch contracts in statuses relevant for portfolio reporting
         List<MurabahaContract> contracts = new java.util.ArrayList<>();
-        for (MurabahaDomainEnums.ContractStatus status : MurabahaDomainEnums.ContractStatus.values()) {
+        for (MurabahaDomainEnums.ContractStatus status : EnumSet.of(
+                MurabahaDomainEnums.ContractStatus.ACTIVE,
+                MurabahaDomainEnums.ContractStatus.EXECUTED,
+                MurabahaDomainEnums.ContractStatus.DEFAULTED,
+                MurabahaDomainEnums.ContractStatus.SETTLED,
+                MurabahaDomainEnums.ContractStatus.EARLY_SETTLED,
+                MurabahaDomainEnums.ContractStatus.WRITTEN_OFF)) {
             contracts.addAll(contractRepository.findByStatus(status));
         }
         BigDecimal totalOutstanding = contracts.stream()

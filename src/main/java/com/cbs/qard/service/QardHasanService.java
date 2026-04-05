@@ -119,6 +119,7 @@ public class QardHasanService {
     public QardHasanAccountResponse createQardLoan(CreateQardLoanRequest request) {
         Customer customer = customerRepository.findById(request.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", request.getCustomerId()));
+        ensureKycVerified(customer.getId());
         IslamicProductTemplate islamicProduct = resolveActiveQardProduct(request.getProductCode());
         productRepository.findByCode(request.getProductCode())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "code", request.getProductCode()));

@@ -395,24 +395,41 @@ public class IjarahContractService {
                 .forEach(installment -> installment.setStatus(IjarahDomainEnums.RentalInstallmentStatus.CANCELLED));
 
         // GL posting for early termination accounting
+        BigDecimal negotiatedAmount = IjarahSupport.money(request.getNegotiatedPurchaseAmount());
         if (contract.getIjarahAssetId() != null) {
             var asset = assetService.findAsset(contract.getIjarahAssetId());
             BigDecimal nbv = IjarahSupport.money(asset.getNetBookValue());
+            BigDecimal postingAmount = negotiatedAmount.compareTo(BigDecimal.ZERO) > 0 ? negotiatedAmount : nbv;
             postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
                     .contractTypeCode("IJARAH")
-                    .txnType(IslamicTransactionType.EARLY_TERMINATION)
-                    .amount(nbv.max(BigDecimal.ONE))
+                    .txnType(IslamicTransactionType.CONTRACT_CANCELLATION)
+                    .amount(postingAmount.max(BigDecimal.ONE))
                     .reference(contract.getContractRef() + "-EARLY-TERM")
                     .valueDate(terminationDate)
                     .additionalContext(Map.of(
                             "terminationReason", request.getReason() != null ? request.getReason() : "EARLY_TERMINATION",
                             "assetCost", IjarahSupport.money(asset.getAcquisitionCost()),
                             "accumulatedDepreciation", IjarahSupport.money(asset.getAccumulatedDepreciation()),
-                            "netBookValue", nbv))
+                            "netBookValue", nbv,
+                            "negotiatedPurchaseAmount", negotiatedAmount))
                     .build());
 
             // Update asset status after early termination
             asset.setStatus(IjarahDomainEnums.AssetStatus.OWNED_UNLEASED);
+        }
+
+        // Handle security deposit return
+        if (contract.getSecurityDeposit() != null && contract.getSecurityDeposit().compareTo(BigDecimal.ZERO) > 0) {
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("IJARAH")
+                    .txnType(IslamicTransactionType.RENTAL_PAYMENT)
+                    .accountId(contract.getAccountId())
+                    .amount(IjarahSupport.money(contract.getSecurityDeposit()))
+                    .reference(contract.getContractRef() + "-DEPOSIT-RETURN")
+                    .valueDate(terminationDate)
+                    .narration("Security deposit return on early termination")
+                    .additionalContext(Map.of("depositReturn", true))
+                    .build());
         }
 
         contract.setStatus(IjarahDomainEnums.ContractStatus.TERMINATED_EARLY);

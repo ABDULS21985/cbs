@@ -3,6 +3,7 @@ package com.cbs.musharakah.service;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import lombok.extern.slf4j.Slf4j;
 import com.cbs.gl.islamic.dto.IslamicPostingRequest;
 import com.cbs.gl.islamic.entity.IslamicTransactionType;
 import com.cbs.gl.islamic.service.IslamicPostingRuleService;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -71,6 +73,11 @@ public class MusharakahLossService {
     public MusharakahResponses.MusharakahLossEventResponse assessLoss(Long lossEventId,
                                                                       MusharakahRequests.LossAssessmentRequest request) {
         MusharakahLossEvent event = getLossEventEntity(lossEventId);
+        if (event.getStatus() != MusharakahDomainEnums.LossStatus.DETECTED) {
+            throw new BusinessException(
+                    "Loss assessment can only be performed on events in DETECTED status, current status: " + event.getStatus(),
+                    "INVALID_LOSS_STATUS");
+        }
         event.setTotalLossAmount(MusharakahSupport.money(request.getTotalLossAmount()));
         event.setEvidenceReference(request.getEvidenceReference());
         event.setInsuranceRecoveryExpected(MusharakahSupport.money(request.getInsuranceRecoveryExpected()));

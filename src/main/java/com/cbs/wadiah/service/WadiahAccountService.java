@@ -247,6 +247,16 @@ public class WadiahAccountService {
             throw new BusinessException("Yad Amanah withdrawals cannot exceed the safeguarded balance",
                     "YAD_AMANAH_LIMIT");
         }
+        if (wadiahAccount.getWadiahType() == WadiahDomainEnums.WadiahType.YAD_DHAMANAH
+                && wadiahAccount.getMinimumBalance() != null
+                && wadiahAccount.getMinimumBalance().compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal balanceAfterWithdrawal = account.getBookBalance().subtract(request.getAmount());
+            if (balanceAfterWithdrawal.compareTo(wadiahAccount.getMinimumBalance()) < 0) {
+                throw new BusinessException(
+                        "Withdrawal would breach the minimum balance requirement of " + wadiahAccount.getMinimumBalance(),
+                        "MINIMUM_BALANCE_BREACH");
+            }
+        }
 
         TransactionJournal journal = accountPostingService.postDebitAgainstGl(
                 account,
