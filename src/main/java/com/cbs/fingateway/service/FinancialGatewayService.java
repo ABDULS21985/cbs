@@ -5,10 +5,13 @@ import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.fingateway.entity.*;
 import com.cbs.fingateway.repository.*;
+import com.cbs.sanctions.service.SanctionsScreeningService;
+import com.cbs.sanctions.entity.ScreeningRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -22,6 +25,8 @@ public class FinancialGatewayService {
 
     private final FinancialGatewayRepository gatewayRepository;
     private final GatewayMessageRepository messageRepository;
+    private final SanctionsScreeningService sanctionsScreeningService;
+    private final RestTemplate restTemplate;
 
     @Transactional
     public FinancialGateway registerGateway(FinancialGateway gw) { return gatewayRepository.save(gw); }

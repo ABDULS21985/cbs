@@ -1,4 +1,4 @@
--- V108: Zakat computation, ZATCA hooks, and SSB-linked methodology governance
+-- V125: Zakat computation, ZATCA hooks, and SSB-linked methodology governance
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 

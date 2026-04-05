@@ -1,7 +1,10 @@
 package com.cbs.syndicatedloan.service;
 
+import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.gl.entity.JournalEntry;
+import com.cbs.gl.service.GeneralLedgerService;
 import com.cbs.syndicatedloan.entity.SyndicateDrawdown;
 import com.cbs.syndicatedloan.entity.SyndicateParticipant;
 import com.cbs.syndicatedloan.entity.SyndicatedLoanFacility;
@@ -15,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,9 +28,14 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class SyndicatedLoanService {
 
+    private static final String GL_SYNDICATED_LOAN_RECEIVABLE = "1450010";
+    private static final String GL_NOSTRO_SETTLEMENT = "1100020";
+
     private final SyndicatedLoanFacilityRepository facilityRepository;
     private final SyndicateParticipantRepository participantRepository;
     private final SyndicateDrawdownRepository drawdownRepository;
+    private final GeneralLedgerService generalLedgerService;
+    private final CurrentActorProvider currentActorProvider;
 
     @Transactional
     public SyndicatedLoanFacility createFacility(SyndicatedLoanFacility facility) {
@@ -67,17 +76,56 @@ public class SyndicatedLoanService {
         if (!"APPROVED".equals(drawdown.getStatus())) {
             throw new BusinessException("Drawdown " + drawdownRef + " must be APPROVED to fund; current status: " + drawdown.getStatus());
         }
+
+        // Validate drawdown amount does not exceed undrawn facility amount
+        SyndicatedLoanFacility facility = facilityRepository.findById(drawdown.getFacilityId())
+                .orElseThrow(() -> new ResourceNotFoundException("SyndicatedLoanFacility", "id", drawdown.getFacilityId()));
+        if (drawdown.getAmount().compareTo(facility.getUndrawnAmount()) > 0) {
+            throw new BusinessException(
+                    String.format("Drawdown amount %s exceeds undrawn facility amount %s",
+                            drawdown.getAmount(), facility.getUndrawnAmount()),
+                    "DRAWDOWN_EXCEEDS_UNDRAWN");
+        }
+
         drawdown.setStatus("FUNDED");
 
         // Update facility drawn/undrawn amounts
-        SyndicatedLoanFacility facility = facilityRepository.findById(drawdown.getFacilityId())
-                .orElseThrow(() -> new ResourceNotFoundException("SyndicatedLoanFacility", "id", drawdown.getFacilityId()));
         BigDecimal newDrawn = facility.getDrawnAmount().add(drawdown.getAmount());
         facility.setDrawnAmount(newDrawn);
         facility.setUndrawnAmount(facility.getTotalFacilityAmount().subtract(newDrawn));
         facilityRepository.save(facility);
 
-        return drawdownRepository.save(drawdown);
+        // GL posting: Debit Syndicated Loan Receivable, Credit Nostro/Settlement Account
+        String narration = String.format("Syndicated loan drawdown funding - %s facility %s",
+                drawdownRef, facility.getFacilityCode());
+        List<GeneralLedgerService.JournalLineRequest> journalLines = List.of(
+                new GeneralLedgerService.JournalLineRequest(
+                        GL_SYNDICATED_LOAN_RECEIVABLE,
+                        drawdown.getAmount(), BigDecimal.ZERO,
+                        drawdown.getCurrency(), BigDecimal.ONE,
+                        narration, null, null, null, null),
+                new GeneralLedgerService.JournalLineRequest(
+                        GL_NOSTRO_SETTLEMENT,
+                        BigDecimal.ZERO, drawdown.getAmount(),
+                        drawdown.getCurrency(), BigDecimal.ONE,
+                        narration, null, null, null, null)
+        );
+
+        JournalEntry journal = generalLedgerService.postJournal(
+                "SYNDICATED_LOAN",
+                narration,
+                "SYNDICATED_LOAN",
+                drawdownRef,
+                drawdown.getValueDate(),
+                currentActorProvider.getCurrentActor(),
+                journalLines
+        );
+
+        SyndicateDrawdown saved = drawdownRepository.save(drawdown);
+        log.info("Drawdown funded: ref={}, amount={}, currency={}, facility={}, journalId={}, actor={}",
+                drawdownRef, drawdown.getAmount(), drawdown.getCurrency(),
+                facility.getFacilityCode(), journal.getId(), currentActorProvider.getCurrentActor());
+        return saved;
     }
 
     public List<SyndicatedLoanFacility> getByRole(String ourRole) {
