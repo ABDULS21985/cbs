@@ -57,6 +57,34 @@ public class IslamicAmlDashboardService {
                 .build();
     }
 
+    public IslamicAmlDashboard.AlertSummary getAlertSummary(LocalDate from, LocalDate to) {
+        return buildAlertSummary(from, to);
+    }
+
+    public IslamicAmlDashboard.TawarruqMonitoring getTawarruqMonitoring(LocalDate from, LocalDate to) {
+        return buildTawarruqMonitoring(from, to);
+    }
+
+    public IslamicAmlDashboard.SanctionsWidget getSanctionsWidget(LocalDate from, LocalDate to) {
+        return buildSanctionsWidget(from, to);
+    }
+
+    public IslamicAmlDashboard.SarWidget getSarWidget(LocalDate from, LocalDate to) {
+        return buildSarWidget(from, to);
+    }
+
+    public IslamicAmlDashboard.CombinedScreeningWidget getCombinedScreeningWidget(LocalDate from, LocalDate to) {
+        return buildCombinedScreeningWidget(from, to);
+    }
+
+    public IslamicAmlDashboard.PoolMonitoringWidget getPoolMonitoringWidget(LocalDate from, LocalDate to) {
+        return buildPoolMonitoringWidget(from, to);
+    }
+
+    public List<IslamicAmlDashboard.MonthlyTrend> getMonthlyTrends(LocalDate from, LocalDate to) {
+        return buildMonthlyTrends(from, to);
+    }
+
     // ===================== ALERT SUMMARY =====================
 
     private IslamicAmlDashboard.AlertSummary buildAlertSummary(LocalDate from, LocalDate to) {

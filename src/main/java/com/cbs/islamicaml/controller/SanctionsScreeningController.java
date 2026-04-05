@@ -79,6 +79,13 @@ public class SanctionsScreeningController {
         return ResponseEntity.ok(ApiResponse.ok(result, "Batch re-screening completed"));
     }
 
+    @PostMapping("/batch-rescreen/islamic-counterparties")
+    public ResponseEntity<ApiResponse<BatchScreeningResult>> batchRescreenIslamicCounterparties() {
+        log.info("Initiating batch re-screening of Islamic counterparties");
+        BatchScreeningResult result = screeningService.reScreenIslamicCounterparties();
+        return ResponseEntity.ok(ApiResponse.ok(result, "Islamic counterparty re-screening completed"));
+    }
+
     // ===================== RESULT QUERIES =====================
 
     @GetMapping("/results/{id}")
@@ -111,6 +118,14 @@ public class SanctionsScreeningController {
     @GetMapping("/lists")
     public ResponseEntity<ApiResponse<List<SanctionsListConfiguration>>> getActiveLists() {
         return ResponseEntity.ok(ApiResponse.ok(screeningService.getActiveLists()));
+    }
+
+    @PostMapping("/lists/{code}/update")
+    public ResponseEntity<ApiResponse<SanctionsListConfiguration>> updateList(
+            @PathVariable String code,
+            @RequestBody ListUpdateRequest request) {
+        SanctionsListConfiguration updated = screeningService.updateSanctionsList(code, request);
+        return ResponseEntity.ok(ApiResponse.ok(updated, "Sanctions list updated"));
     }
 
     // ===================== SUMMARY =====================

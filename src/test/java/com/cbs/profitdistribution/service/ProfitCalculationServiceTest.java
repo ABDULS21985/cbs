@@ -129,7 +129,7 @@ class ProfitCalculationServiceTest {
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
         PoolExpenseRecord expense = PoolExpenseRecord.builder()
-                .id(3L).poolId(1L).expenseType(ExpenseType.MUDARIB_FEE)
+                .id(3L).poolId(1L).expenseType(ExpenseType.MANAGEMENT_FEE)
                 .amount(new BigDecimal("20000"))
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
@@ -161,7 +161,7 @@ class ProfitCalculationServiceTest {
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
         PoolExpenseRecord expense = PoolExpenseRecord.builder()
-                .id(2L).poolId(1L).expenseType(ExpenseType.MUDARIB_FEE)
+                .id(2L).poolId(1L).expenseType(ExpenseType.MANAGEMENT_FEE)
                 .amount(new BigDecimal("30000"))
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
@@ -196,7 +196,7 @@ class ProfitCalculationServiceTest {
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
         PoolExpenseRecord expense = PoolExpenseRecord.builder()
-                .id(2L).poolId(1L).expenseType(ExpenseType.MUDARIB_FEE)
+                .id(2L).poolId(1L).expenseType(ExpenseType.MANAGEMENT_FEE)
                 .amount(new BigDecimal("20000"))
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
@@ -236,7 +236,7 @@ class ProfitCalculationServiceTest {
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
         PoolExpenseRecord expense = PoolExpenseRecord.builder()
-                .id(2L).poolId(1L).expenseType(ExpenseType.MUDARIB_FEE)
+                .id(2L).poolId(1L).expenseType(ExpenseType.MANAGEMENT_FEE)
                 .amount(new BigDecimal("20000"))
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
@@ -297,7 +297,7 @@ class ProfitCalculationServiceTest {
         when(expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(any(), any(), any()))
                 .thenReturn(List.of(PoolExpenseRecord.builder()
                         .amount(new BigDecimal("20000"))
-                        .expenseType(ExpenseType.MUDARIB_FEE)
+                        .expenseType(ExpenseType.MANAGEMENT_FEE)
                         .build()));
 
         BusinessException ex = assertThrows(BusinessException.class,

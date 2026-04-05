@@ -72,7 +72,10 @@ class DecisionTableEvaluatorTest {
 
         assertThat(result.getMatched()).isTrue();
         assertThat(result.getMatchedRowIds()).containsExactly(11L, 12L);
-        assertThat(result.getOutputs()).containsEntry("profitRate", 5.5).containsEntry("processingFee", 2500);
+        assertThat(new BigDecimal(String.valueOf(result.getOutputs().get("profitRate"))))
+                .isEqualByComparingTo("5.5");
+        assertThat(new BigDecimal(String.valueOf(result.getOutputs().get("processingFee"))))
+                .isEqualByComparingTo("2500");
     }
 
     @Test
@@ -197,7 +200,8 @@ class DecisionTableEvaluatorTest {
 
         assertThat(result.getMatched()).isTrue();
         assertThat(result.getMatchedRowIds()).containsExactly(61L, 62L);
-        assertThat(result.getOutputs()).containsEntry("profitRate", 5.5);
+        assertThat(new BigDecimal(String.valueOf(result.getOutputs().get("profitRate"))))
+                .isEqualByComparingTo("5.5");
     }
 
     private DecisionTable buildTable(Long id, DecisionTableHitPolicy hitPolicy) {

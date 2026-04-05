@@ -134,11 +134,10 @@ public class CurrentTenantResolver {
 
     private Optional<String> firstTextClaim(Jwt jwt, String... claimNames) {
         for (String claimName : claimNames) {
-            String value = jwt.getClaimAsString(claimName);
-            if (StringUtils.hasText(value)) {
-                return Optional.of(value.trim());
-            }
             Object claim = jwt.getClaim(claimName);
+            if (claim instanceof String text && StringUtils.hasText(text)) {
+                return Optional.of(text.trim());
+            }
             if (claim instanceof Map<?, ?> map) {
                 String nested = firstNonBlank(
                         map.get("tenantCode") != null ? String.valueOf(map.get("tenantCode")) : null,
@@ -147,6 +146,10 @@ public class CurrentTenantResolver {
                 if (StringUtils.hasText(nested)) {
                     return Optional.of(nested.trim());
                 }
+            }
+            String value = jwt.getClaimAsString(claimName);
+            if (StringUtils.hasText(value)) {
+                return Optional.of(value.trim());
             }
         }
         return Optional.empty();

@@ -147,8 +147,8 @@ class ShariahAuditServiceTest {
         // Act
         BigDecimal score = service.calculateComplianceScore(auditId);
 
-        // Assert: default 100 when no samples
-        assertEquals(BigDecimal.valueOf(100).setScale(4, RoundingMode.HALF_UP), score);
+        // Assert: default 0 when no samples have been reviewed
+        assertEquals(BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP), score);
     }
 
     @Test
@@ -304,6 +304,7 @@ class ShariahAuditServiceTest {
         // base score = 80%, then: 1 critical (-10), 1 medium (-2) => adjusted = 68%
         // 68% falls in [60, 80) => PARTIALLY_COMPLIANT
         when(auditRepository.findById(2L)).thenReturn(Optional.of(fieldworkCompleteAudit));
+        when(sampleRepository.countByAuditIdAndReviewStatus(2L, SampleReviewStatus.REVIEWED)).thenReturn(10L);
 
         when(sampleRepository.countByAuditIdAndComplianceResult(2L, ComplianceResult.COMPLIANT)).thenReturn(8L);
         when(sampleRepository.countByAuditIdAndComplianceResult(2L, ComplianceResult.NON_COMPLIANT)).thenReturn(2L);

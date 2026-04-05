@@ -1,8 +1,5 @@
 package com.cbs.mudarabah.service;
 
-import com.cbs.account.entity.Account;
-import com.cbs.account.entity.AccountStatus;
-import com.cbs.account.entity.AccountType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.mudarabah.entity.MudarabahAccount;
@@ -50,22 +47,6 @@ class PoolWeightageServiceTest {
     void setUp() {
         periodStart = LocalDate.of(2026, 3, 1);
         periodEnd = LocalDate.of(2026, 3, 31);
-    }
-
-    private Account buildAccount(Long id, String accountNumber, BigDecimal balance) {
-        return Account.builder()
-                .id(id)
-                .accountNumber(accountNumber)
-                .accountName("Test Account " + id)
-                .currencyCode("SAR")
-                .accountType(AccountType.INDIVIDUAL)
-                .status(AccountStatus.ACTIVE)
-                .bookBalance(balance)
-                .availableBalance(balance)
-                .lienAmount(BigDecimal.ZERO)
-                .overdraftLimit(BigDecimal.ZERO)
-                .openedDate(LocalDate.now())
-                .build();
     }
 
     private MudarabahAccount buildMudarabahAccount(Long id, Long accountId,
@@ -207,8 +188,6 @@ class PoolWeightageServiceTest {
                     a.setId(System.nanoTime());
                     return a;
                 });
-        when(accountRepository.findById(anyLong())).thenReturn(Optional.of(
-                buildAccount(1L, "MDR001", new BigDecimal("10000"))));
 
         var allocations = service.allocateProfit(POOL_ID, poolGrossProfit, periodStart, periodEnd);
 
@@ -258,8 +237,6 @@ class PoolWeightageServiceTest {
                     a.setId(System.nanoTime());
                     return a;
                 });
-        when(accountRepository.findById(anyLong())).thenReturn(Optional.of(
-                buildAccount(1L, "MDR001", new BigDecimal("10000"))));
 
         var allocations = service.allocateProfit(POOL_ID, poolGrossProfit, periodStart, periodEnd);
 

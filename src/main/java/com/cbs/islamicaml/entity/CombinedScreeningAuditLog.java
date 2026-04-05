@@ -40,6 +40,6 @@ public class CombinedScreeningAuditLog extends AuditableEntity {
     @Column(name = "screened_at")
     private LocalDateTime screenedAt;
 
-    @Column(name = "tenant_id", length = 50)
-    private String tenantId;
+    @Column(name = "tenant_id")
+    private Long tenantId;
 }

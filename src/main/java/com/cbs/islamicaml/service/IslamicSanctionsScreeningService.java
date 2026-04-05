@@ -267,6 +267,124 @@ public class IslamicSanctionsScreeningService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sanctions list not found: " + listCode));
     }
 
+    public SanctionsListConfiguration updateSanctionsList(String listCode, ListUpdateRequest update) {
+        SanctionsListConfiguration config = getList(listCode);
+
+        if (update == null) {
+            config.setLastUpdated(LocalDateTime.now());
+            return listConfigRepo.save(config);
+        }
+
+        if (StringUtils.hasText(update.getListName())) {
+            config.setListName(update.getListName().trim());
+        }
+        if (StringUtils.hasText(update.getListProvider())) {
+            config.setListProvider(update.getListProvider().trim());
+        }
+        if (StringUtils.hasText(update.getListType())) {
+            try {
+                config.setListType(SanctionsListType.valueOf(update.getListType().trim().toUpperCase(Locale.ROOT)));
+            } catch (IllegalArgumentException ex) {
+                throw new BusinessException("Invalid list type: " + update.getListType(), "INVALID_LIST_TYPE");
+            }
+        }
+        if (update.getApplicableCountries() != null) {
+            config.setApplicableCountries(new ArrayList<>(update.getApplicableCountries()));
+        }
+        if (StringUtils.hasText(update.getUpdateFrequency())) {
+            try {
+                config.setUpdateFrequency(ListUpdateFrequency.valueOf(
+                        update.getUpdateFrequency().trim().toUpperCase(Locale.ROOT)));
+            } catch (IllegalArgumentException ex) {
+                throw new BusinessException(
+                        "Invalid update frequency: " + update.getUpdateFrequency(),
+                        "INVALID_UPDATE_FREQUENCY");
+            }
+        }
+        if (StringUtils.hasText(update.getDataSourceUrl())) {
+            config.setDataSourceUrl(update.getDataSourceUrl().trim());
+        }
+        if (update.getTotalEntries() != null) {
+            config.setTotalEntries(Math.max(update.getTotalEntries(), 0));
+        }
+        if (update.getActive() != null) {
+            config.setActive(update.getActive());
+        }
+        if (update.getPriority() != null) {
+            config.setPriority(update.getPriority());
+        }
+
+        config.setLastUpdated(LocalDateTime.now());
+        config = listConfigRepo.save(config);
+
+        if (Boolean.TRUE.equals(update.getTriggerCustomerRescreen())) {
+            reScreenAllCustomers();
+        }
+        if (Boolean.TRUE.equals(update.getTriggerCounterpartyRescreen())) {
+            reScreenIslamicCounterparties();
+        }
+
+        log.info("Updated sanctions list {} with triggerCustomerRescreen={}, triggerCounterpartyRescreen={}",
+                listCode,
+                Boolean.TRUE.equals(update.getTriggerCustomerRescreen()),
+                Boolean.TRUE.equals(update.getTriggerCounterpartyRescreen()));
+
+        return config;
+    }
+
+    public BatchScreeningResult reScreenIslamicCounterparties() {
+        List<SanctionsScreeningResult> priorResults = resultRepository.findAll().stream()
+                .filter(result -> result.getScreeningType() == SanctionsScreeningType.COMMODITY_BROKER
+                        || result.getScreeningType() == SanctionsScreeningType.TAKAFUL_PROVIDER
+                        || result.getScreeningType() == SanctionsScreeningType.SUKUK_ISSUER)
+                .sorted(Comparator.comparing(SanctionsScreeningResult::getScreeningTimestamp,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+
+        Map<String, SanctionsScreeningResult> distinctCounterparties = new LinkedHashMap<>();
+        for (SanctionsScreeningResult result : priorResults) {
+            String key = result.getScreeningType() + "|" + normalizeArabicName(result.getEntityName())
+                    + "|" + Optional.ofNullable(result.getEntityCountry()).orElse("");
+            distinctCounterparties.putIfAbsent(key, result);
+        }
+
+        List<SanctionsScreeningResultResponse> responses = new ArrayList<>();
+        int totalScreened = 0;
+        int newMatches = 0;
+
+        for (SanctionsScreeningResult priorResult : distinctCounterparties.values()) {
+            SanctionsScreeningResultResponse response;
+            switch (priorResult.getScreeningType()) {
+                case COMMODITY_BROKER -> response = screenCommodityBroker(
+                        priorResult.getEntityName(),
+                        priorResult.getEntityCountry(),
+                        identifierValue(priorResult.getEntityIdentifiers(), "brokerId"));
+                case TAKAFUL_PROVIDER -> response = screenTakafulProvider(
+                        priorResult.getEntityName(),
+                        priorResult.getEntityCountry());
+                case SUKUK_ISSUER -> response = screenSukukIssuer(
+                        priorResult.getEntityName(),
+                        priorResult.getEntityCountry(),
+                        identifierValue(priorResult.getEntityIdentifiers(), "isin"));
+                default -> {
+                    continue;
+                }
+            }
+            responses.add(response);
+            totalScreened++;
+            if (response.getOverallResult() == SanctionsOverallResult.POTENTIAL_MATCH
+                    || response.getOverallResult() == SanctionsOverallResult.CONFIRMED_MATCH) {
+                newMatches++;
+            }
+        }
+
+        return BatchScreeningResult.builder()
+                .totalScreened(totalScreened)
+                .newMatches(newMatches)
+                .results(responses)
+                .build();
+    }
+
     // ===================== RESULT QUERIES =====================
 
     @Transactional(readOnly = true)
@@ -339,6 +457,21 @@ public class IslamicSanctionsScreeningService {
                     .divide(BigDecimal.valueOf(total), 4, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
 
+        Map<String, Long> matchesByList = new LinkedHashMap<>();
+        resultRepository.findAll().stream()
+                .filter(result -> result.getScreeningTimestamp() != null
+                        && !result.getScreeningTimestamp().isBefore(fromTimestamp)
+                        && result.getScreeningTimestamp().isBefore(toTimestamp))
+                .filter(result -> result.getOverallResult() == SanctionsOverallResult.POTENTIAL_MATCH
+                        || result.getOverallResult() == SanctionsOverallResult.CONFIRMED_MATCH)
+                .map(SanctionsScreeningResult::getMatchDetails)
+                .filter(Objects::nonNull)
+                .flatMap(List::stream)
+                .map(detail -> detail.get("listCode"))
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .forEach(listCode -> matchesByList.merge(listCode, 1L, Long::sum));
+
         return SanctionsScreeningSummary.builder()
                 .totalScreenings(total)
                 .clearCount(clearCount)
@@ -346,7 +479,7 @@ public class IslamicSanctionsScreeningService {
                 .confirmedMatches(confirmedMatches)
                 .pendingReview(pendingReview)
                 .clearRate(clearRate)
-                .matchesByList(new LinkedHashMap<>())
+                .matchesByList(matchesByList)
                 .build();
     }
 
@@ -667,5 +800,12 @@ public class IslamicSanctionsScreeningService {
                 .createdBy(r.getCreatedBy())
                 .updatedBy(r.getUpdatedBy())
                 .build();
+    }
+
+    private String identifierValue(Map<String, Object> identifiers, String key) {
+        if (identifiers == null || !identifiers.containsKey(key) || identifiers.get(key) == null) {
+            return null;
+        }
+        return String.valueOf(identifiers.get(key));
     }
 }

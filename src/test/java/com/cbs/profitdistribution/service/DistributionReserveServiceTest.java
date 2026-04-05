@@ -206,7 +206,7 @@ class DistributionReserveServiceTest {
         // After absorption: -50000 + 20000 = -30000
         assertEquals(0, new BigDecimal("-30000").compareTo(result.getAmountAfterReserve()));
         verify(irrService).releaseIrrForLossAbsorption(
-                eq(poolId), eq(new BigDecimal("50000")), eq("Pool loss absorption"), eq("system-user"));
+                eq(poolId), eq(new BigDecimal("20000")), eq("Pool loss absorption"), eq("system-user"));
     }
 
     @Test

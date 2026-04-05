@@ -34,6 +34,48 @@ public class IslamicAmlDashboardController {
         return ResponseEntity.ok(ApiResponse.ok(dashboard));
     }
 
+    @GetMapping("/alerts")
+    public ResponseEntity<ApiResponse<IslamicAmlDashboard.AlertSummary>> getAlertSummary(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getAlertSummary(from, to)));
+    }
+
+    @GetMapping("/tawarruq")
+    public ResponseEntity<ApiResponse<IslamicAmlDashboard.TawarruqMonitoring>> getTawarruqMonitoring(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getTawarruqMonitoring(from, to)));
+    }
+
+    @GetMapping("/sanctions")
+    public ResponseEntity<ApiResponse<IslamicAmlDashboard.SanctionsWidget>> getSanctionsWidget(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getSanctionsWidget(from, to)));
+    }
+
+    @GetMapping("/sar")
+    public ResponseEntity<ApiResponse<IslamicAmlDashboard.SarWidget>> getSarWidget(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getSarWidget(from, to)));
+    }
+
+    @GetMapping("/combined")
+    public ResponseEntity<ApiResponse<IslamicAmlDashboard.CombinedScreeningWidget>> getCombinedWidget(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getCombinedScreeningWidget(from, to)));
+    }
+
+    @GetMapping("/trend")
+    public ResponseEntity<ApiResponse<List<IslamicAmlDashboard.MonthlyTrend>>> getTrend(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getMonthlyTrends(from, to)));
+    }
+
     // ===================== COMBINED ENTITY SCREENING =====================
 
     @PostMapping("/combined-screening/screen")

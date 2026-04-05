@@ -1,5 +1,9 @@
 package com.cbs.islamicaml.service;
 
+import com.cbs.account.entity.Account;
+import com.cbs.account.entity.Product;
+import com.cbs.account.repository.AccountRepository;
+import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.islamicaml.dto.*;
 import com.cbs.islamicaml.entity.CombinedScreeningAuditLog;
 import com.cbs.islamicaml.entity.CombinedScreeningOutcome;
@@ -18,6 +22,7 @@ import com.cbs.shariahcompliance.repository.ShariahExclusionListEntryRepository;
 import com.cbs.shariahcompliance.repository.ShariahExclusionListRepository;
 import com.cbs.shariahcompliance.repository.ShariahScreeningResultRepository;
 import com.cbs.shariahcompliance.service.ShariahScreeningService;
+import com.cbs.tenant.service.CurrentTenantResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,11 +45,13 @@ public class CombinedEntityScreeningService {
 
     private final ShariahScreeningService shariahScreeningService;
     private final IslamicSanctionsScreeningService sanctionsScreeningService;
+    private final AccountRepository accountRepository;
     private final SanctionsScreeningResultRepository sanctionsResultRepository;
     private final ShariahScreeningResultRepository shariahResultRepository;
     private final ShariahExclusionListRepository exclusionListRepository;
     private final ShariahExclusionListEntryRepository exclusionListEntryRepository;
     private final CombinedScreeningAuditLogRepository combinedScreeningAuditLogRepository;
+    private final CurrentTenantResolver tenantResolver;
 
     // ===================== COMBINED ENTITY SCREENING =====================
 
@@ -67,7 +74,7 @@ public class CombinedEntityScreeningService {
                     .contractRef(request.getShariahContractRef())
                     .contractTypeCode(request.getShariahProductCode())
                     .build();
-            shariahResult = shariahScreeningService.preScreenTransaction(shariahReq);
+            shariahResult = shariahScreeningService.screenTransaction(shariahReq);
             shariahClear = shariahResult.getOverallResult() == ScreeningOverallResult.PASS;
         } catch (Exception e) {
             log.error("Shariah screening failed for entity '{}' — treating as NOT CLEAR (fail-closed): {}",
@@ -113,6 +120,14 @@ public class CombinedEntityScreeningService {
         log.info("Combined screening for entity '{}': outcome={}, shariahClear={}, sanctionsClear={}",
                 request.getEntityName(), outcome, shariahClear, sanctionsClear);
 
+        List<Long> alertsGenerated = new ArrayList<>();
+        if (shariahResult != null && shariahResult.getAlertId() != null) {
+            alertsGenerated.add(shariahResult.getAlertId());
+        }
+        if (sanctionsResult != null && sanctionsResult.getAlertId() != null) {
+            alertsGenerated.add(sanctionsResult.getAlertId());
+        }
+
         CombinedScreeningResult result = CombinedScreeningResult.builder()
                 .entityName(request.getEntityName())
                 .overallOutcome(outcome)
@@ -120,6 +135,7 @@ public class CombinedEntityScreeningService {
                 .sanctionsResult(sanctionsResult)
                 .shariahClear(shariahClear)
                 .sanctionsClear(sanctionsClear)
+                .alertsGenerated(alertsGenerated)
                 .actionRequired(actionRequired)
                 .build();
 
@@ -133,6 +149,7 @@ public class CombinedEntityScreeningService {
                 .sanctionsScreeningRef(sanctionsResult != null ? sanctionsResult.getScreeningRef() : "FAILED")
                 .actionRequired(actionRequired)
                 .screenedAt(LocalDateTime.now())
+                .tenantId(tenantResolver.getCurrentTenantId())
                 .build();
         combinedScreeningAuditLogRepository.save(auditLog);
 
@@ -144,6 +161,56 @@ public class CombinedEntityScreeningService {
                 auditLog.getId());
 
         return result;
+    }
+
+    public ScreeningRequirement determineScreeningRequirement(Long accountId, String transactionType) {
+        Account account = accountRepository.findByIdWithProduct(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found: " + accountId));
+
+        Product product = account.getProduct();
+        String normalizedTransactionType = StringUtils.hasText(transactionType)
+                ? transactionType.trim().toUpperCase()
+                : "GENERAL";
+        boolean islamicAccount = isIslamicProduct(product);
+        boolean crossBorder = normalizedTransactionType.contains("CROSS")
+                || normalizedTransactionType.contains("SWIFT")
+                || normalizedTransactionType.contains("FOREIGN")
+                || normalizedTransactionType.contains("REMIT");
+        boolean tawarruq = normalizedTransactionType.contains("TAWARRUQ")
+                || normalizedTransactionType.contains("COMMODITY_MURABAHA");
+
+        boolean amlRequired = true;
+        boolean shariahRequired = islamicAccount || tawarruq;
+        boolean enhancedAmlRequired = crossBorder || tawarruq;
+
+        String requirementCode;
+        String actionRequired;
+        if (shariahRequired && enhancedAmlRequired) {
+            requirementCode = "AML_AND_SHARIAH_ENHANCED";
+            actionRequired = "Run AML screening, Shariah screening, and enhanced AML typology checks";
+        } else if (shariahRequired) {
+            requirementCode = "AML_AND_SHARIAH";
+            actionRequired = "Run both AML sanctions screening and Shariah screening before execution";
+        } else if (enhancedAmlRequired) {
+            requirementCode = "AML_ENHANCED";
+            actionRequired = "Run AML screening with enhanced cross-border or structuring checks";
+        } else {
+            requirementCode = "AML_ONLY";
+            actionRequired = "Run AML screening only";
+        }
+
+        return ScreeningRequirement.builder()
+                .accountId(accountId)
+                .transactionType(normalizedTransactionType)
+                .islamicAccount(islamicAccount)
+                .amlRequired(amlRequired)
+                .shariahRequired(shariahRequired)
+                .enhancedAmlRequired(enhancedAmlRequired)
+                .sourceProductCode(product != null ? product.getCode() : null)
+                .sourceContractTypeCode(inferContractTypeCode(product))
+                .requirementCode(requirementCode)
+                .actionRequired(actionRequired)
+                .build();
     }
 
     // ===================== OVERLAPPING ENTITIES =====================
@@ -253,6 +320,57 @@ public class CombinedEntityScreeningService {
             }
         }
         return deduplicateSources(sources);
+    }
+
+    private boolean isIslamicProduct(Product product) {
+        if (product == null) {
+            return false;
+        }
+        String combined = String.join(" ",
+                StringUtils.hasText(product.getCode()) ? product.getCode() : "",
+                StringUtils.hasText(product.getName()) ? product.getName() : "",
+                StringUtils.hasText(product.getDescription()) ? product.getDescription() : "")
+                .toUpperCase();
+
+        return combined.contains("WADIAH")
+                || combined.contains("MUDARABAH")
+                || combined.contains("MURABAHA")
+                || combined.contains("IJARAH")
+                || combined.contains("MUSHARAKAH")
+                || combined.contains("QARD")
+                || combined.contains("TAKAFUL")
+                || combined.contains("SUKUK")
+                || combined.contains("ISLAMIC");
+    }
+
+    private String inferContractTypeCode(Product product) {
+        if (product == null) {
+            return null;
+        }
+        String combined = String.join(" ",
+                StringUtils.hasText(product.getCode()) ? product.getCode() : "",
+                StringUtils.hasText(product.getName()) ? product.getName() : "")
+                .toUpperCase();
+
+        if (combined.contains("WADIAH")) {
+            return "WADIAH";
+        }
+        if (combined.contains("MUDARABAH")) {
+            return "MUDARABAH";
+        }
+        if (combined.contains("MURABAHA") || combined.contains("TAWARRUQ")) {
+            return "MURABAHA";
+        }
+        if (combined.contains("IJARAH")) {
+            return "IJARAH";
+        }
+        if (combined.contains("MUSHARAKAH")) {
+            return "MUSHARAKAH";
+        }
+        if (combined.contains("QARD")) {
+            return "QARD";
+        }
+        return product.getCode();
     }
 
     private List<EntitySource> deduplicateSources(List<EntitySource> sources) {
