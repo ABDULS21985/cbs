@@ -31,6 +31,7 @@ import com.cbs.shariah.repository.SsbBoardMemberRepository;
 import com.cbs.shariah.service.ShariahGovernanceService;
 import com.cbs.tenant.service.CurrentTenantResolver;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,7 @@ class IslamicProductServiceTest {
     @Mock private CustomerSegmentRepository customerSegmentRepository;
     @Mock private CurrentActorProvider currentActorProvider;
     @Mock private CurrentTenantResolver currentTenantResolver;
+    @Mock private EntityManager entityManager;
 
     private IslamicProductService service;
     private final AtomicLong versionIds = new AtomicLong(100L);
@@ -96,7 +98,8 @@ class IslamicProductServiceTest {
                 customerSegmentRepository,
                 currentActorProvider,
                 currentTenantResolver,
-                new ObjectMapper().findAndRegisterModules()
+                new ObjectMapper().findAndRegisterModules(),
+                entityManager
         );
 
         lenient().when(currentTenantResolver.getCurrentTenantId()).thenReturn(1L);

@@ -28,6 +28,7 @@ import com.cbs.shariahcompliance.entity.ShariahAuditStatus;
 import com.cbs.shariahcompliance.repository.ShariahAuditFindingRepository;
 import com.cbs.shariahcompliance.repository.ShariahAuditRepository;
 import com.cbs.shariahcompliance.repository.ShariahAuditSampleRepository;
+import com.cbs.shariahcompliance.repository.ShariahScreeningResultRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -51,6 +53,7 @@ public class ShariahAuditService {
     private final ShariahAuditRepository auditRepository;
     private final ShariahAuditSampleRepository sampleRepository;
     private final ShariahAuditFindingRepository findingRepository;
+    private final ShariahScreeningResultRepository screeningResultRepository;
     private final SnciService snciService;
     private final CurrentActorProvider actorProvider;
 

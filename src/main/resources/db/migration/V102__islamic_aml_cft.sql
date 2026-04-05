@@ -1,5 +1,5 @@
 -- ============================================================================
--- V101: Islamic AML/CFT Schema — Rules, Alerts, Sanctions, STR/SAR
+-- V102: Islamic AML/CFT Schema — Rules, Alerts, Sanctions, STR/SAR
 -- ============================================================================
 SET search_path TO cbs;
 

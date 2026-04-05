@@ -2,6 +2,7 @@ package com.cbs.murabaha.service;
 
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.gl.repository.JournalEntryRepository;
 import com.cbs.gl.islamic.dto.IslamicPostingRequest;
 import com.cbs.gl.islamic.entity.IslamicTransactionType;
 import com.cbs.gl.islamic.service.IslamicPostingRuleService;
@@ -41,6 +42,7 @@ public class MurabahaProfitRecognitionService {
     private final MurabahaInstallmentRepository installmentRepository;
     private final IslamicPostingRuleService postingRuleService;
     private final PoolAssetManagementService poolAssetManagementService;
+    private final JournalEntryRepository journalEntryRepository;
 
     public void recogniseProfitForPeriod(Long contractId, LocalDate fromDate, LocalDate toDate) {
         MurabahaContract contract = getContract(contractId);
@@ -111,11 +113,10 @@ public class MurabahaProfitRecognitionService {
         if (profitPaid == null || profitPaid.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
-        // Fix #13: Idempotency guard — if this journal ref was already used for recognition, skip
-        if (journalRef != null && contract.getLastProfitRecognitionRef() != null
-                && contract.getLastProfitRecognitionRef().equals(journalRef)) {
+        String recognitionRef = journalRef != null ? journalRef : contract.getContractRef() + "-PROF-REPAY";
+        if (journalEntryRepository.existsBySourceRef(recognitionRef)) {
             log.info("Profit recognition already recorded for contract {} with ref {} — skipping duplicate",
-                    contract.getContractRef(), journalRef);
+                    contract.getContractRef(), recognitionRef);
             return;
         }
         BigDecimal capped = MurabahaSupport.money(profitPaid).min(contract.getUnrecognisedProfit());
@@ -128,7 +129,7 @@ public class MurabahaProfitRecognitionService {
                 .amount(capped)
                 .profit(capped)
                 .valueDate(LocalDate.now())
-                .reference(journalRef != null ? journalRef : contract.getContractRef() + "-PROF-REPAY")
+                .reference(recognitionRef)
                 .build());
 
         contract.setRecognisedProfit(MurabahaSupport.money(contract.getRecognisedProfit().add(capped)));

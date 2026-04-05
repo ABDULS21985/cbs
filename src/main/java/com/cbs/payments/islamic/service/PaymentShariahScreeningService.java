@@ -29,14 +29,11 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -527,12 +524,11 @@ public class PaymentShariahScreeningService {
 
     private BigDecimal computeFalsePositiveRate(List<PaymentShariahAuditLog> logs) {
         long blocked = logs.stream()
-                .filter(l -> "BLOCK".equalsIgnoreCase(l.getRecommendedAction()))
+                .filter(l -> l.getActionTaken() == IslamicPaymentDomainEnums.AuditActionTaken.BLOCKED)
                 .count();
         if (blocked == 0) return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         long overridden = logs.stream()
-                .filter(l -> "BLOCK".equalsIgnoreCase(l.getRecommendedAction()))
-                .filter(l -> Boolean.TRUE.equals(l.getOverrideApplied()))
+                .filter(l -> l.getActionTaken() == IslamicPaymentDomainEnums.AuditActionTaken.MANUAL_OVERRIDE)
                 .count();
         return BigDecimal.valueOf(overridden)
                 .divide(BigDecimal.valueOf(blocked), 4, RoundingMode.HALF_UP)

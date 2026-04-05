@@ -1,8 +1,8 @@
 -- ============================================================================
--- V101__islamic_payment_hub.sql
+-- V104__islamic_payment_hub.sql
 -- Islamic Payment Hub
 -- NOTE: V92 is already occupied in this repository, so the Islamic payment hub
--- migration is introduced as V101 to preserve Flyway ordering.
+-- migration is introduced as V104 to preserve Flyway ordering.
 -- ============================================================================
 
 SET search_path TO cbs;

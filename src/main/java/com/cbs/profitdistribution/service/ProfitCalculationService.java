@@ -509,7 +509,7 @@ public class ProfitCalculationService {
                         if (income.isCharityIncome()) {
                                 charityTotal = charityTotal.add(normalized.amount());
                         }
-                        breakdown.merge(income.getIncomeType().name(), normalized.amount(), BigDecimal::add);
+                        breakdown.merge(incomeBreakdownKey(income), normalized.amount(), BigDecimal::add);
                         if (normalized.converted() && normalized.note() != null) {
                                 conversionNotes.add(normalized.note());
                         }
@@ -533,7 +533,7 @@ public class ProfitCalculationService {
                                         "expense",
                                         expense.getId());
                         total = total.add(normalized.amount());
-                        breakdown.merge(expense.getExpenseType().name(), normalized.amount(), BigDecimal::add);
+                        breakdown.merge(expenseBreakdownKey(expense), normalized.amount(), BigDecimal::add);
                         if (normalized.converted() && normalized.note() != null) {
                                 conversionNotes.add(normalized.note());
                         }
@@ -626,6 +626,18 @@ public class ProfitCalculationService {
     private BigDecimal defaultAmount(BigDecimal value) {
         return value != null ? value : BigDecimal.ZERO;
     }
+
+        private String incomeBreakdownKey(PoolIncomeRecord income) {
+                return income != null && income.getIncomeType() != null
+                                ? income.getIncomeType().name()
+                                : "UNSPECIFIED";
+        }
+
+        private String expenseBreakdownKey(PoolExpenseRecord expense) {
+                return expense != null && expense.getExpenseType() != null
+                                ? expense.getExpenseType().name()
+                                : "UNSPECIFIED";
+        }
 
         private record NormalizedAmount(BigDecimal amount, boolean converted, String note) {
         }

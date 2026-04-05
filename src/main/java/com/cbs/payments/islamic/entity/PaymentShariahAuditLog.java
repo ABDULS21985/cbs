@@ -103,4 +103,19 @@ public class PaymentShariahAuditLog extends AuditableEntity {
 
     @Column(name = "tenant_id")
     private Long tenantId;
+
+    public String getRecommendedAction() {
+        if (actionTaken == null) {
+            return null;
+        }
+        return switch (actionTaken) {
+            case BLOCKED -> "BLOCK";
+            case ALLOWED_WITH_ALERT, MANUAL_OVERRIDE -> "REVIEW";
+            case ALLOWED -> "ALLOW";
+        };
+    }
+
+    public Boolean getOverrideApplied() {
+        return actionTaken == IslamicPaymentDomainEnums.AuditActionTaken.MANUAL_OVERRIDE;
+    }
 }

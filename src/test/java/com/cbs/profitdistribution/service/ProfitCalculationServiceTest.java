@@ -9,6 +9,7 @@ import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
 import com.cbs.mudarabah.repository.PoolWeightageRecordRepository;
 import com.cbs.profitdistribution.dto.PoolProfitCalculationResponse;
 import com.cbs.profitdistribution.entity.CalculationStatus;
+import com.cbs.profitdistribution.entity.ExpenseType;
 import com.cbs.profitdistribution.entity.IncomeType;
 import com.cbs.profitdistribution.entity.PoolExpenseRecord;
 import com.cbs.profitdistribution.entity.PoolIncomeRecord;
@@ -26,7 +27,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -99,10 +99,6 @@ class ProfitCalculationServiceTest {
         when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
         when(incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
                 .thenReturn(List.of(regular, charity));
-        when(incomeRepo.sumCharityIncome(1L, periodFrom, periodTo))
-                .thenReturn(new BigDecimal("10000"));
-        when(expenseRepo.sumExpensesByPoolAndPeriod(1L, periodFrom, periodTo))
-                .thenReturn(BigDecimal.ZERO);
         when(expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
                 .thenReturn(Collections.emptyList());
         when(weightageRepo.sumPoolDailyProduct(eq(1L), any(), any()))
@@ -132,15 +128,16 @@ class ProfitCalculationServiceTest {
                 .amount(new BigDecimal("10000")).isCharityIncome(true)
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
+        PoolExpenseRecord expense = PoolExpenseRecord.builder()
+                .id(3L).poolId(1L).expenseType(ExpenseType.MUDARIB_FEE)
+                .amount(new BigDecimal("20000"))
+                .periodFrom(periodFrom).periodTo(periodTo).build();
+
         when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
         when(incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
                 .thenReturn(List.of(regular, charity));
-        when(incomeRepo.sumCharityIncome(1L, periodFrom, periodTo))
-                .thenReturn(new BigDecimal("10000"));
-        when(expenseRepo.sumExpensesByPoolAndPeriod(1L, periodFrom, periodTo))
-                .thenReturn(new BigDecimal("20000"));
         when(expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(List.of(expense));
         when(weightageRepo.sumPoolDailyProduct(eq(1L), any(), any()))
                 .thenReturn(null);
         when(actorProvider.getCurrentActor()).thenReturn("calc-user");
@@ -163,15 +160,16 @@ class ProfitCalculationServiceTest {
                 .amount(new BigDecimal("10000")).isCharityIncome(false)
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
+        PoolExpenseRecord expense = PoolExpenseRecord.builder()
+                .id(2L).poolId(1L).expenseType(ExpenseType.MUDARIB_FEE)
+                .amount(new BigDecimal("30000"))
+                .periodFrom(periodFrom).periodTo(periodTo).build();
+
         when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
         when(incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
                 .thenReturn(List.of(income));
-        when(incomeRepo.sumCharityIncome(1L, periodFrom, periodTo))
-                .thenReturn(BigDecimal.ZERO);
-        when(expenseRepo.sumExpensesByPoolAndPeriod(1L, periodFrom, periodTo))
-                .thenReturn(new BigDecimal("30000"));
         when(expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(List.of(expense));
         when(weightageRepo.sumPoolDailyProduct(eq(1L), any(), any()))
                 .thenReturn(null);
         when(actorProvider.getCurrentActor()).thenReturn("calc-user");
@@ -197,15 +195,16 @@ class ProfitCalculationServiceTest {
                 .amount(new BigDecimal("90000")).isCharityIncome(false)
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
+        PoolExpenseRecord expense = PoolExpenseRecord.builder()
+                .id(2L).poolId(1L).expenseType(ExpenseType.MUDARIB_FEE)
+                .amount(new BigDecimal("20000"))
+                .periodFrom(periodFrom).periodTo(periodTo).build();
+
         when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
         when(incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
                 .thenReturn(List.of(income));
-        when(incomeRepo.sumCharityIncome(1L, periodFrom, periodTo))
-                .thenReturn(BigDecimal.ZERO);
-        when(expenseRepo.sumExpensesByPoolAndPeriod(1L, periodFrom, periodTo))
-                .thenReturn(new BigDecimal("20000"));
         when(expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(List.of(expense));
         when(weightageRepo.sumPoolDailyProduct(eq(1L), any(), any()))
                 .thenReturn(null);
         when(actorProvider.getCurrentActor()).thenReturn("calc-user");
@@ -236,15 +235,16 @@ class ProfitCalculationServiceTest {
                 .amount(new BigDecimal("90000")).isCharityIncome(false)
                 .periodFrom(periodFrom).periodTo(periodTo).build();
 
+        PoolExpenseRecord expense = PoolExpenseRecord.builder()
+                .id(2L).poolId(1L).expenseType(ExpenseType.MUDARIB_FEE)
+                .amount(new BigDecimal("20000"))
+                .periodFrom(periodFrom).periodTo(periodTo).build();
+
         when(poolRepo.findById(1L)).thenReturn(Optional.of(pool));
         when(incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
                 .thenReturn(List.of(income));
-        when(incomeRepo.sumCharityIncome(1L, periodFrom, periodTo))
-                .thenReturn(BigDecimal.ZERO);
-        when(expenseRepo.sumExpensesByPoolAndPeriod(1L, periodFrom, periodTo))
-                .thenReturn(new BigDecimal("20000"));
         when(expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(1L, periodFrom, periodTo))
-                .thenReturn(Collections.emptyList());
+                .thenReturn(List.of(expense));
         when(weightageRepo.sumPoolDailyProduct(eq(1L), any(), any()))
                 .thenReturn(null);
         when(actorProvider.getCurrentActor()).thenReturn("calc-user");
@@ -290,9 +290,15 @@ class ProfitCalculationServiceTest {
 
         when(calculationRepo.findById(1L)).thenReturn(Optional.of(calc));
         when(incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(any(), any(), any()))
-                .thenReturn(List.of(PoolIncomeRecord.builder().amount(new BigDecimal("90000")).build()));
+                .thenReturn(List.of(PoolIncomeRecord.builder()
+                        .amount(new BigDecimal("90000"))
+                        .incomeType(IncomeType.MURABAHA_PROFIT)
+                        .build()));
         when(expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(any(), any(), any()))
-                .thenReturn(List.of(PoolExpenseRecord.builder().amount(new BigDecimal("20000")).build()));
+                .thenReturn(List.of(PoolExpenseRecord.builder()
+                        .amount(new BigDecimal("20000"))
+                        .expenseType(ExpenseType.MUDARIB_FEE)
+                        .build()));
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateCalculation(1L, "validator-user"));
