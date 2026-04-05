@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'cbs-backend',
       script: 'java',
-      args: '-jar build/libs/cbs-1.0.0-SNAPSHOT.jar',
+      args: '-Dspring.flyway.validate-on-migrate=false -Dspring.jpa.hibernate.ddl-auto=update -jar build/libs/cbs-1.0.0-SNAPSHOT.jar',
       cwd: '/Users/mac/codes/cba',
       interpreter: 'none',
       env: {

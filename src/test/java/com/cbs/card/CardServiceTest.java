@@ -4,6 +4,8 @@ import com.cbs.account.entity.*;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.card.entity.*;
+import com.cbs.card.issuer.CardPanIssueResult;
+import com.cbs.card.issuer.CardPanIssuer;
 import com.cbs.card.repository.*;
 import com.cbs.card.service.CardService;
 import com.cbs.card.service.IslamicCardAuthorizationDecision;
@@ -22,10 +24,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,6 +47,7 @@ class CardServiceTest {
     @Mock private CbsProperties cbsProperties;
     @Mock private IslamicCardAuthorizationService islamicCardAuthorizationService;
     @Mock private FxRateRepository fxRateRepository;
+    @Mock private CardPanIssuer cardPanIssuer;
 
     @InjectMocks private CardService cardService;
 
@@ -55,6 +60,7 @@ class CardServiceTest {
         CbsProperties.LedgerConfig ledgerConfig = new CbsProperties.LedgerConfig();
         ledgerConfig.setExternalClearingGlCode("2100");
         when(cbsProperties.getLedger()).thenReturn(ledgerConfig);
+        ReflectionTestUtils.setField(cardService, "panHmacKey", "unit-test-pan-key");
         Customer customer = Customer.builder().id(1L).firstName("Test").lastName("User")
                 .customerType(CustomerType.INDIVIDUAL).build();
         account = Account.builder().id(1L).accountNumber("1000000001").customer(customer)
@@ -85,8 +91,37 @@ class CardServiceTest {
                 .isAtmEnabled(true).isPosEnabled(true).pinRetriesRemaining(3)
                 .cardNumberHash("def456").cardNumberMasked("522222******5678").build();
 
-            when(islamicCardAuthorizationService.evaluate(any(Card.class), any(CardTransaction.class)))
+        when(islamicCardAuthorizationService.evaluate(any(Card.class), any(CardTransaction.class)))
                 .thenReturn(IslamicCardAuthorizationDecision.notApplicable());
+        when(cardPanIssuer.issuePan(any())).thenReturn(new CardPanIssueResult("4111111111111111", "TEST", "PAN-REF-001"));
+    }
+
+    @Test
+    @DisplayName("issueCard: uses the configured PAN issuer abstraction instead of generating PANs inline")
+    void issueCard_UsesPanIssuer() {
+        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(cardRepository.save(any(Card.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Card issuedCard = cardService.issueCard(
+                1L,
+                CardType.DEBIT,
+                CardScheme.VISA,
+                "CLASSIC",
+                "TEST USER",
+                LocalDate.of(2029, 12, 31),
+                new BigDecimal("100000"),
+                new BigDecimal("50000"),
+                new BigDecimal("75000"),
+                new BigDecimal("25000"),
+                BigDecimal.ZERO,
+                "BR001",
+                CardStatus.PENDING_ACTIVATION
+        );
+
+        assertThat(issuedCard.getCardReference()).startsWith("CRD-");
+        assertThat(issuedCard.getCardNumberMasked()).isEqualTo("411111******1111");
+        assertThat(issuedCard.getCardNumberHash()).isNotBlank();
+        verify(cardPanIssuer).issuePan(any());
     }
 
     @Test
@@ -183,28 +218,28 @@ class CardServiceTest {
     @Test
     @DisplayName("Islamic card routing: declines when Shariah authorization blocks the MCC")
     void debitCard_IslamicBlock() {
-    when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
-    when(txnRepository.sumDailyUsageByChannel(eq(1L), eq("POS"), any(Instant.class)))
-        .thenReturn(BigDecimal.ZERO);
-    when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-    when(islamicCardAuthorizationService.evaluate(any(Card.class), any(CardTransaction.class)))
-        .thenReturn(IslamicCardAuthorizationDecision.blocked(
-            99L,
-            "2100-ISL-CARD-SETTLE",
-            "SSR-001",
-            "Merchant category 7995 is blocked by Islamic profile ISLAMIC_STANDARD_MCC",
-            "57"
-        ));
+        when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+        when(txnRepository.sumDailyUsageByChannel(eq(1L), eq("POS"), any(Instant.class)))
+                .thenReturn(BigDecimal.ZERO);
+        when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(islamicCardAuthorizationService.evaluate(any(Card.class), any(CardTransaction.class)))
+                .thenReturn(IslamicCardAuthorizationDecision.blocked(
+                        99L,
+                        "2100-ISL-CARD-SETTLE",
+                        "SSR-001",
+                        "Merchant category 7995 is blocked by Islamic profile ISLAMIC_STANDARD_MCC",
+                        "57"
+                ));
 
-    CardTransaction txn = cardService.authorizeTransaction(1L, "PURCHASE", "POS",
-        new BigDecimal("5000"), "USD", "Gaming Merchant", "MRC7995", "7995",
-        "TRM001", "Lagos", null);
+        CardTransaction txn = cardService.authorizeTransaction(1L, "PURCHASE", "POS",
+                new BigDecimal("5000"), "USD", "Gaming Merchant", "MRC7995", "7995",
+                "TRM001", "Lagos", null);
 
-    assertThat(txn.getStatus()).isEqualTo("DECLINED");
-    assertThat(txn.getResponseCode()).isEqualTo("57");
-    assertThat(txn.getShariahDecision()).isEqualTo("BLOCKED");
-    assertThat(txn.getShariahScreeningRef()).isEqualTo("SSR-001");
-    verify(accountPostingService, never()).postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString());
+        assertThat(txn.getStatus()).isEqualTo("DECLINED");
+        assertThat(txn.getResponseCode()).isEqualTo("57");
+        assertThat(txn.getShariahDecision()).isEqualTo("BLOCKED");
+        assertThat(txn.getShariahScreeningRef()).isEqualTo("SSR-001");
+        verify(accountPostingService, never()).postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
@@ -356,5 +391,81 @@ class CardServiceTest {
         assertThat(result.getDisputeReason()).isEqualTo("Unauthorized transaction");
         assertThat(result.getStatus()).isEqualTo("DISPUTED");
         assertThat(result.getDisputeDate()).isEqualTo(LocalDate.now());
+    }
+
+    @Test
+    @DisplayName("refundTransaction: credits the funded account and links the adjustment to the original transaction")
+    void refundTransaction_DebitCard() {
+        CardTransaction originalTxn = CardTransaction.builder()
+                .id(200L)
+                .transactionRef("CTX-ORIG-001")
+                .card(debitCard)
+                .account(account)
+                .transactionType("PURCHASE")
+                .channel("POS")
+                .amount(new BigDecimal("5000.00"))
+                .currencyCode("USD")
+                .billingAmount(new BigDecimal("5000.00"))
+                .billingCurrency("USD")
+                .status("AUTHORIZED")
+                .transactionDate(Instant.now())
+                .build();
+
+        when(txnRepository.findById(200L)).thenReturn(Optional.of(originalTxn));
+        when(txnRepository.sumSettledAdjustmentsForOriginal(200L)).thenReturn(BigDecimal.ZERO);
+        when(txnRepository.save(any(CardTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(accountPostingService.postCreditAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenAnswer(inv -> {
+                    Account creditAccount = inv.getArgument(0);
+                    BigDecimal creditAmount = inv.getArgument(2);
+                    creditAccount.credit(creditAmount);
+                    return TransactionJournal.builder().id(50L).build();
+                });
+
+        CardTransaction refundTxn = cardService.refundTransaction(200L, new BigDecimal("1000.00"), "Merchant goodwill refund");
+
+        assertThat(refundTxn.getTransactionType()).isEqualTo("REFUND");
+        assertThat(refundTxn.getOriginalTransactionRef()).isEqualTo("CTX-ORIG-001");
+        assertThat(refundTxn.getAdjustmentReason()).isEqualTo("Merchant goodwill refund");
+        assertThat(refundTxn.getStatus()).isEqualTo("SETTLED");
+        assertThat(refundTxn.getBillingAmount()).isEqualByComparingTo(new BigDecimal("1000.00"));
+        assertThat(originalTxn.getStatus()).isEqualTo("PARTIALLY_REFUNDED");
+        assertThat(account.getAvailableBalance()).isEqualByComparingTo(new BigDecimal("51000.00"));
+    }
+
+    @Test
+    @DisplayName("reverseTransaction: credits the funded account, marks the original as reversed, and triggers Islamic lifecycle refresh")
+    void reverseTransaction_IslamicLifecycle() {
+        CardTransaction originalTxn = CardTransaction.builder()
+                .id(201L)
+                .transactionRef("CTX-ORIG-002")
+                .card(debitCard)
+                .account(account)
+                .transactionType("PURCHASE")
+                .channel("POS")
+                .amount(new BigDecimal("5000.00"))
+                .currencyCode("USD")
+                .billingAmount(new BigDecimal("5000.00"))
+                .billingCurrency("USD")
+                .islamicCardId(99L)
+                .status("AUTHORIZED")
+                .transactionDate(Instant.now())
+                .build();
+
+        when(txnRepository.findById(201L)).thenReturn(Optional.of(originalTxn));
+        when(txnRepository.sumSettledAdjustmentsForOriginal(201L)).thenReturn(BigDecimal.ZERO);
+        when(txnRepository.save(any(CardTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(islamicCardAuthorizationService.resolveSettlementGlCode(99L)).thenReturn("2100-ISL-CARD-SETTLE");
+        when(accountPostingService.postCreditAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder().id(51L).build());
+
+        CardTransaction reversalTxn = cardService.reverseTransaction(201L, null, "Terminal timeout");
+
+        assertThat(reversalTxn.getTransactionType()).isEqualTo("REVERSAL");
+        assertThat(reversalTxn.getOriginalTransactionRef()).isEqualTo("CTX-ORIG-002");
+        assertThat(reversalTxn.getBillingAmount()).isEqualByComparingTo(new BigDecimal("5000.00"));
+        assertThat(originalTxn.getStatus()).isEqualTo("REVERSED");
+        verify(accountPostingService).postCreditAgainstGl(eq(account), any(), eq(new BigDecimal("5000.00")), anyString(), any(), anyString(), eq("2100-ISL-CARD-SETTLE"), anyString(), eq("CTX-ORIG-002"));
+        verify(islamicCardAuthorizationService).afterLifecyclePosting(99L, "REVERSAL");
     }
 }

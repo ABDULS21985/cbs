@@ -25,7 +25,7 @@ class PrivatePlacementServiceTest {
         when(placementRepository.findByPlacementCode("PP-TEST")).thenReturn(Optional.of(placement));
 
         assertThatThrownBy(() -> service.closePlacement("PP-TEST"))
-            .isInstanceOf(IllegalStateException.class)
+            .isInstanceOf(com.cbs.common.exception.BusinessException.class)
             .hasMessageContaining("below 80%");
     }
 

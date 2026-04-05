@@ -5,9 +5,12 @@ import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
-import com.cbs.common.config.CbsProperties;
 import com.cbs.card.entity.*;
+import com.cbs.card.issuer.CardPanIssueCommand;
+import com.cbs.card.issuer.CardPanIssueResult;
+import com.cbs.card.issuer.CardPanIssuer;
 import com.cbs.card.repository.*;
+import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
 import com.cbs.payments.entity.FxRate;
@@ -43,6 +46,7 @@ public class CardService {
     private final CbsProperties cbsProperties;
     private final IslamicCardAuthorizationService islamicCardAuthorizationService;
     private final FxRateRepository fxRateRepository;
+    private final CardPanIssuer cardPanIssuer;
 
     @org.springframework.beans.factory.annotation.Value("${card.pan.hmac-key:ch4ng3-th1s-d3f4ult-k3y-in-pr0duct10n}")
     private String panHmacKey;
@@ -80,8 +84,20 @@ public class CardService {
                   BigDecimal dailyOnlineLimit, BigDecimal singleTxnLimit,
                   BigDecimal creditLimit, String branchCode, CardStatus initialStatus) {
         String cardRef = "CRD-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
-        // Simulated PAN — production would use HSM
-        String pan = generateSimulatedPan(cardScheme);
+        LocalDate resolvedExpiryDate = expiryDate != null ? expiryDate : LocalDate.now().plusYears(3);
+        CardPanIssueResult issuedPan = cardPanIssuer.issuePan(new CardPanIssueCommand(
+            cardRef,
+            account.getId(),
+            account.getCustomer() != null ? account.getCustomer().getId() : null,
+            cardType,
+            cardScheme,
+            cardTier != null ? cardTier : "CLASSIC",
+            cardholderName,
+            StringUtils.hasText(branchCode) ? branchCode : account.getBranchCode(),
+            account.getCurrencyCode(),
+            resolvedExpiryDate
+        ));
+        String pan = issuedPan.pan();
         String masked = maskPan(pan);
         String hash = hashPan(pan);
 
@@ -91,7 +107,7 @@ public class CardService {
                 .cardType(cardType).cardScheme(cardScheme)
                 .cardTier(cardTier != null ? cardTier : "CLASSIC")
                 .cardholderName(cardholderName)
-                .expiryDate(expiryDate != null ? expiryDate : LocalDate.now().plusYears(3))
+                .expiryDate(resolvedExpiryDate)
                 .dailyPosLimit(dailyPosLimit).dailyAtmLimit(dailyAtmLimit)
                 .dailyOnlineLimit(dailyOnlineLimit).singleTxnLimit(singleTxnLimit)
                 .currencyCode(account.getCurrencyCode())
@@ -104,7 +120,8 @@ public class CardService {
         }
 
         Card saved = cardRepository.save(card);
-        log.info("Card issued: ref={}, type={}, scheme={}, account={}", cardRef, cardType, cardScheme, account.getAccountNumber());
+    log.info("Card issued: ref={}, type={}, scheme={}, account={}, panProvider={}, issuerRef={}",
+        cardRef, cardType, cardScheme, account.getAccountNumber(), issuedPan.providerName(), issuedPan.providerReference());
         return saved;
     }
 
@@ -265,7 +282,7 @@ public class CardService {
                     "Card authorization " + txnRef,
                     resolveChannel(channel),
                     txnRef,
-                        resolveCardSettlementGlCode(islamicDecision),
+                    resolveCardSettlementGlCode(islamicDecision),
                     "CARDS",
                     txnRef
             );
@@ -298,6 +315,16 @@ public class CardService {
     }
 
     @Transactional
+    public CardTransaction refundTransaction(Long originalTxnId, BigDecimal amount, String reason) {
+        return createAdjustment(originalTxnId, amount, reason, "REFUND", "REFUND");
+    }
+
+    @Transactional
+    public CardTransaction reverseTransaction(Long originalTxnId, BigDecimal amount, String reason) {
+        return createAdjustment(originalTxnId, amount, reason, "REVERSAL", "REVERSAL");
+    }
+
+    @Transactional
     public CardTransaction disputeTransaction(Long txnId, String reason) {
         CardTransaction txn = txnRepository.findById(txnId)
                 .orElseThrow(() -> new ResourceNotFoundException("CardTransaction", "id", txnId));
@@ -315,33 +342,6 @@ public class CardService {
     // ========================================================================
     // HELPERS
     // ========================================================================
-
-    private String generateSimulatedPan(CardScheme scheme) {
-        String prefix = switch (scheme) {
-            case VISA -> "4";
-            case MASTERCARD -> "52";
-            case VERVE -> "650271";
-            case AMEX -> "37";
-            default -> "9";
-        };
-        // Fill digits to length 15, then compute Luhn check digit
-        StringBuilder sb = new StringBuilder(prefix);
-        java.security.SecureRandom rng = new java.security.SecureRandom();
-        while (sb.length() < 15) sb.append(rng.nextInt(10));
-        // Compute Luhn check digit
-        String partial = sb.toString();
-        int sum = 0;
-        boolean alt = true;
-        for (int i = partial.length() - 1; i >= 0; i--) {
-            int d = partial.charAt(i) - '0';
-            if (alt) { d *= 2; if (d > 9) d -= 9; }
-            sum += d;
-            alt = !alt;
-        }
-        int check = (10 - (sum % 10)) % 10;
-        sb.append(check);
-        return sb.toString();
-    }
 
     private String maskPan(String pan) {
         return pan.substring(0, 6) + "******" + pan.substring(pan.length() - 4);
@@ -392,6 +392,78 @@ public class CardService {
         txn.setShariahReason(decision.shariahReason());
     }
 
+    private CardTransaction createAdjustment(Long originalTxnId,
+                                             BigDecimal requestedAmount,
+                                             String reason,
+                                             String adjustmentType,
+                                             String lifecycleEvent) {
+        CardTransaction original = txnRepository.findById(originalTxnId)
+                .orElseThrow(() -> new ResourceNotFoundException("CardTransaction", "id", originalTxnId));
+        validateAdjustmentEligibility(original, adjustmentType);
+
+        BigDecimal remainingBillingAmount = calculateRemainingAdjustableAmount(original);
+        BigDecimal adjustmentBillingAmount = resolveAdjustmentAmount(requestedAmount, remainingBillingAmount);
+        AdjustmentAmounts adjustmentAmounts = deriveAdjustmentAmounts(original, adjustmentBillingAmount);
+        Card card = original.getCard();
+        String adjustmentRef = nextAdjustmentRef(adjustmentType);
+
+        if (isDebitLikeCard(card)) {
+            accountPostingService.postCreditAgainstGl(
+                    original.getAccount(),
+                    TransactionType.ADJUSTMENT,
+                    adjustmentAmounts.billingAmount(),
+                    buildAdjustmentNarration(adjustmentType, original, reason),
+                    TransactionChannel.SYSTEM,
+                adjustmentRef,
+                    resolveCardSettlementGlCode(original),
+                    "CARDS",
+                    original.getTransactionRef()
+            );
+        } else {
+            card.setAvailableCredit(defaultAmount(card.getAvailableCredit()).add(adjustmentAmounts.billingAmount()));
+            card.setOutstandingBalance(defaultAmount(card.getOutstandingBalance()).subtract(adjustmentAmounts.billingAmount()));
+            cardRepository.save(card);
+        }
+
+        CardTransaction adjustment = CardTransaction.builder()
+                .transactionRef(adjustmentRef)
+                .card(card)
+                .account(original.getAccount())
+                .transactionType(adjustmentType)
+                .channel("SYSTEM")
+                .amount(adjustmentAmounts.transactionAmount())
+                .currencyCode(adjustmentAmounts.transactionCurrency())
+                .billingAmount(adjustmentAmounts.billingAmount())
+                .billingCurrency(adjustmentAmounts.billingCurrency())
+                .fxRate(adjustmentAmounts.fxRate())
+                .originalTransaction(original)
+                .originalTransactionRef(original.getTransactionRef())
+                .adjustmentReason(normalizeReason(reason, adjustmentType))
+                .merchantName(original.getMerchantName())
+                .merchantId(original.getMerchantId())
+                .merchantCategoryCode(original.getMerchantCategoryCode())
+                .terminalId(original.getTerminalId())
+                .merchantCity(original.getMerchantCity())
+                .merchantCountry(original.getMerchantCountry())
+                .isInternational(original.getIsInternational())
+                .responseCode("00")
+                .status("SETTLED")
+                .settlementDate(LocalDate.now())
+                .transactionDate(Instant.now())
+                .build();
+        copyIslamicContext(original, adjustment);
+        CardTransaction saved = txnRepository.save(adjustment);
+
+        updateOriginalStatusAfterAdjustment(original, adjustmentType, remainingBillingAmount.subtract(adjustmentBillingAmount));
+        if (original.getIslamicCardId() != null) {
+            islamicCardAuthorizationService.afterLifecyclePosting(original.getIslamicCardId(), lifecycleEvent);
+        }
+
+        log.info("Card txn adjusted: type={}, originalRef={}, adjustmentRef={}, billingAmount={}",
+                adjustmentType, original.getTransactionRef(), adjustmentRef, adjustmentBillingAmount);
+        return saved;
+    }
+
     private BillingContext resolveBillingContext(Account account, BigDecimal amount, String transactionCurrency) {
         String accountCurrency = normalizeCurrencyCode(account.getCurrencyCode(), transactionCurrency);
         BigDecimal normalizedAmount = amount.setScale(2, RoundingMode.HALF_UP);
@@ -430,5 +502,121 @@ public class CardService {
         return value.trim().toUpperCase();
     }
 
+    private void validateAdjustmentEligibility(CardTransaction original, String adjustmentType) {
+        if (original.getOriginalTransaction() != null
+                || "REFUND".equalsIgnoreCase(original.getTransactionType())
+                || "REVERSAL".equalsIgnoreCase(original.getTransactionType())) {
+            throw new BusinessException("Only original purchase or cash transactions can be adjusted", "CARD_ADJUSTMENT_INVALID_TARGET");
+        }
+        if (!StringUtils.hasText(original.getStatus())
+                || "DECLINED".equalsIgnoreCase(original.getStatus())
+                || "DISPUTED".equalsIgnoreCase(original.getStatus())) {
+            throw new BusinessException("Card transaction is not eligible for " + adjustmentType.toLowerCase(), "CARD_ADJUSTMENT_NOT_ALLOWED");
+        }
+        if (effectiveBillingAmount(original).compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Card transaction has no billable amount to adjust", "CARD_ADJUSTMENT_AMOUNT_INVALID");
+        }
+    }
+
+    private BigDecimal calculateRemainingAdjustableAmount(CardTransaction original) {
+        BigDecimal originalBillingAmount = effectiveBillingAmount(original);
+        BigDecimal appliedAdjustments = txnRepository.sumSettledAdjustmentsForOriginal(original.getId());
+        BigDecimal remaining = originalBillingAmount.subtract(defaultAmount(appliedAdjustments)).setScale(2, RoundingMode.HALF_UP);
+        if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Card transaction has already been fully adjusted", "CARD_ADJUSTMENT_ALREADY_APPLIED");
+        }
+        return remaining;
+    }
+
+    private BigDecimal resolveAdjustmentAmount(BigDecimal requestedAmount, BigDecimal remainingBillingAmount) {
+        if (requestedAmount == null) {
+            return remainingBillingAmount;
+        }
+        BigDecimal normalized = requestedAmount.setScale(2, RoundingMode.HALF_UP);
+        if (normalized.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Adjustment amount must be greater than zero", "CARD_ADJUSTMENT_AMOUNT_INVALID");
+        }
+        if (normalized.compareTo(remainingBillingAmount) > 0) {
+            throw new BusinessException("Adjustment amount exceeds remaining reversible or refundable amount", "CARD_ADJUSTMENT_AMOUNT_EXCEEDED");
+        }
+        return normalized;
+    }
+
+    private AdjustmentAmounts deriveAdjustmentAmounts(CardTransaction original, BigDecimal billingAmount) {
+        BigDecimal originalBillingAmount = effectiveBillingAmount(original);
+        String billingCurrency = normalizeCurrencyCode(original.getBillingCurrency(), original.getCurrencyCode());
+        String transactionCurrency = normalizeCurrencyCode(original.getCurrencyCode(), billingCurrency);
+        BigDecimal fxRate = defaultFxRate(original.getFxRate());
+        BigDecimal transactionAmount;
+        if (billingCurrency.equals(transactionCurrency)) {
+            transactionAmount = billingAmount;
+        } else {
+            transactionAmount = original.getAmount()
+                    .multiply(billingAmount)
+                    .divide(originalBillingAmount, 2, RoundingMode.HALF_UP);
+        }
+        return new AdjustmentAmounts(transactionAmount, billingAmount, transactionCurrency, billingCurrency, fxRate);
+    }
+
+    private void updateOriginalStatusAfterAdjustment(CardTransaction original, String adjustmentType, BigDecimal remainingAmount) {
+        original.setStatus(remainingAmount.compareTo(BigDecimal.ZERO) > 0
+                ? ("REFUND".equals(adjustmentType) ? "PARTIALLY_REFUNDED" : "PARTIALLY_REVERSED")
+                : ("REFUND".equals(adjustmentType) ? "REFUNDED" : "REVERSED"));
+        txnRepository.save(original);
+    }
+
+    private void copyIslamicContext(CardTransaction source, CardTransaction target) {
+        target.setIslamicCardId(source.getIslamicCardId());
+        target.setShariahScreeningRef(source.getShariahScreeningRef());
+        target.setShariahDecision(source.getShariahDecision());
+        target.setShariahReason(source.getShariahReason());
+    }
+
+    private String resolveCardSettlementGlCode(CardTransaction txn) {
+        if (txn.getIslamicCardId() != null) {
+            String islamicGlCode = islamicCardAuthorizationService.resolveSettlementGlCode(txn.getIslamicCardId());
+            if (StringUtils.hasText(islamicGlCode)) {
+                return islamicGlCode;
+            }
+        }
+        return resolveCardSettlementGlCode(IslamicCardAuthorizationDecision.notApplicable());
+    }
+
+    private BigDecimal effectiveBillingAmount(CardTransaction txn) {
+        return defaultAmount(txn.getBillingAmount() != null ? txn.getBillingAmount() : txn.getAmount()).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal defaultAmount(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private BigDecimal defaultFxRate(BigDecimal fxRate) {
+        BigDecimal rate = fxRate != null ? fxRate : BigDecimal.ONE;
+        return rate.setScale(8, RoundingMode.HALF_UP);
+    }
+
+    private boolean isDebitLikeCard(Card card) {
+        return card.getCardType() == CardType.DEBIT || card.getCardType() == CardType.PREPAID;
+    }
+
+    private String buildAdjustmentNarration(String adjustmentType, CardTransaction original, String reason) {
+        return adjustmentType + " " + original.getTransactionRef() + " - " + normalizeReason(reason, adjustmentType);
+    }
+
+    private String normalizeReason(String reason, String fallback) {
+        return StringUtils.hasText(reason) ? reason.trim() : fallback;
+    }
+
+    private String nextAdjustmentRef(String prefix) {
+        String normalizedPrefix = prefix.length() <= 3 ? prefix : prefix.substring(0, 3);
+        return normalizedPrefix.toUpperCase() + "-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
+    }
+
     private record BillingContext(BigDecimal billingAmount, String billingCurrency, BigDecimal fxRate) {}
+
+    private record AdjustmentAmounts(BigDecimal transactionAmount,
+                                     BigDecimal billingAmount,
+                                     String transactionCurrency,
+                                     String billingCurrency,
+                                     BigDecimal fxRate) {}
 }

@@ -19,7 +19,7 @@ class SurveyServiceTest {
     @Test @DisplayName("NPS classification: 9→PROMOTER, 7→PASSIVE, 5→DETRACTOR")
     void npsClassification() {
         CustomerSurvey survey = new CustomerSurvey(); survey.setId(1L); survey.setSurveyCode("SRV-NPS");
-        survey.setTotalSent(100); survey.setTotalResponses(0);
+        survey.setStatus("ACTIVE"); survey.setTotalSent(100); survey.setTotalResponses(0);
         when(surveyRepository.findBySurveyCode("SRV-NPS")).thenReturn(Optional.of(survey));
         when(responseRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(surveyRepository.save(any())).thenAnswer(i -> i.getArgument(0));

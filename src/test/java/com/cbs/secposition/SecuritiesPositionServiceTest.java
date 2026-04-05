@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -78,6 +79,12 @@ class SecuritiesPositionServiceTest {
     @Test
     @DisplayName("recordMovement - generates movementRef starting with SM-")
     void recordMovement_generatesMovementRef() {
+        SecuritiesPosition existingPosition = SecuritiesPosition.builder()
+                .id(1L).positionId("SP-EXISTING").quantity(new java.math.BigDecimal("1000"))
+                .costBasis(new java.math.BigDecimal("100000")).marketValue(new java.math.BigDecimal("120000"))
+                .build();
+        when(positionRepository.findByPositionId("SP-EXISTING")).thenReturn(Optional.of(existingPosition));
+        when(positionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(movementRepository.save(any(SecuritiesMovement.class))).thenAnswer(inv -> {
             SecuritiesMovement m = inv.getArgument(0);
             m.setId(1L);

@@ -35,7 +35,7 @@ class SecuritizationServiceTest {
 
     @Test @DisplayName("Issuance sets status and issue date")
     void issueVehicle() {
-        SecuritizationVehicle v = SecuritizationVehicle.builder().id(1L).vehicleCode("SEC-TEST").status("RATED").build();
+        SecuritizationVehicle v = SecuritizationVehicle.builder().id(1L).vehicleCode("SEC-TEST").status("APPROVED").build();
         when(vehicleRepository.findByVehicleCode("SEC-TEST")).thenReturn(Optional.of(v));
         when(vehicleRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         SecuritizationVehicle result = service.issue("SEC-TEST");

@@ -29,6 +29,15 @@ class FactoringServiceTest {
     @Mock
     private FactoringTransactionRepository transactionRepository;
 
+    @Mock
+    private com.cbs.gl.service.GeneralLedgerService generalLedgerService;
+
+    @Mock
+    private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
+
+    @Mock
+    private com.cbs.common.config.CbsProperties cbsProperties;
+
     @InjectMocks
     private FactoringService service;
 

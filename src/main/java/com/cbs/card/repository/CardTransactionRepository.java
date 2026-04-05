@@ -20,8 +20,14 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
     Page<CardTransaction> findByAccountIdOrderByTransactionDateDesc(Long accountId, Pageable pageable);
 
     @Query("SELECT COALESCE(SUM(COALESCE(t.billingAmount, t.amount)), 0) FROM CardTransaction t WHERE t.card.id = :cardId " +
-           "AND t.channel = :channel AND t.status IN ('AUTHORIZED','SETTLED') AND t.transactionDate >= :since")
+           "AND t.channel = :channel AND t.status IN ('AUTHORIZED','SETTLED') " +
+           "AND t.transactionType NOT IN ('REFUND','REVERSAL') AND t.transactionDate >= :since")
     BigDecimal sumDailyUsageByChannel(@Param("cardId") Long cardId, @Param("channel") String channel, @Param("since") Instant since);
+
+    @Query("SELECT COALESCE(SUM(COALESCE(t.billingAmount, t.amount)), 0) FROM CardTransaction t " +
+           "WHERE t.originalTransaction.id = :originalTransactionId AND t.status IN ('AUTHORIZED','SETTLED') " +
+           "AND t.transactionType IN ('REFUND','REVERSAL')")
+    BigDecimal sumSettledAdjustmentsForOriginal(@Param("originalTransactionId") Long originalTransactionId);
 
     /** Aggregate gross transaction amount for a merchant on a specific settlement date */
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM CardTransaction t " +

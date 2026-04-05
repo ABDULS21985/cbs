@@ -43,6 +43,17 @@ class SyndicatedLoanServiceTest {
     @InjectMocks
     private SyndicatedLoanService service;
 
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        com.cbs.gl.entity.JournalEntry mockJournal = new com.cbs.gl.entity.JournalEntry();
+        mockJournal.setId(1L);
+        org.mockito.Mockito.lenient().when(generalLedgerService.postJournal(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyList())).thenReturn(mockJournal);
+    }
+
     @Test
     @DisplayName("Fund drawdown updates facility drawn and undrawn amounts")
     void fundDrawdownUpdatesFacilityAmounts() {

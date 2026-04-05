@@ -2,6 +2,7 @@ package com.cbs.card.controller;
 
 import com.cbs.card.dto.CardMapper;
 import com.cbs.card.dto.CardResponse;
+import com.cbs.card.dto.CardTransactionAdjustmentRequest;
 import com.cbs.card.dto.CardTransactionResponse;
 import com.cbs.card.dto.IssueCardRequest;
 import com.cbs.card.entity.*;
@@ -44,7 +45,7 @@ public class CardController {
                 request.getCardTier(), request.getCardholderName(), request.getExpiryDate(),
                 request.getDailyPosLimit(), request.getDailyAtmLimit(),
                 request.getDailyOnlineLimit(), request.getSingleTxnLimit(),
-            request.getCreditLimit(), request.getBranchCode(), CardStatus.ACTIVE);
+                request.getCreditLimit(), request.getBranchCode(), CardStatus.ACTIVE);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(CardMapper.toResponse(card)));
     }
 
@@ -110,6 +111,26 @@ public class CardController {
         return ResponseEntity.ok(ApiResponse.ok(CardMapper.toTxnResponse(cardService.disputeTransaction(txnId, reason))));
     }
 
+    @PostMapping("/transactions/{txnId}/refund")
+    @Operation(summary = "Refund a card transaction")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<CardTransactionResponse>> refund(@PathVariable Long txnId,
+                                                                       @Valid @RequestBody CardTransactionAdjustmentRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(CardMapper.toTxnResponse(
+                cardService.refundTransaction(txnId, request.getAmount(), request.getReason())
+        )));
+    }
+
+    @PostMapping("/transactions/{txnId}/reversal")
+    @Operation(summary = "Reverse a card transaction")
+    @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER')")
+    public ResponseEntity<ApiResponse<CardTransactionResponse>> reverse(@PathVariable Long txnId,
+                                                                        @Valid @RequestBody CardTransactionAdjustmentRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok(CardMapper.toTxnResponse(
+                cardService.reverseTransaction(txnId, request.getAmount(), request.getReason())
+        )));
+    }
+
     @GetMapping("/{cardId}/transactions")
     @PreAuthorize("hasAnyRole('CBS_ADMIN','CBS_OFFICER','CBS_VIEWER')")
     public ResponseEntity<ApiResponse<List<CardTransactionResponse>>> getTransactions(@PathVariable Long cardId,
@@ -134,7 +155,7 @@ public class CardController {
                 cardTier, cardholderName, LocalDate.now().plusYears(3),
                 new BigDecimal("500000"), new BigDecimal("200000"),
                 new BigDecimal("300000"), new BigDecimal("200000"),
-            BigDecimal.ZERO, null, CardStatus.ACTIVE);
+                BigDecimal.ZERO, null, CardStatus.ACTIVE);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(CardMapper.toResponse(card)));
     }
 

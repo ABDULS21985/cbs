@@ -21,7 +21,7 @@ class PublicOfferingServiceTest {
         when(repository.findById(1L)).thenReturn(Optional.of(detail));
 
         assertThatThrownBy(() -> service.closeApplications(1L))
-            .isInstanceOf(IllegalStateException.class)
+            .isInstanceOf(com.cbs.common.exception.BusinessException.class)
             .hasMessageContaining("already closed");
     }
 

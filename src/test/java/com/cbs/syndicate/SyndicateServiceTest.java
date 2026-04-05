@@ -47,7 +47,10 @@ class SyndicateServiceTest {
         SyndicateArrangement syn = new SyndicateArrangement();
         syn.setId(1L);
         syn.setSyndicateCode("SYN-ACT");
-        syn.setStatus("COMMITTED");
+        syn.setStatus("DRAFT");
+        syn.setTotalFacilityAmount(new java.math.BigDecimal("10000000"));
+        syn.setOurCommitment(new java.math.BigDecimal("10000000"));
+        syn.setParticipants(java.util.List.of(java.util.Map.of("name", "Bank A", "commitment", "5000000")));
         when(syndicateRepository.findBySyndicateCode("SYN-ACT")).thenReturn(Optional.of(syn));
         when(syndicateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         SyndicateArrangement result = service.activate("SYN-ACT");

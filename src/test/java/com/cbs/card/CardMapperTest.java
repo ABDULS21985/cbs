@@ -56,12 +56,15 @@ class CardMapperTest {
         txn = CardTransaction.builder()
                 .id(100L).transactionRef("CTX-TX001")
                 .card(card).account(account)
-                .transactionType("PURCHASE").channel("POS")
+                .transactionType("REFUND").channel("SYSTEM")
                 .amount(new BigDecimal("15000")).currencyCode("NGN")
+                .billingAmount(new BigDecimal("15000")).billingCurrency("NGN")
+                .originalTransaction(CardTransaction.builder().id(99L).transactionRef("CTX-ORIGINAL").build())
+                .originalTransactionRef("CTX-ORIGINAL").adjustmentReason("Merchant refund")
                 .merchantName("Shoprite").merchantId("MRC001")
                 .merchantCategoryCode("5411").terminalId("TRM001")
-            .authCode("123456").responseCode("00")
-            .islamicCardId(99L).shariahScreeningRef("SSR-100").shariahDecision("ALLOWED").shariahReason(null)
+                .authCode("123456").responseCode("00")
+                .islamicCardId(99L).shariahScreeningRef("SSR-100").shariahDecision("ALLOWED").shariahReason(null)
                 .status("AUTHORIZED").isInternational(false).isDisputed(false)
                 .transactionDate(Instant.now())
                 .build();
@@ -120,10 +123,15 @@ class CardMapperTest {
         assertThat(dto.cardReference()).isEqualTo("CRD-ABCDE12345");
         assertThat(dto.accountId()).isEqualTo(5L);
         assertThat(dto.accountNumber()).isEqualTo("2000000001");
-        assertThat(dto.transactionType()).isEqualTo("PURCHASE");
-        assertThat(dto.channel()).isEqualTo("POS");
+        assertThat(dto.transactionType()).isEqualTo("REFUND");
+        assertThat(dto.channel()).isEqualTo("SYSTEM");
         assertThat(dto.amount()).isEqualByComparingTo(new BigDecimal("15000"));
         assertThat(dto.currencyCode()).isEqualTo("NGN");
+        assertThat(dto.billingAmount()).isEqualByComparingTo(new BigDecimal("15000"));
+        assertThat(dto.billingCurrency()).isEqualTo("NGN");
+        assertThat(dto.originalTransactionId()).isEqualTo(99L);
+        assertThat(dto.originalTransactionRef()).isEqualTo("CTX-ORIGINAL");
+        assertThat(dto.adjustmentReason()).isEqualTo("Merchant refund");
         assertThat(dto.merchantName()).isEqualTo("Shoprite");
         assertThat(dto.merchantCategoryCode()).isEqualTo("5411");
         assertThat(dto.authCode()).isEqualTo("123456");

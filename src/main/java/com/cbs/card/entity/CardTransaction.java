@@ -48,6 +48,16 @@ public class CardTransaction {
     @Column(name = "fx_rate", precision = 18, scale = 8)
     private BigDecimal fxRate;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "original_transaction_id")
+    private CardTransaction originalTransaction;
+
+    @Column(name = "original_transaction_ref", length = 40)
+    private String originalTransactionRef;
+
+    @Column(name = "adjustment_reason", length = 300)
+    private String adjustmentReason;
+
     @Column(name = "merchant_name", length = 200)
     private String merchantName;
 

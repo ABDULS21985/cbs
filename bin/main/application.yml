@@ -185,6 +185,14 @@ cbs:
       timeout-seconds: ${CBS_IPS_GATEWAY_TIMEOUT_SECONDS:30}
       participant-bic: ${CBS_IPS_GATEWAY_PARTICIPANT_BIC:}
 
+  card:
+    issuer:
+      provider: ${CBS_CARD_ISSUER_PROVIDER:INTERNAL}
+      url: ${CBS_CARD_ISSUER_URL:}
+      timeout-seconds: ${CBS_CARD_ISSUER_TIMEOUT_SECONDS:15}
+      api-key: ${CBS_CARD_ISSUER_API_KEY:}
+      institution-id: ${CBS_CARD_ISSUER_INSTITUTION_ID:${CBS_INSTITUTION_CODE:}}
+
   keycloak:
     admin:
       server-url: ${CBS_KEYCLOAK_URL:}

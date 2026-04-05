@@ -50,6 +50,7 @@ class TradingBookServiceTest {
         book.setId(1L);
         book.setBookCode("TB-TEST");
         book.setBookType("FX");
+        book.setStatus("ACTIVE");
         book.setPositionCount(50);
         book.setGrossPositionValue(new BigDecimal("10000000"));
         book.setNetPositionValue(new BigDecimal("5000000"));

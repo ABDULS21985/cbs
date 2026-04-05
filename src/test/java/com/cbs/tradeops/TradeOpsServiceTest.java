@@ -57,6 +57,7 @@ class TradeOpsServiceTest {
         b.setId(2L);
         b.setConfirmationRef("TC-BBBBBBBBBB");
         b.setOurDetails(Map.of("amount", "1000000", "rate", "1.30"));
+        b.setCounterpartyDetails(Map.of("amount", "1000000", "rate", "1.30"));
         b.setMatchStatus("UNMATCHED");
         b.setStatus("PENDING");
 
