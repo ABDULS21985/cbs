@@ -34,6 +34,12 @@ class SyndicatedLoanServiceTest {
     @Mock
     private SyndicateDrawdownRepository drawdownRepository;
 
+    @Mock
+    private com.cbs.gl.service.GeneralLedgerService generalLedgerService;
+
+    @Mock
+    private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
+
     @InjectMocks
     private SyndicatedLoanService service;
 

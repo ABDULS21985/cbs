@@ -29,6 +29,7 @@ class ProjectFinanceServiceTest {
     @Mock
     private ProjectMilestoneRepository milestoneRepository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private ProjectFinanceService service;
 

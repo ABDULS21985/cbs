@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
 class SyndicateServiceTest {
 
     @Mock private SyndicateArrangementRepository syndicateRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private SyndicateService service;
 
     @Test @DisplayName("Our share % auto-calculated from commitment / facility")

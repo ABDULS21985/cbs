@@ -30,6 +30,7 @@ class QuantModelServiceTest {
     @Mock
     private ModelBacktestRepository backtestRepository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private QuantModelService service;
 

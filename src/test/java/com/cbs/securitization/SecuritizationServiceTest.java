@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
 class SecuritizationServiceTest {
 
     @Mock private SecuritizationVehicleRepository vehicleRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private SecuritizationService service;
 
     @Test @DisplayName("Vehicle creation generates code")

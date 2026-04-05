@@ -25,6 +25,7 @@ import static org.mockito.Mockito.*;
 class MerchantServiceTest {
 
     @Mock private MerchantProfileRepository merchantRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private MerchantService service;
 
     @Nested

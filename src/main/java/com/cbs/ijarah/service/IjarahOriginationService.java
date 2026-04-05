@@ -53,7 +53,7 @@ public class IjarahOriginationService {
     private final CurrentActorProvider actorProvider;
     private final ShariahScreeningService shariahScreeningService;
 
-    public IjarahResponses.IjarahApplicationResponse createApplication(IjarahRequests.CreateApplicationRequest request) {
+    public IjarahResponses.IjarahApplicationResponse createApplication(IjarahRequests.CreateIjarahApplicationRequest request) {
         Customer customer = getActiveCustomer(request.getCustomerId());
         ensureKycVerified(customer.getId());
 

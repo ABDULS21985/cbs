@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -56,5 +57,11 @@ public class TestSecurityConfig {
                 }
             }, AnonymousAuthenticationFilter.class);
         return http.build();
+    }
+
+    @Bean
+    @Primary
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 }

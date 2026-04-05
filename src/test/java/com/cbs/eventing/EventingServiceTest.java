@@ -22,6 +22,9 @@ class EventingServiceTest {
 
     @Mock private DomainEventRepository eventRepository;
     @Mock private EventSubscriptionRepository subscriptionRepository;
+    @Mock private org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
+    @Mock private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    @Mock private org.springframework.web.client.RestTemplate restTemplate;
 
     @InjectMocks private EventingService eventingService;
 

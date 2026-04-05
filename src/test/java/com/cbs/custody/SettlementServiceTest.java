@@ -22,6 +22,7 @@ class SettlementServiceTest {
 
     @Mock private SettlementInstructionRepository instructionRepo;
     @Mock private SettlementBatchRepository batchRepo;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private SettlementService service;
 
     @Test

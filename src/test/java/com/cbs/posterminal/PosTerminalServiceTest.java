@@ -26,6 +26,7 @@ class PosTerminalServiceTest {
     @Mock
     private PosTerminalRepository terminalRepository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private PosTerminalService service;
 

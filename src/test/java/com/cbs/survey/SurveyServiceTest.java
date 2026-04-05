@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.*; import static org.mockito.Argum
 class SurveyServiceTest {
     @Mock private CustomerSurveyRepository surveyRepository;
     @Mock private SurveyResponseRepository responseRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private SurveyService service;
 
     @Test @DisplayName("NPS classification: 9→PROMOTER, 7→PASSIVE, 5→DETRACTOR")

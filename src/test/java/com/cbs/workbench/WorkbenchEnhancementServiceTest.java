@@ -23,6 +23,7 @@ class WorkbenchEnhancementServiceTest {
     @Mock private WorkbenchWidgetRepository widgetRepo;
     @Mock private WorkbenchQuickActionRepository actionRepo;
     @Mock private WorkbenchAlertRepository alertRepo;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private WorkbenchEnhancementService service;
 
     @Test

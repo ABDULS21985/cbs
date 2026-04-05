@@ -29,6 +29,7 @@ class InvestmentAccountingServiceTest {
     @Mock private InvestmentValuationRepository valuationRepository;
     @Mock private SecurityHoldingRepository holdingRepository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private InvestmentAccountingService investmentService;
 
     private SecurityHolding holding;

@@ -6,6 +6,8 @@ import com.cbs.account.service.AccountPostingService;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.*;
 import com.cbs.card.service.CardService;
+import com.cbs.card.service.IslamicCardAuthorizationDecision;
+import com.cbs.card.service.IslamicCardAuthorizationService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
@@ -37,6 +39,7 @@ class CardServiceTest {
     @Mock private AccountRepository accountRepository;
     @Mock private AccountPostingService accountPostingService;
     @Mock private CbsProperties cbsProperties;
+    @Mock private IslamicCardAuthorizationService islamicCardAuthorizationService;
 
     @InjectMocks private CardService cardService;
 
@@ -78,6 +81,9 @@ class CardServiceTest {
                 .isContactlessEnabled(true).isOnlineEnabled(true).isInternationalEnabled(true)
                 .isAtmEnabled(true).isPosEnabled(true).pinRetriesRemaining(3)
                 .cardNumberHash("def456").cardNumberMasked("522222******5678").build();
+
+            when(islamicCardAuthorizationService.evaluate(any(Card.class), any(CardTransaction.class)))
+                .thenReturn(IslamicCardAuthorizationDecision.notApplicable());
     }
 
     @Test
@@ -133,6 +139,33 @@ class CardServiceTest {
 
         assertThat(txn.getStatus()).isEqualTo("DECLINED");
         assertThat(txn.getDeclineReason()).contains("international");
+    }
+
+    @Test
+    @DisplayName("Islamic card routing: declines when Shariah authorization blocks the MCC")
+    void debitCard_IslamicBlock() {
+    when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+    when(txnRepository.sumDailyUsageByChannel(eq(1L), eq("POS"), any(Instant.class)))
+        .thenReturn(BigDecimal.ZERO);
+    when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+    when(islamicCardAuthorizationService.evaluate(any(Card.class), any(CardTransaction.class)))
+        .thenReturn(IslamicCardAuthorizationDecision.blocked(
+            99L,
+            "2100-ISL-CARD-SETTLE",
+            "SSR-001",
+            "Merchant category 7995 is blocked by Islamic profile ISLAMIC_STANDARD_MCC",
+            "57"
+        ));
+
+    CardTransaction txn = cardService.authorizeTransaction(1L, "PURCHASE", "POS",
+        new BigDecimal("5000"), "USD", "Gaming Merchant", "MRC7995", "7995",
+        "TRM001", "Lagos", null);
+
+    assertThat(txn.getStatus()).isEqualTo("DECLINED");
+    assertThat(txn.getResponseCode()).isEqualTo("57");
+    assertThat(txn.getShariahDecision()).isEqualTo("BLOCKED");
+    assertThat(txn.getShariahScreeningRef()).isEqualTo("SSR-001");
+    verify(accountPostingService, never()).postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString());
     }
 
     @Test

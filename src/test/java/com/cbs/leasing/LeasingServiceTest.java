@@ -22,6 +22,8 @@ import static org.mockito.Mockito.*;
 class LeasingServiceTest {
 
     @Mock private LeaseContractRepository leaseRepository;
+    @Mock private com.cbs.gl.service.GeneralLedgerService generalLedgerService;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private LeasingService leasingService;
 
     @Test @DisplayName("IFRS 16 lease calculates ROU asset and lease liability")

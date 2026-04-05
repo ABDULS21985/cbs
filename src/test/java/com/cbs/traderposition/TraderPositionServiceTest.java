@@ -31,6 +31,7 @@ class TraderPositionServiceTest {
     @Mock
     private TraderPositionLimitRepository limitRepository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private TraderPositionService service;
 

@@ -27,6 +27,7 @@ class SessionDialogueServiceTest {
     @Mock
     private DialogueMessageRepository messageRepository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private SessionDialogueService service;
 

@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
 class CounterpartyServiceTest {
 
     @Mock private CounterpartyRepository counterpartyRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private CounterpartyService service;
 
     // ── create ──────────────────────────────────────────────────────────

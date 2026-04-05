@@ -39,6 +39,7 @@ class TradeOpsServiceTest {
     @Mock
     private ClearingSubmissionRepository clearingRepository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private TradeOpsService service;
 

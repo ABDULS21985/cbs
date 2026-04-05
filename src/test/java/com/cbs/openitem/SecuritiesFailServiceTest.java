@@ -25,6 +25,7 @@ import static org.mockito.Mockito.*;
 class SecuritiesFailServiceTest {
 
     @Mock private SecuritiesFailRepository repository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private SecuritiesFailService service;
 
     // ── recordFail ──────────────────────────────────────────────────────

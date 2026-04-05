@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
 class LiquidityRiskServiceTest {
 
     @Mock private LiquidityMetricRepository metricRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private LiquidityRiskService service;
 
     @Test @DisplayName("LCR above 100% = no breach")

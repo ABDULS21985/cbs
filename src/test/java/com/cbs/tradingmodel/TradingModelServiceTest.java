@@ -26,6 +26,7 @@ class TradingModelServiceTest {
     @Mock
     private TradingModelRepository modelRepository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private TradingModelService service;
 

@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
 class SalesLeadServiceTest {
 
     @Mock private SalesLeadRepository leadRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private SalesLeadService service;
 
     @Test @DisplayName("Lead advances through valid pipeline stages")

@@ -21,6 +21,7 @@ import static org.mockito.Mockito.*;
 class MarketRiskServiceTest {
 
     @Mock private MarketRiskPositionRepository positionRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private MarketRiskService service;
 
     @Test @DisplayName("10-day VaR = 1-day VaR × sqrt(10)")

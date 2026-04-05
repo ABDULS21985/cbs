@@ -25,6 +25,7 @@ class SecuritiesPositionServiceTest {
 
     @Mock private SecuritiesPositionRepository positionRepository;
     @Mock private SecuritiesMovementRepository movementRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private SecuritiesPositionService service;
 
     // ── record ──────────────────────────────────────────────────────────

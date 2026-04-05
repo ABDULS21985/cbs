@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.*; import static org.mockito.Argum
 class PrivatePlacementServiceTest {
     @Mock private PrivatePlacementRepository placementRepository;
     @Mock private PlacementInvestorRepository investorRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private PrivatePlacementService service;
 
     @Test @DisplayName("Close rejects if raised amount is below 80% of target")

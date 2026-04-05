@@ -23,6 +23,7 @@ class GuidelineComplianceServiceTest {
     @Mock
     private GuidelineAssessmentRepository repository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private GuidelineComplianceService service;
 

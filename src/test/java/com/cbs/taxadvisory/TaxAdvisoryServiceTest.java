@@ -22,6 +22,7 @@ class TaxAdvisoryServiceTest {
     @Mock
     private TaxAdvisoryEngagementRepository repository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private TaxAdvisoryService service;
 

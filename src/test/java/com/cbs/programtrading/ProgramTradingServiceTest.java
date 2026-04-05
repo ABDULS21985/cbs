@@ -29,6 +29,7 @@ class ProgramTradingServiceTest {
     @Mock
     private ProgramExecutionRepository executionRepository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private ProgramTradingService service;
 

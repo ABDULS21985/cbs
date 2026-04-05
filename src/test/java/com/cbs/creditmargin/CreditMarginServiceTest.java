@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.*; import static org.mockito.Argum
 class CreditMarginServiceTest {
     @Mock private MarginCallRepository callRepository;
     @Mock private CollateralPositionRepository collateralRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private CreditMarginService service;
 
     @Test @DisplayName("Full settlement updates amount and status to SETTLED")

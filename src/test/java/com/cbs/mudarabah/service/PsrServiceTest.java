@@ -47,6 +47,7 @@ class PsrServiceTest {
     @Mock private PsrChangeRequestRepository changeRequestRepository;
     @Mock private MudarabahAccountRepository mudarabahAccountRepository;
     @Mock private DecisionTableEvaluator decisionTableEvaluator;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
 
     @InjectMocks private PsrService service;
 

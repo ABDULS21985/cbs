@@ -24,6 +24,7 @@ class GapAnalysisServiceTest {
     @Mock
     private ComplianceGapAnalysisRepository repository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private GapAnalysisService service;
 

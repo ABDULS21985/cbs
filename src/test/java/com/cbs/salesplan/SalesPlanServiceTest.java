@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.*; import static org.mockito.Argum
 class SalesPlanServiceTest {
     @Mock private SalesPlanRepository planRepository;
     @Mock private SalesTargetRepository targetRepository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private SalesPlanService service;
 
     @Test @DisplayName("Recording actual recalculates achievementPct")

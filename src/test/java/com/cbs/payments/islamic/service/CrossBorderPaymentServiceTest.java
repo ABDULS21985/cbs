@@ -38,6 +38,7 @@ class CrossBorderPaymentServiceTest {
     @Mock private BankDirectoryRepository bankDirectoryRepository;
     @Mock private ShariahExclusionListRepository exclusionListRepository;
     @Mock private ShariahExclusionListEntryRepository exclusionListEntryRepository;
+    @Mock private com.cbs.fingateway.service.FinancialGatewayService financialGatewayService;
     @Mock private IslamicPaymentSupport paymentSupport;
 
     @InjectMocks

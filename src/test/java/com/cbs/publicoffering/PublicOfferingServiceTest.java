@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.*; import static org.mockito.Argum
 @ExtendWith(MockitoExtension.class)
 class PublicOfferingServiceTest {
     @Mock private PublicOfferingDetailRepository repository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private PublicOfferingService service;
 
     @Test @DisplayName("Close applications rejects if already closed past close date")

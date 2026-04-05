@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.*; import static org.mockito.Argum
 @ExtendWith(MockitoExtension.class)
 class LeasedAssetServiceTest {
     @Mock private LeasedAssetRepository repository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private LeasedAssetService service;
 
     @Test @DisplayName("Return sets condition + timestamp + RETURNED status")

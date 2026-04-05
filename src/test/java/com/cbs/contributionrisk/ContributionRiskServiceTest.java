@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.*; import static org.mockito.Argum
 @ExtendWith(MockitoExtension.class)
 class ContributionRiskServiceTest {
     @Mock private RiskContributionRepository repository;
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private ContributionRiskService service;
 
     @Test @DisplayName("contributionPct auto-calculated = marginal/total × 100")

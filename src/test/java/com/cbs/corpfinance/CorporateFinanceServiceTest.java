@@ -23,6 +23,7 @@ class CorporateFinanceServiceTest {
     @Mock
     private CorporateFinanceEngagementRepository repository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private CorporateFinanceService service;
 

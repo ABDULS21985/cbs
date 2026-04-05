@@ -60,7 +60,8 @@ class CardMapperTest {
                 .amount(new BigDecimal("15000")).currencyCode("NGN")
                 .merchantName("Shoprite").merchantId("MRC001")
                 .merchantCategoryCode("5411").terminalId("TRM001")
-                .authCode("123456").responseCode("00")
+            .authCode("123456").responseCode("00")
+            .islamicCardId(99L).shariahScreeningRef("SSR-100").shariahDecision("ALLOWED").shariahReason(null)
                 .status("AUTHORIZED").isInternational(false).isDisputed(false)
                 .transactionDate(Instant.now())
                 .build();
@@ -127,6 +128,9 @@ class CardMapperTest {
         assertThat(dto.merchantCategoryCode()).isEqualTo("5411");
         assertThat(dto.authCode()).isEqualTo("123456");
         assertThat(dto.responseCode()).isEqualTo("00");
+        assertThat(dto.islamicCardId()).isEqualTo(99L);
+        assertThat(dto.shariahScreeningRef()).isEqualTo("SSR-100");
+        assertThat(dto.shariahDecision()).isEqualTo("ALLOWED");
         assertThat(dto.status()).isEqualTo("AUTHORIZED");
         assertThat(dto.international()).isFalse();
         assertThat(dto.disputed()).isFalse();

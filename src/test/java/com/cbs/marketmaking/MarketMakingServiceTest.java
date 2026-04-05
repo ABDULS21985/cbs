@@ -28,6 +28,7 @@ class MarketMakingServiceTest {
     @Mock
     private MarketMakingActivityRepository activityRepository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private MarketMakingService service;
 

@@ -26,6 +26,7 @@ class MarketResearchServiceTest {
     @Mock
     private MarketResearchProjectRepository repository;
 
+    @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks
     private MarketResearchService service;
 
