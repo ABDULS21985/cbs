@@ -52,6 +52,15 @@ public class IslamicCardAuthorizationService {
 
         String settlementGlCode = resolveSettlementGlCode(islamicCard);
         IslamicCardProfile profile = islamicCard.getEffectiveRestrictionProfile();
+        if (profile == null || !Boolean.TRUE.equals(profile.getActive())) {
+            return IslamicCardAuthorizationDecision.blocked(
+                    islamicCard.getId(),
+                    settlementGlCode,
+                    null,
+                    "Islamic restriction profile is not configured or inactive",
+                    ISLAMIC_BLOCK_RESPONSE_CODE
+            );
+        }
         String normalizedMcc = normalizeMcc(txn.getMerchantCategoryCode());
         ShariahScreeningResultResponse screening = shariahScreeningService.screenTransaction(buildScreeningRequest(islamicCard, card, txn, profile));
         islamicCard.setLastScreeningRef(screening.getScreeningRef());
@@ -148,6 +157,24 @@ public class IslamicCardAuthorizationService {
 
         log.info("Islamic card settlement refreshed mudarabah weightage: cardId={}, accountId={}, poolId={}",
                 islamicCardId, account.getId(), mudarabahAccount.getInvestmentPoolId());
+    }
+
+    @Transactional(readOnly = true)
+    public String resolveSettlementGlCode(Long islamicCardId) {
+        if (islamicCardId == null) {
+            return null;
+        }
+        IslamicCardDetails islamicCard = islamicCardDetailsRepository.findById(islamicCardId)
+                .orElseThrow(() -> new BusinessException("Islamic card not found: " + islamicCardId, "ISLAMIC_CARD_NOT_FOUND"));
+        return resolveSettlementGlCode(islamicCard);
+    }
+
+    public void afterLifecyclePosting(Long islamicCardId, String lifecycleEvent) {
+        if (islamicCardId == null) {
+            return;
+        }
+        refreshMudarabahWeightage(islamicCardId);
+        log.info("Islamic card lifecycle posting applied: cardId={}, event={}", islamicCardId, lifecycleEvent);
     }
 
     private String resolveSettlementGlCode(IslamicCardDetails islamicCard) {

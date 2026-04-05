@@ -7,6 +7,8 @@ import com.cbs.account.service.AccountPostingService;
 import com.cbs.card.dispute.*;
 import com.cbs.card.entity.*;
 import com.cbs.card.repository.CardRepository;
+import com.cbs.card.repository.CardTransactionRepository;
+import com.cbs.card.service.IslamicCardAuthorizationService;
 import com.cbs.card.tokenisation.*;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
@@ -28,7 +30,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -47,6 +48,8 @@ class CardTokenAndDisputeTest {
     @Mock private AccountPostingService accountPostingService;
     @Mock private CurrentActorProvider currentActorProvider;
     @Mock private CbsProperties cbsProperties;
+        @Mock private CardTransactionRepository cardTransactionRepository;
+        @Mock private IslamicCardAuthorizationService islamicCardAuthorizationService;
     @InjectMocks private CardDisputeService disputeService;
 
     private Card activeCard;
@@ -159,46 +162,52 @@ class CardTokenAndDisputeTest {
     @DisplayName("Should issue provisional credit and advance to INVESTIGATION")
     void provisionalCredit_Success() {
         CardDispute dispute = CardDispute.builder().id(1L).disputeRef("DSP000000000001")
-                .accountId(10L).disputeAmount(new BigDecimal("500")).disputeCurrency("USD")
+                .accountId(10L).transactionId(55L).disputeAmount(new BigDecimal("500")).disputeCurrency("USD")
                 .status(DisputeStatus.INITIATED).build();
+        CardTransaction txn = CardTransaction.builder().id(55L).transactionRef("CTX-001").islamicCardId(99L).build();
         dispute.setTimeline(new java.util.ArrayList<>());
 
         when(disputeRepository.findById(1L)).thenReturn(Optional.of(dispute));
+        when(cardTransactionRepository.findById(55L)).thenReturn(Optional.of(txn));
+        when(islamicCardAuthorizationService.resolveSettlementGlCode(99L)).thenReturn("2100-ISL-CARD-SETTLE");
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
         when(disputeRepository.save(any())).thenReturn(dispute);
         when(accountPostingService.postCreditAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(TransactionJournal.builder().id(1L).build());
-        when(accountRepository.save(any())).thenReturn(account);
 
         CardDispute result = disputeService.issueProvisionalCredit(1L);
 
         assertThat(result.getProvisionalCreditAmount()).isEqualByComparingTo(new BigDecimal("500"));
         assertThat(result.getStatus()).isEqualTo(DisputeStatus.INVESTIGATION);
         verify(accountPostingService).postCreditAgainstGl(eq(account), any(), eq(new BigDecimal("500")),
-                contains("provisional credit"), any(), anyString(), anyString(), anyString(), anyString());
+                contains("provisional credit"), any(), anyString(), eq("2100-ISL-CARD-SETTLE"), anyString(), anyString());
+        verify(islamicCardAuthorizationService).afterLifecyclePosting(99L, "PROVISIONAL_CREDIT");
     }
 
     @Test
     @DisplayName("Merchant-favour resolution reverses provisional credit")
     void merchantFavour_ReversesCredit() {
         CardDispute dispute = CardDispute.builder().id(2L).disputeRef("DSP000000000002")
-                .accountId(10L).disputeAmount(new BigDecimal("300")).disputeCurrency("USD")
+                .accountId(10L).transactionId(56L).disputeAmount(new BigDecimal("300")).disputeCurrency("USD")
                 .provisionalCreditAmount(new BigDecimal("300")).provisionalCreditDate(LocalDate.now().minusDays(5))
                 .status(DisputeStatus.REPRESENTMENT).build();
+        CardTransaction txn = CardTransaction.builder().id(56L).transactionRef("CTX-002").islamicCardId(101L).build();
         dispute.setTimeline(new java.util.ArrayList<>());
 
         when(disputeRepository.findById(2L)).thenReturn(Optional.of(dispute));
+        when(cardTransactionRepository.findById(56L)).thenReturn(Optional.of(txn));
+        when(islamicCardAuthorizationService.resolveSettlementGlCode(101L)).thenReturn("2100-ISL-CARD-SETTLE");
         when(accountRepository.findById(10L)).thenReturn(Optional.of(account));
         when(disputeRepository.save(any())).thenReturn(dispute);
         when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
                 .thenReturn(TransactionJournal.builder().id(2L).build());
-        when(accountRepository.save(any())).thenReturn(account);
 
         CardDispute result = disputeService.resolveDispute(2L, "MERCHANT_FAVOUR", new BigDecimal("300"), "Merchant evidence compelling");
 
         assertThat(result.getStatus()).isEqualTo(DisputeStatus.RESOLVED_MERCHANT);
         assertThat(result.getProvisionalCreditReversed()).isTrue();
         verify(accountPostingService).postDebitAgainstGl(eq(account), any(), eq(new BigDecimal("300")),
-                contains("reversal"), any(), anyString(), anyString(), anyString(), anyString());
+                contains("reversal"), any(), anyString(), eq("2100-ISL-CARD-SETTLE"), anyString(), anyString());
+        verify(islamicCardAuthorizationService).afterLifecyclePosting(101L, "PROVISIONAL_CREDIT_REVERSAL");
     }
 }

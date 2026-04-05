@@ -151,16 +151,16 @@ class IslamicCardServiceTest {
                 .glAccountCode("4100-ISL-CARDFEE")
                 .build();
 
-        when(islamicCardProductRepository.findByProductCode("ISL_WADIAH_DEBIT")).thenReturn(Optional.of(product));
-        when(accountRepository.findByIdWithProduct(10L)).thenReturn(Optional.of(account));
+        when(tenantResolver.getCurrentTenantId()).thenReturn(7L);
+        when(islamicCardProductRepository.findByProductCodeAndTenantScope("ISL_WADIAH_DEBIT", 7L)).thenReturn(Optional.of(product));
+        when(accountRepository.findByIdWithProductForUpdate(10L)).thenReturn(Optional.of(account));
         when(customerIdentificationRepository.findVerifiedByCustomerId(1L)).thenReturn(List.of(
                 CustomerIdentification.builder().id(2L).customer(customer).idType("PASSPORT").idNumber("P123").isVerified(true).build()
         ));
-        when(tenantResolver.getCurrentTenantId()).thenReturn(7L);
         when(islamicCardDetailsRepository.findByCardAccountIdAndCardStatusIn(eq(10L), any())).thenReturn(Optional.empty());
-        when(wadiahAccountRepository.findByAccountId(10L)).thenReturn(Optional.of(wadiahAccount));
+        when(wadiahAccountRepository.findByAccountIdForUpdate(10L)).thenReturn(Optional.of(wadiahAccount));
         when(wadiahAccountRepository.save(any(WadiahAccount.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(cardService.issueCard(eq(10L), eq(CardType.DEBIT), eq(CardScheme.VISA), eq("CLASSIC"), anyString(), any(), any(), any(), any(), any(), eq(BigDecimal.ZERO), anyString(), eq(CardStatus.PENDING_ACTIVATION)))
+        when(cardService.issueCard(any(Account.class), eq(CardType.DEBIT), eq(CardScheme.VISA), eq("CLASSIC"), anyString(), any(), any(), any(), any(), any(), eq(BigDecimal.ZERO), anyString(), eq(CardStatus.PENDING_ACTIVATION)))
                 .thenReturn(issuedCard);
         when(cardRepository.save(any(Card.class))).thenAnswer(inv -> inv.getArgument(0));
         when(islamicFeeService.chargeFee(any())).thenReturn(feeChargeResult);
@@ -193,8 +193,9 @@ class IslamicCardServiceTest {
     @Test
     @DisplayName("issueIslamicDebitCard: rejects issuance when verified KYC is missing")
     void issueIslamicDebitCard_RejectsWithoutVerifiedKyc() {
-        when(islamicCardProductRepository.findByProductCode("ISL_WADIAH_DEBIT")).thenReturn(Optional.of(product));
-        when(accountRepository.findByIdWithProduct(10L)).thenReturn(Optional.of(account));
+        when(tenantResolver.getCurrentTenantId()).thenReturn(7L);
+        when(islamicCardProductRepository.findByProductCodeAndTenantScope("ISL_WADIAH_DEBIT", 7L)).thenReturn(Optional.of(product));
+        when(accountRepository.findByIdWithProductForUpdate(10L)).thenReturn(Optional.of(account));
         when(customerIdentificationRepository.findVerifiedByCustomerId(1L)).thenReturn(List.of());
 
         assertThatThrownBy(() -> islamicCardService.issueIslamicDebitCard(IssueIslamicCardRequest.builder()
@@ -204,6 +205,38 @@ class IslamicCardServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Verified KYC is required");
 
-        verify(cardService, never()).issueCard(anyLong(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+        verify(cardService, never()).issueCard(any(Account.class), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("issueIslamicDebitCard: rejects issuance when no effective restriction profile exists")
+    void issueIslamicDebitCard_RejectsWithoutEffectiveRestrictionProfile() {
+        IslamicCardProduct productWithoutProfile = IslamicCardProduct.builder()
+                .id(31L)
+                .productCode("ISL_NOPROFILE")
+                .productName("Islamic Debit")
+                .contractType(IslamicCardContractType.WADIAH)
+                .cardScheme(CardScheme.VISA)
+                .cardTier("CLASSIC")
+                .settlementGlCode("2100-ISL-CARD-SETTLE")
+                .active(true)
+                .build();
+
+        when(tenantResolver.getCurrentTenantId()).thenReturn(7L);
+        when(islamicCardProductRepository.findByProductCodeAndTenantScope("ISL_NOPROFILE", 7L)).thenReturn(Optional.of(productWithoutProfile));
+        when(accountRepository.findByIdWithProductForUpdate(10L)).thenReturn(Optional.of(account));
+        when(customerIdentificationRepository.findVerifiedByCustomerId(1L)).thenReturn(List.of(
+                CustomerIdentification.builder().id(2L).customer(customer).idType("PASSPORT").idNumber("P123").isVerified(true).build()
+        ));
+        when(islamicCardDetailsRepository.findByCardAccountIdAndCardStatusIn(eq(10L), any())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> islamicCardService.issueIslamicDebitCard(IssueIslamicCardRequest.builder()
+                .accountId(10L)
+                .productCode("ISL_NOPROFILE")
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("restriction profile");
+
+        verify(cardService, never()).issueCard(any(Account.class), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
     }
 }

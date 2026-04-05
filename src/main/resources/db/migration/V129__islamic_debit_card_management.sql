@@ -91,12 +91,6 @@ CREATE INDEX IF NOT EXISTS idx_islamic_card_product
     ON islamic_card(islamic_card_product_id);
 CREATE INDEX IF NOT EXISTS idx_islamic_card_contract_type
     ON islamic_card(contract_type);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_islamic_card_wadiah_account
-    ON islamic_card(wadiah_account_id)
-    WHERE wadiah_account_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS uq_islamic_card_mudarabah_account
-    ON islamic_card(mudarabah_account_id)
-    WHERE mudarabah_account_id IS NOT NULL;
 
 ALTER TABLE card_transaction
     ADD COLUMN IF NOT EXISTS islamic_card_id BIGINT REFERENCES islamic_card(id),

@@ -19,7 +19,7 @@ public interface CardTransactionRepository extends JpaRepository<CardTransaction
     Page<CardTransaction> findByCardIdOrderByTransactionDateDesc(Long cardId, Pageable pageable);
     Page<CardTransaction> findByAccountIdOrderByTransactionDateDesc(Long accountId, Pageable pageable);
 
-    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM CardTransaction t WHERE t.card.id = :cardId " +
+    @Query("SELECT COALESCE(SUM(COALESCE(t.billingAmount, t.amount)), 0) FROM CardTransaction t WHERE t.card.id = :cardId " +
            "AND t.channel = :channel AND t.status IN ('AUTHORIZED','SETTLED') AND t.transactionDate >= :since")
     BigDecimal sumDailyUsageByChannel(@Param("cardId") Long cardId, @Param("channel") String channel, @Param("since") Instant since);
 

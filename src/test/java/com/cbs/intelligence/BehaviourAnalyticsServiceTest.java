@@ -23,6 +23,7 @@ class BehaviourAnalyticsServiceTest {
 
     @Mock private CustomerBehaviourEventRepository eventRepository;
     @Mock private ProductRecommendationRepository recommendationRepository;
+    @Mock private com.cbs.intelligence.repository.CustomerBehaviorModelRepository behaviorModelRepository;
     @InjectMocks private BehaviourAnalyticsService service;
 
     @Test

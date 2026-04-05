@@ -36,7 +36,7 @@ class MarketResearchServiceTest {
         MarketResearchProject project = new MarketResearchProject();
         project.setId(1L);
         project.setProjectCode("MRP-TEST00001");
-        project.setStatus("IN_PROGRESS");
+        project.setStatus("ACTIVE");
 
         when(repository.findByProjectCode("MRP-TEST00001")).thenReturn(Optional.of(project));
         when(repository.save(any(MarketResearchProject.class))).thenAnswer(i -> i.getArgument(0));

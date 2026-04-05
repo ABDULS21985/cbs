@@ -133,6 +133,22 @@ class IslamicCardAuthorizationServiceTest {
         assertThat(decision.shariahReason()).contains("7995");
     }
 
+        @Test
+        @DisplayName("evaluate: blocks when the Islamic card has no effective active restriction profile")
+        void evaluate_BlocksWhenRestrictionProfileMissing() {
+                islamicCardDetails.setRestrictionProfile(null);
+                islamicCardDetails.getProduct().setRestrictionProfile(null);
+                when(islamicCardDetailsRepository.findByCardId(11L)).thenReturn(Optional.of(islamicCardDetails));
+
+                IslamicCardAuthorizationDecision decision = islamicCardAuthorizationService.evaluate(card, txn);
+
+                assertThat(decision.applicable()).isTrue();
+                assertThat(decision.allowed()).isFalse();
+                assertThat(decision.responseCode()).isEqualTo("57");
+                assertThat(decision.shariahReason()).contains("restriction profile");
+                verify(shariahScreeningService, never()).screenTransaction(any());
+        }
+
     @Test
     @DisplayName("refreshMudarabahWeightage: upserts the current-day weightage record and recalculates current weight")
     void refreshMudarabahWeightage_UpsertsRecord() {

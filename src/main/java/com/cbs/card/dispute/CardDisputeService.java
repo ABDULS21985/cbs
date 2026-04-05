@@ -5,6 +5,9 @@ import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
+import com.cbs.card.entity.CardTransaction;
+import com.cbs.card.repository.CardTransactionRepository;
+import com.cbs.card.service.IslamicCardAuthorizationService;
 import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.common.exception.BusinessException;
@@ -32,6 +35,8 @@ public class CardDisputeService {
     private final AccountPostingService accountPostingService;
     private final CurrentActorProvider currentActorProvider;
     private final CbsProperties cbsProperties;
+    private final CardTransactionRepository cardTransactionRepository;
+    private final IslamicCardAuthorizationService islamicCardAuthorizationService;
 
     /**
      * Initiates a dispute with scheme-compliant deadlines.
@@ -99,10 +104,11 @@ public class CardDisputeService {
                 "Card dispute provisional credit " + dispute.getDisputeRef(),
                 TransactionChannel.SYSTEM,
                 dispute.getDisputeRef() + ":PROV",
-                resolveDisputeSettlementGlCode(),
+            resolveDisputeSettlementGlCode(dispute),
                 "CARD_DISPUTE",
                 dispute.getDisputeRef()
         );
+        refreshIslamicLifecycle(dispute, "PROVISIONAL_CREDIT");
 
         dispute.setProvisionalCreditAmount(dispute.getDisputeAmount());
         dispute.setProvisionalCreditDate(LocalDate.now());
@@ -224,11 +230,12 @@ public class CardDisputeService {
                     "Card dispute provisional credit reversal " + dispute.getDisputeRef(),
                     TransactionChannel.SYSTEM,
                     dispute.getDisputeRef() + ":PROV-REV",
-                    resolveDisputeSettlementGlCode(),
+                    resolveDisputeSettlementGlCode(dispute),
                     "CARD_DISPUTE",
                     dispute.getDisputeRef()
             );
             dispute.setProvisionalCreditReversed(true);
+            refreshIslamicLifecycle(dispute, "PROVISIONAL_CREDIT_REVERSAL");
             log.info("Provisional credit reversed: dispute={}, amount={}", dispute.getDisputeRef(), dispute.getProvisionalCreditAmount());
         }
 
@@ -276,13 +283,36 @@ public class CardDisputeService {
         return disputeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("CardDispute", "id", id));
     }
 
-    private String resolveDisputeSettlementGlCode() {
+    private String resolveDisputeSettlementGlCode(CardDispute dispute) {
+        CardTransaction txn = findLinkedTransaction(dispute).orElse(null);
+        if (txn != null && txn.getIslamicCardId() != null) {
+            String islamicGlCode = islamicCardAuthorizationService.resolveSettlementGlCode(txn.getIslamicCardId());
+            if (StringUtils.hasText(islamicGlCode)) {
+                return islamicGlCode;
+            }
+        }
         String glCode = cbsProperties.getLedger().getExternalClearingGlCode();
         if (!StringUtils.hasText(glCode)) {
             throw new BusinessException("CBS_LEDGER_EXTERNAL_CLEARING_GL is required for card dispute postings",
                     "MISSING_CARD_DISPUTE_SETTLEMENT_GL");
         }
         return glCode;
+    }
+
+    private java.util.Optional<CardTransaction> findLinkedTransaction(CardDispute dispute) {
+        if (dispute.getTransactionId() != null) {
+            return cardTransactionRepository.findById(dispute.getTransactionId());
+        }
+        if (StringUtils.hasText(dispute.getTransactionRef())) {
+            return cardTransactionRepository.findByTransactionRef(dispute.getTransactionRef());
+        }
+        return java.util.Optional.empty();
+    }
+
+    private void refreshIslamicLifecycle(CardDispute dispute, String lifecycleEvent) {
+        findLinkedTransaction(dispute)
+                .map(CardTransaction::getIslamicCardId)
+                .ifPresent(islamicCardId -> islamicCardAuthorizationService.afterLifecyclePosting(islamicCardId, lifecycleEvent));
     }
 
     public record DisputeDashboard(long initiated, long investigation, long chargebackFiled, long representment, long arbitration) {}

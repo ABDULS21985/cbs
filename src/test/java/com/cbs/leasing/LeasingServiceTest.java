@@ -26,6 +26,17 @@ class LeasingServiceTest {
     @Mock private com.cbs.common.audit.CurrentActorProvider currentActorProvider;
     @InjectMocks private LeasingService leasingService;
 
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        com.cbs.gl.entity.JournalEntry mockJournal = new com.cbs.gl.entity.JournalEntry();
+        mockJournal.setId(1L);
+        org.mockito.Mockito.lenient().when(generalLedgerService.postJournal(
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyList())).thenReturn(mockJournal);
+    }
+
     @Test @DisplayName("IFRS 16 lease calculates ROU asset and lease liability")
     void ifrs16RouCalculation() {
         when(leaseRepository.save(any())).thenAnswer(inv -> { LeaseContract l = inv.getArgument(0); l.setId(1L); return l; });

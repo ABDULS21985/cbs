@@ -66,8 +66,9 @@ public class IslamicCardService {
 
     @CacheEvict(cacheNames = {"islamic-card-profiles", "islamic-card-products"}, allEntries = true)
     public IslamicCardProfileResponse createProfile(SaveIslamicCardProfileRequest request) {
+        Long tenantId = tenantResolver.getCurrentTenantId();
         String profileCode = normalizeCode(request.getProfileCode());
-        if (islamicCardProfileRepository.findByProfileCode(profileCode).isPresent()) {
+        if (islamicCardProfileRepository.findByProfileCodeAndTenantScope(profileCode, tenantId).isPresent()) {
             throw new BusinessException("Islamic card profile already exists: " + profileCode, "ISLAMIC_CARD_PROFILE_DUPLICATE");
         }
 
@@ -77,35 +78,38 @@ public class IslamicCardService {
                 .description(request.getDescription())
                 .restrictedMccs(normalizeMccList(request.getRestrictedMccs()))
                 .active(request.getActive() == null || request.getActive())
-                .tenantId(tenantResolver.getCurrentTenantId())
+                .tenantId(tenantId)
                 .build();
         return IslamicCardMapper.toProfileResponse(islamicCardProfileRepository.save(profile));
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "islamic-card-profiles", key = "'all'")
+    @Cacheable(cacheNames = "islamic-card-profiles", key = "#root.target.tenantCacheKey('all')")
     public List<IslamicCardProfileResponse> listProfiles() {
-        return islamicCardProfileRepository.findAllByOrderByProfileCodeAsc().stream()
+        return islamicCardProfileRepository.findAllByTenantScopeOrderByProfileCodeAsc(tenantResolver.getCurrentTenantId()).stream()
                 .map(IslamicCardMapper::toProfileResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "islamic-card-profiles", key = "#profileCode.toUpperCase()")
+    @Cacheable(cacheNames = "islamic-card-profiles", key = "#root.target.tenantCacheKey(#profileCode)")
     public IslamicCardProfileResponse getProfile(String profileCode) {
         return IslamicCardMapper.toProfileResponse(resolveProfile(profileCode));
     }
 
     @CacheEvict(cacheNames = {"islamic-card-profiles", "islamic-card-products"}, allEntries = true)
     public IslamicCardProductResponse createProduct(SaveIslamicCardProductRequest request) {
+        Long tenantId = tenantResolver.getCurrentTenantId();
         String productCode = normalizeCode(request.getProductCode());
-        if (islamicCardProductRepository.findByProductCode(productCode).isPresent()) {
+        if (islamicCardProductRepository.findByProductCodeAndTenantScope(productCode, tenantId).isPresent()) {
             throw new BusinessException("Islamic card product already exists: " + productCode, "ISLAMIC_CARD_PRODUCT_DUPLICATE");
         }
 
-        IslamicCardProfile profile = StringUtils.hasText(request.getRestrictionProfileCode())
-                ? resolveProfile(request.getRestrictionProfileCode())
-                : null;
+        IslamicCardProfile profile = resolveRequiredActiveProfile(
+                request.getRestrictionProfileCode(),
+                "Islamic card products require an active restriction profile",
+                "ISLAMIC_CARD_PROFILE_REQUIRED"
+        );
 
         IslamicCardProduct product = IslamicCardProduct.builder()
                 .productCode(productCode)
@@ -127,34 +131,32 @@ public class IslamicCardService {
                 .requireVerifiedKyc(defaultTrue(request.getRequireVerifiedKyc()))
                 .allowOverdraft(defaultFalse(request.getAllowOverdraft()))
                 .active(request.getActive() == null || request.getActive())
-                .tenantId(tenantResolver.getCurrentTenantId())
+                .tenantId(tenantId)
                 .build();
         return IslamicCardMapper.toProductResponse(islamicCardProductRepository.save(product));
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "islamic-card-products", key = "'all'")
+    @Cacheable(cacheNames = "islamic-card-products", key = "#root.target.tenantCacheKey('all')")
     public List<IslamicCardProductResponse> listProducts() {
-        return islamicCardProductRepository.findAllByOrderByProductCodeAsc().stream()
+        return islamicCardProductRepository.findAllByTenantScopeOrderByProductCodeAsc(tenantResolver.getCurrentTenantId()).stream()
                 .map(IslamicCardMapper::toProductResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(cacheNames = "islamic-card-products", key = "#productCode.toUpperCase()")
+    @Cacheable(cacheNames = "islamic-card-products", key = "#root.target.tenantCacheKey(#productCode)")
     public IslamicCardProductResponse getProduct(String productCode) {
         return IslamicCardMapper.toProductResponse(resolveProduct(productCode));
     }
 
     public Card issueIslamicDebitCard(IssueIslamicCardRequest request) {
         IslamicCardProduct product = resolveActiveProduct(request.getProductCode());
-        Account account = accountRepository.findByIdWithProduct(request.getAccountId())
+        Account account = accountRepository.findByIdWithProductForUpdate(request.getAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", request.getAccountId()));
         validateIssuanceEligibility(account, request, product);
 
-        IslamicCardProfile restrictionProfile = StringUtils.hasText(request.getRestrictionProfileCode())
-                ? resolveActiveProfile(request.getRestrictionProfileCode())
-                : product.getRestrictionProfile();
+        IslamicCardProfile restrictionProfile = resolveEffectiveActiveProfile(product, request.getRestrictionProfileCode());
 
         WadiahAccount wadiahAccount = null;
         MudarabahAccount mudarabahAccount = null;
@@ -162,14 +164,14 @@ public class IslamicCardService {
         String contractTypeCode;
 
         if (product.getContractType() == IslamicCardContractType.WADIAH) {
-            wadiahAccount = wadiahAccountRepository.findByAccountId(account.getId())
+            wadiahAccount = wadiahAccountRepository.findByAccountIdForUpdate(account.getId())
                     .orElseThrow(() -> new BusinessException("Account is not linked to a Wadiah contract", "ISLAMIC_CARD_WADIAH_ACCOUNT_REQUIRED"));
             wadiahAccount.setDebitCardEnabled(true);
             wadiahAccountRepository.save(wadiahAccount);
             contractRef = wadiahAccount.getContractReference();
             contractTypeCode = wadiahAccount.getContractTypeCode();
         } else {
-            mudarabahAccount = mudarabahAccountRepository.findByAccountId(account.getId())
+            mudarabahAccount = mudarabahAccountRepository.findByAccountIdForUpdate(account.getId())
                     .orElseThrow(() -> new BusinessException("Account is not linked to a Mudarabah contract", "ISLAMIC_CARD_MUDARABAH_ACCOUNT_REQUIRED"));
             if (!mudarabahAccount.isLossDisclosureAccepted()) {
                 throw new BusinessException("Mudarabah loss disclosure must be accepted before card issuance", "ISLAMIC_CARD_LOSS_DISCLOSURE_REQUIRED");
@@ -184,7 +186,7 @@ public class IslamicCardService {
         String branchCode = StringUtils.hasText(request.getBranchCode()) ? request.getBranchCode().trim() : account.getBranchCode();
 
         Card card = cardService.issueCard(
-                account.getId(),
+            account,
                 CardType.DEBIT,
                 product.getCardScheme(),
                 StringUtils.hasText(request.getCardTier()) ? request.getCardTier().trim().toUpperCase(Locale.ROOT) : product.getCardTier(),
@@ -253,7 +255,9 @@ public class IslamicCardService {
         if (request.getCustomerId() != null && !request.getCustomerId().equals(account.getCustomer().getId())) {
             throw new BusinessException("customerId does not match the account owner", "ISLAMIC_CARD_CUSTOMER_MISMATCH");
         }
-        if (Boolean.FALSE.equals(product.getAllowOverdraft()) && account.getOverdraftLimit().compareTo(BigDecimal.ZERO) > 0) {
+        if (Boolean.FALSE.equals(product.getAllowOverdraft())
+                && account.getOverdraftLimit() != null
+                && account.getOverdraftLimit().compareTo(BigDecimal.ZERO) > 0) {
             throw new BusinessException("Islamic debit cards cannot be issued on overdraft-enabled accounts", "ISLAMIC_CARD_OVERDRAFT_NOT_ALLOWED");
         }
         if (Boolean.TRUE.equals(product.getRequireVerifiedKyc()) && !hasVerifiedKyc(account.getCustomer().getId())) {
@@ -303,7 +307,8 @@ public class IslamicCardService {
     }
 
     private IslamicCardProfile resolveProfile(String profileCode) {
-        return islamicCardProfileRepository.findByProfileCode(normalizeCode(profileCode))
+        String normalizedCode = normalizeCode(profileCode);
+        return islamicCardProfileRepository.findByProfileCodeAndTenantScope(normalizedCode, tenantResolver.getCurrentTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("IslamicCardProfile", "profileCode", normalizeCode(profileCode)));
     }
 
@@ -316,7 +321,8 @@ public class IslamicCardService {
     }
 
     private IslamicCardProduct resolveProduct(String productCode) {
-        return islamicCardProductRepository.findByProductCode(normalizeCode(productCode))
+        String normalizedCode = normalizeCode(productCode);
+        return islamicCardProductRepository.findByProductCodeAndTenantScope(normalizedCode, tenantResolver.getCurrentTenantId())
                 .orElseThrow(() -> new ResourceNotFoundException("IslamicCardProduct", "productCode", normalizeCode(productCode)));
     }
 
@@ -347,6 +353,37 @@ public class IslamicCardService {
 
     private String normalizeCode(String value) {
         return value == null ? null : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    public String tenantCacheKey(String value) {
+        Long tenantId = tenantResolver.getCurrentTenantId();
+        return (tenantId == null ? "GLOBAL" : tenantId.toString()) + ":" + normalizeCode(value);
+    }
+
+    private IslamicCardProfile resolveRequiredActiveProfile(String profileCode, String message, String errorCode) {
+        if (!StringUtils.hasText(profileCode)) {
+            throw new BusinessException(message, errorCode);
+        }
+        return resolveActiveProfile(profileCode);
+    }
+
+    private IslamicCardProfile resolveEffectiveActiveProfile(IslamicCardProduct product, String overrideProfileCode) {
+        IslamicCardProfile profile = StringUtils.hasText(overrideProfileCode)
+                ? resolveActiveProfile(overrideProfileCode)
+                : product.getRestrictionProfile();
+        if (profile == null) {
+            throw new BusinessException(
+                    "Islamic cards require an active restriction profile before issuance",
+                    "ISLAMIC_CARD_PROFILE_REQUIRED"
+            );
+        }
+        if (!Boolean.TRUE.equals(profile.getActive())) {
+            throw new BusinessException(
+                    "Islamic card profile is inactive: " + profile.getProfileCode(),
+                    "ISLAMIC_CARD_PROFILE_INACTIVE"
+            );
+        }
+        return profile;
     }
 
     private String trimToNull(String value) {

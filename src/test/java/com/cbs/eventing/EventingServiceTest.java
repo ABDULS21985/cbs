@@ -57,7 +57,7 @@ class EventingServiceTest {
                 .subscriptionName("loan-processor").eventTypes(List.of("LOAN_DISBURSED"))
                 .deliveryType("WEBHOOK").isActive(true).failureCount(0).maxRetries(3).build();
 
-        when(eventRepository.findUnpublished()).thenReturn(List.of(event));
+        when(eventRepository.findUnpublishedBatch(org.mockito.ArgumentMatchers.anyInt())).thenReturn(List.of(event));
         when(subscriptionRepository.findByIsActiveTrueOrderBySubscriptionNameAsc()).thenReturn(List.of(matchingSub, nonMatchingSub));
         when(eventRepository.save(any())).thenReturn(event);
 

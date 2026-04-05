@@ -11,6 +11,8 @@ import com.cbs.card.service.IslamicCardAuthorizationService;
 import com.cbs.common.config.CbsProperties;
 import com.cbs.customer.entity.Customer;
 import com.cbs.customer.entity.CustomerType;
+import com.cbs.payments.entity.FxRate;
+import com.cbs.payments.repository.FxRateRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,6 +42,7 @@ class CardServiceTest {
     @Mock private AccountPostingService accountPostingService;
     @Mock private CbsProperties cbsProperties;
     @Mock private IslamicCardAuthorizationService islamicCardAuthorizationService;
+    @Mock private FxRateRepository fxRateRepository;
 
     @InjectMocks private CardService cardService;
 
@@ -92,7 +95,6 @@ class CardServiceTest {
         when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
         when(txnRepository.sumDailyUsageByChannel(eq(1L), eq("POS"), any(Instant.class)))
                 .thenReturn(BigDecimal.ZERO);
-        when(accountRepository.save(any())).thenReturn(account);
         when(cardRepository.save(any())).thenReturn(debitCard);
         when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
@@ -110,7 +112,44 @@ class CardServiceTest {
         assertThat(txn.getStatus()).isEqualTo("AUTHORIZED");
         assertThat(txn.getAuthCode()).isNotNull();
         assertThat(txn.getResponseCode()).isEqualTo("00");
+        assertThat(txn.getBillingAmount()).isEqualByComparingTo(new BigDecimal("5000.00"));
+        assertThat(txn.getBillingCurrency()).isEqualTo("USD");
+        assertThat(txn.getFxRate()).isEqualByComparingTo(new BigDecimal("1.00000000"));
         assertThat(account.getAvailableBalance()).isEqualByComparingTo(new BigDecimal("45000"));
+    }
+
+    @Test
+    @DisplayName("Debit card international authorization: converts merchant currency into account currency before posting")
+    void debitCard_FxAwareAuthorization() {
+        debitCard.setIsInternationalEnabled(true);
+        when(cardRepository.findByIdWithDetails(1L)).thenReturn(Optional.of(debitCard));
+        when(txnRepository.sumDailyUsageByChannel(eq(1L), eq("POS"), any(Instant.class)))
+                .thenReturn(BigDecimal.ZERO);
+        when(fxRateRepository.findLatestRate("EUR", "USD")).thenReturn(java.util.List.of(
+                FxRate.builder().id(1L).sourceCurrency("EUR").targetCurrency("USD").sellRate(new BigDecimal("1.10000000")).isActive(true).build()
+        ));
+        when(cardRepository.save(any())).thenReturn(debitCard);
+        when(txnRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(accountPostingService.postDebitAgainstGl(any(Account.class), any(), any(), anyString(), any(), anyString(), anyString(), anyString(), anyString()))
+                .thenAnswer(inv -> {
+                    Account debitAccount = inv.getArgument(0);
+                    BigDecimal debitAmount = inv.getArgument(2);
+                    debitAccount.debit(debitAmount);
+                    return TransactionJournal.builder().id(11L).build();
+                });
+
+        CardTransaction txn = cardService.authorizeTransaction(1L, "PURCHASE", "POS",
+                new BigDecimal("100.00"), "EUR", "Paris Store", "MRC-EUR", "5411",
+                "TRM-EUR", "Paris", "FRA");
+
+        assertThat(txn.getStatus()).isEqualTo("AUTHORIZED");
+        assertThat(txn.getAmount()).isEqualByComparingTo(new BigDecimal("100.00"));
+        assertThat(txn.getCurrencyCode()).isEqualTo("EUR");
+        assertThat(txn.getBillingAmount()).isEqualByComparingTo(new BigDecimal("110.00"));
+        assertThat(txn.getBillingCurrency()).isEqualTo("USD");
+        assertThat(txn.getFxRate()).isEqualByComparingTo(new BigDecimal("1.10000000"));
+        assertThat(account.getAvailableBalance()).isEqualByComparingTo(new BigDecimal("49890.00"));
+        verify(accountPostingService).postDebitAgainstGl(eq(account), any(), eq(new BigDecimal("110.00")), anyString(), any(), anyString(), anyString(), anyString(), anyString());
     }
 
     @Test

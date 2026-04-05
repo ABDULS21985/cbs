@@ -10,6 +10,8 @@ import com.cbs.card.entity.*;
 import com.cbs.card.repository.*;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.payments.entity.FxRate;
+import com.cbs.payments.repository.FxRateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -39,6 +42,7 @@ public class CardService {
     private final AccountPostingService accountPostingService;
     private final CbsProperties cbsProperties;
     private final IslamicCardAuthorizationService islamicCardAuthorizationService;
+    private final FxRateRepository fxRateRepository;
 
     @org.springframework.beans.factory.annotation.Value("${card.pan.hmac-key:ch4ng3-th1s-d3f4ult-k3y-in-pr0duct10n}")
     private String panHmacKey;
@@ -49,20 +53,32 @@ public class CardService {
                   BigDecimal dailyPosLimit, BigDecimal dailyAtmLimit,
                   BigDecimal dailyOnlineLimit, BigDecimal singleTxnLimit,
                   BigDecimal creditLimit) {
-        return issueCard(accountId, cardType, cardScheme, cardTier, cardholderName, expiryDate,
-            dailyPosLimit, dailyAtmLimit, dailyOnlineLimit, singleTxnLimit,
-            creditLimit, null, CardStatus.ACTIVE);
-        }
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
+        return issueCard(account, cardType, cardScheme, cardTier, cardholderName, expiryDate,
+                dailyPosLimit, dailyAtmLimit, dailyOnlineLimit, singleTxnLimit,
+                creditLimit, null, CardStatus.ACTIVE);
+    }
 
-        @Transactional
-        public Card issueCard(Long accountId, CardType cardType, CardScheme cardScheme,
+    @Transactional
+    public Card issueCard(Long accountId, CardType cardType, CardScheme cardScheme,
                   String cardTier, String cardholderName, LocalDate expiryDate,
                   BigDecimal dailyPosLimit, BigDecimal dailyAtmLimit,
                   BigDecimal dailyOnlineLimit, BigDecimal singleTxnLimit,
                   BigDecimal creditLimit, String branchCode, CardStatus initialStatus) {
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
+        return issueCard(account, cardType, cardScheme, cardTier, cardholderName, expiryDate,
+                dailyPosLimit, dailyAtmLimit, dailyOnlineLimit, singleTxnLimit,
+                creditLimit, branchCode, initialStatus);
+    }
 
+    @Transactional
+    public Card issueCard(Account account, CardType cardType, CardScheme cardScheme,
+                  String cardTier, String cardholderName, LocalDate expiryDate,
+                  BigDecimal dailyPosLimit, BigDecimal dailyAtmLimit,
+                  BigDecimal dailyOnlineLimit, BigDecimal singleTxnLimit,
+                  BigDecimal creditLimit, String branchCode, CardStatus initialStatus) {
         String cardRef = "CRD-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
         // Simulated PAN — production would use HSM
         String pan = generateSimulatedPan(cardScheme);
@@ -154,18 +170,34 @@ public class CardService {
                                                   String terminalId, String merchantCity, String merchantCountry) {
         Card card = cardRepository.findByIdWithDetails(cardId)
                 .orElseThrow(() -> new ResourceNotFoundException("Card", "id", cardId));
+        Account account = card.getAccount();
 
         boolean international = merchantCountry != null && !merchantCountry.isEmpty();
         String txnRef = "CTX-" + UUID.randomUUID().toString().substring(0, 12).toUpperCase();
+        String txnCurrency = normalizeCurrencyCode(currencyCode, card.getCurrencyCode());
 
         CardTransaction txn = CardTransaction.builder()
                 .transactionRef(txnRef).card(card).account(card.getAccount())
                 .transactionType(transactionType).channel(channel)
-                .amount(amount).currencyCode(currencyCode)
+                .amount(amount).currencyCode(txnCurrency)
                 .merchantName(merchantName).merchantId(merchantId)
                 .merchantCategoryCode(mcc).terminalId(terminalId)
                 .merchantCity(merchantCity).merchantCountry(merchantCountry)
                 .isInternational(international).build();
+
+        BillingContext billing;
+        try {
+            billing = resolveBillingContext(account, amount, txnCurrency);
+            txn.setBillingAmount(billing.billingAmount());
+            txn.setBillingCurrency(billing.billingCurrency());
+            txn.setFxRate(billing.fxRate());
+        } catch (BusinessException ex) {
+            txn.setStatus("DECLINED");
+            txn.setDeclineReason(ex.getMessage());
+            txn.setResponseCode("91");
+            txnRepository.save(txn);
+            return txn;
+        }
 
         // Validation checks
         if (!card.canTransact(channel, international)) {
@@ -185,7 +217,7 @@ public class CardService {
         }
 
         // Single transaction limit
-        if (card.getSingleTxnLimit() != null && amount.compareTo(card.getSingleTxnLimit()) > 0) {
+        if (card.getSingleTxnLimit() != null && billing.billingAmount().compareTo(card.getSingleTxnLimit()) > 0) {
             txn.setStatus("DECLINED");
             txn.setDeclineReason("Exceeds single transaction limit");
             txn.setResponseCode("61");
@@ -198,7 +230,7 @@ public class CardService {
         if (channelLimit != null) {
             Instant startOfDay = LocalDate.now().atStartOfDay(ZoneOffset.UTC).toInstant();
             BigDecimal dailyUsed = txnRepository.sumDailyUsageByChannel(cardId, channel, startOfDay);
-            if (dailyUsed.add(amount).compareTo(channelLimit) > 0) {
+            if (dailyUsed.add(billing.billingAmount()).compareTo(channelLimit) > 0) {
                 txn.setStatus("DECLINED");
                 txn.setDeclineReason("Exceeds daily " + channel + " limit");
                 txn.setResponseCode("61");
@@ -218,9 +250,8 @@ public class CardService {
         }
 
         // Balance check
-        Account account = card.getAccount();
         if (card.getCardType() == CardType.DEBIT || card.getCardType() == CardType.PREPAID) {
-            if (account.getAvailableBalance().compareTo(amount) < 0) {
+            if (account.getAvailableBalance().compareTo(billing.billingAmount()) < 0) {
                 txn.setStatus("DECLINED");
                 txn.setDeclineReason("Insufficient funds");
                 txn.setResponseCode("51");
@@ -230,7 +261,7 @@ public class CardService {
             accountPostingService.postDebitAgainstGl(
                     account,
                     TransactionType.DEBIT,
-                    amount,
+                    billing.billingAmount(),
                     "Card authorization " + txnRef,
                     resolveChannel(channel),
                     txnRef,
@@ -239,15 +270,15 @@ public class CardService {
                     txnRef
             );
         } else if (card.getCardType() == CardType.CREDIT) {
-            if (card.getAvailableCredit() == null || card.getAvailableCredit().compareTo(amount) < 0) {
+            if (card.getAvailableCredit() == null || card.getAvailableCredit().compareTo(billing.billingAmount()) < 0) {
                 txn.setStatus("DECLINED");
                 txn.setDeclineReason("Credit limit exceeded");
                 txn.setResponseCode("51");
                 txnRepository.save(txn);
                 return txn;
             }
-            card.setAvailableCredit(card.getAvailableCredit().subtract(amount));
-            card.setOutstandingBalance(card.getOutstandingBalance().add(amount));
+            card.setAvailableCredit(card.getAvailableCredit().subtract(billing.billingAmount()));
+            card.setOutstandingBalance(card.getOutstandingBalance().add(billing.billingAmount()));
         }
 
         // Authorize
@@ -258,8 +289,8 @@ public class CardService {
         card.setLastUsedDate(LocalDate.now());
 
         cardRepository.save(card);
-    txn = txnRepository.save(txn);
-    islamicCardAuthorizationService.afterAuthorization(txn);
+        txn = txnRepository.save(txn);
+        islamicCardAuthorizationService.afterAuthorization(txn);
 
         log.info("Card txn authorized: ref={}, card={}, channel={}, amount={}, merchant={}",
                 txnRef, card.getCardReference(), channel, amount, merchantName);
@@ -360,4 +391,44 @@ public class CardService {
         txn.setShariahDecision(decision.shariahDecision());
         txn.setShariahReason(decision.shariahReason());
     }
+
+    private BillingContext resolveBillingContext(Account account, BigDecimal amount, String transactionCurrency) {
+        String accountCurrency = normalizeCurrencyCode(account.getCurrencyCode(), transactionCurrency);
+        BigDecimal normalizedAmount = amount.setScale(2, RoundingMode.HALF_UP);
+        if (accountCurrency.equals(transactionCurrency)) {
+            return new BillingContext(normalizedAmount, accountCurrency, BigDecimal.ONE.setScale(8, RoundingMode.HALF_UP));
+        }
+
+        FxRate rate = fxRateRepository.findLatestRate(transactionCurrency, accountCurrency).stream().findFirst()
+                .orElseThrow(() -> new BusinessException(
+                        "No FX rate configured for " + transactionCurrency + "/" + accountCurrency,
+                        "CARD_FX_RATE_MISSING"
+                ));
+        BigDecimal appliedRate = resolveAppliedRate(rate);
+        BigDecimal billingAmount = normalizedAmount.multiply(appliedRate).setScale(2, RoundingMode.HALF_UP);
+        return new BillingContext(billingAmount, accountCurrency, appliedRate);
+    }
+
+    private BigDecimal resolveAppliedRate(FxRate rate) {
+        if (rate.getSellRate() != null && rate.getSellRate().compareTo(BigDecimal.ZERO) > 0) {
+            return rate.getSellRate();
+        }
+        if (rate.getMidRate() != null && rate.getMidRate().compareTo(BigDecimal.ZERO) > 0) {
+            return rate.getMidRate();
+        }
+        if (rate.getBuyRate() != null && rate.getBuyRate().compareTo(BigDecimal.ZERO) > 0) {
+            return rate.getBuyRate();
+        }
+        throw new BusinessException("Configured FX rate does not contain a usable price", "CARD_FX_RATE_INVALID");
+    }
+
+    private String normalizeCurrencyCode(String currencyCode, String fallbackCurrency) {
+        String value = StringUtils.hasText(currencyCode) ? currencyCode : fallbackCurrency;
+        if (!StringUtils.hasText(value)) {
+            throw new BusinessException("Transaction currency is required for card authorization", "CARD_CURRENCY_REQUIRED");
+        }
+        return value.trim().toUpperCase();
+    }
+
+    private record BillingContext(BigDecimal billingAmount, String billingCurrency, BigDecimal fxRate) {}
 }

@@ -46,6 +46,8 @@ class MerchantServiceTest {
                     .merchantCategoryCode("5812")
                     .businessType("SOLE_PROPRIETOR")
                     .mdrRate(new BigDecimal("1.500"))
+                    .registrationNumber("REG-001")
+                    .contactEmail("test@example.com")
                     .build();
 
             MerchantProfile result = service.onboard(m);
@@ -67,10 +69,12 @@ class MerchantServiceTest {
 
             MerchantProfile m1 = service.onboard(MerchantProfile.builder()
                     .merchantName("Shop A").merchantCategoryCode("5411")
-                    .businessType("LIMITED_COMPANY").mdrRate(BigDecimal.ONE).build());
+                    .businessType("LIMITED_COMPANY").mdrRate(BigDecimal.ONE)
+                    .registrationNumber("REG-A").contactEmail("a@example.com").build());
             MerchantProfile m2 = service.onboard(MerchantProfile.builder()
                     .merchantName("Shop B").merchantCategoryCode("5411")
-                    .businessType("LIMITED_COMPANY").mdrRate(BigDecimal.ONE).build());
+                    .businessType("LIMITED_COMPANY").mdrRate(BigDecimal.ONE)
+                    .registrationNumber("REG-B").contactEmail("b@example.com").build());
 
             assertThat(m1.getMerchantId()).isNotEqualTo(m2.getMerchantId());
         }
