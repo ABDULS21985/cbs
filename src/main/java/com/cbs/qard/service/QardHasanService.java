@@ -362,17 +362,17 @@ public class QardHasanService {
             qardAccount.getAccount().debit(request.getAmount());
             accountRepository.save(qardAccount.getAccount());
         } else {
-            // Cash repayment: debit CASH (receive cash), credit Qard receivable (reduce loan)
-            journal = accountPostingService.postDebitAgainstGl(
+            // Cash repayment: credit Qard receivable (reduce loan), debit CASH (receive cash)
+            journal = accountPostingService.postCreditAgainstGl(
                     qardAccount.getAccount(),
-                    TransactionType.DEBIT,
+                    TransactionType.CREDIT,
                     request.getAmount(),
                     StringUtils.hasText(request.getNarration()) ? request.getNarration() : "Qard Hasan cash repayment",
                     TransactionChannel.BRANCH,
                     request.getExternalRef(),
                     List.of(accountPostingService.balanceLeg(
                             CASH_GL,
-                            AccountPostingService.EntrySide.CREDIT,
+                            AccountPostingService.EntrySide.DEBIT,
                             request.getAmount(),
                             qardAccount.getAccount().getCurrencyCode(),
                             BigDecimal.ONE,

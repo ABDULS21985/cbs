@@ -225,17 +225,15 @@ public class IslamicNotificationService {
     }
 
     private NotificationTemplateLocale resolveLocaleTemplate(Long templateId, String requestedLocale, Long tenantId) {
-        List<NotificationTemplateLocale> locales = getScopedLocaleTemplates(templateId, tenantId).stream()
-                .filter(locale -> locale.getStatus() == NotificationTemplateLocaleStatus.ACTIVE)
-                .toList();
+        List<NotificationTemplateLocale> locales = resolveEffectiveLocaleTemplates(templateId, tenantId);
         if (locales.isEmpty()) {
             return null;
         }
 
         if (StringUtils.hasText(requestedLocale)) {
-            String normalized = requestedLocale.trim();
+            String normalized = normalizeLocale(requestedLocale);
             Optional<NotificationTemplateLocale> exact = locales.stream()
-                    .filter(locale -> locale.getLocale().equalsIgnoreCase(normalized))
+                .filter(locale -> normalizeLocale(locale.getLocale()).equalsIgnoreCase(normalized))
                     .findFirst();
             if (exact.isPresent()) {
                 return exact.get();
@@ -245,8 +243,11 @@ public class IslamicNotificationService {
                     ? normalized.substring(0, normalized.indexOf('-'))
                     : normalized;
             Optional<NotificationTemplateLocale> languageMatch = locales.stream()
-                    .filter(locale -> locale.getLocale().equalsIgnoreCase(language)
-                            || locale.getLocale().toLowerCase(Locale.ROOT).startsWith(language.toLowerCase(Locale.ROOT) + "-"))
+                .filter(locale -> {
+                String localeTag = normalizeLocale(locale.getLocale());
+                return localeTag.equalsIgnoreCase(language)
+                    || localeTag.startsWith(language.toLowerCase(Locale.ROOT) + "-");
+                })
                     .findFirst();
             if (languageMatch.isPresent()) {
                 return languageMatch.get();
@@ -256,7 +257,26 @@ public class IslamicNotificationService {
         return locales.stream()
                 .filter(locale -> Boolean.TRUE.equals(locale.getIsDefault()))
                 .findFirst()
-                .orElse(null);
+            .orElseGet(locales::getFirst);
+        }
+
+        private List<NotificationTemplateLocale> resolveEffectiveLocaleTemplates(Long templateId, Long tenantId) {
+        LinkedHashMap<String, NotificationTemplateLocale> merged = new LinkedHashMap<>();
+
+        notificationTemplateLocaleRepository.findByTemplateIdAndTenantIdIsNullOrderByIsDefaultDescLocaleAsc(templateId).stream()
+            .filter(locale -> locale.getStatus() == NotificationTemplateLocaleStatus.ACTIVE)
+            .forEach(locale -> merged.put(normalizeLocale(locale.getLocale()), locale));
+
+        if (tenantId != null) {
+            notificationTemplateLocaleRepository.findByTemplateIdAndTenantIdOrderByIsDefaultDescLocaleAsc(templateId, tenantId).stream()
+                .filter(locale -> locale.getStatus() == NotificationTemplateLocaleStatus.ACTIVE)
+                .forEach(locale -> merged.put(normalizeLocale(locale.getLocale()), locale));
+        }
+
+        return merged.values().stream()
+            .sorted(Comparator.comparing(NotificationTemplateLocale::getIsDefault, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(NotificationTemplateLocale::getLocale, String.CASE_INSENSITIVE_ORDER))
+            .toList();
     }
 
     private List<IslamicTerminologyMap> getScopedTerminologyMappings(String context, Long tenantId) {
@@ -312,7 +332,12 @@ public class IslamicNotificationService {
 
         boolean arabic = locale != null && locale.toLowerCase(Locale.ROOT).startsWith("ar");
         for (IslamicTerminologyMap mapping : mappings) {
-            String replacement = arabic ? mapping.getIslamicTermAr() : mapping.getIslamicTermEn();
+            String replacement = arabic
+                    ? defaultText(mapping.getIslamicTermAr(), mapping.getIslamicTermEn())
+                    : defaultText(mapping.getIslamicTermEn(), mapping.getConventionalTerm());
+            if (!StringUtils.hasText(replacement)) {
+                replacement = mapping.getConventionalTerm();
+            }
             Pattern pattern = Pattern.compile("\\b" + Pattern.quote(mapping.getConventionalTerm()) + "\\b",
                     Pattern.CASE_INSENSITIVE);
             localized = pattern.matcher(localized).replaceAll(replacement);
@@ -398,5 +423,9 @@ public class IslamicNotificationService {
 
     private String defaultText(String value, String fallback) {
         return StringUtils.hasText(value) ? value : fallback;
+    }
+
+    private String normalizeLocale(String locale) {
+        return locale == null ? "" : locale.trim().replace('_', '-').toLowerCase(Locale.ROOT);
     }
 }

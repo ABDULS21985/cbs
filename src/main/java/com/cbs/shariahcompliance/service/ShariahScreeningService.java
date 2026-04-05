@@ -668,7 +668,11 @@ public class ShariahScreeningService {
 
     private boolean evaluateCondition(ShariahScreeningRule rule, ShariahScreeningRequest request) {
         String expr = rule.getConditionExpression();
-        if (expr == null || expr.isBlank()) return false;
+        if (expr == null || expr.isBlank()) {
+            log.warn("Condition-expression rule {} has no expression configured - failing closed",
+                    rule.getRuleCode());
+            return true;
+        }
 
         try {
             // Use SimpleEvaluationContext to prevent arbitrary method invocation (e.g. T(Runtime).exec())
@@ -694,11 +698,16 @@ public class ShariahScreeningService {
             variables.forEach(context::setVariable);
 
             Boolean result = spelParser.parseExpression(expr).getValue(context, Boolean.class);
-            return Boolean.TRUE.equals(result);
+            if (result == null) {
+                log.warn("Condition-expression rule {} returned null for expression '{}' - failing closed",
+                        rule.getRuleCode(), expr);
+                return true;
+            }
+            return result;
         } catch (Exception e) {
             log.warn("SpEL evaluation failed for rule {} expression '{}': {}",
                     rule.getRuleCode(), expr, e.getMessage());
-            return false; // fail-open on evaluation error
+            return true;
         }
     }
 
