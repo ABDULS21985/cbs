@@ -72,7 +72,8 @@ public class DistributionReserveService {
             log.warn("PER retention {} exceeds 50% of depositor pool {}. Capping to {}", adjustment, depositorPool, maxPerRetention);
             adjustment = maxPerRetention;
         }
-        BigDecimal afterPer = perResult.getDistributedProfit();
+        // Recalculate afterPer using the potentially capped adjustment amount (not from perResult which may use uncapped)
+        BigDecimal afterPer = depositorPool.subtract(adjustment);
         String txnType = "NONE";
 
         if ("RETENTION".equals(perResult.getAdjustmentType()) && adjustment.compareTo(ZERO) > 0) {
@@ -266,9 +267,12 @@ public class DistributionReserveService {
         }
 
         BigDecimal totalImpact = depositorPool.subtract(irrResult.getAmountAfterReserve());
-        String desc = String.format("PER %s SAR %s, IRR %s SAR %s",
-                perResult.getTransactionType(), perResult.getAdjustmentAmount(),
-                irrResult.getTransactionType(), irrResult.getAdjustmentAmount());
+        String poolCurrency = poolRepo.findById(poolId)
+                .map(pool -> pool.getCurrencyCode())
+                .orElse("N/A");
+        String desc = String.format("PER %s %s %s, IRR %s %s %s",
+                perResult.getTransactionType(), poolCurrency, perResult.getAdjustmentAmount(),
+                irrResult.getTransactionType(), poolCurrency, irrResult.getAdjustmentAmount());
 
         log.info("Reserves executed: pool={}, totalImpact={}, description={}",
                 poolId, totalImpact, desc);

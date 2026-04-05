@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,16 +40,16 @@ class CharityFundServiceTest {
     @Test
     @DisplayName("inflow breakdown separates late penalties by contract type")
     void getInflowBreakdown_separatesLatePenaltyByContractType() {
-        when(ledgerRepository.sumInflowsBySourceTypeAndSourceContractTypeBetween(
+        when(ledgerRepository.sumNetInflowsBySourceTypeAndSourceContractTypeBetween(
                 "LATE_PAYMENT_PENALTY", "MURABAHA", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31)))
                 .thenReturn(new BigDecimal("600.00"));
-        when(ledgerRepository.sumInflowsBySourceTypeAndSourceContractTypeBetween(
+        when(ledgerRepository.sumNetInflowsBySourceTypeAndSourceContractTypeBetween(
                 "LATE_PAYMENT_PENALTY", "IJARAH", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31)))
                 .thenReturn(new BigDecimal("300.00"));
-        when(ledgerRepository.sumInflowsBySourceTypeAndSourceContractTypeBetween(
+        when(ledgerRepository.sumNetInflowsBySourceTypeAndSourceContractTypeBetween(
                 "LATE_PAYMENT_PENALTY", "MUSHARAKAH", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31)))
                 .thenReturn(new BigDecimal("100.00"));
-        when(ledgerRepository.sumInflowsBySourceTypeBetween(
+        when(ledgerRepository.sumNetInflowsBySourceTypeBetween(
                 "SNCI_PURIFICATION", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 3, 31)))
                 .thenReturn(new BigDecimal("250.00"));
 
@@ -60,6 +61,38 @@ class CharityFundServiceTest {
                 .containsEntry("IJARAH", new BigDecimal("300.00"))
                 .containsEntry("MUSHARAKAH", new BigDecimal("100.00"));
         assertThat(breakdown.getSnciByType()).containsEntry("SNCI_PURIFICATION", new BigDecimal("250.00"));
+    }
+
+    @Test
+    @DisplayName("compliance report nets reversals out of collected penalty totals")
+    void getComplianceReport_netsReversals() {
+        when(ledgerRepository.findByEntryDateBetweenOrderByEntryDateAscIdAsc(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31)))
+                .thenReturn(List.of(
+                        com.cbs.shariahcompliance.entity.CharityFundLedgerEntry.builder()
+                                .entryType("INFLOW")
+                                .sourceType("LATE_PAYMENT_PENALTY")
+                                .amount(new BigDecimal("200.00"))
+                                .build(),
+                        com.cbs.shariahcompliance.entity.CharityFundLedgerEntry.builder()
+                                .entryType("REVERSAL")
+                                .sourceType("LATE_PAYMENT_PENALTY")
+                                .amount(new BigDecimal("50.00"))
+                                .destinationType("REVERSAL")
+                                .build(),
+                        com.cbs.shariahcompliance.entity.CharityFundLedgerEntry.builder()
+                                .entryType("INFLOW")
+                                .sourceType("SNCI_PURIFICATION")
+                                .amount(new BigDecimal("30.00"))
+                                .build()));
+        when(ledgerRepository.currentNetBalance()).thenReturn(new BigDecimal("180.00"));
+
+        CharityFundDtos.CharityFundComplianceReport report = service.getComplianceReport(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31));
+
+        assertThat(report.getTotalLatePenaltiesCollected()).isEqualByComparingTo("150.00");
+        assertThat(report.getTotalSnciPurified()).isEqualByComparingTo("30.00");
+        assertThat(report.isZeroBankUsageVerified()).isTrue();
     }
 
     @Test

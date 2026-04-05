@@ -32,4 +32,5 @@ public class CreateSarRequest {
     private List<String> suspiciousIndicators;
     private List<Long> linkedAlertIds;
     private boolean isUrgent;
+    private String jurisdiction;
 }

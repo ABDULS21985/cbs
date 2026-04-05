@@ -728,12 +728,8 @@ public class IslamicAmlMonitoringService {
                     "INVALID_STATE_TRANSITION");
         }
 
-        String closureReason = request.getClosureReason().trim().toLowerCase();
-        boolean isFalsePositive = closureReason.contains("false positive")
-                || closureReason.contains("false_positive")
-                || closureReason.contains("falsepositive");
-
-        alert.setStatus(isFalsePositive
+        // Use explicit falsePositive flag from the request instead of substring matching on reason text
+        alert.setStatus(request.isFalsePositive()
                 ? IslamicAmlAlertStatus.CLOSED_FALSE_POSITIVE
                 : IslamicAmlAlertStatus.CLOSED_NO_ACTION);
         alert.setClosedBy(request.getClosedBy());
@@ -893,23 +889,20 @@ public class IslamicAmlMonitoringService {
         if (customerId == null) return false;
 
         int velocityLimit = extractIntParam(rule.getRuleParameters(), "velocityLimit", DEFAULT_VELOCITY_LIMIT);
+        LocalDate lookbackStart = LocalDate.now().minusDays(rule.getLookbackPeriodDays());
 
-        // Count existing alerts for this customer as a proxy for recent activity
-        List<IslamicAmlAlert> customerAlerts = alertRepository.findByCustomerId(customerId);
-        LocalDateTime lookbackStart = LocalDateTime.now().minusDays(rule.getLookbackPeriodDays());
-        long recentCount = customerAlerts.stream()
-                .filter(a -> a.getDetectionDate() != null && a.getDetectionDate().isAfter(lookbackStart))
-                .count();
-
-        // Also count contracts as transaction proxy
+        // Count actual contracts initiated within the lookback period as transaction count
         List<MurabahaContract> contracts = murabahaContractRepository.findByCustomerId(customerId);
-        long recentContracts = contracts.stream()
-                .filter(c -> c.getStartDate() != null
-                        && !c.getStartDate().isBefore(LocalDate.now().minusDays(rule.getLookbackPeriodDays())))
+        long recentTransactionCount = contracts.stream()
+                .filter(c -> c.getStartDate() != null && !c.getStartDate().isBefore(lookbackStart))
                 .count();
 
-        long totalActivity = recentCount + recentContracts;
-        return totalActivity >= velocityLimit;
+        // Include the current transaction being evaluated (if not yet persisted)
+        if (context.getTransactionRef() != null) {
+            recentTransactionCount++;
+        }
+
+        return recentTransactionCount >= velocityLimit;
     }
 
     private boolean evaluatePattern(IslamicAmlRule rule, AmlMonitoringContext context) {

@@ -21,6 +21,11 @@ import com.cbs.fees.repository.FeeChargeLogRepository;
 import com.cbs.gl.entity.JournalEntry;
 import com.cbs.shariahcompliance.service.CharityFundService;
 import com.cbs.tenant.service.CurrentTenantResolver;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -57,12 +62,21 @@ class IslamicFeeWaiverServiceTest {
     @Mock private AccountRepository accountRepository;
     @Mock private AccountPostingService accountPostingService;
     @Mock private CharityFundService charityFundService;
+    @Mock private IslamicFeeService islamicFeeService;
+    @Mock private LatePenaltyService latePenaltyService;
+    @Mock private ObjectProvider<IslamicFeeService> islamicFeeServiceProvider;
+    @Mock private ObjectProvider<LatePenaltyService> latePenaltyServiceProvider;
     @Mock private CurrentActorProvider actorProvider;
     @Mock private CurrentTenantResolver tenantResolver;
 
     @InjectMocks private IslamicFeeWaiverService service;
 
     private Account account;
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
 
     @BeforeEach
     void setUp() {
@@ -81,6 +95,8 @@ class IslamicFeeWaiverServiceTest {
         when(actorProvider.getCurrentActor()).thenReturn("maker");
         when(tenantResolver.getCurrentTenantId()).thenReturn(1L);
         when(waiverRepository.save(any(IslamicFeeWaiver.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(islamicFeeServiceProvider.getIfAvailable()).thenReturn(islamicFeeService);
+        when(latePenaltyServiceProvider.getIfAvailable()).thenReturn(latePenaltyService);
         when(accountPostingService.balanceLeg(anyString(), any(), any(BigDecimal.class), anyString(), any(BigDecimal.class),
                 anyString(), any(), any()))
                 .thenAnswer(invocation -> new AccountPostingService.GlPostingLeg(
@@ -93,6 +109,7 @@ class IslamicFeeWaiverServiceTest {
                         invocation.getArgument(6),
                         invocation.getArgument(7),
                         "HEAD"));
+        setCurrentRoles("ROLE_CBS_ADMIN", "ROLE_HEAD_OFFICE", "ROLE_REGIONAL_MANAGER", "ROLE_BRANCH_MANAGER", "ROLE_CBS_OFFICER");
     }
 
     @Test
@@ -137,6 +154,49 @@ class IslamicFeeWaiverServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo("WAIVER_FOUR_EYES_VIOLATION");
+    }
+
+    @Test
+    @DisplayName("approve waiver rejects approvers below required authority")
+    void approveWaiver_rejectsInsufficientAuthority() {
+        setCurrentRoles("ROLE_BRANCH_MANAGER");
+        when(waiverRepository.findById(6L)).thenReturn(Optional.of(
+                IslamicFeeWaiver.builder()
+                        .id(6L)
+                        .requestedBy("maker")
+                        .status("PENDING_APPROVAL")
+                        .authorityLevel("REGIONAL_MANAGER")
+                        .build()));
+
+        assertThatThrownBy(() -> service.approveWaiver(6L, "checker"))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo("WAIVER_AUTHORITY_INSUFFICIENT");
+    }
+
+    @Test
+    @DisplayName("request waiver rejects partial deferral because deferral must cover full fee amount")
+    void requestWaiver_rejectsPartialDeferral() {
+        when(configurationRepository.findById(1L)).thenReturn(Optional.of(
+                IslamicFeeConfiguration.builder()
+                        .id(1L)
+                        .feeCode("GEN-FEE-MAINT-001")
+                        .charityRouted(false)
+                        .build()));
+
+        assertThatThrownBy(() -> service.requestWaiver(IslamicFeeRequests.RequestFeeWaiverRequest.builder()
+                .feeConfigId(1L)
+                .customerId(99L)
+                .originalFeeAmount(new BigDecimal("500.00"))
+                .waivedAmount(new BigDecimal("200.00"))
+                .currencyCode("SAR")
+                .waiverType("DEFERRAL")
+                .reason("CUSTOMER_HARDSHIP")
+                .deferredUntil(LocalDate.now().plusDays(5))
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo("WAIVER_FULL_AMOUNT_REQUIRED");
     }
 
     @Test
@@ -214,6 +274,7 @@ class IslamicFeeWaiverServiceTest {
         assertThat(applied.getJournalRef()).isEqualTo("JREV-1");
         assertThat(chargeLog.getStatus()).isEqualTo("WAIVED");
         verify(charityFundService).recordReversal(88L, new BigDecimal("200.00"), "JREV-1", "Fee waiver reversal");
+        verify(latePenaltyService).applyWaiverToFeeCharge(44L, new BigDecimal("200.00"), applied.getWaiverRef());
     }
 
     @Test
@@ -280,5 +341,91 @@ class IslamicFeeWaiverServiceTest {
 
         assertThat(applied.getStatus()).isEqualTo("APPLIED");
         verify(charityFundService, never()).recordReversal(any(), any(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("apply conversion waiver reverses original fee and charges converted fee")
+    void applyWaiver_conversionChargesConvertedFee() {
+        IslamicFeeWaiver waiver = IslamicFeeWaiver.builder()
+                .id(10L)
+                .waiverRef("FW-10")
+                .feeConfigId(4L)
+                .feeChargeLogId(46L)
+                .customerId(99L)
+                .waivedAmount(new BigDecimal("400.00"))
+                .remainingAmount(BigDecimal.ZERO.setScale(2))
+                .currencyCode("SAR")
+                .status("APPROVED")
+                .waiverType("CONVERSION")
+                .convertedFeeCode("GEN-FEE-STMT-001")
+                .reason("SHARIAH_REVIEW")
+                .requestedBy("maker")
+                .requestedAt(Instant.now())
+                .authorityLevel("HEAD_OFFICE")
+                .build();
+        FeeChargeLog chargeLog = FeeChargeLog.builder()
+                .id(46L)
+                .feeCode("GEN-FEE-LATE-001")
+                .accountId(10L)
+                .customerId(99L)
+                .baseAmount(new BigDecimal("400.00"))
+                .feeAmount(new BigDecimal("400.00"))
+                .totalAmount(new BigDecimal("400.00"))
+                .taxAmount(BigDecimal.ZERO)
+                .currencyCode("SAR")
+                .triggerEvent("LATE_PAYMENT")
+                .triggerRef("MRB-400-LATE-1")
+                .status("CHARGED")
+                .build();
+
+        when(waiverRepository.findById(10L)).thenReturn(Optional.of(waiver));
+        when(configurationRepository.findById(4L)).thenReturn(Optional.of(
+                IslamicFeeConfiguration.builder()
+                        .id(4L)
+                        .feeCode("GEN-FEE-LATE-001")
+                        .charityRouted(false)
+                        .incomeGlAccount("5500-FEE-001")
+                        .build()));
+        when(feeChargeLogRepository.findById(46L)).thenReturn(Optional.of(chargeLog));
+        when(accountRepository.findByIdWithProduct(10L)).thenReturn(Optional.of(account));
+        when(accountPostingService.postCreditAgainstGl(any(Account.class), any(TransactionType.class), any(BigDecimal.class),
+                anyString(), any(TransactionChannel.class), anyString(), anyList(), anyString(), anyString()))
+                .thenReturn(TransactionJournal.builder()
+                        .transactionRef("REV-3")
+                        .account(account)
+                        .transactionType(TransactionType.ADJUSTMENT)
+                        .amount(new BigDecimal("400.00"))
+                        .currencyCode("SAR")
+                        .runningBalance(BigDecimal.ZERO)
+                        .narration("Waiver reversal")
+                        .journal(JournalEntry.builder()
+                                .journalNumber("JREV-3")
+                                .journalType("SYSTEM")
+                                .description("Waiver reversal")
+                                .createdBy("checker")
+                                .build())
+                        .build());
+        when(islamicFeeService.chargeFee(any(IslamicFeeRequests.ChargeFeeRequest.class))).thenReturn(
+                com.cbs.fees.islamic.dto.IslamicFeeResponses.FeeChargeResult.builder()
+                        .feeChargeLogId(900L)
+                        .chargedAmount(new BigDecimal("100.00"))
+                        .journalRef("JNEW-1")
+                        .feeCode("GEN-FEE-STMT-001")
+                        .classification("UJRAH_COST_RECOVERY")
+                        .glAccountCode("5500-FEE-001")
+                        .message("Fee charged successfully")
+                        .build());
+
+        IslamicFeeWaiver applied = service.applyWaiver(10L);
+
+        assertThat(applied.getStatus()).isEqualTo("APPLIED");
+        assertThat(chargeLog.getStatus()).isEqualTo("CONVERTED");
+        assertThat(chargeLog.getNotes()).contains("Converted to fee code GEN-FEE-STMT-001 via fee charge log 900");
+        verify(islamicFeeService).chargeFee(any(IslamicFeeRequests.ChargeFeeRequest.class));
+    }
+
+    private void setCurrentRoles(String... roles) {
+        SecurityContextHolder.getContext().setAuthentication(
+                new TestingAuthenticationToken("tester", "N/A", AuthorityUtils.createAuthorityList(roles)));
     }
 }

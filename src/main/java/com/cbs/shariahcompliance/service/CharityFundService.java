@@ -255,19 +255,35 @@ public class CharityFundService {
         batch.setStatus("PROCESSING");
         batchRepository.save(batch);
 
+        int successCount = 0;
+        List<String> failures = new ArrayList<>();
+
         for (Map<String, Object> allocation : batch.getAllocations()) {
-            CharityFundDtos.DisburseFundsRequest request = CharityFundDtos.DisburseFundsRequest.builder()
-                    .charityRecipientId(Long.valueOf(String.valueOf(allocation.get("charityRecipientId"))))
-                    .amount(IslamicFeeSupport.toDecimal(allocation.get("amount")))
-                    .currencyCode(String.valueOf(allocation.getOrDefault("currencyCode", "SAR")))
-                    .purpose(String.valueOf(allocation.getOrDefault("purpose", "Charity fund batch disbursement")))
-                    .notes((String) allocation.get("notes"))
-                    .reference(batch.getBatchRef() + "-" + allocation.get("charityRecipientId"))
-                    .build();
-            disburseFunds(request);
+            try {
+                CharityFundDtos.DisburseFundsRequest request = CharityFundDtos.DisburseFundsRequest.builder()
+                        .charityRecipientId(Long.valueOf(String.valueOf(allocation.get("charityRecipientId"))))
+                        .amount(IslamicFeeSupport.toDecimal(allocation.get("amount")))
+                        .currencyCode(String.valueOf(allocation.getOrDefault("currencyCode", "SAR")))
+                        .purpose(String.valueOf(allocation.getOrDefault("purpose", "Charity fund batch disbursement")))
+                        .notes((String) allocation.get("notes"))
+                        .reference(batch.getBatchRef() + "-" + allocation.get("charityRecipientId"))
+                        .build();
+                disburseFunds(request);
+                successCount++;
+            } catch (Exception e) {
+                String recipientId = String.valueOf(allocation.get("charityRecipientId"));
+                log.error("Batch disbursement failed for recipient {}: {}", recipientId, e.getMessage());
+                failures.add("recipientId=" + recipientId + ": " + e.getMessage());
+            }
         }
 
-        batch.setStatus("COMPLETED");
+        if (!failures.isEmpty()) {
+            batch.setStatus("PARTIALLY_COMPLETED");
+            log.warn("Batch disbursement {} completed with {} failures out of {} allocations",
+                    batch.getBatchRef(), failures.size(), batch.getAllocations().size());
+        } else {
+            batch.setStatus("COMPLETED");
+        }
         batch.setExecutedAt(Instant.now());
         batch.setExecutedBy(actorProvider.getCurrentActor());
         return batchRepository.save(batch);

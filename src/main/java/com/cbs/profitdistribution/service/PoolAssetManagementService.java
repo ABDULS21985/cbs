@@ -59,6 +59,15 @@ public class PoolAssetManagementService {
     public PoolAssetAssignmentResponse assignAssetToPool(Long poolId, AssignAssetToPoolRequest request) {
         InvestmentPool pool = findActivePool(poolId);
 
+        // Currency matching: asset currency must match pool currency
+        if (request.getCurrencyCode() != null && pool.getCurrencyCode() != null
+                && !request.getCurrencyCode().equalsIgnoreCase(pool.getCurrencyCode())) {
+            throw new BusinessException(
+                    "Asset currency (" + request.getCurrencyCode()
+                            + ") does not match pool currency (" + pool.getCurrencyCode() + ")",
+                    "ASSET_CURRENCY_MISMATCH");
+        }
+
         // Segregation check: total assigned across all pools for this asset must not exceed outstanding
         if (request.getAssetReferenceId() != null) {
             if (assetRepo.existsByPoolIdAndAssetReferenceIdAndAssignmentStatus(
@@ -189,12 +198,14 @@ public class PoolAssetManagementService {
                 .tenantId(targetPool.getTenantId())
                 .build();
 
-        assetRepo.save(newAssignment);
+        newAssignment = assetRepo.save(newAssignment);
         refreshPoolBalance(original.getPoolId());
         refreshPoolBalance(newPoolId);
 
-        log.info("Asset transferred: assignmentId={} -> pool={}, amount={}, reason={}",
-                assignmentId, targetPool.getPoolCode(), transferAmount, reason);
+        log.info("AUDIT: Asset transfer - assignmentId={}, fromPool={}, toPool={}, amount={}, "
+                        + "newAssignmentId={}, reason={}, actor={}",
+                assignmentId, original.getPoolId(), targetPool.getPoolCode(), transferAmount,
+                newAssignment.getId(), reason, actorProvider.getCurrentActor());
     }
 
     // ── Segregation Validation ─────────────────────────────────────────
@@ -340,6 +351,14 @@ public class PoolAssetManagementService {
             assignment.setLastIncomeDate(request.getIncomeDate());
             assetRepo.save(assignment);
         }
+
+        // GL integration: if no journal reference was provided, log a warning for manual reconciliation
+        if (request.getJournalRef() == null || request.getJournalRef().isBlank()) {
+            log.warn("Income record {} for pool {} has no GL journal reference. "
+                    + "Ensure a corresponding GL entry is posted for amount={}, type={}, currency={}",
+                    record.getId(), pool.getPoolCode(), request.getAmount(), type, request.getCurrencyCode());
+        }
+
         log.info("Income recorded for pool {}: type={}, amount={}, charity={}",
                 pool.getPoolCode(), type, request.getAmount(), isCharity);
 
@@ -386,6 +405,14 @@ public class PoolAssetManagementService {
                 .build();
 
         record = expenseRepo.save(record);
+
+        // GL integration: if no journal reference was provided, log a warning for manual reconciliation
+        if (request.getJournalRef() == null || request.getJournalRef().isBlank()) {
+            log.warn("Expense record {} for pool {} has no GL journal reference. "
+                    + "Ensure a corresponding GL entry is posted for amount={}, type={}, currency={}",
+                    record.getId(), pool.getPoolCode(), amount, expenseType, request.getCurrencyCode());
+        }
+
         log.info("Expense recorded for pool {}: type={}, amount={}",
                 pool.getPoolCode(), expenseType, amount);
 

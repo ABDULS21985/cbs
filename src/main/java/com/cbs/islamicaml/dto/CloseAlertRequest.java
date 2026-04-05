@@ -11,4 +11,6 @@ public class CloseAlertRequest {
 
     @NotBlank(message = "Closed by is required")
     private String closedBy;
+
+    private boolean falsePositive;
 }

@@ -61,6 +61,44 @@ public class ProfitCalculationService {
             throw new BusinessException("Pool PSR bank ratio exceeds 100%: " + pool.getProfitSharingRatioBank(), "INVALID_POOL_PSR");
         }
 
+        // Period overlap validation: check for existing approved/used calculations that overlap this period
+        List<PoolProfitCalculation> existingCalcs = calculationRepo.findByPoolIdOrderByPeriodFromDesc(poolId);
+        for (PoolProfitCalculation existing : existingCalcs) {
+            if ((existing.getCalculationStatus() == CalculationStatus.APPROVED
+                    || existing.getCalculationStatus() == CalculationStatus.USED_IN_DISTRIBUTION)
+                    && existing.getCalculationStatus() != CalculationStatus.SUPERSEDED) {
+                boolean overlaps = !periodTo.isBefore(existing.getPeriodFrom())
+                        && !periodFrom.isAfter(existing.getPeriodTo());
+                if (overlaps) {
+                    throw new BusinessException(
+                            "Period overlaps with existing " + existing.getCalculationStatus()
+                                    + " calculation " + existing.getCalculationRef()
+                                    + " (" + existing.getPeriodFrom() + " to " + existing.getPeriodTo() + ")",
+                            "PERIOD_OVERLAP");
+                }
+            }
+        }
+
+        // Multi-currency validation on income records
+        List<PoolIncomeRecord> allIncomes = incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(poolId, periodFrom, periodTo);
+        List<String> incomeCurrencies = allIncomes.stream()
+                .map(PoolIncomeRecord::getCurrencyCode)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        if (incomeCurrencies.size() > 1) {
+            throw new BusinessException(
+                    "Multiple currencies detected in income records: " + incomeCurrencies
+                            + ". All income must be in the pool currency (" + pool.getCurrencyCode() + ").",
+                    "MULTI_CURRENCY_INCOME");
+        }
+        if (incomeCurrencies.size() == 1 && !incomeCurrencies.getFirst().equals(pool.getCurrencyCode())) {
+            throw new BusinessException(
+                    "Income currency " + incomeCurrencies.getFirst()
+                            + " does not match pool currency " + pool.getCurrencyCode(),
+                    "INCOME_CURRENCY_MISMATCH");
+        }
+
         // 1. Aggregate income
         List<PoolIncomeRecord> incomes = incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(poolId, periodFrom, periodTo);
         BigDecimal grossIncome = incomes.stream()
@@ -179,8 +217,11 @@ public class ProfitCalculationService {
         LocalDate periodFrom = existing.getPeriodFrom();
         LocalDate periodTo = existing.getPeriodTo();
 
-        calculationRepo.delete(existing);
-        calculationRepo.flush();
+        // Create new calculation first to avoid data loss, then soft-delete old one
+        existing.setCalculationStatus(CalculationStatus.SUPERSEDED);
+        existing.setNotes((existing.getNotes() != null ? existing.getNotes() + "; " : "")
+                + "Superseded by recalculation at " + LocalDateTime.now());
+        calculationRepo.save(existing);
 
         return calculatePoolProfit(poolId, periodFrom, periodTo);
     }
@@ -195,6 +236,13 @@ public class ProfitCalculationService {
             throw new BusinessException(
                     "Only DRAFT calculations can be validated, current status: " + calc.getCalculationStatus(),
                     "INVALID_STATE");
+        }
+
+        // Four-eyes check: validator must differ from calculator
+        if (validatedBy != null && validatedBy.equals(calc.getCalculatedBy())) {
+            throw new BusinessException(
+                    "Four-eyes principle violated: validator must differ from the calculator",
+                    "FOUR_EYES_VIOLATION");
         }
 
         BigDecimal incomeSum = defaultAmount(incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(

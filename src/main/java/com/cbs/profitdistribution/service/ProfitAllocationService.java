@@ -308,24 +308,37 @@ public class ProfitAllocationService {
             log.warn("Large rounding adjustment {} detected in profit allocation - may indicate calculation error", adjustment);
         }
         // Adjust bank profit share (not customer) to maintain PSR integrity
-        PoolProfitAllocation largest = allocations.stream()
-                .max(Comparator.comparing(a -> a.getNetShareAfterReserves().abs()))
-                .orElse(null);
-        if (largest != null) {
-            largest.setNetShareAfterReserves(largest.getNetShareAfterReserves().add(adjustment));
-            BigDecimal newBankShare = largest.getBankProfitShare().add(adjustment);
-            if (newBankShare.compareTo(BigDecimal.ZERO) < 0) {
-                // If bank share would go negative, redirect adjustment to customer share
-                // WARNING: This silently distorts the PSR (profit sharing ratio) for this account
-                log.warn("AUDIT: Rounding adjustment of {} would make bank share negative (was {}). "
-                        + "Redirecting adjustment to customer share for account {}. "
-                        + "This distorts the contracted PSR for this allocation.",
-                        adjustment, largest.getBankProfitShare(), largest.getAccountId());
-                // Fallback: add to customer share of largest (least disruptive)
-                largest.setCustomerProfitShare(largest.getCustomerProfitShare().add(adjustment));
+        // Sort by bank share descending to absorb from those with the most room
+        List<PoolProfitAllocation> sorted = new java.util.ArrayList<>(allocations);
+        sorted.sort(Comparator.comparing((PoolProfitAllocation a) -> a.getBankProfitShare()).reversed());
+
+        BigDecimal remainingAdjustment = adjustment;
+        for (PoolProfitAllocation alloc : sorted) {
+            if (remainingAdjustment.compareTo(ZERO) == 0) break;
+
+            BigDecimal newBankShare = alloc.getBankProfitShare().add(remainingAdjustment);
+            if (newBankShare.compareTo(ZERO) >= 0) {
+                // This allocation can absorb the entire remaining adjustment
+                alloc.setNetShareAfterReserves(alloc.getNetShareAfterReserves().add(remainingAdjustment));
+                alloc.setBankProfitShare(newBankShare);
+                allocationRepo.save(alloc);
+                remainingAdjustment = ZERO;
             } else {
-                largest.setBankProfitShare(newBankShare);
+                // This allocation can only absorb part - reduce its bank share to zero
+                BigDecimal absorbed = alloc.getBankProfitShare();
+                alloc.setNetShareAfterReserves(alloc.getNetShareAfterReserves().subtract(absorbed));
+                alloc.setBankProfitShare(ZERO);
+                allocationRepo.save(alloc);
+                remainingAdjustment = remainingAdjustment.add(absorbed);
             }
+        }
+        if (remainingAdjustment.compareTo(ZERO) != 0) {
+            // Residual that could not be absorbed by bank shares - apply to customer share of largest
+            log.warn("AUDIT: Rounding adjustment residual {} could not be fully absorbed by bank shares. "
+                    + "Applying remainder to customer share of largest allocation.", remainingAdjustment);
+            PoolProfitAllocation largest = sorted.getFirst();
+            largest.setNetShareAfterReserves(largest.getNetShareAfterReserves().add(remainingAdjustment));
+            largest.setCustomerProfitShare(largest.getCustomerProfitShare().add(remainingAdjustment));
             allocationRepo.save(largest);
         }
         return adjustment;

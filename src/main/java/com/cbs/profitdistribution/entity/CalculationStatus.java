@@ -4,5 +4,6 @@ public enum CalculationStatus {
     DRAFT,
     VALIDATED,
     APPROVED,
-    USED_IN_DISTRIBUTION
+    USED_IN_DISTRIBUTION,
+    SUPERSEDED
 }

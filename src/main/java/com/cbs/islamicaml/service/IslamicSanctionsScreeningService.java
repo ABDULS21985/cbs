@@ -463,12 +463,20 @@ public class IslamicSanctionsScreeningService {
     }
 
     private void createAlertForMatch(SanctionsScreeningResult screeningResult, Long customerId) {
-        String customerName = screeningResult.getEntityName();
+        // Prevent duplicate alerts for already-flagged customers with open alerts
         if (customerId != null) {
-            customerRepository.findById(customerId).ifPresent(c -> {
-                // name already resolved
-            });
+            List<IslamicAmlAlert> existingAlerts = amlAlertRepository.findByCustomerId(customerId);
+            boolean hasOpenSanctionsAlert = existingAlerts.stream()
+                    .filter(a -> "SANCTIONS_MATCH".equals(a.getRuleCode()))
+                    .anyMatch(a -> a.getStatus() == IslamicAmlAlertStatus.NEW
+                            || a.getStatus() == IslamicAmlAlertStatus.UNDER_INVESTIGATION);
+            if (hasOpenSanctionsAlert) {
+                log.info("Skipping duplicate sanctions alert for customer {} — open alert already exists", customerId);
+                return;
+            }
         }
+
+        String customerName = screeningResult.getEntityName();
 
         Map<String, Object> islamicContext = new LinkedHashMap<>();
         islamicContext.put("screeningRef", screeningResult.getScreeningRef());
@@ -608,8 +616,14 @@ public class IslamicSanctionsScreeningService {
         normalized = normalized.replaceAll("(?i)\\bahmed\\b", "ahmad");
         normalized = normalized.replaceAll("(?i)\\bali\\b", "ali");
 
-        // Remove diacritical marks commonly used in transliterations
-        normalized = normalized.replaceAll("[\\u0600-\\u06FF]", ""); // Remove Arabic Unicode chars for comparison
+        // Remove Arabic diacritical marks (tashkeel/harakat) only, preserving Arabic letters
+        // U+064B-U+065F: Arabic combining marks (fathah, dammah, kasrah, shadda, sukun, etc.)
+        // U+0610-U+061A: Additional Arabic signs above/below
+        // U+0670: Superscript alef
+        normalized = normalized.replaceAll("[\\u064B-\\u065F\\u0610-\\u061A\\u0670]", "");
+        // Normalize common Arabic letter variants: alef with hamza -> plain alef
+        normalized = normalized.replaceAll("[\\u0622\\u0623\\u0625\\u0627]", "\u0627"); // All alef forms -> alef
+        normalized = normalized.replaceAll("\\u0629", "\u0647"); // taa marbuta -> haa
         normalized = normalized.replaceAll("[`'\\-]", " ");
 
         // Collapse multiple spaces

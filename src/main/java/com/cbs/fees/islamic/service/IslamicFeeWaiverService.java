@@ -15,12 +15,12 @@ import com.cbs.fees.islamic.entity.IslamicFeeConfiguration;
 import com.cbs.fees.islamic.entity.IslamicFeeWaiver;
 import com.cbs.fees.islamic.repository.IslamicFeeConfigurationRepository;
 import com.cbs.fees.islamic.repository.IslamicFeeWaiverRepository;
-import com.cbs.fees.islamic.repository.LatePenaltyRecordRepository;
 import com.cbs.fees.repository.FeeChargeLogRepository;
 import com.cbs.shariahcompliance.service.CharityFundService;
 import com.cbs.tenant.service.CurrentTenantResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -42,10 +42,11 @@ public class IslamicFeeWaiverService {
     private final IslamicFeeWaiverRepository waiverRepository;
     private final IslamicFeeConfigurationRepository configurationRepository;
     private final FeeChargeLogRepository feeChargeLogRepository;
-    private final LatePenaltyRecordRepository latePenaltyRecordRepository;
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
     private final CharityFundService charityFundService;
+    private final ObjectProvider<IslamicFeeService> islamicFeeServiceProvider;
+    private final ObjectProvider<LatePenaltyService> latePenaltyServiceProvider;
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
 
@@ -69,13 +70,16 @@ public class IslamicFeeWaiverService {
         if (remainingAmount.compareTo(BigDecimal.ZERO) < 0) {
             throw new BusinessException("Waiver amount cannot exceed original amount", "WAIVER_EXCEEDS_ORIGINAL");
         }
-        validateWaiverRequest(request);
+        validateWaiverRequest(request, originalAmount, waivedAmount, remainingAmount);
 
         String authorityLevel = determineAuthorityLevel(waivedAmount);
+        boolean chargedFeeWaiver = request.getFeeChargeLogId() != null;
         String implication = configuration.isCharityRouted()
-                ? "Late penalty waived - no charity fund impact for uncollected portion"
+                ? chargedFeeWaiver
+                ? "Charged late penalty reversed - reduces charity fund balance and customer liability"
+                : "Late penalty waived before charge - no charity fund impact because no penalty was collected"
                 : "Bank forgoes service fee income - reduces Ujrah revenue";
-        boolean affectsCharityFund = configuration.isCharityRouted();
+        boolean affectsCharityFund = configuration.isCharityRouted() && chargedFeeWaiver;
         boolean affectsPoolIncome = !configuration.isCharityRouted();
         String requestedBy = actorProvider.getCurrentActor();
 
@@ -166,8 +170,13 @@ public class IslamicFeeWaiverService {
                     throw new BusinessException("Conversion waiver requires a converted fee code", "WAIVER_CONVERSION_CODE_REQUIRED");
                 }
                 reverseChargedFee(waiver, configuration, chargeLog, account, "Islamic fee conversion");
+                IslamicFeeResponses.FeeChargeResult convertedCharge = chargeConvertedFee(waiver, chargeLog);
                 chargeLog.setStatus("CONVERTED");
-                chargeLog.setNotes(appendNote(chargeLog.getNotes(), "Converted to fee code " + waiver.getConvertedFeeCode()));
+                chargeLog.setNotes(appendNote(chargeLog.getNotes(),
+                        "Converted to fee code " + waiver.getConvertedFeeCode()
+                                + (convertedCharge.getFeeChargeLogId() != null
+                                ? " via fee charge log " + convertedCharge.getFeeChargeLogId()
+                                : "")));
                 feeChargeLogRepository.save(chargeLog);
             }
             default -> throw new BusinessException("Unsupported waiver type", "WAIVER_TYPE_UNSUPPORTED");
@@ -260,10 +269,17 @@ public class IslamicFeeWaiverService {
         return existingNotes + " | " + newNote;
     }
 
-    private void validateWaiverRequest(IslamicFeeRequests.RequestFeeWaiverRequest request) {
+    private void validateWaiverRequest(IslamicFeeRequests.RequestFeeWaiverRequest request,
+                                       BigDecimal originalAmount,
+                                       BigDecimal waivedAmount,
+                                       BigDecimal remainingAmount) {
         String waiverType = IslamicFeeSupport.normalize(request.getWaiverType());
         if (!StringUtils.hasText(waiverType)) {
             throw new BusinessException("Waiver type is required", "WAIVER_TYPE_REQUIRED");
+        }
+        if (StringUtils.hasText(request.getReason()) && "OTHER".equals(IslamicFeeSupport.normalize(request.getReason()))
+                && !StringUtils.hasText(request.getJustificationDetail())) {
+            throw new BusinessException("Other waiver reasons require justification detail", "WAIVER_JUSTIFICATION_REQUIRED");
         }
         if ("DEFERRAL".equals(waiverType)
                 && (request.getDeferredUntil() == null || !request.getDeferredUntil().isAfter(LocalDate.now()))) {
@@ -271,6 +287,14 @@ public class IslamicFeeWaiverService {
         }
         if ("CONVERSION".equals(waiverType) && !StringUtils.hasText(request.getConvertedFeeCode())) {
             throw new BusinessException("Conversion waiver requires a converted fee code", "WAIVER_CONVERSION_CODE_REQUIRED");
+        }
+        if (List.of("DEFERRAL", "CONVERSION").contains(waiverType)
+                && IslamicFeeSupport.money(remainingAmount).compareTo(BigDecimal.ZERO) != 0) {
+            throw new BusinessException("Deferral and conversion waivers must apply to the full fee amount",
+                    "WAIVER_FULL_AMOUNT_REQUIRED");
+        }
+        if (waivedAmount.compareTo(originalAmount) > 0) {
+            throw new BusinessException("Waiver amount cannot exceed original amount", "WAIVER_EXCEEDS_ORIGINAL");
         }
     }
 
@@ -329,13 +353,11 @@ public class IslamicFeeWaiverService {
         if (configuration.isCharityRouted() && chargeLog.getCharityFundEntryId() != null) {
             charityFundService.recordReversal(chargeLog.getCharityFundEntryId(), waiver.getWaivedAmount(),
                     waiver.getJournalRef(), "Fee waiver reversal");
-            latePenaltyRecordRepository.findFirstByFeeChargeLogId(chargeLog.getId()).ifPresent(record -> {
-                record.setStatus("WAIVED");
-                record.setOutstandingAmount(BigDecimal.ZERO.setScale(2));
-                record.setSettledAt(Instant.now());
-                record.setBlockedReason(null);
-                latePenaltyRecordRepository.save(record);
-            });
+        }
+
+        LatePenaltyService latePenaltyService = latePenaltyServiceProvider.getIfAvailable();
+        if (latePenaltyService != null) {
+            latePenaltyService.applyWaiverToFeeCharge(chargeLog.getId(), waiver.getWaivedAmount(), waiver.getWaiverRef());
         }
 
         chargeLog.setWasWaived(true);
@@ -347,5 +369,28 @@ public class IslamicFeeWaiverService {
             chargeLog.setStatus("WAIVED");
         }
         feeChargeLogRepository.save(chargeLog);
+    }
+
+    private IslamicFeeResponses.FeeChargeResult chargeConvertedFee(IslamicFeeWaiver waiver, FeeChargeLog chargeLog) {
+        IslamicFeeService islamicFeeService = islamicFeeServiceProvider.getIfAvailable();
+        if (islamicFeeService == null) {
+            throw new BusinessException("Islamic fee service is unavailable", "ISLAMIC_FEE_SERVICE_UNAVAILABLE");
+        }
+        String convertedTriggerRef = (chargeLog.getTriggerRef() == null || chargeLog.getTriggerRef().isBlank()
+                ? IslamicFeeSupport.nextRef("IFC")
+                : chargeLog.getTriggerRef()) + ":CONVERTED";
+        return islamicFeeService.chargeFee(IslamicFeeRequests.ChargeFeeRequest.builder()
+                .feeCode(waiver.getConvertedFeeCode())
+                .accountId(chargeLog.getAccountId())
+                .transactionAmount(chargeLog.getTriggerAmount() != null ? chargeLog.getTriggerAmount() : chargeLog.getBaseAmount())
+                .contractId(chargeLog.getContractId())
+                .contractTypeCode(chargeLog.getContractTypeCode())
+                .installmentId(chargeLog.getInstallmentId())
+                .transactionType(chargeLog.getTriggerEvent())
+                .triggerRef(convertedTriggerRef)
+                .narration("Converted from fee " + chargeLog.getFeeCode())
+                .currencyCode(chargeLog.getCurrencyCode())
+                .customerId(chargeLog.getCustomerId())
+                .build());
     }
 }

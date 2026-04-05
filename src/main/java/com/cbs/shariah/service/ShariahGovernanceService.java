@@ -674,16 +674,16 @@ public class ShariahGovernanceService {
     }
 
     private String generateMemberId() {
-        return "SSB-" + String.format("%04d", memberRepo.getNextMemberCodeSequence());
+        return "SSB-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
     private String generateFatwaNumber() {
         int year = Year.now().getValue();
-        return "FTW-" + year + "-" + String.format("%04d", fatwaRepo.getNextFatwaCodeSequence());
+        return "FTW-" + year + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
     private String generateRequestCode() {
         int year = Year.now().getValue();
-        return "SSB-" + year + "-" + String.format("%04d", reviewRepo.getNextReviewCodeSequence());
+        return "SSB-" + year + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 }

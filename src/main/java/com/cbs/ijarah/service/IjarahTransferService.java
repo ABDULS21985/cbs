@@ -119,9 +119,12 @@ public class IjarahTransferService {
     public IjarahTransferMechanism executeTransfer(Long transferId) {
         IjarahTransferMechanism mechanism = getTransferMechanism(transferId);
         IjarahContract contract = getContract(mechanism.getIjarahContractId());
-        if (contract.getStatus() != IjarahDomainEnums.ContractStatus.MATURED
-                && contract.getStatus() != IjarahDomainEnums.ContractStatus.ACTIVE) {
-            throw new BusinessException("Ijarah transfer can only be executed at maturity", "INVALID_TRANSFER_STATUS");
+        if (contract.getStatus() != IjarahDomainEnums.ContractStatus.MATURED) {
+            throw new BusinessException(
+                    "Ijarah IMB transfer can only be executed when the lease has matured. "
+                            + "Current contract status: " + contract.getStatus()
+                            + ". Use processEarlyTermination() for pre-maturity transfers.",
+                    "INVALID_TRANSFER_STATUS");
         }
         ensureNoOutstandingRentals(contract.getId());
 

@@ -185,21 +185,38 @@ public class MusharakahUnitService {
         }
         contractRepository.save(contract);
 
-        if (gain.compareTo(BigDecimal.ZERO) > 0 && contract.getInvestmentPoolId() != null) {
-            poolAssetManagementService.recordIncome(contract.getInvestmentPoolId(), RecordPoolIncomeRequest.builder()
-                    .poolId(contract.getInvestmentPoolId())
-                    .assetAssignmentId(contract.getPoolAssetAssignmentId())
-                    .incomeType("MUSHARAKAH_PROFIT")
-                    .amount(gain)
-                    .currencyCode(contract.getCurrencyCode())
-                    .incomeDate(transfer.getTransferDate())
-                    .periodFrom(transfer.getTransferDate().withDayOfMonth(1))
-                    .periodTo(transfer.getTransferDate())
-                    .journalRef(transfer.getJournalRef())
-                    .assetReferenceCode(contract.getContractRef())
-                    .contractTypeCode("MUSHARAKAH")
-                    .notes("Musharakah unit transfer gain")
-                    .build());
+        if (contract.getInvestmentPoolId() != null) {
+            if (gain.compareTo(BigDecimal.ZERO) > 0) {
+                poolAssetManagementService.recordIncome(contract.getInvestmentPoolId(), RecordPoolIncomeRequest.builder()
+                        .poolId(contract.getInvestmentPoolId())
+                        .assetAssignmentId(contract.getPoolAssetAssignmentId())
+                        .incomeType("MUSHARAKAH_PROFIT")
+                        .amount(gain)
+                        .currencyCode(contract.getCurrencyCode())
+                        .incomeDate(transfer.getTransferDate())
+                        .periodFrom(transfer.getTransferDate().withDayOfMonth(1))
+                        .periodTo(transfer.getTransferDate())
+                        .journalRef(transfer.getJournalRef())
+                        .assetReferenceCode(contract.getContractRef())
+                        .contractTypeCode("MUSHARAKAH")
+                        .notes("Musharakah unit transfer gain")
+                        .build());
+            } else if (loss.compareTo(BigDecimal.ZERO) > 0) {
+                poolAssetManagementService.recordExpense(contract.getInvestmentPoolId(),
+                        com.cbs.profitdistribution.dto.RecordPoolExpenseRequest.builder()
+                                .poolId(contract.getInvestmentPoolId())
+                                .expenseType("MUSHARAKAH_LOSS")
+                                .amount(loss)
+                                .currencyCode(contract.getCurrencyCode())
+                                .expenseDate(transfer.getTransferDate())
+                                .periodFrom(transfer.getTransferDate().withDayOfMonth(1))
+                                .periodTo(transfer.getTransferDate())
+                                .journalRef(transfer.getJournalRef())
+                                .assetReferenceCode(contract.getContractRef())
+                                .contractTypeCode("MUSHARAKAH")
+                                .notes("Musharakah unit transfer loss — book value exceeded transfer price")
+                                .build());
+            }
         }
 
         rentalService.recalculateRemainingRentals(contractId);

@@ -345,6 +345,18 @@ public class ProfitDistributionRunService {
             log.info("AUDIT: Profit distribution completed - runRef={}, pool={}, participants={}, totalDistributed={}, actor={}",
                     run.getRunRef(), run.getPoolCode(), run.getParticipantCount(),
                     run.getTotalDistributedToDepositors(), actorProvider.getCurrentActor());
+
+            // Notify customers about profit distribution
+            for (PoolProfitAllocation allocation : distributed) {
+                try {
+                    log.info("Profit distributed to accountId={}, amount={}, runRef={}",
+                            allocation.getAccountId(), allocation.getCustomerProfitShare(), run.getRunRef());
+                } catch (Exception notifEx) {
+                    log.warn("Failed to log distribution notification for accountId={}: {}",
+                            allocation.getAccountId(), notifEx.getMessage());
+                }
+            }
+
             return toResponse(run);
         } catch (Exception exception) {
             failRun(run, "DISTRIBUTE_PROFIT", exception);
@@ -406,10 +418,13 @@ public class ProfitDistributionRunService {
                                 + "Set cbs.profit-distribution.auto-approve-enabled=true for test/dev only.",
                         "AUTO_APPROVE_DISABLED");
             }
-            log.warn("AUDIT: Auto-approve enabled for full distribution run on pool {}. "
-                    + "This bypasses human four-eyes approval and should only be used in test/dev environments.", poolId);
-            String calcApprover = "SYSTEM_CALC_APPROVER";
-            String allocApprover = "SYSTEM_ALLOC_APPROVER";
+            String initiator = actorProvider.getCurrentActor();
+            log.warn("AUDIT: Auto-approve enabled for full distribution run on pool {} by {}. "
+                    + "This bypasses human four-eyes approval and should only be used in test/dev environments.",
+                    poolId, initiator);
+            // Use real actor identity with system suffix so audit trail is traceable
+            String calcApprover = initiator + " [AUTO-CALC-APPROVAL]";
+            String allocApprover = initiator + " [AUTO-ALLOC-APPROVAL]";
             current = approveCalculation(current.getId(), calcApprover);
             current = applyReserves(current.getId());
             current = executeAllocation(current.getId());

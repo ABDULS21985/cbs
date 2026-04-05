@@ -17,7 +17,9 @@ import com.cbs.fees.repository.FeeDefinitionRepository;
 import com.cbs.fees.islamic.dto.IslamicFeeRequests;
 import com.cbs.fees.islamic.dto.IslamicFeeResponses;
 import com.cbs.fees.islamic.entity.IslamicFeeConfiguration;
+import com.cbs.fees.islamic.entity.IslamicFeeWaiver;
 import com.cbs.fees.islamic.repository.IslamicFeeConfigurationRepository;
+import com.cbs.fees.islamic.repository.IslamicFeeWaiverRepository;
 import com.cbs.gl.entity.JournalEntry;
 import com.cbs.productfactory.islamic.entity.IslamicContractType;
 import com.cbs.productfactory.islamic.entity.IslamicDomainEnums;
@@ -29,6 +31,7 @@ import com.cbs.shariahcompliance.entity.ScreeningActionTaken;
 import com.cbs.shariahcompliance.service.CharityFundService;
 import com.cbs.shariahcompliance.service.ShariahScreeningService;
 import com.cbs.tenant.service.CurrentTenantResolver;
+import org.springframework.beans.factory.ObjectProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +66,7 @@ class IslamicFeeServiceTest {
     @Mock private IslamicFeeConfigurationRepository configRepository;
     @Mock private FeeDefinitionRepository feeDefinitionRepository;
     @Mock private FeeChargeLogRepository feeChargeLogRepository;
+    @Mock private IslamicFeeWaiverRepository waiverRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private ProductRepository productRepository;
     @Mock private IslamicProductTemplateRepository islamicProductTemplateRepository;
@@ -72,6 +76,7 @@ class IslamicFeeServiceTest {
     @Mock private DecisionTableEvaluator decisionTableEvaluator;
     @Mock private CurrentActorProvider actorProvider;
     @Mock private CurrentTenantResolver tenantResolver;
+    @Mock private ObjectProvider<LatePenaltyService> latePenaltyServiceProvider;
 
     @InjectMocks private IslamicFeeService service;
 
@@ -94,6 +99,7 @@ class IslamicFeeServiceTest {
         when(accountRepository.findByIdWithProduct(10L)).thenReturn(Optional.of(account));
         when(actorProvider.getCurrentActor()).thenReturn("tester");
         when(tenantResolver.getCurrentTenantId()).thenReturn(1L);
+        when(waiverRepository.findApplicablePreChargeWaivers(any(), any(), any(), any())).thenReturn(List.of());
         when(shariahScreeningService.preScreenTransaction(any())).thenReturn(
                 ShariahScreeningResultResponse.builder().actionTaken(ScreeningActionTaken.ALLOWED).build());
         doNothing().when(shariahScreeningService).ensureAllowed(any());
@@ -171,7 +177,7 @@ class IslamicFeeServiceTest {
         configuration.setCharityGlAccount("2300-000-001");
         configuration.setFlatAmount(new BigDecimal("200.00"));
         when(configRepository.findByFeeCode("GEN-FEE-LATE-001")).thenReturn(Optional.of(configuration));
-        when(charityFundService.recordPenaltyInflow(anyString(), eq(new BigDecimal("200.00")), eq("MRB-001"), eq("MURABAHA"), eq(99L), eq("JRN-100")))
+        when(charityFundService.recordPenaltyInflow(anyString(), eq(new BigDecimal("200.00")), eq("MRB-001"), eq("MURABAHA"), eq(99L), eq("JRN-100"), eq("SAR")))
                 .thenReturn(com.cbs.shariahcompliance.entity.CharityFundLedgerEntry.builder().id(501L).build());
 
         IslamicFeeResponses.FeeChargeResult result = service.chargeFee(IslamicFeeRequests.ChargeFeeRequest.builder()
@@ -189,7 +195,7 @@ class IslamicFeeServiceTest {
         assertThat(result.getGlAccountCode()).isEqualTo("2300-000-001");
         assertThat(result.getCharityFundEntryId()).isEqualTo(501L);
         verify(charityFundService).recordPenaltyInflow("GEN-FEE-LATE-001:MRB-001-LATE-1",
-                new BigDecimal("200.00"), "MRB-001", "MURABAHA", 99L, "JRN-100");
+                new BigDecimal("200.00"), "MRB-001", "MURABAHA", 99L, "JRN-100", "SAR");
     }
 
     @Test
@@ -232,6 +238,66 @@ class IslamicFeeServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo("ISLAMIC_FEE_PENDING_SSB");
+    }
+
+    @Test
+    @DisplayName("charge fee suppresses applied pre-charge deferral until deferred date")
+    void chargeFee_suppressesAppliedPreChargeDeferral() {
+        IslamicFeeConfiguration configuration = activeFlatFee("GEN-FEE-MAINT-001", "UJRAH_PERMISSIBLE", false);
+        configuration.setFeeCategory("ACCOUNT_MAINTENANCE");
+        configuration.setChargeFrequency("MONTHLY");
+        configuration.setChargeTiming("PERIODIC");
+        when(configRepository.findByFeeCode("GEN-FEE-MAINT-001")).thenReturn(Optional.of(configuration));
+        when(waiverRepository.findApplicablePreChargeWaivers(eq(1L), eq(10L), eq(500L), eq(99L))).thenReturn(List.of(
+                IslamicFeeWaiver.builder()
+                        .id(900L)
+                        .feeConfigId(1L)
+                        .accountId(10L)
+                        .contractId(500L)
+                        .customerId(99L)
+                        .waiverType("DEFERRAL")
+                        .status("APPLIED")
+                        .deferredUntil(LocalDate.now().plusDays(5))
+                        .build()));
+
+        IslamicFeeResponses.FeeChargeResult result = service.chargeFee(IslamicFeeRequests.ChargeFeeRequest.builder()
+                .feeCode("GEN-FEE-MAINT-001")
+                .accountId(10L)
+                .contractId(500L)
+                .transactionAmount(new BigDecimal("100.00"))
+                .currencyCode("SAR")
+                .customerId(99L)
+                .build());
+
+        assertThat(result.getChargedAmount()).isEqualByComparingTo("0.00");
+        assertThat(result.getMessage()).contains("Fee deferred until");
+        verify(accountPostingService, never()).postDebitAgainstGl(any(), any(), any(), anyString(), any(), anyString(), anyList(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("create fee rejects percentage configuration without maximum cap")
+    void createFee_rejectsPercentageWithoutCap() {
+        assertThatThrownBy(() -> service.createFee(IslamicFeeRequests.SaveIslamicFeeRequest.builder()
+                .feeCode("MRB-FEE-PROC-002")
+                .name("Processing Fee")
+                .shariahClassification("UJRAH_COST_RECOVERY")
+                .shariahJustification("Actual processing effort")
+                .ssbApproved(true)
+                .feeType("PERCENTAGE")
+                .percentageRate(new BigDecimal("1.00"))
+                .feeCategory("PROCESSING")
+                .chargeFrequency("ONE_TIME")
+                .chargeTiming("AT_DISBURSEMENT")
+                .incomeGlAccount("5500-FEE-001")
+                .charityRouted(false)
+                .percentageOfFinancingProhibited(true)
+                .compoundingProhibited(true)
+                .maximumAsPercentOfFinancing(new BigDecimal("1.00"))
+                .effectiveFrom(LocalDate.now())
+                .build()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo("ISLAMIC_FEE_PERCENTAGE_CAP_REQUIRED");
     }
 
     @Test

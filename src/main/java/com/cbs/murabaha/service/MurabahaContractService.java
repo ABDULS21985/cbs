@@ -233,14 +233,52 @@ public class MurabahaContractService {
         }
         contract.setStatus(MurabahaDomainEnums.ContractStatus.DEFAULTED);
         contract.setProfitRecognitionSuspended(Boolean.TRUE);
+
+        // Post impairment provision for unrecognised profit (AAOIFI FAS 2/28)
+        BigDecimal unrecognisedProfit = contract.getUnrecognisedProfit() != null
+                ? contract.getUnrecognisedProfit() : BigDecimal.ZERO;
+        if (unrecognisedProfit.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                        .contractTypeCode("MURABAHA")
+                        .txnType(IslamicTransactionType.PROFIT_RECOGNITION)
+                        .accountId(contract.getAccountId())
+                        .amount(unrecognisedProfit)
+                        .reference(contract.getContractRef() + "-IMPAIRMENT")
+                        .valueDate(LocalDate.now())
+                        .narration("Impairment provision on default — unrecognised profit suspended for "
+                                + contract.getContractRef())
+                        .build());
+                log.info("Impairment provision posted for defaulted contract {}: unrecognised profit {}",
+                        contract.getContractRef(), unrecognisedProfit);
+            } catch (Exception e) {
+                log.error("Failed to post impairment provision for contract {}: {}",
+                        contract.getContractRef(), e.getMessage());
+            }
+        }
+
+        // Unassign from investment pool to prevent further profit distribution
+        if (contract.getPoolAssetAssignmentId() != null) {
+            try {
+                poolAssetManagementService.unassignAssetFromPool(
+                        contract.getPoolAssetAssignmentId(), "MURABAHA_DEFAULT");
+            } catch (RuntimeException ex) {
+                log.warn("Unable to unassign defaulted Murabaha asset {} from pool: {}",
+                        contract.getPoolAssetAssignmentId(), ex.getMessage());
+            }
+        }
+
         contract.appendOwnershipEvent(Map.of(
                 "event", "DEFAULT",
                 "reason", reason,
                 "profitRecognitionSuspended", "true",
+                "impairmentProvisionPosted", unrecognisedProfit.compareTo(BigDecimal.ZERO) > 0 ? "true" : "false",
+                "unrecognisedProfitAtDefault", unrecognisedProfit.toPlainString(),
                 "timestamp", Instant.now().toString()));
         contractRepository.save(contract);
-        log.info("AUDIT: Murabaha contract {} defaulted. Profit recognition suspended. Reason: {}",
-                contract.getContractRef(), reason);
+        log.info("AUDIT: Murabaha contract {} defaulted. Profit recognition suspended. "
+                        + "Impairment provision: {}. Pool unassigned. Reason: {}",
+                contract.getContractRef(), unrecognisedProfit, reason);
     }
 
     public void writeOff(Long contractId, String approvedBy, String reason) {

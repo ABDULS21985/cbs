@@ -62,8 +62,17 @@ public class IslamicStrSarService {
             throw new BusinessException("Invalid SAR type: " + request.getSarType(), "INVALID_SAR_TYPE");
         }
 
-        // Default jurisdiction based on tenant configuration (simplified: default SA_SAFIU)
-        SarJurisdiction jurisdiction = SarJurisdiction.SA_SAFIU;
+        // Accept jurisdiction from request, default to SA_SAFIU
+        SarJurisdiction jurisdiction;
+        if (StringUtils.hasText(request.getJurisdiction())) {
+            try {
+                jurisdiction = SarJurisdiction.valueOf(request.getJurisdiction());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException("Invalid jurisdiction: " + request.getJurisdiction(), "INVALID_JURISDICTION");
+            }
+        } else {
+            jurisdiction = SarJurisdiction.SA_SAFIU;
+        }
 
         LocalDate filingDeadline = calculateFilingDeadline(jurisdiction, request.isUrgent());
 
@@ -113,10 +122,10 @@ public class IslamicStrSarService {
         IslamicStrSar sar = sarRepository.findById(sarId)
                 .orElseThrow(() -> new ResourceNotFoundException("SAR not found: " + sarId));
 
-        if (sar.getStatus() != SarStatus.DRAFT) {
+        if (sar.getStatus() != SarStatus.DRAFT && sar.getStatus() != SarStatus.RETURNED_FOR_REVISION) {
             throw new BusinessException(
                     "SAR " + sarId + " cannot be reviewed in status: " + sar.getStatus()
-                            + ". Only DRAFT SARs can be reviewed.",
+                            + ". Only DRAFT or RETURNED_FOR_REVISION SARs can be reviewed.",
                     "INVALID_SAR_STATUS_FOR_REVIEW");
         }
 
@@ -157,6 +166,37 @@ public class IslamicStrSarService {
 
         sarRepository.save(sar);
         log.info("SAR {} approved by MLRO {}, status moved to APPROVED_FOR_FILING", sarId, sar.getMlroApprovedBy());
+    }
+
+    // ===================== RETURN FOR REVISION =====================
+
+    public IslamicStrSarResponse returnForRevision(Long sarId, String reason) {
+        IslamicStrSar sar = sarRepository.findById(sarId)
+                .orElseThrow(() -> new ResourceNotFoundException("SAR not found: " + sarId));
+
+        if (sar.getStatus() != SarStatus.UNDER_REVIEW && sar.getStatus() != SarStatus.APPROVED_FOR_FILING) {
+            throw new BusinessException(
+                    "SAR " + sarId + " cannot be returned for revision in status: " + sar.getStatus(),
+                    "INVALID_SAR_STATUS_FOR_RETURN");
+        }
+
+        sar.setStatus(SarStatus.RETURNED_FOR_REVISION);
+        // Reset review/approval fields so the SAR can be re-reviewed
+        sar.setReviewedBy(null);
+        sar.setReviewedAt(null);
+        sar.setMlroApprovedBy(null);
+        sar.setMlroApprovedAt(null);
+
+        if (StringUtils.hasText(reason)) {
+            String existingNarrative = Optional.ofNullable(sar.getNarrativeSummary()).orElse("");
+            sar.setNarrativeSummary(existingNarrative
+                    + "\n\n--- Returned for Revision by " + actorProvider.getCurrentActor() + " ---\n"
+                    + reason);
+        }
+
+        sar = sarRepository.save(sar);
+        log.info("SAR {} returned for revision by {} — reason: {}", sarId, actorProvider.getCurrentActor(), reason);
+        return toResponse(sar);
     }
 
     // ===================== FILE SAR =====================
@@ -355,6 +395,7 @@ public class IslamicStrSarService {
                 .islamicProductInvolved(islamicProductInvolved)
                 .islamicContractRef(islamicContractRef)
                 .islamicTypology(islamicTypology)
+                .suspiciousTransactions(buildSuspiciousTransactionsFromAlert(alert))
                 .totalSuspiciousAmount(Optional.ofNullable(alert.getTotalAmountInvolved()).orElse(BigDecimal.ZERO))
                 .suspiciousPeriodFrom(alert.getDetectionDate() != null
                         ? alert.getDetectionDate().toLocalDate().minusDays(90) : LocalDate.now().minusDays(90))
@@ -570,6 +611,31 @@ public class IslamicStrSarService {
             name.append(customer.getRegisteredName());
         }
         return name.length() > 0 ? name.toString() : "Unknown";
+    }
+
+    private List<Map<String, Object>> buildSuspiciousTransactionsFromAlert(IslamicAmlAlert alert) {
+        List<Map<String, Object>> transactions = new ArrayList<>();
+        if (alert.getInvolvedTransactions() != null) {
+            for (String txnRef : alert.getInvolvedTransactions()) {
+                Map<String, Object> txn = new LinkedHashMap<>();
+                txn.put("transactionRef", txnRef);
+                txn.put("amount", alert.getTotalAmountInvolved());
+                txn.put("currency", alert.getCurrencyCode() != null ? alert.getCurrencyCode() : "SAR");
+                txn.put("detectionDate", alert.getDetectionDate() != null ? alert.getDetectionDate().toString() : null);
+                txn.put("ruleCode", alert.getRuleCode());
+                transactions.add(txn);
+            }
+        }
+        if (alert.getInvolvedContracts() != null) {
+            for (String contractRef : alert.getInvolvedContracts()) {
+                Map<String, Object> txn = new LinkedHashMap<>();
+                txn.put("contractRef", contractRef);
+                txn.put("type", "CONTRACT");
+                txn.put("ruleCode", alert.getRuleCode());
+                transactions.add(txn);
+            }
+        }
+        return transactions.isEmpty() ? null : transactions;
     }
 
     private IslamicStrSarResponse toResponse(IslamicStrSar s) {
