@@ -181,6 +181,9 @@ public class MusharakahLossService {
         event.setCustomerShareValueAfterLoss(ownership.getCustomerShareValue());
         event.setAssetValueAfterLoss(assetValueAfterLoss);
         event.setNetLossAfterInsurance(netLossAfterInsurance);
+        log.warn("Loss event {} compliance verification auto-stamped by system actor '{}' during postLoss. "
+                + "Manual compliance review is recommended for loss events exceeding policy thresholds.",
+                event.getLossEventRef(), actorProvider.getCurrentActor());
         event.setVerifiedByCompliance(true);
         event.setVerifiedBy(actorProvider.getCurrentActor());
         event.setVerifiedAt(LocalDateTime.now());

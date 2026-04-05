@@ -75,6 +75,7 @@ public class MudarabahTermDepositService {
 
     private static final String MUDARABAH_INVESTMENT_GL = "3100-MDR-001";
     private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";
+    private static final String BANK_MUDARIB_INCOME_GL = "4200-MDR-001";
     private static final AtomicLong TD_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
 
     public MudarabahTermDepositResponse createTermDeposit(CreateMudarabahTermDepositRequest request) {

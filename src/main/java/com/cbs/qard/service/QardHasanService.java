@@ -197,6 +197,30 @@ public class QardHasanService {
                 contractReference
         );
 
+        // Post admin fee GL entry if applicable (debit fee receivable, credit fee income).
+        if (request.getAdminFeeAmount() != null && request.getAdminFeeAmount().compareTo(BigDecimal.ZERO) > 0) {
+            accountPostingService.postDebitAgainstGl(
+                    settlementAccount,
+                    TransactionType.FEE_DEBIT,
+                    request.getAdminFeeAmount(),
+                    "Qard Hasan admin fee - " + request.getAdminFeeJustification(),
+                    TransactionChannel.SYSTEM,
+                    contractReference + ":ADMFEE",
+                    List.of(accountPostingService.balanceLeg(
+                            QARD_ADMIN_FEE_INCOME_GL,
+                            AccountPostingService.EntrySide.CREDIT,
+                            request.getAdminFeeAmount(),
+                            settlementAccount.getCurrencyCode(),
+                            BigDecimal.ONE,
+                            "Qard admin fee income",
+                            null,
+                            customer.getId()
+                    )),
+                    "QARD",
+                    contractReference
+            );
+        }
+
         // Mirror the outstanding receivable on the linked Qard account record.
         qardLoanAccount.credit(request.getPrincipalAmount());
         accountRepository.save(qardLoanAccount);
@@ -246,6 +270,11 @@ public class QardHasanService {
         if (qardAccount.getQardType() != QardDomainEnums.QardType.DEPOSIT_QARD) {
             throw new BusinessException("Withdrawals are only supported for deposit-based Qard accounts",
                     "INVALID_QARD_OPERATION");
+        }
+        BigDecimal currentBalance = qardAccount.getAccount().getBookBalance();
+        if (currentBalance.compareTo(request.getAmount()) < 0) {
+            throw new BusinessException("Insufficient balance for withdrawal. Available: " + currentBalance,
+                    "INSUFFICIENT_BALANCE");
         }
 
         TransactionJournal journal = accountPostingService.postDebitAgainstGl(

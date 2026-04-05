@@ -184,11 +184,11 @@ public class DistributionReserveService {
 
             if (result.getTriggered() && absorbedAmount != null && absorbedAmount.compareTo(ZERO) > 0) {
                 irrService.releaseIrrForLossAbsorption(
-                        poolId, lossAmount, "Pool loss absorption", actorProvider.getCurrentActor());
-                adjustment = result.getAbsorbed();
+                        poolId, absorbedAmount, "Pool loss absorption", actorProvider.getCurrentActor());
+                adjustment = absorbedAmount;
                 txnType = "RELEASE";
-                afterIrr = depositorPoolAfterPer.add(result.getAbsorbed());
-                balanceAfter = result.getIrrBalanceAfter();
+                afterIrr = depositorPoolAfterPer.add(absorbedAmount);
+                balanceAfter = balanceBefore.subtract(absorbedAmount);
             }
         }
 

@@ -430,7 +430,12 @@ public class ShariahScreeningService {
         alert.setEscalatedTo(escalatedTo);
         alert.setEscalatedAt(LocalDateTime.now());
         alert.setStatus(AlertStatus.ESCALATED);
+        if (StringUtils.hasText(reason)) {
+            String existingDesc = alert.getDescription() != null ? alert.getDescription() : "";
+            alert.setDescription(existingDesc + " [Escalation reason: " + reason + "]");
+        }
         alertRepository.save(alert);
+        log.info("Alert {} escalated to {} — reason: {}", alertId, escalatedTo, reason);
     }
 
     @Transactional(readOnly = true)
@@ -512,8 +517,16 @@ public class ShariahScreeningService {
                 case CONDITION_EXPRESSION -> evaluateCondition(rule, request);
                 case BUSINESS_RULE_REF -> {
                     if (StringUtils.hasText(rule.getBusinessRuleCode())) {
-                        log.warn("BUSINESS_RULE_REF evaluation not yet integrated for rule {} (businessRuleCode={}). Passing by default.",
-                                rule.getRuleCode(), rule.getBusinessRuleCode());
+                        try {
+                            var ruleResponse = businessRuleService.getRuleByCode(rule.getBusinessRuleCode());
+                            if (ruleResponse != null && Boolean.TRUE.equals(ruleResponse.getIsActive())) {
+                                // Rule exists and is active — considered triggered for screening purposes
+                                yield true;
+                            }
+                        } catch (Exception e) {
+                            log.warn("Failed to evaluate BUSINESS_RULE_REF for rule {} (businessRuleCode={}): {}",
+                                    rule.getRuleCode(), rule.getBusinessRuleCode(), e.getMessage());
+                        }
                     }
                     yield false;
                 }

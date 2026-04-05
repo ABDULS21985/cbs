@@ -98,8 +98,15 @@ public class IjarahGLService {
 
     @Transactional(readOnly = true)
     public IjarahResponses.IjarahBalanceSheetView getIjarahBalanceSheetView(LocalDate asOfDate) {
-        List<IjarahAsset> assets = assetRepository.findAll();
-        List<IjarahContract> contracts = contractRepository.findAll();
+        // Filter assets and contracts to only those that existed as of the given date
+        List<IjarahAsset> assets = assetRepository.findAll().stream()
+                .filter(asset -> asset.getAcquisitionDate() != null && !asset.getAcquisitionDate().isAfter(asOfDate))
+                .filter(asset -> asset.getDisposalDate() == null || !asset.getDisposalDate().isBefore(asOfDate))
+                .toList();
+        List<IjarahContract> contracts = contractRepository.findAll().stream()
+                .filter(contract -> contract.getLeaseStartDate() == null || !contract.getLeaseStartDate().isAfter(asOfDate))
+                .filter(contract -> contract.getTerminatedAt() == null || !contract.getTerminatedAt().isBefore(asOfDate))
+                .toList();
         BigDecimal gross = assets.stream().map(asset -> IjarahSupport.money(asset.getAcquisitionCost())).reduce(IjarahSupport.ZERO, BigDecimal::add);
         BigDecimal depreciation = assets.stream().map(asset -> IjarahSupport.money(asset.getAccumulatedDepreciation())).reduce(IjarahSupport.ZERO, BigDecimal::add);
         BigDecimal impairment = assets.stream().map(asset -> IjarahSupport.money(asset.getImpairmentProvisionBalance())).reduce(IjarahSupport.ZERO, BigDecimal::add);

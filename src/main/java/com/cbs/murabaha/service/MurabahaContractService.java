@@ -232,11 +232,15 @@ public class MurabahaContractService {
                     + contract.getStatus(), "INVALID_CONTRACT_STATUS");
         }
         contract.setStatus(MurabahaDomainEnums.ContractStatus.DEFAULTED);
+        contract.setProfitRecognitionSuspended(Boolean.TRUE);
         contract.appendOwnershipEvent(Map.of(
                 "event", "DEFAULT",
                 "reason", reason,
+                "profitRecognitionSuspended", "true",
                 "timestamp", Instant.now().toString()));
         contractRepository.save(contract);
+        log.info("AUDIT: Murabaha contract {} defaulted. Profit recognition suspended. Reason: {}",
+                contract.getContractRef(), reason);
     }
 
     public void writeOff(Long contractId, String approvedBy, String reason) {

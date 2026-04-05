@@ -15,7 +15,9 @@ import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.notification.entity.NotificationChannel;
 import com.cbs.notification.service.NotificationService;
 import com.cbs.productfactory.islamic.entity.IslamicDomainEnums;
+import com.cbs.productfactory.islamic.entity.IslamicProductParameter;
 import com.cbs.productfactory.islamic.entity.IslamicProductTemplate;
+import com.cbs.productfactory.islamic.repository.IslamicProductParameterRepository;
 import com.cbs.productfactory.islamic.repository.IslamicProductTemplateRepository;
 import com.cbs.tenant.service.CurrentTenantResolver;
 import com.cbs.wadiah.dto.*;
@@ -51,6 +53,7 @@ public class WadiahOnboardingService {
     private final CustomerRepository customerRepository;
     private final CustomerIdentificationRepository customerIdentificationRepository;
     private final IslamicProductTemplateRepository islamicProductTemplateRepository;
+    private final IslamicProductParameterRepository islamicProductParameterRepository;
     private final AccountComplianceService accountComplianceService;
     private final NotificationService notificationService;
     private final CardService cardService;
@@ -236,7 +239,7 @@ public class WadiahOnboardingService {
                 .currencyCode(application.getCurrencyCode())
                 .openingBalance(toBigDecimal(features.get("initialDeposit")))
                 .branchCode(application.getBranchCode())
-                .wadiahType(com.cbs.wadiah.entity.WadiahDomainEnums.WadiahType.YAD_DHAMANAH)
+                .wadiahType(resolveWadiahType(application.getProductTemplateId()))
                 .hibahEligible(true)
                 .hibahDisclosureSigned(true)
                 .hibahDisclosureDate(LocalDate.now())

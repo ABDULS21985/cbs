@@ -143,6 +143,23 @@ public class PoolAssetManagementService {
 
         InvestmentPool targetPool = findActivePool(newPoolId);
 
+        // Validate currency compatibility between source asset and target pool
+        InvestmentPool sourcePool = findActivePool(original.getPoolId());
+        if (original.getCurrencyCode() != null && targetPool.getCurrencyCode() != null
+                && !original.getCurrencyCode().equals(targetPool.getCurrencyCode())) {
+            throw new BusinessException(
+                    "Asset currency (" + original.getCurrencyCode()
+                            + ") does not match target pool currency (" + targetPool.getCurrencyCode() + ")",
+                    "CURRENCY_MISMATCH");
+        }
+        if (sourcePool.getCurrencyCode() != null && targetPool.getCurrencyCode() != null
+                && !sourcePool.getCurrencyCode().equals(targetPool.getCurrencyCode())) {
+            throw new BusinessException(
+                    "Source pool currency (" + sourcePool.getCurrencyCode()
+                            + ") does not match target pool currency (" + targetPool.getCurrencyCode() + ")",
+                    "POOL_CURRENCY_MISMATCH");
+        }
+
         // Reduce or mark original assignment
         BigDecimal remaining = original.getAssignedAmount().subtract(transferAmount);
         if (remaining.compareTo(BigDecimal.ZERO) == 0) {
@@ -237,12 +254,13 @@ public class PoolAssetManagementService {
             log.warn("Pool {} has {} overdue (matured but still ACTIVE) assets: {}", poolId, overdueAssets.size(), overdueAssets);
         }
 
-        // Defaulted asset check
-        long defaultedCount = activeAssignments.stream()
+        // Defaulted asset check - query ALL assignments (not just ACTIVE) to find DEFAULTED ones
+        List<PoolAssetAssignment> allAssignments = assetRepo.findByPoolId(poolId);
+        long defaultedCount = allAssignments.stream()
                 .filter(a -> a.getAssignmentStatus() == AssignmentStatus.DEFAULTED)
                 .count();
         if (defaultedCount > 0) {
-            log.warn("Pool {} has {} defaulted assets still in active assignments", poolId, defaultedCount);
+            log.warn("Pool {} has {} defaulted assets", poolId, defaultedCount);
         }
 
         boolean isSegregated = mismatchPct.abs().compareTo(new BigDecimal("5.0000")) <= 0 && !hasOverAssigned && !hasCurrencyMismatch;

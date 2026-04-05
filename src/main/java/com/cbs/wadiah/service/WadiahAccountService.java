@@ -299,6 +299,12 @@ public class WadiahAccountService {
         }
         Account targetAccount = accountRepository.findById(wadiahAccount.getSweepTargetAccountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", wadiahAccount.getSweepTargetAccountId()));
+        if (!sourceAccount.getCurrencyCode().equals(targetAccount.getCurrencyCode())) {
+            throw new BusinessException(
+                    "Sweep source currency (" + sourceAccount.getCurrencyCode()
+                            + ") does not match target currency (" + targetAccount.getCurrencyCode() + ")",
+                    "SWEEP_CURRENCY_MISMATCH");
+        }
         BigDecimal sweepAmount = sourceAccount.getBookBalance().subtract(wadiahAccount.getSweepThreshold());
         accountPostingService.postTransfer(
                 sourceAccount,

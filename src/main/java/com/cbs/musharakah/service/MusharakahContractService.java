@@ -84,10 +84,9 @@ public class MusharakahContractService {
 
     public MusharakahResponses.MusharakahContractResponse initiateAssetProcurement(Long contractId) {
         MusharakahContract contract = findContract(contractId);
-        if (contract.getStatus() != MusharakahDomainEnums.ContractStatus.DRAFT
-                && contract.getStatus() != MusharakahDomainEnums.ContractStatus.PENDING_EXECUTION) {
+        if (contract.getStatus() != MusharakahDomainEnums.ContractStatus.DRAFT) {
             throw new BusinessException(
-                    "Asset procurement can only be initiated for contracts in DRAFT or PENDING_EXECUTION status, current status: " + contract.getStatus(),
+                    "Asset procurement can only be initiated for contracts in DRAFT status, current status: " + contract.getStatus(),
                     "INVALID_CONTRACT_STATUS");
         }
         postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
@@ -105,6 +104,11 @@ public class MusharakahContractService {
     public MusharakahResponses.MusharakahContractResponse registerJointOwnership(Long contractId,
                                                                                  MusharakahRequests.JointOwnershipDetails details) {
         MusharakahContract contract = findContract(contractId);
+        if (contract.getStatus() != MusharakahDomainEnums.ContractStatus.ASSET_PROCUREMENT) {
+            throw new BusinessException(
+                    "Joint ownership can only be registered for contracts in ASSET_PROCUREMENT status, current status: " + contract.getStatus(),
+                    "INVALID_CONTRACT_STATUS");
+        }
         if (details.getBankOwnershipPercentage().add(details.getCustomerOwnershipPercentage())
                 .compareTo(new BigDecimal("100.0000")) != 0) {
             throw new BusinessException("Joint ownership percentages must sum to 100.00", "INVALID_OWNERSHIP_RATIO");
@@ -122,6 +126,9 @@ public class MusharakahContractService {
         MusharakahContract contract = findContract(contractId);
         if (contract.getStatus() != MusharakahDomainEnums.ContractStatus.JOINT_OWNERSHIP_REGISTERED) {
             throw new BusinessException("Joint ownership must be registered before Musharakah execution", "JOINT_OWNERSHIP_REQUIRED");
+        }
+        if (StringUtils.hasText(contract.getCreatedBy()) && contract.getCreatedBy().equalsIgnoreCase(executedBy)) {
+            throw new BusinessException("Executor must be different from the contract creator (four-eyes principle)", "FOUR_EYES_REQUIRED");
         }
         IslamicProductTemplate product = islamicProductTemplateRepository.findById(contract.getIslamicProductTemplateId())
                 .orElseThrow(() -> new ResourceNotFoundException("IslamicProductTemplate", "id", contract.getIslamicProductTemplateId()));

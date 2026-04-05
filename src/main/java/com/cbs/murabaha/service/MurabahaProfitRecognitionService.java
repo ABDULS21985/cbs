@@ -49,6 +49,14 @@ public class MurabahaProfitRecognitionService {
                     "INVALID_CONTRACT_STATUS");
         }
 
+        // Idempotency: skip if profit was already recognised for this exact period
+        if (contract.getLastProfitRecognitionDate() != null
+                && !contract.getLastProfitRecognitionDate().isBefore(toDate)) {
+            log.debug("Profit already recognised up to {} for contract {}. Skipping.",
+                    contract.getLastProfitRecognitionDate(), contract.getContractRef());
+            return;
+        }
+
         BigDecimal targetCumulative = calculateTargetCumulativeRecognition(contract, toDate);
         BigDecimal amountToRecognise = MurabahaSupport.money(targetCumulative.subtract(contract.getRecognisedProfit()));
         if (amountToRecognise.compareTo(BigDecimal.ZERO) <= 0) {
@@ -79,7 +87,9 @@ public class MurabahaProfitRecognitionService {
     public void recogniseProfitBatch(LocalDate fromDate, LocalDate toDate) {
         List<MurabahaContract> activeContracts = contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.ACTIVE);
         List<MurabahaContract> executedContracts = contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.EXECUTED);
-        java.util.stream.Stream.concat(activeContracts.stream(), executedContracts.stream())
+        List<MurabahaContract> earlySettledContracts = contractRepository.findByStatus(MurabahaDomainEnums.ContractStatus.EARLY_SETTLED);
+        java.util.stream.Stream.of(activeContracts.stream(), executedContracts.stream(), earlySettledContracts.stream())
+                .flatMap(s -> s)
                 .forEach(contract -> {
                     try {
                         recogniseProfitForPeriod(contract.getId(), fromDate, toDate);

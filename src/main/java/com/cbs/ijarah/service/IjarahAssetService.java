@@ -325,6 +325,12 @@ public class IjarahAssetService {
 
     public void disposeAsset(Long assetId, IjarahRequests.AssetDisposalRequest request) {
         IjarahAsset asset = findAsset(assetId);
+        // Status validation: cannot dispose an asset that is already in a terminal state
+        if (asset.getStatus() == IjarahDomainEnums.AssetStatus.DISPOSED
+                || asset.getStatus() == IjarahDomainEnums.AssetStatus.TRANSFERRED_TO_CUSTOMER
+                || asset.getStatus() == IjarahDomainEnums.AssetStatus.TOTAL_LOSS) {
+            throw new BusinessException("Asset in status " + asset.getStatus() + " cannot be disposed", "INVALID_ASSET_STATUS");
+        }
         BigDecimal proceeds = IjarahSupport.money(request.getDisposalProceeds());
         BigDecimal nbv = IjarahSupport.money(asset.getNetBookValue());
         BigDecimal gain = proceeds.subtract(nbv);

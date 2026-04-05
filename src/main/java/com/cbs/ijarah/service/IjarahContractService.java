@@ -457,13 +457,25 @@ public class IjarahContractService {
 
     @Transactional(readOnly = true)
     public IjarahResponses.IjarahPortfolioSummary getPortfolioSummary() {
-        List<IjarahContract> contracts = contractRepository.findAll();
+        List<IjarahContract> activeContracts = contractRepository.findByStatus(IjarahDomainEnums.ContractStatus.ACTIVE);
+        List<IjarahContract> arrearsContracts = contractRepository.findByStatus(IjarahDomainEnums.ContractStatus.RENTAL_ARREARS);
+        List<IjarahContract> allActiveContracts = new java.util.ArrayList<>(activeContracts);
+        allActiveContracts.addAll(arrearsContracts);
+
+        BigDecimal totalAssets = contractRepository.sumAssetAcquisitionCostByStatus(IjarahDomainEnums.ContractStatus.ACTIVE)
+                .add(contractRepository.sumAssetAcquisitionCostByStatus(IjarahDomainEnums.ContractStatus.RENTAL_ARREARS));
+
+        Map<String, Long> byType = allActiveContracts.stream()
+                .collect(java.util.stream.Collectors.groupingBy(c -> c.getIjarahType().name(), java.util.stream.Collectors.counting()));
+        Map<String, Long> byStatus = allActiveContracts.stream()
+                .collect(java.util.stream.Collectors.groupingBy(c -> c.getStatus().name(), java.util.stream.Collectors.counting()));
+
         return IjarahResponses.IjarahPortfolioSummary.builder()
-                .totalContracts(contracts.size())
-                .totalAssetsUnderIjarah(contracts.stream().map(c -> IjarahSupport.money(c.getAssetAcquisitionCost())).reduce(IjarahSupport.ZERO, BigDecimal::add))
-                .rentalIncomeYtd(contracts.stream().map(c -> IjarahSupport.money(c.getTotalRentalsReceived())).reduce(IjarahSupport.ZERO, BigDecimal::add))
-                .byType(contracts.stream().collect(java.util.stream.Collectors.groupingBy(c -> c.getIjarahType().name(), java.util.stream.Collectors.counting())))
-                .byStatus(contracts.stream().collect(java.util.stream.Collectors.groupingBy(c -> c.getStatus().name(), java.util.stream.Collectors.counting())))
+                .totalContracts(allActiveContracts.size())
+                .totalAssetsUnderIjarah(totalAssets)
+                .rentalIncomeYtd(allActiveContracts.stream().map(c -> IjarahSupport.money(c.getTotalRentalsReceived())).reduce(IjarahSupport.ZERO, BigDecimal::add))
+                .byType(byType)
+                .byStatus(byStatus)
                 .upcomingMaturities(contractRepository.findByLeaseEndDateBetween(LocalDate.now(), LocalDate.now().plusDays(30)).size())
                 .build();
     }
@@ -480,10 +492,7 @@ public class IjarahContractService {
 
     @Transactional(readOnly = true)
     public List<IjarahContract> getContractsInArrears() {
-        return contractRepository.findAll().stream()
-                .filter(contract -> IjarahSupport.money(contract.getTotalRentalArrears()).compareTo(BigDecimal.ZERO) > 0
-                        || contract.getStatus() == IjarahDomainEnums.ContractStatus.RENTAL_ARREARS)
-                .toList();
+        return contractRepository.findByStatus(IjarahDomainEnums.ContractStatus.RENTAL_ARREARS);
     }
 
     IjarahContract findContract(Long contractId) {
