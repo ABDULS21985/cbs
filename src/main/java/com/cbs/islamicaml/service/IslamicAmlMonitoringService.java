@@ -43,6 +43,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -76,8 +77,10 @@ public class IslamicAmlMonitoringService {
     // ─────────────────────── Real-time monitoring ───────────────────────
 
     public List<IslamicAmlAlertResponse> monitorTransaction(AmlMonitoringContext context) {
-        Objects.requireNonNull(context, "AmlMonitoringContext must not be null");
-        Objects.requireNonNull(context.getCustomerId(), "Customer ID must not be null");
+        Objects.requireNonNull(context, "Monitoring context must not be null");
+        if (context.getCustomerId() == null) {
+            throw new BusinessException("Customer ID is required for AML monitoring", "CUSTOMER_ID_REQUIRED");
+        }
 
         log.info("Monitoring transaction {} for customer {}", context.getTransactionRef(), context.getCustomerId());
 
@@ -133,12 +136,8 @@ public class IslamicAmlMonitoringService {
         List<IslamicAmlRule> enabledRules = ruleRepository.findByEnabledTrueOrderByPriorityAsc();
         List<IslamicAmlAlertResponse> allAlerts = new ArrayList<>();
 
-        List<IslamicAmlRule> patternRules = enabledRules.stream()
-                .filter(r -> r.getDetectionMethod() == DetectionMethod.PATTERN
-                        || r.getDetectionMethod() == DetectionMethod.NETWORK
-                        || r.getDetectionMethod() == DetectionMethod.BEHAVIORAL
-                        || r.getDetectionMethod() == DetectionMethod.COMPOSITE)
-                .toList();
+        // Use ALL enabled rules in batch mode (THRESHOLD and VELOCITY are equally important)
+        List<IslamicAmlRule> batchRules = enabledRules;
 
         List<MurabahaContract> activeContracts = murabahaContractRepository.findByStatus(
                 MurabahaDomainEnums.ContractStatus.ACTIVE);
@@ -152,7 +151,7 @@ public class IslamicAmlMonitoringService {
                     .filter(c -> c.getCustomerId().equals(customerId))
                     .toList();
 
-            for (IslamicAmlRule rule : patternRules) {
+            for (IslamicAmlRule rule : batchRules) {
                 boolean triggered = evaluateBatchRule(rule, customerId, customerContracts, analysisDate);
                 if (triggered) {
                     log.info("Batch rule {} triggered for customer {}", rule.getRuleCode(), customerId);
@@ -337,11 +336,15 @@ public class IslamicAmlMonitoringService {
                 .collect(Collectors.groupingBy(CommodityMurabahaTrade::getPurchaseBrokerName));
 
         for (Map.Entry<String, List<CommodityMurabahaTrade>> entry : tradesByBroker.entrySet()) {
+            // Null-safe broker comparison
+            if (entry.getKey() == null || entry.getKey().isBlank()) continue;
+
             List<CommodityMurabahaTrade> brokerTrades = entry.getValue();
             if (brokerTrades.size() >= 2) {
                 // Further check: same broker used for both purchase and customer sale
                 List<CommodityMurabahaTrade> sameBrokerBothSides = brokerTrades.stream()
-                        .filter(t -> entry.getKey().equals(t.getCustomerSaleBrokerName()))
+                        .filter(t -> t.getCustomerSaleBrokerName() != null
+                                && entry.getKey().equalsIgnoreCase(t.getCustomerSaleBrokerName()))
                         .toList();
 
                 if (!sameBrokerBothSides.isEmpty()) {
@@ -775,6 +778,8 @@ public class IslamicAmlMonitoringService {
 
     @Transactional(readOnly = true)
     public IslamicAmlAlertStatistics getAlertStatistics() {
+        log.debug("Alert statistics aggregated globally (no date filter). Consider adding period-based statistics for production.");
+
         long totalAlerts = alertRepository.count();
         long newCount = alertRepository.countByStatus(IslamicAmlAlertStatus.NEW);
         long underInvestigation = alertRepository.countByStatus(IslamicAmlAlertStatus.UNDER_INVESTIGATION);
@@ -784,13 +789,13 @@ public class IslamicAmlMonitoringService {
         long closedFalsePositive = alertRepository.countByStatus(IslamicAmlAlertStatus.CLOSED_FALSE_POSITIVE);
         long overdueCount = alertRepository.findOverdueAlerts().size();
 
-        Map<String, Long> byTypology = new HashMap<>();
+        Map<String, Long> byTypology = new LinkedHashMap<>();
         for (IslamicAmlRuleCategory category : IslamicAmlRuleCategory.values()) {
             List<IslamicAmlRule> rules = ruleRepository.findByCategory(category);
-            long count = 0;
-            for (IslamicAmlRule rule : rules) {
-                count += alertRepository.countByRuleCode(rule.getRuleCode());
-            }
+            if (rules.isEmpty()) continue;
+            long count = rules.stream()
+                    .mapToLong(rule -> alertRepository.countByRuleCode(rule.getRuleCode()))
+                    .sum();
             if (count > 0) {
                 byTypology.put(category.name(), count);
             }
@@ -1066,7 +1071,22 @@ public class IslamicAmlMonitoringService {
                 int velocityLimit = extractIntParam(params, "velocityLimit", DEFAULT_VELOCITY_LIMIT);
                 yield totalExposure.compareTo(threshold) >= 0 && recentCount >= velocityLimit;
             }
-            default -> false;
+            case THRESHOLD -> {
+                BigDecimal totalExposure = contracts.stream()
+                        .map(MurabahaContract::getFinancedAmount)
+                        .filter(Objects::nonNull)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal threshold = extractDecimalParam(params, "threshold", DEFAULT_THRESHOLD);
+                yield totalExposure.compareTo(threshold) >= 0;
+            }
+            case VELOCITY -> {
+                List<MurabahaContract> recentContracts = contracts.stream()
+                        .filter(c -> c.getStartDate() != null
+                                && !c.getStartDate().isBefore(analysisDate.minusDays(lookbackDays)))
+                        .toList();
+                int velocityLimit = extractIntParam(params, "velocityLimit", DEFAULT_VELOCITY_LIMIT);
+                yield recentContracts.size() >= velocityLimit;
+            }
         };
     }
 

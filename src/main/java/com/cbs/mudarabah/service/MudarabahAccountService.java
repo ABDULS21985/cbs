@@ -151,20 +151,10 @@ public class MudarabahAccountService {
 
         mudarabahAccount = mudarabahAccountRepository.save(mudarabahAccount);
 
-        // 6b. Auto-assign to default investment pool from product template if available
-        if (product.getDefaultPoolId() != null) {
-            try {
-                assignToPool(mudarabahAccount.getId(), product.getDefaultPoolId());
-                log.info("Auto-assigned account {} to default pool {} from product template",
-                        mudarabahAccount.getContractReference(), product.getDefaultPoolId());
-            } catch (Exception e) {
-                log.warn("Failed to auto-assign account {} to default pool {}: {}. Pool assignment can be done manually via assignToPool().",
-                        mudarabahAccount.getContractReference(), product.getDefaultPoolId(), e.getMessage());
-            }
-        } else {
-            log.info("No default pool on product template — pool assignment deferred for account {}. Use assignToPool() to link.",
-                    mudarabahAccount.getContractReference());
-        }
+        // 6b. Assign to default investment pool if available
+        // Pool assignment is deferred to allow product configuration to determine the correct pool.
+        // Use assignToPool() after account creation to link to the appropriate pool.
+        log.info("Pool assignment deferred for account {} - use assignToPool() to link to investment pool", mudarabahAccount.getContractReference());
 
         // 7. Post initial deposit if > 0
         if (request.getInitialDeposit() != null && request.getInitialDeposit().compareTo(BigDecimal.ZERO) > 0) {

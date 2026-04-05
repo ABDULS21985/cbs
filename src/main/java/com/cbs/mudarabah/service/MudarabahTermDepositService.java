@@ -77,7 +77,9 @@ public class MudarabahTermDepositService {
     private static final String MUDARABAH_INVESTMENT_GL = "3100-MDR-001";
     private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";
     private static final String BANK_MUDARIB_INCOME_GL = "4200-MDR-001";
-    // Removed AtomicLong TD_SEQ - using UUID-based generation for cluster safety
+
+    @org.springframework.beans.factory.annotation.Value("${mudarabah.default-indicative-rate:0.05}")
+    private BigDecimal defaultIndicativeRate;
 
     public MudarabahTermDepositResponse createTermDeposit(CreateMudarabahTermDepositRequest request) {
         // Idempotency check: if an external reference is provided, check for duplicate
@@ -640,8 +642,8 @@ public class MudarabahTermDepositService {
     }
 
     private BigDecimal calculateEstimatedMaturity(BigDecimal principalAmount, int tenorDays, Long poolId) {
-        // Try to use the pool's actual indicative rate instead of a hardcoded value
-        BigDecimal indicativeRate = new BigDecimal("0.05"); // fallback 5% indicative annual rate
+        // Fix #16: Resolve indicative rate from pool, then system parameter, then configurable default
+        BigDecimal indicativeRate = null;
         if (poolId != null) {
             try {
                 var poolOpt = investmentPoolRepository.findById(poolId);
@@ -650,8 +652,11 @@ public class MudarabahTermDepositService {
                             .divide(new BigDecimal("100"), 6, RoundingMode.HALF_UP);
                 }
             } catch (Exception e) {
-                log.warn("Could not retrieve pool indicative rate for pool {}, using default", poolId);
+                log.warn("Could not retrieve pool indicative rate for pool {}", poolId);
             }
+        }
+        if (indicativeRate == null) {
+            indicativeRate = defaultIndicativeRate;
         }
         BigDecimal estimatedProfit = principalAmount
                 .multiply(indicativeRate)

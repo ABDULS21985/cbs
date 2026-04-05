@@ -320,16 +320,44 @@ public class QardHasanService {
             throw new BusinessException("Repayment is only available for lending Qard accounts",
                     "INVALID_QARD_OPERATION");
         }
+        if (qardAccount.getQardStatus() == QardDomainEnums.QardStatus.WRITTEN_OFF) {
+            throw new BusinessException("Cannot process repayment on a written-off Qard loan",
+                    "QARD_WRITTEN_OFF");
+        }
+        if (qardAccount.getQardStatus() == QardDomainEnums.QardStatus.FULLY_REPAID) {
+            throw new BusinessException("Qard loan is already fully repaid",
+                    "QARD_FULLY_REPAID");
+        }
+        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Repayment amount must be positive", "INVALID_AMOUNT");
+        }
         if (request.getAmount().compareTo(defaultAmount(qardAccount.getOutstandingPrincipal())) > 0) {
-            throw new BusinessException("Qard repayments cannot exceed the outstanding principal",
-                    "REPAYMENT_EXCEEDS_OUTSTANDING");
+            throw new BusinessException("Qard repayments cannot exceed the outstanding principal. Outstanding: "
+                    + qardAccount.getOutstandingPrincipal(), "REPAYMENT_EXCEEDS_OUTSTANDING");
+        }
+
+        // Idempotency guard: prevent duplicate repayments with the same external reference
+        if (StringUtils.hasText(request.getExternalRef())) {
+            List<QardRepaymentSchedule> scheduleRows = qardRepaymentScheduleRepository
+                    .findByQardAccountIdOrderByInstallmentNumberAsc(qardAccount.getId());
+            boolean duplicateRef = scheduleRows.stream()
+                    .anyMatch(row -> request.getExternalRef().equals(row.getTransactionRef()));
+            if (duplicateRef) {
+                throw new BusinessException("Duplicate repayment: externalRef " + request.getExternalRef()
+                        + " has already been applied to this Qard loan", "DUPLICATE_REPAYMENT");
+            }
         }
 
         TransactionJournal journal;
+        String narration = StringUtils.hasText(request.getNarration())
+                ? request.getNarration() : "Qard Hasan repayment";
+
         if (request.getSourceAccountId() != null) {
+            // Account transfer repayment: DR source account, CR Qard receivable GL
             Account sourceAccount = accountRepository.findById(request.getSourceAccountId())
                     .orElseThrow(() -> new ResourceNotFoundException("Account", "id", request.getSourceAccountId()));
-            // Validate source account ownership - must belong to the borrower
+
+            // Validate source account ownership — must belong to the borrower
             Long borrowerCustomerId = qardAccount.getAccount().getCustomer() != null
                     ? qardAccount.getAccount().getCustomer().getId() : null;
             Long sourceCustomerId = sourceAccount.getCustomer() != null
@@ -339,11 +367,19 @@ public class QardHasanService {
                         "Source account must belong to the Qard borrower or be an authorized repayment account",
                         "UNAUTHORIZED_REPAYMENT_SOURCE");
             }
+
+            // Validate source account has sufficient balance
+            if (sourceAccount.getBookBalance().compareTo(request.getAmount()) < 0) {
+                throw new BusinessException("Insufficient balance in source account. Available: "
+                        + sourceAccount.getBookBalance(), "INSUFFICIENT_SOURCE_BALANCE");
+            }
+
+            // Single balanced GL entry: DR source account, CR Qard receivable
             journal = accountPostingService.postDebitAgainstGl(
                     sourceAccount,
                     TransactionType.DEBIT,
                     request.getAmount(),
-                    StringUtils.hasText(request.getNarration()) ? request.getNarration() : "Qard Hasan repayment",
+                    narration,
                     TransactionChannel.SYSTEM,
                     request.getExternalRef(),
                     List.of(accountPostingService.balanceLeg(
@@ -354,20 +390,26 @@ public class QardHasanService {
                             BigDecimal.ONE,
                             "Qard Hasan receivable reduction",
                             qardAccount.getAccount().getId(),
-                            qardAccount.getAccount().getCustomer() != null ? qardAccount.getAccount().getCustomer().getId() : null
+                            borrowerCustomerId
                     )),
                     "QARD",
                     qardAccount.getContractReference()
             );
+            // postDebitAgainstGl handles the source account balance update internally.
+            // The Qard receivable GL is credited via the balanceLeg above.
+            // We must also reduce the Qard loan account's book balance to keep it in sync
+            // with outstandingPrincipal (updated in applyRepaymentToSchedule).
+            // This is NOT double-counting: the GL credit above hits the receivable GL code,
+            // while this updates the subsidiary account balance for reconciliation.
             qardAccount.getAccount().debit(request.getAmount());
             accountRepository.save(qardAccount.getAccount());
         } else {
-            // Cash repayment: credit Qard receivable (reduce loan), debit CASH (receive cash)
+            // Cash repayment: CR Qard receivable (reduce loan balance), DR Cash GL (receive cash)
             journal = accountPostingService.postCreditAgainstGl(
                     qardAccount.getAccount(),
                     TransactionType.CREDIT,
                     request.getAmount(),
-                    StringUtils.hasText(request.getNarration()) ? request.getNarration() : "Qard Hasan cash repayment",
+                    narration,
                     TransactionChannel.BRANCH,
                     request.getExternalRef(),
                     List.of(accountPostingService.balanceLeg(

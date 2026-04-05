@@ -153,7 +153,10 @@ public class DomesticPaymentService {
     public IslamicPaymentResponses.AchBatchResult submitAchBatch(String countryCode, LocalDate valueDate) {
         log.info("Submitting ACH batch for country={} valueDate={}", countryCode, valueDate);
 
-        DomesticPaymentConfig config = configRepository.findByCountryCodeIgnoreCase(countryCode)
+        DomesticPaymentConfig config = configRepository.findByCountryCodeIgnoreCaseOrderByRailNameAsc(countryCode).stream()
+            .filter(candidate -> candidate.getRailType() == IslamicPaymentDomainEnums.RailType.ACH)
+            .findFirst()
+            .or(() -> configRepository.findByCountryCodeIgnoreCaseOrderByRailNameAsc(countryCode).stream().findFirst())
                 .orElseThrow(() -> new BusinessException(
                         "No domestic payment config found for country: " + countryCode, "ACH_CONFIG_NOT_FOUND"));
         if (!config.isActive()) {

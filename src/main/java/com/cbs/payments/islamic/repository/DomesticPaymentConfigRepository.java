@@ -13,6 +13,19 @@ public interface DomesticPaymentConfigRepository extends JpaRepository<DomesticP
 
     Optional<DomesticPaymentConfig> findByCountryCodeAndRailName(String countryCode, String railName);
 
+    List<DomesticPaymentConfig> findByCountryCodeIgnoreCaseOrderByRailNameAsc(String countryCode);
+
+    default Optional<DomesticPaymentConfig> findByCountryCodeIgnoreCase(String countryCode) {
+        if (countryCode == null) {
+            return Optional.empty();
+        }
+        List<DomesticPaymentConfig> configs = findByCountryCodeIgnoreCaseOrderByRailNameAsc(countryCode);
+        return configs.stream()
+                .filter(config -> config.getRailType() == IslamicPaymentDomainEnums.RailType.ACH)
+                .findFirst()
+                .or(() -> configs.stream().findFirst());
+    }
+
     List<DomesticPaymentConfig> findByCountryCodeAndActiveTrueOrderByRailNameAsc(String countryCode);
 
     Optional<DomesticPaymentConfig> findByCountryCodeAndRailTypeAndActiveTrue(

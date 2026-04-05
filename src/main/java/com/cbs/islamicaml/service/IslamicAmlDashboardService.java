@@ -42,7 +42,7 @@ public class IslamicAmlDashboardService {
         IslamicAmlDashboard.TawarruqMonitoring tawarruqMonitoring = buildTawarruqMonitoring(from, to);
         IslamicAmlDashboard.SanctionsWidget sanctionsWidget = buildSanctionsWidget(from, to);
         IslamicAmlDashboard.SarWidget sarWidget = buildSarWidget(from, to);
-        IslamicAmlDashboard.CombinedScreeningWidget combinedScreeningWidget = buildCombinedScreeningWidget();
+        IslamicAmlDashboard.CombinedScreeningWidget combinedScreeningWidget = buildCombinedScreeningWidget(from, to);
         IslamicAmlDashboard.PoolMonitoringWidget poolMonitoringWidget = buildPoolMonitoringWidget(from, to);
         List<IslamicAmlDashboard.MonthlyTrend> monthlyTrends = buildMonthlyTrends(from, to);
 
@@ -194,8 +194,14 @@ public class IslamicAmlDashboardService {
 
     // ===================== COMBINED SCREENING WIDGET =====================
 
-    private IslamicAmlDashboard.CombinedScreeningWidget buildCombinedScreeningWidget() {
+    private IslamicAmlDashboard.CombinedScreeningWidget buildCombinedScreeningWidget(LocalDate from, LocalDate to) {
+        Instant fromInstant = toInstantStart(from);
+        Instant toInstant = toInstantEnd(to);
+
         // Derive stats from both sanctions and Shariah screening data
+        // Note: sanctions/shariah screening repositories use global counts here because
+        // date-filtered combined counts are not yet available on those repositories.
+        // The dualBlocked count is date-filtered via the combined screening audit log.
         long sanctionsTotal = screeningResultRepository.count();
         long shariahTotal = shariahScreeningResultRepository.count();
         long totalScreenings = sanctionsTotal + shariahTotal;
@@ -207,8 +213,11 @@ public class IslamicAmlDashboardService {
         long shariahClear = shariahScreeningResultRepository.countByOverallResult(ScreeningOverallResult.PASS);
         long clearCount = sanctionsClear + shariahClear;
 
-        // Dual blocked: query persisted combined screening audit logs for DUAL_BLOCKED outcomes
-        long dualBlocked = combinedScreeningAuditLogRepository.countByOutcome(CombinedScreeningOutcome.DUAL_BLOCKED);
+        // Dual blocked: count customers appearing in both Shariah FAIL and Sanctions MATCH within date range
+        long dualBlocked = combinedScreeningAuditLogRepository.countByOutcomeAndCreatedAtBetween(
+                CombinedScreeningOutcome.DUAL_BLOCKED, fromInstant, toInstant);
+        log.debug("Combined screening widget: dualBlocked={} for period {} to {} (sanctions/shariah counts are global; "
+                + "consider adding date-filtered queries to screening repositories)", dualBlocked, from, to);
 
         return IslamicAmlDashboard.CombinedScreeningWidget.builder()
                 .totalCombinedScreenings(totalScreenings)

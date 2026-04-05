@@ -65,16 +65,20 @@ public class IjarahGLService {
                 }
             });
 
-    private boolean isAccrualAlreadyPosted(String accrualRef) {
-        if (postedAccrualsCache.containsKey(accrualRef)) return true;
-        boolean existsInDb = generalLedgerService.journalExistsByReference(accrualRef);
-        if (existsInDb) postedAccrualsCache.put(accrualRef, true);
-        return existsInDb;
-    }
+        private boolean isAccrualAlreadyPosted(String accrualRef) {
+                if (postedAccrualsCache.containsKey(accrualRef)) {
+                        return true;
+                }
+                boolean existsInDb = journalEntryRepository.existsBySourceRef(accrualRef);
+                if (existsInDb) {
+                        postedAccrualsCache.put(accrualRef, true);
+                }
+                return existsInDb;
+        }
 
-    private void markAccrualPosted(String accrualRef) {
-        postedAccrualsCache.put(accrualRef, true);
-    }
+        private void markAccrualPosted(String accrualRef) {
+                postedAccrualsCache.put(accrualRef, true);
+        }
 
     public void postMonthlyDepreciation(Long assetId) {
         assetService.processMonthlyDepreciation(assetId);
@@ -89,16 +93,8 @@ public class IjarahGLService {
 
         // Double-accrual prevention: check if accrual already posted for this contract and period
         String accrualKey = contract.getContractRef() + "-ACCR-" + periodTo;
-        if (postedAccruals.putIfAbsent(accrualKey, Boolean.TRUE) != null) {
+                if (isAccrualAlreadyPosted(accrualKey)) {
             log.warn("Accrual already posted for contract {} period ending {}, skipping", contract.getContractRef(), periodTo);
-            return;
-        }
-        // Also check if a journal entry with this reference already exists
-        boolean alreadyPosted = journalEntryRepository.findByPostingDateBetweenOrderByPostingDateDesc(periodFrom, periodTo,
-                        org.springframework.data.domain.Pageable.unpaged()).stream()
-                .anyMatch(journal -> accrualKey.equals(journal.getSourceRef()));
-        if (alreadyPosted) {
-            log.warn("Accrual journal already exists for contract {} period ending {}, skipping", contract.getContractRef(), periodTo);
             return;
         }
 
@@ -120,6 +116,7 @@ public class IjarahGLService {
                 .valueDate(periodTo)
                 .additionalContext(Map.of("customerAccountGlCode", customerAccountGlCode))
                 .build());
+        markAccrualPosted(accrualKey);
     }
 
     public void recogniseRentalIncomeBatch(LocalDate periodFrom, LocalDate periodTo) {

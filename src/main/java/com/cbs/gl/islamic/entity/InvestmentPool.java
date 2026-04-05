@@ -121,6 +121,46 @@ public class InvestmentPool {
     @Column(name = "indicative_rate", precision = 8, scale = 4)
     private BigDecimal indicativeRate;
 
+    /** Primary contract type for this pool. Used for Shariah-correct loss allocation rules. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "primary_contract_type", length = 30)
+    private PoolContractType primaryContractType;
+
+    /**
+     * Contract types that can be assigned to an investment pool.
+     * Determines loss-sharing rules: MUSHARAKAH losses are proportional to capital,
+     * MUDARABAH losses are 100% borne by the capital provider (depositor).
+     */
+    public enum PoolContractType {
+        MUDARABAH,
+        MUSHARAKAH,
+        WAKALAH,
+        IJARAH,
+        MURABAHA,
+        SALAM,
+        ISTISNA,
+        SUKUK,
+        QARD,
+        WADIAH,
+        TAKAFUL,
+        MIXED
+    }
+
+    /** Maximum PER retention as a percentage of the depositor pool (default 50%). SSB-configurable per pool. */
+    @Column(name = "max_per_retention_pct", precision = 8, scale = 4)
+    @Builder.Default
+    private BigDecimal maxPerRetentionPct = new BigDecimal("50.0000");
+
+    /** Maximum IRR retention as a percentage of the post-PER pool (default 25%). SSB-configurable per pool. */
+    @Column(name = "max_irr_retention_pct", precision = 8, scale = 4)
+    @Builder.Default
+    private BigDecimal maxIrrRetentionPct = new BigDecimal("25.0000");
+
+    /** Maximum total reserves (PER + IRR) as a percentage of the depositor pool (default 75%). SSB-configurable. */
+    @Column(name = "max_total_reserve_pct", precision = 8, scale = 4)
+    @Builder.Default
+    private BigDecimal maxTotalReservePct = new BigDecimal("75.0000");
+
     @Column(name = "tenant_id")
     private Long tenantId;
 

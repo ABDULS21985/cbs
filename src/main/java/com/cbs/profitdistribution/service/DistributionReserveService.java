@@ -4,6 +4,7 @@ import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.gl.islamic.dto.IrrReleaseResult;
 import com.cbs.gl.islamic.dto.IrrRetentionResult;
 import com.cbs.gl.islamic.dto.PerCalculationResult;
+import com.cbs.gl.islamic.entity.InvestmentPool;
 import com.cbs.gl.islamic.entity.IrrTransaction;
 import com.cbs.gl.islamic.entity.PerTransaction;
 import com.cbs.gl.islamic.repository.IrrTransactionRepository;
@@ -68,10 +69,16 @@ public class DistributionReserveService {
         BigDecimal balanceBefore = defaultAmount(perResult.getPerBalanceBefore());
         BigDecimal balanceAfter = balanceBefore;
 
-        // Validate PER retention doesn't exceed 50% of depositor pool (safety limit)
-        BigDecimal maxPerRetention = depositorPool.multiply(new BigDecimal("0.50"));
+        // Validate PER retention doesn't exceed pool-configured cap (SSB-configurable per pool)
+        InvestmentPool perPool = poolRepo.findById(poolId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException(
+                        "InvestmentPool", "id", poolId));
+        BigDecimal maxPerPct = perPool.getMaxPerRetentionPct();
+        BigDecimal maxPerRetention = depositorPool.multiply(maxPerPct)
+                .divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
         if (adjustment.compareTo(maxPerRetention) > 0) {
-            log.warn("PER retention {} exceeds 50% of depositor pool {}. Capping to {}", adjustment, depositorPool, maxPerRetention);
+            log.warn("PER retention {} exceeds {}% of depositor pool {}. Capping to {}",
+                    adjustment, maxPerPct, depositorPool, maxPerRetention);
             adjustment = maxPerRetention;
         }
         // Recalculate afterPer using the potentially capped adjustment amount (not from perResult which may use uncapped)
@@ -119,7 +126,7 @@ public class DistributionReserveService {
                     .effectiveRateAfter(perResult.getSmoothedProfitRate())
                     .processedAt(LocalDateTime.now())
                     .processedBy(actorProvider.getCurrentActor())
-                    .tenantId(poolRepo.findById(poolId).map(pool -> pool.getTenantId()).orElse(null))
+                    .tenantId(perPool.getTenantId())
                     .build();
             drt = reserveTransactionRepo.save(drt);
             transactionId = drt.getId();
@@ -154,6 +161,9 @@ public class DistributionReserveService {
         String txnType = "NONE";
         BigDecimal balanceBefore = irrService.getIrrBalance(poolId);
         BigDecimal balanceAfter = balanceBefore;
+        InvestmentPool irrPool = poolRepo.findById(poolId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException(
+                        "InvestmentPool", "id", poolId));
 
         if (!isLoss && depositorPoolAfterPer.compareTo(ZERO) > 0) {
             // Profit scenario: retain a portion into IRR
@@ -161,10 +171,13 @@ public class DistributionReserveService {
                     poolId, depositorPoolAfterPer, periodFrom, periodTo);
             adjustment = defaultAmount(result.getAdjustmentAmount());
 
-            // Validate IRR retention doesn't exceed remaining distributable amount
-            BigDecimal maxIrrRetention = depositorPoolAfterPer.multiply(new BigDecimal("0.25")); // Max 25% of post-PER pool
+            // Validate IRR retention doesn't exceed pool-configured cap (SSB-configurable per pool)
+            BigDecimal maxIrrPct = irrPool.getMaxIrrRetentionPct();
+            BigDecimal maxIrrRetention = depositorPoolAfterPer.multiply(maxIrrPct)
+                    .divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
             if (adjustment.compareTo(maxIrrRetention) > 0) {
-                log.warn("IRR retention {} exceeds 25% of post-PER pool {}. Capping to {}", adjustment, depositorPoolAfterPer, maxIrrRetention);
+                log.warn("IRR retention {} exceeds {}% of post-PER pool {}. Capping to {}",
+                        adjustment, maxIrrPct, depositorPoolAfterPer, maxIrrRetention);
                 adjustment = maxIrrRetention;
             }
 
@@ -221,7 +234,7 @@ public class DistributionReserveService {
                     .amountAfterReserve(afterIrr)
                     .processedAt(LocalDateTime.now())
                     .processedBy(actorProvider.getCurrentActor())
-                    .tenantId(poolRepo.findById(poolId).map(pool -> pool.getTenantId()).orElse(null))
+                    .tenantId(irrPool.getTenantId())
                     .build();
             drt = reserveTransactionRepo.save(drt);
             transactionId = drt.getId();
@@ -258,22 +271,28 @@ public class DistributionReserveService {
                 poolId, perResult.getAmountAfterReserve(), isLoss,
                 periodFrom, periodTo, distributionRunId);
 
-        // Enforce total reserves don't consume more than 75% of depositor pool
+        // Enforce total reserves don't consume more than pool-configured cap (SSB-configurable per pool)
         BigDecimal totalReserved = depositorPool.subtract(irrResult.getAmountAfterReserve());
-        BigDecimal maxTotalReserve = depositorPool.multiply(new BigDecimal("0.75"));
+        InvestmentPool reservePool = poolRepo.findById(poolId)
+                .orElseThrow(() -> new com.cbs.common.exception.ResourceNotFoundException(
+                        "InvestmentPool", "id", poolId));
+        BigDecimal maxTotalPct = reservePool.getMaxTotalReservePct();
+        BigDecimal maxTotalReserve = depositorPool.multiply(maxTotalPct)
+                .divide(new BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP);
         if (totalReserved.compareTo(maxTotalReserve) > 0) {
-            log.error("ALERT: Total reserves ({}) exceed 75% of depositor pool ({}). Capping to 75%.", totalReserved, depositorPool);
+            log.error("ALERT: Total reserves ({}) exceed {}% cap of depositor pool ({}).",
+                    totalReserved, maxTotalPct, depositorPool);
             throw new com.cbs.common.exception.BusinessException(
                     "Total reserves (" + totalReserved.toPlainString()
-                            + ") exceed 75% of depositor pool (" + depositorPool.toPlainString()
+                            + ") exceed " + maxTotalPct.toPlainString() + "% of depositor pool ("
+                            + depositorPool.toPlainString()
                             + "). Review PER/IRR policies before proceeding.",
                     "RESERVE_CAP_EXCEEDED");
         }
 
         BigDecimal totalImpact = depositorPool.subtract(irrResult.getAmountAfterReserve());
-        String poolCurrency = poolRepo.findById(poolId)
-                .map(pool -> pool.getCurrencyCode())
-                .orElse("N/A");
+        String poolCurrency = reservePool.getCurrencyCode() != null
+                ? reservePool.getCurrencyCode() : "N/A";
         String desc = String.format("PER %s %s %s, IRR %s %s %s",
                 perResult.getTransactionType(), poolCurrency, perResult.getAdjustmentAmount(),
                 irrResult.getTransactionType(), poolCurrency, irrResult.getAdjustmentAmount());

@@ -18,18 +18,19 @@ import com.cbs.productfactory.islamic.entity.IslamicProductTemplate;
 import com.cbs.productfactory.islamic.repository.IslamicProductTemplateRepository;
 import com.cbs.tenant.service.CurrentTenantResolver;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class IslamicPaymentSupport {
 
     private final AccountRepository accountRepository;
@@ -219,7 +220,7 @@ public class IslamicPaymentSupport {
 
     public ProxyDirectoryEntry lookupProxyDirectory(IslamicPaymentDomainEnums.ProxyType proxyType, String proxyValue) {
         // Delegate to account repository for proxy-based account resolution
-        String normalized = normalize(proxyValue);
+        String normalized = normalizeProxyValue(proxyType, proxyValue);
         return switch (proxyType) {
             case MOBILE -> accountRepository.findByPhoneNumber(normalized)
                     .map(acct -> new ProxyDirectoryEntry(acct.getAccountNumber(), acct.getBranchCode()))
@@ -237,6 +238,20 @@ public class IslamicPaymentSupport {
         };
     }
 
+    private String normalizeProxyValue(IslamicPaymentDomainEnums.ProxyType proxyType, String proxyValue) {
+        if (!StringUtils.hasText(proxyValue)) {
+            return null;
+        }
+        String trimmed = proxyValue.trim();
+        return switch (proxyType) {
+            case MOBILE -> trimmed.replaceAll("[^0-9+]", "");
+            case EMAIL -> trimmed.toLowerCase(Locale.ROOT);
+            case NATIONAL_ID, CR_NUMBER, IBAN -> trimmed
+                    .replaceAll("[^A-Za-z0-9]", "")
+                    .toLowerCase(Locale.ROOT);
+        };
+    }
+
     public com.cbs.payments.islamic.dto.IslamicPaymentResponses.PaymentScreeningResult screenPayment(
             com.cbs.payments.entity.PaymentInstruction payment,
             com.cbs.payments.islamic.entity.PaymentIslamicExtension extension) {
@@ -251,7 +266,16 @@ public class IslamicPaymentSupport {
         }
     }
 
-    public record ProxyDirectoryEntry(String resolvedAccountNumber, String resolvedBankCode) {}
+    public record ProxyDirectoryEntry(String resolvedAccountNumber, String resolvedBankCode) {
+
+        public String getResolvedAccountNumber() {
+            return resolvedAccountNumber;
+        }
+
+        public String getResolvedBankCode() {
+            return resolvedBankCode;
+        }
+    }
 
     public record SourceAccountProfile(
             boolean islamic,

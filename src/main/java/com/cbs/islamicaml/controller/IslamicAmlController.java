@@ -128,6 +128,11 @@ public class IslamicAmlController {
         return ResponseEntity.ok(ApiResponse.ok(monitoringService.getRules()));
     }
 
+    @GetMapping("/rules/{id}")
+    public ResponseEntity<ApiResponse<IslamicAmlRuleResponse>> getRule(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(monitoringService.getRule(id)));
+    }
+
     @PostMapping("/rules")
     public ResponseEntity<ApiResponse<IslamicAmlRuleResponse>> createRule(
             @Valid @RequestBody CreateIslamicAmlRuleRequest request) {

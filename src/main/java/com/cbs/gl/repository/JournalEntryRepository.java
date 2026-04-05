@@ -25,6 +25,7 @@ public interface JournalEntryRepository extends JpaRepository<JournalEntry, Long
     Page<JournalEntry> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
     @EntityGraph(attributePaths = "lines")
     Page<JournalEntry> findByPostingDateBetweenOrderByPostingDateDesc(java.time.LocalDate from, java.time.LocalDate to, Pageable pageable);
+        boolean existsBySourceRef(String sourceRef);
     @Query(value = "SELECT nextval('cbs.journal_seq')", nativeQuery = true)
     Long getNextJournalSequence();
 

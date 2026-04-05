@@ -123,15 +123,15 @@ public class InstantPaymentService {
         IslamicPaymentDomainEnums.DeferredScreeningResult result;
         try {
             var screeningResult = paymentSupport.screenPayment(payment, islamicExtension);
-            boolean blocked = screeningResult != null
-                    && "BLOCK".equalsIgnoreCase(screeningResult.getRecommendedAction());
+            String recommendedAction = recommendedAction(screeningResult);
+            boolean blocked = "BLOCK".equalsIgnoreCase(recommendedAction);
             result = blocked
                     ? IslamicPaymentDomainEnums.DeferredScreeningResult.FAIL
                     : IslamicPaymentDomainEnums.DeferredScreeningResult.PASS;
 
             if (blocked) {
                 log.warn("Deferred screening FAILED for payment {} — action: {}",
-                        paymentId, screeningResult.getRecommendedAction());
+                paymentId, recommendedAction);
             }
         } catch (Exception e) {
             log.error("Deferred screening error for payment {} — failing closed: {}", paymentId, e.getMessage());
@@ -172,11 +172,11 @@ public class InstantPaymentService {
 
         // For non-IBAN proxy types, look up in the proxy directory
         var proxyEntry = paymentSupport.lookupProxyDirectory(proxyType, proxyValue);
-        if (proxyEntry != null && proxyEntry.getResolvedAccountNumber() != null) {
+        if (proxyEntry != null && proxyEntry.resolvedAccountNumber() != null) {
             return IslamicPaymentResponses.ProxyResolutionResult.builder()
                     .proxyType(proxyType).proxyValue(proxyValue)
-                    .resolvedAccountNumber(proxyEntry.getResolvedAccountNumber())
-                    .resolvedBankCode(proxyEntry.getResolvedBankCode())
+                .resolvedAccountNumber(proxyEntry.resolvedAccountNumber())
+                .resolvedBankCode(proxyEntry.resolvedBankCode())
                     .found(true)
                     .build();
         }
@@ -197,6 +197,28 @@ public class InstantPaymentService {
     @Transactional(readOnly = true)
     public List<InstantPaymentExtension> getPendingDeferredScreenings() {
         return extensionRepository.findByDeferredScreeningResult(IslamicPaymentDomainEnums.DeferredScreeningResult.PENDING);
+    }
+
+    private String recommendedAction(IslamicPaymentResponses.PaymentScreeningResult screeningResult) {
+        if (screeningResult == null) {
+            return "ALLOW";
+        }
+        if (screeningResult.getOutcome() != null) {
+            return switch (screeningResult.getOutcome()) {
+                case BLOCKED -> "BLOCK";
+                case ALLOWED_WITH_ALERT, ALLOWED_WITH_WARNING, MANUAL_OVERRIDE -> "REVIEW";
+                case ALLOWED -> "ALLOW";
+            };
+        }
+        if (screeningResult.getOverallResult() != null) {
+            return switch (screeningResult.getOverallResult()) {
+                case FAIL -> "BLOCK";
+                case ALERT, WARN -> "REVIEW";
+                case PASS -> "ALLOW";
+                case NOT_SCREENED -> "PENDING";
+            };
+        }
+        return screeningResult.getBlockReason() != null ? "BLOCK" : "ALLOW";
     }
 
     @Transactional(readOnly = true)

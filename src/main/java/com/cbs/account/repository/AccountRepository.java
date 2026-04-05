@@ -2,7 +2,6 @@ package com.cbs.account.repository;
 
 import com.cbs.account.entity.Account;
 import com.cbs.account.entity.AccountStatus;
-import com.cbs.account.entity.AccountType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,6 +19,63 @@ import java.util.Optional;
 public interface AccountRepository extends JpaRepository<Account, Long>, JpaSpecificationExecutor<Account> {
 
     Optional<Account> findByAccountNumber(String accountNumber);
+
+        @Query("""
+                        SELECT a FROM Account a
+                        JOIN a.customer c
+                        WHERE a.status <> 'CLOSED'
+                        AND (
+                                function('regexp_replace', LOWER(COALESCE(c.phonePrimary, '')), '[^0-9+]', '', 'g') = LOWER(:phoneNumber)
+                                OR function('regexp_replace', LOWER(COALESCE(c.phoneSecondary, '')), '[^0-9+]', '', 'g') = LOWER(:phoneNumber)
+                        )
+                        ORDER BY a.id ASC
+                        """)
+        List<Account> findCandidatesByPhoneNumber(@Param("phoneNumber") String phoneNumber);
+
+        default Optional<Account> findByPhoneNumber(String phoneNumber) {
+                return findCandidatesByPhoneNumber(phoneNumber).stream().findFirst();
+        }
+
+        @Query("""
+                        SELECT a FROM Account a
+                        JOIN a.customer c
+                        WHERE a.status <> 'CLOSED'
+                        AND LOWER(COALESCE(c.email, '')) = LOWER(:email)
+                        ORDER BY a.id ASC
+                        """)
+        List<Account> findCandidatesByEmail(@Param("email") String email);
+
+        default Optional<Account> findByEmail(String email) {
+                return findCandidatesByEmail(email).stream().findFirst();
+        }
+
+        @Query("""
+                        SELECT DISTINCT a FROM Account a
+                        JOIN a.customer c
+                        JOIN c.identifications identification
+                        WHERE a.status <> 'CLOSED'
+                        AND function('regexp_replace', LOWER(COALESCE(identification.idNumber, '')), '[^a-z0-9]', '', 'g') = LOWER(:nationalId)
+                        AND UPPER(COALESCE(identification.idType, '')) IN ('NATIONAL_ID', 'NATIONALID', 'NIN', 'NATIONAL')
+                        ORDER BY a.id ASC
+                        """)
+        List<Account> findCandidatesByNationalId(@Param("nationalId") String nationalId);
+
+        default Optional<Account> findByNationalId(String nationalId) {
+                return findCandidatesByNationalId(nationalId).stream().findFirst();
+        }
+
+        @Query("""
+                        SELECT a FROM Account a
+                        JOIN a.customer c
+                        WHERE a.status <> 'CLOSED'
+                        AND function('regexp_replace', LOWER(COALESCE(c.registrationNumber, '')), '[^a-z0-9]', '', 'g') = LOWER(:crNumber)
+                        ORDER BY a.id ASC
+                        """)
+        List<Account> findCandidatesByCrNumber(@Param("crNumber") String crNumber);
+
+        default Optional<Account> findByCrNumber(String crNumber) {
+                return findCandidatesByCrNumber(crNumber).stream().findFirst();
+        }
 
     boolean existsByAccountNumber(String accountNumber);
 

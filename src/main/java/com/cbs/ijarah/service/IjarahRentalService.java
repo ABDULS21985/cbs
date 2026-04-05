@@ -58,17 +58,6 @@ public class IjarahRentalService {
                 }
             });
 
-    private boolean isRefAlreadyProcessed(String externalRef) {
-        if (PROCESSED_REFS_CACHE.containsKey(externalRef)) return true;
-        boolean existsInDb = installmentRepository.existsByExternalRef(externalRef);
-        if (existsInDb) PROCESSED_REFS_CACHE.put(externalRef, true);
-        return existsInDb;
-    }
-
-    private void markRefProcessed(String externalRef) {
-        PROCESSED_REFS_CACHE.put(externalRef, true);
-    }
-
     public List<IjarahRentalInstallment> generateRentalSchedule(Long contractId) {
         IjarahContract contract = getContract(contractId);
         if (contract.getLeaseStartDate() == null) {
@@ -172,7 +161,7 @@ public class IjarahRentalService {
         if (request.getExternalRef() != null) {
             boolean alreadyUsed = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId).stream()
                     .anyMatch(inst -> request.getExternalRef().equals(inst.getTransactionRef()));
-            if (alreadyUsed || PROCESSED_REFS.putIfAbsent(request.getExternalRef(), Boolean.TRUE) != null) {
+            if (alreadyUsed || PROCESSED_REFS_CACHE.putIfAbsent(request.getExternalRef(), Boolean.TRUE) != null) {
                 throw new BusinessException("Duplicate payment detected for externalRef: " + request.getExternalRef(), "DUPLICATE_PAYMENT");
             }
         }

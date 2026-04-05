@@ -54,6 +54,25 @@ public final class IslamicPaymentResponses {
         private Long alertId;
         private String alertDescription;
         private IslamicPaymentDomainEnums.PaymentScreeningResult overallResult;
+
+        public String getRecommendedAction() {
+            if (outcome != null) {
+                return switch (outcome) {
+                    case BLOCKED -> "BLOCK";
+                    case ALLOWED_WITH_ALERT, ALLOWED_WITH_WARNING, MANUAL_OVERRIDE -> "REVIEW";
+                    case ALLOWED -> "ALLOW";
+                };
+            }
+            if (overallResult != null) {
+                return switch (overallResult) {
+                    case FAIL -> "BLOCK";
+                    case ALERT, WARN -> "REVIEW";
+                    case PASS -> "ALLOW";
+                    case NOT_SCREENED -> "PENDING";
+                };
+            }
+            return blockReason != null ? "BLOCK" : "ALLOW";
+        }
     }
 
     @Getter

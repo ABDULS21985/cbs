@@ -262,7 +262,7 @@ public class PaymentShariahScreeningService {
                 .topFlaggedBeneficiaries(topFlaggedBeneficiaries)
                 .deferredScreenings(deferredCount)
                 .averageScreeningTimeMs(averageTime)
-                .falsePositiveRate(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP))
+                .falsePositiveRate(computeFalsePositiveRate(logs))
                 .build();
     }
 
@@ -523,6 +523,21 @@ public class PaymentShariahScreeningService {
             }
         }
         return new ExactOrFuzzyMatch(false, false, null);
+    }
+
+    private BigDecimal computeFalsePositiveRate(List<PaymentShariahAuditLog> logs) {
+        long blocked = logs.stream()
+                .filter(l -> "BLOCK".equalsIgnoreCase(l.getRecommendedAction()))
+                .count();
+        if (blocked == 0) return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        long overridden = logs.stream()
+                .filter(l -> "BLOCK".equalsIgnoreCase(l.getRecommendedAction()))
+                .filter(l -> Boolean.TRUE.equals(l.getOverrideApplied()))
+                .count();
+        return BigDecimal.valueOf(overridden)
+                .divide(BigDecimal.valueOf(blocked), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
     private IslamicPaymentResponses.ScreeningCheckResult buildCheck(

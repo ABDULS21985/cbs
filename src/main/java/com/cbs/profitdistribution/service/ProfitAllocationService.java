@@ -127,22 +127,11 @@ public class ProfitAllocationService {
                         .divide(HUNDRED, 4, RoundingMode.HALF_UP);
                 bankProfitShare = netShareAfterReserves.subtract(customerProfitShare);
             } else {
-                // Loss allocation: check pool type for contract-type awareness
-                // For Mudarabah: losses are 100% borne by capital provider (depositor)
-                // For Musharakah: losses are proportional to capital contribution
-                boolean isMusharakahPool = !poolAssetAssignmentRepo
-                        .findByPoolIdAndContractTypeCode(poolId, "MUSHARAKAH").isEmpty();
-                // Fallback: also check pool name and description for MUSHARAKAH indicator
-                if (!isMusharakahPool) {
-                    String poolName = pool.getName() != null ? pool.getName().toUpperCase(java.util.Locale.ROOT) : "";
-                    String poolDesc = pool.getDescription() != null ? pool.getDescription().toUpperCase(java.util.Locale.ROOT) : "";
-                    String poolCode = pool.getPoolCode() != null ? pool.getPoolCode().toUpperCase(java.util.Locale.ROOT) : "";
-                    isMusharakahPool = poolName.contains("MUSHARAKAH")
-                            || poolDesc.contains("MUSHARAKAH")
-                            || poolCode.contains("MUSHARAKAH");
-                }
+                // Loss allocation: use pool's primary contract type for Shariah-correct loss sharing
+                // For Mudarabah: losses are 100% borne by capital provider (depositor) — bank bears no loss
+                // For Musharakah: losses are proportional to capital contribution ratio
+                boolean isMusharakahPool = resolveIsMusharakahPool(pool, poolId);
                 if (isMusharakahPool) {
-                    // Musharakah: loss shared proportionally based on bank share percentage
                     BigDecimal bankShareRatio = pool.getProfitSharingRatioBank() != null
                             ? pool.getProfitSharingRatioBank().divide(HUNDRED, 4, RoundingMode.HALF_UP)
                             : ZERO;
@@ -151,7 +140,6 @@ public class ProfitAllocationService {
                     log.info("Musharakah loss allocation: customer={}, bank={} (ratio={})",
                             customerProfitShare, bankProfitShare, bankShareRatio);
                 } else {
-                    // Mudarabah: 100% loss to capital provider (depositor), bank bears no loss
                     customerProfitShare = netShareAfterReserves;
                     bankProfitShare = ZERO;
                 }
@@ -466,6 +454,29 @@ public class ProfitAllocationService {
                 .distributedAt(allocation.getDistributedAt())
                 .journalRef(allocation.getJournalRef())
                 .build();
+    }
+
+    /**
+     * Determines whether a pool uses Musharakah loss-sharing rules.
+     * Uses a 2-tier resolution: (1) formal primaryContractType enum on the pool entity,
+     * (2) asset assignment contract types as fallback when enum is not set.
+     */
+    private boolean resolveIsMusharakahPool(InvestmentPool pool, Long poolId) {
+        // Tier 1: Use the formal primaryContractType enum (authoritative, SSB-configured)
+        if (pool.getPrimaryContractType() != null) {
+            return pool.getPrimaryContractType() == InvestmentPool.PoolContractType.MUSHARAKAH;
+        }
+
+        // Tier 2: Fallback — check if pool has any Musharakah asset assignments (data-driven)
+        boolean hasMusharakahAssets = !poolAssetAssignmentRepo
+                .findByPoolIdAndContractTypeCode(poolId, "MUSHARAKAH").isEmpty();
+        if (hasMusharakahAssets) {
+            log.warn("Pool {} has no primaryContractType set but contains MUSHARAKAH assets. "
+                    + "Set primaryContractType on the pool entity for explicit Shariah-correct loss allocation.", poolId);
+            return true;
+        }
+
+        return false;
     }
 
     private BigDecimal defaultAmount(BigDecimal value) {
