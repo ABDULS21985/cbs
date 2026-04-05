@@ -280,7 +280,10 @@ public class MurabahaContractService {
 
     @Transactional(readOnly = true)
     public MurabahaPortfolioSummary getPortfolioSummary() {
-        List<MurabahaContract> contracts = contractRepository.findAll();
+        List<MurabahaContract> contracts = new java.util.ArrayList<>();
+        for (MurabahaDomainEnums.ContractStatus status : MurabahaDomainEnums.ContractStatus.values()) {
+            contracts.addAll(contractRepository.findByStatus(status));
+        }
         BigDecimal totalOutstanding = contracts.stream()
                 .filter(contract -> contract.getStatus() == MurabahaDomainEnums.ContractStatus.ACTIVE
                         || contract.getStatus() == MurabahaDomainEnums.ContractStatus.EXECUTED

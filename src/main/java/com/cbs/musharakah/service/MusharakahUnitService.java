@@ -198,10 +198,13 @@ public class MusharakahUnitService {
     }
 
     public void processScheduledTransfers(LocalDate asOfDate) {
-        unitTransferRepository.findByStatusInAndTransferDateBefore(
+        List<MusharakahUnitTransfer> overdueTransfers = unitTransferRepository.findByStatusInAndTransferDateBefore(
                         List.of(MusharakahDomainEnums.InstallmentStatus.SCHEDULED, MusharakahDomainEnums.InstallmentStatus.DUE),
-                        asOfDate.plusDays(1))
-                .forEach(transfer -> transfer.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE));
+                        asOfDate.plusDays(1));
+        overdueTransfers.forEach(transfer -> transfer.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE));
+        if (!overdueTransfers.isEmpty()) {
+            unitTransferRepository.saveAll(overdueTransfers);
+        }
     }
 
     public void updateUnitFairValue(Long contractId, BigDecimal currentMarketValue, String appraiser) {

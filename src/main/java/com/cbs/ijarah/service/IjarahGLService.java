@@ -29,6 +29,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional
 public class IjarahGLService {
 
@@ -38,6 +39,7 @@ public class IjarahGLService {
     private final IjarahAssetMaintenanceRecordRepository maintenanceRecordRepository;
     private final IjarahAssetService assetService;
     private final IslamicPostingRuleService postingRuleService;
+    private final JournalEntryRepository journalEntryRepository;
 
     public void postMonthlyDepreciation(Long assetId) {
         assetService.processMonthlyDepreciation(assetId);

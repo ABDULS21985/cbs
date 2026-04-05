@@ -648,6 +648,11 @@ public class ProfitDistributionRunService {
             return null;
         }
 
+        String profitDistributionGl = islamicGLMetadataService.resolveAccountByCategory(
+                com.cbs.gl.entity.IslamicAccountCategory.DEPOSITOR_PROFIT_DISTRIBUTION, run.getCurrencyCode());
+        String bankMudaribIncomeGl = islamicGLMetadataService.resolveAccountByCategory(
+                com.cbs.gl.entity.IslamicAccountCategory.MUDARABAH_INCOME, run.getCurrencyCode());
+
         JournalEntry journal = generalLedgerService.postJournal(
                 "SYSTEM",
                 "Bank mudarib share for " + run.getRunRef(),
@@ -657,7 +662,7 @@ public class ProfitDistributionRunService {
                 actorProvider.getCurrentActor(),
                 List.of(
                         new GeneralLedgerService.JournalLineRequest(
-                                PROFIT_DISTRIBUTION_GL,
+                                profitDistributionGl,
                                 bankShare,
                                 ZERO,
                                 run.getCurrencyCode(),
@@ -669,7 +674,7 @@ public class ProfitDistributionRunService {
                                 null
                         ),
                         new GeneralLedgerService.JournalLineRequest(
-                                BANK_MUDARIB_INCOME_GL,
+                                bankMudaribIncomeGl,
                                 ZERO,
                                 bankShare,
                                 run.getCurrencyCode(),

@@ -147,6 +147,10 @@ public class MurabahaContract extends AuditableEntity {
     @Column(name = "profit_recognition_method", nullable = false, length = 40)
     private MurabahaDomainEnums.ProfitRecognitionMethod profitRecognitionMethod;
 
+    @Column(name = "profit_recognition_suspended", nullable = false)
+    @lombok.Builder.Default
+    private Boolean profitRecognitionSuspended = false;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "ownership_sequence", columnDefinition = "jsonb")
     @lombok.Builder.Default

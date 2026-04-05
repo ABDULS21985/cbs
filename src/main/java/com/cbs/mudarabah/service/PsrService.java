@@ -176,6 +176,10 @@ public class PsrService {
         if (cr.getStatus() != PsrChangeStatus.CONSENT_GIVEN) {
             throw new BusinessException("Change request must have customer consent before approval", "CONSENT_REQUIRED");
         }
+        // Maker-checker: approver must differ from initiator
+        if (approvedBy != null && approvedBy.equals(cr.getInitiatedBy())) {
+            throw new BusinessException("Approver must be different from the initiator (maker-checker principle)", "MAKER_CHECKER_VIOLATION");
+        }
         cr.setStatus(PsrChangeStatus.APPROVED);
         cr.setApprovedBy(approvedBy);
         cr.setApprovedAt(LocalDateTime.now());
