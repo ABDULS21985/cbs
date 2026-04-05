@@ -71,7 +71,7 @@ public class IjarahContract extends AuditableEntity {
     @Column(name = "asset_serial_number", length = 120)
     private String assetSerialNumber;
 
-    @Column(name = "asset_location", length = 255)
+    @Column(name = "asset_location", columnDefinition = "TEXT")
     private String assetLocation;
 
     @Column(name = "asset_acquisition_cost", precision = 18, scale = 2)

@@ -450,7 +450,7 @@ SELECT pt.id, seed.product_code, seed.name, seed.name_ar, seed.description, seed
        'ACTIVE', CURRENT_DATE, 1, seed.min_amount, seed.max_amount, seed.min_tenor, seed.max_tenor,
        '["SAR"]'::jsonb, seed.customer_types::jsonb, seed.eligible_segments::jsonb,
        '1400-IJR-001', '1620-IJR-001', '5100-IJR-001', '2300-000-001', NULL, 'SYSTEM', 'SYSTEM'
-FROM product pt
+FROM product_template pt
 JOIN islamic_contract_types ict ON LOWER(ict.code) = 'ijarah' AND ict.tenant_id IS NULL
 JOIN (
     VALUES
@@ -458,7 +458,7 @@ JOIN (
         ('IJR-PROP-SAR-001', 'Property Ijarah IMB Financing', 'إجارة العقار مع التمليك', 'Islamic property Ijarah Muntahia Bittamleek financing', 'تمويل إجارة منتهية بالتمليك للعقار', 'PROPERTY_LEASE', TRUE, 'ANNUAL', 200000::numeric, 5000000::numeric, 60, 300, '["INDIVIDUAL","CORPORATE","SME"]', '["AFFLUENT","HNW","CORPORATE"]'),
         ('IJR-EQUIP-SAR-001', 'Equipment Ijarah Financing', 'إجارة المعدات', 'Islamic equipment Ijarah financing', 'تمويل إجارة للمعدات', 'EQUIPMENT_LEASE', FALSE, 'NONE', 50000::numeric, 10000000::numeric, 12, 84, '["SME","CORPORATE"]', '["SME","CORPORATE"]')
  ) AS seed(product_code, name, name_ar, description, description_ar, sub_category, asset_transfer_on_completion, rental_review_frequency, min_amount, max_amount, min_tenor, max_tenor, customer_types, eligible_segments)
-    ON pt.code = seed.product_code
+    ON pt.template_code = seed.product_code
 WHERE NOT EXISTS (
     SELECT 1 FROM islamic_product_templates ipt WHERE LOWER(ipt.product_code) = LOWER(seed.product_code)
 );

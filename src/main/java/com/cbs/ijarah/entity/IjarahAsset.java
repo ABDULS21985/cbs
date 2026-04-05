@@ -67,7 +67,7 @@ public class IjarahAsset extends AuditableEntity {
     @Column(name = "supplier_name", length = 255)
     private String supplierName;
 
-    @Column(name = "supplier_invoice_ref", length = 100)
+    @Column(name = "supplier_invoice_ref", length = 120)
     private String supplierInvoiceRef;
 
     @Column(name = "currency_code", nullable = false, length = 3)
@@ -79,7 +79,7 @@ public class IjarahAsset extends AuditableEntity {
     @Column(name = "registration_number", length = 120)
     private String registrationNumber;
 
-    @Column(name = "registration_authority", length = 120)
+    @Column(name = "registration_authority", length = 200)
     private String registrationAuthority;
 
     @Column(name = "registration_date")
@@ -189,7 +189,7 @@ public class IjarahAsset extends AuditableEntity {
     @Column(name = "valuation_method", length = 120)
     private String valuationMethod;
 
-    @Column(name = "appraiser_name", length = 120)
+    @Column(name = "appraiser_name", length = 200)
     private String appraiserName;
 
     @Column(name = "tenant_id")
