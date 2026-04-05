@@ -74,14 +74,14 @@ class PaymentShariahScreeningServiceTest {
         });
         lenient().when(shariahScreeningService.preScreenTransaction(any())).thenReturn(basePassResult());
         lenient().when(shariahScreeningService.screenTransaction(any())).thenReturn(basePassResult());
-        lenient().when(exclusionListEntryRepository.existsByListIdAndEntryValueAndStatus(anyLong(), anyString(), eq("ACTIVE")))
-                .thenReturn(false);
     }
 
     @Test
     void previewScreening_haramMcc_blocked() {
         mockList("HARAM_MCC", 1L, List.of());
-        when(exclusionListEntryRepository.existsByListIdAndEntryValueAndStatus(1L, "5813", "ACTIVE")).thenReturn(true);
+        when(exclusionListEntryRepository.existsByListIdAndEntryValueAndStatus(anyLong(), anyString(), eq("ACTIVE")))
+                .thenAnswer(invocation -> Long.valueOf(1L).equals(invocation.getArgument(0, Long.class))
+                        && "5813".equals(invocation.getArgument(1, String.class)));
 
         IslamicPaymentResponses.PaymentScreeningResult result = service.previewScreening(
                 requestWith("5813", "Clean Supplier", "Supplier settlement"),
@@ -153,14 +153,14 @@ class PaymentShariahScreeningServiceTest {
     }
 
     private void mockList(String listCode, Long listId, List<ShariahExclusionListEntry> entries) {
-        when(exclusionListRepository.findByListCode(listCode)).thenReturn(Optional.of(
+        lenient().when(exclusionListRepository.findByListCode(listCode)).thenReturn(Optional.of(
                 ShariahExclusionList.builder()
                         .id(listId)
                         .listCode(listCode)
                         .status("ACTIVE")
                         .build()
         ));
-        when(exclusionListEntryRepository.findByListIdAndStatus(listId, "ACTIVE")).thenReturn(entries);
+        lenient().when(exclusionListEntryRepository.findByListIdAndStatus(listId, "ACTIVE")).thenReturn(entries);
     }
 
     private ShariahScreeningResultResponse basePassResult() {
