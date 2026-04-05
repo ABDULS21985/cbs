@@ -122,6 +122,15 @@ public class ShariahAuditService {
                     "AUDIT_INVALID_STATUS_FOR_FIELDWORK_COMPLETE");
         }
 
+        // Validate that samples have been collected
+        long sampleCount = sampleRepository.countByAuditIdAndReviewStatus(auditId, SampleReviewStatus.PENDING)
+                + sampleRepository.countByAuditIdAndReviewStatus(auditId, SampleReviewStatus.REVIEWED);
+        if (sampleCount == 0) {
+            throw new BusinessException(
+                    "Audit " + audit.getAuditRef() + " fieldwork cannot be completed — no samples have been collected",
+                    "AUDIT_NO_SAMPLES_COLLECTED");
+        }
+
         audit.setStatus(ShariahAuditStatus.FIELDWORK_COMPLETE);
         audit.setAuditEndDate(LocalDate.now());
         ShariahAudit saved = auditRepository.save(audit);
@@ -327,6 +336,13 @@ public class ShariahAuditService {
                     "FINDING_INVALID_REMEDIATION_STATUS");
         }
 
+        // Ensure management response has been recorded before verification
+        if (finding.getManagementResponse() == null || finding.getManagementRespondedBy() == null) {
+            throw new BusinessException(
+                    "Finding " + finding.getFindingRef() + " cannot be verified — management response must be recorded first",
+                    "FINDING_NO_MANAGEMENT_RESPONSE");
+        }
+
         finding.setRemediationVerifiedBy(verifiedBy);
         finding.setRemediationVerifiedAt(LocalDateTime.now());
         finding.setRemediationStatus(RemediationStatus.CLOSED);
@@ -452,11 +468,10 @@ public class ShariahAuditService {
     public ShariahAuditResponse closeAudit(Long auditId) {
         ShariahAudit audit = loadAudit(auditId);
 
-        if (audit.getStatus() != ShariahAuditStatus.FINAL_REPORT
-                && audit.getStatus() != ShariahAuditStatus.SSB_REVIEW) {
+        if (audit.getStatus() != ShariahAuditStatus.FINAL_REPORT) {
             throw new BusinessException(
                     "Audit " + audit.getAuditRef() + " cannot be closed — current status: " + audit.getStatus()
-                            + ". Only audits in FINAL_REPORT or SSB_REVIEW status can be closed.",
+                            + ". Only audits in FINAL_REPORT status can be closed.",
                     "AUDIT_INVALID_STATUS_FOR_CLOSE");
         }
 

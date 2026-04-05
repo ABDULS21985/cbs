@@ -105,6 +105,19 @@ public class ProfitDistributionRunService {
         long recordedDays = weightageRecordRepository.countDistinctRecordDates(
                 request.getPoolId(), request.getPeriodFrom(), request.getPeriodTo());
 
+        long missingDays = expectedDays - recordedDays;
+        double missingPct = expectedDays > 0 ? (double) missingDays / expectedDays * 100.0 : 0;
+        if (missingPct > 20.0) {
+            throw new BusinessException(
+                    String.format("Weightage completeness is too low: %d of %d days recorded (%.1f%% missing). "
+                            + "Fill missing weightage records before initiating a distribution run.",
+                            recordedDays, expectedDays, missingPct),
+                    "WEIGHTAGE_INCOMPLETE");
+        } else if (missingPct > 5.0) {
+            log.warn("Weightage completeness warning for pool {}: {} of {} days recorded ({} missing, {}% gap)",
+                    request.getPoolId(), recordedDays, expectedDays, missingDays, String.format("%.1f", missingPct));
+        }
+
         ProfitDistributionRun run = ProfitDistributionRun.builder()
                 .runRef(runRef)
                 .poolId(pool.getId())
@@ -415,33 +428,61 @@ public class ProfitDistributionRunService {
         }
 
         List<String> reversalRefs = new ArrayList<>();
+        List<String> failedReversals = new ArrayList<>();
         List<PoolProfitAllocation> allocations = allocationRepository.findByPoolIdAndPeriodFromAndPeriodTo(
                 run.getPoolId(), run.getPeriodFrom(), run.getPeriodTo());
         for (PoolProfitAllocation allocation : allocations) {
             if (!StringUtils.hasText(allocation.getJournalRef())) {
                 continue;
             }
-            TransactionJournal journal = transactionJournalRepository.findByTransactionRef(allocation.getJournalRef())
-                    .orElse(null);
-            if (journal != null && !Boolean.TRUE.equals(journal.getIsReversed())) {
-                AccountPostingService.ReversalResult result = accountPostingService.reverseTransaction(journal.getId(), reason);
-                reversalRefs.add(result.reversalGroupRef());
+            try {
+                TransactionJournal journal = transactionJournalRepository.findByTransactionRef(allocation.getJournalRef())
+                        .orElse(null);
+                if (journal != null && !Boolean.TRUE.equals(journal.getIsReversed())) {
+                    AccountPostingService.ReversalResult result = accountPostingService.reverseTransaction(journal.getId(), reason);
+                    reversalRefs.add(result.reversalGroupRef());
+                }
+            } catch (Exception e) {
+                log.error("Failed to reverse allocation journalRef={} for run {}: {}",
+                        allocation.getJournalRef(), runId, e.getMessage(), e);
+                failedReversals.add("allocation:" + allocation.getJournalRef() + ":" + e.getMessage());
             }
         }
 
-        reserveService.getReserveTransactions(runId).stream()
-                .map(transaction -> transaction.getJournalRef())
-                .filter(StringUtils::hasText)
-                .forEach(journalNumber -> journalEntryRepository.findByJournalNumber(journalNumber)
+        for (var reserveTx : reserveService.getReserveTransactions(runId)) {
+            String journalNumber = reserveTx.getJournalRef();
+            if (!StringUtils.hasText(journalNumber)) continue;
+            try {
+                journalEntryRepository.findByJournalNumber(journalNumber)
                         .filter(journal -> !"REVERSED".equals(journal.getStatus()))
-                        .ifPresent(journal -> reversalRefs.add(generalLedgerService.reverseJournal(journal.getId(), authorisedBy).getJournalNumber())));
+                        .ifPresent(journal -> reversalRefs.add(
+                                generalLedgerService.reverseJournal(journal.getId(), authorisedBy).getJournalNumber()));
+            } catch (Exception e) {
+                log.error("Failed to reverse reserve journal {} for run {}: {}",
+                        journalNumber, runId, e.getMessage(), e);
+                failedReversals.add("reserve:" + journalNumber + ":" + e.getMessage());
+            }
+        }
 
-        stepLogRepo.findByDistributionRunIdOrderByStepNumberAsc(runId).stream()
-                .map(DistributionRunStepLog::getJournalRef)
-                .filter(StringUtils::hasText)
-                .forEach(journalNumber -> journalEntryRepository.findByJournalNumber(journalNumber)
+        for (var stepLog : stepLogRepo.findByDistributionRunIdOrderByStepNumberAsc(runId)) {
+            String journalNumber = stepLog.getJournalRef();
+            if (!StringUtils.hasText(journalNumber)) continue;
+            try {
+                journalEntryRepository.findByJournalNumber(journalNumber)
                         .filter(journal -> !"REVERSED".equals(journal.getStatus()))
-                        .ifPresent(journal -> reversalRefs.add(generalLedgerService.reverseJournal(journal.getId(), authorisedBy).getJournalNumber())));
+                        .ifPresent(journal -> reversalRefs.add(
+                                generalLedgerService.reverseJournal(journal.getId(), authorisedBy).getJournalNumber()));
+            } catch (Exception e) {
+                log.error("Failed to reverse step journal {} for run {}: {}",
+                        journalNumber, runId, e.getMessage(), e);
+                failedReversals.add("step:" + journalNumber + ":" + e.getMessage());
+            }
+        }
+
+        if (!failedReversals.isEmpty()) {
+            log.error("ALERT: Partial reversal for run {}: {} reversals failed out of total. Failures: {}",
+                    runId, failedReversals.size(), failedReversals);
+        }
 
         run.setStatus(DistributionRunStatus.REVERSED);
         run.setReversedAt(LocalDateTime.now());

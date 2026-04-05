@@ -408,16 +408,16 @@ public class PoolWeightageService {
         // Post bank's total share as Mudarib income to GL
         if (totalBankProfit.compareTo(BigDecimal.ZERO) > 0) {
             String narration = "Bank Mudarib income from pool " + poolId + " period " + periodFrom + " to " + periodTo;
+            List<JournalLineRequest> journalLines = new ArrayList<>();
+            journalLines.add(new JournalLineRequest(PROFIT_DISTRIBUTION_GL, totalBankProfit, BigDecimal.ZERO,
+                    "SAR", BigDecimal.ONE, narration, null, null, null, null));
+            journalLines.add(new JournalLineRequest(BANK_MUDARIB_INCOME_GL, BigDecimal.ZERO, totalBankProfit,
+                    "SAR", BigDecimal.ONE, narration, null, null, null, null));
             generalLedgerService.postJournal(
                     "MUDARIB_INCOME", narration, "MUDARABAH",
                     "POOL-" + poolId + "-" + periodFrom + "-" + periodTo,
                     LocalDate.now(),
-                    List.of(
-                            new JournalLineRequest(PROFIT_DISTRIBUTION_GL, totalBankProfit, BigDecimal.ZERO,
-                                    "SAR", BigDecimal.ONE, narration, null, null, null, null),
-                            new JournalLineRequest(BANK_MUDARIB_INCOME_GL, BigDecimal.ZERO, totalBankProfit,
-                                    "SAR", BigDecimal.ONE, narration, null, null, null, null)
-                    ));
+                    journalLines);
             log.info("Bank Mudarib income posted to GL: pool={}, amount={}", poolId, totalBankProfit);
         }
 

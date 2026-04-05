@@ -59,6 +59,24 @@ public class MusharakahOriginationService {
     public MusharakahResponses.MusharakahApplicationResponse createApplication(MusharakahRequests.CreateApplicationRequest request) {
         Customer customer = getActiveCustomer(request.getCustomerId());
         ensureKycVerified(customer.getId());
+
+        // Check for duplicate active applications for the same customer
+        List<MusharakahApplication> activeApplications = applicationRepository.findByCustomerIdAndStatusIn(
+                customer.getId(),
+                List.of(MusharakahDomainEnums.ApplicationStatus.DRAFT,
+                        MusharakahDomainEnums.ApplicationStatus.SUBMITTED,
+                        MusharakahDomainEnums.ApplicationStatus.PRICING,
+                        MusharakahDomainEnums.ApplicationStatus.ASSET_VALUATION,
+                        MusharakahDomainEnums.ApplicationStatus.APPROVED));
+        boolean duplicateExists = activeApplications.stream()
+                .anyMatch(app -> request.getProductCode().equalsIgnoreCase(app.getProductCode())
+                        && request.getAssetAddress() != null
+                        && request.getAssetAddress().equalsIgnoreCase(app.getAssetAddress()));
+        if (duplicateExists) {
+            throw new BusinessException("An active Musharakah application already exists for this customer with the same product and asset",
+                    "DUPLICATE_APPLICATION");
+        }
+
         IslamicProductTemplate product = resolveActiveMusharakahProduct(request.getProductCode());
         productRepository.findByCode(request.getProductCode())
                 .orElseThrow(() -> new ResourceNotFoundException("Product", "code", request.getProductCode()));
@@ -145,6 +163,29 @@ public class MusharakahOriginationService {
             application.setRequestedFinancingAmount(MusharakahSupport.money(
                     application.getTotalPropertyValue().subtract(application.getCustomerEquityAmount())));
         }
+
+        // Recalculate downstream figures after value adjustment
+        BigDecimal bankPercentage = MusharakahSupport.percentage(application.getRequestedFinancingAmount(), application.getTotalPropertyValue());
+        BigDecimal customerPercentage = MusharakahSupport.percentage(application.getCustomerEquityAmount(), application.getTotalPropertyValue());
+        application.setProposedBankPercentage(bankPercentage);
+        application.setProposedCustomerPercentage(customerPercentage);
+        application.setProposedBankContribution(MusharakahSupport.money(application.getRequestedFinancingAmount()));
+        application.setProposedCustomerContribution(MusharakahSupport.money(application.getCustomerEquityAmount()));
+
+        IslamicProductTemplate product = resolveActiveMusharakahProduct(application.getProductCode());
+        int totalUnits = application.getProposedUnitsTotal() != null ? application.getProposedUnitsTotal() : 100;
+        BigDecimal rentalRate = resolveRentalRate(product, application.getRequestedFinancingAmount(),
+                application.getRequestedTenorMonths(), null);
+        application.setProposedRentalRate(rentalRate);
+        BigDecimal estimatedPayment = estimateMonthlyPayment(
+                application.getRequestedFinancingAmount(),
+                application.getTotalPropertyValue(),
+                rentalRate,
+                totalUnits,
+                application.getRequestedTenorMonths());
+        application.setEstimatedMonthlyPayment(estimatedPayment);
+        application.setDsr(calculateDsr(application.getMonthlyIncome(), application.getExistingObligations(), estimatedPayment));
+
         application.setStatus(MusharakahDomainEnums.ApplicationStatus.ASSET_VALUATION);
         return MusharakahSupport.toApplicationResponse(applicationRepository.save(application), List.of());
     }

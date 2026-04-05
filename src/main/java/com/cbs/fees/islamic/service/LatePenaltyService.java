@@ -382,6 +382,38 @@ public class LatePenaltyService {
         updateContractTotals(record.getContractTypeCode(), record.getContractId(), record.getPenaltyAmount().negate());
     }
 
+    public void applyWaiverToFeeCharge(Long feeChargeLogId, BigDecimal waivedAmount, String waiverRef) {
+        if (feeChargeLogId == null || waivedAmount == null || waivedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        latePenaltyRecordRepository.findFirstByFeeChargeLogId(feeChargeLogId).ifPresent(record -> {
+            BigDecimal originalPenalty = IslamicFeeSupport.money(record.getPenaltyAmount());
+            BigDecimal originalOutstanding = IslamicFeeSupport.money(record.getOutstandingAmount());
+            BigDecimal effectiveWaiver = IslamicFeeSupport.money(waivedAmount.min(originalPenalty));
+            BigDecimal outstandingReduction = effectiveWaiver.min(originalOutstanding);
+
+            record.setPenaltyAmount(IslamicFeeSupport.money(originalPenalty.subtract(effectiveWaiver)));
+            record.setOutstandingAmount(IslamicFeeSupport.money(originalOutstanding.subtract(outstandingReduction)));
+            record.setCalculationMethod(appendWaiverNote(record.getCalculationMethod(), effectiveWaiver, waiverRef));
+
+            if (record.getPenaltyAmount().compareTo(BigDecimal.ZERO) == 0) {
+                record.setStatus("WAIVED");
+                record.setSettledAt(IslamicFeeSupport.instantNow());
+            } else {
+                record.setStatus(STATUS_CHARGED);
+                if (record.getOutstandingAmount().compareTo(BigDecimal.ZERO) == 0) {
+                    record.setSettledAt(IslamicFeeSupport.instantNow());
+                }
+            }
+            record.setBlockedReason(null);
+            latePenaltyRecordRepository.save(record);
+
+            updateInstallmentPenaltyState(record.getContractTypeCode(), record.getContractId(), record.getInstallmentId(),
+                    outstandingReduction.negate(), waiverRef);
+            updateContractTotals(record.getContractTypeCode(), record.getContractId(), effectiveWaiver.negate());
+        });
+    }
+
     @Transactional(readOnly = true)
     public List<LatePenaltyRecord> getPenaltiesByContract(Long contractId) {
         return latePenaltyRecordRepository.findByContractIdOrderByPenaltyDateDesc(contractId);
@@ -594,6 +626,15 @@ public class LatePenaltyService {
     private String appendSettlementNote(String existingNote, BigDecimal settledAmount, String settlementRef) {
         String note = "Settled " + IslamicFeeSupport.money(settledAmount)
                 + (settlementRef != null && !settlementRef.isBlank() ? " via " + settlementRef : "");
+        if (existingNote == null || existingNote.isBlank()) {
+            return note;
+        }
+        return existingNote + " | " + note;
+    }
+
+    private String appendWaiverNote(String existingNote, BigDecimal waivedAmount, String waiverRef) {
+        String note = "Waived " + IslamicFeeSupport.money(waivedAmount)
+                + (waiverRef != null && !waiverRef.isBlank() ? " via " + waiverRef : "");
         if (existingNote == null || existingNote.isBlank()) {
             return note;
         }

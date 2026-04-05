@@ -589,6 +589,7 @@ public class IslamicFeeService {
                         effectiveCustomerId)
                 .stream()
                 .filter(candidate -> matchesChargeContext(candidate, request, effectiveCustomerId))
+                .filter(this::isEligibleForChargeSuppression)
                 .findFirst()
                 .orElse(null);
         if (waiver == null) {
@@ -629,6 +630,19 @@ public class IslamicFeeService {
 
     private boolean matchesScope(Long waiverScope, Long requestScope) {
         return waiverScope == null || Objects.equals(waiverScope, requestScope);
+    }
+
+    private boolean isEligibleForChargeSuppression(IslamicFeeWaiver waiver) {
+        String waiverType = IslamicFeeSupport.normalize(waiver.getWaiverType());
+        return switch (waiverType) {
+            case "FULL_WAIVER", "PARTIAL_WAIVER", "CONVERSION" ->
+                    waiver.getFeeChargeLogId() == null && waiver.getJournalRef() == null;
+            case "DEFERRAL" ->
+                    waiver.getDeferredUntil() != null
+                            && LocalDate.now().isBefore(waiver.getDeferredUntil())
+                            && (waiver.getFeeChargeLogId() != null || waiver.getJournalRef() == null);
+            default -> false;
+        };
     }
 
     private void consumePreChargeWaiver(Long waiverId, String reference) {

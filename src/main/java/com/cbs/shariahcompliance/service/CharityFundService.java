@@ -540,27 +540,46 @@ public class CharityFundService {
         if (recipients.isEmpty()) {
             throw new BusinessException("No active SSB-approved charity recipients found", "CHARITY_RECIPIENT_NOT_FOUND");
         }
+        int totalRecipients = recipients.size();
         Map<CharityCategory, List<CharityRecipient>> byCategory = recipients.stream()
                 .collect(Collectors.groupingBy(recipient -> recipient.getCategory() != null ? recipient.getCategory() : CharityCategory.OTHER,
                         () -> new EnumMap<>(CharityCategory.class),
                         Collectors.toList()));
+
+        // Allocate proportionally by category weight (recipient count per category / total recipients)
         List<CharityCategory> categories = byCategory.keySet().stream().sorted().toList();
-        List<BigDecimal> categorySplits = splitAmount(currentBalance, categories.size());
         List<Map<String, Object>> allocations = new ArrayList<>();
+        BigDecimal allocated = BigDecimal.ZERO;
+
         for (int i = 0; i < categories.size(); i++) {
-            List<CharityRecipient> categoryRecipients = byCategory.get(categories.get(i)).stream()
+            CharityCategory category = categories.get(i);
+            List<CharityRecipient> categoryRecipients = byCategory.get(category).stream()
                     .sorted(Comparator.comparing(CharityRecipient::getId))
                     .toList();
-            List<BigDecimal> recipientSplits = splitAmount(categorySplits.get(i), categoryRecipients.size());
+
+            // Category share weighted by its recipient count relative to total
+            BigDecimal categoryShare;
+            if (i == categories.size() - 1) {
+                // Last category gets remainder to avoid rounding issues
+                categoryShare = currentBalance.subtract(allocated);
+            } else {
+                categoryShare = currentBalance
+                        .multiply(BigDecimal.valueOf(categoryRecipients.size()))
+                        .divide(BigDecimal.valueOf(totalRecipients), 2, RoundingMode.DOWN);
+            }
+
+            List<BigDecimal> recipientSplits = splitAmount(categoryShare, categoryRecipients.size());
             for (int j = 0; j < categoryRecipients.size(); j++) {
                 CharityRecipient recipient = categoryRecipients.get(j);
+                BigDecimal recipientAmount = recipientSplits.get(j);
                 allocations.add(new LinkedHashMap<>(Map.of(
                         "charityRecipientId", recipient.getId(),
-                        "amount", recipientSplits.get(j),
+                        "amount", recipientAmount,
                         "currencyCode", "SAR",
-                        "purpose", "Proportional charity distribution",
-                        "notes", "Auto-generated proportional allocation"
+                        "purpose", "Proportional charity distribution (" + category.name() + ")",
+                        "notes", "Auto-generated proportional allocation weighted by category"
                 )));
+                allocated = allocated.add(recipientAmount);
             }
         }
         return allocations;
