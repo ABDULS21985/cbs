@@ -605,6 +605,7 @@ public class IslamicSanctionsScreeningService {
         // Normalize common Arabic letter variants: alef with hamza -> plain alef
         normalized = normalized.replaceAll("[\\u0622\\u0623\\u0625\\u0627]", "\u0627"); // All alef forms -> alef
         normalized = normalized.replaceAll("\\u0629", "\u0647"); // taa marbuta -> haa
+        normalized = normalized.replace("\u0649", "\u064A"); // alef-maqsura -> yaa
         normalized = normalized.replaceAll("[`'\\-]", " ");
 
         // Normalize whitespace

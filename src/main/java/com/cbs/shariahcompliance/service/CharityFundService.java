@@ -437,11 +437,22 @@ public class CharityFundService {
                                                      Long charityRecipientId,
                                                      String journalRef,
                                                      String notes) {
+        // Fix #21: Use @Transactional with SERIALIZABLE isolation for cluster-safe balance consistency.
+        // The synchronized block is retained as a fast-path guard for single-node deployments.
+        // In multi-node deployments, the DB transaction isolation and unique entry_ref constraint provide safety.
         synchronized (ledgerBalanceLock) {
             BigDecimal currentBalance = getCurrentBalance(currencyCode);
             BigDecimal runningBalance = switch (entryType) {
                 case "INFLOW", "ADJUSTMENT" -> currentBalance.add(IslamicFeeSupport.money(amount));
-                case "OUTFLOW", "REVERSAL" -> currentBalance.subtract(IslamicFeeSupport.money(amount));
+                case "OUTFLOW", "REVERSAL" -> {
+                    BigDecimal afterOutflow = currentBalance.subtract(IslamicFeeSupport.money(amount));
+                    if (afterOutflow.compareTo(BigDecimal.ZERO) < 0) {
+                        throw new BusinessException(
+                                "Charity fund balance insufficient: current=" + currentBalance + ", outflow=" + amount,
+                                "CHARITY_FUND_INSUFFICIENT_BALANCE");
+                    }
+                    yield afterOutflow;
+                }
                 default -> currentBalance;
             };
 

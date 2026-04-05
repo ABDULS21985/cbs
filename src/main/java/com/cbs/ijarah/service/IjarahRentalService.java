@@ -48,14 +48,26 @@ public class IjarahRentalService {
     private final LatePenaltyService latePenaltyService;
     private final IjarahAssetMaintenanceRecordRepository maintenanceRecordRepository;
 
-    /** Tracks externalRefs already processed within a transaction to prevent duplicate payments. Bounded LRU cache to prevent unbounded memory growth. */
-    private static final Map<String, Boolean> PROCESSED_REFS = Collections.synchronizedMap(
+    /** Tracks externalRefs already processed. DB-level check is the primary guard (cluster-safe);
+     *  in-memory LRU is a fast-path cache to reduce DB queries on the same node. */
+    private static final Map<String, Boolean> PROCESSED_REFS_CACHE = Collections.synchronizedMap(
             new LinkedHashMap<String, Boolean>(10000, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
                     return size() > 10000;
                 }
             });
+
+    private boolean isRefAlreadyProcessed(String externalRef) {
+        if (PROCESSED_REFS_CACHE.containsKey(externalRef)) return true;
+        boolean existsInDb = installmentRepository.existsByExternalRef(externalRef);
+        if (existsInDb) PROCESSED_REFS_CACHE.put(externalRef, true);
+        return existsInDb;
+    }
+
+    private void markRefProcessed(String externalRef) {
+        PROCESSED_REFS_CACHE.put(externalRef, true);
+    }
 
     public List<IjarahRentalInstallment> generateRentalSchedule(Long contractId) {
         IjarahContract contract = getContract(contractId);

@@ -325,19 +325,19 @@ public class AssetMurabahaService {
             missing.add("Bank has NOT paid supplier in full — payment date not recorded");
         }
         if (purchase.getPossessionEvidenceType() == null || purchase.getPossessionEvidenceRef() == null) {
-            missing.add("Asset title or possession evidence is recorded");
+            missing.add("Asset title or possession evidence is NOT recorded");
         }
         if (!Boolean.TRUE.equals(purchase.getInsuranceDuringOwnership())) {
-            missing.add("Asset is insured during bank ownership");
+            missing.add("Asset is NOT insured during bank ownership");
         }
         if (!Boolean.TRUE.equals(purchase.getRiskBornByBank())) {
-            missing.add("Bank bears risk of loss or damage");
+            missing.add("Bank does NOT bear risk of loss or damage");
         }
         if ((purchase.getAssetCategory() == MurabahaDomainEnums.AssetCategory.VEHICLE
                 || purchase.getAssetCategory() == MurabahaDomainEnums.AssetCategory.EQUIPMENT
                 || purchase.getAssetCategory() == MurabahaDomainEnums.AssetCategory.MACHINERY)
                 && !Boolean.TRUE.equals(purchase.getAssetInspected())) {
-            missing.add("Asset inspection has been completed");
+            missing.add("Asset inspection has NOT been completed");
         }
         return missing;
     }

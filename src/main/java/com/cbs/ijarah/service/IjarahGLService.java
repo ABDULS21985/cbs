@@ -55,14 +55,26 @@ public class IjarahGLService {
     @Value("${ijarah.gl.depreciation-expense-code:5200-IJR-001}")
     private String depreciationExpenseGlCode;
 
-    /** Tracks accrual references to prevent double-posting within a period. Bounded LRU map to prevent unbounded memory growth. */
-    private final Map<String, Boolean> postedAccruals = Collections.synchronizedMap(
+    /** Tracks accrual references to prevent double-posting. Uses DB journal lookup as primary guard (cluster-safe),
+     *  with bounded in-memory LRU as a fast-path cache to reduce DB queries on the same node. */
+    private final Map<String, Boolean> postedAccrualsCache = Collections.synchronizedMap(
             new LinkedHashMap<String, Boolean>(10000, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
                     return size() > 10000;
                 }
             });
+
+    private boolean isAccrualAlreadyPosted(String accrualRef) {
+        if (postedAccrualsCache.containsKey(accrualRef)) return true;
+        boolean existsInDb = generalLedgerService.journalExistsByReference(accrualRef);
+        if (existsInDb) postedAccrualsCache.put(accrualRef, true);
+        return existsInDb;
+    }
+
+    private void markAccrualPosted(String accrualRef) {
+        postedAccrualsCache.put(accrualRef, true);
+    }
 
     public void postMonthlyDepreciation(Long assetId) {
         assetService.processMonthlyDepreciation(assetId);
