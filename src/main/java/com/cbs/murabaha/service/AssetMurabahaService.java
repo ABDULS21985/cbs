@@ -93,7 +93,16 @@ public class AssetMurabahaService {
 
     public AssetMurabahaPurchase recordPaymentToSupplier(Long purchaseId, PaymentDetailsRequest details) {
         AssetMurabahaPurchase purchase = getPurchase(purchaseId);
+        if (purchase.getPurchaseStatus() != MurabahaDomainEnums.AssetPurchaseStatus.PO_ISSUED
+                && purchase.getPurchaseStatus() != MurabahaDomainEnums.AssetPurchaseStatus.INVOICE_RECEIVED) {
+            throw new BusinessException("Purchase order must be issued before payment", "PO_NOT_ISSUED");
+        }
         MurabahaContract contract = getAssetContract(purchase.getContractId());
+        if (details.getPurchasePrice() != null && contract.getCostPrice() != null
+                && details.getPurchasePrice().compareTo(contract.getCostPrice()) > 0) {
+            throw new BusinessException("Payment amount " + details.getPurchasePrice()
+                    + " exceeds contract cost price " + contract.getCostPrice(), "PAYMENT_EXCEEDS_COST");
+        }
 
         purchase.setPurchasePrice(MurabahaSupport.money(details.getPurchasePrice()));
         purchase.setSupplierNegotiatedPrice(MurabahaSupport.money(details.getNegotiatedPrice()));
@@ -128,6 +137,9 @@ public class AssetMurabahaService {
 
     public AssetMurabahaPurchase recordPossession(Long purchaseId, OwnershipEvidenceRequest evidence) {
         AssetMurabahaPurchase purchase = getPurchase(purchaseId);
+        if (evidence.getInsurancePolicyRef() == null || evidence.getInsurancePolicyRef().isBlank()) {
+            throw new BusinessException("Insurance policy is mandatory for bank-owned assets. Provide insurance details.", "INSURANCE_REQUIRED");
+        }
         validatePossessionEvidence(purchase.getAssetCategory(), evidence.getEvidenceType());
 
         purchase.setPossessionType(evidence.getPossessionType() != null
@@ -259,7 +271,7 @@ public class AssetMurabahaService {
     private List<String> buildOwnershipChecklistFailures(AssetMurabahaPurchase purchase) {
         List<String> missing = new ArrayList<>();
         if (purchase.getPaymentToSupplierDate() == null) {
-            missing.add("Bank has paid supplier in full");
+            missing.add("Bank has NOT paid supplier in full — payment date not recorded");
         }
         if (purchase.getPossessionEvidenceType() == null || purchase.getPossessionEvidenceRef() == null) {
             missing.add("Asset title or possession evidence is recorded");

@@ -167,6 +167,16 @@ public class MurabahaOriginationService {
         IslamicProductTemplate product = resolveActiveMurabahaProduct(application.getProductCode());
 
         BigDecimal markupRate = resolveMarkupRate(product, application.getRequestedAmount(), request.getTenorMonths(), request.getMarkupRate());
+
+        // Validate markup rate within SSB-approved bounds
+        BigDecimal maxMarkupRate = new BigDecimal("25.0000"); // SSB-approved maximum
+        if (markupRate.compareTo(maxMarkupRate) > 0) {
+            throw new BusinessException("Markup rate " + markupRate + "% exceeds SSB-approved maximum of " + maxMarkupRate + "%", "MARKUP_EXCEEDS_SSB_LIMIT");
+        }
+        if (markupRate.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Markup rate must be positive", "INVALID_MARKUP_RATE");
+        }
+
         BigDecimal costPrice = MurabahaSupport.money(request.getCostPrice());
         BigDecimal sellingPrice = MurabahaSupport.calculateSellingPrice(costPrice, markupRate);
         BigDecimal downPayment = MurabahaSupport.money(request.getDownPayment());

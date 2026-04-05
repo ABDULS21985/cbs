@@ -102,3 +102,8 @@ CREATE TABLE cbs.ssb_review_audit_log (
 
 CREATE INDEX idx_ssb_audit_review ON cbs.ssb_review_audit_log(review_request_id);
 CREATE INDEX idx_ssb_audit_fatwa ON cbs.ssb_review_audit_log(fatwa_id);
+
+-- Sequences for concurrency-safe code generation
+CREATE SEQUENCE cbs.ssb_member_code_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE cbs.fatwa_code_seq START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE cbs.ssb_review_code_seq START WITH 1 INCREMENT BY 1;

@@ -149,6 +149,10 @@ public class CommodityMurabahaService {
         trade.setOwnershipTransferSequenceValid(Boolean.TRUE);
         trade.setMinimumOwnershipPeriodMet(ownershipDays >= 1);
         trade.setOverallStatus(MurabahaDomainEnums.CommodityTradeStatus.BANK_OWNS_COMMODITY);
+        if (trade.getPurchaseDate() != null && trade.getBankOwnershipDate() != null
+                && trade.getBankOwnershipDate().equals(trade.getPurchaseDate())) {
+            log.warn("SHARIAH_WARNING: Commodity ownership recorded same day as purchase for trade {}. Minimum holding period not met.", trade.getTradeRef());
+        }
         return tradeRepository.save(trade);
     }
 
@@ -184,6 +188,12 @@ public class CommodityMurabahaService {
     public CommodityMurabahaTrade executeMurabahaSale(Long tradeId, LocalDate saleDate) {
         CommodityMurabahaTrade trade = getTrade(tradeId);
         MurabahaContract contract = getCommodityContract(trade.getContractId());
+        if (trade.getOverallStatus() != MurabahaDomainEnums.CommodityTradeStatus.BANK_OWNS_COMMODITY) {
+            throw new BusinessException("Bank must own commodity before Murabaha sale. Current status: " + trade.getOverallStatus(), "OWNERSHIP_NOT_ESTABLISHED");
+        }
+        if (!Boolean.TRUE.equals(trade.getShariahComplianceVerified())) {
+            throw new BusinessException("Shariah compliance must be verified before Murabaha sale", "COMPLIANCE_NOT_VERIFIED");
+        }
         if (!Boolean.TRUE.equals(contract.getOwnershipVerified())) {
             throw new BusinessException("Bank must own commodity before selling it to the customer",
                     "OWNERSHIP_NOT_VERIFIED");
@@ -209,6 +219,9 @@ public class CommodityMurabahaService {
 
     public CommodityMurabahaTrade executeCustomerSale(Long tradeId, ExecuteCustomerSaleRequest request) {
         CommodityMurabahaTrade trade = getTrade(tradeId);
+        if (trade.getOverallStatus() != MurabahaDomainEnums.CommodityTradeStatus.MURABAHA_SALE_EXECUTED) {
+            throw new BusinessException("Murabaha sale must be executed before customer can sell commodity", "MURABAHA_SALE_NOT_EXECUTED");
+        }
         if (trade.getPurchaseBrokerId() != null && request.getCustomerSaleBrokerId() != null
                 && trade.getPurchaseBrokerId().equals(request.getCustomerSaleBrokerId())) {
             throw new BusinessException("Purchase and sale brokers must be different entities for Shariah compliance",

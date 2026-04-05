@@ -115,6 +115,10 @@ public class MurabahaContractService {
                 .reference(contract.getContractRef() + "-EXEC")
                 .build());
 
+        log.info("AUDIT: Murabaha contract executed - ref={}, costPrice={}, markup={}, sellingPrice={}, financedAmount={}, actor={}",
+                contract.getContractRef(), contract.getCostPrice(), contract.getMarkupAmount(),
+                contract.getSellingPrice(), contract.getFinancedAmount(), executedBy);
+
         if (contract.getInvestmentPoolId() != null && contract.getPoolAssetAssignmentId() == null) {
             var assignment = poolAssetManagementService.assignAssetToPool(
                     contract.getInvestmentPoolId(),
@@ -155,6 +159,19 @@ public class MurabahaContractService {
                                                            BigDecimal ibraAmount,
                                                            Long debitAccountId,
                                                            String externalRef) {
+        // Validate Ibra mode
+        MurabahaContract contract = findContract(contractId);
+        if (contract.getEarlySettlementRebateMethod() == MurabahaDomainEnums.EarlySettlementRebateMethod.IBRA_MANDATORY) {
+            // Bank MUST waive all unrecognised profit
+            BigDecimal expectedIbra = contract.getUnrecognisedProfit();
+            if (ibraAmount.compareTo(expectedIbra) < 0) {
+                log.warn("IBRA_MANDATORY mode requires full waiver of unrecognised profit {}. Provided ibra={}", expectedIbra, ibraAmount);
+                ibraAmount = expectedIbra; // Force full Ibra
+            }
+        } else if (contract.getEarlySettlementRebateMethod() == MurabahaDomainEnums.EarlySettlementRebateMethod.NO_REBATE) {
+            ibraAmount = BigDecimal.ZERO; // No rebate allowed
+        }
+
         scheduleService.processEarlySettlement(
                 contractId,
                 EarlySettlementRequest.builder()
@@ -163,7 +180,7 @@ public class MurabahaContractService {
                         .debitAccountId(debitAccountId)
                         .externalRef(externalRef)
                         .build());
-        MurabahaContract contract = findContract(contractId);
+        contract = findContract(contractId);
         if (contract.getPoolAssetAssignmentId() != null) {
             try {
                 poolAssetManagementService.unassignAssetFromPool(contract.getPoolAssetAssignmentId(), "EARLY_SETTLEMENT");

@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -53,6 +54,11 @@ public class ProfitCalculationService {
     public PoolProfitCalculationResponse calculatePoolProfit(Long poolId, LocalDate periodFrom, LocalDate periodTo) {
         InvestmentPool pool = poolRepo.findById(poolId)
                 .orElseThrow(() -> new ResourceNotFoundException("InvestmentPool", "id", poolId));
+
+        // Validate pool PSR bounds
+        if (pool.getProfitSharingRatioBank() != null && pool.getProfitSharingRatioBank().compareTo(new BigDecimal("100")) > 0) {
+            throw new BusinessException("Pool PSR bank ratio exceeds 100%: " + pool.getProfitSharingRatioBank(), "INVALID_POOL_PSR");
+        }
 
         // 1. Aggregate income
         List<PoolIncomeRecord> incomes = incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(poolId, periodFrom, periodTo);
@@ -276,20 +282,23 @@ public class ProfitCalculationService {
     // ── Batch Calculation ──────────────────────────────────────────────
 
     public List<PoolProfitCalculationResponse> calculateAllPoolProfits(LocalDate periodFrom, LocalDate periodTo) {
-        List<InvestmentPool> activePools = poolRepo.findByStatus(PoolStatus.ACTIVE);
-        log.info("Calculating profit for {} active pools, period {} to {}", activePools.size(), periodFrom, periodTo);
+        List<PoolProfitCalculationResponse> results = new ArrayList<>();
+        List<String> failedPools = new ArrayList<>();
 
-        return activePools.stream()
-                .map(pool -> {
-                    try {
-                        return calculatePoolProfit(pool.getId(), periodFrom, periodTo);
-                    } catch (Exception e) {
-                        log.error("Failed to calculate profit for pool {}: {}", pool.getPoolCode(), e.getMessage(), e);
-                        return null;
-                    }
-                })
-                .filter(java.util.Objects::nonNull)
-                .toList();
+        for (InvestmentPool pool : poolRepo.findByStatus(PoolStatus.ACTIVE)) {
+            try {
+                results.add(calculatePoolProfit(pool.getId(), periodFrom, periodTo));
+            } catch (Exception e) {
+                failedPools.add(pool.getPoolCode() + ": " + e.getMessage());
+                log.error("AUDIT: Profit calculation FAILED for pool {} ({}): {}", pool.getPoolCode(), pool.getId(), e.getMessage());
+            }
+        }
+
+        if (!failedPools.isEmpty()) {
+            log.error("AUDIT: Batch profit calculation completed with {} failures: {}", failedPools.size(), failedPools);
+        }
+
+        return results;
     }
 
     // ── Queries ────────────────────────────────────────────────────────

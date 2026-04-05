@@ -4,6 +4,7 @@ import com.cbs.shariah.entity.FatwaCategory;
 import com.cbs.shariah.entity.FatwaRecord;
 import com.cbs.shariah.entity.FatwaStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -30,4 +31,7 @@ public interface FatwaRecordRepository extends JpaRepository<FatwaRecord, Long> 
     long countByStatus(FatwaStatus status);
 
     long countByFatwaCategory(FatwaCategory category);
+
+    @Query(value = "SELECT nextval('cbs.fatwa_code_seq')", nativeQuery = true)
+    Long getNextFatwaCodeSequence();
 }

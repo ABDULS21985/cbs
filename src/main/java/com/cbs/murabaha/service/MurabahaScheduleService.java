@@ -216,6 +216,11 @@ public class MurabahaScheduleService {
             propagateJournalRef(contractId, generatedRef, journal.getJournalNumber());
         }
 
+        if (totalPenaltySettled.compareTo(BigDecimal.ZERO) > 0) {
+            log.info("AUDIT: Late penalty {} directed to charity fund for contract {} (SHARIAH-MRB-002)",
+                    totalPenaltySettled, contractId);
+        }
+
         contract.setRecognisedProfit(MurabahaSupport.money(contract.getRecognisedProfit().add(totalProfitSettled)));
         contract.setUnrecognisedProfit(MurabahaSupport.money(contract.getTotalDeferredProfit().subtract(contract.getRecognisedProfit())));
         if (areAllInstallmentsSettled(contractId)) {
@@ -294,6 +299,14 @@ public class MurabahaScheduleService {
             case IBRA_MANDATORY -> unrecognisedProfit;
             case IBRA_DISCRETIONARY, NO_REBATE -> MurabahaSupport.ZERO;
         };
+
+        // Enforce Ibra bounds
+        if (ibra.compareTo(unrecognisedProfit) > 0) {
+            throw new BusinessException("Ibra amount " + ibra + " cannot exceed unrecognised profit " + unrecognisedProfit, "IBRA_EXCEEDS_UNRECOGNISED");
+        }
+        if (ibra.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException("Ibra amount cannot be negative", "IBRA_NEGATIVE");
+        }
 
         return EarlySettlementQuote.builder()
                 .contractId(contract.getId())

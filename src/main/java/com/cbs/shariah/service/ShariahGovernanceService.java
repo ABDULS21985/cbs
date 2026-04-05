@@ -586,21 +586,15 @@ public class ShariahGovernanceService {
         if (principalIdentifiers == null || principalIdentifiers.isEmpty()) {
             return null;
         }
-
-        for (String identifier : principalIdentifiers) {
-            if (identifier == null || identifier.isBlank()) {
-                continue;
-            }
-            Optional<SsbBoardMember> byMemberId = memberRepo.findByMemberIdIgnoreCaseAndIsActiveTrue(identifier);
-            if (byMemberId.isPresent()) {
-                return byMemberId.get();
-            }
-            Optional<SsbBoardMember> byEmail = memberRepo.findByContactEmailIgnoreCaseAndIsActiveTrue(identifier);
-            if (byEmail.isPresent()) {
-                return byEmail.get();
-            }
+        Set<String> normalized = principalIdentifiers.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(id -> id.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (normalized.isEmpty()) {
+            return null;
         }
-        return null;
+        List<SsbBoardMember> matches = memberRepo.findActiveByMemberIdOrEmailIn(normalized);
+        return matches.isEmpty() ? null : matches.getFirst();
     }
 
     private void validateMemberWindow(LocalDate appointmentDate, LocalDate expiryDate) {
@@ -680,18 +674,16 @@ public class ShariahGovernanceService {
     }
 
     private String generateMemberId() {
-        return "SSB-" + String.format("%04d", memberRepo.count() + 1);
+        return "SSB-" + String.format("%04d", memberRepo.getNextMemberCodeSequence());
     }
 
     private String generateFatwaNumber() {
         int year = Year.now().getValue();
-        long count = fatwaRepo.count() + 1;
-        return "FTW-" + year + "-" + String.format("%04d", count);
+        return "FTW-" + year + "-" + String.format("%04d", fatwaRepo.getNextFatwaCodeSequence());
     }
 
     private String generateRequestCode() {
         int year = Year.now().getValue();
-        long count = reviewRepo.count() + 1;
-        return "SSB-" + year + "-" + String.format("%04d", count);
+        return "SSB-" + year + "-" + String.format("%04d", reviewRepo.getNextReviewCodeSequence());
     }
 }

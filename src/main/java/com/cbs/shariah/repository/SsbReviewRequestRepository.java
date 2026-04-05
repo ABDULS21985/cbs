@@ -35,4 +35,7 @@ public interface SsbReviewRequestRepository extends JpaRepository<SsbReviewReque
     List<Object[]> countByTypeGrouped(List<ReviewRequestStatus> statuses);
 
     long countBySlaDeadlineBeforeAndStatusIn(Instant now, List<ReviewRequestStatus> statuses);
+
+    @Query(value = "SELECT nextval('cbs.ssb_review_code_seq')", nativeQuery = true)
+    Long getNextReviewCodeSequence();
 }
