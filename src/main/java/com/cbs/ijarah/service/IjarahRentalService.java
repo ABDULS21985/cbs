@@ -286,7 +286,7 @@ public class IjarahRentalService {
             IjarahContract contract = getContract(installment.getContractId());
             refreshSingleInstallment(contract, installment);
             int grace = contract.getGracePeriodDays() == null ? 0 : contract.getGracePeriodDays();
-            if (installment.getDaysOverdue() <= grace || installment.getLatePenaltyAmount().compareTo(BigDecimal.ZERO) > 0) {
+            if (installment.getDaysOverdue() <= grace) {
                 installmentRepository.save(installment);
                 continue;
             }
@@ -335,12 +335,20 @@ public class IjarahRentalService {
     @Transactional(readOnly = true)
     public IjarahResponses.MaintenanceObligationSummary getMaintenanceObligations(Long contractId) {
         IjarahContract contract = getContract(contractId);
+        // Query actual maintenance records for total spend instead of hardcoded ZERO
+        BigDecimal totalMaintenanceSpend = IjarahSupport.ZERO;
+        if (contract.getIjarahAssetId() != null) {
+            totalMaintenanceSpend = maintenanceRecordRepository
+                    .findByAssetIdOrderByMaintenanceDateDesc(contract.getIjarahAssetId()).stream()
+                    .map(record -> IjarahSupport.money(record.getCost()))
+                    .reduce(IjarahSupport.ZERO, BigDecimal::add);
+        }
         return IjarahResponses.MaintenanceObligationSummary.builder()
                 .contractId(contract.getId())
                 .assetId(contract.getIjarahAssetId())
                 .nextMajorMaintenanceDueDate(contract.getNextMajorMaintenanceDueDate())
                 .insuranceExpiryDate(contract.getInsuranceExpiryDate())
-                .totalMaintenanceSpend(IjarahSupport.ZERO)
+                .totalMaintenanceSpend(totalMaintenanceSpend)
                 .obligations(List.of(
                         "Major maintenance remains with the bank",
                         "Insurance must stay active throughout the lease"))

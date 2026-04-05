@@ -74,6 +74,9 @@ public class IjarahContractService {
 
     public IjarahResponses.IjarahContractResponse initiateAssetProcurement(Long contractId, IjarahRequests.AssetProcurementRequest request) {
         IjarahContract contract = findContract(contractId);
+        if (contract.getStatus() != IjarahDomainEnums.ContractStatus.DRAFT) {
+            throw new BusinessException("Asset procurement can only be initiated for DRAFT contracts", "INVALID_CONTRACT_STATUS");
+        }
         contract.setAssetAcquisitionCost(IjarahSupport.money(request.getAcquisitionCost()));
         contract.setAssetDescription(StringUtils.hasText(contract.getAssetDescription())
                 ? contract.getAssetDescription()

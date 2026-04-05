@@ -76,9 +76,6 @@ public class MusharakahRentalService {
             BigDecimal bankPercentage = MusharakahSupport.percentage(simulatedBankUnits, totalUnits);
             BigDecimal bankShareValue = MusharakahSupport.money(simulatedBankUnits.multiply(currentUnitValue));
             BigDecimal rentalAmount = MusharakahSupport.deriveMonthlyRental(bankShareValue, contract.getBaseRentalRate(), contract.getRentalFrequency());
-            if (contract.getRentalFrequency() == MusharakahDomainEnums.RentalFrequency.QUARTERLY) {
-                rentalAmount = MusharakahSupport.money(rentalAmount.multiply(new BigDecimal("3")));
-            }
 
             MusharakahRentalInstallment installment = MusharakahRentalInstallment.builder()
                     .contractId(contractId)
@@ -180,6 +177,19 @@ public class MusharakahRentalService {
             }
             remaining = MusharakahSupport.money(remaining.subtract(penaltyApplied));
             totalPenaltySettled = totalPenaltySettled.add(penaltyApplied);
+            if (penaltyApplied.compareTo(BigDecimal.ZERO) > 0 && Boolean.TRUE.equals(contract.getLatePenaltyToCharity())) {
+                postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                        .contractTypeCode("MUSHARAKAH")
+                        .txnType(IslamicTransactionType.CHARITY_DISTRIBUTION)
+                        .accountId(contract.getAccountId())
+                        .amount(penaltyApplied)
+                        .valueDate(request.getPaymentDate())
+                        .reference(reference + "-CHARITY")
+                        .narration("Late penalty routed to charity per Shariah requirement")
+                        .build());
+                contract.setTotalCharityDonations(MusharakahSupport.money(
+                        MusharakahSupport.money(contract.getTotalCharityDonations()).add(penaltyApplied)));
+            }
 
             BigDecimal rentalDue = MusharakahSupport.money(installment.getRentalAmount().subtract(MusharakahSupport.money(installment.getPaidAmount())));
             BigDecimal rentalApplied = remaining.min(rentalDue.max(BigDecimal.ZERO));
@@ -253,9 +263,6 @@ public class MusharakahRentalService {
             BigDecimal bankPercentage = MusharakahSupport.percentage(runningBankUnits, totalUnits);
             BigDecimal bankShareValue = MusharakahSupport.money(runningBankUnits.multiply(unitValue));
             BigDecimal rentalAmount = MusharakahSupport.deriveMonthlyRental(bankShareValue, contract.getBaseRentalRate(), contract.getRentalFrequency());
-            if (contract.getRentalFrequency() == MusharakahDomainEnums.RentalFrequency.QUARTERLY) {
-                rentalAmount = MusharakahSupport.money(rentalAmount.multiply(new BigDecimal("3")));
-            }
             installment.setBankOwnershipAtPeriodStart(bankPercentage);
             installment.setBankShareValueAtPeriodStart(bankShareValue);
             installment.setApplicableRentalRate(contract.getBaseRentalRate());

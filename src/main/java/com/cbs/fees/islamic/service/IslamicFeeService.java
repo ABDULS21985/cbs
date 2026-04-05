@@ -150,13 +150,7 @@ public class IslamicFeeService {
         if (latePenaltyService == null) {
             throw new BusinessException("Late penalty service is unavailable", "LATE_PENALTY_SERVICE_UNAVAILABLE");
         }
-        return latePenaltyService.processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
-                .contractId(contractId)
-                .installmentId(installmentId)
-                .overdueAmount(overdueAmount)
-                .daysOverdue(daysOverdue)
-                .penaltyDate(LocalDate.now())
-                .build());
+        return latePenaltyService.processLatePenalty(contractId, installmentId, overdueAmount, daysOverdue);
     }
 
     public IslamicFeeResponses.FeeChargeResult chargeFee(IslamicFeeRequests.ChargeFeeRequest request) {

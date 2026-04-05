@@ -3,9 +3,17 @@ package com.cbs.islamicaml.service;
 import com.cbs.islamicaml.dto.*;
 import com.cbs.islamicaml.entity.CombinedScreeningOutcome;
 import com.cbs.islamicaml.entity.SanctionsOverallResult;
+import com.cbs.islamicaml.entity.SanctionsScreeningResult;
+import com.cbs.islamicaml.repository.SanctionsScreeningResultRepository;
 import com.cbs.shariahcompliance.dto.ShariahScreeningRequest;
 import com.cbs.shariahcompliance.dto.ShariahScreeningResultResponse;
 import com.cbs.shariahcompliance.entity.ScreeningOverallResult;
+import com.cbs.shariahcompliance.entity.ShariahExclusionList;
+import com.cbs.shariahcompliance.entity.ShariahExclusionListEntry;
+import com.cbs.shariahcompliance.entity.ShariahScreeningResult;
+import com.cbs.shariahcompliance.repository.ShariahExclusionListEntryRepository;
+import com.cbs.shariahcompliance.repository.ShariahExclusionListRepository;
+import com.cbs.shariahcompliance.repository.ShariahScreeningResultRepository;
 import com.cbs.shariahcompliance.service.ShariahScreeningService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +34,10 @@ public class CombinedEntityScreeningService {
 
     private final ShariahScreeningService shariahScreeningService;
     private final IslamicSanctionsScreeningService sanctionsScreeningService;
+    private final SanctionsScreeningResultRepository sanctionsResultRepository;
+    private final ShariahScreeningResultRepository shariahResultRepository;
+    private final ShariahExclusionListRepository exclusionListRepository;
+    private final ShariahExclusionListEntryRepository exclusionListEntryRepository;
 
     // ===================== COMBINED ENTITY SCREENING =====================
 

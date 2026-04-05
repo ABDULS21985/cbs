@@ -207,6 +207,22 @@ public class LatePenaltyService {
                 .build();
     }
 
+    public IslamicFeeResponses.LatePenaltyResult processLatePenalty(Long contractId,
+                                                                    Long installmentId,
+                                                                    BigDecimal overdueAmount,
+                                                                    int daysOverdue) {
+        ContractIdentity identity = inferContractIdentity(contractId, installmentId);
+        return processLatePenalty(IslamicFeeResponses.LatePenaltyRequest.builder()
+                .contractId(contractId)
+                .contractRef(identity.contractRef())
+                .contractTypeCode(identity.contractTypeCode())
+                .installmentId(installmentId)
+                .overdueAmount(overdueAmount)
+                .daysOverdue(daysOverdue)
+                .penaltyDate(LocalDate.now())
+                .build());
+    }
+
     public List<IslamicFeeResponses.LatePenaltyResult> processAllOverduePenalties(LocalDate asOfDate) {
         List<IslamicFeeResponses.LatePenaltyResult> results = new ArrayList<>();
 
@@ -538,6 +554,34 @@ public class LatePenaltyService {
                                    int gracePeriodDays) {
     }
 
+    private ContractIdentity inferContractIdentity(Long contractId, Long installmentId) {
+        if (murabahaContractRepository.findById(contractId).isPresent()
+                && murabahaInstallmentRepository.findById(installmentId).map(MurabahaInstallment::getContractId).filter(contractId::equals).isPresent()) {
+            MurabahaContract contract = murabahaContractRepository.findById(contractId).orElseThrow();
+            return new ContractIdentity("MURABAHA", contract.getContractRef());
+        }
+        if (ijarahContractRepository.findById(contractId).isPresent()
+                && ijarahRentalInstallmentRepository.findById(installmentId).map(IjarahRentalInstallment::getContractId).filter(contractId::equals).isPresent()) {
+            IjarahContract contract = ijarahContractRepository.findById(contractId).orElseThrow();
+            return new ContractIdentity("IJARAH", contract.getContractRef());
+        }
+        if (musharakahContractRepository.findById(contractId).isPresent()) {
+            boolean rentalMatch = musharakahRentalInstallmentRepository.findById(installmentId)
+                    .map(MusharakahRentalInstallment::getContractId)
+                    .filter(contractId::equals)
+                    .isPresent();
+            boolean buyoutMatch = musharakahBuyoutInstallmentRepository.findById(installmentId)
+                    .map(MusharakahBuyoutInstallment::getContractId)
+                    .filter(contractId::equals)
+                    .isPresent();
+            if (rentalMatch || buyoutMatch) {
+                MusharakahContract contract = musharakahContractRepository.findById(contractId).orElseThrow();
+                return new ContractIdentity("MUSHARAKAH", contract.getContractRef());
+            }
+        }
+        throw new BusinessException("Unable to infer contract type for late penalty processing", "LATE_PENALTY_CONTRACT_INFERENCE_FAILED");
+    }
+
     private java.util.Optional<LatePenaltyRecord> findOutstandingPenalty(Long installmentId) {
         return latePenaltyRecordRepository.findFirstByInstallmentIdAndStatusAndOutstandingAmountGreaterThanOrderByPenaltyDateDesc(
                 installmentId,
@@ -552,5 +596,8 @@ public class LatePenaltyService {
             return note;
         }
         return existingNote + " | " + note;
+    }
+
+    private record ContractIdentity(String contractTypeCode, String contractRef) {
     }
 }

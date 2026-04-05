@@ -13,8 +13,12 @@ import com.cbs.wadiah.dto.WadiahStatement;
 import com.cbs.wadiah.entity.WadiahAccount;
 import com.cbs.wadiah.entity.WadiahDomainEnums;
 import com.cbs.wadiah.entity.WadiahStatementConfig;
+import com.cbs.wadiah.entity.WadiahStatementRecord;
 import com.cbs.wadiah.repository.WadiahAccountRepository;
 import com.cbs.wadiah.repository.WadiahStatementConfigRepository;
+import com.cbs.wadiah.repository.WadiahStatementRecordRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -48,10 +52,12 @@ public class WadiahStatementService {
 
     private final WadiahAccountRepository wadiahAccountRepository;
     private final WadiahStatementConfigRepository wadiahStatementConfigRepository;
+    private final WadiahStatementRecordRepository wadiahStatementRecordRepository;
     private final TransactionJournalRepository transactionJournalRepository;
     private final HijriCalendarService hijriCalendarService;
     private final WadiahAccountService wadiahAccountService;
     private final IslamicProductTemplateRepository islamicProductTemplateRepository;
+    private final ObjectMapper objectMapper;
 
     private final Map<String, WadiahStatement> statementStore = new ConcurrentHashMap<>();
     private final Map<Long, List<String>> statementIndexByAccount = new ConcurrentHashMap<>();

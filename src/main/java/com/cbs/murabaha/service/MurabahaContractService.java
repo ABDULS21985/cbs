@@ -32,6 +32,7 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
@@ -104,6 +105,21 @@ public class MurabahaContractService {
         }
 
         BigDecimal financedCostPortion = MurabahaSupport.money(contract.getCostPrice().subtract(MurabahaSupport.money(contract.getDownPayment())));
+
+        // Post GL journal for down payment receipt if applicable
+        if (contract.getDownPayment() != null && contract.getDownPayment().compareTo(BigDecimal.ZERO) > 0) {
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("MURABAHA")
+                    .txnType(IslamicTransactionType.FINANCING_REPAYMENT)
+                    .accountId(contract.getAccountId())
+                    .amount(MurabahaSupport.money(contract.getDownPayment()))
+                    .principal(MurabahaSupport.money(contract.getDownPayment()))
+                    .valueDate(LocalDate.now())
+                    .reference(contract.getContractRef() + "-DOWNPAY")
+                    .narration("Down payment receipt for Murabaha contract " + contract.getContractRef())
+                    .build());
+        }
+
         postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
                 .contractTypeCode("MURABAHA")
                 .txnType(IslamicTransactionType.FINANCING_DISBURSEMENT)
@@ -234,6 +250,16 @@ public class MurabahaContractService {
                 "reason", reason,
                 "timestamp", Instant.now().toString()));
         contractRepository.save(contract);
+
+        // Unassign from investment pool
+        if (contract.getPoolAssetAssignmentId() != null) {
+            try {
+                poolAssetManagementService.unassignAssetFromPool(contract.getPoolAssetAssignmentId(), "WRITE_OFF");
+            } catch (RuntimeException ex) {
+                log.warn("Unable to unassign Murabaha asset {} from pool after write-off: {}",
+                        contract.getPoolAssetAssignmentId(), ex.getMessage());
+            }
+        }
     }
 
     @Transactional(readOnly = true)

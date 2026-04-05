@@ -62,9 +62,6 @@ import java.util.stream.Collectors;
 @Transactional
 public class ProfitDistributionRunService {
 
-    private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";
-    private static final String BANK_MUDARIB_INCOME_GL = "4200-MDR-001";
-
     private final ProfitDistributionRunRepository runRepo;
     private final DistributionRunStepLogRepository stepLogRepo;
     private final ProfitCalculationService calculationService;
@@ -80,6 +77,7 @@ public class ProfitDistributionRunService {
     private final GeneralLedgerService generalLedgerService;
     private final JournalEntryRepository journalEntryRepository;
     private final CurrentActorProvider actorProvider;
+    private final com.cbs.gl.islamic.service.IslamicGLMetadataService islamicGLMetadataService;
 
     private static final AtomicLong RUN_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
 

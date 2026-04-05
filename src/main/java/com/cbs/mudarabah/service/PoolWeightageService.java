@@ -7,6 +7,8 @@ import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
+import com.cbs.gl.dto.JournalLineRequest;
+import com.cbs.gl.service.GeneralLedgerService;
 import com.cbs.gl.islamic.dto.PerCalculationResult;
 import com.cbs.gl.islamic.dto.IrrRetentionResult;
 import com.cbs.gl.islamic.service.PerService;
@@ -50,6 +52,7 @@ public class PoolWeightageService {
     private final AccountPostingService accountPostingService;
     private final PerService perService;
     private final IrrService irrService;
+    private final GeneralLedgerService generalLedgerService;
 
     private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";
     private static final String BANK_MUDARIB_INCOME_GL = "4200-MDR-001";
@@ -327,12 +330,17 @@ public class PoolWeightageService {
 
         // Post bank's total share as Mudarib income to GL
         if (totalBankProfit.compareTo(BigDecimal.ZERO) > 0) {
-            accountPostingService.postGlToGl(
-                    PROFIT_DISTRIBUTION_GL, BANK_MUDARIB_INCOME_GL,
-                    totalBankProfit,
-                    "Bank Mudarib income from pool " + poolId + " period " + periodFrom + " to " + periodTo,
-                    TransactionChannel.SYSTEM, null,
-                    "MUDARABAH", "MUDARIB-INCOME");
+            String narration = "Bank Mudarib income from pool " + poolId + " period " + periodFrom + " to " + periodTo;
+            generalLedgerService.postJournal(
+                    "MUDARIB_INCOME", narration, "MUDARABAH",
+                    "POOL-" + poolId + "-" + periodFrom + "-" + periodTo,
+                    LocalDate.now(),
+                    List.of(
+                            new JournalLineRequest(PROFIT_DISTRIBUTION_GL, totalBankProfit, BigDecimal.ZERO,
+                                    "SAR", BigDecimal.ONE, narration, null, null, null, null),
+                            new JournalLineRequest(BANK_MUDARIB_INCOME_GL, BigDecimal.ZERO, totalBankProfit,
+                                    "SAR", BigDecimal.ONE, narration, null, null, null, null)
+                    ));
             log.info("Bank Mudarib income posted to GL: pool={}, amount={}", poolId, totalBankProfit);
         }
 

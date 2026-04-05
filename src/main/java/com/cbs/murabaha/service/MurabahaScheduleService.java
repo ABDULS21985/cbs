@@ -580,6 +580,10 @@ public class MurabahaScheduleService {
             outstanding = outstanding.subtract(equalPrincipal);
         }
 
+        if (totalWeight.compareTo(BigDecimal.ZERO) == 0) {
+            return buildEqualAllocations(totalProfit, totalInstallments);
+        }
+
         List<BigDecimal> allocations = new ArrayList<>(totalInstallments);
         BigDecimal running = BigDecimal.ZERO;
         for (int i = 0; i < totalInstallments; i++) {

@@ -332,9 +332,7 @@ public class MudarabahTermDepositService {
                             TransactionChannel.SYSTEM, td.getDepositRef() + ":PROFIT",
                             "MUDARABAH", td.getDepositRef());
                 }
-                td.setStatus(MudarabahTDStatus.ROLLED_OVER);
-                td.setRolloverCount(td.getRolloverCount() + 1);
-                // Create new TD for rollover
+                // Create new TD for rollover BEFORE marking original as rolled over
                 CreateMudarabahTermDepositRequest rolloverRequest = CreateMudarabahTermDepositRequest.builder()
                         .customerId(td.getMudarabahAccount().getAccount().getCustomer() != null
                                 ? td.getMudarabahAccount().getAccount().getCustomer().getId() : null)
@@ -351,18 +349,15 @@ public class MudarabahTermDepositService {
                         .earlyWithdrawalAllowed(td.isEarlyWithdrawalAllowed())
                         .lossDisclosureAccepted(true)
                         .build();
-                try {
-                    createTermDeposit(rolloverRequest);
-                    log.info("Rollover TD created for original {}", td.getDepositRef());
-                } catch (Exception e) {
-                    log.error("Failed to create rollover TD for {}: {}", td.getDepositRef(), e.getMessage());
-                }
+                // Only mark as ROLLED_OVER after successful rollover creation
+                createTermDeposit(rolloverRequest);
+                log.info("Rollover TD created for original {}", td.getDepositRef());
+                td.setStatus(MudarabahTDStatus.ROLLED_OVER);
+                td.setRolloverCount(td.getRolloverCount() + 1);
                 log.info("TD {} rolled over (principal only)", td.getDepositRef());
             }
             case ROLLOVER_PRINCIPAL_AND_PROFIT -> {
-                td.setStatus(MudarabahTDStatus.ROLLED_OVER);
-                td.setRolloverCount(td.getRolloverCount() + 1);
-                // Create new TD for rollover with principal + profit
+                // Create new TD for rollover with principal + profit BEFORE marking original as rolled over
                 CreateMudarabahTermDepositRequest rolloverPPRequest = CreateMudarabahTermDepositRequest.builder()
                         .customerId(td.getMudarabahAccount().getAccount().getCustomer() != null
                                 ? td.getMudarabahAccount().getAccount().getCustomer().getId() : null)
@@ -379,12 +374,11 @@ public class MudarabahTermDepositService {
                         .earlyWithdrawalAllowed(td.isEarlyWithdrawalAllowed())
                         .lossDisclosureAccepted(true)
                         .build();
-                try {
-                    createTermDeposit(rolloverPPRequest);
-                    log.info("Rollover TD (principal + profit) created for original {}", td.getDepositRef());
-                } catch (Exception e) {
-                    log.error("Failed to create rollover TD for {}: {}", td.getDepositRef(), e.getMessage());
-                }
+                // Only mark as ROLLED_OVER after successful rollover creation
+                createTermDeposit(rolloverPPRequest);
+                log.info("Rollover TD (principal + profit) created for original {}", td.getDepositRef());
+                td.setStatus(MudarabahTDStatus.ROLLED_OVER);
+                td.setRolloverCount(td.getRolloverCount() + 1);
                 log.info("TD {} rolled over (principal + profit)", td.getDepositRef());
             }
             case PAY_TO_ACCOUNT, PAY_TO_WADIAH -> {
