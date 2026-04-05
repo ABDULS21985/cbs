@@ -84,7 +84,19 @@ public class UssdService {
     }
 
     @Transactional
-    public UssdMenu createMenu(UssdMenu menu) { return menuRepository.save(menu); }
+    public UssdMenu createMenu(UssdMenu menu) {
+        if (menu.getDisplayOrder() == null) {
+            menu.setDisplayOrder(0);
+        }
+        if (menu.getRequiresPin() == null) {
+            menu.setRequiresPin(false);
+        }
+        if (menu.getIsActive() == null) {
+            menu.setIsActive(true);
+        }
+        return menuRepository.save(menu);
+    }
+
     public List<UssdMenu> getRootMenus() { return menuRepository.findByParentMenuCodeIsNullAndIsActiveTrueOrderByDisplayOrderAsc(); }
 
     public List<UssdMenu> getAllMenus() { return menuRepository.findAll(); }
@@ -95,13 +107,13 @@ public class UssdService {
                 .orElseThrow(() -> new RuntimeException("USSD Menu not found with id: " + id));
         existing.setMenuCode(updated.getMenuCode());
         existing.setParentMenuCode(updated.getParentMenuCode());
-        existing.setDisplayOrder(updated.getDisplayOrder());
+        existing.setDisplayOrder(updated.getDisplayOrder() != null ? updated.getDisplayOrder() : existing.getDisplayOrder());
         existing.setTitle(updated.getTitle());
         existing.setShortcode(updated.getShortcode());
         existing.setActionType(updated.getActionType());
         existing.setServiceCode(updated.getServiceCode());
-        existing.setRequiresPin(updated.getRequiresPin());
-        existing.setIsActive(updated.getIsActive());
+        existing.setRequiresPin(updated.getRequiresPin() != null ? updated.getRequiresPin() : existing.getRequiresPin());
+        existing.setIsActive(updated.getIsActive() != null ? updated.getIsActive() : existing.getIsActive());
         return menuRepository.save(existing);
     }
 

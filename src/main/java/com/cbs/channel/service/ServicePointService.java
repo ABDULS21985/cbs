@@ -42,9 +42,11 @@ public class ServicePointService {
     }
 
     @Transactional
-    public ServicePointInteraction endInteraction(Long interactionId, String outcome, Integer satisfactionScore) {
-        ServicePointInteraction interaction = interactionRepository.findById(interactionId)
-                .orElseThrow(() -> new ResourceNotFoundException("ServicePointInteraction", "id", interactionId));
+    public ServicePointInteraction endInteraction(Long servicePointId, String outcome, Integer satisfactionScore) {
+        ServicePointInteraction interaction = interactionRepository
+                .findFirstByServicePointIdAndEndedAtIsNullOrderByStartedAtDesc(servicePointId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Active ServicePointInteraction", "servicePointId", servicePointId));
         interaction.setEndedAt(Instant.now());
         interaction.setDurationSeconds((int) Duration.between(interaction.getStartedAt(), interaction.getEndedAt()).getSeconds());
         interaction.setOutcome(outcome);

@@ -4,6 +4,9 @@ import com.cbs.AbstractIntegrationTest;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.repository.TransactionJournalRepository;
 import com.cbs.common.exception.BusinessException;
+import com.cbs.customer.entity.Customer;
+import com.cbs.customer.entity.CustomerType;
+import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.gl.repository.JournalEntryRepository;
 import com.cbs.mudarabah.dto.CustomerConsentDetails;
 import com.cbs.mudarabah.dto.InitiatePsrChangeRequest;
@@ -24,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,8 +35,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Transactional
 class MudarabahIntegrationTest extends AbstractIntegrationTest {
 
-        private static final long PRIMARY_CUSTOMER_ID = 1L;
-        private static final long SECONDARY_CUSTOMER_ID = 2L;
         private static final String BASE_PRODUCT_CODE = "SA-STD";
 
     @Autowired
@@ -46,6 +48,9 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private AccountRepository accountRepository;
+
+        @Autowired
+        private CustomerRepository customerRepository;
 
     @Autowired
     private TransactionJournalRepository transactionJournalRepository;
@@ -62,9 +67,11 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void openMudarabahSavingsAndDeposit_persistsAccountAndPostsGL() {
+        Long customerId = createActiveCustomer("PRIMARY").getId();
+
         // Open account with initial deposit
         OpenMudarabahSavingsRequest openRequest = OpenMudarabahSavingsRequest.builder()
-                .customerId(PRIMARY_CUSTOMER_ID)
+                .customerId(customerId)
                 .productCode(BASE_PRODUCT_CODE)
                 .currencyCode("SAR")
                 .initialDeposit(new BigDecimal("5000.00"))
@@ -129,8 +136,10 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void openWithInvalidPsr_sumNot100_throwsBusinessException() {
+        Long customerId = createActiveCustomer("SECONDARY").getId();
+
         OpenMudarabahSavingsRequest request = OpenMudarabahSavingsRequest.builder()
-                .customerId(SECONDARY_CUSTOMER_ID)
+                .customerId(customerId)
                 .productCode(BASE_PRODUCT_CODE)
                 .currencyCode("SAR")
                 .initialDeposit(new BigDecimal("1000.00"))
@@ -157,8 +166,10 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void openWithoutLossDisclosure_throwsBusinessException() {
+        Long customerId = createActiveCustomer("PRIMARY").getId();
+
         OpenMudarabahSavingsRequest request = OpenMudarabahSavingsRequest.builder()
-                .customerId(PRIMARY_CUSTOMER_ID)
+                .customerId(customerId)
                 .productCode(BASE_PRODUCT_CODE)
                 .currencyCode("SAR")
                 .initialDeposit(new BigDecimal("1000.00"))
@@ -180,9 +191,11 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void psrChangeLifecycle_initiateConsentApproveApply_updatesAccount() {
+        Long customerId = createActiveCustomer("SECONDARY").getId();
+
         // First, open a Mudarabah savings account with default PSR 70:30
         OpenMudarabahSavingsRequest openRequest = OpenMudarabahSavingsRequest.builder()
-                .customerId(SECONDARY_CUSTOMER_ID)
+                .customerId(customerId)
                 .productCode(BASE_PRODUCT_CODE)
                 .currencyCode("SAR")
                 .initialDeposit(new BigDecimal("10000.00"))
@@ -209,7 +222,7 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
                 .proposedPsrBank(new BigDecimal("35.0000"))
                 .changeReason("CUSTOMER_RENEGOTIATION")
                 .reasonDescription("Customer requested adjusted profit sharing")
-                .effectiveDate(LocalDate.now().plusDays(1))
+                .effectiveDate(LocalDate.now())
                 .build();
 
         PsrChangeRequestResponse changeResponse = psrService.initiateChangeRequest(changeRequest);
@@ -256,4 +269,21 @@ class MudarabahIntegrationTest extends AbstractIntegrationTest {
         assertThat(updatedAccount.getProfitSharingRatioBank()).isEqualByComparingTo(new BigDecimal("35.0000"));
         assertThat(updatedAccount.getContractVersion()).isEqualTo(2);
     }
+
+        private Customer createActiveCustomer(String label) {
+                String suffix = label + "-" + Instant.now().toEpochMilli();
+                return customerRepository.save(Customer.builder()
+                                .cifNumber("CIF-" + suffix)
+                                .customerType(CustomerType.INDIVIDUAL)
+                                .firstName(label)
+                                .lastName("Customer")
+                                .email(label.toLowerCase() + "." + Instant.now().toEpochMilli() + "@example.com")
+                                .phonePrimary("+234" + String.format("%010d", Math.abs(suffix.hashCode()) % 1_000_000_0000L))
+                                .branchCode("BR001")
+                                .nationality("NGA")
+                                .countryOfResidence("NGA")
+                                .createdBy("test")
+                                .updatedBy("test")
+                                .build());
+        }
 }

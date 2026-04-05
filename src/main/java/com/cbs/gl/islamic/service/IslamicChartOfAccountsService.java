@@ -36,6 +36,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -49,6 +50,7 @@ public class IslamicChartOfAccountsService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
     private static final BigDecimal HUNDRED = new BigDecimal("100");
+    private static final String DEFAULT_UNRESTRICTED_INVESTMENT_GL = "3100-MDR-001";
 
     private final ChartOfAccountsRepository coaRepository;
     private final GlBalanceRepository glBalanceRepository;
@@ -104,7 +106,20 @@ public class IslamicChartOfAccountsService {
     }
 
     public List<ChartOfAccounts> getIslamicAccounts() {
-        return coaRepository.findByIsIslamicAccountTrueOrderByGlCodeAsc();
+        Map<String, ChartOfAccounts> accountsByCode = new LinkedHashMap<>();
+
+        for (ChartOfAccounts account : coaRepository.findByIsIslamicAccountTrueOrderByGlCodeAsc()) {
+            accountsByCode.put(account.getGlCode(), account);
+        }
+
+        for (ChartOfAccounts account : coaRepository.findByIslamicAccountCategoryInAndIsActiveTrueOrderByGlCodeAsc(
+                List.of(IslamicAccountCategory.values()))) {
+            accountsByCode.putIfAbsent(account.getGlCode(), account);
+        }
+
+        return accountsByCode.values().stream()
+                .sorted(Comparator.comparing(ChartOfAccounts::getGlCode))
+                .toList();
     }
 
     public List<ChartOfAccounts> getAccountsByIslamicCategory(IslamicAccountCategory category) {
@@ -177,7 +192,25 @@ public class IslamicChartOfAccountsService {
 
         AaoifiBalanceSheet.UnrestrictedInvestmentAccountsSection unrestricted =
                 AaoifiBalanceSheet.UnrestrictedInvestmentAccountsSection.builder().build();
-        unrestricted.setGrossBalance(sumCategory(islamicAccounts, balances, IslamicAccountCategory.UNRESTRICTED_INVESTMENT_ACCOUNT));
+        BigDecimal unrestrictedGrossBalance = sumCategory(
+            islamicAccounts,
+            balances,
+            IslamicAccountCategory.UNRESTRICTED_INVESTMENT_ACCOUNT
+        );
+        BigDecimal canonicalUnrestrictedBalance = loadCanonicalBalance(
+            DEFAULT_UNRESTRICTED_INVESTMENT_GL,
+            effectiveDate
+        );
+        if (canonicalUnrestrictedBalance.compareTo(ZERO) != 0) {
+            unrestrictedGrossBalance = canonicalUnrestrictedBalance;
+        } else if (unrestrictedGrossBalance.compareTo(ZERO) == 0) {
+            unrestrictedGrossBalance = fallbackCanonicalBalance(
+                DEFAULT_UNRESTRICTED_INVESTMENT_GL,
+                effectiveDate,
+                balances
+            );
+        }
+        unrestricted.setGrossBalance(unrestrictedGrossBalance);
         unrestricted.setLessPerReserve(sumCategory(islamicAccounts, balances, IslamicAccountCategory.PROFIT_EQUALISATION_RESERVE));
         unrestricted.setLessIrrReserve(sumCategory(islamicAccounts, balances, IslamicAccountCategory.INVESTMENT_RISK_RESERVE));
         unrestricted.setNetUnrestrictedInvestmentAccounts(unrestricted.getGrossBalance()
@@ -198,12 +231,10 @@ public class IslamicChartOfAccountsService {
                 .filter(account -> account.getIslamicAccountCategory() == IslamicAccountCategory.OWNERS_EQUITY)
                 .filter(account -> {
                     // Prefer structured metadata over name-based matching
-                    if (account.getAaoifiLineItem() != null
-                            && account.getAaoifiLineItem().toUpperCase().contains("PAID_UP_CAPITAL")) {
+                    if (containsAccountingKey(account.getAaoifiLineItem(), "PAID_UP_CAPITAL")) {
                         return true;
                     }
-                    if (account.getGlSubCategory() != null
-                            && account.getGlSubCategory().toUpperCase().contains("PAID_UP_CAPITAL")) {
+                    if (containsAccountingKey(account.getGlSubCategory(), "PAID_UP_CAPITAL")) {
                         return true;
                     }
                     // Fallback to name matching only if no structured metadata available
@@ -449,6 +480,38 @@ public class IslamicChartOfAccountsService {
             return balance.negate();
         }
         return balance;
+    }
+
+    private BigDecimal fallbackCanonicalBalance(String glCode, LocalDate asOfDate, Map<String, BigDecimal> balances) {
+        return coaRepository.findByGlCode(glCode)
+                .map(account -> {
+                    BigDecimal balance = balances.get(glCode);
+                    if (balance == null) {
+                        balance = glBalanceRepository.findByGlCodeAndBalanceDate(glCode, asOfDate).stream()
+                                .map(GlBalance::getClosingBalance)
+                                .map(value -> scale(value, 2))
+                                .reduce(ZERO, BigDecimal::add);
+                    }
+                    return signedPresentationAmount(account, balance);
+                })
+                .orElse(ZERO);
+    }
+
+            private BigDecimal loadCanonicalBalance(String glCode, LocalDate asOfDate) {
+            return coaRepository.findByGlCode(glCode)
+                .map(account -> glBalanceRepository.findByGlCodeAndBalanceDate(glCode, asOfDate).stream()
+                    .map(GlBalance::getClosingBalance)
+                    .map(value -> scale(value, 2))
+                    .reduce(ZERO, BigDecimal::add))
+                .orElse(ZERO);
+            }
+
+    private boolean containsAccountingKey(String value, String key) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        String normalizedValue = value.trim().toUpperCase().replaceAll("[^A-Z0-9]+", "_");
+        return normalizedValue.contains(key);
     }
 
     private List<AaoifiBalanceSheet.PoolSummary> buildRestrictedPoolBreakdown() {

@@ -37,7 +37,6 @@ class ServicePointServiceTest {
     @DisplayName("Interaction duration auto-calculated from startedAt to endedAt")
     void interactionDurationAutoCalculated() {
         Instant start = Instant.parse("2026-03-18T10:00:00Z");
-        Instant end = Instant.parse("2026-03-18T10:05:30Z");
 
         ServicePointInteraction interaction = new ServicePointInteraction();
         interaction.setId(1L);
@@ -46,16 +45,14 @@ class ServicePointServiceTest {
         interaction.setStartedAt(start);
         interaction.setOutcome("COMPLETED");
 
-        when(interactionRepository.findById(1L)).thenReturn(Optional.of(interaction));
-        when(interactionRepository.save(any(ServicePointInteraction.class))).thenAnswer(i -> {
-            ServicePointInteraction saved = i.getArgument(0);
-            saved.setEndedAt(end); // simulate endedAt set by service
-            return saved;
-        });
+        when(interactionRepository.findFirstByServicePointIdAndEndedAtIsNullOrderByStartedAtDesc(1L))
+                .thenReturn(Optional.of(interaction));
+        when(interactionRepository.save(any(ServicePointInteraction.class))).thenAnswer(i -> i.getArgument(0));
 
         ServicePointInteraction result = service.endInteraction(1L, "COMPLETED", 5);
 
         assertThat(result.getDurationSeconds()).isNotNull();
+        assertThat(result.getEndedAt()).isNotNull();
         assertThat(result.getOutcome()).isEqualTo("COMPLETED");
         assertThat(result.getCustomerSatisfactionScore()).isEqualTo(5);
     }

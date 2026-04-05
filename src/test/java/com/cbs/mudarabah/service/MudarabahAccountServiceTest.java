@@ -86,9 +86,9 @@ class MudarabahAccountServiceTest {
                 .code("MDR-SAV")
                 .build();
 
-        when(customerRepository.findById(anyLong())).thenReturn(Optional.of(customer));
-        when(productRepository.findByCode(anyString())).thenReturn(Optional.of(product));
-        when(actorProvider.getCurrentActor()).thenReturn("test-user");
+                lenient().when(customerRepository.findById(anyLong())).thenReturn(Optional.of(customer));
+                lenient().when(productRepository.findByCode(anyString())).thenReturn(Optional.of(product));
+                lenient().when(actorProvider.getCurrentActor()).thenReturn("test-user");
     }
 
     private OpenMudarabahSavingsRequest validRequest() {

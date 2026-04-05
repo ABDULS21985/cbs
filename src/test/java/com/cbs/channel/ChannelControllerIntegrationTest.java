@@ -2,6 +2,9 @@ package com.cbs.channel;
 
 import com.cbs.AbstractIntegrationTest;
 import com.cbs.TestSecurityConfig;
+import com.cbs.customer.entity.Customer;
+import com.cbs.customer.entity.CustomerType;
+import com.cbs.customer.repository.CustomerRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
@@ -14,6 +17,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
+import java.time.Instant;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,13 +32,14 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private static final String BASE = "/api/v1";
+        @Autowired
+        private CustomerRepository customerRepository;
+
+        private static final String BASE = "/v1";
 
     // Shared state across ordered tests
     private static String channelSessionId;
     private static Long servicePointId;
-    private static Long channelConfigId;
-    private static Long activityLogId;
     private static Long ussdMenuId;
     private static String ibSessionId;
 
@@ -46,15 +51,17 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
     @Order(1)
     @DisplayName("POST /v1/channels/sessions - should create a new channel session")
     void createChannelSession() throws Exception {
+        Long customerId = createActiveCustomer("CHANNEL-PRIMARY").getId();
+
         ResponseEntity<String> response = restTemplate.postForEntity(
-                BASE + "/channels/sessions?channel=WEB&customerId=1", null, String.class);
+                BASE + "/channels/sessions?channel=WEB&customerId=" + customerId, null, String.class);
 
         JsonNode json = objectMapper.readTree(response.getBody());
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(json.path("success").asBoolean()).isTrue();
         assertThat(json.path("data").path("channel").asText()).isEqualTo("WEB");
-        assertThat(json.path("data").path("customerId").asLong()).isEqualTo(1L);
+        assertThat(json.path("data").path("customerId").asLong()).isEqualTo(customerId);
         assertThat(json.path("data").path("status").asText()).isEqualTo("ACTIVE");
         assertThat(json.path("data").path("sessionId").asText()).isNotEmpty();
 
@@ -127,9 +134,11 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
     @Order(6)
     @DisplayName("POST /v1/channels/sessions/{sessionId}/end - should end the session")
     void endChannelSession() throws Exception {
+        Long customerId = createActiveCustomer("CHANNEL-END").getId();
+
         // Create a fresh session to end (original was handed off)
         ResponseEntity<String> createResp = restTemplate.postForEntity(
-                BASE + "/channels/sessions?channel=WEB&customerId=2", null, String.class);
+                BASE + "/channels/sessions?channel=WEB&customerId=" + customerId, null, String.class);
         JsonNode createJson = objectMapper.readTree(createResp.getBody());
         String newSessionId = createJson.path("data").path("sessionId").asText();
 
@@ -185,7 +194,6 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
         assertThat(json.path("data").path("displayName").asText()).isEqualTo("Web Banking");
         assertThat(json.path("data").path("sessionTimeoutSecs").asInt()).isEqualTo(300);
 
-        channelConfigId = json.path("data").path("id").asLong();
     }
 
     @Test
@@ -213,7 +221,7 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
     void registerServicePoint() throws Exception {
         Map<String, Object> body = Map.of(
                 "servicePointName", "Main Branch Teller 1",
-                "servicePointType", "TELLER",
+                                "servicePointType", "BRANCH_COUNTER",
                 "status", "ONLINE",
                 "maxConcurrentCustomers", 1,
                 "avgServiceTimeMinutes", 10,
@@ -233,7 +241,7 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(json.path("success").asBoolean()).isTrue();
         assertThat(json.path("data").path("servicePointName").asText()).isEqualTo("Main Branch Teller 1");
-        assertThat(json.path("data").path("servicePointType").asText()).isEqualTo("TELLER");
+        assertThat(json.path("data").path("servicePointType").asText()).isEqualTo("BRANCH_COUNTER");
         assertThat(json.path("data").path("status").asText()).isEqualTo("ONLINE");
 
         servicePointId = json.path("data").path("id").asLong();
@@ -279,7 +287,7 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
 
         Map<String, Object> body = Map.of(
                 "servicePointName", "Main Branch Teller 1 Updated",
-                "servicePointType", "TELLER",
+                "servicePointType", "BRANCH_COUNTER",
                 "status", "MAINTENANCE",
                 "maxConcurrentCustomers", 2,
                 "avgServiceTimeMinutes", 15,
@@ -326,7 +334,7 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
         // Set service point back to ONLINE so interaction can start
         Map<String, Object> updateBody = Map.of(
                 "servicePointName", "Main Branch Teller 1 Updated",
-                "servicePointType", "TELLER",
+                "servicePointType", "BRANCH_COUNTER",
                 "status", "ONLINE",
                 "maxConcurrentCustomers", 2,
                 "avgServiceTimeMinutes", 15,
@@ -431,7 +439,6 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
         assertThat(json.path("data").path("resultStatus").asText()).isEqualTo("SUCCESS");
         assertThat(json.path("data").path("ipAddress").asText()).isEqualTo("192.168.1.100");
 
-        activityLogId = json.path("data").path("id").asLong();
     }
 
     @Test
@@ -755,4 +762,21 @@ class ChannelControllerIntegrationTest extends AbstractIntegrationTest {
         assertThat(json.path("success").asBoolean()).isTrue();
         assertThat(json.path("data")).isNotNull();
     }
+
+        private Customer createActiveCustomer(String label) {
+                String suffix = label + "-" + Instant.now().toEpochMilli();
+                return customerRepository.save(Customer.builder()
+                                .cifNumber("CIF-" + suffix)
+                                .customerType(CustomerType.INDIVIDUAL)
+                                .firstName(label)
+                                .lastName("Customer")
+                                .email(label.toLowerCase() + "." + Instant.now().toEpochMilli() + "@example.com")
+                                .phonePrimary("+234" + String.format("%010d", Math.abs(suffix.hashCode()) % 1_000_000_0000L))
+                                .branchCode("BR001")
+                                .nationality("NGA")
+                                .countryOfResidence("NGA")
+                                .createdBy("test")
+                                .updatedBy("test")
+                                .build());
+        }
 }

@@ -9,6 +9,9 @@ import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
 import com.cbs.common.exception.BusinessException;
+import com.cbs.customer.entity.Customer;
+import com.cbs.customer.entity.CustomerStatus;
+import com.cbs.customer.repository.CustomerRepository;
 import com.cbs.mudarabah.dto.OpenWakalaAccountRequest;
 import com.cbs.mudarabah.entity.RiskLevel;
 import com.cbs.mudarabah.entity.StatementFrequency;
@@ -41,10 +44,12 @@ class WakalaDepositServiceTest {
     @Mock private WakalaDepositAccountRepository wakalaRepository;
     @Mock private AccountRepository accountRepository;
     @Mock private AccountPostingService accountPostingService;
+        @Mock private CustomerRepository customerRepository;
 
     @InjectMocks private WakalaDepositService service;
 
     private Account baseAccount;
+        private Customer customer;
 
     @BeforeEach
     void setUp() {
@@ -61,6 +66,11 @@ class WakalaDepositServiceTest {
                 .overdraftLimit(BigDecimal.ZERO)
                 .openedDate(LocalDate.now())
                 .activatedDate(LocalDate.now())
+                .build();
+
+        customer = Customer.builder()
+                .id(100L)
+                .status(CustomerStatus.ACTIVE)
                 .build();
     }
 
@@ -110,6 +120,7 @@ class WakalaDepositServiceTest {
     @Test
     @DisplayName("Open Wakala account with percentage fee sets fee rate correctly")
     void openWakalaAccount_percentageFee_success() {
+                when(customerRepository.findById(100L)).thenReturn(Optional.of(customer));
         when(accountRepository.save(any(Account.class))).thenReturn(baseAccount);
         when(wakalaRepository.save(any(WakalaDepositAccount.class)))
                 .thenAnswer(invocation -> {
