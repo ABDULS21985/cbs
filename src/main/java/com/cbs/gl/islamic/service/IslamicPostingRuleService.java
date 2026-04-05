@@ -477,9 +477,8 @@ public class IslamicPostingRuleService {
         // Use SimpleEvaluationContext to restrict SpEL to read-only property access (sandboxed)
         SimpleEvaluationContext context = SimpleEvaluationContext
                 .forPropertyAccessors(new MapAccessor())
-                .withRootObject(evaluationContext)
                 .build();
-        return expressionParser.parseExpression(expression).getValue(context);
+        return expressionParser.parseExpression(expression).getValue(context, evaluationContext);
     }
 
     private BigDecimal evaluateBigDecimal(String expression, Map<String, Object> evaluationContext) {

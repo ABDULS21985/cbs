@@ -38,6 +38,7 @@ public class CreateHibahBatchRequest {
     private WadiahDomainEnums.HibahFundingSource fundingSource;
 
     private String notes;
+    private String currencyCode;
 
     @Builder.Default
     private Map<Long, BigDecimal> manualAmounts = new LinkedHashMap<>();
