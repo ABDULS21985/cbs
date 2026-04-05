@@ -158,14 +158,25 @@ public class ShariahAuditService {
             entityTypes.add(AuditEntityType.OTHER);
         }
 
+        // Fix #11: Populate entityRef from real data for each entity type
+        Map<AuditEntityType, List<String>> entityRefPool = new java.util.LinkedHashMap<>();
+        for (AuditEntityType et : entityTypes) {
+            entityRefPool.put(et, resolveEntityRefsForSampling(et, audit, request.getSampleSize()));
+        }
+
         List<ShariahAuditSample> samples = new ArrayList<>();
         for (int i = 0; i < request.getSampleSize(); i++) {
             AuditEntityType entityType = entityTypes.get(i % entityTypes.size());
+            List<String> refs = entityRefPool.getOrDefault(entityType, List.of());
+            String entityRef = (i / entityTypes.size()) < refs.size()
+                    ? refs.get(i / entityTypes.size())
+                    : null;
 
             ShariahAuditSample sample = ShariahAuditSample.builder()
                     .auditId(auditId)
                     .sampleNumber(i + 1)
                     .entityType(entityType)
+                    .entityRef(entityRef)
                     .reviewStatus(SampleReviewStatus.PENDING)
                     .build();
 
@@ -534,6 +545,34 @@ public class ShariahAuditService {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private List<String> resolveEntityRefsForSampling(AuditEntityType entityType, ShariahAudit audit, int maxRefs) {
+        try {
+            int limit = Math.min(maxRefs * 2, 500);
+            return switch (entityType) {
+                case MURABAHA_CONTRACT -> screeningResultRepository.findRecentContractRefs("MURABAHA",
+                        audit.getPeriodFrom(), audit.getPeriodTo(), limit);
+                case IJARAH_CONTRACT -> screeningResultRepository.findRecentContractRefs("IJARAH",
+                        audit.getPeriodFrom(), audit.getPeriodTo(), limit);
+                case MUDARABAH_DEPOSIT -> screeningResultRepository.findRecentContractRefs("MUDARABAH",
+                        audit.getPeriodFrom(), audit.getPeriodTo(), limit);
+                case INVESTMENT_POOL -> screeningResultRepository.findRecentContractRefs("POOL",
+                        audit.getPeriodFrom(), audit.getPeriodTo(), limit);
+                case PROFIT_DISTRIBUTION -> screeningResultRepository.findRecentContractRefs("PROFIT_DISTRIBUTION",
+                        audit.getPeriodFrom(), audit.getPeriodTo(), limit);
+                case FEE_CHARGE -> screeningResultRepository.findRecentContractRefs("FEE",
+                        audit.getPeriodFrom(), audit.getPeriodTo(), limit);
+                case PAYMENT -> screeningResultRepository.findRecentContractRefs("PAYMENT",
+                        audit.getPeriodFrom(), audit.getPeriodTo(), limit);
+                case PRODUCT_TEMPLATE -> screeningResultRepository.findRecentContractRefs("PRODUCT",
+                        audit.getPeriodFrom(), audit.getPeriodTo(), limit);
+                default -> List.of();
+            };
+        } catch (Exception e) {
+            log.warn("Could not resolve entity refs for sampling type {}: {}", entityType, e.getMessage());
+            return List.of();
+        }
+    }
 
     private ShariahAudit loadAudit(Long auditId) {
         return auditRepository.findById(auditId)

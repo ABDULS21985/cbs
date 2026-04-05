@@ -39,4 +39,8 @@ public interface SanctionsScreeningResultRepository extends JpaRepository<Sancti
     long countByDispositionStatusAndScreeningTimestampBetween(@Param("status") SanctionsDispositionStatus status,
                                                               @Param("from") LocalDateTime from,
                                                               @Param("to") LocalDateTime to);
+
+    @Query("SELECT r FROM SanctionsScreeningResult r WHERE r.overallResult = :result AND r.screeningTimestamp >= :from ORDER BY r.screeningTimestamp DESC")
+    List<SanctionsScreeningResult> findByOverallResultAndScreeningTimestampAfter(@Param("result") SanctionsOverallResult result,
+                                                                                 @Param("from") LocalDateTime from);
 }

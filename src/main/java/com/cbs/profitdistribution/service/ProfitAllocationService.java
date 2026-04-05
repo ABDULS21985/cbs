@@ -17,6 +17,7 @@ import com.cbs.profitdistribution.dto.ConservationCheck;
 import com.cbs.profitdistribution.dto.ProfitAllocationBatch;
 import com.cbs.profitdistribution.entity.CalculationStatus;
 import com.cbs.profitdistribution.entity.PoolProfitCalculation;
+import com.cbs.profitdistribution.repository.PoolAssetAssignmentRepository;
 import com.cbs.profitdistribution.repository.PoolProfitCalculationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +49,7 @@ public class ProfitAllocationService {
     private final PoolWeightageService weightageService;
     private final PoolWeightageRecordRepository weightageRecordRepo;
     private final InvestmentPoolRepository poolRepo;
+    private final PoolAssetAssignmentRepository poolAssetAssignmentRepo;
     private final CurrentActorProvider actorProvider;
 
     public ProfitAllocationBatch allocateProfit(Long poolId, Long profitCalculationId) {
@@ -128,10 +130,18 @@ public class ProfitAllocationService {
                 // Loss allocation: check pool type for contract-type awareness
                 // For Mudarabah: losses are 100% borne by capital provider (depositor)
                 // For Musharakah: losses are proportional to capital contribution
-                String poolType = pool.getPoolType() != null ? pool.getPoolType().name() : "";
-                if ("RESTRICTED".equals(poolType)
-                        && pool.getDescription() != null
-                        && pool.getDescription().toUpperCase().contains("MUSHARAKAH")) {
+                boolean isMusharakahPool = !poolAssetAssignmentRepo
+                        .findByPoolIdAndContractTypeCode(poolId, "MUSHARAKAH").isEmpty();
+                // Fallback: also check pool name and description for MUSHARAKAH indicator
+                if (!isMusharakahPool) {
+                    String poolName = pool.getName() != null ? pool.getName().toUpperCase(java.util.Locale.ROOT) : "";
+                    String poolDesc = pool.getDescription() != null ? pool.getDescription().toUpperCase(java.util.Locale.ROOT) : "";
+                    String poolCode = pool.getPoolCode() != null ? pool.getPoolCode().toUpperCase(java.util.Locale.ROOT) : "";
+                    isMusharakahPool = poolName.contains("MUSHARAKAH")
+                            || poolDesc.contains("MUSHARAKAH")
+                            || poolCode.contains("MUSHARAKAH");
+                }
+                if (isMusharakahPool) {
                     // Musharakah: loss shared proportionally based on bank share percentage
                     BigDecimal bankShareRatio = pool.getProfitSharingRatioBank() != null
                             ? pool.getProfitSharingRatioBank().divide(HUNDRED, 4, RoundingMode.HALF_UP)

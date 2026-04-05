@@ -47,6 +47,7 @@ public class CommodityMurabahaService {
     private final IslamicPostingRuleService postingRuleService;
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
+    private final com.cbs.shariahcompliance.service.ShariahScreeningService shariahScreeningService;
 
     @Value("${murabaha.commodity.strict-same-day-buy-sell:true}")
     private boolean strictSameDayBuySell;
@@ -64,6 +65,22 @@ public class CommodityMurabahaService {
         if (contract.getCommodityQuantity() == null || contract.getCommodityQuantity().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException("Commodity quantity must be specified and positive on the contract", "COMMODITY_QUANTITY_MISSING");
         }
+
+        // Fix #6: Screen commodity type against prohibited-goods list
+        var screening = shariahScreeningService.screenPreExecution(
+                com.cbs.shariahcompliance.dto.ShariahScreeningRequest.builder()
+                        .transactionRef(contract.getContractRef() + "-CMDT-INIT")
+                        .transactionType("COMMODITY_MURABAHA_TRADE")
+                        .amount(contract.getCostPrice())
+                        .currencyCode(contract.getCurrencyCode())
+                        .contractRef(contract.getContractRef())
+                        .contractTypeCode("MURABAHA")
+                        .customerId(contract.getCustomerId())
+                        .additionalContext(java.util.Map.of(
+                                "commodityType", contract.getCommodityType(),
+                                "commodityQuantity", contract.getCommodityQuantity()))
+                        .build());
+        shariahScreeningService.ensureAllowed(screening);
 
         CommodityMurabahaTrade trade = CommodityMurabahaTrade.builder()
                 .contractId(contractId)
@@ -185,6 +202,22 @@ public class CommodityMurabahaService {
         if (trade.getBankOwnershipEvidenceType() == null || trade.getBankOwnershipDate() == null) {
             throw new BusinessException("Ownership evidence must be recorded before verification",
                     "OWNERSHIP_EVIDENCE_MISSING");
+        }
+
+        // Four-eyes principle: verifier must differ from the person who initiated the trade
+        if (org.springframework.util.StringUtils.hasText(trade.getCreatedBy())
+                && trade.getCreatedBy().equalsIgnoreCase(verifiedBy)) {
+            throw new BusinessException(
+                    "Four-eyes principle: ownership verifier must differ from the trade initiator",
+                    "FOUR_EYES_REQUIRED");
+        }
+        // Also check against the contract creator
+        MurabahaContract ownerContract = getCommodityContract(trade.getContractId());
+        if (org.springframework.util.StringUtils.hasText(ownerContract.getCreatedBy())
+                && ownerContract.getCreatedBy().equalsIgnoreCase(verifiedBy)) {
+            throw new BusinessException(
+                    "Four-eyes principle: ownership verifier must differ from the contract creator",
+                    "FOUR_EYES_REQUIRED");
         }
 
         trade.setOwnershipVerifiedBy(verifiedBy);

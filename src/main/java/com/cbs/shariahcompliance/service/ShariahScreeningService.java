@@ -19,7 +19,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -576,19 +575,21 @@ public class ShariahScreeningService {
                 && businessRule.getApplicableProducts().stream().anyMatch(product -> product.equalsIgnoreCase(contractTypeCode));
     }
 
-    @SuppressWarnings("removal")
     private Boolean evaluateBusinessRuleCompliance(BusinessRuleResponse businessRule, ShariahScreeningRequest request) {
         if (!StringUtils.hasText(businessRule.getEvaluationExpression())) {
             return null;
         }
 
         Map<String, Object> evaluationRoot = buildBusinessRuleContext(request, businessRule.getParameters());
-        StandardEvaluationContext evaluationContext = new StandardEvaluationContext(evaluationRoot);
-        evaluationContext.addPropertyAccessor(new MapAccessor());
+        SimpleEvaluationContext evaluationContext = SimpleEvaluationContext
+                .forPropertyAccessors(new MapAccessor())
+                .withInstanceMethods()
+                .withRootObject(evaluationRoot)
+                .build();
         evaluationContext.setVariable("params", businessRule.getParameters());
         evaluationContext.setVariable("request", request);
 
-        Object value = spelParser.parseExpression(businessRule.getEvaluationExpression()).getValue(evaluationContext);
+        Object value = spelParser.parseExpression(businessRule.getEvaluationExpression()).getValue(evaluationContext, evaluationRoot);
         if (value instanceof Boolean booleanValue) {
             return booleanValue;
         }

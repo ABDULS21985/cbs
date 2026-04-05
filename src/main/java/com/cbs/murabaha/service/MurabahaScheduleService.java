@@ -53,6 +53,7 @@ public class MurabahaScheduleService {
     private final PoolAssetManagementService poolAssetManagementService;
     private final LatePenaltyService latePenaltyService;
     private final AccountPostingService accountPostingService;
+    private final MurabahaProfitRecognitionService profitRecognitionService;
 
     public List<MurabahaInstallment> generateSchedule(Long contractId) {
         MurabahaContract contract = getContract(contractId);
@@ -157,8 +158,18 @@ public class MurabahaScheduleService {
             throw new BusinessException("Payment amount must be positive", "INVALID_PAYMENT_AMOUNT");
         }
 
+        // Repayment idempotency: reject duplicate payment references
+        if (request.getExternalRef() != null) {
+            boolean alreadyProcessed = installmentRepository.existsByTransactionRef(request.getExternalRef());
+            if (alreadyProcessed) {
+                throw new BusinessException("Payment with reference " + request.getExternalRef() + " already processed",
+                        "DUPLICATE_PAYMENT");
+            }
+        }
+
         refreshPastDueStatuses(contract);
-        List<MurabahaInstallment> unpaidInstallments = installmentRepository.findByContractIdAndStatusInOrderByInstallmentNumberAsc(
+        // Use optimistic-lock query to prevent concurrent repayment races on the same contract
+        List<MurabahaInstallment> unpaidInstallments = installmentRepository.findUnpaidWithLock(
                 contractId,
                 List.of(
                         MurabahaDomainEnums.InstallmentStatus.OVERDUE,
@@ -178,9 +189,15 @@ public class MurabahaScheduleService {
                 ? request.getExternalRef()
                 : "MRB-REPAY-" + contract.getContractRef() + "-" + Instant.now().toEpochMilli();
 
-        // Debit customer settlement account
+        // Fix #9: Require a valid settlement account — do not silently skip the customer debit
         Account settlementAccount = resolveReferenceAccount(contract, request.getDebitAccountId());
-        if (settlementAccount != null) {
+        if (settlementAccount == null) {
+            throw new BusinessException(
+                    "No settlement account found for contract " + contract.getContractRef()
+                            + ". A valid debit account is required for repayment.",
+                    "SETTLEMENT_ACCOUNT_REQUIRED");
+        }
+        {
             accountPostingService.postDebitAgainstGl(
                     settlementAccount,
                     TransactionType.DEBIT,
@@ -287,8 +304,6 @@ public class MurabahaScheduleService {
                     totalPenaltySettled, contractId);
         }
 
-        contract.setRecognisedProfit(MurabahaSupport.money(contract.getRecognisedProfit().add(totalProfitSettled)));
-        contract.setUnrecognisedProfit(MurabahaSupport.money(contract.getTotalDeferredProfit().subtract(contract.getRecognisedProfit())));
         if (areAllInstallmentsSettled(contractId)) {
             contract.setStatus(MurabahaDomainEnums.ContractStatus.SETTLED);
         } else if (contract.getStatus() == MurabahaDomainEnums.ContractStatus.EXECUTED) {
@@ -296,7 +311,10 @@ public class MurabahaScheduleService {
         }
         contractRepository.save(contract);
 
-        recordPoolIncomeIfApplicable(contract, totalProfitSettled, request.getPaymentDate(), generatedRef);
+        // Delegate profit recognition to the single authoritative service to avoid dual-path divergence
+        if (totalProfitSettled.compareTo(BigDecimal.ZERO) > 0) {
+            profitRecognitionService.recogniseProfitOnRepayment(contractId, totalProfitSettled, generatedRef);
+        }
         return firstTouched != null ? firstTouched : unpaidInstallments.get(0);
     }
 
@@ -651,10 +669,8 @@ public class MurabahaScheduleService {
                 && installment.getPaidAmount().compareTo(BigDecimal.ZERO) > 0;
         LocalDate today = LocalDate.now();
         if (today.isAfter(installment.getDueDate())) {
-            // Preserve PARTIAL status for installments that have partial payments
-            if (!isPartiallyPaid) {
-                installment.setStatus(MurabahaDomainEnums.InstallmentStatus.OVERDUE);
-            }
+            // Fix #12: Partially paid installments past due date are promoted to OVERDUE for collections
+            installment.setStatus(MurabahaDomainEnums.InstallmentStatus.OVERDUE);
             installment.setDaysOverdue((int) java.time.temporal.ChronoUnit.DAYS.between(installment.getDueDate(), today));
         } else if (today.isEqual(installment.getDueDate())) {
             if (!isPartiallyPaid) {

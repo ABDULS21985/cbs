@@ -226,6 +226,40 @@ public class IslamicContractTypeService {
                             "INVALID_QARD_PROFIT_CONFIGURATION");
                 }
             }
+            case "SALAM" -> {
+                // ST-022: Full payment must be made at contract inception
+                requireBoolean(values, "fullPaymentAtInception", true,
+                        "Salam requires fullPaymentAtInception=true — deferred payment voids the Salam (ST-022)");
+                requirePresent(values, "deliveryDate", "Salam requires a specified delivery date");
+                // Validate delivery date is in the future
+                Object deliveryDate = values.get("deliveryDate");
+                if (deliveryDate instanceof String dateStr) {
+                    try {
+                        java.time.LocalDate parsed = java.time.LocalDate.parse(dateStr);
+                        if (!parsed.isAfter(java.time.LocalDate.now())) {
+                            throw new BusinessException("Salam deliveryDate must be in the future",
+                                    "CONTRACT_VALIDATION_FAILED");
+                        }
+                    } catch (java.time.format.DateTimeParseException ex) {
+                        throw new BusinessException("Salam deliveryDate must be a valid date",
+                                "CONTRACT_VALIDATION_FAILED");
+                    }
+                }
+                requirePresent(values, "commoditySpecification", "Salam requires a commodity specification");
+            }
+            case "ISTISNA", "ISTISNA'A" -> {
+                requirePresent(values, "assetSpecification", "Istisna'a requires an asset specification");
+                requireBoolean(values, "progressBillingEnabled", true,
+                        "Istisna'a requires progressBillingEnabled=true for milestone-based payments");
+                requirePresent(values, "completionMilestones",
+                        "Istisna requires completionMilestones for progressive payment tracking");
+            }
+            case "WAKALAH", "WAKALA" -> {
+                requirePresent(values, "wakalahFeeType",
+                        "Wakalah requires a fee type (FIXED_FEE, PERCENTAGE_FEE, or PERFORMANCE_FEE)");
+                requireBoolean(values, "profitSharingAllowed", false,
+                        "Wakalah uses fee-based compensation, not profit sharing");
+            }
             default -> {
             }
         }

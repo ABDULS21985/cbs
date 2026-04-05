@@ -75,6 +75,10 @@ public class MusharakahLossEvent extends AuditableEntity {
     @Column(name = "allocation_method", columnDefinition = "TEXT")
     private String allocationMethod;
 
+    @Column(name = "requires_compliance_verification", nullable = false)
+    @lombok.Builder.Default
+    private Boolean requiresComplianceVerification = false;
+
     @Column(name = "verified_by_compliance", nullable = false)
     @lombok.Builder.Default
     private Boolean verifiedByCompliance = false;

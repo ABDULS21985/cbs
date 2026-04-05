@@ -230,6 +230,11 @@ public class MusharakahOriginationService {
 
     public MusharakahResponses.MusharakahApplicationResponse approveApplication(Long applicationId, String approvedBy) {
         MusharakahApplication application = getApplicationEntity(applicationId);
+        if (application.getExpiresAt() != null && application.getExpiresAt().isBefore(Instant.now())) {
+            application.setStatus(MusharakahDomainEnums.ApplicationStatus.EXPIRED);
+            applicationRepository.save(application);
+            throw new BusinessException("Musharakah application has expired", "APPLICATION_EXPIRED");
+        }
         if (application.getStatus() != MusharakahDomainEnums.ApplicationStatus.PRICING
                 && application.getStatus() != MusharakahDomainEnums.ApplicationStatus.ASSET_VALUATION
                 && application.getStatus() != MusharakahDomainEnums.ApplicationStatus.SUBMITTED) {
@@ -260,6 +265,11 @@ public class MusharakahOriginationService {
 
     public MusharakahContract convertToContract(Long applicationId) {
         MusharakahApplication application = getApplicationEntity(applicationId);
+        if (application.getExpiresAt() != null && application.getExpiresAt().isBefore(Instant.now())) {
+            application.setStatus(MusharakahDomainEnums.ApplicationStatus.EXPIRED);
+            applicationRepository.save(application);
+            throw new BusinessException("Musharakah application has expired", "APPLICATION_EXPIRED");
+        }
         if (application.getStatus() != MusharakahDomainEnums.ApplicationStatus.APPROVED) {
             throw new BusinessException("Musharakah application must be approved before conversion", "INVALID_APPLICATION_STATUS");
         }

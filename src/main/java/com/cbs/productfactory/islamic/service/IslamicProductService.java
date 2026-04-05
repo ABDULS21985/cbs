@@ -40,6 +40,7 @@ import com.cbs.shariah.service.ShariahGovernanceService;
 import com.cbs.tenant.service.CurrentTenantResolver;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -102,6 +103,7 @@ public class IslamicProductService {
     private final CurrentActorProvider currentActorProvider;
     private final CurrentTenantResolver currentTenantResolver;
     private final ObjectMapper objectMapper;
+    private final EntityManager entityManager;
 
     @Transactional
     public IslamicProductResponse createProduct(IslamicProductRequest request) {
@@ -894,7 +896,7 @@ public class IslamicProductService {
                 .updatedBy(product.getUpdatedBy())
                 .active(product.getStatus() == IslamicDomainEnums.IslamicProductStatus.ACTIVE)
                 .hasActiveFatwa(hasActiveFatwa(product))
-                .activeContractCount(0)
+                .activeContractCount(countActiveContracts(product.getId()))
                 .parameters(parameterRepository.findByProductTemplateIdOrderByParameterNameAsc(product.getId()).stream()
                         .map(parameter -> IslamicProductResponse.IslamicProductParameterView.builder()
                                 .id(parameter.getId())
@@ -1765,6 +1767,35 @@ public class IslamicProductService {
 
     private List<String> copyList(List<String> values) {
         return values == null ? new ArrayList<>() : new ArrayList<>(values);
+    }
+
+    /**
+     * Counts active contracts across all contract entity types that reference the given Islamic product template.
+     * Uses JPQL queries against known contract entities with a try-catch fallback to 0 for entities that may not exist.
+     */
+    private int countActiveContracts(Long productTemplateId) {
+        if (productTemplateId == null) {
+            return 0;
+        }
+        int total = 0;
+        // Query each known contract entity type that has an islamicProductTemplateId field
+        String[] entityNames = {
+                "MurabahaContract", "IjarahContract", "MusharakahContract",
+                "WakalaDepositAccount", "QardHasanAccount", "WadiahAccount", "MudarabahAccount"
+        };
+        for (String entityName : entityNames) {
+            try {
+                Long count = entityManager.createQuery(
+                        "SELECT COUNT(c) FROM " + entityName + " c WHERE c.islamicProductTemplateId = :templateId",
+                        Long.class
+                ).setParameter("templateId", productTemplateId).getSingleResult();
+                total += count.intValue();
+            } catch (Exception ex) {
+                // Entity may not exist or may not have the expected field - skip silently
+                log.trace("Unable to count contracts for entity {}: {}", entityName, ex.getMessage());
+            }
+        }
+        return total;
     }
 
     private String safeDecimal(BigDecimal value) {

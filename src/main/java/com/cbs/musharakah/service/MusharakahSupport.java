@@ -15,6 +15,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 final class MusharakahSupport {
@@ -95,8 +96,8 @@ final class MusharakahSupport {
     }
 
     static String nextReference(String prefix, AtomicLong sequence) {
-        long next = Math.floorMod(sequence.incrementAndGet(), 1_000_000L);
-        return "%s-%d-%06d".formatted(prefix, LocalDate.now().getYear(), next);
+        String uuid = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        return "%s-%d-%s".formatted(prefix, LocalDate.now().getYear(), uuid);
     }
 
     static BigDecimal percentage(BigDecimal part, BigDecimal total) {
@@ -247,6 +248,7 @@ final class MusharakahSupport {
                 .bankLossShare(event.getBankLossShare())
                 .customerLossShare(event.getCustomerLossShare())
                 .allocationMethod(event.getAllocationMethod())
+                .requiresComplianceVerification(event.getRequiresComplianceVerification())
                 .verifiedByCompliance(event.getVerifiedByCompliance())
                 .verifiedBy(event.getVerifiedBy())
                 .verifiedAt(event.getVerifiedAt())

@@ -150,8 +150,74 @@ public class DomesticPaymentService {
         return configRepository.save(existing);
     }
 
-    public void submitAchBatch(String countryCode, LocalDate valueDate) {
+    public IslamicPaymentResponses.AchBatchResult submitAchBatch(String countryCode, LocalDate valueDate) {
         log.info("Submitting ACH batch for country={} valueDate={}", countryCode, valueDate);
+
+        DomesticPaymentConfig config = configRepository.findByCountryCodeIgnoreCase(countryCode)
+                .orElseThrow(() -> new BusinessException(
+                        "No domestic payment config found for country: " + countryCode, "ACH_CONFIG_NOT_FOUND"));
+        if (!config.isActive()) {
+            throw new BusinessException("ACH rail is not active for country: " + countryCode, "ACH_RAIL_INACTIVE");
+        }
+        if (!hijriCalendarService.isIslamicBusinessDay(valueDate)) {
+            throw new BusinessException(
+                    "Value date " + valueDate + " is not an Islamic business day", "ACH_INVALID_VALUE_DATE");
+        }
+
+        List<DomesticPaymentMessage> pendingMessages = messageRepository
+                .findByRailConfigIdAndStatus(config.getId(), IslamicPaymentDomainEnums.MessageStatus.PENDING);
+        if (pendingMessages.isEmpty()) {
+            log.info("No pending ACH messages for country={} valueDate={}", countryCode, valueDate);
+            return IslamicPaymentResponses.AchBatchResult.builder()
+                    .countryCode(countryCode).valueDate(valueDate)
+                    .totalMessages(0).successCount(0).failureCount(0)
+                    .build();
+        }
+
+        int successCount = 0;
+        int failureCount = 0;
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        String batchRef = countryCode + "-ACH-" + valueDate + "-" + System.currentTimeMillis();
+
+        for (DomesticPaymentMessage message : pendingMessages) {
+            try {
+                PaymentIslamicExtension extension = extensionRepository.findByPaymentId(message.getPaymentId())
+                        .orElse(null);
+                if (extension != null && !Boolean.TRUE.equals(extension.isShariahScreened())) {
+                    message.setStatus(IslamicPaymentDomainEnums.MessageStatus.REJECTED);
+                    message.setRejectionReason("Payment not Shariah-screened before ACH submission");
+                    message.setRejectedAt(LocalDateTime.now());
+                    messageRepository.save(message);
+                    failureCount++;
+                    continue;
+                }
+                message.setStatus(IslamicPaymentDomainEnums.MessageStatus.SUBMITTED);
+                message.setSubmittedAt(LocalDateTime.now());
+                messageRepository.save(message);
+
+                PaymentInstruction payment = paymentInstructionRepository.findById(message.getPaymentId()).orElse(null);
+                if (payment != null && payment.getAmount() != null) {
+                    totalAmount = totalAmount.add(payment.getAmount());
+                }
+                successCount++;
+            } catch (Exception e) {
+                log.error("Failed to submit ACH message id={}: {}", message.getId(), e.getMessage());
+                message.setStatus(IslamicPaymentDomainEnums.MessageStatus.REJECTED);
+                message.setRejectionReason(e.getMessage());
+                message.setRejectedAt(LocalDateTime.now());
+                messageRepository.save(message);
+                failureCount++;
+            }
+        }
+
+        log.info("ACH batch submitted: country={}, valueDate={}, batch={}, total={}, success={}, failed={}",
+                countryCode, valueDate, batchRef, pendingMessages.size(), successCount, failureCount);
+
+        return IslamicPaymentResponses.AchBatchResult.builder()
+                .countryCode(countryCode).valueDate(valueDate)
+                .totalMessages(pendingMessages.size()).successCount(successCount).failureCount(failureCount)
+                .totalAmount(totalAmount)
+                .build();
     }
 
     private IslamicPaymentResponses.DomesticPaymentResult createOrUpdateMessage(PaymentInstruction payment,

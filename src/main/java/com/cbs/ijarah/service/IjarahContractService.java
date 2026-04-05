@@ -82,6 +82,10 @@ public class IjarahContractService {
         if (contract.getStatus() != IjarahDomainEnums.ContractStatus.DRAFT) {
             throw new BusinessException("Asset procurement can only be initiated for DRAFT contracts", "INVALID_CONTRACT_STATUS");
         }
+        // Validate acquisition cost is positive
+        if (request.getAcquisitionCost() == null || request.getAcquisitionCost().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Asset acquisition cost must be greater than zero", "INVALID_ACQUISITION_COST");
+        }
         contract.setAssetAcquisitionCost(IjarahSupport.money(request.getAcquisitionCost()));
         contract.setAssetDescription(StringUtils.hasText(contract.getAssetDescription())
                 ? contract.getAssetDescription()
@@ -374,6 +378,12 @@ public class IjarahContractService {
 
     public IjarahResponses.IjarahContractResponse processLeaseMaturity(Long contractId) {
         IjarahContract contract = findContract(contractId);
+        // Guard against double-maturity processing
+        if (contract.getStatus() == IjarahDomainEnums.ContractStatus.CLOSED
+                || contract.getStatus() == IjarahDomainEnums.ContractStatus.MATURED) {
+            throw new BusinessException("Contract is already " + contract.getStatus() + " and cannot be matured again",
+                    "INVALID_CONTRACT_STATUS");
+        }
         var asset = assetService.findAsset(contract.getIjarahAssetId());
 
         // Check all rentals are paid before maturity processing

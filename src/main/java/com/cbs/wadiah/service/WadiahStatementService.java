@@ -411,7 +411,7 @@ public class WadiahStatementService {
                     .statementData(json)
                     .build());
         } catch (JsonProcessingException e) {
-            log.error("Failed to persist Wadiah statement record: statementRef={}", statementRef, e);
+            throw new RuntimeException("Failed to persist Wadiah statement record (regulatory requirement): statementRef=" + statementRef, e);
         }
     }
 

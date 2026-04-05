@@ -64,7 +64,9 @@ public class DistributionReserveService {
                     .reserveBalanceAfter(BigDecimal.ZERO).build();
         }
 
-        BigDecimal adjustment = perResult.getAdjustmentAmount();
+        BigDecimal adjustment = defaultAmount(perResult.getAdjustmentAmount());
+        BigDecimal balanceBefore = defaultAmount(perResult.getPerBalanceBefore());
+        BigDecimal balanceAfter = balanceBefore;
 
         // Validate PER retention doesn't exceed 50% of depositor pool (safety limit)
         BigDecimal maxPerRetention = depositorPool.multiply(new BigDecimal("0.50"));
@@ -81,6 +83,7 @@ public class DistributionReserveService {
             perService.retainToPer(poolId, adjustment, periodFrom, periodTo,
                     depositorPool, perResult.getActualProfitRate(), perResult.getSmoothedProfitRate());
             txnType = "RETENTION";
+                        balanceAfter = balanceBefore.add(adjustment);
         } else if ("RELEASE".equals(perResult.getAdjustmentType()) && adjustment.compareTo(ZERO) > 0) {
             // Release from PER to supplement low profit
             perService.releaseFromPer(poolId, adjustment, periodFrom, periodTo,
@@ -88,6 +91,7 @@ public class DistributionReserveService {
                     actorProvider.getCurrentActor());
             txnType = "RELEASE";
             afterPer = depositorPool.add(adjustment);
+                        balanceAfter = balanceBefore.subtract(adjustment);
         }
 
         // Record the distribution reserve transaction
@@ -103,8 +107,8 @@ public class DistributionReserveService {
                             ? ReserveTransactionType.RETENTION
                             : ReserveTransactionType.RELEASE)
                     .amount(adjustment)
-                    .balanceBefore(perResult.getPerBalanceBefore())
-                    .balanceAfter(perResult.getPerBalanceAfter())
+                    .balanceBefore(balanceBefore)
+                    .balanceAfter(balanceAfter)
                     .triggerReason(String.format("PER %s: actual rate %s vs target, adjustment %s",
                             txnType, perResult.getActualProfitRate(), adjustment))
                     .perTransactionId(perTransaction != null ? perTransaction.getId() : null)
@@ -133,7 +137,7 @@ public class DistributionReserveService {
                 .amountAfterReserve(afterPer)
                 .transactionId(transactionId)
                 .journalRef(journalRef)
-                .reserveBalanceAfter(perResult.getPerBalanceAfter())
+                .reserveBalanceAfter(balanceAfter)
                 .build();
     }
 
@@ -155,7 +159,7 @@ public class DistributionReserveService {
             // Profit scenario: retain a portion into IRR
             IrrRetentionResult result = irrService.calculateIrrRetention(
                     poolId, depositorPoolAfterPer, periodFrom, periodTo);
-            adjustment = result.getAdjustmentAmount();
+            adjustment = defaultAmount(result.getAdjustmentAmount());
 
             // Validate IRR retention doesn't exceed remaining distributable amount
             BigDecimal maxIrrRetention = depositorPoolAfterPer.multiply(new BigDecimal("0.25")); // Max 25% of post-PER pool
@@ -167,8 +171,8 @@ public class DistributionReserveService {
             if (adjustment.compareTo(ZERO) > 0) {
                 irrService.retainToIrr(poolId, adjustment, periodFrom, periodTo);
                 txnType = "RETENTION";
-                afterIrr = result.getDistributableProfitAfterRetention();
-                balanceAfter = result.getIrrBalanceAfter();
+                                afterIrr = depositorPoolAfterPer.subtract(adjustment);
+                                balanceAfter = balanceBefore.add(adjustment);
             }
         } else if (isLoss) {
             // Loss scenario: release IRR to absorb loss
@@ -189,7 +193,7 @@ public class DistributionReserveService {
                 adjustment = absorbedAmount;
                 txnType = "RELEASE";
                 afterIrr = depositorPoolAfterPer.add(absorbedAmount);
-                balanceAfter = balanceBefore.subtract(absorbedAmount);
+                                balanceAfter = balanceBefore.subtract(adjustment);
             }
         }
 
@@ -358,4 +362,8 @@ public class DistributionReserveService {
                 .reserveBalanceAfter(transaction.getBalanceAfter())
                 .build();
     }
+
+        private BigDecimal defaultAmount(BigDecimal value) {
+                return value != null ? value : ZERO;
+        }
 }

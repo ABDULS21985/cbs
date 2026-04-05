@@ -267,4 +267,14 @@ public final class IslamicPaymentResponses {
         private long rejectionCount;
         private long timeoutCount;
     }
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class AchBatchResult {
+        private String countryCode;
+        private java.time.LocalDate valueDate;
+        private int totalMessages;
+        private int successCount;
+        private int failureCount;
+        private java.math.BigDecimal totalAmount;
+    }
 }

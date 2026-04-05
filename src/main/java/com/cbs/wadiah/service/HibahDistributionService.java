@@ -248,13 +248,22 @@ public class HibahDistributionService {
             batch.getTenantId(),
             batch.getDistributionDate(),
             defaultAmount(batch.getAverageHibahRate()));
-        if (batch.getStatus() != WadiahDomainEnums.HibahBatchStatus.APPROVED
-            && !(policy != null
-            && !Boolean.TRUE.equals(policy.getApprovalRequired())
-            && projectedAnalysis.getSystematicRisk() == RiskLevel.LOW
-                && batch.getStatus() == WadiahDomainEnums.HibahBatchStatus.DRAFT)) {
-            throw new BusinessException("Batch must be approved before processing", "BATCH_NOT_APPROVED");
+
+        // Idempotency guard: only APPROVED batches (or low-risk DRAFT with no approval required) can be processed
+        boolean isApprovedForProcessing = batch.getStatus() == WadiahDomainEnums.HibahBatchStatus.APPROVED
+            || (policy != null
+                && !Boolean.TRUE.equals(policy.getApprovalRequired())
+                && projectedAnalysis.getSystematicRisk() == RiskLevel.LOW
+                && batch.getStatus() == WadiahDomainEnums.HibahBatchStatus.DRAFT);
+
+        if (!isApprovedForProcessing) {
+            throw new BusinessException("HIBAH-BATCH-001",
+                    "Batch is not in APPROVED status, current: " + batch.getStatus());
         }
+
+        // Compare-and-set: transition to PROCESSING atomically to prevent concurrent execution
+        batch.setStatus(WadiahDomainEnums.HibahBatchStatus.PROCESSING);
+        batch = hibahDistributionBatchRepository.saveAndFlush(batch);
         if (StringUtils.hasText(batch.getApprovedBy())
                 && batch.getApprovedBy().equalsIgnoreCase(processedBy)) {
             throw new BusinessException(

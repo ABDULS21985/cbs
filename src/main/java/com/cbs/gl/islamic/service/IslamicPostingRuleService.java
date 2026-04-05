@@ -267,6 +267,15 @@ public class IslamicPostingRuleService {
         if (lines.isEmpty()) {
             throw new BusinessException("Posting rule resolved to zero-value journal lines", "EMPTY_ISLAMIC_JOURNAL");
         }
+
+        // Validate that total debits equal total credits (double-entry integrity check)
+        BigDecimal totalDebit = lines.stream().map(ResolvedLine::debitAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCredit = lines.stream().map(ResolvedLine::creditAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (totalDebit.subtract(totalCredit).abs().compareTo(new BigDecimal("0.01")) > 0) {
+            throw new BusinessException("Journal is not balanced: debit=" + totalDebit + " credit=" + totalCredit,
+                    "GL_JOURNAL_IMBALANCED");
+        }
+
         return new ResolvedJournal(lines, StringUtils.hasText(request.getNarration()) ? request.getNarration() : rule.getName());
     }
 

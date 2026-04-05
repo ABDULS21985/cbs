@@ -173,7 +173,9 @@ public class MusharakahBuyoutService {
                 if (surplus.compareTo(BigDecimal.ZERO) <= 0) break;
                 BigDecimal nextUnitsAffordable = MusharakahSupport.units(surplus.divide(next.getPricePerUnit(), 8, RoundingMode.HALF_UP));
                 if (nextUnitsAffordable.compareTo(BigDecimal.ZERO) <= 0) break;
-                BigDecimal nextUnitsToTransfer = nextUnitsAffordable.min(next.getUnitsToTransfer());
+                BigDecimal remainingUnitsInNext = next.getUnitsToTransfer().subtract(
+                        next.getActualUnitsTransferred() != null ? next.getActualUnitsTransferred() : BigDecimal.ZERO);
+                BigDecimal nextUnitsToTransfer = nextUnitsAffordable.min(remainingUnitsInNext);
                 BigDecimal nextUsedAmount = MusharakahSupport.money(nextUnitsToTransfer.multiply(next.getPricePerUnit()));
                 MusharakahUnitTransfer surplusTransfer = unitService.transferUnits(
                         contractId, nextUnitsToTransfer, request.getPaymentDate(), nextUsedAmount, request.getExternalRef());

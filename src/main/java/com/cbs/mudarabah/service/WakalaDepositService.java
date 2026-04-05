@@ -31,7 +31,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -48,7 +48,7 @@ public class WakalaDepositService {
     private static final String CASH_GL = "1001-000-001";
     private static final String WAKALA_FEE_INCOME_GL = "4200-WKL-001";
     private static final String WAKALA_CUSTOMER_PROFIT_GL = "4100-WKL-002";
-    private static final AtomicLong WKL_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    private static final BigDecimal MINIMUM_WAKALA_DEPOSIT = new BigDecimal("1000");
 
     public WakalaDepositResponse openWakalaAccount(OpenWakalaAccountRequest request) {
         if (!request.isLossDisclosureAccepted()) {
@@ -85,9 +85,19 @@ public class WakalaDepositService {
         Customer customer = customerRepository.findById(request.getCustomerId())
                 .orElseThrow(() -> new BusinessException("Customer not found: " + request.getCustomerId(), "CUSTOMER_NOT_FOUND"));
 
+        // Validate customer is ACTIVE
+        if (customer.getStatus() == null || customer.getStatus() != com.cbs.customer.entity.CustomerStatus.ACTIVE) {
+            throw new BusinessException("Customer is not active. Status: " + customer.getStatus(), "CUSTOMER_NOT_ACTIVE");
+        }
+
+        // Validate minimum deposit
+        if (request.getInitialDeposit() == null || request.getInitialDeposit().compareTo(MINIMUM_WAKALA_DEPOSIT) < 0) {
+            throw new BusinessException("Minimum deposit for Wakala accounts is " + MINIMUM_WAKALA_DEPOSIT, "BELOW_MINIMUM_DEPOSIT");
+        }
+
         // Create base Account
         Account account = Account.builder()
-                .accountNumber("WKL" + System.currentTimeMillis() % 10000000000L)
+                .accountNumber("WKL" + UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase())
                 .accountName("Wakala Investment Deposit")
                 .currencyCode(request.getCurrencyCode() != null ? request.getCurrencyCode() : "SAR")
                 .accountType(AccountType.INDIVIDUAL)
@@ -102,7 +112,7 @@ public class WakalaDepositService {
         account.setCustomer(customer);
         account = accountRepository.save(account);
 
-        String contractRef = "WKL-DEP-" + LocalDate.now().getYear() + "-" + String.format("%06d", WKL_SEQ.incrementAndGet());
+        String contractRef = "WKL-DEP-" + LocalDate.now().getYear() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
         WakalaAccountSubType subType = WakalaAccountSubType.valueOf(request.getAccountSubType());
         LocalDate maturityDate = null;
@@ -130,7 +140,6 @@ public class WakalaDepositService {
                 .tenorDays(request.getTenorDays())
                 .maturityDate(maturityDate)
                 .maturityInstruction(request.getMaturityInstruction())
-                .poolJoinDate(LocalDate.now())
                 .cumulativeProfitReceived(BigDecimal.ZERO)
                 .cumulativeFeesDeducted(BigDecimal.ZERO)
                 .lossExposure(true)
@@ -260,20 +269,15 @@ public class WakalaDepositService {
             wakalahFee = grossProfit; // Bank can only take what's available
         }
 
-        // Credit customer profit using customer profit distribution GL
+        // Credit customer profit (already net of fee) using customer profit distribution GL.
+        // The fee is NOT debited separately - customerProfit = grossProfit - wakalahFee,
+        // so crediting customerProfit correctly gives the customer their net share.
+        // The wakalahFee is recognized as bank income via GL journal only (no customer debit).
         if (customerProfit.compareTo(BigDecimal.ZERO) > 0) {
             accountPostingService.postCreditAgainstGl(account, TransactionType.CREDIT,
-                    customerProfit, "Wakala investment profit",
+                    customerProfit, "Wakala investment profit (net of fee)",
                     TransactionChannel.SYSTEM, null,
                     WAKALA_CUSTOMER_PROFIT_GL, "WAKALA", w.getContractReference());
-        }
-
-        // Post bank's Wakala fee income to GL
-        if (wakalahFee.compareTo(BigDecimal.ZERO) > 0) {
-            accountPostingService.postDebitAgainstGl(account, TransactionType.DEBIT,
-                    wakalahFee, "Wakala fee deduction",
-                    TransactionChannel.SYSTEM, null,
-                    WAKALA_FEE_INCOME_GL, "WAKALA", w.getContractReference());
         }
 
         // Update Wakala account
@@ -384,6 +388,12 @@ public class WakalaDepositService {
             throw new BusinessException("Early withdrawal is not allowed for this Wakala account", "EARLY_WITHDRAWAL_NOT_ALLOWED");
         }
 
+        // Validate payout account is provided before proceeding - funds must not be trapped in a closed account
+        if (w.getPayoutAccountId() == null) {
+            throw new BusinessException("A payout account is required for early withdrawal. "
+                    + "Please specify a payout account to receive the funds.", "PAYOUT_ACCOUNT_REQUIRED");
+        }
+
         BigDecimal totalBalance = account.getBookBalance();
         BigDecimal payoutAmount = totalBalance;
 
@@ -396,7 +406,7 @@ public class WakalaDepositService {
         }
 
         // Transfer to payout account
-        if (w.getPayoutAccountId() != null && payoutAmount.compareTo(BigDecimal.ZERO) > 0) {
+        if (payoutAmount.compareTo(BigDecimal.ZERO) > 0) {
             Account payoutAccount = accountRepository.findById(w.getPayoutAccountId())
                     .orElseThrow(() -> new ResourceNotFoundException("Payout account not found"));
             accountPostingService.postTransfer(account, payoutAccount,

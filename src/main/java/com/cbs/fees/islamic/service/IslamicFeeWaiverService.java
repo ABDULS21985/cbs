@@ -21,6 +21,7 @@ import com.cbs.tenant.service.CurrentTenantResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -38,6 +39,15 @@ import java.util.Map;
 @Slf4j
 @Transactional
 public class IslamicFeeWaiverService {
+
+    @Value("${islamic.fee.waiver.threshold.officer:500}")
+    private BigDecimal officerThreshold;
+
+    @Value("${islamic.fee.waiver.threshold.branch-manager:2000}")
+    private BigDecimal branchManagerThreshold;
+
+    @Value("${islamic.fee.waiver.threshold.regional-manager:10000}")
+    private BigDecimal regionalManagerThreshold;
 
     private final IslamicFeeWaiverRepository waiverRepository;
     private final IslamicFeeConfigurationRepository configurationRepository;
@@ -250,13 +260,13 @@ public class IslamicFeeWaiverService {
     }
 
     private String determineAuthorityLevel(BigDecimal waivedAmount) {
-        if (waivedAmount.compareTo(new BigDecimal("500")) < 0) {
+        if (waivedAmount.compareTo(officerThreshold) < 0) {
             return "OFFICER";
         }
-        if (waivedAmount.compareTo(new BigDecimal("2000")) <= 0) {
+        if (waivedAmount.compareTo(branchManagerThreshold) <= 0) {
             return "BRANCH_MANAGER";
         }
-        if (waivedAmount.compareTo(new BigDecimal("10000")) <= 0) {
+        if (waivedAmount.compareTo(regionalManagerThreshold) <= 0) {
             return "REGIONAL_MANAGER";
         }
         return "HEAD_OFFICE";

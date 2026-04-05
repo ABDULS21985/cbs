@@ -11,6 +11,8 @@ import com.cbs.gl.service.GeneralLedgerService;
 import com.cbs.gl.service.GeneralLedgerService.JournalLineRequest;
 import com.cbs.gl.islamic.dto.PerCalculationResult;
 import com.cbs.gl.islamic.dto.IrrRetentionResult;
+import com.cbs.gl.islamic.entity.InvestmentPool;
+import com.cbs.gl.islamic.repository.InvestmentPoolRepository;
 import com.cbs.gl.islamic.service.PerService;
 import com.cbs.gl.islamic.service.IrrService;
 import com.cbs.mudarabah.dto.PoolPerformanceReport;
@@ -38,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -55,6 +58,7 @@ public class PoolWeightageService {
     private final PerService perService;
     private final IrrService irrService;
     private final GeneralLedgerService generalLedgerService;
+    private final InvestmentPoolRepository investmentPoolRepository;
 
     private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";
     private static final String BANK_MUDARIB_INCOME_GL = "4200-MDR-001";
@@ -264,7 +268,7 @@ public class PoolWeightageService {
         log.info("Profit allocated: poolId={}, period={} to {}, participants={}, grossProfit={}",
                 poolId, periodFrom, periodTo, allocations.size(), poolGrossProfit);
 
-        return allocations.stream().map(this::toAllocationResponse).toList();
+        return toAllocationResponses(allocations);
     }
 
     public void approveAllocations(Long poolId, LocalDate periodFrom, LocalDate periodTo) {
@@ -299,7 +303,15 @@ public class PoolWeightageService {
             }
 
             Account account = accountRepository.findById(allocation.getAccountId()).orElse(null);
-            if (account == null) continue;
+            if (account == null) {
+                log.error("Account not found for allocation {} (accountId={}). Marking allocation as FAILED.",
+                        allocation.getId(), allocation.getAccountId());
+                allocation.setDistributionStatus(ProfitAllocationStatus.FAILED);
+                allocation.setWarningNotes((allocation.getWarningNotes() != null ? allocation.getWarningNotes() + " " : "")
+                        + "Account not found - distribution failed.");
+                allocationRepository.save(allocation);
+                continue;
+            }
 
             MudarabahAccount ma = mudarabahAccountRepository.findByAccountId(allocation.getAccountId()).orElse(null);
 
@@ -414,12 +426,18 @@ public class PoolWeightageService {
 
         // Post bank's total share as Mudarib income to GL
         if (totalBankProfit.compareTo(BigDecimal.ZERO) > 0) {
+            // Resolve pool currency instead of hardcoding
+            String poolCurrency = "SAR"; // fallback
+            InvestmentPool pool = investmentPoolRepository.findById(poolId).orElse(null);
+            if (pool != null && pool.getCurrencyCode() != null) {
+                poolCurrency = pool.getCurrencyCode();
+            }
             String narration = "Bank Mudarib income from pool " + poolId + " period " + periodFrom + " to " + periodTo;
             List<JournalLineRequest> journalLines = new ArrayList<>();
             journalLines.add(new JournalLineRequest(PROFIT_DISTRIBUTION_GL, totalBankProfit, BigDecimal.ZERO,
-                    "SAR", BigDecimal.ONE, narration, null, null, null, null));
+                    poolCurrency, BigDecimal.ONE, narration, null, null, null, null));
             journalLines.add(new JournalLineRequest(BANK_MUDARIB_INCOME_GL, BigDecimal.ZERO, totalBankProfit,
-                    "SAR", BigDecimal.ONE, narration, null, null, null, null));
+                    poolCurrency, BigDecimal.ONE, narration, null, null, null, null));
             generalLedgerService.postJournal(
                     "MUDARIB_INCOME", narration, "MUDARABAH",
                     "POOL-" + poolId + "-" + periodFrom + "-" + periodTo,
@@ -466,8 +484,9 @@ public class PoolWeightageService {
 
     @Transactional(readOnly = true)
     public List<PoolProfitAllocationResponse> getProfitAllocationHistory(Long accountId, LocalDate from, LocalDate to) {
-        return allocationRepository.findByAccountIdAndPeriodFromGreaterThanEqualAndPeriodToLessThanEqual(accountId, from, to)
-                .stream().map(this::toAllocationResponse).toList();
+        List<PoolProfitAllocation> allocations = allocationRepository
+                .findByAccountIdAndPeriodFromGreaterThanEqualAndPeriodToLessThanEqual(accountId, from, to);
+        return toAllocationResponses(allocations);
     }
 
     @Transactional(readOnly = true)
@@ -484,10 +503,22 @@ public class PoolWeightageService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalIrr = allocations.stream().map(PoolProfitAllocation::getIrrDeduction)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal avgRate = allocations.isEmpty() ? BigDecimal.ZERO :
-                allocations.stream().map(PoolProfitAllocation::getEffectiveProfitRate)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add)
-                        .divide(BigDecimal.valueOf(allocations.size()), 4, RoundingMode.HALF_UP);
+        // Calculate weighted average rate by daily product (balance-weighted) instead of simple arithmetic mean
+        BigDecimal avgRate;
+        BigDecimal totalDailyProduct = allocations.stream()
+                .map(PoolProfitAllocation::getTotalDailyProduct)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (allocations.isEmpty() || totalDailyProduct.compareTo(BigDecimal.ZERO) == 0) {
+            avgRate = BigDecimal.ZERO;
+        } else {
+            // Weighted average: sum(rate * dailyProduct) / sum(dailyProduct)
+            BigDecimal weightedSum = allocations.stream()
+                    .filter(a -> a.getEffectiveProfitRate() != null && a.getTotalDailyProduct() != null)
+                    .map(a -> a.getEffectiveProfitRate().multiply(a.getTotalDailyProduct()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            avgRate = weightedSum.divide(totalDailyProduct, 4, RoundingMode.HALF_UP);
+        }
 
         return PoolPerformanceReport.builder()
                 .poolId(poolId)
@@ -500,12 +531,37 @@ public class PoolWeightageService {
                 .totalIrrRetained(totalIrr)
                 .participantCount((int) allocations.stream().map(PoolProfitAllocation::getAccountId).distinct().count())
                 .averageEffectiveRate(avgRate)
-                .allocations(allocations.stream().map(this::toAllocationResponse).toList())
+                .allocations(toAllocationResponses(allocations))
                 .build();
+    }
+
+    /**
+     * Batch-convert allocations to responses, loading all required accounts in a single query
+     * to avoid N+1 query performance issues.
+     */
+    private List<PoolProfitAllocationResponse> toAllocationResponses(List<PoolProfitAllocation> allocations) {
+        if (allocations.isEmpty()) {
+            return List.of();
+        }
+        // Batch load all accounts referenced by these allocations
+        List<Long> accountIds = allocations.stream()
+                .map(PoolProfitAllocation::getAccountId)
+                .distinct()
+                .toList();
+        Map<Long, Account> accountMap = accountRepository.findAllById(accountIds).stream()
+                .collect(java.util.stream.Collectors.toMap(Account::getId, a -> a));
+
+        return allocations.stream()
+                .map(a -> toAllocationResponse(a, accountMap.get(a.getAccountId())))
+                .toList();
     }
 
     private PoolProfitAllocationResponse toAllocationResponse(PoolProfitAllocation a) {
         Account account = accountRepository.findById(a.getAccountId()).orElse(null);
+        return toAllocationResponse(a, account);
+    }
+
+    private PoolProfitAllocationResponse toAllocationResponse(PoolProfitAllocation a, Account account) {
         return PoolProfitAllocationResponse.builder()
                 .id(a.getId())
                 .poolId(a.getPoolId())

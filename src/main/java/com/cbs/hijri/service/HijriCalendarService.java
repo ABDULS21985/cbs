@@ -152,9 +152,23 @@ public class HijriCalendarService {
             throw new BusinessException("to date must be on or after from date");
         }
 
+        // Cache holidays and weekend days for the entire range to avoid per-day queries
+        Set<DayOfWeek> weekendDays = resolveWeekendDays(currentTenantResolver.getCurrentTenantId());
+        List<ResolvedHolidayResponse> holidays = resolveHolidayResponses(
+                getActiveHolidaysForTenant(currentTenantResolver.getCurrentTenantId()), from, to);
+        Set<LocalDate> holidayDates = new HashSet<>();
+        for (ResolvedHolidayResponse holiday : holidays) {
+            if (holiday.getHolidayType() == HijriHolidayType.PUBLIC_HOLIDAY
+                    || holiday.getHolidayType() == HijriHolidayType.BANK_HOLIDAY) {
+                for (LocalDate d = holiday.getGregorianDateFrom(); !d.isAfter(holiday.getGregorianDateTo()); d = d.plusDays(1)) {
+                    holidayDates.add(d);
+                }
+            }
+        }
+
         int count = 0;
         for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
-            if (isIslamicBusinessDay(date)) {
+            if (!weekendDays.contains(date.getDayOfWeek()) && !holidayDates.contains(date)) {
                 count++;
             }
         }

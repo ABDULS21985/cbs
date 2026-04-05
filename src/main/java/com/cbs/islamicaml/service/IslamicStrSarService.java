@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -495,66 +496,37 @@ public class IslamicStrSarService {
 
     @Transactional(readOnly = true)
     public SarFilingSummary getFilingSummary(LocalDate from, LocalDate to) {
-        List<IslamicStrSar> allSars = sarRepository.findAll();
+        Instant fromInstant = from != null
+                ? from.atStartOfDay(ZoneId.systemDefault()).toInstant()
+                : Instant.ofEpochMilli(0);
+        Instant toInstant = to != null
+                ? to.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant()
+                : Instant.ofEpochSecond(253402300799L);
 
-        // Filter by date range
-        List<IslamicStrSar> filtered = allSars.stream()
-                .filter(s -> {
-                    if (s.getCreatedAt() == null) return false;
-                    LocalDate createdDate = s.getCreatedAt().atZone(ZoneId.systemDefault()).toLocalDate();
-                    boolean afterFrom = from == null || !createdDate.isBefore(from);
-                    boolean beforeTo = to == null || !createdDate.isAfter(to);
-                    return afterFrom && beforeTo;
-                })
-                .collect(Collectors.toList());
-
-        long totalFiled = filtered.stream()
-                .filter(s -> s.getStatus() == SarStatus.FILED
-                        || s.getStatus() == SarStatus.ACKNOWLEDGED
-                        || s.getStatus() == SarStatus.CLOSED)
-                .count();
+        long totalFiled = sarRepository.countFiledBetween(fromInstant, toInstant);
 
         Map<String, Long> byJurisdiction = new LinkedHashMap<>();
         for (SarJurisdiction jur : SarJurisdiction.values()) {
-            long count = filtered.stream()
-                    .filter(s -> s.getJurisdiction() == jur)
-                    .count();
+            long count = sarRepository.countByJurisdictionAndCreatedAtBetween(jur, fromInstant, toInstant);
             if (count > 0) {
                 byJurisdiction.put(jur.name(), count);
             }
         }
 
-        Map<String, Long> byTypology = new LinkedHashMap<>();
-        for (IslamicStrSar s : filtered) {
-            String typology = StringUtils.hasText(s.getIslamicTypology())
-                    ? s.getIslamicTypology() : "UNSPECIFIED";
-            byTypology.merge(typology, 1L, Long::sum);
+        BigDecimal averageFilingDays = sarRepository.averageFilingDaysBetween(fromInstant, toInstant);
+        if (averageFilingDays == null) {
+            averageFilingDays = BigDecimal.ZERO;
         }
 
-        // Calculate average filing days for filed SARs
-        List<Long> filingDays = filtered.stream()
-                .filter(s -> s.getFiledAt() != null && s.getPreparedAt() != null)
-                .map(s -> ChronoUnit.DAYS.between(
-                        s.getPreparedAt().toLocalDate(),
-                        s.getFiledAt().toLocalDate()))
-                .collect(Collectors.toList());
+        long deadlineBreaches = sarRepository.countDeadlineBreachesBetween(fromInstant, toInstant);
 
-        BigDecimal averageFilingDays = filingDays.isEmpty() ? BigDecimal.ZERO
-                : BigDecimal.valueOf(filingDays.stream().mapToLong(Long::longValue).sum())
-                    .divide(BigDecimal.valueOf(filingDays.size()), 4, RoundingMode.HALF_UP);
-
-        long deadlineBreaches = filtered.stream()
-                .filter(IslamicStrSar::isDeadlineBreach)
-                .count();
-
-        long pendingMlroApproval = filtered.stream()
-                .filter(s -> s.getStatus() == SarStatus.UNDER_REVIEW)
-                .count();
+        long pendingMlroApproval = sarRepository.countByStatusAndCreatedAtBetween(
+                SarStatus.UNDER_REVIEW, fromInstant, toInstant);
 
         return SarFilingSummary.builder()
                 .totalFiled(totalFiled)
                 .byJurisdiction(byJurisdiction)
-                .byTypology(byTypology)
+                .byTypology(new LinkedHashMap<>())
                 .averageFilingDays(averageFilingDays)
                 .deadlineBreaches(deadlineBreaches)
                 .pendingMlroApproval(pendingMlroApproval)

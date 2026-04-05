@@ -79,6 +79,8 @@ public class ProfitDistributionRunService {
     private final JournalEntryRepository journalEntryRepository;
     private final CurrentActorProvider actorProvider;
     private final com.cbs.gl.islamic.service.IslamicGLMetadataService islamicGLMetadataService;
+    private final com.cbs.notification.service.NotificationService notificationService;
+    private final com.cbs.mudarabah.repository.MudarabahAccountRepository mudarabahAccountRepository;
 
     @Value("${cbs.profit-distribution.auto-approve-enabled:false}")
     private boolean autoApproveEnabled;
@@ -349,10 +351,32 @@ public class ProfitDistributionRunService {
             // Notify customers about profit distribution
             for (PoolProfitAllocation allocation : distributed) {
                 try {
+                    Long customerId = null;
+                    String recipientName = null;
+                    if (allocation.getMudarabahAccountId() != null) {
+                        var mudarabahOpt = mudarabahAccountRepository.findById(allocation.getMudarabahAccountId());
+                        if (mudarabahOpt.isPresent() && mudarabahOpt.get().getAccount() != null
+                                && mudarabahOpt.get().getAccount().getCustomer() != null) {
+                            customerId = mudarabahOpt.get().getAccount().getCustomer().getId();
+                            recipientName = mudarabahOpt.get().getAccount().getCustomer().getDisplayName();
+                        }
+                    }
+                    notificationService.sendDirect(
+                            com.cbs.notification.entity.NotificationChannel.IN_APP,
+                            customerId != null ? customerId.toString() : String.valueOf(allocation.getAccountId()),
+                            recipientName,
+                            "Profit Distribution - " + run.getRunRef(),
+                            "Your profit share of " + allocation.getCustomerProfitShare().toPlainString()
+                                    + " " + run.getCurrencyCode()
+                                    + " has been distributed for period "
+                                    + run.getPeriodFrom() + " to " + run.getPeriodTo(),
+                            customerId,
+                            "PROFIT_DISTRIBUTION"
+                    );
                     log.info("Profit distributed to accountId={}, amount={}, runRef={}",
                             allocation.getAccountId(), allocation.getCustomerProfitShare(), run.getRunRef());
                 } catch (Exception notifEx) {
-                    log.warn("Failed to log distribution notification for accountId={}: {}",
+                    log.warn("Failed to send distribution notification for accountId={}: {}",
                             allocation.getAccountId(), notifEx.getMessage());
                 }
             }
@@ -532,14 +556,27 @@ public class ProfitDistributionRunService {
                     runId, failedReversals.size(), failedReversals);
         }
 
-        run.setStatus(DistributionRunStatus.REVERSED);
+        // Determine final status based on whether all reversals succeeded
+        if (failedReversals.isEmpty()) {
+            run.setStatus(DistributionRunStatus.REVERSED);
+        } else if (reversalRefs.isEmpty()) {
+            // All reversals failed, none succeeded
+            run.setStatus(DistributionRunStatus.PARTIALLY_REVERSED);
+        } else {
+            // Some succeeded, some failed
+            run.setStatus(DistributionRunStatus.PARTIALLY_REVERSED);
+        }
         run.setReversedAt(LocalDateTime.now());
         run.setReversedBy(authorisedBy);
-        run.setReversalReason(reason);
+        run.setReversalReason(reason + (failedReversals.isEmpty() ? ""
+                : " | PARTIAL FAILURE: " + failedReversals.size() + " reversals failed"));
         run.setReversalJournalRef(reversalRefs.isEmpty() ? null : String.join(",", reversalRefs));
         run = runRepo.save(run);
-        logStep(run.getId(), 11, "REVERSE_DISTRIBUTION", StepStatus.COMPLETED,
-                Map.of("reason", reason), Map.of("reversalRefs", reversalRefs));
+
+        StepStatus stepStatus = failedReversals.isEmpty() ? StepStatus.COMPLETED : StepStatus.FAILED;
+        logStep(run.getId(), 11, "REVERSE_DISTRIBUTION", stepStatus,
+                Map.of("reason", reason, "failedReversals", failedReversals),
+                Map.of("reversalRefs", reversalRefs, "status", run.getStatus().name()));
         return toResponse(run);
     }
 

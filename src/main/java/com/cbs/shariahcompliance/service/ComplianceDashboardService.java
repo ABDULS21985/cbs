@@ -112,19 +112,17 @@ public class ComplianceDashboardService {
                                 .map(this::calculateEvidenceCoverage)
                                 .orElse(BigDecimal.ZERO.setScale(4, RoundingMode.HALF_UP));
 
-        List<ShariahAuditFinding> openFindingsList = findingRepository.findByRemediationStatus(RemediationStatus.OPEN);
-        List<ShariahAuditFinding> inProgressFindingsList = findingRepository.findByRemediationStatus(RemediationStatus.IN_PROGRESS);
-        long openFindings = openFindingsList.size() + inProgressFindingsList.size();
+        long openFindings = findingRepository.countByRemediationStatus(RemediationStatus.OPEN)
+                + findingRepository.countByRemediationStatus(RemediationStatus.IN_PROGRESS);
 
-        List<ShariahAuditFinding> overdueList = findingRepository.findOverdueRemediations();
-        long overdueRemediations = overdueList.size();
+        long overdueRemediations = findingRepository.countOverdueRemediations();
                 Map<String, Long> findingsBySeverity = new LinkedHashMap<>();
                 for (FindingSeverity severity : FindingSeverity.values()) {
                         findingsBySeverity.put(severity.name(), countFindingsBySeverity(latestAuditOpt, severity));
                 }
                 Map<String, Long> findingsByStatus = new LinkedHashMap<>();
                 for (RemediationStatus status : RemediationStatus.values()) {
-                        findingsByStatus.put(status.name(), (long) findingRepository.findByRemediationStatus(status).size());
+                        findingsByStatus.put(status.name(), findingRepository.countByRemediationStatus(status));
                 }
                 long totalTrackedFindings = findingsByStatus.values().stream().mapToLong(Long::longValue).sum();
                 long remediatedOrAccepted = findingsByStatus.getOrDefault(RemediationStatus.REMEDIATED.name(), 0L)
@@ -238,7 +236,7 @@ public class ComplianceDashboardService {
                 if (criticalFindings > 0) {
                         actions.add("Address " + criticalFindings + " critical audit findings before new product or contract approvals.");
                 }
-                if (!"N/A".equals(latestAuditOpinion) && !"UNQUALIFIED".equalsIgnoreCase(latestAuditOpinion)) {
+                if (!"N/A".equals(latestAuditOpinion) && !"FULLY_COMPLIANT".equalsIgnoreCase(latestAuditOpinion)) {
                         actions.add("Prepare management and SSB follow-up for latest audit opinion: " + latestAuditOpinion + ".");
                 }
                 if (screeningPassRate.compareTo(new BigDecimal("95.0000")) < 0 && (failedScreenings > 0 || alertedScreenings > 0)) {

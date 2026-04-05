@@ -285,6 +285,7 @@ public final class MusharakahResponses {
         private BigDecimal bankLossShare;
         private BigDecimal customerLossShare;
         private String allocationMethod;
+        private Boolean requiresComplianceVerification;
         private Boolean verifiedByCompliance;
         private String verifiedBy;
         private LocalDateTime verifiedAt;

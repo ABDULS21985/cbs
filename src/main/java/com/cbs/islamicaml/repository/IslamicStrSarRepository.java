@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -32,6 +33,9 @@ public interface IslamicStrSarRepository extends JpaRepository<IslamicStrSar, Lo
     @Query("SELECT s FROM IslamicStrSar s WHERE s.status NOT IN (com.cbs.islamicaml.entity.SarStatus.FILED, com.cbs.islamicaml.entity.SarStatus.ACKNOWLEDGED, com.cbs.islamicaml.entity.SarStatus.CLOSED) AND s.filingDeadline < CURRENT_DATE")
     List<IslamicStrSar> findBreachingDeadline();
 
+    @Query("SELECT COUNT(s) FROM IslamicStrSar s WHERE s.status NOT IN (com.cbs.islamicaml.entity.SarStatus.FILED, com.cbs.islamicaml.entity.SarStatus.ACKNOWLEDGED, com.cbs.islamicaml.entity.SarStatus.CLOSED) AND s.filingDeadline < CURRENT_DATE")
+    long countBreachingDeadline();
+
     long countByStatus(SarStatus status);
 
     long countByJurisdiction(SarJurisdiction jurisdiction);
@@ -46,4 +50,13 @@ public interface IslamicStrSarRepository extends JpaRepository<IslamicStrSar, Lo
     @Query("SELECT COUNT(s) FROM IslamicStrSar s WHERE s.jurisdiction = :jurisdiction AND s.createdAt >= :from AND s.createdAt < :to")
     long countByJurisdictionAndCreatedAtBetween(@Param("jurisdiction") SarJurisdiction jurisdiction,
                                                 @Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("SELECT COUNT(s) FROM IslamicStrSar s WHERE s.deadlineBreach = true AND s.createdAt >= :from AND s.createdAt < :to")
+    long countDeadlineBreachesBetween(@Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("SELECT COUNT(s) FROM IslamicStrSar s WHERE s.status IN (com.cbs.islamicaml.entity.SarStatus.FILED, com.cbs.islamicaml.entity.SarStatus.ACKNOWLEDGED, com.cbs.islamicaml.entity.SarStatus.CLOSED) AND s.createdAt >= :from AND s.createdAt < :to")
+    long countFiledBetween(@Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("SELECT AVG(DATEDIFF(DAY, s.preparedAt, s.filedAt)) FROM IslamicStrSar s WHERE s.filedAt IS NOT NULL AND s.preparedAt IS NOT NULL AND s.createdAt >= :from AND s.createdAt < :to")
+    BigDecimal averageFilingDaysBetween(@Param("from") Instant from, @Param("to") Instant to);
 }

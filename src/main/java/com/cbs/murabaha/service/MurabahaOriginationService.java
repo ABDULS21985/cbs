@@ -58,6 +58,7 @@ public class MurabahaOriginationService {
     private final DecisionTableEvaluator decisionTableEvaluator;
     private final CurrentTenantResolver currentTenantResolver;
     private final CurrentActorProvider actorProvider;
+    private final com.cbs.shariahcompliance.service.ShariahScreeningService shariahScreeningService;
 
     public MurabahaApplicationResponse createApplication(CreateMurabahaApplicationRequest request) {
         Customer customer = getActiveCustomer(request.getCustomerId());
@@ -276,9 +277,27 @@ public class MurabahaOriginationService {
                     + ". A new quote is required before converting to contract.", "SUPPLIER_QUOTE_EXPIRED");
         }
 
-        // AML/Sanctions screening check
+        // AML/Sanctions screening check — real integration, blocks on negative result
         log.info("AML/Sanctions screening initiated for customer {} before contract conversion for application {}",
                 application.getCustomerId(), application.getApplicationRef());
+        try {
+            var screeningResult = shariahScreeningService.screenPreExecution(
+                    com.cbs.shariahcompliance.dto.ShariahScreeningRequest.builder()
+                            .transactionRef(application.getApplicationRef() + "-AML")
+                            .transactionType("MURABAHA_CONTRACT_CONVERSION")
+                            .amount(application.getProposedSellingPrice())
+                            .currencyCode(application.getCurrencyCode())
+                            .contractRef(application.getApplicationRef())
+                            .contractTypeCode("MURABAHA")
+                            .customerId(application.getCustomerId())
+                            .build());
+            shariahScreeningService.ensureAllowed(screeningResult);
+        } catch (BusinessException e) {
+            log.warn("AML/Sanctions screening blocked contract conversion for application {}: {}",
+                    application.getApplicationRef(), e.getMessage());
+            throw new BusinessException("Contract conversion blocked by AML/Sanctions screening: " + e.getMessage(),
+                    "AML_SCREENING_BLOCKED");
+        }
 
         IslamicProductTemplate product = resolveActiveMurabahaProduct(application.getProductCode());
         BigDecimal costPrice = MurabahaSupport.money(application.getProposedCostPrice());

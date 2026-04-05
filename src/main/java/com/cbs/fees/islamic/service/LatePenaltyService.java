@@ -5,9 +5,10 @@ import com.cbs.account.entity.TransactionChannel;
 import com.cbs.account.entity.TransactionType;
 import com.cbs.account.repository.AccountRepository;
 import com.cbs.account.service.AccountPostingService;
-import com.cbs.common.audit.CurrentActorProvider;
 import com.cbs.common.exception.BusinessException;
 import com.cbs.common.exception.ResourceNotFoundException;
+import com.cbs.fees.entity.FeeChargeLog;
+import com.cbs.fees.repository.FeeChargeLogRepository;
 import com.cbs.fees.islamic.dto.IslamicFeeRequests;
 import com.cbs.fees.islamic.dto.IslamicFeeResponses;
 import com.cbs.fees.islamic.entity.IslamicFeeConfiguration;
@@ -30,13 +31,16 @@ import com.cbs.musharakah.entity.MusharakahRentalInstallment;
 import com.cbs.musharakah.repository.MusharakahBuyoutInstallmentRepository;
 import com.cbs.musharakah.repository.MusharakahContractRepository;
 import com.cbs.musharakah.repository.MusharakahRentalInstallmentRepository;
+import com.cbs.shariahcompliance.service.CharityFundService;
 import com.cbs.tenant.service.CurrentTenantResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -69,8 +73,9 @@ public class LatePenaltyService {
     private final AccountRepository accountRepository;
     private final AccountPostingService accountPostingService;
     private final com.cbs.gl.islamic.service.IslamicGLMetadataService islamicGLMetadataService;
-    private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
+    private final FeeChargeLogRepository feeChargeLogRepository;
+    private final CharityFundService charityFundService;
 
     public IslamicFeeResponses.LatePenaltyResult processLatePenalty(IslamicFeeResponses.LatePenaltyRequest request) {
         ContractContext contractContext = resolveContractContext(request.getContractTypeCode(), request.getContractId());
@@ -361,13 +366,31 @@ public class LatePenaltyService {
         if (!STATUS_CHARGED.equals(record.getStatus())) {
             throw new BusinessException("Only charged penalties can be reversed", "LATE_PENALTY_NOT_REVERSIBLE");
         }
+        if (!StringUtils.hasText(reason)) {
+            throw new BusinessException("Late penalty reversal reason is required", "LATE_PENALTY_REASON_REQUIRED");
+        }
+        if (!StringUtils.hasText(authorisedBy)) {
+            throw new BusinessException("Late penalty reversal requires authorisedBy", "LATE_PENALTY_AUTHORIZATION_REQUIRED");
+        }
+        if (StringUtils.hasText(record.getCreatedBy()) && record.getCreatedBy().equalsIgnoreCase(authorisedBy)) {
+            throw new BusinessException("Late penalty creator cannot authorise its reversal", "LATE_PENALTY_FOUR_EYES_VIOLATION");
+        }
+
+        BigDecimal penaltyAmount = IslamicFeeSupport.money(record.getPenaltyAmount());
+        BigDecimal outstandingAmount = IslamicFeeSupport.money(record.getOutstandingAmount());
+        if (outstandingAmount.compareTo(penaltyAmount) < 0) {
+            throw new BusinessException(
+                "Partially settled late penalties must be reversed via waiver or settlement adjustments",
+                "LATE_PENALTY_PARTIALLY_SETTLED");
+        }
+
         ContractContext context = resolveContractContext(record.getContractTypeCode(), record.getContractId());
         Account account = accountRepository.findById(context.accountId())
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", context.accountId()));
         var txn = accountPostingService.postCreditAgainstGl(
                 account,
                 TransactionType.ADJUSTMENT,
-                record.getPenaltyAmount(),
+            penaltyAmount,
                 "Late penalty reversal",
                 TransactionChannel.SYSTEM,
                 record.getContractRef() + "-LATE-REV",
@@ -375,7 +398,7 @@ public class LatePenaltyService {
                         islamicGLMetadataService.resolveAccountByCategory(
                                 com.cbs.gl.entity.IslamicAccountCategory.CHARITY_FUND, account.getCurrencyCode()),
                         AccountPostingService.EntrySide.DEBIT,
-                        record.getPenaltyAmount(),
+                penaltyAmount,
                         account.getCurrencyCode(),
                         BigDecimal.ONE,
                         "Late penalty charity reversal",
@@ -385,16 +408,27 @@ public class LatePenaltyService {
                 "ISLAMIC_FEE_ENGINE",
                 record.getContractRef() + "-LATE-REV"
         );
+            String reversalJournalRef = txn.getJournal() != null ? txn.getJournal().getJournalNumber() : null;
+
+            if (record.getCharityFundEntryId() != null) {
+                charityFundService.recordReversal(record.getCharityFundEntryId(), penaltyAmount, reversalJournalRef,
+                    "Late penalty reversal: " + reason);
+            }
+            if (record.getFeeChargeLogId() != null) {
+                feeChargeLogRepository.findById(record.getFeeChargeLogId()).ifPresent(chargeLog ->
+                    updateFeeChargeLogForReversal(chargeLog, penaltyAmount, authorisedBy, reason, reversalJournalRef));
+            }
+
         record.setStatus(STATUS_REVERSED);
         record.setOutstandingAmount(BigDecimal.ZERO.setScale(2));
         record.setSettledAt(IslamicFeeSupport.instantNow());
         record.setReversedAt(IslamicFeeSupport.instantNow());
         record.setReversalReason(reason);
-        record.setReversalJournalRef(txn.getJournal() != null ? txn.getJournal().getJournalNumber() : null);
+            record.setReversalJournalRef(reversalJournalRef);
         latePenaltyRecordRepository.save(record);
         updateInstallmentPenaltyState(record.getContractTypeCode(), record.getContractId(), record.getInstallmentId(),
-                record.getPenaltyAmount().negate(), record.getReversalJournalRef());
-        updateContractTotals(record.getContractTypeCode(), record.getContractId(), record.getPenaltyAmount().negate());
+                penaltyAmount.negate(), record.getReversalJournalRef());
+            updateContractTotals(record.getContractTypeCode(), record.getContractId(), penaltyAmount.negate());
     }
 
     public void applyWaiverToFeeCharge(Long feeChargeLogId, BigDecimal waivedAmount, String waiverRef) {
@@ -496,7 +530,7 @@ public class LatePenaltyService {
         charged.forEach(record -> byType.merge(record.getContractTypeCode(), record.getPenaltyAmount(), BigDecimal::add));
         BigDecimal average = charged.isEmpty()
                 ? BigDecimal.ZERO
-                : total.divide(BigDecimal.valueOf(charged.size()), 2, BigDecimal.ROUND_HALF_UP);
+            : total.divide(BigDecimal.valueOf(charged.size()), 2, RoundingMode.HALF_UP);
         return IslamicFeeResponses.LatePenaltySummary.builder()
                 .totalChargedToday(getTotalPenaltiesCharged(today, today))
                 .totalChargedMonthToDate(getTotalPenaltiesCharged(IslamicFeeSupport.monthStart(today), today))
@@ -654,6 +688,35 @@ public class LatePenaltyService {
             return note;
         }
         return existingNote + " | " + note;
+    }
+
+    private String appendReversalNote(String existingNote,
+                                      BigDecimal reversedAmount,
+                                      String authorisedBy,
+                                      String reason,
+                                      String journalRef) {
+        String note = "Reversed " + IslamicFeeSupport.money(reversedAmount)
+                + " by " + authorisedBy
+                + (journalRef != null && !journalRef.isBlank() ? " via " + journalRef : "")
+                + (reason != null && !reason.isBlank() ? " reason: " + reason : "");
+        if (existingNote == null || existingNote.isBlank()) {
+            return note;
+        }
+        return existingNote + " | " + note;
+    }
+
+    private void updateFeeChargeLogForReversal(FeeChargeLog chargeLog,
+                                               BigDecimal reversedAmount,
+                                               String authorisedBy,
+                                               String reason,
+                                               String journalRef) {
+        chargeLog.setReceivableBalance(BigDecimal.ZERO.setScale(2));
+        chargeLog.setWasWaived(true);
+        chargeLog.setWaivedBy(authorisedBy);
+        chargeLog.setWaiverReason(reason);
+        chargeLog.setStatus(STATUS_REVERSED);
+        chargeLog.setNotes(appendReversalNote(chargeLog.getNotes(), reversedAmount, authorisedBy, reason, journalRef));
+        feeChargeLogRepository.save(chargeLog);
     }
 
     private record ContractIdentity(String contractTypeCode, String contractRef) {

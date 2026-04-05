@@ -2,7 +2,11 @@ package com.cbs.murabaha.repository;
 
 import com.cbs.murabaha.entity.MurabahaDomainEnums;
 import com.cbs.murabaha.entity.MurabahaInstallment;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -25,8 +29,16 @@ public interface MurabahaInstallmentRepository extends JpaRepository<MurabahaIns
             Collection<MurabahaDomainEnums.InstallmentStatus> statuses
     );
 
+    @Lock(LockModeType.OPTIMISTIC_FORCE_INCREMENT)
+    @Query("SELECT i FROM MurabahaInstallment i WHERE i.contractId = :contractId AND i.status IN :statuses ORDER BY i.installmentNumber ASC")
+    List<MurabahaInstallment> findUnpaidWithLock(
+            @Param("contractId") Long contractId,
+            @Param("statuses") Collection<MurabahaDomainEnums.InstallmentStatus> statuses);
+
     List<MurabahaInstallment> findByStatusInAndDueDateBefore(Collection<MurabahaDomainEnums.InstallmentStatus> statuses,
                                                              LocalDate dueDate);
 
     boolean existsByContractId(Long contractId);
+
+    boolean existsByTransactionRef(String transactionRef);
 }

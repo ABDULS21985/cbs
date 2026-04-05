@@ -97,7 +97,8 @@ public final class MusharakahDomainEnums {
         APPROVED,
         REJECTED,
         CANCELLED,
-        CONVERTED
+        CONVERTED,
+        EXPIRED
     }
 
     public enum TransferPricingMethod {

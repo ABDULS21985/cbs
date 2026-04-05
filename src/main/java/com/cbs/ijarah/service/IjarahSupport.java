@@ -14,6 +14,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 final class IjarahSupport {
@@ -87,9 +88,13 @@ final class IjarahSupport {
         return money(totalRentals.divide(BigDecimal.valueOf(totalPeriods), 8, RoundingMode.HALF_UP));
     }
 
+    /**
+     * Generates a cluster-safe unique reference using UUID instead of AtomicLong sequence.
+     * The AtomicLong parameter is retained for API compatibility but is no longer used.
+     */
     static String nextReference(String prefix, AtomicLong sequence) {
-        long next = Math.floorMod(sequence.incrementAndGet(), 1_000_000L);
-        return "%s-%d-%06d".formatted(prefix, LocalDate.now().getYear(), next);
+        return "%s-%d-%s".formatted(prefix, LocalDate.now().getYear(),
+                UUID.randomUUID().toString().substring(0, 8).toUpperCase());
     }
 
     static IjarahResponses.IjarahApplicationResponse toApplicationResponse(IjarahApplication application, List<String> warnings) {

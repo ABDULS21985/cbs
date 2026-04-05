@@ -143,6 +143,14 @@ public class PoolAssetManagementService {
                     "INVALID_ASSIGNMENT_STATUS");
         }
 
+                if (newPoolId == null || newPoolId.equals(original.getPoolId())) {
+                        throw new BusinessException("Transfer target pool must differ from the source pool", "INVALID_TRANSFER_TARGET");
+                }
+
+                if (transferAmount == null || transferAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                        throw new BusinessException("Transfer amount must be positive", "INVALID_TRANSFER_AMOUNT");
+                }
+
         if (transferAmount.compareTo(original.getAssignedAmount()) > 0) {
             throw new BusinessException(
                     "Transfer amount (" + transferAmount.toPlainString()
@@ -169,36 +177,55 @@ public class PoolAssetManagementService {
                     "POOL_CURRENCY_MISMATCH");
         }
 
+                if (sourcePool.getTenantId() != null && targetPool.getTenantId() != null
+                                && !sourcePool.getTenantId().equals(targetPool.getTenantId())) {
+                        throw new BusinessException("Pool asset transfers cannot cross tenant boundaries", "CROSS_TENANT_TRANSFER");
+                }
+
+                BigDecimal transferredOutstanding = determineTransferredOutstanding(original, transferAmount);
+                BigDecimal remainingOutstanding = scaleAmount(original.getCurrentOutstanding().subtract(transferredOutstanding).max(BigDecimal.ZERO));
+                PoolAssetAssignment existingTargetAssignment = findActiveAssignmentInPool(newPoolId, original.getAssetReferenceId());
+
         // Reduce or mark original assignment
         BigDecimal remaining = original.getAssignedAmount().subtract(transferAmount);
         if (remaining.compareTo(BigDecimal.ZERO) == 0) {
             original.setAssignmentStatus(AssignmentStatus.TRANSFERRED);
             original.setUnassignedDate(LocalDate.now());
+                        original.setCurrentOutstanding(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
         } else {
-            original.setAssignedAmount(remaining);
+                        original.setAssignedAmount(scaleAmount(remaining));
+                        original.setCurrentOutstanding(remainingOutstanding);
         }
         assetRepo.save(original);
 
-        // Create new assignment on target pool
-        PoolAssetAssignment newAssignment = PoolAssetAssignment.builder()
-                .poolId(newPoolId)
-                .assetType(original.getAssetType())
-                .assetReferenceId(original.getAssetReferenceId())
-                .assetReferenceCode(original.getAssetReferenceCode())
-                .assetDescription(original.getAssetDescription())
-                .assignedAmount(transferAmount)
-                .currentOutstanding(original.getCurrentOutstanding())
-                .currencyCode(original.getCurrencyCode())
-                .assignedDate(LocalDate.now())
-                .assignmentStatus(AssignmentStatus.ACTIVE)
-                .expectedReturnRate(original.getExpectedReturnRate())
-                .riskWeight(original.getRiskWeight())
-                .contractTypeCode(original.getContractTypeCode())
-                .maturityDate(original.getMaturityDate())
-                .tenantId(targetPool.getTenantId())
-                .build();
+                PoolAssetAssignment newAssignment;
+                if (existingTargetAssignment != null) {
+                        existingTargetAssignment.setAssignedAmount(scaleAmount(existingTargetAssignment.getAssignedAmount().add(transferAmount)));
+                        existingTargetAssignment.setCurrentOutstanding(scaleAmount(existingTargetAssignment.getCurrentOutstanding().add(transferredOutstanding)));
+                        existingTargetAssignment.setLastIncomeDate(latestDate(existingTargetAssignment.getLastIncomeDate(), original.getLastIncomeDate()));
+                        newAssignment = assetRepo.save(existingTargetAssignment);
+                } else {
+                        newAssignment = PoolAssetAssignment.builder()
+                                        .poolId(newPoolId)
+                                        .assetType(original.getAssetType())
+                                        .assetReferenceId(original.getAssetReferenceId())
+                                        .assetReferenceCode(original.getAssetReferenceCode())
+                                        .assetDescription(original.getAssetDescription())
+                                        .assignedAmount(scaleAmount(transferAmount))
+                                        .currentOutstanding(transferredOutstanding)
+                                        .currencyCode(original.getCurrencyCode())
+                                        .assignedDate(LocalDate.now())
+                                        .assignmentStatus(AssignmentStatus.ACTIVE)
+                                        .expectedReturnRate(original.getExpectedReturnRate())
+                                        .riskWeight(original.getRiskWeight())
+                                        .contractTypeCode(original.getContractTypeCode())
+                                        .maturityDate(original.getMaturityDate())
+                                        .lastIncomeDate(original.getLastIncomeDate())
+                                        .tenantId(targetPool.getTenantId())
+                                        .build();
 
-        newAssignment = assetRepo.save(newAssignment);
+                        newAssignment = assetRepo.save(newAssignment);
+                }
         refreshPoolBalance(original.getPoolId());
         refreshPoolBalance(newPoolId);
 
@@ -321,6 +348,15 @@ public class PoolAssetManagementService {
             }
         }
 
+        // Currency validation: income currency must match pool currency
+        if (request.getCurrencyCode() != null && pool.getCurrencyCode() != null
+                && !request.getCurrencyCode().equalsIgnoreCase(pool.getCurrencyCode())) {
+            throw new BusinessException(
+                    "Income currency (" + request.getCurrencyCode()
+                            + ") does not match pool currency (" + pool.getCurrencyCode() + ")",
+                    "INCOME_CURRENCY_MISMATCH");
+        }
+
         IncomeType type = IncomeType.valueOf(request.getIncomeType());
         boolean isCharity = type == IncomeType.LATE_PAYMENT_CHARITY;
 
@@ -370,6 +406,15 @@ public class PoolAssetManagementService {
     public PoolExpenseRecordResponse recordExpense(Long poolId, RecordPoolExpenseRequest request) {
         InvestmentPool pool = findActivePool(poolId);
 
+        // Currency validation: expense currency must match pool currency
+        if (request.getCurrencyCode() != null && pool.getCurrencyCode() != null
+                && !request.getCurrencyCode().equalsIgnoreCase(pool.getCurrencyCode())) {
+            throw new BusinessException(
+                    "Expense currency (" + request.getCurrencyCode()
+                            + ") does not match pool currency (" + pool.getCurrencyCode() + ")",
+                    "EXPENSE_CURRENCY_MISMATCH");
+        }
+
         // Validate that expenseDate falls within the specified period
         if (request.getExpenseDate() != null && request.getPeriodFrom() != null && request.getPeriodTo() != null) {
             if (request.getExpenseDate().isBefore(request.getPeriodFrom())
@@ -387,6 +432,18 @@ public class PoolAssetManagementService {
                 ? ExpenseAllocationMethod.valueOf(request.getAllocationMethod())
                 : ExpenseAllocationMethod.DIRECT;
         BigDecimal amount = resolveExpenseAmount(poolId, request.getAmount(), request.getPeriodFrom(), request.getPeriodTo(), allocationMethod);
+
+        // Maker-checker warning for large expenses (exceeding 1% of pool balance)
+        BigDecimal poolBalance = pool.getTotalPoolBalance() != null ? pool.getTotalPoolBalance() : BigDecimal.ZERO;
+        if (poolBalance.compareTo(BigDecimal.ZERO) > 0 && amount != null) {
+            BigDecimal threshold = poolBalance.multiply(new BigDecimal("0.01"));
+            if (amount.compareTo(threshold) > 0) {
+                log.warn("AUDIT: Large expense recorded for pool {} - amount {} exceeds 1% of pool balance {}. "
+                        + "Expense type={}, recorder={}, description={}",
+                        pool.getPoolCode(), amount, poolBalance,
+                        expenseType, actorProvider.getCurrentActor(), request.getDescription());
+            }
+        }
 
         PoolExpenseRecord record = PoolExpenseRecord.builder()
                 .poolId(poolId)
@@ -565,6 +622,44 @@ public class PoolAssetManagementService {
             case DIRECT -> "Direct charge to pool";
         };
     }
+
+        private PoolAssetAssignment findActiveAssignmentInPool(Long poolId, Long assetReferenceId) {
+                if (assetReferenceId == null) {
+                        return null;
+                }
+                return assetRepo.findByAssetReferenceId(assetReferenceId).stream()
+                                .filter(assignment -> assignment.getAssignmentStatus() == AssignmentStatus.ACTIVE)
+                                .filter(assignment -> poolId.equals(assignment.getPoolId()))
+                                .findFirst()
+                                .orElse(null);
+        }
+
+        private BigDecimal determineTransferredOutstanding(PoolAssetAssignment assignment, BigDecimal transferAmount) {
+                BigDecimal assignedAmount = assignment.getAssignedAmount();
+                BigDecimal currentOutstanding = assignment.getCurrentOutstanding();
+                if (assignedAmount == null || assignedAmount.compareTo(BigDecimal.ZERO) <= 0 || currentOutstanding == null) {
+                        return scaleAmount(transferAmount);
+                }
+                if (transferAmount.compareTo(assignedAmount) == 0) {
+                        return scaleAmount(currentOutstanding);
+                }
+                return scaleAmount(currentOutstanding.multiply(transferAmount)
+                                .divide(assignedAmount, 8, RoundingMode.HALF_UP));
+        }
+
+        private BigDecimal scaleAmount(BigDecimal value) {
+                return value == null ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : value.setScale(2, RoundingMode.HALF_UP);
+        }
+
+        private LocalDate latestDate(LocalDate left, LocalDate right) {
+                if (left == null) {
+                        return right;
+                }
+                if (right == null) {
+                        return left;
+                }
+                return right.isAfter(left) ? right : left;
+        }
 
     private PoolAssetAssignmentResponse toAssetResponse(PoolAssetAssignment a) {
         return PoolAssetAssignmentResponse.builder()

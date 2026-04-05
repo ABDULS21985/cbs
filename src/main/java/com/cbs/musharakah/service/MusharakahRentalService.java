@@ -22,6 +22,7 @@ import com.cbs.musharakah.repository.MusharakahRentalInstallmentRepository;
 import com.cbs.profitdistribution.dto.RecordPoolIncomeRequest;
 import com.cbs.profitdistribution.service.PoolAssetManagementService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -55,6 +57,11 @@ public class MusharakahRentalService {
 
         List<MusharakahRentalInstallment> existing = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId);
         if (!existing.isEmpty()) {
+            boolean hasPaidInstallments = existing.stream().anyMatch(i ->
+                    "PAID".equals(i.getStatus().name()) || "PARTIAL".equals(i.getStatus().name()));
+            if (hasPaidInstallments) {
+                throw new BusinessException("MSH-SCHEDULE-001", "Cannot regenerate schedule: paid installments exist");
+            }
             installmentRepository.deleteAll(existing);
         }
 
@@ -115,7 +122,23 @@ public class MusharakahRentalService {
     }
 
     public MusharakahRentalInstallment getNextDueInstallment(Long contractId) {
-        refreshPastDueStatuses(getContract(contractId));
+        return installmentRepository.findFirstByContractIdAndStatusInOrderByInstallmentNumberAsc(
+                        contractId,
+                        List.of(
+                                MusharakahDomainEnums.InstallmentStatus.OVERDUE,
+                                MusharakahDomainEnums.InstallmentStatus.DUE,
+                                MusharakahDomainEnums.InstallmentStatus.PARTIAL,
+                                MusharakahDomainEnums.InstallmentStatus.SCHEDULED))
+                .orElse(null);
+    }
+
+    /**
+     * Read-only variant of getNextDueInstallment that does not trigger any
+     * write side-effects (e.g. status refresh). Safe for use in read-only
+     * transactional contexts such as summary queries.
+     */
+    @Transactional(readOnly = true)
+    public MusharakahRentalInstallment getNextDueInstallmentReadOnly(Long contractId) {
         return installmentRepository.findFirstByContractIdAndStatusInOrderByInstallmentNumberAsc(
                         contractId,
                         List.of(
@@ -127,7 +150,6 @@ public class MusharakahRentalService {
     }
 
     public List<MusharakahRentalInstallment> getOverdueInstallments(Long contractId) {
-        refreshPastDueStatuses(getContract(contractId));
         return installmentRepository.findByContractIdAndStatusInOrderByInstallmentNumberAsc(
                 contractId,
                 List.of(MusharakahDomainEnums.InstallmentStatus.OVERDUE));
@@ -233,6 +255,22 @@ public class MusharakahRentalService {
                         .notes("Musharakah rental income")
                         .build());
             }
+        }
+
+        // Handle overpayments - post excess to suspense account pending resolution
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("MUSHARAKAH")
+                    .txnType(IslamicTransactionType.RENTAL_PAYMENT)
+                    .accountId(contract.getAccountId())
+                    .amount(remaining)
+                    .valueDate(request.getPaymentDate())
+                    .reference(reference + "-OVERPAY")
+                    .narration("Overpayment suspense for contract " + contract.getContractRef())
+                    .additionalContext(Map.of("suspenseType", "OVERPAYMENT_SUSPENSE"))
+                    .build());
+            log.warn("Overpayment of {} detected on Musharakah contract {}. Posted to suspense account.",
+                    remaining, contract.getContractRef());
         }
 
         contract.setTotalRentalReceived(MusharakahSupport.money(MusharakahSupport.money(contract.getTotalRentalReceived()).add(totalRentalSettled)));
@@ -383,7 +421,7 @@ public class MusharakahRentalService {
                 .filter(i -> i.getStatus() == MusharakahDomainEnums.InstallmentStatus.OVERDUE)
                 .map(i -> MusharakahSupport.money(i.getRentalAmount().subtract(MusharakahSupport.money(i.getPaidAmount()))))
                 .reduce(MusharakahSupport.ZERO, BigDecimal::add);
-        MusharakahRentalInstallment nextDue = getNextDueInstallment(contractId);
+        MusharakahRentalInstallment nextDue = getNextDueInstallmentReadOnly(contractId);
         return MusharakahResponses.MusharakahRentalSummary.builder()
                 .contractId(contractId)
                 .totalExpected(totalExpected)
@@ -495,9 +533,16 @@ public class MusharakahRentalService {
             }
             if (!installment.getDueDate().isAfter(LocalDate.now())) {
                 long overdue = ChronoUnit.DAYS.between(installment.getDueDate(), LocalDate.now());
+                boolean installmentChanged = false;
                 if (overdue > (contract.getGracePeriodDays() != null ? contract.getGracePeriodDays() : 0)) {
-                    installment.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE);
-                    installment.setDaysOverdue((int) overdue);
+                    if (installment.getStatus() != MusharakahDomainEnums.InstallmentStatus.OVERDUE) {
+                        installment.setStatus(MusharakahDomainEnums.InstallmentStatus.OVERDUE);
+                        installmentChanged = true;
+                    }
+                    if (!Objects.equals(installment.getDaysOverdue(), (int) overdue)) {
+                        installment.setDaysOverdue((int) overdue);
+                        installmentChanged = true;
+                    }
                     if (MusharakahSupport.money(installment.getLatePenaltyAmount()).compareTo(BigDecimal.ZERO) == 0) {
                         IslamicFeeResponses.LatePenaltyResult penaltyResult = latePenaltyService.processLatePenalty(
                                 IslamicFeeResponses.LatePenaltyRequest.builder()
@@ -512,15 +557,21 @@ public class MusharakahRentalService {
                                         .build());
                         if (penaltyResult.isPenaltyCharged() && penaltyResult.getPenaltyAmount() != null) {
                             installment.setLatePenaltyAmount(MusharakahSupport.money(penaltyResult.getPenaltyAmount()));
+                            installmentChanged = true;
                         }
                     }
-                    contract.setStatus(MusharakahDomainEnums.ContractStatus.RENTAL_ARREARS);
-                    contractChanged = true;
+                    if (contract.getStatus() != MusharakahDomainEnums.ContractStatus.RENTAL_ARREARS) {
+                        contract.setStatus(MusharakahDomainEnums.ContractStatus.RENTAL_ARREARS);
+                        contractChanged = true;
+                    }
                 } else if (installment.getStatus() == MusharakahDomainEnums.InstallmentStatus.SCHEDULED) {
                     installment.setStatus(MusharakahDomainEnums.InstallmentStatus.DUE);
                     installment.setDaysOverdue(0);
+                    installmentChanged = true;
                 }
-                touchedInstallments.add(installment);
+                if (installmentChanged) {
+                    touchedInstallments.add(installment);
+                }
             }
         }
         if (!touchedInstallments.isEmpty()) {
@@ -554,9 +605,11 @@ public class MusharakahRentalService {
         if (journalRef == null) {
             return;
         }
-        installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId).stream()
+        List<MusharakahRentalInstallment> matched = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId).stream()
                 .filter(installment -> transactionRef.equals(installment.getTransactionRef()))
-                .forEach(installment -> installment.setJournalRef(journalRef));
+                .toList();
+        matched.forEach(installment -> installment.setJournalRef(journalRef));
+        installmentRepository.saveAll(matched);
     }
 
     private int nextOutstandingBuyoutIndex(List<MusharakahBuyoutInstallment> buyouts) {

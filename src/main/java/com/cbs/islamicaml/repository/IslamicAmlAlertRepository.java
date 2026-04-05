@@ -27,6 +27,9 @@ public interface IslamicAmlAlertRepository extends JpaRepository<IslamicAmlAlert
     @Query("SELECT a FROM IslamicAmlAlert a WHERE a.status IN (com.cbs.islamicaml.entity.IslamicAmlAlertStatus.NEW, com.cbs.islamicaml.entity.IslamicAmlAlertStatus.UNDER_INVESTIGATION) AND a.slaDeadline < CURRENT_TIMESTAMP")
     List<IslamicAmlAlert> findOverdueAlerts();
 
+    @Query("SELECT COUNT(a) FROM IslamicAmlAlert a WHERE a.status IN (com.cbs.islamicaml.entity.IslamicAmlAlertStatus.NEW, com.cbs.islamicaml.entity.IslamicAmlAlertStatus.UNDER_INVESTIGATION) AND a.slaDeadline < CURRENT_TIMESTAMP")
+    long countOverdueAlerts();
+
     long countByRuleCode(String ruleCode);
 
     @Query("SELECT COUNT(a) FROM IslamicAmlAlert a WHERE a.createdAt >= :from AND a.createdAt < :to")

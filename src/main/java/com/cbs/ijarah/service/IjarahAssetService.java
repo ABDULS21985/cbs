@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -223,11 +224,7 @@ public class IjarahAssetService {
                 BigDecimal annualRate = BigDecimal.valueOf(2).divide(usefulLifeYears, 8, RoundingMode.HALF_UP);
                 depreciation = IjarahSupport.money(nbv.multiply(annualRate).divide(BigDecimal.valueOf(12), 8, RoundingMode.HALF_UP));
             }
-            case UNITS_OF_PRODUCTION -> {
-                // TODO: Units of production depreciation requires actual usage data (e.g., km driven, hours used).
-                // Falling back to straight-line until usage tracking is implemented.
-                depreciation = IjarahSupport.money(asset.getMonthlyDepreciation());
-            }
+            case UNITS_OF_PRODUCTION -> depreciation = computeUnitsOfProductionDepreciation(asset, nbv, floor);
             default -> depreciation = IjarahSupport.money(asset.getMonthlyDepreciation());
         }
         if (nbv.subtract(depreciation).compareTo(floor) < 0) {
@@ -254,7 +251,14 @@ public class IjarahAssetService {
         assetRepository.findAll().stream()
                 .filter(asset -> asset.getStatus() == IjarahDomainEnums.AssetStatus.LEASED
                         || asset.getStatus() == IjarahDomainEnums.AssetStatus.OWNED_UNLEASED)
-                .forEach(asset -> processMonthlyDepreciation(asset.getId()));
+                .forEach(asset -> {
+                    try {
+                        processMonthlyDepreciation(asset.getId());
+                    } catch (Exception ex) {
+                        log.error("Failed to process depreciation for asset {} (id={}): {}",
+                                asset.getAssetRef(), asset.getId(), ex.getMessage(), ex);
+                    }
+                });
     }
 
     public IjarahAssetMaintenanceRecord recordMaintenance(Long assetId, IjarahRequests.MaintenanceRecordRequest request) {
@@ -404,6 +408,15 @@ public class IjarahAssetService {
                     contract.setStatus(IjarahDomainEnums.ContractStatus.TERMINATED_EARLY);
                     contract.setTerminatedAt(request.getDisposalDate());
                     contract.setTerminationReason("Asset disposed: " + request.getDisposalMethod());
+                    // Unassign from investment pool
+                    if (contract.getPoolAssetAssignmentId() != null) {
+                        try {
+                            poolAssetManagementService.unassignAssetFromPool(contract.getPoolAssetAssignmentId(), "IJARAH_ASSET_DISPOSAL");
+                        } catch (RuntimeException ex) {
+                            log.warn("Unable to unassign Ijarah asset {} from pool after disposal: {}",
+                                    contract.getPoolAssetAssignmentId(), ex.getMessage());
+                        }
+                    }
                     contractRepository.save(contract);
                 }
             });
@@ -457,5 +470,80 @@ public class IjarahAssetService {
         }
         return IjarahSupport.money(acquisitionCost.subtract(residualValue)
                 .divide(BigDecimal.valueOf(usefulLifeMonths), 8, RoundingMode.HALF_UP));
+    }
+
+    private BigDecimal computeUnitsOfProductionDepreciation(IjarahAsset asset, BigDecimal netBookValue, BigDecimal residualFloor) {
+        Map<String, Object> specification = asset.getDetailedSpecification() == null
+                ? new HashMap<>()
+                : new HashMap<>(asset.getDetailedSpecification());
+
+        BigDecimal totalExpectedUnits = firstDecimal(specification,
+                "totalExpectedUnits", "estimatedUsageUnits", "plannedTotalUnits");
+        if (totalExpectedUnits == null || totalExpectedUnits.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Units-of-production depreciation for asset " + asset.getAssetRef()
+                    + " requires 'totalExpectedUnits' in the asset specification but none was found. "
+                    + "Please provide usage data or switch to a different depreciation method.",
+                    "UOP_MISSING_TOTAL_UNITS");
+        }
+
+        BigDecimal unitsDepreciatedToDate = defaultDecimal(firstDecimal(specification,
+                "unitsDepreciatedToDate", "cumulativeUnitsDepreciated"));
+        BigDecimal unitsConsumedThisPeriod = firstDecimal(specification,
+                "unitsConsumedThisPeriod", "usageThisPeriod", "unitsUsedSinceLastDepreciation");
+        if (unitsConsumedThisPeriod == null || unitsConsumedThisPeriod.compareTo(BigDecimal.ZERO) <= 0) {
+            BigDecimal cumulativeUnitsConsumed = firstDecimal(specification,
+                    "unitsConsumedToDate", "cumulativeUnitsUsed", "usageToDate");
+            if (cumulativeUnitsConsumed != null) {
+                unitsConsumedThisPeriod = cumulativeUnitsConsumed.subtract(unitsDepreciatedToDate);
+            }
+        }
+
+        if (unitsConsumedThisPeriod == null || unitsConsumedThisPeriod.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Units-of-production depreciation for asset " + asset.getAssetRef()
+                    + " requires current-period usage data (e.g. 'unitsConsumedThisPeriod') in the asset specification "
+                    + "but none was found. Please record usage or switch to a different depreciation method.",
+                    "UOP_MISSING_USAGE_DATA");
+        }
+
+        BigDecimal remainingUnits = totalExpectedUnits.subtract(unitsDepreciatedToDate);
+        if (remainingUnits.compareTo(BigDecimal.ZERO) <= 0) {
+            return IjarahSupport.ZERO;
+        }
+
+        BigDecimal effectiveUnits = unitsConsumedThisPeriod.min(remainingUnits);
+        BigDecimal depreciableRemaining = netBookValue.subtract(residualFloor).max(BigDecimal.ZERO);
+        BigDecimal depreciation = IjarahSupport.money(depreciableRemaining.multiply(effectiveUnits)
+                .divide(remainingUnits, 8, RoundingMode.HALF_UP));
+
+        specification.put("unitsDepreciatedToDate", unitsDepreciatedToDate.add(effectiveUnits));
+        specification.put("lastDepreciationUnits", effectiveUnits);
+        specification.remove("unitsConsumedThisPeriod");
+        specification.remove("usageThisPeriod");
+        specification.remove("unitsUsedSinceLastDepreciation");
+        asset.setDetailedSpecification(specification);
+        return depreciation;
+    }
+
+    private BigDecimal firstDecimal(Map<String, Object> specification, String... keys) {
+        for (String key : keys) {
+            Object value = specification.get(key);
+            if (value instanceof BigDecimal decimal) {
+                return decimal;
+            }
+            if (value instanceof Number number) {
+                return BigDecimal.valueOf(number.doubleValue());
+            }
+            if (value instanceof String text && !text.isBlank()) {
+                try {
+                    return new BigDecimal(text.trim());
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal defaultDecimal(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
     }
 }

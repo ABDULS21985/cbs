@@ -1,9 +1,11 @@
 package com.cbs.islamicaml.service;
 
 import com.cbs.islamicaml.dto.*;
+import com.cbs.islamicaml.entity.CombinedScreeningAuditLog;
 import com.cbs.islamicaml.entity.CombinedScreeningOutcome;
 import com.cbs.islamicaml.entity.SanctionsOverallResult;
 import com.cbs.islamicaml.entity.SanctionsScreeningResult;
+import com.cbs.islamicaml.repository.CombinedScreeningAuditLogRepository;
 import com.cbs.islamicaml.repository.SanctionsScreeningResultRepository;
 import com.cbs.shariahcompliance.dto.ShariahScreeningRequest;
 import com.cbs.shariahcompliance.dto.ShariahScreeningResultResponse;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -41,6 +44,7 @@ public class CombinedEntityScreeningService {
     private final ShariahScreeningResultRepository shariahResultRepository;
     private final ShariahExclusionListRepository exclusionListRepository;
     private final ShariahExclusionListEntryRepository exclusionListEntryRepository;
+    private final CombinedScreeningAuditLogRepository combinedScreeningAuditLogRepository;
 
     // ===================== COMBINED ENTITY SCREENING =====================
 
@@ -120,11 +124,24 @@ public class CombinedEntityScreeningService {
                 .build();
 
         // 4. Persist combined screening result for audit trail
+        CombinedScreeningAuditLog auditLog = CombinedScreeningAuditLog.builder()
+                .entityName(request.getEntityName())
+                .outcome(outcome)
+                .shariahClear(shariahClear)
+                .sanctionsClear(sanctionsClear)
+                .shariahScreeningRef(shariahResult != null ? shariahResult.getScreeningRef() : "FAILED")
+                .sanctionsScreeningRef(sanctionsResult != null ? sanctionsResult.getScreeningRef() : "FAILED")
+                .actionRequired(actionRequired)
+                .screenedAt(LocalDateTime.now())
+                .build();
+        combinedScreeningAuditLogRepository.save(auditLog);
+
         log.info("AUDIT: Combined entity screening completed — entity={}, outcome={}, shariahClear={}, sanctionsClear={}, " +
-                        "shariahScreeningRef={}, sanctionsScreeningRef={}",
+                        "shariahScreeningRef={}, sanctionsScreeningRef={}, auditLogId={}",
                 request.getEntityName(), outcome, shariahClear, sanctionsClear,
                 shariahResult != null ? shariahResult.getScreeningRef() : "FAILED",
-                sanctionsResult != null ? sanctionsResult.getScreeningRef() : "FAILED");
+                sanctionsResult != null ? sanctionsResult.getScreeningRef() : "FAILED",
+                auditLog.getId());
 
         return result;
     }
@@ -165,8 +182,10 @@ public class CombinedEntityScreeningService {
     private List<EntitySource> collectShariahSources() {
         List<EntitySource> sources = new ArrayList<>();
 
-        List<ShariahScreeningResult> results = new ArrayList<>(shariahResultRepository.findByOverallResult(ScreeningOverallResult.FAIL));
-        results.addAll(shariahResultRepository.findByOverallResult(ScreeningOverallResult.ALERT));
+        // Limit to last 90 days for performance
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(90);
+        List<ShariahScreeningResult> results = new ArrayList<>(shariahResultRepository.findByOverallResultAndScreenedAtAfter(ScreeningOverallResult.FAIL, cutoff));
+        results.addAll(shariahResultRepository.findByOverallResultAndScreenedAtAfter(ScreeningOverallResult.ALERT, cutoff));
         for (ShariahScreeningResult result : results) {
             if (StringUtils.hasText(result.getCounterpartyName())) {
                 sources.add(new EntitySource(
@@ -199,9 +218,11 @@ public class CombinedEntityScreeningService {
 
     private List<EntitySource> collectSanctionsSources() {
         List<EntitySource> sources = new ArrayList<>();
+        // Limit to last 90 days for performance
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(90);
         List<SanctionsScreeningResult> allSanctionsHits = new ArrayList<>(sanctionsResultRepository
-                .findByOverallResult(SanctionsOverallResult.POTENTIAL_MATCH));
-        allSanctionsHits.addAll(sanctionsResultRepository.findByOverallResult(SanctionsOverallResult.CONFIRMED_MATCH));
+                .findByOverallResultAndScreeningTimestampAfter(SanctionsOverallResult.POTENTIAL_MATCH, cutoff));
+        allSanctionsHits.addAll(sanctionsResultRepository.findByOverallResultAndScreeningTimestampAfter(SanctionsOverallResult.CONFIRMED_MATCH, cutoff));
 
         for (SanctionsScreeningResult result : allSanctionsHits) {
             if (StringUtils.hasText(result.getEntityName())) {

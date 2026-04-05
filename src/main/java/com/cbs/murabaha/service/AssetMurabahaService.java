@@ -85,7 +85,7 @@ public class AssetMurabahaService {
     public AssetMurabahaPurchase issuePurchaseOrder(Long purchaseId, PurchaseOrderDetailsRequest details) {
         AssetMurabahaPurchase purchase = getPurchase(purchaseId);
         if (purchase.getPurchaseStatus() != MurabahaDomainEnums.AssetPurchaseStatus.QUOTE_RECEIVED
-                && purchase.getOverallStatus() != MurabahaDomainEnums.AssetPurchaseOverallStatus.QUOTE_PHASE) {
+                || purchase.getOverallStatus() != MurabahaDomainEnums.AssetPurchaseOverallStatus.QUOTE_PHASE) {
             throw new BusinessException("Purchase order can only be issued when status is QUOTE_RECEIVED. Current: "
                     + purchase.getPurchaseStatus(), "INVALID_PURCHASE_STATE");
         }

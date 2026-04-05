@@ -16,7 +16,10 @@ import com.cbs.ijarah.repository.IjarahGradualTransferUnitRepository;
 import com.cbs.ijarah.repository.IjarahRentalInstallmentRepository;
 import com.cbs.ijarah.repository.IjarahTransferMechanismRepository;
 import com.cbs.profitdistribution.service.PoolAssetManagementService;
+import com.cbs.shariahcompliance.dto.ShariahScreeningRequest;
+import com.cbs.shariahcompliance.service.ShariahScreeningService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional
 public class IjarahTransferService {
 
@@ -42,6 +46,7 @@ public class IjarahTransferService {
     private final IjarahAssetService assetService;
     private final IslamicPostingRuleService postingRuleService;
     private final PoolAssetManagementService poolAssetManagementService;
+    private final ShariahScreeningService shariahScreeningService;
 
     public IjarahTransferMechanism createTransferMechanism(Long contractId, IjarahRequests.CreateTransferMechanismRequest request) {
         IjarahContract contract = getContract(contractId);
@@ -129,6 +134,22 @@ public class IjarahTransferService {
                     "INVALID_TRANSFER_STATUS");
         }
         ensureNoOutstandingRentals(contract.getId());
+
+        // Shariah screening before transfer execution
+        var screening = shariahScreeningService.screenPreExecution(ShariahScreeningRequest.builder()
+                .transactionRef(mechanism.getTransferRef() + "-EXEC")
+                .transactionType("IJARAH_IMB_TRANSFER")
+                .amount(saleProceeds(mechanism))
+                .currencyCode(contract.getCurrencyCode())
+                .contractRef(contract.getContractRef())
+                .contractTypeCode("IJARAH")
+                .customerId(contract.getCustomerId())
+                .additionalContext(Map.of(
+                        "transferType", mechanism.getTransferType().name(),
+                        "isSeparateDocument", Boolean.TRUE.equals(mechanism.getIsSeparateDocument()),
+                        "allRentalsPaid", true))
+                .build());
+        shariahScreeningService.ensureAllowed(screening);
 
         var asset = assetService.findAsset(contract.getIjarahAssetId());
         BigDecimal nbv = IjarahSupport.money(asset.getNetBookValue());

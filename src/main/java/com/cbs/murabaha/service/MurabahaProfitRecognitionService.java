@@ -111,6 +111,13 @@ public class MurabahaProfitRecognitionService {
         if (profitPaid == null || profitPaid.compareTo(BigDecimal.ZERO) <= 0) {
             return;
         }
+        // Fix #13: Idempotency guard — if this journal ref was already used for recognition, skip
+        if (journalRef != null && contract.getLastProfitRecognitionRef() != null
+                && contract.getLastProfitRecognitionRef().equals(journalRef)) {
+            log.info("Profit recognition already recorded for contract {} with ref {} — skipping duplicate",
+                    contract.getContractRef(), journalRef);
+            return;
+        }
         BigDecimal capped = MurabahaSupport.money(profitPaid).min(contract.getUnrecognisedProfit());
 
         // Post GL journal for profit recognition on repayment
@@ -133,22 +140,45 @@ public class MurabahaProfitRecognitionService {
 
     public void recogniseProfitOnEarlySettlement(Long contractId, BigDecimal ibraAmount) {
         MurabahaContract contract = getContract(contractId);
-        if (ibraAmount == null || ibraAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            return;
+        BigDecimal ibra = MurabahaSupport.money(ibraAmount);
+        if (ibra.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException("Ibra amount cannot be negative", "INVALID_IBRA_AMOUNT");
         }
-        postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
-                .contractTypeCode("MURABAHA")
-                .txnType(IslamicTransactionType.EARLY_SETTLEMENT)
-                .accountId(contract.getAccountId())
-                .amount(MurabahaSupport.money(ibraAmount))
-                .profit(MurabahaSupport.money(ibraAmount))
-                .valueDate(LocalDate.now())
-                .reference(contract.getContractRef() + "-IBRA")
-                .build());
-        contract.setIbraAmount(MurabahaSupport.money(ibraAmount));
-        BigDecimal earnedPortion = MurabahaSupport.money(contract.getUnrecognisedProfit().subtract(ibraAmount).max(BigDecimal.ZERO));
+
+        BigDecimal unrecognisedBefore = MurabahaSupport.money(contract.getUnrecognisedProfit());
+        if (ibra.compareTo(unrecognisedBefore) > 0) {
+            throw new BusinessException("Ibra amount exceeds unrecognised profit", "IBRA_EXCEEDS_UNRECOGNISED");
+        }
+
+        BigDecimal earnedPortion = MurabahaSupport.money(unrecognisedBefore.subtract(ibra));
+        if (ibra.compareTo(BigDecimal.ZERO) > 0) {
+            postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("MURABAHA")
+                    .txnType(IslamicTransactionType.EARLY_SETTLEMENT)
+                    .accountId(contract.getAccountId())
+                    .amount(ibra)
+                    .profit(ibra)
+                    .valueDate(LocalDate.now())
+                    .reference(contract.getContractRef() + "-IBRA")
+                    .build());
+        }
+        if (earnedPortion.compareTo(BigDecimal.ZERO) > 0) {
+            var journal = postingRuleService.postIslamicTransaction(IslamicPostingRequest.builder()
+                    .contractTypeCode("MURABAHA")
+                    .txnType(IslamicTransactionType.PROFIT_RECOGNITION)
+                    .accountId(contract.getAccountId())
+                    .amount(earnedPortion)
+                    .profit(earnedPortion)
+                    .valueDate(LocalDate.now())
+                    .reference(contract.getContractRef() + "-PROF-EARLY")
+                    .build());
+            recordPoolIncome(contract, earnedPortion, LocalDate.now().withDayOfMonth(1), LocalDate.now(), journal.getJournalNumber());
+        }
+
+        contract.setIbraAmount(ibra);
         contract.setRecognisedProfit(MurabahaSupport.money(contract.getRecognisedProfit().add(earnedPortion)));
-        contract.setUnrecognisedProfit(MurabahaSupport.money(contract.getUnrecognisedProfit().subtract(ibraAmount).max(BigDecimal.ZERO)));
+        contract.setUnrecognisedProfit(MurabahaSupport.ZERO);
+        contract.setLastProfitRecognitionDate(LocalDate.now());
         contractRepository.save(contract);
     }
 

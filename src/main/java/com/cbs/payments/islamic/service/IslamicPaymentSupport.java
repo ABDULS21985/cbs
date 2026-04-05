@@ -38,6 +38,15 @@ public class IslamicPaymentSupport {
     private final BankDirectoryRepository bankDirectoryRepository;
     private final CurrentActorProvider actorProvider;
     private final CurrentTenantResolver tenantResolver;
+    private final org.springframework.beans.factory.ObjectProvider<PaymentShariahScreeningService> paymentShariahScreeningServiceProvider;
+
+    private PaymentShariahScreeningService paymentShariahScreeningService;
+    private PaymentShariahScreeningService getScreeningService() {
+        if (paymentShariahScreeningService == null) {
+            paymentShariahScreeningService = paymentShariahScreeningServiceProvider.getIfAvailable();
+        }
+        return paymentShariahScreeningService;
+    }
 
     public Account loadSourceAccount(Long accountId) {
         Account account = accountRepository.findByIdWithProduct(accountId)
@@ -207,6 +216,42 @@ public class IslamicPaymentSupport {
     public String uppercase(String value) {
         return value == null ? null : value.trim().toUpperCase(Locale.ROOT);
     }
+
+    public ProxyDirectoryEntry lookupProxyDirectory(IslamicPaymentDomainEnums.ProxyType proxyType, String proxyValue) {
+        // Delegate to account repository for proxy-based account resolution
+        String normalized = normalize(proxyValue);
+        return switch (proxyType) {
+            case MOBILE -> accountRepository.findByPhoneNumber(normalized)
+                    .map(acct -> new ProxyDirectoryEntry(acct.getAccountNumber(), acct.getBranchCode()))
+                    .orElse(null);
+            case EMAIL -> accountRepository.findByEmail(normalized)
+                    .map(acct -> new ProxyDirectoryEntry(acct.getAccountNumber(), acct.getBranchCode()))
+                    .orElse(null);
+            case NATIONAL_ID -> accountRepository.findByNationalId(normalized)
+                    .map(acct -> new ProxyDirectoryEntry(acct.getAccountNumber(), acct.getBranchCode()))
+                    .orElse(null);
+            case CR_NUMBER -> accountRepository.findByCrNumber(normalized)
+                    .map(acct -> new ProxyDirectoryEntry(acct.getAccountNumber(), acct.getBranchCode()))
+                    .orElse(null);
+            default -> null;
+        };
+    }
+
+    public com.cbs.payments.islamic.dto.IslamicPaymentResponses.PaymentScreeningResult screenPayment(
+            com.cbs.payments.entity.PaymentInstruction payment,
+            com.cbs.payments.islamic.entity.PaymentIslamicExtension extension) {
+        if (payment == null) return null;
+        try {
+            var svc = getScreeningService();
+            if (svc == null) return null;
+            return svc.screenPayment(payment.getId());
+        } catch (Exception e) {
+            log.error("Payment screening failed for payment {}: {}", payment.getId(), e.getMessage());
+            return null;
+        }
+    }
+
+    public record ProxyDirectoryEntry(String resolvedAccountNumber, String resolvedBankCode) {}
 
     public record SourceAccountProfile(
             boolean islamic,

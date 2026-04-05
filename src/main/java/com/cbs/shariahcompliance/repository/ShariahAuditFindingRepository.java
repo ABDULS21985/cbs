@@ -25,5 +25,10 @@ public interface ShariahAuditFindingRepository extends JpaRepository<ShariahAudi
 
     long countByAuditIdAndSeverity(@Param("auditId") Long auditId, @Param("severity") FindingSeverity severity);
 
+    long countByRemediationStatus(RemediationStatus remediationStatus);
+
+    @Query("SELECT COUNT(f) FROM ShariahAuditFinding f WHERE f.remediationStatus IN ('OPEN', 'IN_PROGRESS') AND f.remediationDueDate < CURRENT_DATE")
+    long countOverdueRemediations();
+
     Optional<ShariahAuditFinding> findByAuditIdAndSampleId(Long auditId, Long sampleId);
 }

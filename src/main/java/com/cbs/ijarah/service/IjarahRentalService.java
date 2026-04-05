@@ -28,9 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -47,8 +48,14 @@ public class IjarahRentalService {
     private final LatePenaltyService latePenaltyService;
     private final IjarahAssetMaintenanceRecordRepository maintenanceRecordRepository;
 
-    /** Tracks externalRefs already processed within a transaction to prevent duplicate payments. */
-    private static final Set<String> PROCESSED_REFS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** Tracks externalRefs already processed within a transaction to prevent duplicate payments. Bounded LRU cache to prevent unbounded memory growth. */
+    private static final Map<String, Boolean> PROCESSED_REFS = Collections.synchronizedMap(
+            new LinkedHashMap<String, Boolean>(10000, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+                    return size() > 10000;
+                }
+            });
 
     public List<IjarahRentalInstallment> generateRentalSchedule(Long contractId) {
         IjarahContract contract = getContract(contractId);
@@ -65,6 +72,13 @@ public class IjarahRentalService {
 
         List<IjarahRentalInstallment> existing = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId);
         if (!existing.isEmpty()) {
+            boolean hasPaidInstallments = existing.stream().anyMatch(i ->
+                    i.getStatus() == IjarahDomainEnums.RentalInstallmentStatus.PAID
+                            || i.getStatus() == IjarahDomainEnums.RentalInstallmentStatus.PARTIAL);
+            if (hasPaidInstallments) {
+                throw new BusinessException("IJARAH_SCHEDULE_HAS_PAYMENTS",
+                        "Cannot regenerate schedule with paid installments");
+            }
             installmentRepository.deleteAll(existing);
         }
 
@@ -146,7 +160,7 @@ public class IjarahRentalService {
         if (request.getExternalRef() != null) {
             boolean alreadyUsed = installmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId).stream()
                     .anyMatch(inst -> request.getExternalRef().equals(inst.getTransactionRef()));
-            if (alreadyUsed || !PROCESSED_REFS.add(request.getExternalRef())) {
+            if (alreadyUsed || PROCESSED_REFS.putIfAbsent(request.getExternalRef(), Boolean.TRUE) != null) {
                 throw new BusinessException("Duplicate payment detected for externalRef: " + request.getExternalRef(), "DUPLICATE_PAYMENT");
             }
         }
@@ -382,10 +396,10 @@ public class IjarahRentalService {
 
     @Transactional(readOnly = true)
     public List<IjarahContract> getContractsWithMaintenanceDue(int daysAhead) {
-        return contractRepository.findAll().stream()
-                .filter(contract -> contract.getNextMajorMaintenanceDueDate() != null)
-                .filter(contract -> !contract.getNextMajorMaintenanceDueDate().isAfter(LocalDate.now().plusDays(daysAhead)))
-                .toList();
+        // Use targeted repository query to avoid loading all contracts into memory.
+        // Only fetch contracts with a maintenance due date on or before the look-ahead window.
+        return contractRepository.findByNextMajorMaintenanceDueDateBetween(
+                LocalDate.now(), LocalDate.now().plusDays(daysAhead));
     }
 
     IjarahContract getContract(Long contractId) {

@@ -87,6 +87,13 @@ public class MurabahaContractService {
 
     public MurabahaContractResponse executeContract(Long contractId, String executedBy) {
         MurabahaContract contract = findContract(contractId);
+        // Fix #8: Four-eyes — executor must differ from contract creator
+        if (org.springframework.util.StringUtils.hasText(contract.getCreatedBy())
+                && contract.getCreatedBy().equalsIgnoreCase(executedBy)) {
+            throw new BusinessException(
+                    "Four-eyes principle: contract executor must differ from the contract creator",
+                    "FOUR_EYES_REQUIRED");
+        }
         if (!Boolean.TRUE.equals(contract.getOwnershipVerified())) {
             throw new BusinessException("Contract cannot be executed without verified ownership",
                     "OWNERSHIP_NOT_VERIFIED");
@@ -256,6 +263,9 @@ public class MurabahaContractService {
             } catch (Exception e) {
                 log.error("Failed to post impairment provision for contract {}: {}",
                         contract.getContractRef(), e.getMessage());
+                throw new BusinessException(
+                        "Cannot mark contract as defaulted: impairment GL posting failed — " + e.getMessage(),
+                        "IMPAIRMENT_GL_POSTING_FAILED");
             }
         }
 
@@ -341,13 +351,13 @@ public class MurabahaContractService {
 
         // Outstanding is the financed amount for active/executed/defaulted contracts
         // (a precise schedule-based sum would require loading each contract; use financedAmount as the DB-efficient proxy)
-        BigDecimal totalOutstanding = contractRepository.sumFinancedAmountByStatuses(activeStatuses);
+        BigDecimal totalOutstanding = java.util.Optional.ofNullable(contractRepository.sumFinancedAmountByStatuses(activeStatuses)).orElse(BigDecimal.ZERO);
 
-        BigDecimal totalDeferred = contractRepository.sumUnrecognisedProfitByStatuses(allReportingStatuses);
-        BigDecimal totalRecognised = contractRepository.sumRecognisedProfitByStatuses(allReportingStatuses);
-        BigDecimal totalProvision = contractRepository.sumImpairmentProvisionByStatuses(allReportingStatuses);
+        BigDecimal totalDeferred = java.util.Optional.ofNullable(contractRepository.sumUnrecognisedProfitByStatuses(allReportingStatuses)).orElse(BigDecimal.ZERO);
+        BigDecimal totalRecognised = java.util.Optional.ofNullable(contractRepository.sumRecognisedProfitByStatuses(allReportingStatuses)).orElse(BigDecimal.ZERO);
+        BigDecimal totalProvision = java.util.Optional.ofNullable(contractRepository.sumImpairmentProvisionByStatuses(allReportingStatuses)).orElse(BigDecimal.ZERO);
 
-        BigDecimal sumMarkup = contractRepository.sumMarkupRateByStatuses(allReportingStatuses);
+        BigDecimal sumMarkup = java.util.Optional.ofNullable(contractRepository.sumMarkupRateByStatuses(allReportingStatuses)).orElse(BigDecimal.ZERO);
         BigDecimal avgMarkup = totalContracts == 0
                 ? BigDecimal.ZERO
                 : sumMarkup.divide(BigDecimal.valueOf(totalContracts), 8, java.math.RoundingMode.HALF_UP);

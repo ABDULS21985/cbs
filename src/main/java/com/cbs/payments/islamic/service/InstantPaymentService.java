@@ -109,9 +109,40 @@ public class InstantPaymentService {
     public void processDeferredScreening(Long paymentId) {
         InstantPaymentExtension extension = extensionRepository.findByPaymentId(paymentId)
                 .orElseThrow(() -> new BusinessException("Instant payment extension not found", "INSTANT_PAYMENT_NOT_FOUND"));
-        extension.setDeferredScreeningResult(IslamicPaymentDomainEnums.DeferredScreeningResult.PASS);
+
+        if (extension.getDeferredScreeningResult() != IslamicPaymentDomainEnums.DeferredScreeningResult.PENDING) {
+            log.info("Deferred screening already completed for payment {} with result {}",
+                    paymentId, extension.getDeferredScreeningResult());
+            return;
+        }
+
+        PaymentIslamicExtension islamicExtension = paymentIslamicExtensionRepository.findByPaymentId(paymentId)
+                .orElse(null);
+        PaymentInstruction payment = paymentInstructionRepository.findById(paymentId).orElse(null);
+
+        IslamicPaymentDomainEnums.DeferredScreeningResult result;
+        try {
+            var screeningResult = paymentSupport.screenPayment(payment, islamicExtension);
+            boolean blocked = screeningResult != null
+                    && "BLOCK".equalsIgnoreCase(screeningResult.getRecommendedAction());
+            result = blocked
+                    ? IslamicPaymentDomainEnums.DeferredScreeningResult.FAIL
+                    : IslamicPaymentDomainEnums.DeferredScreeningResult.PASS;
+
+            if (blocked) {
+                log.warn("Deferred screening FAILED for payment {} — action: {}",
+                        paymentId, screeningResult.getRecommendedAction());
+            }
+        } catch (Exception e) {
+            log.error("Deferred screening error for payment {} — failing closed: {}", paymentId, e.getMessage());
+            result = IslamicPaymentDomainEnums.DeferredScreeningResult.FAIL;
+        }
+
+        extension.setDeferredScreeningResult(result);
         extension.setDeferredScreeningCompletedAt(LocalDateTime.now());
         extensionRepository.save(extension);
+
+        log.info("Deferred screening completed for payment {}: result={}", paymentId, result);
     }
 
     public void processDeferredScreeningBatch() {
@@ -122,18 +153,38 @@ public class InstantPaymentService {
     @Transactional(readOnly = true)
     public IslamicPaymentResponses.ProxyResolutionResult resolveProxy(IslamicPaymentDomainEnums.ProxyType proxyType,
                                                                       String proxyValue) {
-        String digits = proxyValue == null ? "" : proxyValue.replaceAll("\\D", "");
-        String resolvedAccount = digits.isEmpty() ? proxyValue : String.format("IPS%s", digits);
-        String bankCode = switch (proxyType) {
-            case MOBILE, EMAIL -> "IPS";
-            case NATIONAL_ID, CR_NUMBER, IBAN -> "BANK";
-        };
+        if (proxyValue == null || proxyValue.isBlank()) {
+            throw new BusinessException("Proxy value is required", "PROXY_VALUE_REQUIRED");
+        }
+
+        // IBAN proxy: validate format and resolve directly
+        if (proxyType == IslamicPaymentDomainEnums.ProxyType.IBAN) {
+            String normalized = proxyValue.replaceAll("\\s", "").toUpperCase();
+            if (normalized.length() < 15 || normalized.length() > 34) {
+                throw new BusinessException("Invalid IBAN format", "INVALID_IBAN");
+            }
+            String bankCode = normalized.length() >= 6 ? normalized.substring(4, 8) : "UNKNOWN";
+            return IslamicPaymentResponses.ProxyResolutionResult.builder()
+                    .proxyType(proxyType).proxyValue(proxyValue)
+                    .resolvedAccountNumber(normalized).resolvedBankCode(bankCode).found(true)
+                    .build();
+        }
+
+        // For non-IBAN proxy types, look up in the proxy directory
+        var proxyEntry = paymentSupport.lookupProxyDirectory(proxyType, proxyValue);
+        if (proxyEntry != null && proxyEntry.getResolvedAccountNumber() != null) {
+            return IslamicPaymentResponses.ProxyResolutionResult.builder()
+                    .proxyType(proxyType).proxyValue(proxyValue)
+                    .resolvedAccountNumber(proxyEntry.getResolvedAccountNumber())
+                    .resolvedBankCode(proxyEntry.getResolvedBankCode())
+                    .found(true)
+                    .build();
+        }
+
+        log.warn("Proxy resolution failed: type={}, value={} — not found in directory", proxyType, proxyValue);
         return IslamicPaymentResponses.ProxyResolutionResult.builder()
-                .proxyType(proxyType)
-                .proxyValue(proxyValue)
-                .resolvedAccountNumber(resolvedAccount)
-                .resolvedBankCode(bankCode)
-                .found(true)
+                .proxyType(proxyType).proxyValue(proxyValue)
+                .resolvedAccountNumber(null).resolvedBankCode(null).found(false)
                 .build();
     }
 

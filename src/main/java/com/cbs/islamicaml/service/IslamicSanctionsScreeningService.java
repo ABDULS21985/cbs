@@ -321,42 +321,23 @@ public class IslamicSanctionsScreeningService {
 
     @Transactional(readOnly = true)
     public SanctionsScreeningSummary getScreeningSummary(LocalDate from, LocalDate to) {
-        List<SanctionsScreeningResult> allResults = resultRepository.findAll();
+        LocalDateTime fromTimestamp = from != null ? from.atStartOfDay() : LocalDateTime.of(1970, 1, 1, 0, 0);
+        LocalDateTime toTimestamp = to != null ? to.plusDays(1).atStartOfDay() : LocalDateTime.of(9999, 12, 31, 23, 59, 59);
 
-        // Filter by date range
-        List<SanctionsScreeningResult> filtered = allResults.stream()
-                .filter(r -> {
-                    if (r.getScreeningTimestamp() == null) return false;
-                    LocalDate screenDate = r.getScreeningTimestamp().toLocalDate();
-                    boolean afterFrom = from == null || !screenDate.isBefore(from);
-                    boolean beforeTo = to == null || !screenDate.isAfter(to);
-                    return afterFrom && beforeTo;
-                })
-                .collect(Collectors.toList());
-
-        long total = filtered.size();
-        long clearCount = filtered.stream()
-                .filter(r -> r.getOverallResult() == SanctionsOverallResult.CLEAR).count();
-        long potentialMatches = filtered.stream()
-                .filter(r -> r.getOverallResult() == SanctionsOverallResult.POTENTIAL_MATCH).count();
-        long confirmedMatches = filtered.stream()
-                .filter(r -> r.getOverallResult() == SanctionsOverallResult.CONFIRMED_MATCH).count();
-        long pendingReview = filtered.stream()
-                .filter(r -> r.getDispositionStatus() == SanctionsDispositionStatus.PENDING_REVIEW).count();
+        long total = resultRepository.countByScreeningTimestampBetween(fromTimestamp, toTimestamp);
+        long clearCount = resultRepository.countByOverallResultAndScreeningTimestampBetween(
+                SanctionsOverallResult.CLEAR, fromTimestamp, toTimestamp);
+        long potentialMatches = resultRepository.countByOverallResultAndScreeningTimestampBetween(
+                SanctionsOverallResult.POTENTIAL_MATCH, fromTimestamp, toTimestamp);
+        long confirmedMatches = resultRepository.countByOverallResultAndScreeningTimestampBetween(
+                SanctionsOverallResult.CONFIRMED_MATCH, fromTimestamp, toTimestamp);
+        long pendingReview = resultRepository.countByDispositionStatusAndScreeningTimestampBetween(
+                SanctionsDispositionStatus.PENDING_REVIEW, fromTimestamp, toTimestamp);
 
         BigDecimal clearRate = total > 0
                 ? BigDecimal.valueOf(clearCount).multiply(BigDecimal.valueOf(100))
                     .divide(BigDecimal.valueOf(total), 4, RoundingMode.HALF_UP)
                 : BigDecimal.ZERO;
-
-        Map<String, Long> matchesByList = new LinkedHashMap<>();
-        for (SanctionsScreeningResult r : filtered) {
-            if (r.getListsScreened() != null && r.getOverallResult() != SanctionsOverallResult.CLEAR) {
-                for (String listCode : r.getListsScreened()) {
-                    matchesByList.merge(listCode, 1L, Long::sum);
-                }
-            }
-        }
 
         return SanctionsScreeningSummary.builder()
                 .totalScreenings(total)
@@ -365,7 +346,7 @@ public class IslamicSanctionsScreeningService {
                 .confirmedMatches(confirmedMatches)
                 .pendingReview(pendingReview)
                 .clearRate(clearRate)
-                .matchesByList(matchesByList)
+                .matchesByList(new LinkedHashMap<>())
                 .build();
     }
 

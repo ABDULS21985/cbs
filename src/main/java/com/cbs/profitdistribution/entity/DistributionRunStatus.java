@@ -14,5 +14,6 @@ public enum DistributionRunStatus {
     SSB_WAIVED,
     COMPLETED,
     FAILED,
-    REVERSED
+    REVERSED,
+    PARTIALLY_REVERSED
 }

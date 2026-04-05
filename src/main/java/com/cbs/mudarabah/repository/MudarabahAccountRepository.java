@@ -54,6 +54,15 @@ public interface MudarabahAccountRepository extends JpaRepository<MudarabahAccou
     @Query("SELECT COALESCE(AVG(m.profitSharingRatioCustomer), 0) FROM MudarabahAccount m")
     BigDecimal averagePsrCustomer();
 
+    @Query("SELECT COALESCE(MIN(m.profitSharingRatioCustomer), 0) FROM MudarabahAccount m")
+    BigDecimal minPsrCustomer();
+
+    @Query("SELECT COALESCE(MAX(m.profitSharingRatioCustomer), 0) FROM MudarabahAccount m")
+    BigDecimal maxPsrCustomer();
+
+    @Query("SELECT COUNT(m) FROM MudarabahAccount m")
+    long countAll();
+
     @Query(value = "SELECT COALESCE(SUM(wr.daily_product), 0) FROM cbs.pool_weightage_record wr " +
             "WHERE wr.pool_id = :poolId AND wr.account_id = :accountId " +
             "AND wr.record_date BETWEEN :periodStart AND :periodEnd", nativeQuery = true)

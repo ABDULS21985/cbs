@@ -40,7 +40,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -60,8 +60,7 @@ public class MudarabahAccountService {
     private static final String MUDARABAH_INVESTMENT_GL = "3100-MDR-001";
     private static final String CASH_GL = "1001-000-001";
 
-    // Contract reference counter (simple approach)
-    private static final AtomicLong CONTRACT_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    private final PoolWeightageService poolWeightageService;
 
     public MudarabahAccountResponse openMudarabahSavingsAccount(OpenMudarabahSavingsRequest request) {
         // Customer validation
@@ -120,7 +119,7 @@ public class MudarabahAccountService {
         account = accountRepository.save(account);
 
         // 6. Create MudarabahAccount extension
-        String contractRef = "MDR-SAV-" + LocalDate.now().getYear() + "-" + String.format("%06d", CONTRACT_SEQ.incrementAndGet());
+        String contractRef = "MDR-SAV-" + LocalDate.now().getYear() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
         MudarabahAccount mudarabahAccount = MudarabahAccount.builder()
                 .account(account)
@@ -249,6 +248,10 @@ public class MudarabahAccountService {
     }
 
     public MudarabahAccountResponse withdraw(Long accountId, MudarabahWithdrawalRequest request) {
+        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Withdrawal amount must be greater than zero", "INVALID_AMOUNT");
+        }
+
         MudarabahAccount ma = mudarabahAccountRepository.findByAccountId(accountId)
                 .orElseThrow(() -> new ResourceNotFoundException("Mudarabah account not found for accountId: " + accountId));
         Account account = ma.getAccount();
@@ -288,6 +291,11 @@ public class MudarabahAccountService {
                 "MUDARABAH",
                 ma.getContractReference()
         );
+
+        // Update pool participant weight (withdrawal affects pool weightage)
+        if (ma.getInvestmentPoolId() != null) {
+            ma.setCurrentWeight(calculateCurrentWeight(accountId));
+        }
 
         ma.setLastActivityDate(LocalDate.now());
         mudarabahAccountRepository.save(ma);
@@ -343,9 +351,11 @@ public class MudarabahAccountService {
         // Recalculate weightages for old pool (if it had one)
         if (oldPoolId != null) {
             log.info("Triggering weightage recalculation for old pool {}", oldPoolId);
+            poolWeightageService.recordDailyWeightages(oldPoolId, LocalDate.now());
         }
         // Recalculate weightages for new pool
         log.info("Triggering weightage recalculation for new pool {}", newPoolId);
+        poolWeightageService.recordDailyWeightages(newPoolId, LocalDate.now());
 
         log.info("AUDIT: Mudarabah account {} moved from pool {} to pool {}. Reason: {}. Actor: {}",
                 accountId, oldPoolId, newPoolId, reason, actorProvider.getCurrentActor());
@@ -431,7 +441,7 @@ public class MudarabahAccountService {
     }
 
     private String generateAccountNumber() {
-        return "MDR" + System.currentTimeMillis() % 10000000000L;
+        return "MDR" + UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
     }
 
     private MudarabahAccountResponse toResponse(MudarabahAccount ma) {

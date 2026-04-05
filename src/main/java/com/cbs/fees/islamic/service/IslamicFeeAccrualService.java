@@ -17,6 +17,7 @@ import com.cbs.fees.repository.FeeChargeLogRepository;
 import com.cbs.gl.service.GeneralLedgerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,8 +36,11 @@ import java.util.Map;
 @Transactional
 public class IslamicFeeAccrualService {
 
-    private static final String FEE_RECEIVABLE_GL = "1630-FEE-001";
-    private static final String DEFERRED_FEE_GL = "2400-FEE-001";
+    @Value("${islamic.fee.gl.receivable:1630-FEE-001}")
+    private String feeReceivableGl;
+
+    @Value("${islamic.fee.gl.deferred:2400-FEE-001}")
+    private String deferredFeeGl;
 
     private final IslamicFeeConfigurationRepository configRepository;
     private final FeeChargeLogRepository feeChargeLogRepository;
@@ -103,7 +107,7 @@ public class IslamicFeeAccrualService {
                         accrualDate,
                         actorProvider.getCurrentActor(),
                         List.of(
-                                new GeneralLedgerService.JournalLineRequest(FEE_RECEIVABLE_GL, calculation.getCalculatedAmount(), BigDecimal.ZERO,
+                                new GeneralLedgerService.JournalLineRequest(feeReceivableGl, calculation.getCalculatedAmount(), BigDecimal.ZERO,
                                         account.getCurrencyCode(), BigDecimal.ONE, "Fee receivable accrual", null, account.getBranchCode(), account.getId(),
                                         account.getCustomer() != null ? account.getCustomer().getId() : null),
                                 new GeneralLedgerService.JournalLineRequest(incomeGl, BigDecimal.ZERO, calculation.getCalculatedAmount(),
@@ -150,7 +154,7 @@ public class IslamicFeeAccrualService {
                 "Fee collection against receivable",
                 TransactionChannel.SYSTEM,
                 transactionRef,
-                FEE_RECEIVABLE_GL,
+                feeReceivableGl,
                 "ISLAMIC_FEE_ENGINE",
                 transactionRef
         );
@@ -180,7 +184,7 @@ public class IslamicFeeAccrualService {
                 List.of(
                         new GeneralLedgerService.JournalLineRequest(config.getIncomeGlAccount(), amount, BigDecimal.ZERO, chargeLog.getCurrencyCode(),
                                 BigDecimal.ONE, "Reverse immediate fee income", null, "HEAD", chargeLog.getAccountId(), chargeLog.getCustomerId()),
-                        new GeneralLedgerService.JournalLineRequest(DEFERRED_FEE_GL, BigDecimal.ZERO, amount, chargeLog.getCurrencyCode(),
+                        new GeneralLedgerService.JournalLineRequest(deferredFeeGl, BigDecimal.ZERO, amount, chargeLog.getCurrencyCode(),
                                 BigDecimal.ONE, "Deferred fee income", null, "HEAD", chargeLog.getAccountId(), chargeLog.getCustomerId())
                 )
         );
@@ -219,7 +223,7 @@ public class IslamicFeeAccrualService {
                     recognitionDate,
                     actorProvider.getCurrentActor(),
                     List.of(
-                            new GeneralLedgerService.JournalLineRequest(DEFERRED_FEE_GL, amount, BigDecimal.ZERO, chargeLog.getCurrencyCode(),
+                            new GeneralLedgerService.JournalLineRequest(deferredFeeGl, amount, BigDecimal.ZERO, chargeLog.getCurrencyCode(),
                                     BigDecimal.ONE, "Deferred fee release", null, "HEAD", chargeLog.getAccountId(), chargeLog.getCustomerId()),
                             new GeneralLedgerService.JournalLineRequest(config.getIncomeGlAccount(), BigDecimal.ZERO, amount, chargeLog.getCurrencyCode(),
                                     BigDecimal.ONE, "Fee income recognition", null, "HEAD", chargeLog.getAccountId(), chargeLog.getCustomerId())
@@ -333,7 +337,8 @@ public class IslamicFeeAccrualService {
 
     private boolean isDueForAccrual(IslamicFeeConfiguration config, LocalDate accrualDate) {
         return switch (config.getChargeFrequency()) {
-            case "MONTHLY" -> true;
+            case "MONTHLY" -> accrualDate.getDayOfMonth() >= 28
+                    || accrualDate.getDayOfMonth() == accrualDate.lengthOfMonth();
             case "QUARTERLY" -> accrualDate.getMonthValue() == 3
                     || accrualDate.getMonthValue() == 6
                     || accrualDate.getMonthValue() == 9

@@ -56,7 +56,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -77,7 +77,7 @@ public class MudarabahTermDepositService {
     private static final String MUDARABAH_INVESTMENT_GL = "3100-MDR-001";
     private static final String PROFIT_DISTRIBUTION_GL = "6100-000-001";
     private static final String BANK_MUDARIB_INCOME_GL = "4200-MDR-001";
-    private static final AtomicLong TD_SEQ = new AtomicLong(System.currentTimeMillis() % 100000);
+    // Removed AtomicLong TD_SEQ - using UUID-based generation for cluster safety
 
     public MudarabahTermDepositResponse createTermDeposit(CreateMudarabahTermDepositRequest request) {
         // Idempotency check: if an external reference is provided, check for duplicate
@@ -183,7 +183,7 @@ public class MudarabahTermDepositService {
             customer = customerRepository.findById(request.getCustomerId()).orElse(null);
         }
         Account tdAccount = Account.builder()
-                .accountNumber("MDRTD" + System.currentTimeMillis() % 10000000000L)
+                .accountNumber("MDRTD" + UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase())
                 .accountName("Mudarabah Term Deposit")
                 .currencyCode(request.getCurrencyCode())
                 .accountType(AccountType.INDIVIDUAL)
@@ -202,7 +202,7 @@ public class MudarabahTermDepositService {
         tdAccount = accountRepository.save(tdAccount);
 
         // 7. Create MudarabahAccount extension
-        String contractRef = "MDR-TD-" + LocalDate.now().getYear() + "-" + String.format("%06d", TD_SEQ.incrementAndGet());
+        String contractRef = "MDR-TD-" + LocalDate.now().getYear() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         MudarabahAccount mudarabahAccount = MudarabahAccount.builder()
                 .account(tdAccount)
                 .contractReference(contractRef)
@@ -289,6 +289,12 @@ public class MudarabahTermDepositService {
 
         if (td.getStatus() != MudarabahTDStatus.ACTIVE) {
             throw new BusinessException("Term deposit is not active", "TD_NOT_ACTIVE");
+        }
+
+        // Validate maturity date has been reached
+        if (td.getMaturityDate() != null && td.getMaturityDate().isAfter(LocalDate.now())) {
+            throw new BusinessException("Term deposit has not reached maturity date: " + td.getMaturityDate()
+                    + ". Use processEarlyWithdrawal() for pre-maturity exit.", "NOT_YET_MATURED");
         }
 
         Account tdAccount = td.getMudarabahAccount().getAccount();

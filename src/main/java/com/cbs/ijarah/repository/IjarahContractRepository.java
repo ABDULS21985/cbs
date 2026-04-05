@@ -31,6 +31,8 @@ public interface IjarahContractRepository extends JpaRepository<IjarahContract, 
 
     List<IjarahContract> findByNextRentalReviewDateBetween(LocalDate from, LocalDate to);
 
+    List<IjarahContract> findByNextMajorMaintenanceDueDateBetween(LocalDate from, LocalDate to);
+
     List<IjarahContract> findByInvestmentPoolId(Long investmentPoolId);
 
     @Query("select coalesce(sum(c.assetAcquisitionCost), 0) from IjarahContract c where c.status = :status")

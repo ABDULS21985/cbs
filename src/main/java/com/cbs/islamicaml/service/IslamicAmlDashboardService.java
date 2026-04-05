@@ -2,6 +2,7 @@ package com.cbs.islamicaml.service;
 
 import com.cbs.islamicaml.dto.IslamicAmlDashboard;
 import com.cbs.islamicaml.entity.*;
+import com.cbs.islamicaml.repository.CombinedScreeningAuditLogRepository;
 import com.cbs.islamicaml.repository.IslamicAmlAlertRepository;
 import com.cbs.islamicaml.repository.IslamicStrSarRepository;
 import com.cbs.islamicaml.repository.SanctionsScreeningResultRepository;
@@ -32,6 +33,7 @@ public class IslamicAmlDashboardService {
     private final SanctionsScreeningResultRepository screeningResultRepository;
     private final IslamicStrSarRepository sarRepository;
     private final ShariahScreeningResultRepository shariahScreeningResultRepository;
+    private final CombinedScreeningAuditLogRepository combinedScreeningAuditLogRepository;
 
     public IslamicAmlDashboard getDashboard(LocalDate from, LocalDate to) {
         log.info("Building Islamic AML dashboard for period {} to {}", from, to);
@@ -67,7 +69,7 @@ public class IslamicAmlDashboardService {
         long escalated = alertRepository.countByStatusAndCreatedAtBetween(IslamicAmlAlertStatus.ESCALATED, fromInstant, toInstant);
 
         // Overdue alerts are time-sensitive, no additional date filter needed
-        long overdueAlerts = alertRepository.findOverdueAlerts().size();
+        long overdueAlerts = alertRepository.countOverdueAlerts();
 
         // Group by rule code using aggregate query
         Map<String, Long> alertsByCategory = new LinkedHashMap<>();
@@ -170,7 +172,7 @@ public class IslamicAmlDashboardService {
                 + sarRepository.countByStatusAndCreatedAtBetween(SarStatus.APPROVED_FOR_FILING, fromInstant, toInstant);
         long filedCount = sarRepository.countByStatusAndCreatedAtBetween(SarStatus.FILED, fromInstant, toInstant)
                 + sarRepository.countByStatusAndCreatedAtBetween(SarStatus.ACKNOWLEDGED, fromInstant, toInstant);
-        long deadlineBreaches = sarRepository.findBreachingDeadline().size();
+        long deadlineBreaches = sarRepository.countBreachingDeadline();
 
         Map<String, Long> byJurisdiction = new LinkedHashMap<>();
         for (SarJurisdiction jur : SarJurisdiction.values()) {
@@ -205,9 +207,8 @@ public class IslamicAmlDashboardService {
         long shariahClear = shariahScreeningResultRepository.countByOverallResult(ScreeningOverallResult.PASS);
         long clearCount = sanctionsClear + shariahClear;
 
-        // Dual blocked: entities that appear in both Shariah FAIL and sanctions MATCH results
-        // This is an approximation based on overlapping entity names
-        long dualBlocked = 0L;
+        // Dual blocked: query persisted combined screening audit logs for DUAL_BLOCKED outcomes
+        long dualBlocked = combinedScreeningAuditLogRepository.countByOutcome(CombinedScreeningOutcome.DUAL_BLOCKED);
 
         return IslamicAmlDashboard.CombinedScreeningWidget.builder()
                 .totalCombinedScreenings(totalScreenings)

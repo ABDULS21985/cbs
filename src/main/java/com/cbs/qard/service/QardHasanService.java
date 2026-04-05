@@ -499,6 +499,7 @@ public class QardHasanService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public List<QardHasanAccountResponse> getOverdueQardLoans() {
         List<QardRepaymentSchedule> overdueRows = qardRepaymentScheduleRepository
                 .findByStatusAndDueDateBefore(QardDomainEnums.ScheduleStatus.PENDING, LocalDate.now());
@@ -507,7 +508,26 @@ public class QardHasanService {
                 .distinct()
                 .toList();
 
-        // Update missedInstallments counter for each overdue account
+        return overdueAccountIds.stream()
+                .map(id -> qardHasanAccountRepository.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("QardHasanAccount", "id", id)))
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /**
+     * Updates the missedInstallments counter for all overdue Qard loan accounts.
+     * This is a write operation and should be called separately from the read-only
+     * {@link #getOverdueQardLoans()} method.
+     */
+    public void updateOverdueMissedInstallments() {
+        List<QardRepaymentSchedule> overdueRows = qardRepaymentScheduleRepository
+                .findByStatusAndDueDateBefore(QardDomainEnums.ScheduleStatus.PENDING, LocalDate.now());
+        List<Long> overdueAccountIds = overdueRows.stream()
+                .map(QardRepaymentSchedule::getQardAccountId)
+                .distinct()
+                .toList();
+
         for (Long qardAccountId : overdueAccountIds) {
             QardHasanAccount qardAccount = qardHasanAccountRepository.findById(qardAccountId).orElse(null);
             if (qardAccount != null) {
@@ -518,12 +538,6 @@ public class QardHasanService {
                 qardHasanAccountRepository.save(qardAccount);
             }
         }
-
-        return overdueAccountIds.stream()
-                .map(id -> qardHasanAccountRepository.findById(id)
-                        .orElseThrow(() -> new ResourceNotFoundException("QardHasanAccount", "id", id)))
-                .map(this::toResponse)
-                .toList();
     }
 
     @Transactional(readOnly = true)

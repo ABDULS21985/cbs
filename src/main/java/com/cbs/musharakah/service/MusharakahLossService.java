@@ -184,12 +184,25 @@ public class MusharakahLossService {
         event.setCustomerShareValueAfterLoss(ownership.getCustomerShareValue());
         event.setAssetValueAfterLoss(assetValueAfterLoss);
         event.setNetLossAfterInsurance(netLossAfterInsurance);
-        log.warn("Loss event {} compliance verification auto-stamped by system actor '{}' during postLoss. "
+        event.setRequiresComplianceVerification(true);
+        event.setVerifiedByCompliance(false);
+        log.warn("Loss event {} requires compliance verification. Auto-stamped by system actor '{}' during postLoss. "
                 + "Manual compliance review is recommended for loss events exceeding policy thresholds.",
                 event.getLossEventRef(), actorProvider.getCurrentActor());
-        event.setVerifiedByCompliance(false);
         event.setStatus(MusharakahDomainEnums.LossStatus.POSTED);
         lossEventRepository.save(event);
+    }
+
+    public MusharakahResponses.MusharakahLossEventResponse verifyLossCompliance(Long lossEventId, String verifiedBy) {
+        MusharakahLossEvent event = getLossEventEntity(lossEventId);
+        if (event.getStatus() != MusharakahDomainEnums.LossStatus.POSTED) {
+            throw new BusinessException("Loss event must be in POSTED status for compliance verification", "INVALID_LOSS_STATUS");
+        }
+        event.setVerifiedByCompliance(true);
+        event.setVerifiedBy(verifiedBy);
+        event.setVerifiedAt(LocalDateTime.now());
+        log.info("Loss event {} compliance verified by '{}'.", event.getLossEventRef(), verifiedBy);
+        return MusharakahSupport.toLossResponse(lossEventRepository.save(event));
     }
 
     public void processAssetTotalLoss(Long contractId, MusharakahRequests.AssetTotalLossRequest request) {
@@ -218,6 +231,13 @@ public class MusharakahLossService {
         event = lossEventRepository.save(event);
         allocateLoss(event.getId());
         postLoss(event.getId());
+
+        // Reload event after postLoss to check compliance verification state
+        event = getLossEventEntity(event.getId());
+        if (Boolean.TRUE.equals(event.getRequiresComplianceVerification()) && !Boolean.TRUE.equals(event.getVerifiedByCompliance())) {
+            log.warn("Loss event {} is proceeding with total loss processing without compliance verification. "
+                    + "Compliance review should be completed as soon as possible.", event.getLossEventRef());
+        }
 
         // Track insurance recovery if applicable
         if (Boolean.TRUE.equals(event.getInsured()) && event.getInsuranceRecoveryExpected() != null
@@ -251,6 +271,13 @@ public class MusharakahLossService {
         allocateLoss(event.getId());
         postLoss(event.getId());
 
+        // Reload event after postLoss to check compliance verification state
+        event = getLossEventEntity(event.getId());
+        if (Boolean.TRUE.equals(event.getRequiresComplianceVerification()) && !Boolean.TRUE.equals(event.getVerifiedByCompliance())) {
+            log.warn("Loss event {} is proceeding with impairment processing without compliance verification. "
+                    + "Compliance review should be completed as soon as possible.", event.getLossEventRef());
+        }
+
         // Recalculate remaining rental and buyout schedules after impairment
         rentalService.recalculateRemainingRentals(contractId);
         buyoutService.generateBuyoutSchedule(contractId);
@@ -281,6 +308,14 @@ public class MusharakahLossService {
         event = lossEventRepository.save(event);
         allocateLoss(event.getId());
         postLoss(event.getId());
+
+        // Reload event after postLoss to check compliance verification state
+        event = getLossEventEntity(event.getId());
+        if (Boolean.TRUE.equals(event.getRequiresComplianceVerification()) && !Boolean.TRUE.equals(event.getVerifiedByCompliance())) {
+            log.warn("Loss event {} is proceeding with forced sale processing without compliance verification. "
+                    + "Compliance review should be completed as soon as possible.", event.getLossEventRef());
+        }
+
         contract.setStatus(MusharakahDomainEnums.ContractStatus.DISSOLVED);
         contract.setDissolvedAt(request.getSaleDate());
         contractRepository.save(contract);
@@ -323,6 +358,7 @@ public class MusharakahLossService {
                 rental.setStatus(MusharakahDomainEnums.InstallmentStatus.CANCELLED);
             }
         }
+        rentalInstallmentRepository.saveAll(rentals);
         List<MusharakahBuyoutInstallment> buyouts = buyoutInstallmentRepository.findByContractIdOrderByInstallmentNumberAsc(contractId);
         for (MusharakahBuyoutInstallment buyout : buyouts) {
             if (buyout.getDueDate().isAfter(fromDate)
@@ -330,6 +366,7 @@ public class MusharakahLossService {
                 buyout.setStatus(MusharakahDomainEnums.InstallmentStatus.CANCELLED);
             }
         }
+        buyoutInstallmentRepository.saveAll(buyouts);
     }
 
     private MusharakahContract getActiveContract(Long contractId) {

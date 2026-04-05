@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 final class MurabahaSupport {
@@ -102,8 +103,9 @@ final class MurabahaSupport {
     }
 
     static String nextReference(String prefix, AtomicLong sequence) {
-        long next = Math.floorMod(sequence.incrementAndGet(), 1_000_000L);
-        return "%s-%d-%06d".formatted(prefix, LocalDate.now().getYear(), next);
+        // UUID-based generation for cluster safety — avoids collisions across JVM instances
+        String uuidSegment = UUID.randomUUID().toString().substring(0, 10).toUpperCase();
+        return "%s-%d-%s".formatted(prefix, LocalDate.now().getYear(), uuidSegment);
     }
 
     static BigDecimal toBigDecimal(Object value) {

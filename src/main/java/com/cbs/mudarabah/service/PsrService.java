@@ -188,8 +188,18 @@ public class PsrService {
         if (cr.getStatus() != PsrChangeStatus.CONSENT_GIVEN) {
             throw new BusinessException("Change request must have customer consent before approval", "CONSENT_REQUIRED");
         }
-        // Maker-checker: approver must differ from initiator
-        if (approvedBy != null && approvedBy.equals(cr.getInitiatedBy())) {
+        // Maker-checker: approver must differ from initiator.
+        // Use initiatedBy if available; fall back to JPA audit createdBy field.
+        String initiator = cr.getInitiatedBy();
+        if (initiator == null) {
+            // Fallback: use JPA audit createdBy if available
+            initiator = cr.getCreatedBy();
+            if (initiator != null) {
+                log.warn("PSR change request {} has null initiatedBy, using createdBy '{}' for maker-checker check",
+                        changeRequestId, initiator);
+            }
+        }
+        if (approvedBy != null && approvedBy.equals(initiator)) {
             throw new BusinessException("Approver must be different from the initiator (maker-checker principle)", "MAKER_CHECKER_VIOLATION");
         }
         cr.setStatus(PsrChangeStatus.APPROVED);
@@ -336,8 +346,9 @@ public class PsrService {
 
     @Transactional(readOnly = true)
     public PsrDistributionSummary getPsrDistributionSummary() {
-        List<MudarabahAccount> all = mudarabahAccountRepository.findAll();
-        if (all.isEmpty()) {
+        // Use aggregate queries instead of loading all accounts into memory
+        long totalAccounts = mudarabahAccountRepository.countAll();
+        if (totalAccounts == 0) {
             return PsrDistributionSummary.builder()
                     .totalAccounts(0)
                     .averageCustomerPsr(BigDecimal.ZERO)
@@ -345,19 +356,15 @@ public class PsrService {
                     .maxCustomerPsr(BigDecimal.ZERO)
                     .build();
         }
-        BigDecimal avg = all.stream().map(MudarabahAccount::getProfitSharingRatioCustomer)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(all.size()), 4, RoundingMode.HALF_UP);
-        BigDecimal min = all.stream().map(MudarabahAccount::getProfitSharingRatioCustomer)
-                .min(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
-        BigDecimal max = all.stream().map(MudarabahAccount::getProfitSharingRatioCustomer)
-                .max(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
+        BigDecimal avg = mudarabahAccountRepository.averagePsrCustomer();
+        BigDecimal min = mudarabahAccountRepository.minPsrCustomer();
+        BigDecimal max = mudarabahAccountRepository.maxPsrCustomer();
 
         return PsrDistributionSummary.builder()
-                .totalAccounts(all.size())
-                .averageCustomerPsr(avg)
-                .minCustomerPsr(min)
-                .maxCustomerPsr(max)
+                .totalAccounts(totalAccounts)
+                .averageCustomerPsr(avg != null ? avg : BigDecimal.ZERO)
+                .minCustomerPsr(min != null ? min : BigDecimal.ZERO)
+                .maxCustomerPsr(max != null ? max : BigDecimal.ZERO)
                 .build();
     }
 

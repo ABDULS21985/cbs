@@ -24,9 +24,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 
@@ -54,8 +55,14 @@ public class IjarahGLService {
     @Value("${ijarah.gl.depreciation-expense-code:5200-IJR-001}")
     private String depreciationExpenseGlCode;
 
-    /** Tracks accrual references to prevent double-posting within a period. */
-    private final Set<String> postedAccruals = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** Tracks accrual references to prevent double-posting within a period. Bounded LRU map to prevent unbounded memory growth. */
+    private final Map<String, Boolean> postedAccruals = Collections.synchronizedMap(
+            new LinkedHashMap<String, Boolean>(10000, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+                    return size() > 10000;
+                }
+            });
 
     public void postMonthlyDepreciation(Long assetId) {
         assetService.processMonthlyDepreciation(assetId);
@@ -70,7 +77,7 @@ public class IjarahGLService {
 
         // Double-accrual prevention: check if accrual already posted for this contract and period
         String accrualKey = contract.getContractRef() + "-ACCR-" + periodTo;
-        if (!postedAccruals.add(accrualKey)) {
+        if (postedAccruals.putIfAbsent(accrualKey, Boolean.TRUE) != null) {
             log.warn("Accrual already posted for contract {} period ending {}, skipping", contract.getContractRef(), periodTo);
             return;
         }
@@ -105,6 +112,8 @@ public class IjarahGLService {
 
     public void recogniseRentalIncomeBatch(LocalDate periodFrom, LocalDate periodTo) {
         contractRepository.findByStatus(IjarahDomainEnums.ContractStatus.ACTIVE)
+                .forEach(contract -> recogniseRentalIncome(contract.getId(), periodFrom, periodTo));
+        contractRepository.findByStatus(IjarahDomainEnums.ContractStatus.RENTAL_ARREARS)
                 .forEach(contract -> recogniseRentalIncome(contract.getId(), periodFrom, periodTo));
     }
 
@@ -146,9 +155,23 @@ public class IjarahGLService {
         BigDecimal rentalIncome = contracts.stream().map(contract -> IjarahSupport.money(contract.getTotalRentalsReceived())).reduce(IjarahSupport.ZERO, BigDecimal::add);
         BigDecimal maintenanceExpense = maintenanceRecordRepository.findAll().stream()
                 .filter(record -> record.getResponsibleParty() == IjarahDomainEnums.ResponsibleParty.BANK)
+                .filter(record -> record.getMaintenanceDate() != null && !record.getMaintenanceDate().isAfter(asOfDate))
                 .map(record -> IjarahSupport.money(record.getCost()))
                 .reduce(IjarahSupport.ZERO, BigDecimal::add);
-        BigDecimal insuranceExpense = assets.stream().map(asset -> IjarahSupport.money(asset.getInsurancePremiumAnnual())).reduce(IjarahSupport.ZERO, BigDecimal::add);
+        // Pro-rate insurance expense up to asOfDate based on each asset's acquisition date
+        BigDecimal insuranceExpense = assets.stream()
+                .filter(asset -> asset.getInsurancePremiumAnnual() != null
+                        && asset.getInsurancePremiumAnnual().compareTo(BigDecimal.ZERO) > 0
+                        && asset.getAcquisitionDate() != null)
+                .map(asset -> {
+                    BigDecimal annualPremium = IjarahSupport.money(asset.getInsurancePremiumAnnual());
+                    LocalDate startDate = asset.getAcquisitionDate();
+                    long daysActive = ChronoUnit.DAYS.between(startDate, asOfDate) + 1;
+                    if (daysActive <= 0) return IjarahSupport.ZERO;
+                    BigDecimal dailyRate = annualPremium.divide(BigDecimal.valueOf(365), 8, RoundingMode.HALF_UP);
+                    return IjarahSupport.money(dailyRate.multiply(BigDecimal.valueOf(daysActive)));
+                })
+                .reduce(IjarahSupport.ZERO, BigDecimal::add);
         BigDecimal netAssets = gross.subtract(depreciation).subtract(impairment);
         BigDecimal netIncome = rentalIncome.subtract(depreciation).subtract(maintenanceExpense).subtract(insuranceExpense);
 

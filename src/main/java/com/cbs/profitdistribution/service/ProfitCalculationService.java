@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.math.BigDecimal;
@@ -29,11 +30,13 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -48,7 +51,7 @@ public class ProfitCalculationService {
     private final PoolWeightageRecordRepository weightageRepo;
     private final CurrentActorProvider actorProvider;
 
-    private static final AtomicLong CALC_SEQ = new AtomicLong(0);
+        private static final Pattern NUMERIC_METADATA_PATTERN = Pattern.compile("(?i)(?:\\\"%s\\\"|%s)\\s*[:=]\\s*\\\"?(-?\\d+(?:\\.\\d+)?)\\\"?");
 
     // ── Pool Profit Calculation ────────────────────────────────────────
 
@@ -79,48 +82,19 @@ public class ProfitCalculationService {
             }
         }
 
-        // Multi-currency validation on income records
-        List<PoolIncomeRecord> allIncomes = incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(poolId, periodFrom, periodTo);
-        List<String> incomeCurrencies = allIncomes.stream()
-                .map(PoolIncomeRecord::getCurrencyCode)
-                .filter(java.util.Objects::nonNull)
-                .distinct()
-                .toList();
-        if (incomeCurrencies.size() > 1) {
-            throw new BusinessException(
-                    "Multiple currencies detected in income records: " + incomeCurrencies
-                            + ". All income must be in the pool currency (" + pool.getCurrencyCode() + ").",
-                    "MULTI_CURRENCY_INCOME");
-        }
-        if (incomeCurrencies.size() == 1 && !incomeCurrencies.getFirst().equals(pool.getCurrencyCode())) {
-            throw new BusinessException(
-                    "Income currency " + incomeCurrencies.getFirst()
-                            + " does not match pool currency " + pool.getCurrencyCode(),
-                    "INCOME_CURRENCY_MISMATCH");
-        }
-
         // 1. Aggregate income
         List<PoolIncomeRecord> incomes = incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(poolId, periodFrom, periodTo);
-        BigDecimal grossIncome = incomes.stream()
-                .map(PoolIncomeRecord::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal charityIncome = defaultAmount(incomeRepo.sumCharityIncome(poolId, periodFrom, periodTo));
+        IncomeNormalization incomeNormalization = normalizeIncomeRecords(incomes, pool.getCurrencyCode());
+        BigDecimal grossIncome = incomeNormalization.total();
+        BigDecimal charityIncome = incomeNormalization.charityTotal();
         BigDecimal distributableGross = grossIncome.subtract(charityIncome);
-
-        Map<String, BigDecimal> incomeBreakdown = incomes.stream()
-                .collect(Collectors.groupingBy(
-                        i -> i.getIncomeType().name(),
-                        Collectors.reducing(BigDecimal.ZERO, PoolIncomeRecord::getAmount, BigDecimal::add)));
+        Map<String, BigDecimal> incomeBreakdown = incomeNormalization.breakdown();
 
         // 2. Aggregate expenses
-        BigDecimal totalExpenses = defaultAmount(expenseRepo.sumExpensesByPoolAndPeriod(poolId, periodFrom, periodTo));
-
         List<PoolExpenseRecord> expenses = expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(poolId, periodFrom, periodTo);
-        Map<String, BigDecimal> expenseBreakdown = expenses.stream()
-                .collect(Collectors.groupingBy(
-                        e -> e.getExpenseType().name(),
-                        Collectors.reducing(BigDecimal.ZERO, PoolExpenseRecord::getAmount, BigDecimal::add)));
+        ExpenseNormalization expenseNormalization = normalizeExpenseRecords(expenses, pool.getCurrencyCode());
+        BigDecimal totalExpenses = expenseNormalization.total();
+        Map<String, BigDecimal> expenseBreakdown = expenseNormalization.breakdown();
 
         // 3. Net Distributable Profit
         BigDecimal ndp = distributableGross.subtract(totalExpenses);
@@ -129,6 +103,11 @@ public class ProfitCalculationService {
         // 4. Bank Mudarib share (only from profit, not from loss)
         BigDecimal bankShare = BigDecimal.ZERO;
         if (!isLoss && ndp.compareTo(BigDecimal.ZERO) > 0) {
+            if (pool.getProfitSharingRatioBank() == null) {
+                throw new BusinessException(
+                        "Pool profit sharing ratio (bank) is not configured for pool " + pool.getPoolCode(),
+                        "POOL_PSR_NOT_CONFIGURED");
+            }
             bankShare = ndp.multiply(pool.getProfitSharingRatioBank())
                     .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
         }
@@ -166,6 +145,7 @@ public class ProfitCalculationService {
         String calcRef = "PPC-" + pool.getPoolCode() + "-"
                 + periodFrom.toString().replace("-", "") + "-"
                 + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        String calculationNotes = buildCalculationNotes(incomeNormalization, expenseNormalization, pool.getCurrencyCode());
 
         PoolProfitCalculation calc = PoolProfitCalculation.builder()
                 .poolId(poolId)
@@ -191,6 +171,7 @@ public class ProfitCalculationService {
                 .calculationStatus(CalculationStatus.DRAFT)
                 .calculatedBy(actorProvider.getCurrentActor())
                 .calculatedAt(LocalDateTime.now())
+                .notes(calculationNotes)
                 .build();
 
         calc = calculationRepo.save(calc);
@@ -245,10 +226,10 @@ public class ProfitCalculationService {
                     "FOUR_EYES_VIOLATION");
         }
 
-        BigDecimal incomeSum = defaultAmount(incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(
-                calc.getPoolId(), calc.getPeriodFrom(), calc.getPeriodTo()).stream()
-                .map(PoolIncomeRecord::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        IncomeNormalization incomeNormalization = normalizeIncomeRecords(
+                incomeRepo.findByPoolIdAndPeriodFromAndPeriodTo(calc.getPoolId(), calc.getPeriodFrom(), calc.getPeriodTo()),
+                calc.getCurrencyCode());
+        BigDecimal incomeSum = incomeNormalization.total();
         if (incomeSum.compareTo(calc.getGrossIncome()) != 0) {
             throw new BusinessException(
                     "Income mismatch: income records total " + incomeSum.toPlainString()
@@ -256,10 +237,10 @@ public class ProfitCalculationService {
                     "INCOME_MISMATCH");
         }
 
-        BigDecimal expenseSum = defaultAmount(expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(
-                calc.getPoolId(), calc.getPeriodFrom(), calc.getPeriodTo()).stream()
-                .map(PoolExpenseRecord::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        ExpenseNormalization expenseNormalization = normalizeExpenseRecords(
+                expenseRepo.findByPoolIdAndPeriodFromAndPeriodTo(calc.getPoolId(), calc.getPeriodFrom(), calc.getPeriodTo()),
+                calc.getCurrencyCode());
+        BigDecimal expenseSum = expenseNormalization.total();
         if (expenseSum.compareTo(calc.getTotalExpenses()) != 0) {
             throw new BusinessException(
                     "Expense mismatch: expense records total " + expenseSum.toPlainString()
@@ -509,7 +490,154 @@ public class ProfitCalculationService {
                 .build();
     }
 
+        private IncomeNormalization normalizeIncomeRecords(List<PoolIncomeRecord> incomes, String poolCurrency) {
+                BigDecimal total = BigDecimal.ZERO;
+                BigDecimal charityTotal = BigDecimal.ZERO;
+                Map<String, BigDecimal> breakdown = new LinkedHashMap<>();
+                List<String> conversionNotes = new ArrayList<>();
+
+                for (PoolIncomeRecord income : incomes) {
+                        NormalizedAmount normalized = normalizeRecordAmount(
+                                        income.getAmount(),
+                                        income.getCurrencyCode(),
+                                        poolCurrency,
+                                        income.getNotes(),
+                                        null,
+                                        "income",
+                                        income.getId());
+                        total = total.add(normalized.amount());
+                        if (income.isCharityIncome()) {
+                                charityTotal = charityTotal.add(normalized.amount());
+                        }
+                        breakdown.merge(income.getIncomeType().name(), normalized.amount(), BigDecimal::add);
+                        if (normalized.converted() && normalized.note() != null) {
+                                conversionNotes.add(normalized.note());
+                        }
+                }
+
+                return new IncomeNormalization(total, charityTotal, breakdown, conversionNotes);
+        }
+
+        private ExpenseNormalization normalizeExpenseRecords(List<PoolExpenseRecord> expenses, String poolCurrency) {
+                BigDecimal total = BigDecimal.ZERO;
+                Map<String, BigDecimal> breakdown = new LinkedHashMap<>();
+                List<String> conversionNotes = new ArrayList<>();
+
+                for (PoolExpenseRecord expense : expenses) {
+                        NormalizedAmount normalized = normalizeRecordAmount(
+                                        expense.getAmount(),
+                                        expense.getCurrencyCode(),
+                                        poolCurrency,
+                                        expense.getAllocationBasis(),
+                                        expense.getDescription(),
+                                        "expense",
+                                        expense.getId());
+                        total = total.add(normalized.amount());
+                        breakdown.merge(expense.getExpenseType().name(), normalized.amount(), BigDecimal::add);
+                        if (normalized.converted() && normalized.note() != null) {
+                                conversionNotes.add(normalized.note());
+                        }
+                }
+
+                return new ExpenseNormalization(total, breakdown, conversionNotes);
+        }
+
+    private NormalizedAmount normalizeRecordAmount(BigDecimal amount,
+                                                   String recordCurrency,
+                                                   String poolCurrency,
+                                                   String primaryMetadata,
+                                                   String secondaryMetadata,
+                                                   String recordType,
+                                                   Long recordId) {
+        BigDecimal baseAmount = defaultAmount(amount);
+        if (!StringUtils.hasText(poolCurrency)) {
+            return new NormalizedAmount(baseAmount, false, null);
+        }
+
+        String effectivePoolCurrency = poolCurrency.trim().toUpperCase(Locale.ROOT);
+        String effectiveRecordCurrency = StringUtils.hasText(recordCurrency)
+                ? recordCurrency.trim().toUpperCase(Locale.ROOT)
+                : effectivePoolCurrency;
+        if (!StringUtils.hasText(effectiveRecordCurrency) || effectivePoolCurrency.equals(effectiveRecordCurrency)) {
+            return new NormalizedAmount(baseAmount, false, null);
+        }
+
+        String metadata = combineMetadata(primaryMetadata, secondaryMetadata);
+        BigDecimal poolCurrencyAmount = extractMetadataNumber(metadata,
+                "poolCurrencyAmount", "baseAmount", "amountInPoolCurrency");
+        if (poolCurrencyAmount != null) {
+            return new NormalizedAmount(poolCurrencyAmount.setScale(4, RoundingMode.HALF_UP), true,
+                    String.format("%s#%s %s->%s via poolCurrencyAmount", recordType, recordId, effectiveRecordCurrency, effectivePoolCurrency));
+        }
+
+        BigDecimal exchangeRate = extractMetadataNumber(metadata, "exchangeRate", "fxRate", "conversionRate");
+        if (exchangeRate != null && exchangeRate.compareTo(BigDecimal.ZERO) > 0) {
+            return new NormalizedAmount(baseAmount.multiply(exchangeRate).setScale(4, RoundingMode.HALF_UP), true,
+                    String.format("%s#%s %s->%s @ %s", recordType, recordId, effectiveRecordCurrency, effectivePoolCurrency, exchangeRate.toPlainString()));
+        }
+
+        throw new BusinessException(
+                "Pool " + recordType + " record " + recordId + " is in currency " + effectiveRecordCurrency
+                        + " but pool currency is " + effectivePoolCurrency
+                        + ". Provide poolCurrencyAmount or exchangeRate metadata in notes/allocation basis.",
+                "POOL_RECORD_FX_METADATA_REQUIRED");
+        }
+
+        private String buildCalculationNotes(IncomeNormalization incomeNormalization,
+                                                                                 ExpenseNormalization expenseNormalization,
+                                                                                 String poolCurrency) {
+                List<String> notes = new ArrayList<>();
+                if (!incomeNormalization.conversionNotes().isEmpty()) {
+                        notes.add("Income FX normalized to " + poolCurrency + ": " + String.join(", ", incomeNormalization.conversionNotes()));
+                }
+                if (!expenseNormalization.conversionNotes().isEmpty()) {
+                        notes.add("Expense FX normalized to " + poolCurrency + ": " + String.join(", ", expenseNormalization.conversionNotes()));
+                }
+                return notes.isEmpty() ? null : String.join(" | ", notes);
+        }
+
+        private String combineMetadata(String primaryMetadata, String secondaryMetadata) {
+                if (StringUtils.hasText(primaryMetadata) && StringUtils.hasText(secondaryMetadata)) {
+                        return primaryMetadata + " | " + secondaryMetadata;
+                }
+                if (StringUtils.hasText(primaryMetadata)) {
+                        return primaryMetadata;
+                }
+                return secondaryMetadata;
+        }
+
+        private BigDecimal extractMetadataNumber(String metadata, String... keys) {
+                if (!StringUtils.hasText(metadata)) {
+                        return null;
+                }
+                for (String key : keys) {
+                        Pattern pattern = Pattern.compile(NUMERIC_METADATA_PATTERN.pattern().formatted(key, key));
+                        Matcher matcher = pattern.matcher(metadata);
+                        if (matcher.find()) {
+                                try {
+                                        return new BigDecimal(matcher.group(1));
+                                } catch (NumberFormatException ignored) {
+                                }
+                        }
+                }
+                return null;
+        }
+
     private BigDecimal defaultAmount(BigDecimal value) {
         return value != null ? value : BigDecimal.ZERO;
     }
+
+        private record NormalizedAmount(BigDecimal amount, boolean converted, String note) {
+        }
+
+        private record IncomeNormalization(BigDecimal total,
+                                                                           BigDecimal charityTotal,
+                                                                           Map<String, BigDecimal> breakdown,
+                                                                           List<String> conversionNotes) {
+        }
+
+        private record ExpenseNormalization(BigDecimal total,
+                                                                                Map<String, BigDecimal> breakdown,
+                                                                                List<String> conversionNotes) {
+        }
 }
